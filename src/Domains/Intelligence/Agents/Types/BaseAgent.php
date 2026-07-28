@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\ChatHistory\RedisAgentChatHistory;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\SystemPrompt;
@@ -16,10 +17,7 @@ use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\ChatHistoryInterface;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\UserMessage;
-use NeuronAI\HttpClient\GuzzleHttpClient;
 use NeuronAI\Providers\AIProviderInterface;
-use NeuronAI\Providers\Anthropic\Anthropic;
-use NeuronAI\Providers\Gemini\Gemini;
 use NeuronAI\RAG\Document;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
 use NeuronAI\RAG\Embeddings\OpenAIEmbeddingsProvider;
@@ -57,12 +55,13 @@ class BaseAgent extends RAG
     #[Override]
     protected function provider(): AIProviderInterface
     {
-        // return an AI provider (Anthropic, OpenAI, Gemini, Ollama, etc.)
-        return new Gemini(
-            key: $this->app->get(ConfigurationEnum::GEMINI_KEY->value),
-            model: $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.5-flash-lite',
-            httpClient: new GuzzleHttpClient(timeout: 220, connectTimeout: 220),
-        );
+        if ($this->agent === null) {
+            throw new RuntimeException(
+                'Agent not set. Make sure to call setConfiguration() before invoking the agent.',
+            );
+        }
+
+        return AgentProviderService::resolve($this->agent);
     }
 
     #[Override]

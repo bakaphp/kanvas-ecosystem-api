@@ -67,7 +67,8 @@ class SendMessageToLeadAction
         ?string $title = null,
         bool $signature = true,
         ?Collection $files = null,
-        ?string $to = null
+        ?string $to = null,
+        ?array $cc = null
     ): array {
         if ($files !== null && $files->isNotEmpty()) {
             $this->processedFiles = $this->prepareFiles($files);
@@ -77,7 +78,7 @@ class SendMessageToLeadAction
         return match ($channel) {
             LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message, $to),
             LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage((string) $from, $message, $to),
-            LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title, $signature, $to),
+            LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title, $signature, $to, $cc),
             LeadCommunicationChannelEnum::VOICE->value => $this->sendVoiceMessage($message),
             default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
         };
@@ -498,7 +499,8 @@ class SendMessageToLeadAction
         string $message,
         ?string $title = null,
         bool $signature = true,
-        ?string $to = null
+        ?string $to = null,
+        ?array $cc = null
     ): array {
         $attachments = [];
 
@@ -534,6 +536,10 @@ class SendMessageToLeadAction
         );
         $notification->setFromUser($this->lead->user);
         $notification->setSubject($title ?? 'Message from ' . $this->lead->company->name);
+        $ccList = array_values(array_filter($cc ?? []));
+        if ($ccList !== []) {
+            $notification->setCc($ccList);
+        }
         $leadEmail = ($to !== null && $to !== '')
             ? $to
             : $this->lead->people->getEmails()->first()?->value;
@@ -545,6 +551,7 @@ class SendMessageToLeadAction
         return [
           'channel' => 'email',
           'to' => $leadEmail,
+          'cc' => $ccList,
           'template' => 'first-time-agent-engagement',
           'body_length' => strlen($message),
           'signature' => $signature,

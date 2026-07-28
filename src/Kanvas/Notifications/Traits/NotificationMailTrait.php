@@ -26,6 +26,10 @@ trait NotificationMailTrait
             ->to($toEmail)
             ->subject($this->subject ?? $this->getNotificationTitle() ?? $this->app->name . ' Notification');
 
+        if (! empty($this->cc)) {
+            $mailMessage->cc($this->cc);
+        }
+
         $this->applyAttachments($mailMessage);
 
         return $mailMessage;

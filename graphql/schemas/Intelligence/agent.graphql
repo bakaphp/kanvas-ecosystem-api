@@ -5,6 +5,7 @@ type AgentAi {
     creator: User @belongsTo(relation: "creator")
     type: agentType! @belongsTo
     model: AgentAiModel @belongsTo
+    llmConfig: AgentLlmConfig @belongsTo(relation: "llmConfig")
     companyTaskList: TaskList @belongsTo
     parent: AgentAi @belongsTo(relation: "parent")
     children: [AgentAi!]! @hasMany(relation: "children")
@@ -115,6 +116,7 @@ input AgentAiInput {
     name: String!
     user_id: ID
     agent_model_id: Int
+    agent_llm_config_id: ID
     description: String
     config: Mixed!
     role: Mixed!

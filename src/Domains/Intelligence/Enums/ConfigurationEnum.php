@@ -9,9 +9,12 @@ enum ConfigurationEnum: string
     case NAME = 'Intelligence';
     case GEMINI_KEY = 'kanvas-intelligence-gemini-key';
     case GEMINI_MODEL = 'kanvas-intelligence-gemini-model';
+    case AI_PROVIDER = 'kanvas-intelligence-ai-provider';
+    case AI_PROVIDER_BASE_URI = 'kanvas-intelligence-ai-provider-base-uri';
+    case AI_PROVIDER_KEY = 'kanvas-intelligence-ai-provider-key';
+    case AI_PROVIDER_MODEL = 'kanvas-intelligence-ai-provider-model';
     case OPEN_AI_EMBEDDINGS_KEY = 'kanvas-intelligence-openai-embeddings-key';
     case OPEN_AI_EMBEDDINGS_MODEL = 'kanvas-intelligence-openai-embeddings-model';
-    //PineconeVectorStore
     case PINECONE_API_KEY = 'kanvas-intelligence-pinecone-api-key';
     case PINECONE_INDEX_URL = 'kanvas-intelligence-pinecone-index-url';
     case ADK_BASE_URL = 'google_orchestrator_base_url';

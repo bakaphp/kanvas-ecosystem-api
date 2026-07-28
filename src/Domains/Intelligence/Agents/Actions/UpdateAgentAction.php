@@ -31,6 +31,7 @@ class UpdateAgentAction
             'description' => $this->agent->description,
             'config' => $this->agent->config,
             'agent_model_id' => $this->agent->agentModel?->id,
+            'agent_llm_config_id' => $this->agent->agentLlmConfig?->getId(),
             'company_task_list_id' => $this->agent->task?->id ?? null,
             'soul' => $this->agent->soul,
             'instructions' => $this->agent->instructions,

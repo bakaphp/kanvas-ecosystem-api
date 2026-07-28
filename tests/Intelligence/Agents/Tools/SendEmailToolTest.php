@@ -10,7 +10,9 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendEmailTool;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
@@ -243,5 +245,111 @@ class SendEmailToolTest extends TestCase
 
         $this->assertSame('error', $result['status']);
         Notification::assertNothingSent();
+    }
+
+    public function testSendEmailCopiesAnOtherContactOnTheLeadPerson(): void
+    {
+        Notification::fake();
+        $lead = $this->makeLead();
+        $lead->people->addEmail('prospect@example.com');
+        $lead->people->addEmail('spouse@example.com');
+
+        $result = new SendEmailTool()->__invoke(
+            lead_id: $lead->getId(),
+            subject: 'Your quote',
+            body: 'Here is the quote.',
+            cc: 'spouse@example.com',
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('prospect@example.com', $result['to']);
+        $this->assertSame(['spouse@example.com'], $result['cc']);
+        $this->assertSame([], $result['cc_rejected']);
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification): bool => $notification->getCc() === ['spouse@example.com']
+        );
+    }
+
+    public function testSendEmailCopiesAContactOnTheLeadOrganization(): void
+    {
+        Notification::fake();
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $lead = $this->makeLead();
+        $lead->people->addEmail('prospect@example.com');
+
+        $org = Organization::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => auth()->user()->getId(),
+            'name' => 'Latino Express',
+            'address' => '',
+            'total_employees' => 0,
+        ]);
+        $hrPerson = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['firstname' => 'Karla', 'lastname' => 'Feliz']);
+        $hrPerson->contacts()->delete();
+        $hrPerson->addEmail('hr@example.com');
+        $hrPerson->organizations()->attach($org->getId(), ['created_at' => now()]);
+
+        $lead->organization_id = $org->getId();
+        $lead->saveOrFail();
+
+        $result = new SendEmailTool()->__invoke(
+            lead_id: $lead->getId(),
+            subject: 'Policy update',
+            body: 'Here is the update.',
+            cc: 'hr@example.com',
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame(['hr@example.com'], $result['cc']);
+        $this->assertSame([], $result['cc_rejected']);
+    }
+
+    public function testSendEmailDropsCcAddressesNotOnFile(): void
+    {
+        Notification::fake();
+        $lead = $this->makeLead();
+        $lead->people->addEmail('prospect@example.com');
+
+        $result = new SendEmailTool()->__invoke(
+            lead_id: $lead->getId(),
+            subject: 'Your quote',
+            body: 'Here is the quote.',
+            cc: 'attacker@evil.com',
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame([], $result['cc']);
+        $this->assertSame(['attacker@evil.com'], $result['cc_rejected']);
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification): bool => $notification->getCc() === []
+        );
+    }
+
+    public function testSendEmailIgnoresACcThatDuplicatesThePrimaryRecipient(): void
+    {
+        Notification::fake();
+        $lead = $this->makeLead();
+        $lead->people->addEmail('prospect@example.com');
+
+        $result = new SendEmailTool()->__invoke(
+            lead_id: $lead->getId(),
+            subject: 'Your quote',
+            body: 'Here is the quote.',
+            cc: 'PROSPECT@example.com',
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame([], $result['cc']);
+        $this->assertSame([], $result['cc_rejected']);
     }
 }

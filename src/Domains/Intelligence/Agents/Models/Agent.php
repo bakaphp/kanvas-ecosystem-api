@@ -64,6 +64,7 @@ use Override;
  * @property string|null $tools_config
  * @property string|null $deployment_status
  * @property int|null $agent_model_id
+ * @property int|null $agent_llm_config_id
  * @property bool $is_active
  * @property bool $is_deleted
  */
@@ -107,6 +108,7 @@ class Agent extends BaseModel
         'tools_config',
         'deployment_status',
         'agent_model_id',
+        'agent_llm_config_id',
         'is_active',
         'is_sub_agent',
         'awake_state',
@@ -151,6 +153,11 @@ class Agent extends BaseModel
     public function model(): BelongsTo
     {
         return $this->belongsTo(AgentModel::class, 'agent_model_id');
+    }
+
+    public function llmConfig(): BelongsTo
+    {
+        return $this->belongsTo(AgentLlmConfig::class, 'agent_llm_config_id');
     }
 
     public function companyTaskList(): BelongsTo
