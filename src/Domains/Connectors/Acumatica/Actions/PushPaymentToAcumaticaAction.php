@@ -25,9 +25,7 @@ use Kanvas\Scribe\Payments\Models\Payment;
  * already happened in Scribe. This just mirrors the applied payment into the ERP. Idempotent by
  * ACUMATICA_PAYMENT_ID; retry-safe via the PaymentRef find-query.
  *
- * NOTE: the `Payment` entity and `Type` are confirmed against a live push; the DocumentsToApply
- * DocType ('INV' for AR, 'Bill' for AP) follows Acumatica's defaults — verify on the first live
- * payment that carries applications.
+ * AP applications go through the `Check` entity (Vendor field, Details array); AR through `Payment` (CustomerID field, DocumentsToApply array) — confirmed live, they are not interchangeable.
  */
 class PushPaymentToAcumaticaAction
 {
@@ -74,10 +72,11 @@ class PushPaymentToAcumaticaAction
         }
 
         $record = $this->writer()->push(
-            'Payment',
+            $isAp ? 'Check' : 'Payment',
             $this->buildPayload($isAp, $partyCode, $documents),
             release: true,
             findQuery: $this->existingPaymentQuery(),
+            releaseAction: $isAp ? 'ReleaseCheck' : 'Release',
         );
 
         $id = AcumaticaPayload::recordId($record);
@@ -182,7 +181,8 @@ class PushPaymentToAcumaticaAction
             'Hold' => false,
         ]);
 
-        $header['DocumentsToApply'] = $documents;
+        // AP applies through the Check entity's Details field; AR through Payment's DocumentsToApply.
+        $header[$isAp ? 'Details' : 'DocumentsToApply'] = $documents;
 
         return $header;
     }
