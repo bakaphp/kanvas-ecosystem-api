@@ -49,6 +49,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     protected ?UserInterface $fromUser = null;
     protected ?UserInterface $toUser = null;
     protected ?CompanyInterface $company = null;
+    protected array $cc = [];
     public ?array $pathAttachment = null;
 
     public function __construct(
@@ -73,6 +74,29 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $this->subject = $subject;
 
         return $this;
+    }
+
+    /**
+     * @param array<int, string> $emails
+     */
+    public function setCc(array $emails): self
+    {
+        $this->cc = array_values(
+            array_filter(
+                $emails,
+                static fn ($email): bool => is_string($email) && trim($email) !== ''
+            )
+        );
+
+        return $this;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getCc(): array
+    {
+        return $this->cc;
     }
 
     /**

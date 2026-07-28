@@ -1,0 +1,57 @@
+type AgentLlmConfig {
+    id: ID!
+    uuid: String!
+    name: String!
+    slug: String!
+    provider: String!
+    base_uri: String
+    model: String
+    config: JSON
+    has_api_key: Boolean! @method(name: "hasApiKey")
+    is_active: Boolean!
+    company: Company! @belongsTo(relation: "company")
+    user: User @belongsTo(relation: "user")
+    created_at: DateTime
+    updated_at: DateTime
+}
+
+input AgentLlmConfigInput {
+    name: String!
+    provider: String!
+    base_uri: String
+    api_key: String
+    model: String
+    config: JSON
+    is_active: Boolean
+}
+
+input UpdateAgentLlmConfigInput {
+    name: String
+    provider: String
+    base_uri: String
+    api_key: String
+    model: String
+    config: JSON
+    is_active: Boolean
+}
+
+extend type Mutation @guardByAdmin {
+    createAgentLlmConfig(input: AgentLlmConfigInput!): AgentLlmConfig!
+        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentLlmConfigMutation@create")
+    updateAgentLlmConfig(id: ID!, input: UpdateAgentLlmConfigInput!): AgentLlmConfig!
+        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentLlmConfigMutation@update")
+    deleteAgentLlmConfig(id: ID!): Boolean!
+        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentLlmConfigMutation@delete")
+}
+
+extend type Query @guard {
+    agentLlmConfigs(
+        where: _ @whereConditions(columns: ["id", "name", "slug", "provider", "is_active"])
+        orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
+    ): [AgentLlmConfig!]!
+        @paginate(
+            model: "Kanvas\\Intelligence\\Agents\\Models\\AgentLlmConfig"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}
