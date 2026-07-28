@@ -93,6 +93,54 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
         $this->assertNull($lead->fresh()->get('movipass_corporate_company_id'));
     }
 
+    public function testRequiresEnableWhenEmailAlreadyHasAccountInApp(): void
+    {
+        $existing = Auth::user();
+        $lead = $this->makeCorporateLead(['contact_email' => $existing->email]);
+        Notification::fake();
+
+        $result = $this->runActivity($lead);
+
+        $this->assertEquals('requires_enable', $result['status']);
+        $this->assertEquals($existing->getId(), $result['user']);
+        $this->assertArrayNotHasKey('company_id', $result);
+        $this->assertArrayNotHasKey('invite_hash', $result);
+
+        $fresh = $lead->fresh();
+        $this->assertEquals('requires_enable', $fresh->get('movipass_corporate_status'));
+        $this->assertNull($fresh->get('movipass_corporate_company_id'));
+        $this->assertNull($fresh->get('movipass_corporate_invite_hash'));
+
+        $this->assertEquals(0, UsersInvite::where('email', $existing->email)->count());
+
+        Notification::assertSentOnDemand(Blank::class);
+    }
+
+    public function testRequiresEnableTakesPrecedenceOverAutoApproveToggle(): void
+    {
+        $this->kanvasApp->set(ConfigurationEnum::CORPORATE_AUTO_APPROVE->value, false);
+
+        $lead = $this->makeCorporateLead(['contact_email' => Auth::user()->email]);
+        Notification::fake();
+
+        $result = $this->runActivity($lead);
+
+        $this->assertEquals('requires_enable', $result['status']);
+        $this->assertNull($lead->fresh()->get('movipass_corporate_company_id'));
+    }
+
+    public function testRequiresEnableFallsBackToLeadEmailWhenContactEmailIsEmpty(): void
+    {
+        $existing = Auth::user();
+        $lead = $this->makeCorporateLead(['email' => $existing->email, 'contact_email' => '']);
+        Notification::fake();
+
+        $result = $this->runActivity($lead);
+
+        $this->assertEquals('requires_enable', $result['status']);
+        $this->assertEquals($existing->getId(), $result['user']);
+    }
+
     public function testApprovesValidLeadAndCreatesCompanyPlusInvite(): void
     {
         $lead = $this->makeCorporateLead();

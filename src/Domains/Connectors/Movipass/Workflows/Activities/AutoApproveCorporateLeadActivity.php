@@ -17,11 +17,13 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Actions\ValidateCorporateFieldsAction;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
+use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -72,6 +74,14 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
 
                 if ((int) $lead->leads_receivers_id !== (int) $configuredReceiverId) {
                     return $this->skip($lead, 'lead is not from the corporate receiver');
+                }
+
+                // Runs ahead of the auto-approve toggle: an existing account means no company
+                // gets created either way, and whoever reviews by hand needs to see it too.
+                $existingUser = $this->findExistingAppUser($lead, $app);
+
+                if ($existingUser !== null) {
+                    return $this->markRequiresEnable($lead, $app, $existingUser);
                 }
 
                 $autoApproveEnabled = (bool) ($app->get(ConfigurationEnum::CORPORATE_AUTO_APPROVE->value) ?? true);
@@ -141,6 +151,48 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
             'lead' => $lead->getId(),
             'status' => 'needs_review',
             'reason' => $reason,
+        ];
+    }
+
+    /**
+     * The email already has an account in this app, so a second company would duplicate it —
+     * they upgrade the one they have through enableCorporateMode instead. Returns null when the
+     * account lives in another app or doesn't exist at all; the invite path covers both.
+     */
+    private function findExistingAppUser(Lead $lead, AppInterface $app): ?Users
+    {
+        $email = trim((string) ($lead->get('contact_email') ?: $lead->email));
+
+        if ($email === '') {
+            return null;
+        }
+
+        $appsModel = $app instanceof Apps ? $app : app(Apps::class);
+
+        try {
+            $user = Users::getByEmail($email);
+            UsersRepository::belongsToThisApp($user, $appsModel);
+
+            return $user;
+        } catch (ModelNotFoundException) {
+            return null;
+        }
+    }
+
+    private function markRequiresEnable(Lead $lead, AppInterface $app, Users $user): array
+    {
+        $reason = 'account already exists in this app, requires corporate enable';
+
+        $lead->set(self::STATUS_FIELD, 'requires_enable');
+        $lead->set(self::STATUS_REASON_FIELD, $reason);
+
+        $this->sendExistingAccountEmail($app, $lead, $user);
+
+        return [
+            'lead' => $lead->getId(),
+            'status' => 'requires_enable',
+            'reason' => $reason,
+            'user' => $user->getId(),
         ];
     }
 
@@ -285,6 +337,28 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
             [
                 'lead' => $lead,
                 'reason' => $reason,
+                'contactName' => $lead->get('contact_name') ?? $lead->firstname,
+            ],
+        );
+    }
+
+    private function sendExistingAccountEmail(AppInterface $app, Lead $lead, Users $user): void
+    {
+        $templateName = $app->get(ConfigurationEnum::CORPORATE_EXISTING_ACCOUNT_TEMPLATE->value)
+            ?: 'corporate-existing-account';
+
+        $enableUrl = trim((string) ($app->get(ConfigurationEnum::CORPORATE_ENABLE_LINK->value) ?? ''));
+
+        $this->sendAnonymousEmail(
+            $app,
+            $lead,
+            (string) $templateName,
+            'Ya tienes una cuenta en ' . $app->name,
+            [
+                'lead' => $lead,
+                'user' => $user,
+                'enableUrl' => $enableUrl !== '' ? $enableUrl : null,
+                'corporateLegalName' => $lead->get('legal_name'),
                 'contactName' => $lead->get('contact_name') ?? $lead->firstname,
             ],
         );
