@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
 
 use Kanvas\Connectors\Acumatica\Actions\PushPaymentToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Scribe\Bills\Actions\AllocateBillPaymentAction;
-use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Invoices\Actions\AllocateInvoicePaymentAction;
+use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use NeuronAI\Tools\PropertyType;
@@ -20,19 +20,19 @@ use Override;
 use RuntimeException;
 use Throwable;
 
-/** Applies a disbursement to an existing, already-pushed AP bill and pushes the payment to Acumatica. */
-#[AgentTool(name: 'Apply AP Payment')]
-class ApplyApPaymentTool extends Tool
+/** Applies a cash receipt to an existing, already-pushed AR invoice and pushes the payment to Acumatica. */
+#[AgentTool(name: 'Apply AR Payment')]
+class ApplyArPaymentTool extends Tool
 {
     use HasKanvasContext;
 
     public function __construct()
     {
         parent::__construct(
-            name: 'apply_ap_payment',
-            description: 'Applies a disbursement to an existing AP bill (partial or full) and pushes the '
-                . 'payment to Acumatica. Only call when the user explicitly asks to record a real vendor '
-                . 'payment against a bill — never on a whim.',
+            name: 'apply_ar_payment',
+            description: 'Applies a cash receipt to an existing AR invoice (partial or full) and pushes the '
+                . 'payment to Acumatica. Only call when the user explicitly asks to record a real customer '
+                . 'payment against an invoice — never on a whim.',
         );
     }
 
@@ -44,15 +44,15 @@ class ApplyApPaymentTool extends Tool
     {
         return [
             new ToolProperty(
-                name: 'bill_id',
+                name: 'invoice_id',
                 type: PropertyType::NUMBER,
-                description: 'The Kanvas bill id to apply the payment against.',
+                description: 'The Kanvas invoice id to apply the payment against.',
                 required: true,
             ),
             new ToolProperty(
                 name: 'amount',
                 type: PropertyType::NUMBER,
-                description: 'Payment amount. Must not exceed the bill\'s remaining balance.',
+                description: 'Payment amount. Must not exceed the invoice\'s remaining balance.',
                 required: true,
             ),
             new ToolProperty(
@@ -67,37 +67,37 @@ class ApplyApPaymentTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $bill_id, float $amount, string $reference): array
+    public function __invoke(int $invoice_id, float $amount, string $reference): array
     {
         $app = $this->app;
 
-        $bill = Bill::query()
-            ->where('id', $bill_id)
+        $invoice = Invoice::query()
+            ->where('id', $invoice_id)
             ->where('apps_id', $app->getId())
             ->where('companies_id', $this->company->getId())
             ->first();
 
-        if ($bill === null) {
+        if ($invoice === null) {
             return [
                 'applied' => false,
-                'reason' => 'bill_not_found',
-                'message' => "No bill with id {$bill_id} for this app/company.",
+                'reason' => 'invoice_not_found',
+                'message' => "No invoice with id {$invoice_id} for this app/company.",
             ];
         }
 
-        $billRef = (string) $bill->get(AcumaticaCustomFieldEnum::BILL_REF->value, '');
+        $invoiceRef = (string) $invoice->get(AcumaticaCustomFieldEnum::INVOICE_REF->value, '');
 
-        if ($billRef === '') {
+        if ($invoiceRef === '') {
             return [
                 'applied' => false,
-                'reason' => 'bill_not_pushed',
-                'message' => "Bill {$bill_id} hasn't been pushed to Acumatica yet — push it before applying a payment.",
+                'reason' => 'invoice_not_pushed',
+                'message' => "Invoice {$invoice_id} hasn't been pushed to Acumatica yet — push it before applying a payment.",
             ];
         }
 
         try {
-            $allocation = new AllocateBillPaymentAction(
-                bill: $bill,
+            $allocation = new AllocateInvoicePaymentAction(
+                invoice: $invoice,
                 amountNative: $amount,
                 method: PaymentMethodEnum::CHECK,
                 cashAccountSubType: AccountSubTypeEnum::CASH_CHECKING,
@@ -120,7 +120,7 @@ class ApplyApPaymentTool extends Tool
             return [
                 'applied' => true,
                 'pushed' => false,
-                'bill_id' => $bill->getId(),
+                'invoice_id' => $invoice->getId(),
                 'reason' => 'push_failed',
                 'message' => 'Payment recorded in Kanvas but the push to Acumatica failed: ' . $e->getMessage(),
             ];
@@ -129,12 +129,12 @@ class ApplyApPaymentTool extends Tool
         return [
             'applied' => true,
             'pushed' => true,
-            'bill_id' => $bill->getId(),
-            'bill_ref' => $billRef,
+            'invoice_id' => $invoice->getId(),
+            'invoice_ref' => $invoiceRef,
             'amount' => $amount,
             'payment_ref' => $paymentRef,
-            'remaining_balance' => (float) $bill->fresh()->balance_due_native,
-            'document_status' => $bill->fresh()->document_status->value,
+            'remaining_balance' => (float) $invoice->fresh()->balance_due_native,
+            'document_status' => $invoice->fresh()->document_status->value,
         ];
     }
 }
