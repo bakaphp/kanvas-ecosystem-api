@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Models\Agent as AgentRecord;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
 use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
+use Kanvas\Intelligence\Agents\Traits\HasEntityContext;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
@@ -257,6 +258,9 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
             if (($tool instanceof KanvasToolInterface || $tool instanceof KanvasAgentAsTool)
                 && $this->app && $this->company) {
                 $tool->withContext($this->app, $this->company);
+            }
+            if (in_array(HasEntityContext::class, class_uses_recursive($tool), true)) {
+                $tool->withEntity($this->entity);
             }
             $tools[] = $tool;
         }
