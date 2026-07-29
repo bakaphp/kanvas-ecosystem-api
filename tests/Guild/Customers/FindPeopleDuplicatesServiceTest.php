@@ -102,6 +102,23 @@ class FindPeopleDuplicatesServiceTest extends TestCase
         $this->assertSame('external_id_conflict', $matches[0]->reason, 'external_id_conflict must win over exact_name.');
     }
 
+    public function test_check_record_finds_only_matches_for_that_person(): void
+    {
+        $lastname = 'Puello' . uniqid();
+        $a = $this->seedPeople('Arfenis', $lastname);
+        $b = $this->seedPeople('arfenis', strtolower($lastname));
+        $unrelated = $this->seedPeople('Unrelated', 'Person' . uniqid());
+
+        $groupsForA = new FindPeopleDuplicatesService()->checkRecord($a->fresh());
+        $group = $this->findGroupContaining($groupsForA, (int) $a->id);
+        $this->assertNotNull($group);
+        $this->assertSame('exact_name', $group->reason);
+        $this->assertEqualsCanonicalizing([(int) $a->id, (int) $b->id], $group->member_ids);
+
+        $groupsForUnrelated = new FindPeopleDuplicatesService()->checkRecord($unrelated->fresh());
+        $this->assertSame([], $groupsForUnrelated);
+    }
+
     public function test_singletons_are_not_returned(): void
     {
         $person = $this->seedPeople('Lonely', 'Person' . uniqid(), email: 'lonely-' . uniqid() . '@test.com');
