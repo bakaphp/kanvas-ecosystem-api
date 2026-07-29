@@ -308,6 +308,48 @@ class GenerateTimeSlotsJobTest extends TestCase
         }
     }
 
+    public function testGenerateTimeSlotsDefaultsCapacityWhenRuleHasNoOverride(): void
+    {
+        $startDate = Carbon::now()->addDay()->setTime(8, 0, 0);
+        $endDate = $startDate->copy()->endOfDay();
+        $dayCode = strtoupper(substr($startDate->format('D'), 0, 2));
+        $dtstart = $startDate->format('Ymd\THis');
+
+        // Mirrors what CreateScheduleRulesFromOperationDaysAction produces for a rule
+        // with no capacity_override — the variant has no default_capacity column, so
+        // the job must fall back instead of inserting a null capacity.
+        $scheduleRule = ScheduleRules::create([
+            'apps_id' => $this->apps->getId(),
+            'companies_id' => $this->company->getId(),
+            'resources_id' => $this->variantId,
+            'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
+            'start_at' => $startDate,
+            'end_at' => $endDate,
+            'rrule' => "DTSTART:{$dtstart}\nRRULE:FREQ=WEEKLY;BYDAY={$dayCode}",
+            'day_rrule' => "DTSTART:{$dtstart}\nRRULE:FREQ=MINUTELY;INTERVAL=15;BYHOUR=8,9;BYMINUTE=0,15,30,45",
+            'slot_duration_min' => 15,
+            'lead_time_min' => 0,
+            'cutoff_time_min' => 0,
+            'capacity_override' => null,
+        ]);
+
+        $job = new GenerateTimeSlots(
+            $this->variantId,
+            $scheduleRule->id,
+            $startDate,
+            $endDate
+        );
+        $job->handle();
+
+        $slots = TimeSlots::where('schedule_rules_id', $scheduleRule->id)->get();
+
+        $this->assertGreaterThan(0, $slots->count());
+
+        foreach ($slots as $slot) {
+            $this->assertEquals(1, $slot->initial_capacity);
+        }
+    }
+
     public function testGenerateTimeSlotsWithMultipleHourSlots(): void
     {
         $startDate = Carbon::now()->addDay()->setTime(9, 0, 0);

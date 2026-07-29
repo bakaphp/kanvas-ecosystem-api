@@ -9,6 +9,7 @@ use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
+use App\Console\Commands\Event\GenerateUpcomingTimeSlotsCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\Lead\Schedules\LeadFollowUpSchedule;
 use App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule;
@@ -49,6 +50,10 @@ class Kernel extends ConsoleKernel
         $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();
         $schedule->command(ChargeLateOrdersCommand::class)->hourly()->withoutOverlapping();
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
+
+        // Event — roll the booking window forward daily so active schedule rules always
+        // have slots up to their app's horizon, and refresh price snapshots on unsold ones.
+        $schedule->command(GenerateUpcomingTimeSlotsCommand::class, ['--prune'])->dailyAt('01:30')->withoutOverlapping();
 
         // Acumatica — incremental delta sync for every opted-in company (gated per company).
         //$schedule->command(ScheduledAcumaticaSyncCommand::class)->hourly()->withoutOverlapping()->onOneServer();
