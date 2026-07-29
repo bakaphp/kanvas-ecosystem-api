@@ -9,13 +9,13 @@ use Illuminate\Support\Facades\Config;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
-use Kanvas\Intelligence\Agents\Laravel\Contracts\HasEntityContextInterface;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Common\CurrentTimeTool;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentRecord;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
 use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
+use Kanvas\Intelligence\Agents\Traits\HasEntityContext;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
@@ -259,7 +259,7 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
                 && $this->app && $this->company) {
                 $tool->withContext($this->app, $this->company);
             }
-            if ($tool instanceof HasEntityContextInterface) {
+            if (in_array(HasEntityContext::class, class_uses_recursive($tool), true)) {
                 $tool->withEntity($this->entity);
             }
             $tools[] = $tool;
