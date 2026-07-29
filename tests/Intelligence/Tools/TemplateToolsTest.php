@@ -9,6 +9,8 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\CreateTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\DeleteTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\GenerateTemplatePdfTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\GetTemplateTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\ListTemplatesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\UpdateTemplateTool;
 use Kanvas\Templates\Models\Templates;
 use Tests\TestCase;
@@ -134,6 +136,60 @@ class TemplateToolsTest extends TestCase
         $this->assertArrayHasKey('error', $result);
     }
 
+    public function testListTemplatesShowsCompanyVisibleWithOwnedFlag(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $prefix = 'tlist' . uniqid();
+
+        new CreateTemplateTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(name: $prefix . 'mine', html: '<p>mine</p>');
+        $this->makeForeignTemplate($app, $company, $user->getId() + 1, name: $prefix . 'foreign');
+
+        $result = new ListTemplatesTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(search: $prefix);
+
+        $this->assertTrue($result['success']);
+        $byName = collect($result['templates'])->keyBy('name');
+        $this->assertTrue($byName[$prefix . 'mine']['owned']);
+        $this->assertFalse($byName[$prefix . 'foreign']['owned']);
+    }
+
+    public function testGetTemplateReturnsHtmlBody(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $created = new CreateTemplateTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(name: 'tget-' . uniqid(), html: '<p>body-xyz</p>');
+
+        $result = new GetTemplateTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(template_id: (int) $created['template_id']);
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertSame('<p>body-xyz</p>', $result['html']);
+        $this->assertTrue($result['owned']);
+    }
+
+    public function testGetUnknownTemplateReturnsError(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $result = new GetTemplateTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(template_id: 999999999);
+
+        $this->assertArrayHasKey('error', $result);
+    }
+
     public function testGeneratePdfWithoutEntityReturnsError(): void
     {
         $app = app(Apps::class);
@@ -152,13 +208,14 @@ class TemplateToolsTest extends TestCase
         Apps $app,
         Companies $company,
         int $usersId,
-        bool $isSystem = false
+        bool $isSystem = false,
+        ?string $name = null
     ): Templates {
         return Templates::create([
             'apps_id' => $app->getId(),
             'companies_id' => $company->getId(),
             'users_id' => $usersId,
-            'name' => 'tpl-' . uniqid(),
+            'name' => $name ?? 'tpl-' . uniqid(),
             'template' => '<p>foreign</p>',
             'parent_template_id' => 0,
             'is_system' => $isSystem,
