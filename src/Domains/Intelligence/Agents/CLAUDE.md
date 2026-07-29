@@ -95,6 +95,8 @@ Customer ─── inbound ──▶ Webhook
 | Per-connector reply actions | `src/Domains/Connectors/{X}/Actions/AgentChannelResponderAction.php` |
 | Per-connector activities (workflow entry) | `src/Domains/Connectors/{X}/Workflows/AgentChannelResponderActivity.php` |
 | Neuron agents (SalesAgent, generic) | `Neuron/` |
+| Neuron tools (`#[AgentTool]`) | `Neuron/Tools/{CRM,System,Accounting,HumanResources,NervousSystem,...}/` |
+| Shared tool traits (resolve-or-error, context, admin-guard) | `Neuron/Tools/Traits/` |
 | Laravel-AI agents | `Laravel/` |
 | Runtime handlers (OpenClaw, Hermes) | `Types/OpenClawAgentHandler.php` + connector dirs |
 | ADK handler (wraps Google ADK HTTP) | `Types/ADKAgent.php` + `Services/GoogleADKService.php` |
@@ -231,6 +233,124 @@ $outbound = Message::query()
 $this->assertStringContainsString('Hola Mundo', (string) $outbound->message['content']);
 ```
 
+## Writing agent tools (Neuron `#[AgentTool]`)
+
+Every capability an agent can invoke is a tool class under `Neuron/Tools/{Area}/`, one per file. Follow
+these conventions so new tools stay consistent with the ~90 that already exist — they're what the LLM
+sees and what keeps a hallucinating model from crashing a chat or leaking data.
+
+### Skeleton
+
+```php
+#[AgentTool(name: 'Send Email')]          // human label — drives the nervous_system_tools catalog sync
+class SendEmailTool extends Tool
+{
+    use ResolvesLeadForTool;              // pull in the resolve-or-error trait(s) you need
+
+    public function __construct()
+    {
+        parent::__construct(
+            name: 'send_email',           // snake_case — the id the LLM calls
+            description: '…',             // what it does, WHEN to use it, and hard limits ("you cannot choose the recipient")
+        );
+    }
+
+    #[Override]
+    protected function properties(): array
+    {
+        return [ new ToolProperty(name: 'lead_id', type: PropertyType::INTEGER, description: '…', required: true), /* … */ ];
+    }
+
+    public function __invoke(int $lead_id, string $subject, ?string $cc = null): array { /* … */ }
+}
+```
+
+The attribute `name:` is the human label; the `parent::__construct(name:)` is the snake_case LLM id.
+`toolType` on the attribute defaults to `'system'`; `requiresPermission` maps to Bouncer abilities for the
+catalog. Register the tool on an agent's tool list — either via `withContext(...)` or constructor injection
+(both styles exist).
+
+### Return shape — structured, never throw at the LLM
+
+Tools **return** a result array; they do **not** let exceptions reach the chat. The dominant dialect is
+`['status' => 'success'|'error', 'message' => …]` plus tool-specific keys on success, and a `note` key
+carrying a short natural-language instruction for what the model should say/do next
+([`SendEmailTool.php`](Neuron/Tools/CRM/SendEmailTool.php), [`SendSmsTool.php`](Neuron/Tools/CRM/SendSmsTool.php)).
+Mutation/find tools use sibling dialects (`created`/`updated` + `message`, or `found`/`error`) — pick one
+and stay consistent **within a tool family**. Write error `message`s to *instruct the model* ("Do not retry",
+"ask the person for the address, save it with update_lead, then retry") — they are prompts, not logs.
+
+Wrap action calls: `try { … } catch (Throwable $e) { report($e); return ['status'=>'error','message'=>'…']; }`.
+Catch expected misses specifically (`ModelNotFoundException`, `ValidationException`) and turn them into an
+actionable message; `report($e)` still fires so the incident is tracked while the LLM sees calm copy.
+
+### Resolve-or-return-error — never trust an LLM-supplied id
+
+The single most-repeated idiom. An id the model passes (`lead_id`, `message_id`, `plan_id`, an email) is a
+**hallucination risk** — resolving it with a bare `getById()`/`firstOrFail()` throws `ModelNotFoundException`
+straight into the chat. Use the shared `Resolves*ForTool` traits, which return the typed model **or** an
+`is_array()`-detectable error you return verbatim:
+
+```php
+$result = $this->resolveLeadOrError($lead_id);
+if (is_array($result)) { return $result; }   // hallucinated id → structured error, chat survives
+$lead = $result;
+```
+
+Available (all in `Neuron/Tools/Traits/`): `ResolvesLeadForTool`, `ResolvesMessageForTool`,
+`ResolvesOrganizationForTool`, `ResolvesEmployeeForTool`, `ResolvesPlanForTool`, `ResolvesTaskForTool`,
+`ResolvesPositionAndDepartmentForTool`, plus `FindsTenantRecordForTool` (generic model+column lookup).
+**When you add a tool that operates on a new entity type, add a `Resolves{Entity}ForTool` trait rather than
+resolving inline** — that's how the idiom stays uniform.
+
+### Tenant scoping inside tools
+
+- Context tools use `HasKanvasContext` — typed `protected Apps $app; Companies $company; Users $user;` set via
+  `->withContext($app, $company, $user)` when the agent builds its tool list. Typed (non-nullable) props
+  **fail loud** if a tool runs without context instead of silently falling back to `auth()`/globals.
+- Scope every query with `->fromApp($this->app)->fromCompany($this->company)` — including id/email lookups,
+  so a foreign id resolves to nothing rather than another tenant's row (`FindsTenantRecordForTool`,
+  `ReadUserActivityTool`).
+- Mutating tools gate on the **requesting human** via `GuardsAdminForTool::requireAdminOrError()` (the
+  tool-layer mirror of `@guardByAdmin`) — not on the agent's own user.
+- Honor the audience/memory-scope rule from the top of this file: a customer-facing tool must be
+  entity-scoped, never company-wide `read_my_ledger`.
+
+### Destination safety — the recipient is never a free LLM param
+
+**Any tool that sends something outward (email, SMS, WhatsApp, notification, hand-off) resolves the
+destination from the entity or from verified tenant membership — never from a free-typed LLM string.** This
+is a hard anti-exfiltration rule, followed by every outbound tool today, not a `SendEmailTool` quirk: a model
+that picks the destination can be prompt-injected into mailing a quote to `attacker@evil.com`.
+
+- **Customer-facing sends** (`send_email`, `send_sms`): the model composes the content; the tool resolves the
+  address/number from the lead's own `deliverable()` contacts (not opted-out, not hard-bounced). No recipient
+  param at all. Say so in the description ("you cannot choose the recipient").
+- **A destination MAY be an LLM param only if the tool validates it against a closed set before sending.**
+  Two allowed shapes:
+  - Verified membership — `send_email_to_user` / `send_slack_direct_message` take `recipient_email` but
+    resolve it through `UsersRepository::getUserOfAppByEmail()` + `belongsToCompany()`; a non-member errors out.
+  - Allowlist against on-file contacts — `send_email`'s optional `cc` is filtered by `resolveCcRecipients()`
+    to addresses that case-insensitively match an existing deliverable contact on the lead's **person or
+    organization**; unknown addresses are silently dropped and returned in `cc_rejected` so the model can
+    tell the user. This is the reference pattern for "let the agent widen delivery without opening an
+    exfiltration hole" — copy it, don't invent a looser one.
+
+If you need a genuinely new "send to X" capability, the recipient must be entity-derived or closed-set-verified.
+There is no approved path for a free-text external recipient.
+
+### Param typing
+
+- Optional params use **nullable typed defaults** (`?string $cc = null`) — the Neuron base normalizes a
+  missing optional to `null` before `__invoke`, so a non-nullable default would `TypeError`. This matches the
+  root `no-non-nullable-defaults` rule; normalize inside the body (`$cc ?? ''`, `trim()`).
+- LLM-facing params are **scalar** (STRING/INTEGER/BOOLEAN/NUMBER). Neuron's `ToolProperty` can't emit JSON-schema
+  `items`, so don't expose ARRAY params to strict providers — take a comma-separated STRING and split it
+  (see `send_email`'s `cc`). Domain enums stay **internal** (filtering/dispatch); expose their allowed values
+  as free STRING with the options named in the description.
+- Normalize manually in `__invoke`: `trim()` everything, treat empty string as absent, clamp numerics
+  (`max(1, min($limit ?? 50, 200))`), re-validate required scalars for blank-after-trim.
+
 ## Don't break
 
 - **`AgentChatKernel` is load-bearing for 4 call sites** — `userChat` (GraphQL), channel responders (×6), `WakeAgentForPlanJob`, `AgentReceiverJob`. Any change to its constructor or `execute()` contract ripples through all of them. Test both `userChat` and at least one channel responder end-to-end after touching it.
@@ -240,10 +360,12 @@ $this->assertStringContainsString('Hola Mundo', (string) $outbound->message['con
 - **Don't instantiate agent handlers manually.** Pre-refactor, every connector did `new $this->agent->type->handler()` + `setConfiguration()` by hand. This bypassed the kernel and the four backends got out of sync. Always go through `new AgentChatKernel(...)->execute()`.
 - **`SalesAssistKanvasMessageHistory` rolls up cross-channel by design.** If you find yourself wanting to scope it to a specific channel, re-read its class docblock first — the rollup is the design intent for sales agents.
 - **The email outreach anchors the thread subject on the lead.** `AgentReachOutOnChannelAction` persists the agent's email subject to the lead's `title_email_follow_up` custom field (first touch wins). The inbound Mailgun responder and the cron follow-up engine both **read** that field as the outbound subject so every email stays in one thread. Don't repurpose, overwrite, or stop writing `title_email_follow_up` from the outreach without updating both readers — see [FollowUp/CLAUDE.md → "Email follow-ups thread under the original outreach"](../FollowUp/CLAUDE.md).
+- **Never let a tool send to an LLM-chosen destination.** A new outbound tool must resolve its recipient from the entity or verify it against a closed set (company membership / on-file contacts) before sending — see "Destination safety" above. A free-text external recipient is an exfiltration hole, not a feature.
 
 ## Pointers to deeper context
 
 - [`Actions/Chat/AgentChatKernel.php`](Actions/Chat/AgentChatKernel.php) — the kernel's own class docblock explains the routing logic in 7 lines
 - [`Actions/BaseAgentChannelReplyAction.php`](Actions/BaseAgentChannelReplyAction.php) — base class docblock explains the connector-side contract
+- [`Neuron/Tools/CRM/SendEmailTool.php`](Neuron/Tools/CRM/SendEmailTool.php) — reference for tool authoring: resolve-or-error, entity-derived recipient, and the allowlist-filtered `cc` (destination-safety) pattern. Traits it leans on live in [`Neuron/Tools/Traits/`](Neuron/Tools/Traits/).
 - Product recommendation tools (`Laravel/Tools/Inventory/{ProductRecommendationLookupTool,TypesenseProductRecommendationTool}.php`) — SQL/Algolia hybrid vs Typesense NL search, identical `{product, variants[]}` output shape. How the search engine is resolved, configured per app, and indexed (incl. Typesense Natural Language Search) is documented in [`src/Domains/Inventory/CLAUDE.md`](../../Inventory/CLAUDE.md).
 - Existing end-to-end tests in [`tests/Connectors/Integration/{WaSender,Mailgun,RespondIO,Twilio}/AgentChannelResponderEndToEndTest.php`](../../../../tests/Connectors/Integration/) — copy-paste shape when adding a new connector
