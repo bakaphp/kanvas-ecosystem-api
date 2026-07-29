@@ -78,6 +78,176 @@ class FindOrganizationDuplicatesService
     }
 
     /**
+     * Same 3 dimensions as generate() (normalized_name excluded — it's opt-in via
+     * generateByNormalizedName), scoped to a single record instead of a full-table GROUP BY.
+     *
+     * @return list<OrganizationDuplicateGroup>
+     */
+    public function checkRecord(Organization $organization): array
+    {
+        $appId = (int) $organization->apps_id;
+        $companyId = (int) $organization->companies_id;
+
+        $groups = [];
+        $groups = array_merge($groups, $this->externalIdConflictForRecord($organization, $appId, $companyId));
+        $groups = array_merge($groups, $this->exactNameForRecord($organization, $appId, $companyId));
+        $groups = array_merge($groups, $this->emailMatchForRecord($organization, $appId, $companyId));
+
+        $deduped = [];
+        foreach ($groups as $group) {
+            $signature = implode('|', $group->member_ids);
+            if (! isset($deduped[$signature])) {
+                $deduped[$signature] = $group;
+            }
+        }
+
+        return array_values($deduped);
+    }
+
+    /**
+     * @return list<OrganizationDuplicateGroup>
+     */
+    private function externalIdConflictForRecord(Organization $organization, int $appId, int $companyId): array
+    {
+        if (empty($organization->name)) {
+            return [];
+        }
+
+        $ownValues = DB::connection('ecosystem')
+            ->table('apps_custom_fields')
+            ->where('entity_id', $organization->id)
+            ->where('model_name', Organization::class)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', false)
+            ->whereIn('name', ThirdPartyOrganizationIdFieldEnum::fieldNames())
+            ->pluck('value')
+            ->all();
+
+        if (empty($ownValues)) {
+            return [];
+        }
+
+        $normName = strtolower(trim($organization->name));
+
+        $sameNameIds = DB::connection('crm')
+            ->table('organizations')
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', false)
+            ->where('id', '!=', $organization->id)
+            ->whereRaw('LOWER(TRIM(name)) = ?', [$normName])
+            ->pluck('id')
+            ->all();
+
+        if (empty($sameNameIds)) {
+            return [];
+        }
+
+        $othersExternalIds = DB::connection('ecosystem')
+            ->table('apps_custom_fields')
+            ->whereIn('entity_id', $sameNameIds)
+            ->where('model_name', Organization::class)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', false)
+            ->whereIn('name', ThirdPartyOrganizationIdFieldEnum::fieldNames())
+            ->get(['entity_id', 'value']);
+
+        $conflictIds = [];
+        foreach ($othersExternalIds as $row) {
+            if (! in_array($row->value, $ownValues, true)) {
+                $conflictIds[] = (int) $row->entity_id;
+            }
+        }
+        $conflictIds = array_unique($conflictIds);
+
+        if (empty($conflictIds)) {
+            return [];
+        }
+
+        $memberIds = array_map('intval', array_merge([$organization->id], $conflictIds));
+        sort($memberIds);
+
+        return [new OrganizationDuplicateGroup(
+            canonical_id: $memberIds[0],
+            member_ids: $memberIds,
+            reason: 'external_id_conflict',
+            sample_name: $organization->name,
+        )];
+    }
+
+    /**
+     * @return list<OrganizationDuplicateGroup>
+     */
+    private function exactNameForRecord(Organization $organization, int $appId, int $companyId): array
+    {
+        if (empty($organization->name)) {
+            return [];
+        }
+
+        $normName = strtolower(trim($organization->name));
+
+        $matchIds = DB::connection('crm')
+            ->table('organizations')
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', false)
+            ->where('id', '!=', $organization->id)
+            ->whereRaw('LOWER(TRIM(name)) = ?', [$normName])
+            ->pluck('id')
+            ->all();
+
+        if (empty($matchIds)) {
+            return [];
+        }
+
+        $memberIds = array_map('intval', array_merge([$organization->id], $matchIds));
+        sort($memberIds);
+
+        return [new OrganizationDuplicateGroup(
+            canonical_id: $memberIds[0],
+            member_ids: $memberIds,
+            reason: 'exact_name',
+            sample_name: $organization->name,
+        )];
+    }
+
+    /**
+     * @return list<OrganizationDuplicateGroup>
+     */
+    private function emailMatchForRecord(Organization $organization, int $appId, int $companyId): array
+    {
+        if (empty($organization->email)) {
+            return [];
+        }
+
+        $normEmail = strtolower(trim($organization->email));
+
+        $matchIds = DB::connection('crm')
+            ->table('organizations')
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', false)
+            ->where('id', '!=', $organization->id)
+            ->whereRaw('LOWER(TRIM(email)) = ?', [$normEmail])
+            ->pluck('id')
+            ->all();
+
+        if (empty($matchIds)) {
+            return [];
+        }
+
+        $memberIds = array_map('intval', array_merge([$organization->id], $matchIds));
+        sort($memberIds);
+
+        return [new OrganizationDuplicateGroup(
+            canonical_id: $memberIds[0],
+            member_ids: $memberIds,
+            reason: 'email_match',
+            sample_name: $organization->name,
+        )];
+    }
+
+    /**
      * Groups by name that is identical AFTER stripping legal suffixes + casing + accents — so
      * "Leaderville" / "LEADERVILLE SRL" collapse to one group. Conservative on purpose: only
      * post-normalization-identical names group (no fuzzy/prefix matching, so "Alpha Industries"
