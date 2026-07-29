@@ -77,11 +77,28 @@ class SendMessageToLeadAction
 
         return match ($channel) {
             LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message, $to),
-            LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage((string) $from, $message, $to),
+            LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage(
+                $this->resolveTwilioFrom($from),
+                $message,
+                $to,
+            ),
             LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title, $signature, $to, $cc),
             LeadCommunicationChannelEnum::VOICE->value => $this->sendVoiceMessage($message),
             default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
         };
+    }
+
+    protected function resolveTwilioFrom(?string $from): string
+    {
+        if ($from !== null && $from !== '') {
+            return $from;
+        }
+
+        return (string) (
+            $this->lead->company->get(TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value)
+            ?? $this->lead->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value)
+            ?? ''
+        );
     }
 
     protected function prepareFiles(Collection $files): array
