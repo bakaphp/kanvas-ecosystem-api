@@ -66,8 +66,20 @@ class CreateTemplateTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $name, string $html, ?string $subject = null, ?string $title = null): array
-    {
-        return $this->createTemplateRecord($this->app, $this->company, $this->user, $name, $html, $subject, $title);
+    public function __invoke(
+        string $name,
+        string $html,
+        ?string $subject = null,
+        ?string $title = null
+    ): array {
+        return $this->createTemplateRecord(
+            $this->app,
+            $this->company,
+            $this->user,
+            $name,
+            $html,
+            $subject,
+            $title
+        );
     }
 }

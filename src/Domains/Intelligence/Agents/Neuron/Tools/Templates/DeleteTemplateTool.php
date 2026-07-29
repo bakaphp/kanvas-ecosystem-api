@@ -49,6 +49,11 @@ class DeleteTemplateTool extends Tool
      */
     public function __invoke(int $template_id): array
     {
-        return $this->deleteTemplateRecord($this->app, $this->company, $this->user, $template_id);
+        return $this->deleteTemplateRecord(
+            $this->app,
+            $this->company,
+            $this->user,
+            $template_id
+        );
     }
 }

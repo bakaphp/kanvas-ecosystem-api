@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Templates;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasEntityContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Traits\HasEntityContext;
 use Kanvas\Intelligence\Tools\Traits\Templates\ManagesTemplatesTrait;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;

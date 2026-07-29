@@ -65,8 +65,12 @@ class UpdateTemplateTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $template_id, ?string $html = null, ?string $subject = null, ?string $title = null): array
-    {
+    public function __invoke(
+        int $template_id,
+        ?string $html = null,
+        ?string $subject = null,
+        ?string $title = null
+    ): array {
         return $this->updateTemplateRecord(
             $this->app,
             $this->company,

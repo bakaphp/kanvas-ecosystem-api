@@ -8,7 +8,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasEntityContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;

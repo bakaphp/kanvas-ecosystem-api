@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Tools;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\CreateTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\DeleteTemplateTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Templates\GenerateTemplatePdfTool;
@@ -147,8 +148,12 @@ class TemplateToolsTest extends TestCase
         $this->assertArrayHasKey('error', $result);
     }
 
-    private function makeForeignTemplate(Apps $app, $company, int $usersId, bool $isSystem = false): Templates
-    {
+    private function makeForeignTemplate(
+        Apps $app,
+        Companies $company,
+        int $usersId,
+        bool $isSystem = false
+    ): Templates {
         return Templates::create([
             'apps_id' => $app->getId(),
             'companies_id' => $company->getId(),
