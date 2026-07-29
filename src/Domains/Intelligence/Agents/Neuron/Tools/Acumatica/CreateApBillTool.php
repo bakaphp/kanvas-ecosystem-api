@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;

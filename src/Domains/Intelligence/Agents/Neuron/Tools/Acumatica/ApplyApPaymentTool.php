@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
 
 use Kanvas\Connectors\Acumatica\Actions\PushPaymentToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
