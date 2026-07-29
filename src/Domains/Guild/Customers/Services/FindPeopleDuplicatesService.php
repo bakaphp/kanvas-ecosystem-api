@@ -47,6 +47,236 @@ class FindPeopleDuplicatesService
     }
 
     /**
+     * Same 4 dimensions as generate(), but scoped to a single record instead of a full-table
+     * GROUP BY — for checking one just-created People without re-scanning the whole tenant.
+     *
+     * @return list<PeopleDuplicateGroup>
+     */
+    public function checkRecord(People $person): array
+    {
+        $appId = (int) $person->apps_id;
+        $companyId = (int) $person->companies_id;
+
+        $groups = [];
+        $groups = array_merge($groups, $this->externalIdConflictForRecord($person, $appId, $companyId));
+        $groups = array_merge($groups, $this->exactNameForRecord($person, $appId, $companyId));
+        $groups = array_merge($groups, $this->lastNameForRecord($person, $appId, $companyId));
+        $groups = array_merge($groups, $this->emailMatchForRecord($person, $appId, $companyId));
+
+        $deduped = [];
+        foreach ($groups as $group) {
+            $signature = implode('|', $group->member_ids);
+            if (! isset($deduped[$signature])) {
+                $deduped[$signature] = $group;
+            }
+        }
+
+        return array_values($deduped);
+    }
+
+    /**
+     * @return list<PeopleDuplicateGroup>
+     */
+    private function externalIdConflictForRecord(People $person, int $appId, int $companyId): array
+    {
+        if (empty($person->lastname)) {
+            return [];
+        }
+
+        $ownValues = DB::connection('ecosystem')
+            ->table('apps_custom_fields')
+            ->where('entity_id', $person->id)
+            ->where('model_name', People::class)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', false)
+            ->whereIn('name', ThirdPartyPeopleIdFieldEnum::fieldNames())
+            ->pluck('value')
+            ->all();
+
+        if (empty($ownValues)) {
+            return [];
+        }
+
+        $normName = strtolower(trim($person->firstname . ' ' . $person->lastname));
+
+        $sameNameIds = DB::connection('crm')
+            ->table('peoples')
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', false)
+            ->where('id', '!=', $person->id)
+            ->whereRaw("LOWER(TRIM(CONCAT(firstname, ' ', lastname))) = ?", [$normName])
+            ->pluck('id')
+            ->all();
+
+        if (empty($sameNameIds)) {
+            return [];
+        }
+
+        $othersExternalIds = DB::connection('ecosystem')
+            ->table('apps_custom_fields')
+            ->whereIn('entity_id', $sameNameIds)
+            ->where('model_name', People::class)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', false)
+            ->whereIn('name', ThirdPartyPeopleIdFieldEnum::fieldNames())
+            ->get(['entity_id', 'value']);
+
+        $conflictIds = [];
+        foreach ($othersExternalIds as $row) {
+            if (! in_array($row->value, $ownValues, true)) {
+                $conflictIds[] = (int) $row->entity_id;
+            }
+        }
+        $conflictIds = array_unique($conflictIds);
+
+        if (empty($conflictIds)) {
+            return [];
+        }
+
+        $memberIds = array_map('intval', array_merge([$person->id], $conflictIds));
+        sort($memberIds);
+
+        return [new PeopleDuplicateGroup(
+            canonical_id: $memberIds[0],
+            member_ids: $memberIds,
+            reason: 'external_id_conflict',
+            sample_name: trim($person->firstname . ' ' . $person->lastname),
+        )];
+    }
+
+    /**
+     * @return list<PeopleDuplicateGroup>
+     */
+    private function exactNameForRecord(People $person, int $appId, int $companyId): array
+    {
+        if (empty($person->lastname)) {
+            return [];
+        }
+
+        $normName = strtolower(trim($person->firstname . ' ' . $person->lastname));
+
+        $matchIds = DB::connection('crm')
+            ->table('peoples')
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', false)
+            ->where('id', '!=', $person->id)
+            ->whereRaw("LOWER(TRIM(CONCAT(firstname, ' ', lastname))) = ?", [$normName])
+            ->pluck('id')
+            ->all();
+
+        if (empty($matchIds)) {
+            return [];
+        }
+
+        $memberIds = array_map('intval', array_merge([$person->id], $matchIds));
+        sort($memberIds);
+
+        return [new PeopleDuplicateGroup(
+            canonical_id: $memberIds[0],
+            member_ids: $memberIds,
+            reason: 'exact_name',
+            sample_name: trim($person->firstname . ' ' . $person->lastname),
+        )];
+    }
+
+    /**
+     * @return list<PeopleDuplicateGroup>
+     */
+    private function lastNameForRecord(People $person, int $appId, int $companyId): array
+    {
+        if (empty($person->lastname)) {
+            return [];
+        }
+
+        $normLastname = strtolower(trim($person->lastname));
+
+        $matchIds = DB::connection('crm')
+            ->table('peoples')
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', false)
+            ->where('id', '!=', $person->id)
+            ->whereRaw('LOWER(TRIM(lastname)) = ?', [$normLastname])
+            ->pluck('id')
+            ->all();
+
+        if (empty($matchIds)) {
+            return [];
+        }
+
+        $memberIds = array_map('intval', array_merge([$person->id], $matchIds));
+        sort($memberIds);
+
+        return [new PeopleDuplicateGroup(
+            canonical_id: $memberIds[0],
+            member_ids: $memberIds,
+            reason: 'lastname_match',
+            sample_name: trim($person->firstname . ' ' . $person->lastname),
+        )];
+    }
+
+    /**
+     * @return list<PeopleDuplicateGroup>
+     */
+    private function emailMatchForRecord(People $person, int $appId, int $companyId): array
+    {
+        $emailTypeIds = [
+            ContactTypeEnum::EMAIL->value,
+            ContactTypeEnum::PRIMARY_EMAIL->value,
+            ContactTypeEnum::SECONDARY_EMAIL->value,
+        ];
+
+        $ownEmails = DB::connection('crm')
+            ->table('peoples_contacts')
+            ->where('peoples_id', $person->id)
+            ->whereIn('contacts_types_id', $emailTypeIds)
+            ->where('is_deleted', false)
+            ->pluck('value')
+            ->map(fn ($value) => strtolower(trim((string) $value)))
+            ->filter()
+            ->unique();
+
+        if ($ownEmails->isEmpty()) {
+            return [];
+        }
+
+        $out = [];
+        foreach ($ownEmails as $email) {
+            $matchIds = DB::connection('crm')
+                ->table('peoples_contacts')
+                ->join('peoples', 'peoples.id', '=', 'peoples_contacts.peoples_id')
+                ->whereIn('peoples_contacts.contacts_types_id', $emailTypeIds)
+                ->where('peoples_contacts.is_deleted', false)
+                ->where('peoples.apps_id', $appId)
+                ->where('peoples.companies_id', $companyId)
+                ->where('peoples.is_deleted', false)
+                ->where('peoples.id', '!=', $person->id)
+                ->whereRaw('LOWER(TRIM(peoples_contacts.value)) = ?', [$email])
+                ->pluck('peoples.id')
+                ->unique()
+                ->all();
+
+            if (empty($matchIds)) {
+                continue;
+            }
+
+            $memberIds = array_map('intval', array_merge([$person->id], $matchIds));
+            sort($memberIds);
+
+            $out[] = new PeopleDuplicateGroup(
+                canonical_id: $memberIds[0],
+                member_ids: $memberIds,
+                reason: 'email_match',
+                sample_name: trim($person->firstname . ' ' . $person->lastname),
+            );
+        }
+
+        return $out;
+    }
+
+    /**
      * Two queries instead of a cross-connection JOIN, same reason as
      * `HasCustomFields::getByCustomFieldBuilderTransactionSafe` — a JOIN from `crm` straight into
      * `ecosystem`'s apps_custom_fields is pinned to `crm`'s REPEATABLE READ snapshot, so a custom
