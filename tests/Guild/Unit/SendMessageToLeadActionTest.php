@@ -16,6 +16,38 @@ use Tests\TestCaseUnit;
 
 final class SendMessageToLeadActionTest extends TestCaseUnit
 {
+    public function testSmsResolvesConfiguredCompanySenderWhenCallerPassesNull(): void
+    {
+        $company = Mockery::mock();
+        $company->shouldReceive('get')
+            ->once()
+            ->with(TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value)
+            ->andReturn('+12722917870');
+
+        $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
+
+        $action = new class ($lead) extends SendMessageToLeadAction {
+            public string $capturedFrom = '';
+
+            protected function sendSmsMessage(string $from, string $message, ?string $to = null): array
+            {
+                $this->capturedFrom = $from;
+
+                return [];
+            }
+        };
+
+        $action->execute(
+            channel: 'sms',
+            message: 'First reach-out',
+            from: null,
+            to: '+15551234567',
+        );
+
+        $this->assertSame('+12722917870', $action->capturedFrom);
+    }
+
     public function testTwilioMediaUrlsIncludeDocuments(): void
     {
         $app = Mockery::mock();
