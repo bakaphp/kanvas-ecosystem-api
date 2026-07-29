@@ -12,8 +12,10 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\CurrentTimeTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\DynamicSubAgentTool;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\Agent as NeuronAIAgent;
 use NeuronAI\Agent\SystemPrompt;
@@ -179,6 +181,33 @@ class BaseKanvasAgent extends NeuronAIAgent implements ProvidesToolDependencies
             $this->resolveLeadForTurn(),
             $this->entity,
         ]));
+    }
+
+    /**
+     * Resolve nervous-system rows backed by another Agent instead of a PHP handler.
+     */
+    protected function resolveRegisteredSubAgentTool(Tool $tool): ?object
+    {
+        $subAgent = $tool->agent;
+
+        if (
+            $subAgent === null
+            || ! $subAgent->is_active
+            || $subAgent->is_deleted
+            || $subAgent->getId() === $this->agent?->getId()
+            || $this->user === null
+        ) {
+            return null;
+        }
+
+        return new DynamicSubAgentTool(
+            agentRecord: $subAgent,
+            entity: $this->entity,
+            user: $this->user,
+            session: $this->session,
+            currentLead: $this->resolveLeadForTurn(),
+            threadId: $this->threadId,
+        );
     }
 
     protected function actingUser(): ?Users

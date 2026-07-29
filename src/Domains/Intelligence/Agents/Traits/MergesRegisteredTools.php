@@ -90,6 +90,10 @@ trait MergesRegisteredTools
      */
     protected function resolveRegisteredTool(Tool $tool): ?object
     {
+        if ($tool->agents_id !== null && method_exists($this, 'resolveRegisteredSubAgentTool')) {
+            return $this->resolveRegisteredSubAgentTool($tool);
+        }
+
         return $this->defaultRegisteredToolResolver($tool);
     }
 
