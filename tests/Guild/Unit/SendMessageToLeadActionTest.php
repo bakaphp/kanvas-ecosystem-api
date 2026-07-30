@@ -11,7 +11,6 @@ use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
-use Kanvas\Guild\Leads\Exceptions\LeadOptedOutException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Mockery;
 use Tests\TestCaseUnit;
@@ -390,7 +389,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $action->lookupPhoneNumberForTest($client, '8095551234');
     }
 
-    public function testConstructorRejectsLeadWithOptedOutPhone(): void
+    public function testExecuteReturnsReportedErrorForLeadWithOptedOutPhone(): void
     {
         $people = Mockery::mock();
         $people->shouldReceive('getAllPhones')
@@ -401,11 +400,33 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
 
         $lead = Mockery::mock(Lead::class);
         $lead->shouldReceive('getAttribute')->with('people')->andReturn($people);
+        $lead->shouldReceive('getAttribute')->with('uuid')->andReturn('lead-uuid');
+        $lead->shouldReceive('getId')->andReturn(42);
 
-        $this->expectException(LeadOptedOutException::class);
-        $this->expectExceptionMessage('Lead has opted out of phone communications');
+        $result = new SendMessageToLeadAction($lead)->execute('sms', 'Hello');
 
-        new SendMessageToLeadAction($lead);
+        $this->assertFalse($result['success']);
+        $this->assertSame('error', $result['status']);
+        $this->assertSame('Lead has opted out of phone communications', $result['error']);
+        $this->assertSame([], $result['messages']);
+    }
+
+    public function testExecuteReportsAndReturnsErrorInsteadOfThrowing(): void
+    {
+        $lead = $this->makeLead();
+        $action = new class ($lead) extends SendMessageToLeadAction {
+            protected function sendSmsMessage(string $from, string $message, ?string $to = null): array
+            {
+                throw new LeadMissingContactException('Lead does not have a cellphone number');
+            }
+        };
+
+        $result = $action->execute('sms', 'Hello', '+18095550000');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('error', $result['status']);
+        $this->assertSame('Lead does not have a cellphone number', $result['error']);
+        $this->assertSame([], $result['messages']);
     }
 
     public function testTwilio21610MarksLeadPhoneContactsAsOptedOut(): void

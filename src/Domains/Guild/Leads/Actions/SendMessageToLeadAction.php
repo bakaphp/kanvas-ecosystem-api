@@ -36,6 +36,7 @@ use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Ramsey\Uuid\Uuid;
+use Throwable;
 use Twilio\Exceptions\RestException;
 use Twilio\Rest\Client as TwilioClient;
 
@@ -61,12 +62,15 @@ class SendMessageToLeadAction
 
     protected array $processedFiles = [];
     protected array $videoEngagements = [];
+    protected ?Throwable $blockingException = null;
 
     public function __construct(
         protected Lead $lead,
     ) {
         if ($this->lead->people?->getAllPhones()->contains('is_opt_out', 1)) {
-            throw new LeadOptedOutException('Lead has opted out of phone communications');
+            $this->blockingException = new LeadOptedOutException(
+                'Lead has opted out of phone communications'
+            );
         }
     }
 
@@ -80,22 +84,45 @@ class SendMessageToLeadAction
         ?string $to = null,
         ?array $cc = null
     ): array {
-        if ($files !== null && $files->isNotEmpty()) {
-            $this->processedFiles = $this->prepareFiles($files);
-            $this->createVideoEngagements();
+        if ($this->blockingException instanceof Throwable) {
+            return $this->failedResult($channel, $this->blockingException);
         }
 
-        return match ($channel) {
-            LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message, $to),
-            LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage(
-                $this->resolveTwilioFrom($from),
-                $message,
-                $to,
-            ),
-            LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title, $signature, $to, $cc),
-            LeadCommunicationChannelEnum::VOICE->value => $this->sendVoiceMessage($message),
-            default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
-        };
+        try {
+            if ($files !== null && $files->isNotEmpty()) {
+                $this->processedFiles = $this->prepareFiles($files);
+                $this->createVideoEngagements();
+            }
+
+            return match ($channel) {
+                LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message, $to),
+                LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage(
+                    $this->resolveTwilioFrom($from),
+                    $message,
+                    $to,
+                ),
+                LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title, $signature, $to, $cc),
+                LeadCommunicationChannelEnum::VOICE->value => $this->sendVoiceMessage($message),
+                default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
+            };
+        } catch (Throwable $exception) {
+            return $this->failedResult($channel, $exception);
+        }
+    }
+
+    protected function failedResult(string $channel, Throwable $exception): array
+    {
+        report($exception);
+
+        return [
+            'status' => 'error',
+            'success' => false,
+            'channel' => $channel,
+            'lead_id' => $this->lead->getId(),
+            'lead_uuid' => $this->lead->uuid,
+            'messages' => [],
+            'error' => $exception->getMessage(),
+        ];
     }
 
     protected function resolveTwilioFrom(?string $from): string
