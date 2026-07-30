@@ -13,14 +13,16 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\Company as CompanyData;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Movipass\Enums\CorporateApplicationStatusEnum;
+use Kanvas\Connectors\Movipass\Enums\CorporateLeadFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
-use Kanvas\Connectors\Movipass\Jobs\MigrateCorporateUserVariantsJob;
-use Kanvas\Connectors\Movipass\Workflows\Activities\AutoApproveCorporateLeadActivity;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\AssignCompanyAction;
-use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Models\Users;
 
 class EnableCorporateModeAction
@@ -32,6 +34,13 @@ class EnableCorporateModeAction
     ) {
     }
 
+    /**
+     * Files an upgrade request. The Company is provisioned so the user has somewhere to land,
+     * but `is_corporate` stays unset — no corporate privilege is granted until an admin
+     * approves, because the RNC and phone here are self-reported and were being faked.
+     *
+     * @see GrantCorporateModeAction what approval then runs
+     */
     public function execute(): Companies
     {
         $validationError = new ValidateCorporateFieldsAction($this->fields)->execute();
@@ -44,10 +53,15 @@ class EnableCorporateModeAction
             throw new ValidationException('User is already corporate');
         }
 
+        if ($this->hasPendingRequest()) {
+            throw new ValidationException('You already have a corporate request under review.');
+        }
+
         $sourceCompanyId = $this->user->getCurrentCompany()->getId();
         $appsModel = $this->app instanceof Apps ? $this->app : app(Apps::class);
+        $receiver = $this->corporateReceiver($appsModel);
 
-        return DB::connection('ecosystem')->transaction(function () use ($sourceCompanyId, $appsModel) {
+        $company = DB::connection('ecosystem')->transaction(function () use ($appsModel) {
             $company = $this->createCorporateCompany();
             $this->setCompanyFields($company);
             $this->setUserFields();
@@ -55,17 +69,91 @@ class EnableCorporateModeAction
             // Same onboarding the registration/lead-accept path runs — provisions the
             // company's default inventory (region + warehouse) via OnBoardingJob.
             new SetupService()->onBoarding($this->user, $appsModel, $company);
-            $this->switchToCorporateCompany($company);
-
-            dispatch(new MigrateCorporateUserVariantsJob(
-                app: $appsModel,
-                userId: $this->user->getId(),
-                sourceCompanyId: $sourceCompanyId,
-                targetCompanyId: $company->getId(),
-            ));
 
             return $company;
         });
+
+        $this->fileForReview($receiver, $company, $sourceCompanyId);
+
+        return $company;
+    }
+
+    /**
+     * Upgrade requests are filed as Leads on the receiver's company so admins review both
+     * paths in one queue — the panel lists them with the same `leads(hasCustomFields:)` query.
+     */
+    private function fileForReview(LeadReceiver $receiver, Companies $company, int $sourceCompanyId): void
+    {
+        $lead = new Lead();
+        $lead->fill([
+            'apps_id' => $receiver->apps_id,
+            'users_id' => $receiver->users_id,
+            'companies_id' => $receiver->companies_id,
+            'companies_branches_id' => $receiver->companies_branches_id,
+            'leads_receivers_id' => $receiver->getId(),
+            'leads_owner_id' => $receiver->users_id,
+            'title' => trim((string) ($this->fields['commercial_name'] ?: $this->fields['legal_name'])),
+            'firstname' => (string) ($this->fields['contact_name'] ?? $this->user->firstname),
+            'lastname' => (string) $this->user->lastname,
+            'email' => trim((string) ($this->fields['contact_email'] ?? $this->user->email)),
+            'phone' => trim((string) ($this->fields['contact_phone'] ?? '')),
+        ]);
+        $lead->saveOrFail();
+
+        foreach (CorporateLeadFieldEnum::COMPANY_FIELDS as $key) {
+            if (! empty($this->fields[$key])) {
+                $lead->set($key, $this->fields[$key]);
+            }
+        }
+
+        foreach (CorporateLeadFieldEnum::USER_FIELDS as $key) {
+            if ($key !== 'is_corporate' && ! empty($this->fields[$key])) {
+                $lead->set($key, $this->fields[$key]);
+            }
+        }
+
+        $lead->set(CorporateLeadFieldEnum::STATUS->value, CorporateApplicationStatusEnum::PENDING->value);
+        $lead->set(CorporateLeadFieldEnum::COMPANY_ID->value, (string) $company->getId());
+        $lead->set(CorporateLeadFieldEnum::UPGRADE_USER_ID->value, (string) $this->user->getId());
+        $lead->set(CorporateLeadFieldEnum::UPGRADE_SOURCE_COMPANY_ID->value, (string) $sourceCompanyId);
+    }
+
+    private function hasPendingRequest(): bool
+    {
+        return Lead::query()
+            ->whereIn('id', function ($q) {
+                $q->select('entity_id')
+                    ->from(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields')
+                    ->where('model_name', Lead::class)
+                    ->where('name', CorporateLeadFieldEnum::UPGRADE_USER_ID->value)
+                    ->where('value', (string) $this->user->getId())
+                    ->where('is_deleted', 0);
+            })
+            ->whereIn('id', function ($q) {
+                $q->select('entity_id')
+                    ->from(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields')
+                    ->where('model_name', Lead::class)
+                    ->where('name', CorporateLeadFieldEnum::STATUS->value)
+                    ->where('value', CorporateApplicationStatusEnum::PENDING->value)
+                    ->where('is_deleted', 0);
+            })
+            ->notDeleted()
+            ->exists();
+    }
+
+    private function corporateReceiver(Apps $app): LeadReceiver
+    {
+        $receiverId = $app->get(ConfigurationEnum::CORPORATE_RECEIVER_ID->value);
+
+        if (empty($receiverId)) {
+            throw new ValidationException(
+                'Corporate onboarding is not configured for this app (missing corporate receiver).'
+            );
+        }
+
+        return LeadReceiver::where('id', (int) $receiverId)
+            ->where('apps_id', $app->getId())
+            ->firstOrFail();
     }
 
     private function createCorporateCompany(): Companies
@@ -86,9 +174,7 @@ class EnableCorporateModeAction
 
     private function setCompanyFields(Companies $company): void
     {
-        $company->set('is_corporate', true);
-
-        foreach (AutoApproveCorporateLeadActivity::CORPORATE_COMPANY_FIELDS as $key) {
+        foreach (CorporateLeadFieldEnum::COMPANY_FIELDS as $key) {
             $value = $this->fields[$key] ?? null;
             if ($value === null || $value === '') {
                 continue;
@@ -110,9 +196,7 @@ class EnableCorporateModeAction
 
     private function setUserFields(): void
     {
-        $this->user->set('is_corporate', true);
-
-        foreach (AutoApproveCorporateLeadActivity::CORPORATE_USER_FIELDS as $key) {
+        foreach (CorporateLeadFieldEnum::USER_FIELDS as $key) {
             if ($key === 'is_corporate') {
                 continue;
             }
@@ -137,12 +221,5 @@ class EnableCorporateModeAction
         )->execute();
 
         new AssignRoleAction($this->user, $adminRole)->execute();
-    }
-
-    private function switchToCorporateCompany(Companies $company): void
-    {
-        $branch = $company->branch()->firstOrFail();
-
-        new SwitchCompanyBranchAction($this->user, $branch->getId())->execute();
     }
 }

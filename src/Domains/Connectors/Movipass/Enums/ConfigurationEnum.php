@@ -16,6 +16,7 @@ enum ConfigurationEnum: string
     case CORPORATE_AUTO_APPROVE = 'movipass_corporate_auto_approve';
     case CORPORATE_WELCOME_TEMPLATE = 'movipass_corporate_welcome_template';
     case CORPORATE_NEEDS_REVIEW_TEMPLATE = 'movipass_corporate_needs_review_template';
+    case CORPORATE_REJECTED_TEMPLATE = 'movipass_corporate_rejected_template';
     case CORPORATE_INVITE_LINK_BASE = 'movipass_corporate_invite_link_base';
 
     case EXPIRING_RESERVATION_MIN = '5';

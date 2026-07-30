@@ -38,6 +38,35 @@ type CorporateOnboardingResult {
     status: String!
 }
 
+type CorporateApplicationDecision {
+    lead: ID!
+    status: String!
+    company_id: ID
+    invite_hash: String
+    reason: String
+    applicant_notified: Boolean
+}
+
+# The review queue needs no dedicated query — `leads` already filters by custom field:
+#   leads(hasCustomFields: { AND: [
+#     { column: NAME, value: "movipass_corporate_status" }
+#     { column: VALUE, operator: IN, value: ["pending", "needs_review"] }
+#   ]})
+extend type Mutation @guardByAdmin {
+    approveCorporateApplication(id: ID!): CorporateApplicationDecision!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\CorporateApplicationMutation@approve"
+        )
+
+    rejectCorporateApplication(
+        id: ID!
+        reason: String!
+    ): CorporateApplicationDecision!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Movipass\\Mutations\\CorporateApplicationMutation@reject"
+        )
+}
+
 extend type Mutation @guard {
     enableCorporateMode(
         input: CorporateOnboardingInput!

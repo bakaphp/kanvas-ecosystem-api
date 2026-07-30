@@ -6,6 +6,7 @@ namespace App\GraphQL\Connector\Movipass\Mutations;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\EnableCorporateModeAction;
+use Kanvas\Connectors\Movipass\Enums\CorporateApplicationStatusEnum;
 
 class EnableCorporateModeMutation
 {
@@ -22,7 +23,8 @@ class EnableCorporateModeMutation
 
         return [
             'company' => $company,
-            'status' => 'migration_dispatched',
+            // The company exists but carries no corporate privilege until an admin approves.
+            'status' => CorporateApplicationStatusEnum::PENDING->value,
         ];
     }
 }
