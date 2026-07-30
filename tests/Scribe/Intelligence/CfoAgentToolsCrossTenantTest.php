@@ -18,9 +18,11 @@ use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\ScribeTestCase;
 
 /**
- * Cross-tenant safety: every CFO Tool MUST scope to the current user's company. The tools all use
- * `auth()->user()->getCurrentCompany()` internally — a regression that drops that filter would leak
- * cross-tenant data into LLM responses, the worst-shaped bug we could ship for this domain.
+ * Cross-tenant safety: every CFO Tool MUST scope to the agent's BOUND company — `$this->company` from
+ * `HasKanvasContext`, set via `withContext()`. Resolving the company any other way (e.g.
+ * `auth()->user()->getCurrentCompany()`) reads the acting user's session company instead of the
+ * agent's tenant, which can drift — a regression there would leak cross-tenant data into LLM
+ * responses, the worst-shaped bug we could ship for this domain.
  *
  * Strategy: seed Scribe data for the current tenant, then call each tool and assert the returned
  * payload includes the seeded data shape. We can't easily simulate "another tenant" in the same
@@ -36,7 +38,7 @@ class CfoAgentToolsCrossTenantTest extends ScribeTestCase
     {
         $this->seedIssuedInvoice(total: 1000.0);
 
-        $payload = new QueryBalanceSheetTool()->__invoke(
+        $payload = new QueryBalanceSheetTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(
             as_of: '2026-06-30',
             currency: 'USD',
         );
@@ -55,7 +57,7 @@ class CfoAgentToolsCrossTenantTest extends ScribeTestCase
     {
         $this->seedIssuedInvoice(total: 500.0);
 
-        $payload = new QueryArAgingTool()->__invoke(as_of: '2026-06-30', currency: 'USD');
+        $payload = new QueryArAgingTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(as_of: '2026-06-30', currency: 'USD');
 
         $this->assertIsArray($payload);
         $this->assertSame(500.0, (float) $payload['grand_total']);
@@ -65,7 +67,7 @@ class CfoAgentToolsCrossTenantTest extends ScribeTestCase
     {
         $this->seedIssuedInvoice(total: 750.0, dueDateOffsetDays: -45);
 
-        $payload = new ListOverdueInvoicesTool()->__invoke(limit: 25, min_days_overdue: 1);
+        $payload = new ListOverdueInvoicesTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(limit: 25, min_days_overdue: 1);
 
         $this->assertIsArray($payload);
         $this->assertGreaterThanOrEqual(1, (int) $payload['count']);
@@ -76,7 +78,7 @@ class CfoAgentToolsCrossTenantTest extends ScribeTestCase
 
     public function test_query_recent_expenses_tool_isolates_to_current_tenant(): void
     {
-        $payload = new QueryRecentExpensesTool()->__invoke(days_back: 30);
+        $payload = new QueryRecentExpensesTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(days_back: 30);
 
         $this->assertIsArray($payload);
         $this->assertArrayHasKey('expenses', $payload);
@@ -88,7 +90,7 @@ class CfoAgentToolsCrossTenantTest extends ScribeTestCase
     {
         $this->seedIssuedInvoice(total: 100.0);
 
-        $payload = new QueryDataFreshnessTool()->__invoke();
+        $payload = new QueryDataFreshnessTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke();
 
         $this->assertIsArray($payload);
         $this->assertArrayHasKey('counts', $payload);

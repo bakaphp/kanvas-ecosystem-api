@@ -200,6 +200,12 @@ class Templates extends BaseModel
             $query->where('companies_id', $user->getCurrentCompany()->getId());
         }
 
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name,subject,title',
+            ]);
+        }
+
         return $query;
     }
 }

@@ -1,0 +1,229 @@
+type NervousSystemWorkspace {
+    id: ID!
+    uuid: String!
+    name: String!
+    slug: String!
+    description: String
+    status: String!
+    owner: User! @belongsTo(relation: "owner")
+    oversightAgent: AgentAi @belongsTo(relation: "oversightAgent")
+    projects: [NervousSystemProject!]! @hasMany(relation: "projects")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type NervousSystemProject {
+    id: ID!
+    uuid: String!
+    title: String!
+    slug: String!
+    objective: String
+    description: String
+    status: String!
+    priority: Int!
+    completion_pct: Int!
+    heartbeat_interval_minutes: Int!
+    webhook_url: String
+    deadline_at: DateTime
+    started_at: DateTime
+    completed_at: DateTime
+    workspace: NervousSystemWorkspace @belongsTo(relation: "workspace")
+    owner: User! @belongsTo(relation: "owner")
+    pmAgent: AgentAi! @belongsTo(relation: "pmAgent")
+    swarm: AgentSwarm @belongsTo(relation: "swarm")
+    parent: NervousSystemProject @belongsTo(relation: "parent")
+    children: [NervousSystemProject!]! @hasMany(relation: "children")
+    plans: [NervousSystemPlan!]! @hasMany(relation: "plans")
+    members: [NervousSystemProjectMember!]! @hasMany(relation: "members")
+    defaultChannel: SocialChannel @belongsTo(relation: "defaultChannel")
+    channels: [SocialChannel!]! @hasMany(relation: "channels")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type NervousSystemProjectMember {
+    id: ID!
+    member_type: String!
+    role: String!
+    is_active: Boolean!
+    user: User! @belongsTo(relation: "user")
+    agent: AgentAi @belongsTo(relation: "agent")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input AddNervousSystemProjectMemberInput {
+    role: String
+    users_id: Int
+    agent_id: Int
+}
+
+input CreateNervousSystemWorkspaceInput {
+    name: String!
+    description: String
+    status: String
+    agent_id: Int
+}
+
+input UpdateNervousSystemWorkspaceInput {
+    name: String
+    description: String
+    status: String
+    agent_id: Int
+}
+
+input CreateNervousSystemProjectInput {
+    title: String!
+    agent_id: Int!
+    workspace_id: Int
+    swarm_id: Int
+    parent_project_id: Int
+    objective: String
+    description: String
+    status: String
+    priority: Int
+    deadline_at: DateTime
+    heartbeat_interval_minutes: Int
+    files: [FilesystemInputUrl!]
+}
+
+input UpdateNervousSystemProjectInput {
+    title: String
+    agent_id: Int
+    workspace_id: Int
+    swarm_id: Int
+    objective: String
+    description: String
+    status: String
+    priority: Int
+    deadline_at: DateTime
+    heartbeat_interval_minutes: Int
+    files: [FilesystemInputUrl!]
+}
+
+extend type Query @guard {
+    nervousSystemWorkspaces(
+        where: _ @whereConditions(columns: ["id", "uuid", "name", "status"])
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
+    ): [NervousSystemWorkspace!]!
+        @paginate(
+            model: "Kanvas\\NervousSystem\\Project\\Models\\Workspace"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+
+    nervousSystemProjects(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "workspace_id"
+                    "agent_id"
+                    "swarm_id"
+                    "parent_project_id"
+                    "status"
+                    "priority"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "priority"
+                    "deadline_at"
+                    "completion_pct"
+                    "created_at"
+                    "updated_at"
+                ]
+            )
+    ): [NervousSystemProject!]!
+        @paginate(
+            model: "Kanvas\\NervousSystem\\Project\\Models\\Project"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}
+
+extend type Mutation @guard {
+    createNervousSystemWorkspace(
+        input: CreateNervousSystemWorkspaceInput!
+    ): NervousSystemWorkspace!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\WorkspaceMutation@create"
+        )
+
+    updateNervousSystemWorkspace(
+        id: ID!
+        input: UpdateNervousSystemWorkspaceInput!
+    ): NervousSystemWorkspace!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\WorkspaceMutation@update"
+        )
+
+    deleteNervousSystemWorkspace(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\WorkspaceMutation@delete"
+        )
+
+    createNervousSystemProject(
+        input: CreateNervousSystemProjectInput!
+    ): NervousSystemProject!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMutation@create"
+        )
+
+    updateNervousSystemProject(
+        id: ID!
+        input: UpdateNervousSystemProjectInput!
+    ): NervousSystemProject!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMutation@update"
+        )
+
+    deleteNervousSystemProject(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMutation@delete"
+        )
+
+    attachMessageToProject(
+        project_id: ID!
+        content: String!
+        type: String
+    ): Message!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMutation@attachMessage"
+        )
+
+    addNervousSystemProjectMember(
+        project_id: ID!
+        input: AddNervousSystemProjectMemberInput!
+    ): NervousSystemProjectMember!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMemberMutation@add"
+        )
+
+    updateNervousSystemProjectMemberRole(
+        id: ID!
+        role: String!
+    ): NervousSystemProjectMember!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMemberMutation@updateRole"
+        )
+
+    removeNervousSystemProjectMember(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMemberMutation@remove"
+        )
+}

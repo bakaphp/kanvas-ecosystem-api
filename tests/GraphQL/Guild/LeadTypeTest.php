@@ -129,6 +129,55 @@ class LeadTypeTest extends TestCase
         );
     }
 
+    public function testSearchLeadTypes()
+    {
+        $name = 'LeadType-' . fake()->unique()->uuid();
+        $this->graphQL(
+            '
+            mutation createLeadType($input: LeadTypeInput!) {
+                createLeadType(input: $input){
+                   uuid
+                }
+            }
+            ',
+            [
+                'input' => [
+                    'name' => $name,
+                    'description' => fake()->text,
+                    'is_active' => true,
+                ],
+            ]
+        );
+
+        $response = $this->graphQL(
+            '
+            query leadTypes($search: String) {
+                leadTypes(search: $search) {
+                    data {
+                        name
+                    }
+                }
+            }
+            ',
+            [
+                'search' => $name,
+            ]
+        )->assertJsonStructure(
+            [
+                'data' => [
+                    'leadTypes' => [
+                        'data' => [
+                            '*' => ['name'],
+                        ],
+                    ],
+                ],
+            ]
+        )->decodeResponseJson()->json;
+
+        $names = array_column(json_decode($response, true)['data']['leadTypes']['data'], 'name');
+        $this->assertContains($name, $names);
+    }
+
     public function testLeadTypes()
     {
         $input = [

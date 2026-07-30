@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\GraphQL\Guild\Mutations\Organizations;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Organizations\Actions\AddAddressToOrganizationAction;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\Actions\UpdateOrganizationAction;
+use Kanvas\Guild\Organizations\DataTransferObject\Address as AddressData;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as DataTransferObjectOrganization;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationType;
@@ -28,13 +30,19 @@ class OrganizationManagementMutation
             $user,
             $app,
             $data['name'],
+            email: $data['email'] ?? null,
+            phone: $data['phone'] ?? null,
             address: $data['address'] ?? null,
             organizationType: isset($data['organization_type_id'])
                 ? OrganizationType::getByIdFromCompanyApp((int) $data['organization_type_id'], $company, $app)
                 : null,
         );
 
-        return new CreateOrganizationAction($organizationData)->execute();
+        $organization = new CreateOrganizationAction($organizationData)->execute();
+
+        $this->syncAddresses($organization, $data);
+
+        return $organization;
     }
 
     public function update(mixed $root, array $req): Organization
@@ -57,14 +65,43 @@ class OrganizationManagementMutation
             $user,
             $app,
             $data['name'],
+            email: $data['email'] ?? null,
+            phone: $data['phone'] ?? null,
             address: $data['address'] ?? null,
             organizationType: $organizationType,
         );
 
-        return new UpdateOrganizationAction(
+        $updated = new UpdateOrganizationAction(
             $organization,
             $organizationData
         )->execute();
+
+        $this->syncAddresses($updated, $data);
+
+        return $updated;
+    }
+
+    /**
+     * Additive, never a replace-all: omitting the block leaves existing addresses alone, so updating a phone
+     * number can't silently delete someone's shipping address.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function syncAddresses(Organization $organization, array $data): void
+    {
+        $addresses = $data['addresses'] ?? null;
+
+        if (! is_array($addresses) || $addresses === []) {
+            return;
+        }
+
+        $user = auth()->user();
+
+        foreach ($addresses as $address) {
+            new AddAddressToOrganizationAction(
+                AddressData::from($organization, (array) $address, $user),
+            )->execute();
+        }
     }
 
     public function delete(mixed $root, array $req): bool

@@ -6,11 +6,14 @@ namespace App\Console\Commands\NervousSystem\Schedules;
 
 use App\Console\Commands\Intelligence\CollectAgentDeploymentUsageCommand;
 use App\Console\Commands\Intelligence\CollectAgentSessionTranscriptsCommand;
+use App\Console\Commands\Intelligence\DailyAgentConfigBackupCommand;
 use App\Console\Commands\Intelligence\RollupLocalAgentUsageCommand;
 use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
 use App\Console\Commands\NervousSystem\CheckAgentRuntimeHealthCommand;
 use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
 use App\Console\Commands\NervousSystem\ExpireCapabilitiesCommand;
+use App\Console\Commands\NervousSystem\NudgeInactivePlansCommand;
+use App\Console\Commands\NervousSystem\ProjectHeartbeatCommand;
 use App\Console\Commands\NervousSystem\RecordAgentDailyCyclesCommand;
 use App\Console\Commands\NervousSystem\RefreshAgentLiveCountersCommand;
 use App\Console\Commands\NervousSystem\SendDailyLearningDigestCommand;
@@ -70,9 +73,24 @@ final class NervousSystemSchedule
         $schedule->command(DetectStalledPlanTasksCommand::class)
             ->everyFiveMinutes()
             ->withoutOverlapping();
+
+        // Project heartbeat — the proactive pulse. Runs every 5 min; each project only ticks when
+        // its own heartbeat_interval_minutes has elapsed.
+        $schedule->command(ProjectHeartbeatCommand::class)
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
         $schedule->command(ExpireCapabilitiesCommand::class)
             ->hourly()
             ->withoutOverlapping();
+
+        // Inactive-plan nudge — once a day, ping owners of open plans that have gone silent past the
+        // 24h threshold. Daily (not the 5-min heartbeat cadence) because the signal is day-scale and the
+        // action posts a comment / notifies a human; the action's own ledger guard prevents re-nudging.
+        $schedule->command(NudgeInactivePlansCommand::class)
+            ->dailyAt('08:00')
+            ->timezone('America/New_York')
+            ->withoutOverlapping()
+            ->onOneServer();
 
         // Daily rollups feed dashboard + pulse cards before operators log in.
         // Staggered by 5min so they don't slam the DB simultaneously.
@@ -152,5 +170,12 @@ final class NervousSystemSchedule
             ->timezone('America/New_York')
             ->withoutOverlapping()
             ->onOneServer();
+
+        // End-of-day config backup — runs hourly and dispatches only for agents
+        // whose company's local time is 23:xx, so each timezone gets its own EOD backup.
+        /*  $schedule->command(DailyAgentConfigBackupCommand::class)
+             ->hourly()
+             ->withoutOverlapping()
+             ->onOneServer(); */
     }
 }

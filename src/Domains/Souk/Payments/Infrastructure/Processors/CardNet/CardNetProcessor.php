@@ -185,7 +185,10 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
         $start = hrtime(true);
 
         try {
-            $response = $this->service->commit($purchaseId);
+            $response = $this->service->commit(
+                $purchaseId,
+                $this->toCardNetAmount($amount ?? $order->getTotalDueAmount()),
+            );
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
             $payment->authorization_code = $response->getApprovalCode();
@@ -259,7 +262,10 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
         $start = hrtime(true);
 
         try {
-            $response = $this->service->refund($purchaseId);
+            $response = $this->service->refund(
+                $purchaseId,
+                $this->buildRefundRequest($payment, $order, $amount),
+            );
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
             $payment->update(['status' => PaymentStatusEnum::REVERSED->value]);
@@ -327,10 +333,24 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
             );
         }
 
+        // CardNet has no void/rollback endpoint — /refund is the only reversal ("anulación"
+        // in CardNet's own API) and it only works on CAPTURED purchases. An uncaptured hold
+        // cannot be released via API: let it expire, or capture + refund.
+        if ($payment->status === PaymentStatusEnum::AUTHORIZED->value) {
+            return new VoidResult(
+                success: false,
+                message: 'CardNet cannot void an uncaptured hold — let it expire or capture + refund.',
+                transactionId: (string) $purchaseId,
+            );
+        }
+
         $start = hrtime(true);
 
         try {
-            $response = $this->service->refund($purchaseId);
+            $response = $this->service->refund(
+                $purchaseId,
+                $this->buildRefundRequest($payment, $order),
+            );
             $responseTimeMs = (int) round((hrtime(true) - $start) / 1e6);
 
             $payment->update(['status' => PaymentStatusEnum::CANCELLED->value]);
@@ -614,13 +634,39 @@ class CardNetProcessor implements PaymentProcessorInterface, TokenizationProcess
         $paymentMethod = $payment->paymentMethod;
         $trxToken = (string) ($paymentMethod->getMetadata(CustomFieldEnum::TOKEN->value) ?? '');
 
+        // orders.currency is a CHAR-padded column ("DOP ") — CardNet rejects untrimmed values with PR004.
+        // CustomerUserAgent/CustomerIP must be stored on the purchase: refunds of a purchase created
+        // without a UserAgent are rejected with PR015 "Parámetro de UserAgent vacío".
         return new CardNetPurchaseRequest(
             trxToken: $trxToken,
             order: (string) $order->id,
             amount: $this->toCardNetAmount($order->getTotalDueAmount()),
-            currency: (string) ($order->currency ?? 'DOP'),
+            currency: trim((string) ($order->currency ?? '')) ?: 'DOP',
             invoice: (string) ($order->order_number ?? $order->id),
             capture: $capture,
+            customerIp: request()?->ip(),
+            customerUserAgent: request()?->userAgent() ?? 'KanvasEcosystem/1.0',
+        );
+    }
+
+    /**
+     * CardNet's refund endpoint expects the original purchase payload echoed back
+     * (TrxToken, Order, Amount, Currency, CustomerIP, DataDo.Invoice) per the official
+     * Postman collection. The amount defaults to what was actually charged.
+     */
+    private function buildRefundRequest(Payments $payment, Order $order, ?float $amount = null): CardNetPurchaseRequest
+    {
+        $paymentMethod = $payment->paymentMethod;
+
+        return new CardNetPurchaseRequest(
+            trxToken: (string) ($paymentMethod?->getMetadata(CustomFieldEnum::TOKEN->value) ?? ''),
+            order: (string) $order->id,
+            amount: $this->toCardNetAmount($amount ?? (float) ($payment->amount ?: $order->getTotalDueAmount())),
+            currency: trim((string) ($order->currency ?? '')) ?: 'DOP',
+            invoice: (string) ($order->order_number ?? $order->id),
+            tip: 0,
+            customerIp: request()?->ip(),
+            customerUserAgent: request()?->userAgent() ?? 'KanvasEcosystem/1.0',
         );
     }
 

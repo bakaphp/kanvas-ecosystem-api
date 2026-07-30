@@ -12,5 +12,8 @@ enum AddressTypeEnum: string
     case PREVIOUS_EMPLOYER = 'PreviousEmployer';
     case BILLING = 'Billing';
     case SHIPPING = 'Shipping';
+    case HEADQUARTERS = 'Headquarters';
+    case WAREHOUSE = 'Warehouse';
+    case REGISTERED_OFFICE = 'RegisteredOffice';
     case OTHER = 'Other';
 }

@@ -5,7 +5,13 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Guild;
 
 use Illuminate\Http\UploadedFile;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Enums\FlagEnum;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Locations\Models\Cities;
+use Kanvas\Locations\Models\Countries;
+use Kanvas\Locations\Models\States;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
 
@@ -151,6 +157,92 @@ class LeadTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    /**
+     * A lead's address arrives with `state_id` as a string (the shape the FE sends) and no country.
+     * `Address::fromArray` must coerce the id, derive `countries_id` from the state, and resolve the
+     * `city_id` scoped to that state — the resolved values must land on the persisted address row.
+     */
+    public function testCreateLeadResolvesAddressStateCityAndCountry(): void
+    {
+        // Self-seed the exact country/state/city the resolver will look up. Relying on the
+        // seeded location dataset is fragile — CI seeds only a subset and may have no state
+        // with both a country and cities.
+        $country = Countries::create([
+            'name' => fake()->unique()->country(),
+            'code' => strtolower(fake()->unique()->lexify('??')),
+            'flag' => '',
+        ]);
+
+        $state = States::create([
+            'countries_id' => $country->id,
+            'name' => fake()->unique()->state(),
+            'code' => strtoupper(fake()->unique()->lexify('??')),
+        ]);
+
+        $city = Cities::create([
+            'countries_id' => $country->id,
+            'states_id' => $state->id,
+            'name' => fake()->unique()->city(),
+        ]);
+
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $title = fake()->name();
+
+        $input = [
+            'branch_id' => $branch->getId(),
+            'title' => $title,
+            'pipeline_stage_id' => 0,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->unique()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+                'address' => [
+                    [
+                        'address' => '44210 31ST ST WEST',
+                        'city' => $city->name,
+                        'state_id' => (string) $state->id,
+                        'zip' => '935360000',
+                    ],
+                ],
+                'custom_fields' => [],
+            ],
+            'custom_fields' => [],
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: LeadInput!) {
+                createLead(input: $input) {
+                    people { id }
+                }
+            }
+        ', [
+            'input' => $input,
+        ])->assertJson([
+            'data' => [
+                'createLead' => [
+                    'people' => [],
+                ],
+            ],
+        ])->json();
+
+        $peopleId = (int) $response['data']['createLead']['people']['id'];
+        $people = People::getByIdFromCompanyApp($peopleId, $branch->company, app(Apps::class));
+        $address = $people->address()->firstOrFail();
+
+        $this->assertSame('44210 31ST ST WEST', $address->address);
+        $this->assertSame($state->id, (int) $address->state_id);
+        $this->assertSame((int) $state->countries_id, (int) $address->countries_id);
+        $this->assertSame($city->id, (int) $address->city_id);
+        $this->assertSame('935360000', $address->zip);
     }
 
     public function testCreateLeadWithoutPeopleContacts(): void
@@ -589,6 +681,66 @@ class LeadTest extends TestCase
                 'updateLead' => [
                     'id' => $leadId,
                     'title' => $input['title'],
+                ],
+            ],
+        ]);
+    }
+
+    public function testUpdateLeadPreservesDescriptionWhenOmitted(): void
+    {
+        $user = auth()->user();
+        $branch = $user->getCurrentBranch();
+        $description = 'DNC - Do Not Contact solicitado por Beno ' . fake()->word();
+
+        $input = [
+            'branch_id' => $branch->getId(),
+            'title' => 'Lead ' . fake()->word(),
+            'pipeline_stage_id' => 0,
+            'description' => $description,
+            'people' => [
+                'firstname' => fake()->firstName(),
+                'lastname' => fake()->lastName(),
+                'contacts' => [
+                    [
+                        'value' => fake()->email(),
+                        'contacts_types_id' => 1,
+                        'weight' => 0,
+                    ],
+                ],
+            ],
+            'custom_fields' => [],
+            'files' => [],
+        ];
+
+        $response = $this->createLeadAndGetResponse($input);
+        $leadId = $response['data']['createLead']['id'];
+        $peopleId = $response['data']['createLead']['people']['id'];
+
+        // Update WITHOUT a description (partial update, e.g. an owner change) must NOT blank it.
+        $updateInput = [
+            'branch_id' => $branch->getId(),
+            'title' => $input['title'],
+            'people_id' => $peopleId,
+            'custom_fields' => [],
+            'files' => [],
+        ];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: LeadUpdateInput!) {
+                updateLead(id: $id, input: $input) {
+                    id
+                    description
+                }
+            }
+        ', [
+            'id' => $leadId,
+            'input' => $updateInput,
+        ])->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateLead' => [
+                    'id' => $leadId,
+                    'description' => $description,
                 ],
             ],
         ]);
@@ -1055,5 +1207,77 @@ class LeadTest extends TestCase
         $response = $this->createLeadAndGetResponse($input);
 
         $this->assertTrue($response['data']['createLead']['status']['name'] === 'Duplicate');
+    }
+
+    public function testAddMessageToLeadChannel(): void
+    {
+        $lead = $this->createLeadAndGetResponse();
+        $leadId = (int) $lead['data']['createLead']['id'];
+        $message = fake()->sentence();
+
+        $response = $this->graphQL('
+            mutation($input: LeadMessageInput!) {
+                addMessageToLeadChannel(input: $input) {
+                    id
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'message' => $message,
+            ],
+        ])->assertJson([
+            'data' => [
+                'addMessageToLeadChannel' => [
+                    'message' => $message,
+                ],
+            ],
+        ])->json();
+
+        $messageId = (int) $response['data']['addMessageToLeadChannel']['id'];
+        $leadModel = Lead::getById($leadId, app(Apps::class));
+
+        $this->assertTrue(
+            $leadModel->systemNotes->messages()->where('messages.id', $messageId)->exists(),
+            'Message was not attached to the lead default channel',
+        );
+    }
+
+    public function testAddMessageToLeadChannelWithExplicitChannel(): void
+    {
+        $lead = $this->createLeadAndGetResponse();
+        $leadId = (int) $lead['data']['createLead']['id'];
+        $leadModel = Lead::getById($leadId, app(Apps::class));
+        $channel = $leadModel->systemNotes;
+        $message = fake()->sentence();
+
+        $response = $this->graphQL('
+            mutation($input: LeadMessageInput!) {
+                addMessageToLeadChannel(input: $input) {
+                    id
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'channel_id' => $channel->getId(),
+                'message' => $message,
+            ],
+        ])->assertJson([
+            'data' => [
+                'addMessageToLeadChannel' => [
+                    'message' => $message,
+                ],
+            ],
+        ])->json();
+
+        $messageId = (int) $response['data']['addMessageToLeadChannel']['id'];
+
+        $this->assertTrue(
+            $channel->messages()->where('messages.id', $messageId)->exists(),
+            'Message was not attached to the specified channel',
+        );
     }
 }

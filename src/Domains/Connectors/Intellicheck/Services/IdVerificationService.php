@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Intellicheck\Services;
 
+use Carbon\Carbon;
+use Throwable;
+
 class IdVerificationService
 {
     public static function getName(array $verificationData): string
@@ -186,7 +189,20 @@ class IdVerificationService
         $ocMatch = ! $hasOcrFailure;
 
         // ID CHECK
-        $isExpired = strtolower($idCheck['expired'] ?? 'no') === 'yes';
+        // Expiry can come from the idcheck block OR the OCR block. A blurry/bad
+        // back image leaves the idcheck block empty (DocumentBadDevice), so
+        // without the OCR fallback an expired license slips through as valid.
+        $ocrExpired = false;
+        $ocrExpiry = (string) ($ocrData['dateOfExpiry'] ?? '');
+        if ($ocrExpiry !== '') {
+            try {
+                $ocrExpired = Carbon::parse($ocrExpiry)->isPast();
+            } catch (Throwable) {
+                $ocrExpired = false;
+            }
+        }
+
+        $isExpired = strtolower($idCheck['expired'] ?? 'no') === 'yes' || $ocrExpired;
         if ($isExpired) {
             $flags[] = 'ID is expired';
             $flagGroups[] = 'ID check flag';
@@ -214,6 +230,18 @@ class IdVerificationService
         if (strtolower($idCheck['stateIssuerMismatch'] ?? '') === 'yes') {
             $flags[] = 'State issuer mismatch';
             $flagGroups[] = 'ID check incomplete';
+        }
+
+        // A failed idcheck (blurry image, bad device, etc.) means the document
+        // could not actually be verified. It must never resolve to green/passed —
+        // force at least a flag so it surfaces for manual review.
+        $idCheckUnverifiable = ($verificationData['idcheck']['success'] ?? false) === false;
+        if ($idCheckUnverifiable) {
+            $flagNotice = true;
+            if (! in_array('ID check incomplete', $flagGroups, true)) {
+                $flags[] = 'ID could not be verified';
+                $flagGroups[] = 'ID check incomplete';
+            }
         }
 
         // Skip IPQS validation if in showroom mode or IPQS address data is empty
@@ -333,7 +361,7 @@ class IdVerificationService
 
         if (empty($failures)) {
             // Always make sure expired IDs are flagged
-            if ($isExpired || ($flagNotice && count($flagGroupScores) >= 2)) {
+            if ($isExpired || $idCheckUnverifiable || ($flagNotice && count($flagGroupScores) >= 2)) {
                 // Create message using flag groups
                 $flagReasons = [];
                 foreach ($flaggedGroups as $group) {

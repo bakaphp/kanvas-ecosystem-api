@@ -16,7 +16,6 @@ use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Notifications\AgentReplyNotification;
-use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -24,6 +23,7 @@ use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
+use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -136,14 +136,17 @@ class PersistChatTurnToSocialAction
         $channel->addMessage($incoming, $this->user);
         $channel->addMessage($reply, $aiUser);
 
-        // Falls back to the People's active Lead so mid-turn create_lead
-        // (request started lead-less, tool fired) still hits the Lead channel.
-        $resolvedLead = $this->currentLead
-            ?? match (true) {
-                $entity instanceof Lead => $entity,
-                $entity instanceof People => LeadsRepository::getPeopleActiveLead($entity),
-                default => null,
-            };
+        // Internal system agents never post into the lead timeline (chat stays on the
+        // user↔agent channel). Others fall back to the People's active Lead so a mid-turn
+        // create_lead still hits the Lead channel.
+        $resolvedLead = $this->agent->conversesWithUser()
+            ? null
+            : ($this->currentLead
+                ?? match (true) {
+                    $entity instanceof Lead => $entity,
+                    $entity instanceof People => LeadsRepository::getPeopleActiveLead($entity),
+                    default => null,
+                });
 
         if ($resolvedLead !== null && ! ($entity instanceof Lead)) {
             $leadChannelService = new LeadChannelService();
@@ -164,10 +167,19 @@ class PersistChatTurnToSocialAction
         }
 
         if ($resolvedLead !== null) {
-            new MarkLeadMessagesAsRespondedAction($resolvedLead, $reply)->execute();
+            new MarkLeadMessagesAsRespondedAction(
+                $resolvedLead,
+                $reply
+            )->execute();
         }
 
-        $this->user->notify(new AgentReplyNotification($reply, $this->agent, $aiUser));
+        $this->user->notify(
+            new AgentReplyNotification(
+                $reply,
+                $this->agent,
+                $aiUser
+            )
+        );
 
         return $reply;
     }

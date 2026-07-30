@@ -23,6 +23,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SimilarVehiclesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\VehicleInterestTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\VehicleTradeInTool;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use NeuronAI\Tools\ToolInterface;
+use ReflectionClass;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 
@@ -119,12 +121,16 @@ class SalesNeuronAgentTest extends TestCase
         // ContactCheckerTool requires a Message constructor arg and is skipped by the generic agent
         $instantiableCount = count(array_filter(
             self::CRM_TOOLS,
-            fn ($class) => (new \ReflectionClass($class))->getConstructor()?->getNumberOfRequiredParameters() === 0
+            fn (string $class): bool => new ReflectionClass($class)->getConstructor()?->getNumberOfRequiredParameters() === 0
         ));
 
         $tools = $stub->getTools();
-        $this->assertCount($instantiableCount, $tools);
-        $this->assertGreaterThan(0, count($tools));
+        $names = array_map(fn (ToolInterface $tool): string => $tool->getName(), $tools);
+
+        // The registry tools, plus get_current_time — BaseKanvasAgent gives every agent the time
+        // tool whether or not an operator selected it (see UniversalAgentToolsTest).
+        $this->assertCount($instantiableCount + 1, $tools);
+        $this->assertContains('get_current_time', $names);
     }
 
     public function testChatWithSalesAgent(): void

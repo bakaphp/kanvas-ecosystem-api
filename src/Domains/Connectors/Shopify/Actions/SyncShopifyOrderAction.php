@@ -141,7 +141,7 @@ class SyncShopifyOrderAction
             $this->app,
             $this->company,
             $this->region,
-            $this->orderData['customer']
+            $this->orderData['customer'] ?? []
         );
 
         return $syncCustomer->execute();

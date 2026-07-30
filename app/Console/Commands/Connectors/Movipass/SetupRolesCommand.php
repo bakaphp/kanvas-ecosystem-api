@@ -134,6 +134,41 @@ class SetupRolesCommand extends Command
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
             ],
+            'correct-plate' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::OPERATIONS,
+            ],
+            'adjust-amount' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::OPERATIONS,
+            ],
+            'mark-duplicate' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::OPERATIONS,
+            ],
+            'add-observations' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::OPERATIONS,
+            ],
+            'associate-payment' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::FINANCE,
+                MovipassRolesEnum::OPERATIONS,
+            ],
+            'relocate' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::OPERATIONS,
+            ],
+            'admin-reverse-transition' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+            ],
         ];
 
         Bouncer::scope()->to(RolesEnums::getScope($app));

@@ -6,25 +6,48 @@ namespace Tests\Intelligence\Agents\Tools;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\AddLeadTagsTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\CreateLeadTool;
+use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\GetOrganizationCustomFieldsTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\SetLeadCustomFieldsTool;
+use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\SetOrganizationCustomFieldsTool;
 use Laravel\Ai\Tools\Request;
 use Tests\TestCase;
 
 class GuildToolsTest extends TestCase
 {
-    private function makeTool(string $class): CreateLeadTool|SetLeadCustomFieldsTool|AddLeadTagsTool
+    private Apps $kanvasApp;
+
+    protected function setUp(): void
     {
-        $app = app(Apps::class);
+        parent::setUp();
+        $this->kanvasApp = app(Apps::class);
+    }
+
+    private function makeTool(string $class): object
+    {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        /** @var CreateLeadTool|SetLeadCustomFieldsTool|AddLeadTagsTool $tool */
         $tool = new $class();
-        $tool->withContext($app, $company);
+        $tool->withContext($this->kanvasApp, $company);
 
         return $tool;
+    }
+
+    private function seedOrganization(string $name): Organization
+    {
+        $user = auth()->user();
+
+        return Organization::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $user->getCurrentCompany()->getId(),
+            'users_id' => $user->getId(),
+            'name' => $name,
+            'address' => '',
+            'total_employees' => 0,
+        ]);
     }
 
     private function makeRequest(array $data): Request
@@ -207,5 +230,72 @@ class GuildToolsTest extends TestCase
         ]));
 
         $this->assertStringContainsString('No tags provided', $response);
+    }
+
+    public function testGetOrganizationCustomFieldsToolReturnsAllFields(): void
+    {
+        $org = $this->seedOrganization('GetFields Test Org ' . uniqid());
+
+        /** @var SetOrganizationCustomFieldsTool $setTool */
+        $setTool = $this->makeTool(SetOrganizationCustomFieldsTool::class);
+        $setTool->handle($this->makeRequest([
+            'organization_id' => $org->getId(),
+            'fields' => [
+                'composite_distress_score' => 72.5,
+                'composite_color' => 'orange',
+                'composite_last_recomputed_at' => '2026-07-10',
+            ],
+        ]));
+
+        /** @var GetOrganizationCustomFieldsTool $getTool */
+        $getTool = $this->makeTool(GetOrganizationCustomFieldsTool::class);
+        $result = json_decode((string) $getTool->handle($this->makeRequest([
+            'organization_id' => $org->getId(),
+        ])), true);
+
+        $this->assertSame($org->getId(), $result['organization_id']);
+        $this->assertArrayHasKey('fields', $result);
+        $this->assertEquals(72.5, $result['fields']['composite_distress_score']);
+        $this->assertSame('orange', $result['fields']['composite_color']);
+        $this->assertSame('2026-07-10', $result['fields']['composite_last_recomputed_at']);
+    }
+
+    public function testGetOrganizationCustomFieldsToolReturnsSubsetWhenKeysProvided(): void
+    {
+        $org = $this->seedOrganization('GetFields Subset Org ' . uniqid());
+
+        /** @var SetOrganizationCustomFieldsTool $setTool */
+        $setTool = $this->makeTool(SetOrganizationCustomFieldsTool::class);
+        $setTool->handle($this->makeRequest([
+            'organization_id' => $org->getId(),
+            'fields' => [
+                'composite_distress_score' => 55.0,
+                'composite_last_recomputed_at' => '2026-07-10',
+                'company_profile' => ['companyName' => 'Acme'],
+            ],
+        ]));
+
+        /** @var GetOrganizationCustomFieldsTool $getTool */
+        $getTool = $this->makeTool(GetOrganizationCustomFieldsTool::class);
+        $result = json_decode((string) $getTool->handle($this->makeRequest([
+            'organization_id' => $org->getId(),
+            'keys' => ['composite_last_recomputed_at', 'composite_distress_score'],
+        ])), true);
+
+        $this->assertArrayHasKey('composite_last_recomputed_at', $result['fields']);
+        $this->assertArrayHasKey('composite_distress_score', $result['fields']);
+        $this->assertArrayNotHasKey('company_profile', $result['fields']);
+    }
+
+    public function testGetOrganizationCustomFieldsToolReturnsErrorForUnknownOrg(): void
+    {
+        /** @var GetOrganizationCustomFieldsTool $tool */
+        $tool = $this->makeTool(GetOrganizationCustomFieldsTool::class);
+
+        $response = (string) $tool->handle($this->makeRequest([
+            'organization_id' => 999999999,
+        ]));
+
+        $this->assertStringContainsString('not found', $response);
     }
 }

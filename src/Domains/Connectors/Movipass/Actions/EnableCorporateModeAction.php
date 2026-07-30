@@ -13,9 +13,11 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\Company as CompanyData;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Jobs\MigrateCorporateUserVariantsJob;
 use Kanvas\Connectors\Movipass\Workflows\Activities\AutoApproveCorporateLeadActivity;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
@@ -56,6 +58,7 @@ class EnableCorporateModeAction
             $this->switchToCorporateCompany($company);
 
             dispatch(new MigrateCorporateUserVariantsJob(
+                app: $appsModel,
                 userId: $this->user->getId(),
                 sourceCompanyId: $sourceCompanyId,
                 targetCompanyId: $company->getId(),
@@ -91,6 +94,17 @@ class EnableCorporateModeAction
                 continue;
             }
             $company->set($key, $value);
+        }
+
+        if (! empty($this->fields['region_id'])) {
+            $region = Regions::getByIdFromCompanyAppOrGlobal(
+                (int) $this->fields['region_id'],
+                $this->user->getCurrentCompany(),
+                $this->app,
+            );
+            $company->set(CustomFieldEnum::COMPANY_REGION_ID->value, $region->getId());
+        } elseif (app()->bound(Regions::class)) {
+            $company->set(CustomFieldEnum::COMPANY_REGION_ID->value, app(Regions::class)->getId());
         }
     }
 

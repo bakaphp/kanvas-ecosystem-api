@@ -34,6 +34,10 @@ class AgentProcessEmailWebhookJob extends ProcessWebhookJob
 
         if ($people !== null) {
             $lead = LeadsRepository::getPeopleActiveLead($people);
+
+            if ($lead === null && (bool) $this->webhookRequest->receiverWebhook->company->get('use_last_lead_on_responder')) {
+                $lead = LeadsRepository::getPeopleLastLead($people);
+            }
         }
 
         $message = new CreateMessageFromEmailAction($this->webhookRequest, $lead)

@@ -8,9 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Config;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
+use Kanvas\Intelligence\Agents\Laravel\Tools\Common\CurrentTimeTool;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentRecord;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
+use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
+use Kanvas\Intelligence\Agents\Services\AgentProviderService;
+use Kanvas\Intelligence\Agents\Traits\HasEntityContext;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
@@ -49,13 +54,6 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
         $this->externalReferenceId = $externalReferenceId;
     }
 
-    /**
-     * Surfaces the Kanvas Agent id to consumers that only see the Laravel AI
-     * agent instance (e.g. KanvasConversationStore via $prompt->agent on the
-     * RememberConversation middleware path). Laravel AI's ConversationStore
-     * interface doesn't pass the agent into storeConversation, so this is the
-     * bridge that lets us wire conversation rows back to their Kanvas Agent.
-     */
     public function getKanvasAgentId(): ?int
     {
         return $this->agentRecord?->getId();
@@ -63,6 +61,13 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
 
     protected function getProvider(): ?Lab
     {
+        // A named AgentLlmConfig selected on the agent wins over the legacy AgentModel.config,
+        // so the same selection drives BOTH runtimes (Neuron via AgentProviderService, Laravel here).
+        $selected = $this->selectedLlmConfig();
+        if ($selected !== null) {
+            return self::labForProvider($selected->providerEnum());
+        }
+
         $provider = $this->agentRecord?->model?->config['provider'] ?? null;
 
         return match ($provider) {
@@ -79,7 +84,34 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
 
     protected function getModel(): ?string
     {
-        return $this->agentRecord?->model?->config['model'] ?? null;
+        return $this->selectedLlmConfig()?->model
+            ?? $this->agentRecord?->model?->config['model']
+            ?? null;
+    }
+
+    private function selectedLlmConfig(): ?AgentLlmConfig
+    {
+        return $this->agentRecord !== null
+            ? AgentProviderService::selectedConfig($this->agentRecord)
+            : null;
+    }
+
+    /**
+     * Map the runtime-agnostic provider enum to a laravel-ai Lab. OPENAI_LIKE → OpenAICompatible,
+     * whose url + key we inject per-tenant in applyTenantProviderCredentials().
+     */
+    private static function labForProvider(AgentLlmProviderEnum $provider): Lab
+    {
+        return match ($provider) {
+            AgentLlmProviderEnum::GEMINI => Lab::Gemini,
+            AgentLlmProviderEnum::ANTHROPIC => Lab::Anthropic,
+            AgentLlmProviderEnum::OPENAI => Lab::OpenAI,
+            AgentLlmProviderEnum::OPENAI_LIKE => Lab::OpenAICompatible,
+            AgentLlmProviderEnum::MISTRAL => Lab::Mistral,
+            AgentLlmProviderEnum::DEEPSEEK => Lab::DeepSeek,
+            AgentLlmProviderEnum::XAI => Lab::xAI,
+            AgentLlmProviderEnum::OLLAMA => Lab::Ollama,
+        };
     }
 
     #[Override]
@@ -152,6 +184,11 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
      */
     protected function applyTenantProviderCredentials(): \Closure
     {
+        $selected = $this->selectedLlmConfig();
+        if ($selected !== null) {
+            return $this->applySelectedConfigCredentials($selected);
+        }
+
         $app = $this->app;
         if ($app === null) {
             return static fn () => null;
@@ -181,18 +218,79 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
         };
     }
 
+    /**
+     * Push the selected LLM config's credentials into laravel-ai's provider config for the duration
+     * of one prompt (snapshot → set → restore, same Octane-safe dance as the tenant-key path). The
+     * `driver` is set explicitly because getInstanceConfig() only defaults it when the whole provider
+     * block is absent — once we set `.key`/`.url` the block exists without a driver and would break.
+     */
+    private function applySelectedConfigCredentials(AgentLlmConfig $config): \Closure
+    {
+        $driver = self::labForProvider($config->providerEnum())->value;
+
+        $overrides = ["ai.providers.{$driver}.driver" => $driver];
+        if ($config->api_key !== null && $config->api_key !== '') {
+            $overrides["ai.providers.{$driver}.key"] = $config->api_key;
+        }
+        if ($config->base_uri !== null && $config->base_uri !== '') {
+            $overrides["ai.providers.{$driver}.url"] = $config->base_uri;
+        }
+
+        $snapshot = [];
+        foreach ($overrides as $configPath => $value) {
+            $snapshot[$configPath] = Config::get($configPath);
+            Config::set($configPath, $value);
+        }
+
+        return static function () use ($snapshot): void {
+            foreach ($snapshot as $configPath => $originalValue) {
+                Config::set($configPath, $originalValue);
+            }
+        };
+    }
+
     #[Override]
     final public function tools(): iterable
     {
         $tools = [];
 
-        foreach ($this->agentTools() as $tool) {
+        foreach ($this->withUniversalTools($this->agentTools()) as $tool) {
             if (($tool instanceof KanvasToolInterface || $tool instanceof KanvasAgentAsTool)
                 && $this->app && $this->company) {
                 $tool->withContext($this->app, $this->company);
             }
+            if (in_array(HasEntityContext::class, class_uses_recursive($tool), true)) {
+                $tool->withEntity($this->entity);
+            }
             $tools[] = $tool;
         }
+
+        return $tools;
+    }
+
+    /**
+     * Souls tell the model to call get_current_time, and the runtime errors when the model names a
+     * tool the provider was never given (Sentry KANVAS-ECOSYSTEM-600). Time must reach every agent
+     * whatever its agentTools() returns. Appending here (rather than in each agentTools()) also means
+     * the tool picks up its Kanvas context from the loop above like any other.
+     *
+     * @param iterable<object> $agentTools
+     *
+     * @return list<object>
+     */
+    private function withUniversalTools(iterable $agentTools): array
+    {
+        $tools = is_array($agentTools)
+            ? array_values($agentTools)
+            : iterator_to_array($agentTools, false);
+
+        foreach ($tools as $tool) {
+            if ($tool instanceof CurrentTimeTool) {
+                return $tools;
+            }
+        }
+
+        $tools[] = new CurrentTimeTool();
 
         return $tools;
     }

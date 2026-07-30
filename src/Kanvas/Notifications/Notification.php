@@ -49,6 +49,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     protected ?UserInterface $fromUser = null;
     protected ?UserInterface $toUser = null;
     protected ?CompanyInterface $company = null;
+    protected array $cc = [];
     public ?array $pathAttachment = null;
 
     public function __construct(
@@ -76,6 +77,29 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     }
 
     /**
+     * @param array<int, string> $emails
+     */
+    public function setCc(array $emails): self
+    {
+        $this->cc = array_values(
+            array_filter(
+                $emails,
+                static fn ($email): bool => is_string($email) && trim($email) !== ''
+            )
+        );
+
+        return $this;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getCc(): array
+    {
+        return $this->cc;
+    }
+
+    /**
      * Determine which channels the notification should be delivered on.
      *
      * Resolves slug-based channels (e.g. 'sms', 'push') to their class implementations,
@@ -85,6 +109,10 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
      */
     public function via(object $notifiable): array
     {
+        if (! $this->isNotifiableReceivable($notifiable)) {
+            return [];
+        }
+
         $channels = $this->getNotificationChannels();
 
         if ($this->shouldFilterChannelsByUserSettings($notifiable)) {
@@ -94,6 +122,25 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $this->setNotifiableData($notifiable);
 
         return $channels;
+    }
+
+    private function isNotifiableReceivable(object $notifiable): bool
+    {
+        if (! $notifiable instanceof UserInterface) {
+            return true;
+        }
+
+        // Globally removed users never receive anything for any app.
+        if ($notifiable instanceof Users && $notifiable->is_deleted) {
+            return false;
+        }
+
+        try {
+            return $notifiable->getAppProfile($this->app)->isActive();
+        } catch (ModelNotFoundException) {
+            // No membership row for this app — fall back to the global flags.
+            return $notifiable->isActive() && ! $notifiable->isBanned();
+        }
     }
 
     /**

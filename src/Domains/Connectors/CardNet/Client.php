@@ -11,6 +11,7 @@ use GuzzleHttp\Exception\RequestException;
 use Kanvas\Connectors\CardNet\Enums\ConfigurationEnum;
 use Kanvas\Connectors\CardNet\Exceptions\CardNetException;
 use Kanvas\Exceptions\ValidationException;
+use stdClass;
 
 class Client
 {
@@ -35,6 +36,10 @@ class Client
                 'Content-Type' => 'application/json',
                 'Accept' => 'application/json',
                 'Authorization' => 'Basic ' . $this->privateKey,
+                // CardNet's gateway rejects refunds when the HTTP User-Agent is missing or
+                // non-browser-like (PR015 "Parámetro de UserAgent vacío") — Guzzle's default
+                // "GuzzleHttp/7" is treated as empty. Forward the caller's UA when available.
+                'User-Agent' => request()?->userAgent() ?? 'Mozilla/5.0 (compatible; KanvasEcosystem/1.0)',
             ],
             'timeout' => 90,
             'connect_timeout' => 15,
@@ -64,7 +69,9 @@ class Client
     public function post(string $endpoint, array $data = []): array
     {
         try {
-            $response = $this->client->post($endpoint, ['json' => $data]);
+            // An empty array encodes as JSON "[]" which CardNet's API rejects with a 500 —
+            // it expects an object ("{}") on body-less calls like commit/refund.
+            $response = $this->client->post($endpoint, ['json' => $data ?: new stdClass()]);
             $body = $response->getBody()->getContents();
 
             return json_decode($body, true) ?? [];

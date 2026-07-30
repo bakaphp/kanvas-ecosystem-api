@@ -28,6 +28,7 @@ use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Tools\LeadIntentTool;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Social\Channels\Models\Channel as SocialChannel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Users\Models\Users;
 use RuntimeException;
@@ -41,7 +42,7 @@ class CreateContentSessionAction
 {
     use GeneratesChecklistEngagementUrls;
 
-    protected Lead|People|Users $entity;
+    protected Lead|People|Users|SocialChannel $entity;
 
     public function __construct(
         protected Session|DataTransferObjectSession $session
@@ -51,6 +52,9 @@ class CreateContentSessionAction
             People::class => People::getByIdFromCompanyApp($this->session->entity_id, $this->session->company, $this->session->app),
             Lead::class => Lead::getByIdFromCompanyApp($this->session->entity_id, $this->session->company, $this->session->app),
             Users::class => Users::getById($this->session->entity_id),
+            // A group conversation (a Slack room) has many speakers and no CRM counterparty — the
+            // room itself is the entity the agent's memory hangs off.
+            SocialChannel::class => SocialChannel::getById($this->session->entity_id, $this->session->app),
         };
     }
 
@@ -60,6 +64,7 @@ class CreateContentSessionAction
             People::class => $this->mapPeople($this->entity),
             Lead::class => $this->mapLead($this->entity),
             Users::class => $this->mapUser($this->entity),
+            SocialChannel::class => $this->mapChannel($this->entity),
             default => [],
         };
 
@@ -224,6 +229,21 @@ class CreateContentSessionAction
         return array_merge($data, $result);
     }
 
+    /**
+     * A room, not a person. There's no counterparty to describe — the agent's context is the room
+     * it's standing in and the company that owns it.
+     */
+    protected function mapChannel(SocialChannel $channel): array
+    {
+        $company = $channel->company;
+
+        return [
+            'channel_name' => $channel->name,
+            'company_name' => $company->name,
+            'company_timezone' => $company->timezone ?: 'UTC',
+        ];
+    }
+
     protected function mapUser(Users $user): array
     {
         $company = $user->getCurrentCompany();
@@ -264,7 +284,7 @@ class CreateContentSessionAction
         $intentTool = new LeadIntentTool($lead);
         $leadIntent = $intentTool->execute();
 
-        return [
+        $generatedValues = [
             'company_name' => $lead->company->name,
             'branch_city' => $lead->company->branch->city,
             'branch_state' => $lead->company->branch->state,
@@ -284,6 +304,12 @@ class CreateContentSessionAction
             'has_potential_additional_vehicle_interest' => ! empty($relatedVehiclesOfPotentialInterest),
             'similar_recommended_vehicles' => $relatedVehiclesOfPotentialInterest,
         ];
+
+        if ($this->session->agent !== null) {
+            $generatedValues['agent_name'] = $this->session->agent->name;
+        }
+
+        return $generatedValues;
     }
 
     public function getRelatedVehicles(array $vehicleInterest, int $limit = 10): array

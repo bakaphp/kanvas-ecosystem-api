@@ -6,12 +6,14 @@ namespace Kanvas\Scribe\Bills\Models;
 
 use Baka\Casts\Json;
 use Baka\Contracts\PayableInterface;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Bills\Actions\MarkBillPaidAction;
@@ -21,6 +23,7 @@ use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Payments\Models\Payment;
+use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
 /**
@@ -85,6 +88,10 @@ use Override;
  */
 class Bill extends BaseModel implements PayableInterface
 {
+    use CanUseWorkflow;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use EmitsLedgerEventsForEntity;
     use UuidTrait;
 
@@ -189,5 +196,111 @@ class Bill extends BaseModel implements PayableInterface
     protected function sourceDomainForLedger(): string
     {
         return 'Scribe';
+    }
+
+    public function searchableAs(): string
+    {
+        $model = ! $this->searchableDeleteRecord() ? $this : $this->withTrashed()->find($this->id);
+        $app = $model->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_scribe_bill_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'scribe_bill_index');
+    }
+
+    #[Override]
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'objectID' => "Kanvas\Scribe\Bills\Models\Bill::{$this->id}",
+            'id' => (string) $this->id,
+            'uuid' => (string) $this->uuid,
+            'apps_id' => $this->apps_id,
+            'companies_id' => $this->companies_id,
+            'users_id' => $this->users_id,
+            'vendor_organization_id' => $this->vendor_organization_id,
+            'purchase_order_id' => $this->purchase_order_id,
+            'bill_number' => (string) $this->bill_number,
+            'vendor_display_name' => (string) $this->vendor_display_name,
+            'vendor_legal_name' => (string) $this->vendor_legal_name,
+            'vendor_email' => (string) $this->vendor_email,
+            'vendor_tax_id' => (string) $this->vendor_tax_id,
+            'external_id' => (string) $this->external_id,
+            'notes' => (string) $this->notes,
+            'document_status' => $this->document_status?->value,
+            'payment_status_hint' => $this->payment_status_hint?->value,
+            'collection_state' => $this->collection_state?->value,
+            'source' => (string) $this->source,
+            'currency' => (string) $this->currency,
+            'total_native' => (float) $this->total_native,
+            'total_base' => (float) $this->total_base,
+            'balance_due_base' => (float) $this->balance_due_base,
+            'bill_date' => $this->bill_date?->timestamp,
+            'due_date' => $this->due_date?->timestamp,
+            'paid_at' => $this->paid_at?->timestamp,
+            'created_at' => $this->created_at?->timestamp,
+            'updated_at' => $this->updated_at?->timestamp,
+        ];
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                ['name' => 'objectID', 'type' => 'string'],
+                ['name' => 'id', 'type' => 'string'],
+                ['name' => 'uuid', 'type' => 'string'],
+                ['name' => 'apps_id', 'type' => 'int64', 'facet' => true],
+                ['name' => 'companies_id', 'type' => 'int64', 'facet' => true],
+                ['name' => 'users_id', 'type' => 'int64', 'optional' => true],
+                ['name' => 'vendor_organization_id', 'type' => 'int64', 'optional' => true, 'facet' => true],
+                ['name' => 'purchase_order_id', 'type' => 'int64', 'optional' => true],
+                ['name' => 'bill_number', 'type' => 'string', 'optional' => true],
+                ['name' => 'vendor_display_name', 'type' => 'string', 'optional' => true],
+                ['name' => 'vendor_legal_name', 'type' => 'string', 'optional' => true],
+                ['name' => 'vendor_email', 'type' => 'string', 'optional' => true],
+                ['name' => 'vendor_tax_id', 'type' => 'string', 'optional' => true],
+                ['name' => 'external_id', 'type' => 'string', 'optional' => true],
+                ['name' => 'notes', 'type' => 'string', 'optional' => true],
+                ['name' => 'document_status', 'type' => 'string', 'optional' => true, 'facet' => true],
+                ['name' => 'payment_status_hint', 'type' => 'string', 'optional' => true, 'facet' => true],
+                ['name' => 'collection_state', 'type' => 'string', 'optional' => true, 'facet' => true],
+                ['name' => 'source', 'type' => 'string', 'optional' => true, 'facet' => true],
+                ['name' => 'currency', 'type' => 'string', 'optional' => true, 'facet' => true],
+                ['name' => 'total_native', 'type' => 'float', 'optional' => true],
+                ['name' => 'total_base', 'type' => 'float', 'optional' => true, 'sort' => true],
+                ['name' => 'balance_due_base', 'type' => 'float', 'optional' => true, 'sort' => true],
+                ['name' => 'bill_date', 'type' => 'int64', 'optional' => true, 'sort' => true],
+                ['name' => 'due_date', 'type' => 'int64', 'optional' => true, 'sort' => true],
+                ['name' => 'paid_at', 'type' => 'int64', 'optional' => true],
+                ['name' => 'created_at', 'type' => 'int64', 'sort' => true],
+                ['name' => 'updated_at', 'type' => 'int64', 'optional' => true],
+            ],
+            'default_sorting_field' => 'created_at',
+        ];
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $app = app(Apps::class);
+        $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+
+        $user = auth()->user();
+        if ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $searchQuery->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        if ($searchQuery->model->isTypesense()) {
+            $searchQuery->options([
+                'query_by' => 'bill_number,vendor_display_name,vendor_legal_name,vendor_email,vendor_tax_id,external_id',
+            ]);
+        }
+
+        return $searchQuery;
     }
 }

@@ -84,12 +84,8 @@ class StripePaymentLinkService
             }
         }
 
-        // Add success and cancel URLs if provided
-        if (isset($options['success_url'])) {
-            $paymentLinkData['after_completion'] = [
-                'type' => 'redirect',
-                'redirect' => ['url' => $options['success_url']],
-            ];
+        if ($afterCompletion = $this->buildAfterCompletion($options)) {
+            $paymentLinkData['after_completion'] = $afterCompletion;
         }
 
         // Add automatic tax calculation if enabled
@@ -99,7 +95,7 @@ class StripePaymentLinkService
 
         // Add custom fields if provided
         if (isset($options['custom_fields'])) {
-            $paymentLinkData['custom_fields'] = $options['custom_fields'];
+            $paymentLinkData['custom_fields'] = $this->normalizeCustomFields($options['custom_fields']);
         }
 
         // Line items are built from item gross prices, so the order-level discount
@@ -160,7 +156,7 @@ class StripePaymentLinkService
            } */
 
         if (isset($options['custom_fields'])) {
-            $paymentLinkData['custom_fields'] = $options['custom_fields'];
+            $paymentLinkData['custom_fields'] = $this->normalizeCustomFields($options['custom_fields']);
         }
 
         // Add metadata if provided
@@ -168,12 +164,8 @@ class StripePaymentLinkService
             $paymentLinkData['metadata'] = $options['metadata'];
         }
 
-        // Add success URL if provided
-        if (isset($options['success_url'])) {
-            $paymentLinkData['after_completion'] = [
-                'type' => 'redirect',
-                'redirect' => ['url' => $options['success_url']],
-            ];
+        if ($afterCompletion = $this->buildAfterCompletion($options)) {
+            $paymentLinkData['after_completion'] = $afterCompletion;
         }
 
         $paymentLink = $this->stripe->paymentLinks->create($paymentLinkData);
@@ -183,6 +175,45 @@ class StripePaymentLinkService
         $message->set('stripe_payment_link_url', $paymentLink->url);
 
         return $paymentLink;
+    }
+
+    /**
+     * Stripe rejects an empty `after_completion[redirect][url]`
+     * (`parameter_invalid_empty`): it reads "" as an attempt to unset the
+     * param, which cannot be unset. Return null when no non-empty success_url
+     * is supplied so the block is omitted entirely instead of failing the request.
+     */
+    protected function buildAfterCompletion(array $options): ?array
+    {
+        if (empty($options['success_url'])) {
+            return null;
+        }
+
+        return [
+            'type' => 'redirect',
+            'redirect' => ['url' => $options['success_url']],
+        ];
+    }
+
+    /**
+     * Stripe rejects an empty `default_value` on a text/numeric custom field
+     * (`parameter_invalid_empty`): it reads "" as an attempt to unset the param.
+     * Drop empty default_value entries so an optional field with no value is
+     * sent as a blank field instead of a failed request.
+     */
+    protected function normalizeCustomFields(array $customFields): array
+    {
+        foreach ($customFields as &$field) {
+            foreach (['text', 'numeric'] as $inputType) {
+                if (isset($field[$inputType]['default_value'])
+                    && trim((string) $field[$inputType]['default_value']) === ''
+                ) {
+                    unset($field[$inputType]['default_value']);
+                }
+            }
+        }
+
+        return $customFields;
     }
 
     /**

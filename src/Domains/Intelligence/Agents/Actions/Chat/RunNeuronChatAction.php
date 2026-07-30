@@ -24,6 +24,7 @@ use NeuronAI\Chat\Messages\ContentBlocks\AudioContent;
 use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
 use NeuronAI\Chat\Messages\ContentBlocks\FileContent;
 use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
+use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\ToolCallMessage;
 use NeuronAI\Chat\Messages\ToolResultMessage;
@@ -34,7 +35,7 @@ use Throwable;
 class RunNeuronChatAction
 {
     /**
-     * @param list<string> $media Attachment URLs (image/audio/PDF) sent natively as content blocks.
+     * @param list<string> $media Attachment URLs (image/audio/PDF/text/CSV) sent natively as content blocks.
      */
     public function __construct(
         protected readonly Agent $agent,
@@ -205,8 +206,9 @@ class RunNeuronChatAction
 
     /**
      * Wrap a fetched attachment in the matching Neuron content block by sniffing its bytes —
-     * image / audio / PDF are what Gemini accepts inline. Anything else returns null (skipped;
-     * its URL is already folded into the prompt text by AttachmentPromptBuilder upstream).
+     * image / audio / PDF ride as binary blocks the model reads natively; text/CSV rides inline as a
+     * TextContent block (it's just text). Anything else returns null (skipped; its URL is already
+     * folded into the prompt text by AttachmentPromptBuilder upstream).
      */
     private function buildContentBlock(string $binary): ?ContentBlockInterface
     {
@@ -222,6 +224,7 @@ class RunNeuronChatAction
             'image' => new ImageContent($base64, SourceType::BASE64, $mimeType),
             'audio' => new AudioContent($base64, SourceType::BASE64, $mimeType),
             'pdf' => new FileContent($base64, SourceType::BASE64, $mimeType),
+            'text' => new TextContent(AttachmentDescriptionService::wrapTextForBlock($binary, $mimeType)),
             default => null,
         };
     }

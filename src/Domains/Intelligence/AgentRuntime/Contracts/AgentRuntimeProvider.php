@@ -38,6 +38,12 @@ interface AgentRuntimeProvider
 
     public function dispatchRestart(AgentDeployment $deployment): void;
 
+    // Re-materialize the running container's docker-compose.yml from current agent state and
+    // recreate it with `docker compose up -d`. Needed after rotating channel credentials
+    // (Slack/Telegram tokens) — those are baked into the compose file as env vars at launch,
+    // and only a recreate (not a plain restart) applies the new values to the live process.
+    public function dispatchCredentialSync(AgentDeployment $deployment): void;
+
     public function fetchContainerLogs(AgentDeployment $deployment, int $lines): string;
 
     // Parsed log entries — distinct from fetchContainerLogs, which returns the raw stdout dump.
@@ -64,6 +70,8 @@ interface AgentRuntimeProvider
     public function updateConfig(AgentDeployment $deployment, string $config): bool;
 
     public function dispatchBackup(AgentDeployment $deployment, AgentBackup $backup, bool $includeWorkspace): void;
+
+    public function createWorkspaceBackupNow(AgentDeployment $deployment, AgentBackup $backup): AgentBackup;
 
     public function dispatchMigrateWorkspace(
         AgentDeployment $sourceDeployment,

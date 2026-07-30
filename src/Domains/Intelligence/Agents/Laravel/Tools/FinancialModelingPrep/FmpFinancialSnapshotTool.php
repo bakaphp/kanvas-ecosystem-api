@@ -93,10 +93,10 @@ class FmpFinancialSnapshotTool implements KanvasToolInterface
         $profileItem = is_array($profile[0] ?? null) ? $profile[0] : ($profile ?: []);
         $currentPrice = $profileItem['price'] ?? null;
 
-        $histEntries = $historical['historical'] ?? [];
+        $histEntries = $historical['historical'] ?? $historical;
         $priorClose = ! empty($histEntries) ? ($histEntries[0]['close'] ?? null) : null;
 
-        $hist2yEntries = $historical2y['historical'] ?? [];
+        $hist2yEntries = $historical2y['historical'] ?? $historical2y;
         $prior2yClose = ! empty($hist2yEntries) ? ($hist2yEntries[0]['close'] ?? null) : null;
 
         $priceChangeItem = is_array($priceChange[0] ?? null) ? $priceChange[0] : ($priceChange ?: []);

@@ -1,0 +1,73 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Console\Commands\Search;
+
+use Baka\Traits\KanvasJobsTrait;
+use Exception;
+use Illuminate\Console\Command;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Users\Models\Users;
+
+class ReindexUsersRecordsCommand extends Command
+{
+    use KanvasJobsTrait;
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'kanvas-social:reindex-users-records {app_id}';
+
+    /**
+     * The console command description.
+     *
+     * @var string|null
+     */
+    protected $description = 'Reindex social users records by app';
+
+    /**
+     * Execute the console command.
+     *
+     */
+    public function handle(): void
+    {
+        $app = Apps::getById($this->argument('app_id'));
+        $this->overwriteAppService($app);
+
+        $this->reindex($app);
+
+        return;
+    }
+
+    public function reindex(Apps $app): void
+    {
+        $this->info('Reindex scout index for user App ' . $app->name);
+        $users = Users::query()
+            ->select('users.*')
+            ->join('users_associated_apps', 'users.id', '=', 'users_associated_apps.users_id')
+            ->where('users_associated_apps.apps_id', $app->getId())
+            ->where('users_associated_apps.user_active', 1)
+            ->where('users_associated_apps.companies_id', 0)
+            ->where('users.is_deleted', 0);
+
+        $totalUsers = $users->count();
+        $this->output->progressStart($totalUsers);
+
+        $users->chunk(100, function ($users) {
+            foreach ($users as $user) {
+                try {
+                    $this->info("Using index {$user->searchableAs()}" . PHP_EOL);
+                    $this->info("Reindexing user ID: {$user->id}" . PHP_EOL);
+                    $user->searchable();
+                    $this->output->progressAdvance();
+                } catch (Exception $e) {
+                    $this->error("Error reindexing item ID: {$user->id} - " . $e->getMessage());
+                }
+            }
+        });
+        $this->output->progressFinish();
+        $this->info('Total users reindexed: ' . $totalUsers);
+    }
+}

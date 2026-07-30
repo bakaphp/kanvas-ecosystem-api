@@ -179,6 +179,61 @@ So any `addMultipleFilesFromUrl()` / `addFileFromUrl()` call automatically inval
 
 ## Key Conventions
 
+### Don't Pass a Model AND Its Own Relationships
+
+When an action/service already receives an entity, **do not also pass references that entity can
+reach through its own relationships.** An `Agent` carries `->app`, `->company`, and `->user`; a
+`Lead` carries `->app`, `->company`, `->user`, `->people`; most `KanvasModelTrait` models expose
+`->app` / `->company` / `->user`. Passing them alongside the model is redundant, and worse, it lets a
+caller hand in an app/company that disagrees with the model's own — a silent tenant-mismatch bug.
+
+**This only applies when the model actually has the relationship.** Verify it exists (a real
+`app()` / `company()` / `user()` relation or accessor on that model) before deriving — some models
+legitimately lack one (a global `apps_id=0` catalog row has no single company; an append-only event
+may carry no user). If the relationship isn't there, passing the reference separately is correct, not
+a violation. Derive what the model exposes; pass what it doesn't.
+
+```php
+// WRONG — app/company/user are all reachable from $agent
+new ConnectSlackAgentAction(
+    agent: $agent,
+    app: $app,
+    company: $company,
+    user: $user,
+    botToken: $token,
+)->execute();
+
+public function __construct(
+    private readonly Agent $agent,
+    private readonly Apps $app,          // $agent->app
+    private readonly Companies $company, // $agent->company
+    private readonly Users $user,        // $agent->user
+) {}
+
+// CORRECT — the entity is the single source of truth; derive the rest
+new ConnectSlackAgentAction(agent: $agent, botToken: $token)->execute();
+
+public function __construct(
+    private readonly Agent $agent,
+) {}
+
+private function doWork(): void
+{
+    $app = $this->agent->app;
+    $company = $this->agent->company;
+    $user = $this->agent->user;   // the agent's own user, not "whoever called this"
+}
+```
+
+**The only legitimate reason to pass app/company separately is to *look the entity up*** — a mutation
+resolver needs `app` + `company` for `Model::getByIdFromCompanyApp($id, $company, $app)` because it
+doesn't have the model yet. Once you hold the model, stop passing them. Same rule for **DTOs**: a DTO
+that holds an `Agent` should not also declare `app`/`company` properties.
+
+Corollary for "actor" params: when the entity implies who acts (an agent's `->user`, a lead's
+`->user`), derive it from the entity rather than threading the request's auth user through — the
+former is the semantically correct actor and can't drift from the entity's tenant.
+
 ### No Inline Fully-Qualified Class Names
 Always use `use` imports at the top of the file instead of inline fully-qualified class names (FQCNs). This applies to both code **and** docblock `@property`/`@param`/`@return` annotations, **and** catch blocks.
 
@@ -296,33 +351,44 @@ So:
 
 `forUpdate` is NOT a Spatie magic method (magic methods are `from*` prefixed, not `for*`). Call it directly: `Plan::forUpdate($existing, $app, $user, $data)`.
 
-**Mutation resolver becomes a 3-liner:**
+**Resolve the acting context with the `ResolvesActingContext` trait — never re-derive app/user/company by hand.**
+
+Every mutation resolver needs the same three things: the current app, the logged-in user, and their
+current company. Do **not** copy-paste `app(Apps::class)` / `auth()->user()` / `$user->getCurrentCompany()`
+into each method — use the shared trait [`App\GraphQL\Concerns\ResolvesActingContext`](../app/GraphQL/Concerns/ResolvesActingContext.php).
+It exposes `actingContext(): ActingContext` (a readonly `{ user, app, company }` value object) plus
+`normalizeDate()` for Date-scalar inputs. The context's `app` is a concrete `Apps`; `company` is a
+`CompanyInterface` — so type your DTO's context params as `AppInterface` / `CompanyInterface` (matching
+`Plan`/`Project`) and everything flows without casts.
 
 ```php
-public function create(mixed $rootValue, array $request): Plan
+use App\GraphQL\Concerns\ResolvesActingContext;
+
+class PlanMutation
 {
-    $app = app(Apps::class);
-    $user = auth()->user();
-    $company = $user->getCurrentCompany();
+    use ResolvesActingContext;
 
-    return new CreatePlanAction(
-        PlanData::from($app, $user, $company, $request['input']),
-    )->execute();
-}
+    public function create(mixed $rootValue, array $request): Plan
+    {
+        $ctx = $this->actingContext();
 
-public function update(mixed $rootValue, array $request): Plan
-{
-    $app = app(Apps::class);
-    $user = auth()->user();
-    $company = $user->getCurrentCompany();
+        return new CreatePlanAction(
+            PlanData::from($ctx->app, $ctx->user, $ctx->company, $request['input']),
+        )->execute();
+    }
 
-    /** @var Plan $plan */
-    $plan = Plan::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+    public function update(mixed $rootValue, array $request): Plan
+    {
+        $ctx = $this->actingContext();
 
-    return new UpdatePlanAction(
-        $plan,
-        PlanData::forUpdate($plan, $app, $company, $request['input']),
-    )->execute();
+        /** @var Plan $plan */
+        $plan = Plan::getByIdFromCompanyApp((int) $request['id'], $ctx->company, $ctx->app);
+
+        return new UpdatePlanAction(
+            $plan,
+            PlanData::forUpdate($plan, $ctx->app, $ctx->company, $request['input']),
+        )->execute();
+    }
 }
 ```
 

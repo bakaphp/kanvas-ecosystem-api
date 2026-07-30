@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
@@ -19,11 +21,15 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
+use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Models\BaseModel;
@@ -56,8 +62,10 @@ use Override;
  * @property array|null $identity
  * @property string|null $user_context
  * @property string|null $tools_config
+ * @property array|null $voice_config
  * @property string|null $deployment_status
  * @property int|null $agent_model_id
+ * @property int|null $agent_llm_config_id
  * @property bool $is_active
  * @property bool $is_deleted
  */
@@ -99,8 +107,10 @@ class Agent extends BaseModel
         'identity',
         'user_context',
         'tools_config',
+        'voice_config',
         'deployment_status',
         'agent_model_id',
+        'agent_llm_config_id',
         'is_active',
         'is_sub_agent',
         'awake_state',
@@ -126,10 +136,16 @@ class Agent extends BaseModel
             'config' => Json::class,
             'role' => Json::class,
             'identity' => Json::class,
+            'voice_config' => Json::class,
             'is_active' => 'boolean',
             'is_sub_agent' => 'boolean',
             'last_state_changed_at' => 'datetime',
         ];
+    }
+
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Companies::class, 'companies_id');
     }
 
     public function type(): BelongsTo
@@ -140,6 +156,11 @@ class Agent extends BaseModel
     public function model(): BelongsTo
     {
         return $this->belongsTo(AgentModel::class, 'agent_model_id');
+    }
+
+    public function llmConfig(): BelongsTo
+    {
+        return $this->belongsTo(AgentLlmConfig::class, 'agent_llm_config_id');
     }
 
     public function companyTaskList(): BelongsTo
@@ -324,6 +345,73 @@ class Agent extends BaseModel
         return $this->type?->handler === OpenClawAgentHandler::class;
     }
 
+    /**
+     * Can this agent execute Nervous System board work (own a plan, create/move tasks)? Only in-process
+     * Neuron agents (BaseKanvasAgent) can — they're the ones the kernel injects the board toolset into.
+     * Container/ADK agents run remotely (no local tools), and other in-process types (e.g. CRMAgent)
+     * assume a Lead/People entity and fatal when handed a Plan/Task. Use this to keep those out of the
+     * executor role instead of assigning work they can't do (or that crashes them).
+     */
+    public function canExecuteBoardWork(): bool
+    {
+        $handler = $this->type?->handler;
+
+        return is_string($handler)
+            && ! $this->isContainerRuntime()
+            && is_a($handler, BaseKanvasAgent::class, true);
+    }
+
+    /**
+     * Whether this agent talks to a user privately — its handler implements
+     * ConversesWithUser. An internal system agent whose conversation stays on the
+     * user↔agent channel and never posts into a customer-facing lead timeline.
+     */
+    public function conversesWithUser(): bool
+    {
+        $handler = $this->type?->handler;
+
+        return $handler !== null
+            && $handler !== ''
+            && class_exists($handler)
+            && is_subclass_of($handler, ConversesWithUser::class);
+    }
+
+    /**
+     * Whether this agent is customer-facing — its handler implements ConversesWithCustomer.
+     * The mirror of conversesWithUser: an external agent speaks to a prospect as a persona and
+     * must stay prospect-isolated (no company-wide ledger recall on the customer surface).
+     */
+    public function conversesWithCustomer(): bool
+    {
+        $handler = $this->type?->handler;
+
+        return $handler !== null
+            && $handler !== ''
+            && class_exists($handler)
+            && is_subclass_of($handler, ConversesWithCustomer::class);
+    }
+
+    /**
+     * The agent whose identity is this user, within a tenant — how any user-targeted
+     * signal (assignment, @mention, ...) asks "is this teammate actually an agent?".
+     * Company-scoped, so it never resolves an agent from another tenant.
+     */
+    public static function fromUser(
+        int $userId,
+        AppInterface $app,
+        CompanyInterface $company
+    ): ?self {
+        /** @var self|null $agent */
+        $agent = self::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->where('user_id', $userId)
+            ->first();
+
+        return $agent;
+    }
+
     public function searchableAs(): string
     {
         $app = $this->app ?? app(Apps::class);
@@ -378,6 +466,12 @@ class Agent extends BaseModel
             $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'name,slug,description',
+            ]);
         }
 
         return $query;

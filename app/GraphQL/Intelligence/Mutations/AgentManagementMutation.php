@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentDTO;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
@@ -32,6 +33,7 @@ class AgentManagementMutation
         $parentAgent = isset($input['parent_agent_id'])
             ? Agent::getByIdFromCompanyApp((int) $input['parent_agent_id'], $company, $app)
             : null;
+        $llmConfig = $this->resolveLlmConfig($input, $company, $app);
 
         $input = $this->mapRoleToFields($input);
 
@@ -62,6 +64,7 @@ class AgentManagementMutation
             parentAgent: $parentAgent,
             createdBy: auth()->user(),
             isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
+            agentLlmConfig: $llmConfig,
         );
 
         $agent = new CreateAgentAction($agentDTO)->execute();
@@ -91,6 +94,7 @@ class AgentManagementMutation
         $parentAgent = isset($input['parent_agent_id'])
             ? Agent::getByIdFromCompanyApp((int) $input['parent_agent_id'], $company, $app)
             : null;
+        $llmConfig = $this->resolveLlmConfig($input, $company, $app);
 
         $input = $this->mapRoleToFields($input);
         $personaUser = isset($input['user_id'])
@@ -118,6 +122,7 @@ class AgentManagementMutation
             toolsConfig: $input['tools_config'] ?? null,
             parentAgent: $parentAgent,
             isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
+            agentLlmConfig: $llmConfig,
         );
 
         $agent = new UpdateAgentAction($agentDTO, $agent)->execute();
@@ -144,6 +149,15 @@ class AgentManagementMutation
         );
 
         return (bool) $agent->delete();
+    }
+
+    private function resolveLlmConfig(array $input, CompanyInterface $company, AppInterface $app): ?AgentLlmConfig
+    {
+        if (empty($input['agent_llm_config_id'])) {
+            return null;
+        }
+
+        return AgentLlmConfig::getByIdFromCompanyApp((int) $input['agent_llm_config_id'], $company, $app);
     }
 
     /**

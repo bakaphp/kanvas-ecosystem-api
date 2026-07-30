@@ -45,7 +45,7 @@ class LeadsRepository
                     ->where('people_id', $people->id)
                         ->whereHas('status', function ($query) use ($mappingStatus) {
                             if ($mappingStatus && is_array($mappingStatus) && key_exists('active', $mappingStatus) && is_array($mappingStatus['active'])) {
-                                $query->whereIn('name', ...$mappingStatus['active']);
+                                $query->whereIn('name', $mappingStatus['active']);
                             } else {
                                 $query->whereIn('name', ['active', 'created']);
                             }
@@ -58,6 +58,17 @@ class LeadsRepository
         return self::getPeopleActiveLeads($people)
                         ->orderBy('id', 'desc')
                         ->first();
+    }
+
+    public static function getPeopleLastLead(People $people): ?Lead
+    {
+        /** @psalm-suppress LessSpecificReturnStatement */
+        return Lead::fromApp($people->app)
+                    ->fromCompany($people->company)
+                    ->notDeleted()
+                    ->where('people_id', $people->id)
+                    ->orderBy('id', 'desc')
+                    ->first();
     }
 
     public static function getPeopleClosedLeads(People $people): Builder

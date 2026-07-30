@@ -93,6 +93,9 @@ class SyncAllPeopleInCompanyCommand extends Command
                     if ($rateLimit->hasReachedMinuteLimit($app, $perMinuteLimit)) {
                         $this->line('Per-minute rate limit reached. Waiting for reset...');
                         sleep(ApolloRateLimitService::MINUTE_WINDOW);
+                        // Don't trust the cache TTL to have cleared the window — forget the
+                        // counter so the next iteration always starts a fresh minute.
+                        $rateLimit->resetMinuteWindow($app);
 
                         continue;
                     }

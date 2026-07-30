@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Workflows;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
@@ -18,6 +19,7 @@ use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigur
 use Kanvas\Connectors\VoiceBridge\Jobs\LeadVoiceFollowUpJob;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
+use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
@@ -313,6 +315,11 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                     $outBoundPhoneCallActivity = $this->leadExternalActivityDateIn($lead, $createMessage);
                                     $stopTheClockIteration++;
                                 }
+                            } catch (LeadMissingContactException $e) {
+                                Log::info('Skipped first message outreach: ' . $e->getMessage(), [
+                                    'lead_id' => $lead->getId(),
+                                    'channel' => $communicationChannel,
+                                ]);
                             } catch (Exception $e) {
                                 report($e);
                             }

@@ -2,16 +2,19 @@
 
 namespace App\Console;
 
+use App\Console\Commands\Connectors\Acumatica\ScheduledAcumaticaSyncCommand;
+use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
 use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
+use App\Console\Commands\Event\GenerateUpcomingTimeSlotsCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\Lead\Schedules\LeadFollowUpSchedule;
 use App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule;
 use App\Console\Commands\Scribe\Schedules\ScribeSchedule;
-use App\Console\Commands\Social\ScoutMessageReindexCommand;
+use App\Console\Commands\Search\ScoutMessageReindexCommand;
 use App\Console\Commands\Social\SocialUserCounterResetCommand;
 use App\Console\Commands\Souk\CancelStalePaymentsCommand;
 use App\Console\Commands\Souk\OrderFinishExpiredCommand;
@@ -45,8 +48,20 @@ class Kernel extends ConsoleKernel
         $schedule->command(SocialUserCounterResetCommand::class, ['13'])->dailyAt('00:00');
         $schedule->command(OrderFinishExpiredCommand::class)->everyMinute();
         $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();
-        $schedule->command(ChargeLateOrdersCommand::class)->hourly();
+        $schedule->command(ChargeLateOrdersCommand::class)->hourly()->withoutOverlapping();
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
+
+        // Event — roll the booking window forward daily so active schedule rules always
+        // have slots up to their app's horizon, and refresh price snapshots on unsold ones.
+        $schedule->command(GenerateUpcomingTimeSlotsCommand::class, ['--prune'])->dailyAt('01:30')->withoutOverlapping();
+
+        // Acumatica — incremental delta sync for every opted-in company (gated per company).
+        //$schedule->command(ScheduledAcumaticaSyncCommand::class)->hourly()->withoutOverlapping()->onOneServer();
+
+        // Mercury — webhooks carry the live feed; this is the recovery pull. Mercury has no replay API, so an
+        // event dropped past its ~1-day retry window is gone unless we go looking. Nightly, off-peak, with a
+        // 7-day lookback that comfortably outruns that window.
+        //$schedule->command(PullMercuryCommand::class)->dailyAt('02:00')->withoutOverlapping()->onOneServer();
 
         // Nervous System — agent lifecycle, ledger maintenance, pulse + dashboard
         // rollups, plan + capability sweeps, the daily-learning loop.

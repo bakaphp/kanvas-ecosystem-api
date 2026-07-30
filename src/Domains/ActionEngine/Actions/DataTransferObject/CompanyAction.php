@@ -15,6 +15,7 @@ class CompanyAction extends Data
         public readonly ?string $description = null,
         public readonly mixed $form_config = null,
         public readonly mixed $config = null,
+        public readonly mixed $pdf_config = null,
         public readonly ?bool $is_active = null,
         public readonly ?bool $is_published = null,
         public readonly ?float $weight = null,

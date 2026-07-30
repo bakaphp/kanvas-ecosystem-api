@@ -7,6 +7,7 @@ namespace Tests\Guild\Organizations;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Contracts\Enums\ThirdPartyOrganizationIdFieldEnum;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\FindOrganizationDuplicatesService;
 use Tests\TestCase;
@@ -19,7 +20,7 @@ class FindOrganizationDuplicatesServiceTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'crm'];
+    protected array $connectionsToTransact = ['mysql', 'crm', 'ecosystem'];
 
     private Apps $kanvasApp;
     private Companies $company;
@@ -54,6 +55,34 @@ class FindOrganizationDuplicatesServiceTest extends TestCase
         );
         $this->assertSame('exact_name', $acmeGroup->reason);
         $this->assertSame((int) $a->id, $acmeGroup->canonical_id, 'oldest id wins canonical.');
+    }
+
+    public function test_finds_external_id_conflict_and_it_wins_over_exact_name(): void
+    {
+        $name = 'DesanparadosCorp' . uniqid();
+        $a = $this->seedOrganization(
+            $name,
+            externalIdField: ThirdPartyOrganizationIdFieldEnum::SALESFORCE_ACCOUNT_ID,
+            externalIdValue: '001xx' . uniqid(),
+        );
+        $b = $this->seedOrganization(
+            $name,
+            externalIdField: ThirdPartyOrganizationIdFieldEnum::SALESFORCE_ACCOUNT_ID,
+            externalIdValue: '001xx' . uniqid(),
+        );
+
+        $groups = new FindOrganizationDuplicatesService()->generate(
+            app: $this->kanvasApp,
+            company: $this->company,
+        );
+
+        $matches = array_values(array_filter(
+            $groups,
+            fn ($g) => $g->member_ids === [(int) $a->id, (int) $b->id],
+        ));
+
+        $this->assertCount(1, $matches, 'Same member set shouldn\'t appear under both dimensions.');
+        $this->assertSame('external_id_conflict', $matches[0]->reason, 'external_id_conflict must win over exact_name.');
     }
 
     public function test_finds_email_duplicates_case_insensitive(): void
@@ -116,9 +145,39 @@ class FindOrganizationDuplicatesServiceTest extends TestCase
         $this->assertSame(0, $appearances, 'A non-duplicate org should never appear in any group.');
     }
 
-    private function seedOrganization(string $name, ?string $email = null): Organization
+    public function test_normalized_grouping_merges_suffix_and_casing_variants_only(): void
     {
-        return Organization::create([
+        $tok = strtoupper('z' . uniqid());
+        $a = $this->seedOrganization("Zeta {$tok}");
+        $b = $this->seedOrganization("ZETA {$tok}, S. A.");
+        $c = $this->seedOrganization("zeta {$tok} srl");
+
+        // Same prefix, genuinely different companies — must NOT auto-group.
+        $industries = $this->seedOrganization("Zeta {$tok} Industries");
+        $consulting = $this->seedOrganization("Zeta {$tok} Consulting");
+
+        $groups = new FindOrganizationDuplicatesService()->generateByNormalizedName(
+            app: $this->kanvasApp,
+            company: $this->company,
+        );
+
+        $group = $this->findGroupContaining($groups, (int) $a->id);
+        $this->assertNotNull($group, 'suffix/casing variants should collapse to one normalized group.');
+        $this->assertSame('normalized_name', $group->reason);
+        $this->assertEqualsCanonicalizing([(int) $a->id, (int) $b->id, (int) $c->id], $group->member_ids);
+        $this->assertSame((int) $a->id, $group->canonical_id, 'oldest id is the survivor.');
+
+        $this->assertNull($this->findGroupContaining($groups, (int) $industries->id), 'prefix-sharing distinct names must not auto-group.');
+        $this->assertNull($this->findGroupContaining($groups, (int) $consulting->id));
+    }
+
+    private function seedOrganization(
+        string $name,
+        ?string $email = null,
+        ?ThirdPartyOrganizationIdFieldEnum $externalIdField = null,
+        ?string $externalIdValue = null,
+    ): Organization {
+        $organization = Organization::create([
             'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => $this->company->getId(),
             'users_id' => static::$cachedUser->getId(),
@@ -127,6 +186,13 @@ class FindOrganizationDuplicatesServiceTest extends TestCase
             'address' => '',
             'total_employees' => 0,
         ]);
+
+        if ($externalIdField !== null) {
+            $organization->setCustomFields([$externalIdField->fieldName() => $externalIdValue]);
+            $organization->saveCustomFields();
+        }
+
+        return $organization;
     }
 
     /**

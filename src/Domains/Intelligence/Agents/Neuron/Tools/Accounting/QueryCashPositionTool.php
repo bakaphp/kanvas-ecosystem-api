@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Ledger\Enums\AccountTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Reports\Repositories\AccountActivityRepository;
@@ -18,6 +18,8 @@ use Override;
 #[AgentTool(name: 'Query Cash Position')]
 class QueryCashPositionTool extends Tool
 {
+    use HasKanvasContext;
+
     public function __construct()
     {
         parent::__construct(
@@ -43,12 +45,10 @@ class QueryCashPositionTool extends Tool
 
     public function __invoke(?string $as_of = null): array
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $app = $this->app;
+        $company = $this->company;
         $date = $as_of !== null ? Carbon::parse($as_of) : Carbon::today();
 
-        // Cash accounts are ASSET account_type rows whose sub_type starts with 'cash_'.
         $cashAccounts = Account::query()
             ->where('apps_id', $app->getId())
             ->where('companies_id', $company->getId())

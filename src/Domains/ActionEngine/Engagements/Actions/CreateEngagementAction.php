@@ -623,8 +623,9 @@ class CreateEngagementAction
         if ($action === 'get-deposit' && isset($data['amount']) && (float) $data['amount'] > 0) {
             $stripeCheckout = new StripePaymentLinkService($lead->app, $lead->company);
 
-            $vehicleOfInterest = $lead->get('vehicle_of_interest');
-            $stockNumber = $vehicleOfInterest['stockNumber'] ?? 'N/A';
+            $vehicleOfInterest = (array) $lead->get('vehicle_of_interest');
+            $stockNumber = trim((string) ($vehicleOfInterest['stockNumber'] ?? '')) ?: 'N/A';
+            $salesPerson = trim(($lead->owner?->firstname ?? '') . ' ' . ($lead->owner?->lastname ?? ''));
             $messageData = $message->message ?? [];
 
             $stripePayment = [
@@ -657,13 +658,13 @@ class CreateEngagementAction
                             'maximum_length' => 50,
                         ],
                     ],
-                     [
+                    [
                         'key' => 'sales_person',
                         'label' => ['type' => 'custom', 'custom' => 'Sales Person'],
                         'type' => 'text',
                         'optional' => true,
-                         'text' => [
-                            'default_value' => $lead->owner?->firstname . ' ' . $lead->owner?->lastname,
+                        'text' => [
+                            'default_value' => $salesPerson,
                             'maximum_length' => 50,
                         ],
                     ],

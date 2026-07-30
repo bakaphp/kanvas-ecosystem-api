@@ -20,6 +20,7 @@ class BillLine extends Data
         public readonly ?float $tax_rate = null,
         public readonly float $tax_amount_native = 0.0,
         public readonly ?int $expense_account_id = null,
+        public readonly ?int $subaccount_id = null,
         public readonly ?array $tax_metadata = null,
         public readonly ?int $class_id = null,
         public readonly ?int $department_id = null,

@@ -161,6 +161,7 @@ jobs:
           - GraphQL-Guild
           - GraphQL-Social
           - GraphQL-Inventory
+          - GraphQL-HumanResources
           - GraphQL-Other
           - Connectors
           - Ecosystem
@@ -181,6 +182,8 @@ jobs:
           - testsuite: Intelligence
             processes: 1
           - testsuite: Scribe
+            processes: 1
+          - testsuite: GraphQL-HumanResources
             processes: 1
     services:
       mysql:
@@ -280,6 +283,10 @@ jobs:
       - name: Setup Accounting DB
         run: |
           mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS accounting;'
+
+      - name: Setup HR DB
+        run: |
+          mysql -uroot -h127.0.0.1 -ppassword -e 'CREATE DATABASE IF NOT EXISTS hr;'
 
       - name: Configure MySQL
         run: |

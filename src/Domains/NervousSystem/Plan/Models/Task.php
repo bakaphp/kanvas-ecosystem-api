@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Traits\TruncatesTitleTrait;
 use Override;
 
 /**
@@ -39,6 +40,7 @@ use Override;
 class Task extends BaseModel
 {
     use EmitsLedgerEventsForEntity;
+    use TruncatesTitleTrait;
     use UuidTrait;
 
     protected $table = 'nervous_system_tasks';
@@ -66,6 +68,15 @@ class Task extends BaseModel
     public function plan(): BelongsTo
     {
         return $this->belongsTo(Plan::class, 'plan_id', 'id');
+    }
+
+    /**
+     * A Task is an agent-conversation entity (an assignee is woken with the Task in scope), and the
+     * chat/context path calls getName() on the entity as it does for a Lead/People. Expose the title.
+     */
+    public function getName(): string
+    {
+        return $this->title ?? '';
     }
 
     public function agent(): BelongsTo

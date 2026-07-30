@@ -50,8 +50,23 @@ input UpdateContactInput {
     is_opt_out: Boolean
 }
 
+"Mirrors Kanvas\\Guild\\Customers\\Enums\\AddressTypeEnum — Lighthouse cannot bind a PHP enum, so keep both in step."
+enum AddressTypeEnum {
+    HOME @enum(value: "Home")
+    PREVIOUS_HOME @enum(value: "PreviousHome")
+    EMPLOYER @enum(value: "Employer")
+    PREVIOUS_EMPLOYER @enum(value: "PreviousEmployer")
+    BILLING @enum(value: "Billing")
+    SHIPPING @enum(value: "Shipping")
+    HEADQUARTERS @enum(value: "Headquarters")
+    WAREHOUSE @enum(value: "Warehouse")
+    REGISTERED_OFFICE @enum(value: "RegisteredOffice")
+    OTHER @enum(value: "Other")
+}
+
 input AddressInput {
-    address: String!
+    "Nullable so an update can PATCH one field — demanding the street back to fix a zip is how data gets blanked."
+    address: String
     address_2: String
     city: String
     county: String
@@ -64,6 +79,8 @@ input AddressInput {
     latitude: Float
     longitude: Float
     is_default: Boolean
+    "Billing / Shipping / Home / Other. One address per type — re-sending Billing UPDATES the existing one rather than stacking a second."
+    type: AddressTypeEnum
     id: ID
 }
 

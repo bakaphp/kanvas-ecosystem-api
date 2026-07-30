@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Reports\Repositories\TrialBalanceRepository;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -16,6 +16,8 @@ use Override;
 #[AgentTool(name: 'Query Trial Balance')]
 class QueryTrialBalanceTool extends Tool
 {
+    use HasKanvasContext;
+
     public function __construct()
     {
         parent::__construct(
@@ -48,9 +50,8 @@ class QueryTrialBalanceTool extends Tool
 
     public function __invoke(?string $as_of = null, ?string $currency = null): array
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $app = $this->app;
+        $company = $this->company;
 
         $data = new TrialBalanceRepository()->generate(
             app: $app,

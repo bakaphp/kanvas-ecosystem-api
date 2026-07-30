@@ -13,6 +13,7 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Services\InvoiceStateMachineService;
 use Kanvas\Scribe\Ledger\Actions\ReverseJournalEntryAction;
 use Kanvas\Scribe\Ledger\Services\JournalEntryLookupService;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
  * Voids an issued or sent invoice by posting a mirror reversal JE via ReverseJournalEntryAction.
@@ -51,7 +52,7 @@ class VoidInvoiceAction
             );
         }
 
-        return DB::connection('accounting')->transaction(function () use ($original): Invoice {
+        $invoice = DB::connection('accounting')->transaction(function () use ($original): Invoice {
             $invoice = $this->invoice;
 
             new ReverseJournalEntryAction(
@@ -81,5 +82,20 @@ class VoidInvoiceAction
 
             return $invoice->refresh();
         });
+
+        // Fired outside the transaction so a connector activity can't act on — or be rolled back with — a
+        // reversal that hasn't committed. Whichever connector holds a copy of this invoice is wired to this
+        // event and cancels it there; the void itself knows about no connector.
+        $invoice->fireWorkflow(
+            WorkflowEnum::STATUS_TRANSITION->value,
+            params: [
+                'app' => $invoice->app,
+                'entity' => 'invoice',
+                'from' => InvoiceDocumentStatusEnum::ISSUED->value,
+                'to' => InvoiceDocumentStatusEnum::VOIDED->value,
+            ],
+        );
+
+        return $invoice;
     }
 }

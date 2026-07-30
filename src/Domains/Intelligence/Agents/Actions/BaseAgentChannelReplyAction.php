@@ -11,16 +11,17 @@ use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
-use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
+use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -44,6 +45,7 @@ class BaseAgentChannelReplyAction
     protected string $messageTypeVerb = 'text';
     protected string $communicationChannel = '';
     protected bool $supportsHumanApproval = false;
+    protected bool $respectsLeadAiMode = true;
 
     public function __construct(
         protected Channel $channel,
@@ -77,17 +79,16 @@ class BaseAgentChannelReplyAction
             : 'ai_mode';
 
         $mode = IntelligenceModeEnum::tryFrom((string) $lead->get($aiModeKey));
-        if ($mode?->isOff()) {
-            throw new Exception('Ai Agent Off for this lead');
+        if ($this->respectsLeadAiMode && $mode?->isOff()) {
+            throw new AgentReplySkippedException('Ai Agent Off for this lead');
         }
 
         if ($message->is_un_response) {
-            throw new Exception('Message is responded previous');
+            throw new AgentReplySkippedException('Message is responded previous');
         }
 
         $this->dispatchAttachmentDescription($this->message, $this->agent, $this->channel);
     }
-
 
     protected function createMessage(
         string $text,

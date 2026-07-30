@@ -33,6 +33,10 @@ class UpdateCompanyActionAction
                 $this->companyAction->config = $this->data->config;
             }
 
+            if ($this->data->pdf_config !== null) {
+                $this->companyAction->pdf_config = $this->data->pdf_config;
+            }
+
             if ($this->data->is_active !== null) {
                 $this->companyAction->is_active = $this->data->is_active;
             }

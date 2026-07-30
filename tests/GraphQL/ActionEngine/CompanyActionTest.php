@@ -234,6 +234,63 @@ class CompanyActionTest extends TestCase
         ]);
     }
 
+    public function testCreateCompanyActionWithPdfConfig(): void
+    {
+        $globalAction = $this->createGlobalAction();
+
+        $pdfConfig = ['template' => 'invoice', 'orientation' => 'portrait'];
+
+        $response = $this->graphQL('
+            mutation($input: CreateCompanyActionInput!) {
+                createCompanyAction(input: $input) {
+                    id
+                    pdf_config
+                }
+            }
+        ', [
+            'input' => [
+                'actions_id' => $globalAction['id'],
+                'name' => 'Pdf Config Company Action ' . fake()->word(),
+                'pdf_config' => $pdfConfig,
+            ],
+        ])->assertSuccessful();
+
+        $companyAction = $response->json('data.createCompanyAction');
+        $this->assertEquals($pdfConfig, $companyAction['pdf_config']);
+    }
+
+    public function testUpdateCompanyActionPdfConfig(): void
+    {
+        $result = $this->createCompanyAction();
+        $companyActionId = $result['companyAction']['id'];
+
+        $pdfConfig = ['template' => 'receipt', 'showLogo' => true];
+
+        $this->graphQL('
+            mutation($id: ID!, $input: UpdateCompanyActionInput!) {
+                updateCompanyAction(id: $id, input: $input) {
+                    id
+                    pdf_config
+                }
+            }
+        ', [
+            'id' => $companyActionId,
+            'input' => [
+                'name' => 'Updated Pdf Config ' . fake()->word(),
+                'pdf_config' => $pdfConfig,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'updateCompanyAction' => [
+                    'id' => $companyActionId,
+                    'pdf_config' => $pdfConfig,
+                ],
+            ],
+        ]);
+    }
+
     public function testDeleteCompanyAction(): void
     {
         $result = $this->createCompanyAction();

@@ -14,6 +14,7 @@ use Kanvas\Social\Messages\Actions\CreateMessageFromTypeAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Workflow\Contracts\SilentWorkflowException;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Actions\AddEntityIntegrationHistoryAction;
@@ -51,10 +52,19 @@ trait ActivityIntegrationTrait
     public function getIntegrationCompany(
         IntegrationsEnum $integration,
         Regions $region,
-        Status $status
+        Status $status,
+        ?Companies $company = null
     ): ?IntegrationsCompany {
+        // A global region (companies_id = 0) has no owning company, so it can only
+        // ever be a fallback — the integration belongs to the tenant, not the region.
+        $company ??= $region->company;
+
+        if (! $company instanceof Companies) {
+            return null;
+        }
+
         return IntegrationsCompany::getByIntegration(
-            company: $region->company,
+            company: $company,
             status: $status,
             region: $region,
             name: $integration->value
@@ -103,13 +113,22 @@ trait ActivityIntegrationTrait
         $this->overwriteAppService($app);
         $activeStatus = $this->getStatus(StatusEnum::ACTIVE);
         $company = $company ?? $entity->company;
-        $region = $region ?? Regions::getDefault($company ?? $entity->company, $app);
+
+        if (! $company instanceof Companies) {
+            return [
+                'error' => 'No company configured for this entity',
+                'integration' => $integration->value,
+                'entity_id' => $entity->getId(),
+            ];
+        }
+
+        $region = $region ?? Regions::getDefault($company, $app);
 
         if (! $region) {
             return [
                 'error' => 'No region configured for this company',
                 'integration' => $integration->value,
-                'company' => $company?->getId() ?? 'no company',
+                'company' => $company->getId(),
                 'entity_id' => $entity->getId(),
             ];
         }
@@ -117,7 +136,8 @@ trait ActivityIntegrationTrait
         $integrationCompany = $this->getIntegrationCompany(
             $integration,
             $region,
-            $activeStatus
+            $activeStatus,
+            $company
         );
 
         if (! $integrationCompany) {
@@ -125,7 +145,7 @@ trait ActivityIntegrationTrait
                 'error' => 'No integration configured for this company',
                 'region' => $region->getId(),
                 'integration' => $integration->value,
-                'company' => $company?->getId() ?? 'no company',
+                'company' => $company->getId(),
                 'entity_id' => $entity->getId(),
             ];
         }
@@ -141,7 +161,9 @@ trait ActivityIntegrationTrait
         } catch (Throwable $exception) {
             $status = $this->getStatus(StatusEnum::FAILED);
 
-            report($exception);
+            if (! $exception instanceof SilentWorkflowException) {
+                report($exception);
+            }
         }
 
         // Record integration history
@@ -162,7 +184,7 @@ trait ActivityIntegrationTrait
         if ($exception) {
             return [
                 'error' => $exception->getMessage(),
-                'company' => $company?->getId() ?? 'no company',
+                'company' => $company->getId(),
                 'integration' => $integration->value,
                 'entity_id' => $entity->getId(),
                 'trace' => $exception->getTraceAsString(),

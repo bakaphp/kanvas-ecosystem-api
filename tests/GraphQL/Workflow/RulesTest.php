@@ -336,6 +336,29 @@ class RulesTest extends TestCase
         $this->assertEquals('!=', $data['conditions'][0]['operator']);
     }
 
+    public function testUpdateGlobalRulePreservesCompaniesId(): void
+    {
+        $rule = Rule::factory()->create();
+        $this->assertEquals(0, $rule->companies_id);
+
+        $response = $this->graphQL('
+            mutation($id: ID!, $input: UpdateRuleInput!) {
+                updateRule(id: $id, input: $input) {
+                    id
+                    name
+                }
+            }
+        ', [
+            'id' => $rule->getId(),
+            'input' => ['name' => 'Updated Global Rule ' . fake()->uuid()],
+        ], [], $this->getAppKeyHeader());
+
+        $response->assertSuccessful()->assertGraphQLErrorFree();
+
+        $updatedRule = Rule::find($rule->getId());
+        $this->assertEquals(0, $updatedRule->companies_id);
+    }
+
     public function testDeleteRule(): void
     {
         $rule = Rule::factory()->create();
@@ -351,5 +374,13 @@ class RulesTest extends TestCase
 
         $deletedRule = Rule::find($rule->getId());
         $this->assertEquals(1, $deletedRule->is_deleted);
+    }
+
+    public function testTypesenseSchemaIdIsString(): void
+    {
+        $schema = new Rule()->typesenseCollectionSchema();
+        $idField = collect($schema['fields'])->firstWhere('name', 'id');
+        $this->assertNotNull($idField);
+        $this->assertSame('string', $idField['type'], 'Typesense requires the document id field to be a string');
     }
 }

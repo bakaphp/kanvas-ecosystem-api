@@ -13,11 +13,12 @@ use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class UserManagementQuery
 {
-    /**
-     * all.
-     */
-    public function getAllCompanyUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
-    {
+    public function getAllCompanyUsers(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
         $companiesId = auth()->user()->isAdmin() && ! empty($args['companies_id']) ? $args['companies_id'] : auth()->user()->currentCompanyId();
         $app = app(Apps::class);
 
@@ -64,11 +65,19 @@ class UserManagementQuery
         ->groupBy('users_associated_apps.users_id');
 
         if (! empty($args['search'])) {
-            $searchResults = Users::traitSearch((string) $args['search'])
-                ->whereIn('apps', [$app->getId()])
-                ->keys();
+            $userSearch = Users::traitSearch((string) $args['search'])
+                ->whereIn('apps', [$app->getId()]);
 
-            $query->whereIn('users.id', $searchResults->toArray());
+            // traitSearch bypasses Users::search(), so query_by must be set here or Typesense 400s
+            // with "No search fields specified for the query" (KANVAS-ECOSYSTEM-626).
+            if ($userSearch->model->isTypesense()) {
+                $userSearch->options(['query_by' => 'firstname,lastname,displayname,email']);
+            }
+
+            // NOT ->keys(): on Algolia (Scout Extended) that returns composite objectIDs like
+            // "Kanvas\Users\Models\Users::27914", which never match users.id. get()->modelKeys()
+            // lets the engine decrypt the objectID back to the real primary key.
+            $query->whereIn('users.id', $userSearch->get()->modelKeys());
         }
 
         return $query;
@@ -77,8 +86,12 @@ class UserManagementQuery
     /**
      * Get the current users from this branch.
      */
-    public function getAllCompanyBranchUsers(mixed $root, array $args, GraphQLContext $context, ResolveInfo $resolveInfo): Builder
-    {
+    public function getAllCompanyBranchUsers(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
         $branchId = auth()->user()->isAdmin() && ! empty($args['getCurrentBranch']) ? $args['getCurrentBranch'] : auth()->user()->currentBranchId();
         $app = app(Apps::class);
 

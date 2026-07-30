@@ -56,15 +56,22 @@ class ApolloRateLimitService
     {
         $key = $this->minuteKey($app);
 
-        // Pin the TTL on the first hit so the window is fixed from then — increment keeps
-        // the existing TTL, so the counter resets exactly one minute after it started.
-        if (! Cache::has($key)) {
-            Cache::put($key, 1, self::MINUTE_WINDOW);
+        // Increment first: on Redis, INCRBY on a missing key recreates it with NO expiration
+        // (persists forever). If we branched on Cache::has() and the key expired in the race
+        // window between the check and the increment, the counter would come back with no TTL
+        // and never reset — pinning the window whenever the count is 1 closes that race.
+        $count = (int) Cache::increment($key);
 
-            return 1;
+        if ($count === 1) {
+            Cache::put($key, 1, self::MINUTE_WINDOW);
         }
 
-        return (int) Cache::increment($key);
+        return $count;
+    }
+
+    public function resetMinuteWindow(AppInterface $app): void
+    {
+        Cache::forget($this->minuteKey($app));
     }
 
     /**

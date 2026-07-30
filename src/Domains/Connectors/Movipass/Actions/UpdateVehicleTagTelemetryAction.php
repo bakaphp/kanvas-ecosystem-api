@@ -44,8 +44,10 @@ class UpdateVehicleTagTelemetryAction
             $verifyResponse = $service->fetchTagBalance($this->tag);
             $balance = $verifyResponse->balance;
 
-            $attributes[] = ['name' => 'tag_balance', 'value' => (string) $balance];
-            $attributes[] = ['name' => 'tag_balance_fetched_at', 'value' => $now->toIso8601String()];
+            $attributes = [
+                ...$attributes,
+                ...SyncVehicleTagDataAction::buildAttributes($verifyResponse, $now),
+            ];
         } catch (Throwable $e) {
             report($e);
             $balanceError = $e->getMessage();

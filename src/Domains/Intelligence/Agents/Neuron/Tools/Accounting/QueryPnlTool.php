@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Reports\Repositories\ProfitAndLossRepository;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -16,6 +16,8 @@ use Override;
 #[AgentTool(name: 'Query Profit and Loss')]
 class QueryPnlTool extends Tool
 {
+    use HasKanvasContext;
+
     public function __construct()
     {
         parent::__construct(
@@ -53,9 +55,8 @@ class QueryPnlTool extends Tool
 
     public function __invoke(string $period_start, string $period_end, ?string $currency = null): array
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $app = $this->app;
+        $company = $this->company;
 
         $data = new ProfitAndLossRepository()->generate(
             app: $app,

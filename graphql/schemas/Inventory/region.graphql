@@ -1,3 +1,11 @@
+type RegionSettings {
+    language: String
+    flag: String
+    payment_gateways: [String!]
+    default_payment_gateway: String
+    timezone: String
+}
+
 type Region {
     id: ID!
     companies_id: Int!
@@ -8,8 +16,11 @@ type Region {
     name: String!
     slug: String!
     short_slug: String!
-    settings: String
+    settings: String @rename(attribute: "settings_string")
+    settingsData: RegionSettings @rename(attribute: "settings")
     is_default: Boolean!
+    lat: Float
+    lng: Float
 }
 
 input RegionInput {
@@ -20,6 +31,8 @@ input RegionInput {
     short_slug: String!
     settings: String
     is_default: Int!
+    lat: Float
+    lng: Float
 }
 input RegionInputUpdate {
     currency_id: ID
@@ -28,6 +41,8 @@ input RegionInputUpdate {
     short_slug: String
     settings: String
     is_default: Int
+    lat: Float
+    lng: Float
 }
 
 input RegionReferenceInput {
@@ -69,5 +84,9 @@ extend type Mutation @guard {
     deleteRegion(id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Inventory\\Mutations\\Regions\\Region@delete"
+        )
+    setDefaultRegion(region_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Mutations\\Regions\\Region@setDefaultRegion"
         )
 }

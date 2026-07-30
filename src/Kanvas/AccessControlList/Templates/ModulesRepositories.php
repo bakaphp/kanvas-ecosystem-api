@@ -33,6 +33,18 @@ use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Scribe\Banking\Models\BankAccount;
+use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Expenses\Models\Expense;
+use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Items\Models\Item;
+use Kanvas\Scribe\Ledger\Models\Account;
+use Kanvas\Scribe\Ledger\Models\FiscalPeriod;
+use Kanvas\Scribe\Payments\Models\Payment;
+use Kanvas\Scribe\PaymentTerms\Models\PaymentTerm;
+use Kanvas\Scribe\Quotes\Models\Quote;
+use Kanvas\Scribe\SalesReceipts\Models\SalesReceipt;
+use Kanvas\Scribe\TaxCodes\Models\TaxCode;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Tags\Models\Tag;
@@ -58,6 +70,7 @@ class ModulesRepositories
             ModuleEnum::AI,
             ModuleEnum::COMMERCE,
             ModuleEnum::EVENT,
+            ModuleEnum::SCRIBE,
         ];
 
         $permissions = [];
@@ -131,6 +144,23 @@ class ModulesRepositories
                 Event::class => $crud,
                 EventVersion::class => $crud,
                 EventType::class => $crud,
+            ],
+            ModuleEnum::SCRIBE->value => [
+                // Documents (sub-ledgers). Invoice / Bill / Payment are also workflow targets — the AR/AP push
+                // activities (Mercury, Acumatica) route on their status transitions.
+                Invoice::class => $crud,
+                Bill::class => $crud,
+                Payment::class => $crud,
+                Quote::class => $crud,
+                SalesReceipt::class => $crud,
+                Expense::class => $crud,
+                // Master data users manage.
+                Account::class => $crud,
+                Item::class => $crud,
+                TaxCode::class => $crud,
+                PaymentTerm::class => $crud,
+                BankAccount::class => $crud,
+                FiscalPeriod::class => $crud,
             ],
         ];
 

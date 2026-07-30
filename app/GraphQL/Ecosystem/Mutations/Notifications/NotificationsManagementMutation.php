@@ -65,7 +65,8 @@ class NotificationsManagementMutation
             $request['template_name'],
             $data,
             ['mail'],
-            $user
+            $user,
+            key_exists('attachment', $request) ? $request['attachment'] : null
         );
         $notification->setFromUser($user);
         $notification->setSubject($request['subject']);

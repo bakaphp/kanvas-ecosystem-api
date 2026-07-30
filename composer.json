@@ -34,7 +34,7 @@
         "kiwilan/php-xml-reader": "^1.1",
         "knplabs/knp-snappy": "^1.5",
         "laravel-notification-channels/expo": "^2.1",
-        "laravel/ai": "^0.8.0",
+        "laravel/ai": "^0.10.1",
         "laravel/cashier": "^16.0",
         "laravel/framework": "^13.0",
         "laravel/octane": "^2.0",
@@ -50,7 +50,7 @@
         "maatwebsite/excel": "4.x-dev",
         "meilisearch/meilisearch-php": "^1.4",
         "mike-bronner/laravel-model-caching": "^13.0",
-        "mindee/mindee": "^2.0",
+        "mindee/mindee": "^3.1",
         "mll-lab/graphql-php-scalars": "^6.0",
         "mll-lab/laravel-graphiql": "^4.0.1",
         "neuron-core/neuron-ai": "^3.0",
@@ -126,6 +126,7 @@
             "Kanvas\\Scribe\\": "src/Domains/Scribe",
             "Kanvas\\Analytics\\": "src/Domains/Analytics",
             "Kanvas\\NervousSystem\\": "src/Domains/NervousSystem",
+            "Kanvas\\HumanResources\\": "src/Domains/HumanResources",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
@@ -161,7 +162,8 @@
             "php artisan migrate --path database/migrations/Event/ --database event",
             "php artisan migrate --path database/migrations/Workflow/ --database workflow",
             "php artisan migrate --path database/migrations/Intelligence/ --database intelligence",
-            "php artisan migrate --path database/migrations/Scribe/ --database accounting"
+            "php artisan migrate --path database/migrations/Scribe/ --database accounting",
+            "php artisan migrate --path database/migrations/HumanResources/ --database hr"
         ],
         "migrate-kanvas": [
             "php artisan migrate"
@@ -198,6 +200,9 @@
         ],
         "migrate-scribe": [
             "php artisan migrate --path database/migrations/Scribe/ --database accounting"
+        ],
+        "migrate-hr": [
+            "php artisan migrate --path database/migrations/HumanResources/ --database hr"
         ],
         "pre-autoload-dump": "Google\\Task\\Composer::cleanup"
     },

@@ -329,6 +329,8 @@ class FilesystemServices
     protected function downloadFileFromUrl(string $fileUrl): ?string
     {
         try {
+            SafeUrl::assertSafe($fileUrl);
+
             // Download with timeout and error handling
             $response = Http::timeout(30)
                 ->throw()

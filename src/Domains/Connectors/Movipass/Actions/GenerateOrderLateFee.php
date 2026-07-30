@@ -98,33 +98,37 @@ class GenerateOrderLateFee
                 return;
             }
 
-            $feeCount = max(1, ceil($order->days_late / 30));
+            // Lock the order row so overlapping runs of the hourly command serialize here.
+            // Without it two concurrent runs both pass the "late-fee item already exists?"
+            // check and insert duplicate late-fee items with the same created_at second.
+            $completeOrder->getConnection()->transaction(function () use ($completeOrder, $lateFee, $lateFeePrice, $order, $timeZonedNow): void {
+                Order::query()->whereKey($completeOrder->getKey())->lockForUpdate()->first();
 
-            $shouldCalculateTotal = false;
+                // FOR UPDATE read so a serialized run sees the item the other run just committed
+                // (a plain read would use this transaction's older snapshot and miss it).
+                $hasLateFee = $completeOrder->items()->where('variant_id', $lateFee->id)->lockForUpdate()->first();
 
-            if ($hasLateFee = $completeOrder->items()->where('variant_id', $lateFee->id)?->first()) {
-                if ($hasLateFee->quantity !== $feeCount) {
-                    $hasLateFee->quantity = $feeCount;
-                    $shouldCalculateTotal = true;
+                // Late fee is a one-time charge: once the order has it, leave it untouched.
+                if ($hasLateFee) {
+                    return;
                 }
-            } else {
+
                 $orderItem = OrderItem::from($this->apps, $completeOrder->company, $completeOrder->region, [
                     'variant_id' => $lateFee->id,
-                    'quantity' => $feeCount,
+                    'quantity' => 1,
                     'price' => $lateFeePrice,
                 ]);
 
                 $completeOrder->addItem($orderItem);
-                $shouldCalculateTotal = true;
-            }
 
-            if ($shouldCalculateTotal) {
+                // Record the latest snapshot every late run so business_days_late stays current,
+                // even when the fee quantity itself didn't change.
                 $completeOrder->metadata = [
                     "data" => [
                         ...$completeOrder->metadata["data"],
                         "late_fee_charged_at" => $timeZonedNow,
                         "business_days_late" => $order->days_late,
-                    ]
+                    ],
                 ];
                 $completeOrder->calculateTotal(false);
 
@@ -134,7 +138,7 @@ class GenerateOrderLateFee
                 $completeOrder->updated_at = $originalUpdatedAt;
                 $completeOrder->saveQuietly();
                 $completeOrder->timestamps = true;
-            }
+            });
         });
     }
 }

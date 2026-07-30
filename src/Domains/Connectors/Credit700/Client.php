@@ -54,15 +54,24 @@ class Client
 
     public function post(string $path, array $data = []): array
     {
+        // The gateway sits behind an Azure App Gateway that rejects the request
+        // (403) unless a valid OAuth bearer token is present — creds in the body
+        // are not enough. Lazily mint one per client instance.
+        $accessToken = $this->accessToken ??= $this->generateToken();
+
         $response = $this->httpClient->post($this->apiBaseUrl . $path, [
             'headers' => [
-                //'Authorization' => 'Bearer ' . $this->accessToken,
+                'Authorization' => 'Bearer ' . $accessToken,
                 'Content-Type' => 'application/x-www-form-urlencoded',
             ],
             'form_params' => $data, // Use form_params for x-www-form-urlencoded
         ]);
 
-        $responseBody = $response->getBody()->getContents();
+        return $this->decodeXmlResponse($response->getBody()->getContents());
+    }
+
+    protected function decodeXmlResponse(string $responseBody): array
+    {
         $xml = new SimpleXMLElement($this->sanitizeXml($responseBody));
 
         return json_decode(json_encode($xml), true); // Return as an associative array

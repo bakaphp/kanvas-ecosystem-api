@@ -5,6 +5,7 @@ type AgentAi {
     creator: User @belongsTo(relation: "creator")
     type: agentType! @belongsTo
     model: AgentAiModel @belongsTo
+    llmConfig: AgentLlmConfig @belongsTo(relation: "llmConfig")
     companyTaskList: TaskList @belongsTo
     parent: AgentAi @belongsTo(relation: "parent")
     children: [AgentAi!]! @hasMany(relation: "children")
@@ -20,6 +21,7 @@ type AgentAi {
     identity: Mixed
     user_context: String
     tools_config: String
+    voice_config: Mixed
     deployment_status: String!
     activeDeployment: AgentDeploymentType @hasOne
     agent_model_id: ID
@@ -115,6 +117,7 @@ input AgentAiInput {
     name: String!
     user_id: ID
     agent_model_id: Int
+    agent_llm_config_id: ID
     description: String
     config: Mixed!
     role: Mixed!
@@ -223,6 +226,14 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentIntegrationConfigMutation@set"
         )
+    createAgentConfigBackup(agent_id: ID!, notes: String): AgentConfigBackupType!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentConfigBackupMutation@create"
+        )
+    restoreAgentFromConfigBackup(backup_id: ID!): AgentAi!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentConfigBackupMutation@restore"
+        )
 }
 
 extend type Query @guard {
@@ -280,6 +291,34 @@ extend type Query @guard {
         @field(
             resolver: "App\\GraphQL\\Analytics\\Queries\\AgentAnalyticsQuery"
         )
+    agentConfigBackups(
+        agent_id: ID!
+        where: _
+            @whereConditions(
+                columns: ["id", "status", "created_at"]
+            )
+        orderBy: _ @orderBy(columns: ["id", "created_at"])
+    ): [AgentConfigBackupType!]!
+        @paginate(
+            builder: "App\\GraphQL\\Intelligence\\Builders\\AgentConfigBackupBuilder@build"
+            defaultCount: 25
+        )
+}
+
+type AgentConfigBackupType {
+    id: ID!
+    uuid: String!
+    agents_id: ID!
+    status: String!
+    file_path: String
+    file_size_bytes: Int
+    notes: String
+    error_message: String
+    completed_at: DateTime
+    created_at: DateTime!
+    updated_at: DateTime!
+    agent: AgentAi @belongsTo(relation: "agent")
+    download_url: String
 }
 
 type AgentAnalytics {
@@ -312,5 +351,74 @@ extend type Mutation @guardByAppKey {
     removeAgentKanvasModule(agent_id: ID!, kanvas_module_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentKanvasModuleMutation@remove"
+        )
+}
+
+"""
+Compiled agent spec consumed by the external voice runtime (Pipecat / Cloud Run)
+at the start of each call. Read-only, server-to-server (@guardByAppKey).
+"""
+type VoiceAgentSpec {
+    "The agent uuid; the runtime caches by agent_id + version."
+    agent_id: String!
+    "Changes whenever the agent is edited, so the runtime refreshes its cache."
+    version: String!
+    language: String
+    prompts: VoiceAgentPrompts!
+    models: VoiceAgentModels!
+    telephony: VoiceAgentTelephony
+    context_schema: [VoiceAgentContextField!]!
+}
+
+type VoiceAgentPrompts {
+    system_instruction: String!
+    greeting: String
+    voicemail_message: String
+}
+
+type VoiceAgentModels {
+    stt: VoiceAgentSttModel
+    llm: VoiceAgentLlmModel!
+    tts: VoiceAgentTtsModel
+}
+
+type VoiceAgentSttModel {
+    provider: String
+    model: String
+    language: String
+}
+
+type VoiceAgentLlmModel {
+    provider: String
+    model: String
+}
+
+type VoiceAgentTtsModel {
+    provider: String
+    voice_id: String
+    model: String
+    stability: Float
+    similarity: Float
+    style: Float
+    speed: Float
+    use_speaker_boost: Boolean
+}
+
+"Dealership caller-id number. Credentials are intentionally excluded."
+type VoiceAgentTelephony {
+    from_number: String
+}
+
+type VoiceAgentContextField {
+    key: String!
+    required: Boolean
+    default: String
+}
+
+extend type Query @guardByAppKey {
+    "Fetch the compiled voice spec for an agent by uuid (voice runtime → Kanvas)."
+    voiceAgentSpec(uuid: String!): VoiceAgentSpec!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentSpecQuery"
         )
 }

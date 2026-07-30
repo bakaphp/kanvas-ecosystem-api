@@ -46,9 +46,15 @@ class BulkRechargeOrderTagsAction
 
         $wallet->depositFloat((float) $this->order->total_gross_amount, $creditMeta);
 
-        $dni = (string) ($company->get('rnc') ?? '');
+        $dni = trim((string) ($company->get('rnc') ?? ''));
+
+        if ($dni === '') {
+            $dni = trim((string) ($this->order->metadata['data']['rnc'] ?? ''));
+        }
+
         $bankTransaction = $this->resolveBankTransaction();
-        $fiscalCredit = (bool) ($this->order->metadata['data']['fiscal_credit'] ?? false);
+        // having a RNC means fiscal credit is wanted
+        $fiscalCredit = $dni !== '' || (bool) ($this->order->metadata['data']['fiscal_credit'] ?? false);
 
         $service = $this->injectedService;
         $serviceError = null;

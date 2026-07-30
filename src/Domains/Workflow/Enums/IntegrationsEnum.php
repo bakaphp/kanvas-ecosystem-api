@@ -59,4 +59,7 @@ enum IntegrationsEnum: string
     case PRODUCT_ENRICHMENT = 'product_enrichment';
     case REYNOLDS = 'reynolds';
     case UNIVERSAL_SEGUROS = 'universal_seguros';
+    case ACUMATICA = 'acumatica';
+    case MERCURY = 'mercury';
+    case SALESFORCE = 'salesforce';
 }

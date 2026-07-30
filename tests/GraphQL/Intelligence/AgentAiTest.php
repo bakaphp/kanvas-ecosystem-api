@@ -6,6 +6,7 @@ namespace Tests\GraphQL\Intelligence;
 
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Factories\AgentLlmConfigFactory;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType;
@@ -35,6 +36,60 @@ class AgentAiTest extends TestCase
             ->withCompanyId(auth()->user()->getCurrentCompany()->id)
             ->withUserId(auth()->user()->id)
             ->create();
+    }
+
+    public function testCreateAgentWithLlmConfigExposesRelation(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $llmConfig = AgentLlmConfigFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['name' => 'Box ' . fake()->unique()->word()]);
+
+        $response = $this->graphQL('
+            mutation($input: AgentAiInput!) {
+                createAiAgent(input: $input) {
+                    id
+                    llmConfig { id name provider has_api_key }
+                }
+            }
+        ', ['input' => [
+            'agent_type_id' => $this->createAgentType()->getId(),
+            'name' => 'Agent ' . fake()->word(),
+            'role' => ['name' => 'r', 'description' => 'd'],
+            'config' => ['key' => 'value'],
+            'is_active' => true,
+            'agent_llm_config_id' => $llmConfig->getId(),
+        ]])
+        ->assertSuccessful()
+        ->assertJson(['data' => ['createAiAgent' => ['llmConfig' => [
+            'id' => (string) $llmConfig->getId(),
+            'name' => $llmConfig->name,
+            'provider' => 'openai_like',
+            'has_api_key' => true,
+        ]]]]);
+
+        $agentId = $response->json('data.createAiAgent.id');
+
+        // Clearing the selection: omitting the field drops the relation (replace semantics).
+        $this->graphQL('
+            mutation($id: ID!, $input: AgentAiInput!) {
+                updateAiAgent(id: $id, input: $input) {
+                    id
+                    llmConfig { id }
+                }
+            }
+        ', ['id' => $agentId, 'input' => [
+            'agent_type_id' => $this->createAgentType()->getId(),
+            'name' => 'Agent renamed',
+            'role' => ['name' => 'r', 'description' => 'd'],
+            'config' => ['key' => 'value'],
+            'is_active' => true,
+        ]])
+        ->assertSuccessful()
+        ->assertJson(['data' => ['updateAiAgent' => ['llmConfig' => null]]]);
     }
 
     public function testCreateAgent()

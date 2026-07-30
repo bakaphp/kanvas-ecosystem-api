@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use NeuronAI\Tools\PropertyType;
@@ -17,6 +17,8 @@ use Override;
 #[AgentTool(name: 'Query Recent Expenses')]
 class QueryRecentExpensesTool extends Tool
 {
+    use HasKanvasContext;
+
     public function __construct()
     {
         parent::__construct(
@@ -57,9 +59,8 @@ class QueryRecentExpensesTool extends Tool
         ?string $status = null,
         ?int $limit = null,
     ): array {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $app = $this->app;
+        $company = $this->company;
         $daysBack = max(1, min(365, $days_back ?? 30));
         $limit = max(1, min(100, $limit ?? 25));
 

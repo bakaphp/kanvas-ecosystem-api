@@ -27,6 +27,7 @@ class ProcessShopifyOrderWebhookJob extends ProcessWebhookJob
         //this order from pos with no customer info create a dummy customer
         if (empty($payload['customer']) && (int) $payload['id'] > 0 && $source === 'pos') {
             $payload['customer'] = [
+                'id' => 'pos-customer-' . $this->receiver->company->getId(),
                 'email' => 'post_customer@' . $this->receiver->company->getId() . '.shopify.pos',
                 'first_name' => 'POS',
                 'last_name' => 'Customer',

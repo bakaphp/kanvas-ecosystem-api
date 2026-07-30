@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Kanvas\Connectors\OpenClaw\Actions\BackupAgentWorkspaceAction;
 use Kanvas\Connectors\OpenClaw\Actions\ChatWithAgentAction;
 use Kanvas\Connectors\OpenClaw\Actions\CheckCliHealthAction;
 use Kanvas\Connectors\OpenClaw\Actions\CollectDeploymentUsageAction;
@@ -23,6 +24,7 @@ use Kanvas\Connectors\OpenClaw\Actions\UpdateDeploymentConfigAction;
 use Kanvas\Connectors\OpenClaw\Jobs\BackupAgentWorkspaceJob;
 use Kanvas\Connectors\OpenClaw\Jobs\MigrateAgentWorkspaceJob;
 use Kanvas\Connectors\OpenClaw\Jobs\RestartAgentContainerJob;
+use Kanvas\Connectors\OpenClaw\Jobs\SyncDeploymentCredentialsJob;
 use Kanvas\Connectors\OpenClaw\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\OpenClaw\Jobs\UpdateOpenClawOnMachineJob;
 use Kanvas\Connectors\OpenClaw\SshClient;
@@ -76,6 +78,12 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
     public function dispatchRestart(AgentDeployment $deployment): void
     {
         RestartAgentContainerJob::dispatch($deployment);
+    }
+
+    #[Override]
+    public function dispatchCredentialSync(AgentDeployment $deployment): void
+    {
+        SyncDeploymentCredentialsJob::dispatch($deployment);
     }
 
     #[Override]
@@ -171,6 +179,12 @@ class OpenClawProvider extends AbstractAgentRuntimeProvider
     public function dispatchBackup(AgentDeployment $deployment, AgentBackup $backup, bool $includeWorkspace): void
     {
         BackupAgentWorkspaceJob::dispatch($deployment, $backup, $includeWorkspace);
+    }
+
+    #[Override]
+    public function createWorkspaceBackupNow(AgentDeployment $deployment, AgentBackup $backup): AgentBackup
+    {
+        return (new BackupAgentWorkspaceAction($deployment, $backup, includeWorkspace: true))->execute();
     }
 
     #[Override]

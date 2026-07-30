@@ -10,7 +10,7 @@ use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\Social\Interactions\Models\UsersInteractions;
-use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\InteractionMessageAction;
 use Kanvas\Social\Messages\Enums\ActivityTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Services\MessageInteractionService;
@@ -19,13 +19,13 @@ class MessageInteractionMutation
 {
     public function interaction(mixed $root, array $request): Message
     {
+        /** @var Message $message */
         $message = Message::getById((int)$request['id'], app(Apps::class));
-        $action = new CreateMessageAction(
+        new InteractionMessageAction(
             $message,
             auth()->user(),
             ActivityTypeEnum::from($request['type'])
-        );
-        $action->execute();
+        )->execute();
 
         return $message;
     }

@@ -11,7 +11,7 @@ use Spatie\LaravelData\Data;
  *
  * `canonical_id` is the operator's recommended target for merges — picked by oldest id so existing
  * inbound FKs (invoices, deals, etc.) on the established row stay put. Operator UI can override
- * by passing a different target to `mergeGuildOrganizations`.
+ * by passing a different target to `mergeOrganizations`.
  *
  * `member_ids` is sorted ascending. Includes `canonical_id` for easier client iteration.
  *

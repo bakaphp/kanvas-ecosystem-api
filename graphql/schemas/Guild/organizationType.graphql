@@ -45,6 +45,7 @@ extend type Mutation @guard {
 
 extend type Query @guard {
     organizationTypes(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [

@@ -70,6 +70,13 @@ class CreateUserMessageAction
 
     private function createUserMessageActivity(UserMessage $userMessage): void
     {
+        // user_messages has a composite key (apps_id, messages_id, users_id) and NO `id` column,
+        // so there is no single FK to hang a separate user_messages_activities row on —
+        // $userMessage->id is always null here. Skip rather than crash on a null user_messages_id.
+        if ($userMessage->id === null) {
+            return;
+        }
+
         // Use updateOrCreate for activity as well
         UserMessageActivity::updateOrCreate(
             [

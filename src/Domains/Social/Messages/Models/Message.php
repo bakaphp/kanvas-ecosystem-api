@@ -180,10 +180,70 @@ class Message extends BaseModel
                 $value = substr(stripslashes($value), 1, -1);
             }
 
-            return json_decode($value, true);
+            $decoded = json_decode($value, true);
+
+            return is_array($decoded) ? $decoded : [];
         }
 
         return is_array($value) ? $value : [];
+    }
+
+    /**
+     * Message text regardless of body shape — {content}/{text} object, raw string, or
+     * double-encoded JSON. Use this, not getMessage(), which returns [] for non-object bodies.
+     */
+    public function contentText(): string
+    {
+        $payload = $this->getMessage();
+        foreach (['content', 'text', 'message', 'body'] as $key) {
+            $value = $payload[$key] ?? null;
+            if (is_string($value) && $value !== '') {
+                return $value;
+            }
+        }
+
+        $raw = $this->message;
+        if (is_string($raw) && $raw !== '') {
+            return $raw;
+        }
+
+        $original = $this->getRawOriginal('message');
+        if (is_string($original) && $original !== '') {
+            $decoded = json_decode($original);
+
+            return is_string($decoded) ? $decoded : $original;
+        }
+
+        return '';
+    }
+
+    /**
+     * Attachment URLs on this message, split by how far they travel: images ride natively on every
+     * agent backend; audio/PDF/doc ride natively only on the in-process backends (Neuron, Laravel).
+     * Single source of truth for the agent channel responders and the @mention job — each was
+     * duplicating this loop.
+     *
+     * @return array{images: list<string>, documents: list<string>}
+     */
+    public function attachmentUrls(): array
+    {
+        $images = [];
+        $documents = [];
+
+        foreach ($this->files as $file) {
+            $url = (string) $file->url;
+            if ($url === '') {
+                continue;
+            }
+
+            if ($file->mediaType()->isImage()) {
+                $images[] = $url;
+            } else {
+                $documents[] = $url;
+            }
+        }
+
+        return ['images' => $images, 'documents' => $documents];
     }
 
     public function addMessage(array $message): void
@@ -425,6 +485,8 @@ class Message extends BaseModel
         $data = [
             'objectID' => $this->uuid,
             ...$this->toArray(),
+            'id' => (string) $this->id, // Typesense requires the document id to be a string
+            'message_text' => $this->contentText(),
             'user' => [
                 'id' => $this->users_id,
                 'name' => trim(($this->user->firstname ?? '') . ' ' . ($this->user->lastname ?? '')),
@@ -435,8 +497,13 @@ class Message extends BaseModel
                 'name' => $this->messageType->name,
                 'verb' => $this->messageType->verb,
             ] : null,
-            'is_public' => $this->is_public,
-            'is_deleted' => $this->is_deleted,
+            'is_public' => (bool) $this->is_public,
+            'is_premium' => (bool) $this->is_premium,
+            'is_locked' => (bool) $this->is_locked,
+            'is_deleted' => (bool) $this->is_deleted,
+            // Typesense schema declares these as int64; toArray() emits ISO-8601 strings, so cast to Unix timestamps
+            'created_at' => $this->created_at?->getTimestamp(),
+            'updated_at' => $this->updated_at?->getTimestamp(),
         ];
 
         // Add parent reference for child messages
@@ -669,6 +736,12 @@ class Message extends BaseModel
     {
         $app = app(Apps::class);
         $searchQuery = self::traitSearch($query, $callback)->where('apps_id', $app->getId());
+
+        if ($searchQuery->model->isTypesense()) {
+            $searchQuery->options([
+                'query_by' => 'message_text',
+            ]);
+        }
 
         if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
             return $searchQuery;

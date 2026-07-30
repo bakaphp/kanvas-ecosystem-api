@@ -1,0 +1,30 @@
+type HrEmployeeCompensation {
+    id: ID!
+    uuid: String!
+    amount: Float!
+    currency: String!
+    pay_frequency: String!
+    effective_from: Date!
+    effective_to: Date
+    change_reason: String
+    compa_ratio: Float
+    payBand: HrPayBand @belongsTo(relation: "payBand")
+    employee: HrEmployee! @belongsTo(relation: "employee")
+}
+
+input HrCompensationInput {
+    employee_id: ID!
+    pay_band_id: ID
+    amount: Float!
+    currency: String
+    pay_frequency: String
+    effective_from: Date!
+    change_reason: String
+}
+
+extend type Mutation @guardByAdmin {
+    recordHrCompensation(input: HrCompensationInput!): HrEmployeeCompensation!
+        @field(
+            resolver: "App\\GraphQL\\HumanResources\\Mutations\\Compensation\\CompensationMutation@record"
+        )
+}

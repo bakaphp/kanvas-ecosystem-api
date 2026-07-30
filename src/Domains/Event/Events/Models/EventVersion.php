@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\Observers\EventVersionObserver;
 use Kanvas\Event\Models\BaseModel;
@@ -31,12 +35,15 @@ use Spatie\LaravelData\DataCollection;
 #[ObservedBy([EventVersionObserver::class])]
 class EventVersion extends BaseModel
 {
-    use UuidTrait;
-    use SlugTrait;
     use CanUseWorkflow;
+    use DynamicSearchableTrait {
+        search as public traitSearch;
+    }
     use FollowersTrait;
-    use HasTagsTrait;
     use HasLightHouseCache;
+    use HasTagsTrait;
+    use SlugTrait;
+    use UuidTrait;
 
     protected $table = 'event_versions';
     protected $guarded = [];
@@ -221,5 +228,95 @@ class EventVersion extends BaseModel
         }
 
         return isset($metadata['max_capacity']) ? (int) $metadata['max_capacity'] : null;
+    }
+
+    public function searchableAs(): string
+    {
+        $app = $this->app ?? app(Apps::class);
+        $customIndex = $app->get('app_custom_event_version_index') ?? null;
+
+        return config('scout.prefix') . ($customIndex ?? 'event_version_index');
+    }
+
+    public function toSearchableArray(): array
+    {
+        return [
+            'objectID' => $this->id,
+            'id' => (string) $this->id,
+            'uuid' => $this->uuid,
+            'name' => $this->name,
+            'slug' => $this->slug,
+            'description' => $this->description,
+            'apps_id' => $this->apps_id,
+            'companies_id' => $this->companies_id,
+        ];
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'uuid',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'slug',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'description',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+            ],
+        ];
+    }
+
+    #[Override]
+    public function shouldBeSearchable(): bool
+    {
+        return ! $this->isDeleted();
+    }
+
+    public static function search($query = '', $callback = null)
+    {
+        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $user = auth()->user();
+
+        if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
+            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options(['query_by' => 'name,slug,description']);
+        }
+
+        return $query;
     }
 }

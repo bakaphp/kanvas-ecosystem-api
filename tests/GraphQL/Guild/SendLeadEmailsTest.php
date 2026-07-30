@@ -33,26 +33,26 @@ class SendLeadEmailsTest extends TestCase
 
         $sendLeadEmailsAction = new SendLeadEmailsAction($lead, 'new-lead');
         $payload = [
-            "title" => $title,
-            "people" => [
-                "contacts" => [
-                    ["value" => "jdoe@example.com", "weight" => 0, "contacts_types_id" => 1],
-                    ["value" => "82912345678", "weight" => 0, "contacts_types_id" => 2]
+            'title' => $title,
+            'people' => [
+                'contacts' => [
+                    ['value' => 'jdoe@example.com', 'weight' => 0, 'contacts_types_id' => 1],
+                    ['value' => '82912345678', 'weight' => 0, 'contacts_types_id' => 2],
                 ],
-                "lastname" => "Doe",
-                "firstname" => "John",
+                'lastname' => 'Doe',
+                'firstname' => 'John',
             ],
-            "custom_fields" => [
+            'custom_fields' => [
                 [
-                    "data" => "218062",
-                    "name" => "product_id"
+                    'data' => '218062',
+                    'name' => 'product_id',
                 ],
                 [
-                    "data" => "7",
-                    "name" => "share_left"
-                ]
+                    'data' => '7',
+                    'name' => 'share_left',
+                ],
             ],
-            "pipeline_stage_id" => 0
+            'pipeline_stage_id' => 0,
         ];
 
         $users = [$user];
@@ -79,7 +79,7 @@ class SendLeadEmailsTest extends TestCase
                 'email_template' => 'new-lead',
                 'notification_mode' => 'NOTIFY_AGENTS',
                 'notification_user_mode' => 'NOTIFY_ROTATION_USERS',
-            ]
+            ],
         ]);
 
         LeadRotationAgent::create([
@@ -125,22 +125,22 @@ class SendLeadEmailsTest extends TestCase
 
         $sendRotationEmailsAction = new SendRotationEmailsAction($lead, $leadReceiver, $leadRotation, $user);
         $payload = [
-            "title" => $title,
-            "people" => [
-                "contacts" => [
-                    ["value" => "jdoe@example.com", "weight" => 0, "contacts_types_id" => 1],
-                    ["value" => "8292001222", "weight" => 0, "contacts_types_id" => 2]
+            'title' => $title,
+            'people' => [
+                'contacts' => [
+                    ['value' => 'jdoe@example.com', 'weight' => 0, 'contacts_types_id' => 1],
+                    ['value' => '8292001222', 'weight' => 0, 'contacts_types_id' => 2],
                 ],
-                "lastname" => "Doe",
-                "firstname" => "John",
+                'lastname' => 'Doe',
+                'firstname' => 'John',
             ],
-            "custom_fields" => [
+            'custom_fields' => [
                 [
-                    "data" => "7",
-                    "name" => "share_left"
-                ]
+                    'data' => '7',
+                    'name' => 'share_left',
+                ],
             ],
-            "pipeline_stage_id" => 0
+            'pipeline_stage_id' => 0,
         ];
 
         $sendRotationEmailsAction->execute($payload, 'user');
@@ -166,7 +166,7 @@ class SendLeadEmailsTest extends TestCase
                 'notification_mode' => LeadNotificationModeEnum::NOTIFY_AGENTS->value,
                 'notification_user_mode' => LeadNotificationUserModeEnum::NOTIFY_OWNER,
                 'notification_channels' => 'database',
-            ]
+            ],
         ]);
 
         LeadRotationAgent::create([
@@ -212,22 +212,22 @@ class SendLeadEmailsTest extends TestCase
 
         $sendRotationEmailsAction = new SendRotationEmailsAction($lead, $leadReceiver, $leadRotation, $user);
         $payload = [
-            "title" => $title,
-            "people" => [
-                "contacts" => [
-                    ["value" => "jesusant.guerrero@gmail.com", "weight" => 0, "contacts_types_id" => 1],
-                    ["value" => "82912345678", "weight" => 0, "contacts_types_id" => 2]
+            'title' => $title,
+            'people' => [
+                'contacts' => [
+                    ['value' => 'jesusant.guerrero@gmail.com', 'weight' => 0, 'contacts_types_id' => 1],
+                    ['value' => '82912345678', 'weight' => 0, 'contacts_types_id' => 2],
                 ],
-                "lastname" => "Guerrero",
-                "firstname" => "Jesus",
+                'lastname' => 'Guerrero',
+                'firstname' => 'Jesus',
             ],
-            "custom_fields" => [
+            'custom_fields' => [
                 [
-                    "data" => "7",
-                    "name" => "share_left"
-                ]
+                    'data' => '7',
+                    'name' => 'share_left',
+                ],
             ],
-            "pipeline_stage_id" => 0
+            'pipeline_stage_id' => 0,
         ];
 
         $sendRotationEmailsAction->execute($payload, 'user');

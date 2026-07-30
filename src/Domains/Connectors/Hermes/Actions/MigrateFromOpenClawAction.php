@@ -14,6 +14,7 @@ use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Connectors\OpenClaw\SshClient as OpenClawSshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
+use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\AgentRuntime\Services\AgentChannelIntegrationReadinessService;
 use Kanvas\Intelligence\AgentRuntime\Services\WorkspaceFileBuilderService;
 use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
@@ -125,6 +126,13 @@ class MigrateFromOpenClawAction
 
             $this->runMigrateCommand($client, $stagingDir, $destDeployment);
 
+            // Flush every not-yet-collected chat message into Kanvas's own DB before the
+            // source container stops. `claw migrate` only carries memory/skills/MCP/secrets —
+            // it does not understand OpenClaw's session .jsonl format — so without this,
+            // any conversation history not already synced by the periodic collector would
+            // have no path forward once the source deployment is marked terminated.
+            $this->flushSourceSessionTranscripts();
+
             // Stop OpenClaw containers before starting Hermes — on the same machine they
             // share the same container name prefix, so the old container must be removed first.
             $this->terminateSourceDeployment($client);
@@ -181,6 +189,11 @@ class MigrateFromOpenClawAction
 
             $agent->set(CustomFieldEnum::HERMES_DEPLOYMENT_ID->value, $destDeployment->getId());
 
+            // Flush every not-yet-collected chat message into Kanvas's own DB before the
+            // source container stops — see the same-machine path for why this can't rely
+            // on `claw migrate` or the periodic collector alone.
+            $this->flushSourceSessionTranscripts();
+
             // Stop OpenClaw containers on the source machine now that Hermes is running.
             $sourceClient = OpenClawSshClient::fromMachine($this->sourceDeployment->machine);
 
@@ -201,6 +214,26 @@ class MigrateFromOpenClawAction
             if (file_exists($localTempFile)) {
                 unlink($localTempFile);
             }
+        }
+    }
+
+    /**
+     * Read every OpenClaw session `.jsonl` file on the source machine (via SSH, straight off
+     * disk — no running container required) and persist any not-yet-imported messages into
+     * `agent_conversations` / `agent_conversation_messages`. Idempotent: rows use deterministic
+     * primary keys and `insertOrIgnore`, so calling this on top of whatever the periodic
+     * collector already synced is safe and just fills the gap up to "now".
+     *
+     * Best-effort — a transcript-flush failure must not abort an otherwise-successful
+     * migration, so we report and continue rather than throw.
+     */
+    private function flushSourceSessionTranscripts(): void
+    {
+        try {
+            AgentRuntimeProviderFactory::forDeployment($this->sourceDeployment)
+                ->collectSessionTranscripts($this->sourceDeployment, $this->app, $this->company);
+        } catch (Throwable $e) {
+            report($e);
         }
     }
 
@@ -397,8 +430,15 @@ class MigrateFromOpenClawAction
         );
         $client->exec('sudo chmod -R g+rwx ' . escapeshellarg($hermesDir));
 
-        // Clean up the staging directory.
-        $client->exec('sudo rm -rf ' . escapeshellarg($stagingDir));
+        // Keep the raw OpenClaw workspace instead of deleting it. `claw migrate` only
+        // understands memory/skills/MCP-config/secrets — anything outside that scope (ad hoc
+        // scripts, files the agent created for its own use, etc.) isn't converted and would be
+        // gone the moment this staging dir is removed. Renaming it into a permanent,
+        // clearly-labelled folder next to the new Hermes workspace costs nothing (same
+        // filesystem, no copy) and gives a manual recovery path if anything didn't carry over.
+        $backupDir = dirname($hermesDir) . '/.openclaw-pre-migration-backup';
+        $client->exec('sudo rm -rf ' . escapeshellarg($backupDir));
+        $client->exec('sudo mv ' . escapeshellarg($stagingDir) . ' ' . escapeshellarg($backupDir));
     }
 
     /**
@@ -433,9 +473,11 @@ class MigrateFromOpenClawAction
         $client->writeFileAsUser($imageDir . '/entrypoint.sh', $builder->buildEntrypoint(), 'root');
         $client->exec('sudo chmod +x ' . escapeshellarg($imageDir . '/entrypoint.sh'));
 
+        // --pull checks the registry for a newer base image before building, same
+        // reasoning as BaseLaunchAgentOnMachineAction::ensureSharedImage().
         $buildResult = $client->exec(
             'cd ' . escapeshellarg($imageDir)
-            . ' && sudo docker build --no-cache -t ' . escapeshellarg($imageName) . ' . 2>&1; echo "EXIT_CODE:$?"',
+            . ' && sudo docker build --no-cache --pull -t ' . escapeshellarg($imageName) . ' . 2>&1; echo "EXIT_CODE:$?"',
             900
         );
 

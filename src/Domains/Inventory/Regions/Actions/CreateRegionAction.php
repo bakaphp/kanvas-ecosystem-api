@@ -41,6 +41,8 @@ class CreateRegionAction
             'short_slug' => $this->data->short_slug,
             'settings' => $this->data->settings,
             'is_default' => $this->data->is_default,
+            'lat' => $this->data->lat,
+            'lng' => $this->data->lng,
         ]);
     }
 }

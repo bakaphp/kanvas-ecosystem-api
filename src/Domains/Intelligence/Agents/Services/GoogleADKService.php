@@ -11,10 +11,12 @@ use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Exception\ServerException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Users\Models\Users;
+use Throwable;
 
 class GoogleADKService
 {
@@ -229,8 +231,12 @@ class GoogleADKService
      *
      * @throws GuzzleException
      */
-    public function chatSimple(string $userId, string $sessionId, string $message, ?Users $user): array
-    {
+    public function chatSimple(
+        string $userId,
+        string $sessionId,
+        string $message,
+        ?Users $user
+    ): array {
         $response = $this->client->post('/run', [
             'json' => [
                 'app_name' => $this->appName,
@@ -269,13 +275,21 @@ class GoogleADKService
         array $stateDelta = [],
         bool $reloadContext = true
     ): void {
-        $this->client->post('/session/state', [
-            'json' => [
+        try {
+            $this->client->post('/session/state', [
+                'json' => [
+                    'session_id' => $sessionId,
+                    'user_id' => $userId,
+                    'reload_context' => true,
+                ],
+            ]);
+        } catch (Throwable $e) {
+            Log::error('Failed to update ADK session state', [
                 'session_id' => $sessionId,
                 'user_id' => $userId,
-                'reload_context' => true,
-            ],
-        ]);
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function sendData(string $userId, string $sessionId, array $data): void

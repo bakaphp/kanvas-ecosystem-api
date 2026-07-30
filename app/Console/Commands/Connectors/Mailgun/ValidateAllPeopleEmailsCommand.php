@@ -18,11 +18,25 @@ class ValidateAllPeopleEmailsCommand extends Command
     use KanvasJobsTrait;
 
     /**
+     * Mailgun caps each account at 300 requests/minute. Validating one person can
+     * issue up to one request per email contact, so we reserve that much headroom
+     * before each person to keep the actual request rate under the configured limit.
+     */
+    private const int MAX_REQUESTS_PER_PERSON = 3;
+
+    private const int RATE_LIMIT_WINDOW_SECONDS = 60;
+
+    /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'kanvas:guild-mailgun-email-validate {app_id} {company_id} {total=150} {perPage=50} {--order=desc : Sort people by id (asc|desc)} {--cooldown=0 : Skip people validated within N days (0 = validate once, never re-validate)} {--force : Re-validate everyone, ignoring the cooldown}';
+    protected $signature = 'kanvas:guild-mailgun-email-validate {app_id} {company_id} {total=150} {perPage=50} {--order=desc : Sort people by id (asc|desc)} {--cooldown=0 : Skip people validated within N days (0 = validate once, never re-validate)} {--force : Re-validate everyone, ignoring the cooldown} {--rate-limit=250 : Max Mailgun validation requests per minute (Mailgun caps the account at 300)}';
+
+    /** @var list<float> Unix timestamps (with microseconds) of validation requests issued within the trailing window. */
+    private array $requestWindow = [];
+
+    private int $rateLimit = 250;
 
     /**
      * The console command description.
@@ -49,8 +63,9 @@ class ValidateAllPeopleEmailsCommand extends Command
         $order = strtolower((string) $this->option('order')) === 'asc' ? 'ASC' : 'DESC';
         $force = (bool) $this->option('force');
         $cooldownDays = max(0, (int) $this->option('cooldown'));
+        $this->rateLimit = max(1, (int) $this->option('rate-limit'));
 
-        $this->line("Validating emails for company {$company->name} from app {$app->name}, total {$total}, per page {$perPage}, order {$order}");
+        $this->line("Validating emails for company {$company->name} from app {$app->name}, total {$total}, per page {$perPage}, order {$order}, rate limit {$this->rateLimit}/min");
 
         People::fromApp($app)
             ->fromCompany($company)
@@ -65,8 +80,11 @@ class ValidateAllPeopleEmailsCommand extends Command
                         continue;
                     }
 
+                    $this->awaitRateLimitSlot();
+
                     try {
                         $validated = new ValidatePeopleEmailAction($people, $app)->execute()['validated'];
+                        $this->recordRequests(count($validated));
 
                         if ($validated === []) {
                             $this->line("People {$people->id}: no email to validate");
@@ -86,5 +104,44 @@ class ValidateAllPeopleEmailsCommand extends Command
         $this->line("All emails for company {$company->name} from app {$app->name} validated");
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Block until the trailing window has room for the next person's requests, so the
+     * account-wide Mailgun rate limit (300/min) is never tripped.
+     */
+    private function awaitRateLimitSlot(): void
+    {
+        $headroom = min(self::MAX_REQUESTS_PER_PERSON, $this->rateLimit);
+
+        $now = microtime(true);
+        $this->pruneRequestWindow($now);
+
+        while (count($this->requestWindow) + $headroom > $this->rateLimit) {
+            $sleepFor = (float) self::RATE_LIMIT_WINDOW_SECONDS - ($now - $this->requestWindow[0]);
+            if ($sleepFor > 0.0) {
+                usleep((int) ceil($sleepFor * 1_000_000));
+            }
+
+            $now = microtime(true);
+            $this->pruneRequestWindow($now);
+        }
+    }
+
+    private function recordRequests(int $count): void
+    {
+        $now = microtime(true);
+        for ($i = 0; $i < $count; $i++) {
+            $this->requestWindow[] = $now;
+        }
+    }
+
+    private function pruneRequestWindow(float $now): void
+    {
+        $cutoff = $now - (float) self::RATE_LIMIT_WINDOW_SECONDS;
+        $this->requestWindow = array_values(array_filter(
+            $this->requestWindow,
+            fn (float $timestamp): bool => $timestamp > $cutoff,
+        ));
     }
 }

@@ -486,7 +486,10 @@ class PortalPaymentProcessor
                 'data' => $result,
             ];
         } catch (EchoPayException $e) {
-            report($e);
+            if ($this->isEchoPayGatewayFailure($e)) {
+                report($e);
+            }
+
             $errorMessage = $e->getMessage();
             $errorBody = $e->getErrorBody();
             $userMessage = $e->getUserMessage();
@@ -569,6 +572,19 @@ class PortalPaymentProcessor
                 ],
             ];
         }
+    }
+
+    /**
+     * Distinguish a genuine gateway failure (worth Sentry) from a routine card decline (not).
+     * The exception code carries the HTTP status: 0 means no response (connection error / timeout),
+     * 5xx is a server-side fault — both are real incidents. A 4xx is the gateway answering with a
+     * business decline ("Payment not approved"), which we record but don't report.
+     */
+    private function isEchoPayGatewayFailure(EchoPayException $e): bool
+    {
+        $status = $e->getStatusCode();
+
+        return $status === 0 || $status >= 500;
     }
 
     public function capturePayment(Payments $payment, Order $order, string $transactionId): array

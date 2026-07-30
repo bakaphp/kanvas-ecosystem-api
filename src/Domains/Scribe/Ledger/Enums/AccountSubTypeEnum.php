@@ -34,6 +34,9 @@ enum AccountSubTypeEnum: string
     case PREPAID_EXPENSES = 'prepaid_expenses';
     case UNDEPOSITED_FUNDS = 'undeposited_funds';
     case INPUT_TAX_RECEIVABLE = 'input_tax_receivable';
+    // Clearing account for bank movements we can't yet explain. Self-draining: a non-zero balance means
+    // cash moved that nobody has classified, and the reclass fires the moment the real document appears.
+    case SUSPENSE = 'suspense';
     // DR-extension (input tax on Bills)
     case DR_ITBIS_RECEIVABLE = 'dr_itbis_receivable';
 
@@ -97,6 +100,7 @@ enum AccountSubTypeEnum: string
             self::UNDEPOSITED_FUNDS => '1500',
             self::INPUT_TAX_RECEIVABLE => '1600',
             self::DR_ITBIS_RECEIVABLE => '1610',
+            self::SUSPENSE => '1900',
             self::ACCOUNTS_PAYABLE => '2000',
             self::CREDIT_CARD_LIABILITY => '2100',
             self::SALES_TAX_PAYABLE => '2200',
@@ -147,6 +151,7 @@ enum AccountSubTypeEnum: string
             self::UNDEPOSITED_FUNDS => 'Undeposited Funds',
             self::INPUT_TAX_RECEIVABLE => 'Input Tax Receivable',
             self::DR_ITBIS_RECEIVABLE => 'ITBIS Receivable (Input)',
+            self::SUSPENSE => 'Suspense — Unclassified',
             self::ACCOUNTS_PAYABLE => 'Accounts Payable',
             self::CREDIT_CARD_LIABILITY => 'Credit Card Liability',
             self::SALES_TAX_PAYABLE => 'Sales Tax Payable',
@@ -196,6 +201,7 @@ enum AccountSubTypeEnum: string
             self::PREPAID_EXPENSES,
             self::UNDEPOSITED_FUNDS,
             self::INPUT_TAX_RECEIVABLE,
+            self::SUSPENSE,
             self::DR_ITBIS_RECEIVABLE => AccountTypeEnum::ASSET,
 
             self::ACCOUNTS_PAYABLE,
@@ -258,6 +264,7 @@ enum AccountSubTypeEnum: string
             self::DR_ISR_WITHHOLDING_PAYABLE,
             self::INPUT_TAX_RECEIVABLE,
             self::DR_ITBIS_RECEIVABLE,
+            self::SUSPENSE,
             self::CUSTOMER_PREPAYMENTS,
             self::CUSTOMER_OVERPAYMENTS,
             self::DUE_TO_EMPLOYEES,

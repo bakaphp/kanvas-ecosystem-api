@@ -781,6 +781,88 @@ class OrderLateFeeTest extends TestCase
         $this->assertEquals($originalTotal + 100, $orderFresh->getTotalAmount());
     }
 
+    public function testLateFeeQuantityIncrementsWithoutDuplicating(): void
+    {
+        Notification::fake();
+        $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
+        $this->apps->set(EnumsConfigurationEnum::GRACE_PERIOD_DAYS->value, '1');
+
+        $lateFeeProductResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late_fee',
+                'value' => 100,
+            ],
+        ])->json()['data']['createProduct'];
+
+        $lateFee = Products::find($lateFeeProductResponse['id']);
+
+        $productResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late-fee-variant-id',
+                'value' => $lateFee->variants()->first()->id,
+            ],
+        ])->json()['data']['createProduct'];
+
+        $product = Products::find($productResponse['id']);
+
+        $this->addVariantToChannel(
+            variantId: (string) $lateFee->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        );
+
+        $this->addVariantToChannel(
+            variantId: (string) $product->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $lateFee->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $product->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $timezone = 'America/New_York';
+        Date::setTestNow(now()->startOfSecond());
+        $rightNow = CarbonImmutable::now($timezone);
+
+        $order = $this->createDraftOrder(
+            variantId: $product->variants()->first()->id,
+            quantity: 1,
+            metadata: [
+                'data' => [
+                    'start_at' => $rightNow->subDays(32)->toDateTimeString(),
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
+                    'late_fee_grace_start_at' => $rightNow->subDays(31)->startOfDay()->toDateTimeString(),
+                ],
+            ],
+        );
+
+        $lateFeeVariantId = $lateFee->variants()->first()->id;
+
+        new GenerateOrderLateFee($this->apps)->execute($rightNow->toDateTimeString(), [$order->getId()]);
+
+        $this->assertEquals(1, $order->fresh()->items()->where('variant_id', $lateFeeVariantId)->count());
+        $this->assertEquals(1, $order->fresh()->items()->where('variant_id', $lateFeeVariantId)->first()->quantity);
+
+        // Same order, now 61 days late → feeCount = ceil(60/30) = 2. The existing late-fee
+        // item's quantity must be updated in place, never a second row inserted.
+        $laterRun = $rightNow->addDays(30);
+        Date::setTestNow($laterRun);
+
+        new GenerateOrderLateFee($this->apps)->execute($laterRun->toDateTimeString(), [$order->getId()]);
+
+        $this->assertEquals(1, $order->fresh()->items()->where('variant_id', $lateFeeVariantId)->count());
+        $this->assertEquals(2, $order->fresh()->items()->where('variant_id', $lateFeeVariantId)->first()->quantity);
+    }
+
     public function testAddAndRemoveLateFee(): void
     {
         Notification::fake();

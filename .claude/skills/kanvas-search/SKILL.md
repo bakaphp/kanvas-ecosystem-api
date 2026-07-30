@@ -207,6 +207,44 @@ public static function search($query = '', $callback = null)
 
 **Typesense schema requirement:** Models using `DynamicSearchableTrait` that may use the Typesense engine **MUST implement `typesenseCollectionSchema()`**. Without it, the Typesense engine throws `Parameter 'fields' is required` when creating the collection. The method should define fields matching `toSearchableArray()`.
 
+**Typesense `id` MUST be a string — the #1 recurring production break.** Typesense rejects any document whose `id` field is an integer with `Document's 'id' field should be a string` (import fails silently mid-reindex, e.g. KANVAS-ECOSYSTEM). This bites because `toSearchableArray()` usually does `...$this->toArray()` which spreads the numeric primary key. Two things are required together:
+
+1. **Cast in `toSearchableArray()`** — after any `...$this->toArray()` spread, override `id`:
+   ```php
+   public function toSearchableArray(): array
+   {
+       return [
+           ...$this->toArray(),
+           'id' => (string) $this->id, // Typesense requires the document id to be a string
+           // ... other fields
+       ];
+   }
+   ```
+2. **Declare `string` in `typesenseCollectionSchema()`** — the `id` field must be `'type' => 'string'`, NOT `'int64'`:
+   ```php
+   public function typesenseCollectionSchema(): array
+   {
+       return [
+           'name' => $this->searchableAs(),
+           'fields' => [
+               ['name' => 'id', 'type' => 'string'],
+               ['name' => 'name', 'type' => 'string', 'optional' => true],
+               // query_by fields must be 'string' or 'string[]' and exist here
+           ],
+       ];
+   }
+   ```
+
+**`query_by` requirement (Typesense only):** Typesense — unlike Algolia — requires an explicit `query_by` on every search naming which fields to match, or it 400s with `No search fields specified for the query` (KANVAS-ECOSYSTEM-626). Set it inside the `search()` override behind an `isTypesense()` gate, and again in any place that calls `traitSearch()` directly (`traitSearch` bypasses `search()`):
+```php
+$query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+if ($query->model->isTypesense()) {
+    $query->options(['query_by' => 'name,email,slug']); // only string/string[] fields in the schema
+}
+```
+
+**Typesense collections are immutable after creation** — `getOrCreateCollectionFromModel()` only *creates* a missing collection; it never alters an existing one. Changing `typesenseCollectionSchema()` (new field, `int64`→`string` on `id`, new `query_by` target) has NO effect on a live collection until you **drop it and reindex**. Code change alone won't fix a schema mismatch in production.
+
 **Placement:** Place the `search()` method at the **end of the class**, not at the top. Properties (`$table`, `$guarded`, `casts()`) and relationships should come first.
 
 ## Analytics/aggregation queries — stricter rule

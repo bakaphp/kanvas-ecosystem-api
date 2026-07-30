@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentRuntimeStateEnum;
+use Kanvas\Intelligence\AgentRuntime\Enums\DeploymentStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Enums\HealthCheckResultEnum;
 use Kanvas\Intelligence\AgentRuntime\Services\AgentAwakeStateWriterService;
 use Kanvas\Intelligence\Agents\Enums\AgentAwakeStateEnum;
@@ -23,6 +24,11 @@ use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
  */
 abstract class BaseCheckHealthAction
 {
+    // After this many consecutive failed probes the deployment is flagged FAILED, dropping it out
+    // of every `status = running` query (health probe + kanban sync) so we stop probing a corpse
+    // and re-reporting it to Sentry. A relaunch resets it to running.
+    public const int MAX_CONSECUTIVE_FAILURES = 5;
+
     public function __construct(
         protected readonly AgentDeployment $deployment,
     ) {
@@ -51,6 +57,16 @@ abstract class BaseCheckHealthAction
         $agent->set(AgentRuntimeStateEnum::LAST_HEALTH_STATUS->value, $current->value);
 
         $this->deployment->last_health_check = now();
+        $this->deployment->health_check_failures = $current === HealthCheckResultEnum::OK
+            ? 0
+            : $this->deployment->health_check_failures + 1;
+
+        if ($this->deployment->health_check_failures >= self::MAX_CONSECUTIVE_FAILURES) {
+            $this->deployment->status = DeploymentStatusEnum::FAILED->value;
+            $this->deployment->error_message = 'Auto-flagged after '
+                . $this->deployment->health_check_failures . ' consecutive failed health checks';
+        }
+
         $this->deployment->saveOrFail();
 
         $this->applyStateMachine(

@@ -109,6 +109,7 @@ input ScribeQuoteInput {
 
 extend type Query @guard {
     scribeQuotes(
+        search: String @search
         where: _
             @whereConditions(
                 columns: [

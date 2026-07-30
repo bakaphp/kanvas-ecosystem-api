@@ -6,6 +6,7 @@ namespace Kanvas\Souk\Orders\Models;
 
 use Baka\Casts\Json;
 use Baka\Contracts\PayableInterface;
+use Baka\Support\Arr;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
@@ -16,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
@@ -131,7 +133,6 @@ class Order extends BaseModel implements PayableInterface
         'metadata' => Json::class,
         'private_metadata' => Json::class,
     ];
-
 
     public function region(): BelongsTo
     {
@@ -382,6 +383,23 @@ class Order extends BaseModel implements PayableInterface
         return $query->where('status', 'draft');
     }
 
+    public function scopeDuplicate(Builder $query): Builder
+    {
+        return $query->whereNotNull('metadata->data->duplicate_of_order_id');
+    }
+
+    public function isDuplicate(): bool
+    {
+        return ! empty($this->metadata['data']['duplicate_of_order_id'] ?? null);
+    }
+
+    public function getDuplicateOfOrderNumber(): ?string
+    {
+        $value = $this->metadata['data']['duplicate_of_order_number'] ?? null;
+
+        return $value !== null ? (string) $value : null;
+    }
+
     public function isFulfilled(): bool
     {
         return $this->fulfillment_status === OrderFulfillmentStatusEnum::COMPLETED->value;
@@ -482,10 +500,88 @@ class Order extends BaseModel implements PayableInterface
         return $this->order_number;
     }
 
+    public function toSearchableArray(): array
+    {
+        $this->loadMissing(['items', 'people']);
+
+        $order = [
+            ...$this->toArray(),
+            'id' => (string) $this->id, // Typesense requires the document id to be a string
+            'objectID' => $this->uuid,
+            'order_number_text' => (string) $this->order_number,
+            'customer_name' => (string) ($this->people?->name ?? ''),
+            'products_text' => $this->searchableProductsText(),
+            'metadata_text' => $this->searchableMetadataText(),
+            'created_at' => $this->created_at?->getTimestamp() ?? 0,
+            'updated_at' => $this->updated_at?->getTimestamp() ?? 0,
+        ];
+
+        if ($this->isAlgolia()) {
+            $order = $this->fitWithinAlgoliaRecordLimit($order);
+        }
+
+        return $order;
+    }
+
+    protected function fitWithinAlgoliaRecordLimit(array $order): array
+    {
+        $limit = 95000; // headroom under Algolia's 100,000-byte hard limit
+
+        if (Arr::sizeInBytes($order) <= $limit) {
+            return $order;
+        }
+
+        // Raw integration payloads; metadata_text already carries the searchable scalars.
+        unset($order['private_metadata'], $order['metadata']);
+        if (Arr::sizeInBytes($order) <= $limit) {
+            return $order;
+        }
+
+        $order['metadata_text'] = Str::limit((string) ($order['metadata_text'] ?? ''), 2000, '');
+        if (Arr::sizeInBytes($order) <= $limit) {
+            return $order;
+        }
+
+        // Item detail is re-hydrated from the DB; products_text keeps the searchable names/SKUs.
+        unset($order['items'], $order['allItems']);
+        if (Arr::sizeInBytes($order) <= $limit) {
+            return $order;
+        }
+
+        $order['products_text'] = Str::limit((string) ($order['products_text'] ?? ''), 2000, '');
+
+        return $order;
+    }
+
+    /**
+     * order_number is an int and the order's items are nested objects, so neither is usable
+     * in Typesense `query_by` directly. Flatten product name / SKU / variant name into one
+     * searchable string so an operator can find an order by what's in it.
+     */
+    private function searchableProductsText(): string
+    {
+        return $this->items
+            ->flatMap(fn (OrderItem $item) => [$item->product_name, $item->product_sku, $item->variant_name])
+            ->filter()
+            ->unique()
+            ->implode(' ');
+    }
+
+    private function searchableMetadataText(): string
+    {
+        if (! is_array($this->metadata)) {
+            return '';
+        }
+
+        return collect($this->metadata)
+            ->flatten()
+            ->filter(fn ($value) => is_scalar($value))
+            ->map(fn ($value) => (string) $value)
+            ->implode(' ');
+    }
+
     /**
      * The Typesense schema to be created for the Order model.
-     * Note: Currently, Order model has shouldBeSearchable() set to return false.
-     * This schema would be used if that changes in the future.
      */
     public function typesenseCollectionSchema(): array
     {
@@ -498,7 +594,7 @@ class Order extends BaseModel implements PayableInterface
                 ],
                 [
                     'name' => 'id',
-                    'type' => 'int64',
+                    'type' => 'string',
                 ],
                 [
                     'name' => 'uuid',
@@ -678,6 +774,26 @@ class Order extends BaseModel implements PayableInterface
                     'optional' => true,
                 ],
                 [
+                    'name' => 'order_number_text',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'customer_name',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'products_text',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'metadata_text',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
                     'name' => 'created_at',
                     'type' => 'int64',
                     'sort' => true,
@@ -715,6 +831,12 @@ class Order extends BaseModel implements PayableInterface
             $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
         } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => 'order_number_text,user_email,user_phone,tracking_client_id,customer_name,products_text,metadata_text',
+            ]);
         }
 
         return $query;

@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use Illuminate\Contracts\Container\BindingResolutionException;
-use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\App;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 class ReceiverController extends BaseController
 {
@@ -21,7 +22,7 @@ class ReceiverController extends BaseController
      *
      * @throws BindingResolutionException
      */
-    public function store(string $uuid, Request $request): JsonResponse
+    public function store(string $uuid, Request $request): SymfonyResponse
     {
         $receiver = ReceiverWebhook::where('uuid', $uuid)->notDeleted()->first();
 
@@ -40,10 +41,25 @@ class ReceiverController extends BaseController
             return response()->json(['message' => 'Receiver has no action configured'], 500);
         }
 
-        if (is_a($jobClass, ProcessWebhookJob::class, true)
-            && ! $jobClass::authenticateRequest($request, $receiver)
-        ) {
-            return response()->json(['message' => 'Unauthorized'], 401);
+        if (is_a($jobClass, ProcessWebhookJob::class, true)) {
+            if (! $jobClass::authenticateRequest($request, $receiver)) {
+                return response()->json(['message' => 'Unauthorized'], 401);
+            }
+
+            // Answered even on an inactive receiver: a provider re-verifying its endpoint must
+            // succeed, or the customer can't set the integration back up. It's an echo, not work.
+            $handshake = $jobClass::handshakeResponse($request, $receiver);
+
+            if ($handshake !== null) {
+                return response()->json($handshake);
+            }
+        }
+
+        // 200, not 4xx: the receiver was switched off deliberately, and a provider that keeps
+        // retrying a failing endpoint will eventually disable delivery on its side — which the
+        // customer would then have to undo by hand when they reconnect.
+        if (! $receiver->is_active) {
+            return response()->json(['message' => 'Receiver is not active']);
         }
 
         $webhookRequest = new ProcessWebhookAttemptAction(
@@ -56,7 +72,25 @@ class ReceiverController extends BaseController
         if ($receiver->runAsync()) {
             dispatch($job);
 
-            return response()->json(['message' => 'Receiver processed']);
+            // Providers that expect a specific ack body (rather than our default) declare it on the
+            // receiver, so they can stay async instead of running the job inline just to shape a response.
+            $configuration = $receiver->configuration ?? [];
+            $asyncResponse = $configuration['async_response'] ?? ['message' => 'Receiver processed'];
+            $status = (int) ($configuration['async_response_status'] ?? 200);
+
+            // A string ack (e.g. Salesforce Outbound Messages need a literal SOAP XML envelope) is
+            // sent as the raw body — response()->json() would JSON-encode it into a quoted string,
+            // which the provider's parser won't accept. The receiver declares its own content type;
+            // this controller has no opinion on what shape any given provider's ack takes.
+            if (is_string($asyncResponse)) {
+                return response(
+                    $asyncResponse,
+                    $status,
+                    ['Content-Type' => $configuration['async_response_content_type'] ?? 'text/plain'],
+                );
+            }
+
+            return response()->json($asyncResponse, $status);
         }
 
         $response = $job->handle();

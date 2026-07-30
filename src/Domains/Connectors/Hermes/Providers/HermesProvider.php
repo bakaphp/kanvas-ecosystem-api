@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Hermes\Providers;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
+use Kanvas\Connectors\Hermes\Actions\BackupAgentWorkspaceAction;
 use Kanvas\Connectors\Hermes\Actions\ChatWithAgentAction;
 use Kanvas\Connectors\Hermes\Actions\CheckApiHealthAction;
 use Kanvas\Connectors\Hermes\Actions\CollectDeploymentUsageAction;
@@ -23,6 +24,7 @@ use Kanvas\Connectors\Hermes\Jobs\BackupAgentWorkspaceJob;
 use Kanvas\Connectors\Hermes\Jobs\MigrateAgentWorkspaceJob;
 use Kanvas\Connectors\Hermes\Jobs\MigrateFromOpenClawJob;
 use Kanvas\Connectors\Hermes\Jobs\RestartAgentContainerJob;
+use Kanvas\Connectors\Hermes\Jobs\SyncDeploymentCredentialsJob;
 use Kanvas\Connectors\Hermes\Jobs\TerminateAgentJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateHermesOnMachineJob;
 use Kanvas\Connectors\Hermes\Jobs\UpdateWorkspaceFilesJob;
@@ -90,6 +92,12 @@ class HermesProvider extends AbstractAgentRuntimeProvider
     public function dispatchRestart(AgentDeployment $deployment): void
     {
         RestartAgentContainerJob::dispatch($deployment);
+    }
+
+    #[Override]
+    public function dispatchCredentialSync(AgentDeployment $deployment): void
+    {
+        SyncDeploymentCredentialsJob::dispatch($deployment);
     }
 
     #[Override]
@@ -173,6 +181,12 @@ class HermesProvider extends AbstractAgentRuntimeProvider
     public function dispatchBackup(AgentDeployment $deployment, AgentBackup $backup, bool $includeWorkspace): void
     {
         BackupAgentWorkspaceJob::dispatch($deployment, $backup, $includeWorkspace);
+    }
+
+    #[Override]
+    public function createWorkspaceBackupNow(AgentDeployment $deployment, AgentBackup $backup): AgentBackup
+    {
+        return new BackupAgentWorkspaceAction($deployment, $backup, includeWorkspace: true)->execute();
     }
 
     #[Override]

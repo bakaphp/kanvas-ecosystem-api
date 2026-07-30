@@ -138,15 +138,16 @@ class ApplyLeadAiModeAction
         $aiModeDefaultKey = $configService->getAiModeDefaultKey($this->lead, $isOpen);
         $followUpDefaultKey = $configService->getFollowUpActiveDefaultKey($this->lead);
 
-        $aiModeValue = $leadTypeConfig[$aiModeDefaultKey] ?? $this->lead->company->get($aiModeKey);
+        $aiModeValue = $leadTypeConfig[$aiModeDefaultKey] ?? $this->lead->company->get($aiModeKey) ?? null;
         $followUpRawValue = $leadTypeConfig[$followUpDefaultKey] ?? $this->lead->company->get($aiFollowUpKey);
 
         if ($followUpRawValue !== null) {
             $this->setFollowUp(FollowUpValueEnum::from($followUpRawValue));
         }
 
-        $this->setMode($aiModeValue);
-
+        if ($aiModeValue !== null) {
+            $this->setMode($aiModeValue);
+        }
         $this->lead->set('first_followup', $configService->getAllDefaultKeys($this->lead, $isOpen));
 
         match ($configService->getStatusSuffix($this->lead)) {
@@ -185,7 +186,7 @@ class ApplyLeadAiModeAction
         $aiModeKey = new LeadConfigurationService()->getAiModeKey($this->lead);
 
         $this->lead->set($aiModeKey, $aiMode);
-        $this->lead->set(LeadConfigurationEnum::AI_MODE->value, $aiMode);
+        // $this->lead->set(LeadConfigurationEnum::AI_MODE->value, $aiMode);
     }
 
     protected function setFollowUp(FollowUpValueEnum $followUpValue)
@@ -197,7 +198,9 @@ class ApplyLeadAiModeAction
 
     protected function logModeChangeNote(string $newMode): void
     {
-        $this->logSystemNote('Sally Mode set to ' . $newMode);
+        $agentName = $this->lead->aiSession()->with('agent.user')->first()?->agent?->user?->firstname ?? 'Sally';
+
+        $this->logSystemNote($agentName . ' Mode set to ' . $newMode);
     }
 
     protected function logFollowUpChangeNote(mixed $currentFollowUp): void

@@ -42,6 +42,39 @@ class AgentDeploymentMutation
         return $provider->dispatchDeployment($agent, $machine, $app, $company);
     }
 
+    /**
+     * Retry a failed deployment on the same agent + machine it already targeted.
+     *
+     * `dispatchDeployment` (via BaseDispatchAgentDeploymentAction) already looks up
+     * the existing row by (agent_machine_id, system_user) and reuses it — resetting
+     * status to `provisioning`, clearing error_message, and reassigning ports — so
+     * this doesn't need any new dedup logic. It just re-derives agent/machine from
+     * the failed deployment itself (rather than asking the caller to resupply them)
+     * and reuses the provider that deployment is actually pinned to, not whatever
+     * the agent's current default happens to be.
+     */
+    public function retry(mixed $root, array $request): AgentDeployment
+    {
+        $deployment = $this->loadDeployment((int) $request['deployment_id']);
+
+        if ($deployment->status !== DeploymentStatusEnum::FAILED->value) {
+            throw new ValidationException('Only a failed deployment can be retried.');
+        }
+
+        $agent = $deployment->agent;
+        $machine = $deployment->machine;
+
+        if ($agent === null || $machine === null) {
+            throw new ValidationException('Cannot retry: the agent or machine no longer exists.');
+        }
+
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        return AgentRuntimeProviderFactory::forDeployment($deployment)
+            ->dispatchDeployment($agent, $machine, $app, $company);
+    }
+
     public function terminate(mixed $root, array $request): bool
     {
         $deployment = $this->loadDeployment((int) $request['deployment_id']);
@@ -147,6 +180,8 @@ class AgentDeploymentMutation
         $agent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, $botToken);
         $agent->set(AgentChannelTokenEnum::SLACK_APP_TOKEN->value, $appToken);
 
+        $this->syncLiveCredentials($agent);
+
         return true;
     }
 
@@ -169,7 +204,28 @@ class AgentDeploymentMutation
             );
         }
 
+        $this->syncLiveCredentials($agent);
+
         return true;
+    }
+
+    /**
+     * Channel tokens are baked into the container's docker-compose.yml as env vars at launch,
+     * so setting them on the agent alone never reaches an already-running deployment. When the
+     * agent has a live deployment, push the rotated keys to it — the provider recreates the
+     * container (`docker compose up -d`) so the new env applies. No-op pre-launch.
+     */
+    private function syncLiveCredentials(Agent $agent): void
+    {
+        $deployment = $agent->activeDeployment;
+
+        if (! $deployment instanceof AgentDeployment || ! $deployment->isRunning()) {
+            return;
+        }
+
+        AgentRuntimeProviderFactory::forDeployment(
+            $deployment
+        )->dispatchCredentialSync($deployment);
     }
 
     public function execCommand(mixed $root, array $request): bool

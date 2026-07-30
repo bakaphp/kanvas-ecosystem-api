@@ -9,17 +9,21 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\CurrentTimeTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\DynamicSubAgentTool;
+use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\Agent as NeuronAIAgent;
 use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Providers\AIProviderInterface;
-use NeuronAI\Providers\Gemini\Gemini;
+use NeuronAI\Tools\ToolInterface;
 use Override;
 
-class BaseKanvasAgent extends NeuronAIAgent
+class BaseKanvasAgent extends NeuronAIAgent implements ProvidesToolDependencies
 {
     protected ?Agent $agent = null;
     protected ?Apps $app = null;
@@ -80,11 +84,6 @@ class BaseKanvasAgent extends NeuronAIAgent
         return false;
     }
 
-    /**
-     * Per-turn "which deal is the conversation about right now" — independent
-     * of the session entity (People-keyed). Sourced from the request's lead_id
-     * by AgentChatKernel every turn.
-     */
     public function setCurrentLead(?Lead $lead): void
     {
         $this->currentLead = $lead;
@@ -119,35 +118,121 @@ class BaseKanvasAgent extends NeuronAIAgent
     }
 
     /**
-     * The concrete model this agent will call (agent config → app default →
-     * hard default). Exposed so the chat path can record it on the turn for
-     * usage/cost rollups.
+     * Souls tell the model to call get_current_time, and Neuron kills the turn with a
+     * ProviderException when the model names a tool the provider was never given
+     * (Sentry KANVAS-ECOSYSTEM-600). Time must therefore reach every agent whatever its
+     * tools() returns — a hardcoded baseline, a registry selection, or nothing at all.
+     * Deduped by tool name, so an operator who also grants it in the registry gets one copy.
      */
+    #[Override]
+    public function getTools(): array
+    {
+        $tools = parent::getTools();
+
+        foreach ($this->universalTools() as $universal) {
+            if (! $this->hasToolNamed($tools, $universal->getName())) {
+                $tools[] = $universal;
+            }
+        }
+
+        return $tools;
+    }
+
+    /**
+     * @return list<ToolInterface>
+     */
+    protected function universalTools(): array
+    {
+        return [
+            new CurrentTimeTool(),
+        ];
+    }
+
+    /**
+     * @param array<int, object> $tools
+     */
+    private function hasToolNamed(array $tools, string $name): bool
+    {
+        foreach ($tools as $tool) {
+            if ($tool instanceof ToolInterface && $tool->getName() === $name) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Dependencies MergesRegisteredTools injects into a registry tool's constructor
+     * by type — so a tool assigned in the UI that needs Apps/Companies/Users/Session/
+     * Agent/entity (e.g. CreateLeadTool) is instantiated instead of silently skipped.
+     *
+     * @return list<object>
+     */
+    #[Override]
+    public function toolDependencyCandidates(): array
+    {
+        return array_values(array_filter([
+            $this->app,
+            $this->company,
+            $this->actingUser(),
+            $this->session,
+            $this->agent,
+            $this->resolveLeadForTurn(),
+            $this->entity,
+        ]));
+    }
+
+    /**
+     * Resolve nervous-system rows backed by another Agent instead of a PHP handler.
+     */
+    protected function resolveRegisteredSubAgentTool(Tool $tool): ?object
+    {
+        $subAgent = $tool->agent;
+
+        if (
+            $subAgent === null
+            || ! $subAgent->is_active
+            || $subAgent->is_deleted
+            || $subAgent->getId() === $this->agent?->getId()
+            || $this->user === null
+        ) {
+            return null;
+        }
+
+        return new DynamicSubAgentTool(
+            agentRecord: $subAgent,
+            entity: $this->entity,
+            user: $this->user,
+            session: $this->session,
+            currentLead: $this->resolveLeadForTurn(),
+            threadId: $this->threadId,
+        );
+    }
+
+    protected function actingUser(): ?Users
+    {
+        return $this->user;
+    }
+
     public function resolvedModelName(): string
     {
-        $config = $this->agent->config ?? [];
-
-        return $config['model'] ?? $this->app->get(ConfigurationEnum::GEMINI_MODEL->value) ?? 'gemini-2.5-pro';
+        return AgentProviderService::resolveModel($this->requireAgent());
     }
 
     #[Override]
     protected function provider(): AIProviderInterface
     {
-        $config = $this->agent->config ?? [];
-        $key = $config['key'] ?? $this->app->get(ConfigurationEnum::GEMINI_KEY->value);
-        $model = $this->resolvedModelName();
+        return AgentProviderService::resolve($this->requireAgent());
+    }
 
-        if (! is_string($key) || $key === '') {
-            throw new ValidationException(
-                'Gemini API key is not configured for this agent or app.'
-                . ' Set agent.config.key or the app ' . ConfigurationEnum::GEMINI_KEY->value . ' setting.'
-            );
+    private function requireAgent(): Agent
+    {
+        if ($this->agent === null) {
+            throw new ValidationException('Agent not set. Call setConfiguration() before invoking the agent.');
         }
 
-        return new Gemini(
-            key: $key,
-            model: $model,
-        );
+        return $this->agent;
     }
 
     #[Override]

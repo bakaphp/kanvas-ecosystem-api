@@ -4,18 +4,50 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Unit;
 
-use InvalidArgumentException;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
+use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Mockery;
 use Tests\TestCaseUnit;
 
 final class SendMessageToLeadActionTest extends TestCaseUnit
 {
+    public function testSmsResolvesConfiguredCompanySenderWhenCallerPassesNull(): void
+    {
+        $company = Mockery::mock();
+        $company->shouldReceive('get')
+            ->once()
+            ->with(TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value)
+            ->andReturn('+12722917870');
+
+        $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
+
+        $action = new class ($lead) extends SendMessageToLeadAction {
+            public string $capturedFrom = '';
+
+            protected function sendSmsMessage(string $from, string $message, ?string $to = null): array
+            {
+                $this->capturedFrom = $from;
+
+                return [];
+            }
+        };
+
+        $action->execute(
+            channel: 'sms',
+            message: 'First reach-out',
+            from: null,
+            to: '+15551234567',
+        );
+
+        $this->assertSame('+12722917870', $action->capturedFrom);
+    }
+
     public function testTwilioMediaUrlsIncludeDocuments(): void
     {
         $app = Mockery::mock();
@@ -118,7 +150,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $client = Mockery::mock(RespondIOClient::class);
         $action = $this->makeAction($lead, $client);
 
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(LeadMissingContactException::class);
         $action->sendRespondIoMessageForTest('hello');
     }
 

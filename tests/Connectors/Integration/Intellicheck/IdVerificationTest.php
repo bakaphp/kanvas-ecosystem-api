@@ -2052,4 +2052,97 @@ final class IdVerificationTest extends TestCase
         // Assert that the lead's people info has been updated
         $this->assertEquals('Keira Knightley', People::getById($lead->people->getId())->name);
     }
+
+    /**
+     * Regression: production payload where the back image was blurry
+     * (idcheck.success=false / DocumentBadDevice) AND the license is expired
+     * (OCR dateOfExpiry in the past). It previously resolved to green/"passed"
+     * because the status engine only read the empty idcheck block. It must now
+     * flag for manual review.
+     */
+    public function testBlurryBackImageWithExpiredIdDoesNotPass(): void
+    {
+        $verificationData = [
+            'idcheck' => [
+                'imageQualityFindings' => [
+                    ['code' => 401, 'message' => 'Image submission error: Blurry document image submitted via /submit-back'],
+                ],
+                'message' => null,
+                'success' => false,
+                'data' => ['processResult' => 'DocumentBadDevice'],
+                'result' => false,
+            ],
+            'ocr_match' => [
+                'data' => [
+                    'isIssueDateMatch' => null, 'isDobMatch' => null, 'isWeightMatch' => null,
+                    'isDlClassMatch' => null, 'isRealIdMatch' => null, 'isAddressMatch' => null,
+                    'isExpirationDateMatch' => null, 'isCountryCodeMatch' => null, 'isNameMatch' => null,
+                    'isSexMatch' => null, 'isNationalityMatch' => null, 'isEyeColorMatch' => null,
+                    'isHeightMatch' => null, 'isIssuerNameMatch' => null, 'isDocumentNumberMatch' => null,
+                    'isDlEndorsementMatch' => null, 'isDlRestrictionsMatch' => null,
+                ],
+                'success' => true, 'message' => null, 'result' => false,
+            ],
+            'OCR' => [
+                'data' => [
+                    'dateOfExpiry' => '2025-10-20',
+                    'dateOfExpiryFormatted' => '10/20/2025',
+                    'firstName' => 'Thomas Mason Maurice',
+                    'lastName' => 'Maurice',
+                    'fullName' => 'Thomas Mason Maurice Maurice',
+                    'documentNumber' => 'M3416495',
+                ],
+                'imageQualityFindings' => [], 'result' => true, 'message' => null, 'success' => true,
+            ],
+        ];
+
+        $result = IdVerificationService::processVerificationData($verificationData, 'Thomas Mason Maurice', true);
+
+        $this->assertNotSame('green', $result['status'], 'An unverifiable + expired ID must never pass');
+        $this->assertSame('flag', $result['status']);
+    }
+
+    /**
+     * Change 2 in isolation: idcheck succeeded and is not marked expired, but the
+     * OCR expiry date is in the past — the OCR fallback must catch it.
+     */
+    public function testValidIdcheckButOcrExpiredFlags(): void
+    {
+        $verificationData = [
+            'idcheck' => [
+                'success' => true,
+                'data' => ['processResult' => 'DocumentProcessOK', 'expired' => 'No'],
+                'result' => true,
+            ],
+            'ocr_match' => ['data' => [], 'success' => true, 'result' => true],
+            'OCR' => ['data' => ['dateOfExpiry' => '2020-01-01'], 'success' => true, 'result' => true],
+        ];
+
+        $result = IdVerificationService::processVerificationData($verificationData, 'Test User', true);
+
+        $this->assertSame('flag', $result['status']);
+        $this->assertContains('ID is expired', $result['flags']);
+    }
+
+    /**
+     * Change 1 in isolation: idcheck failed (DocumentBadDevice) but the license
+     * is NOT expired — still must flag, because we could not verify the document.
+     */
+    public function testUnverifiableIdcheckFlagsEvenWhenNotExpired(): void
+    {
+        $verificationData = [
+            'idcheck' => [
+                'success' => false,
+                'data' => ['processResult' => 'DocumentBadDevice'],
+                'result' => false,
+            ],
+            'ocr_match' => ['data' => [], 'success' => true, 'result' => false],
+            'OCR' => ['data' => ['dateOfExpiry' => '2032-01-01'], 'success' => true, 'result' => true],
+        ];
+
+        $result = IdVerificationService::processVerificationData($verificationData, 'Test User', true);
+
+        $this->assertNotSame('green', $result['status']);
+        $this->assertSame('flag', $result['status']);
+    }
 }

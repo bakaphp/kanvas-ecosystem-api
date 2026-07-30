@@ -24,6 +24,7 @@ enum ConfigurationEnum: string
     case DEFAULT_STATE_KEY = 'VIN_SOLUTIONS_DEFAULT_STATE';
     case LEAD_TIME_DIFF_MINUTES = 'VIN_LEAD_TIME_DIFF_MINUTES';
     case MANAGER_NOTIFIED_AT = 'VIN_SOLUTION_MANAGER_NOTIFIED_AT';
+    case DOWNLOAD_ALL_LEADS_USER = 'VIN_SOLUTION_DOWNLOAD_ALL_LEADS_USER';
 
     public static function getUserKey(Companies $company, UserInterface $user): string
     {

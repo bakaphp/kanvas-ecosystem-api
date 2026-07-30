@@ -19,6 +19,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
@@ -141,6 +142,11 @@ class People extends BaseModel
     public function peopleType(): BelongsTo
     {
         return $this->belongsTo(PeopleType::class, 'people_types_id');
+    }
+
+    public function participants(): HasMany
+    {
+        return $this->hasMany(Participant::class, 'people_id', 'id');
     }
 
     public function quotes(): HasMany
@@ -590,6 +596,8 @@ class People extends BaseModel
             'middlename' => $this->middlename,
             'lastname' => $this->lastname,
             'companies_id' => $this->companies_id,
+            'email' => $this->getEmails()->first()?->value,
+            'phone' => $this->getAllPhones()->first()?->value,
             'dob' => $this->dob,
             'apps_id' => $this->apps_id,
             'users_id' => $this->users_id,
@@ -663,13 +671,23 @@ class People extends BaseModel
                 ],
                 [
                     'name' => 'id',
-                    'type' => 'int64',
+                    'type' => 'string',
                 ],
                 [
                     'name' => 'name',
                     'type' => 'string',
                     'sort' => true,
                     'facet' => true,
+                ],
+                [
+                    'name' => 'email',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'phone',
+                    'type' => 'string',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'firstname',
@@ -785,7 +803,7 @@ class People extends BaseModel
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name, description,translations', // Use just 'message' instead of 'message.name'
+                'query_by' => 'name,description,translations,firstname,lastname,email,phone', // Use just 'message' instead of 'message.name'
             ]);
         }
 

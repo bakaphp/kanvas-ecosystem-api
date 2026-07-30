@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Invoices\Enums\AgingBucketEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
@@ -19,6 +19,8 @@ use Override;
 #[AgentTool(name: 'List Overdue Invoices')]
 class ListOverdueInvoicesTool extends Tool
 {
+    use HasKanvasContext;
+
     public function __construct()
     {
         parent::__construct(
@@ -51,9 +53,8 @@ class ListOverdueInvoicesTool extends Tool
 
     public function __invoke(?int $limit = null, ?int $min_days_overdue = null): array
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $app = $this->app;
+        $company = $this->company;
         $limit = max(1, min(100, $limit ?? 25));
         $minDays = max(1, $min_days_overdue ?? 1);
         $today = Carbon::today();

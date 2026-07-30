@@ -31,9 +31,9 @@ use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Guild\LeadSources\Actions\CreateLeadSourceAction;
 use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
-use Kanvas\Intelligence\Sessions\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
@@ -247,6 +247,14 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         if ($activeLead) {
             return $activeLead;
+        }
+
+        if ((bool) $this->receiver->company->get('use_last_lead_on_responder')) {
+            $lastLead = LeadsRepository::getPeopleLastLead($people);
+
+            if ($lastLead) {
+                return $lastLead;
+            }
         }
 
         $leadType = LeadType::fromApp($people->app)

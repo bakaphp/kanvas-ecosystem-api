@@ -590,15 +590,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return $product;
     }
 
-    /**
-     * Algolia rejects any record over 10,000 bytes (and fails the whole batch),
-     * so trim the heaviest fields ONLY when the payload is actually over budget.
-     * Records that already fit are left untouched (variant images included).
-     * Trimming runs least-important first; variant files (images) and product
-     * images are sacrificed last so they survive whenever the record fits. The
-     * dropped detail is re-hydrated from the DB by the search/recommendation
-     * tools anyway.
-     */
     protected function fitWithinAlgoliaRecordLimit(array $product): array
     {
         $limit = 9500; // headroom under Algolia's 10,000-byte hard limit
@@ -1105,7 +1096,38 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             ];
         }
 
+        foreach ($this->filterableAttributeFacetFields() as $facetField) {
+            $schema['fields'][] = $facetField;
+        }
+
         return $schema;
+    }
+
+    /**
+     * Typesense facets each nested key of the `attributes` object only if it's declared explicitly.
+     * We expose as facets ONLY the attributes flagged `is_filtrable` (the "Use as Filter" toggle),
+     * scoped to the app that owns this collection. `type: auto` tolerates both scalar and array values.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function filterableAttributeFacetFields(): array
+    {
+        return Attributes::query()
+            ->fromApp($this->app)
+            ->where('is_filtrable', 1)
+            ->where('is_deleted', 0)
+            ->get()
+            ->map(fn (Attributes $attribute) => $attribute->name)
+            ->unique()
+            ->filter()
+            ->map(fn (string $name) => [
+                'name' => 'attributes.' . $name,
+                'type' => 'auto',
+                'optional' => true,
+                'facet' => true,
+            ])
+            ->values()
+            ->all();
     }
 
     #[Override]

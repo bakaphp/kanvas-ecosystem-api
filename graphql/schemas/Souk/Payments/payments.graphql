@@ -153,6 +153,7 @@ input StartChallengeCardInput {
     firstname: String
     lastname: String
     browser_info: BrowserInfoInput
+    save_card: Boolean
 }
 
 enum PaymentMethodTypeEnum {
@@ -247,7 +248,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentMutation@reversePayment"
         )
-    processPayment(paymentId: ID!): PaymentActionResult!
+    processPayment(paymentId: ID!, use_hold: Boolean): PaymentActionResult!
         @field(
             resolver: "App\\GraphQL\\Souk\\Mutations\\Payments\\PaymentProcessorMutation@processPayment"
         )
