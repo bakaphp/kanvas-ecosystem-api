@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Customers\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Contracts\Enums\ThirdPartyPeopleIdFieldEnum;
 use Kanvas\Guild\Customers\DataTransferObject\PeopleDuplicateGroup;
@@ -13,17 +14,6 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Duplicates\Concerns\BuildsDuplicateGroups;
 
-/**
- * Same approach as FindOrganizationDuplicatesService: O(n) GROUP BY queries, no O(n²) fuzzy
- * matching. Operator UI calls this on demand. Returns at most $maxGroups groups (default 100).
- *
- * Dimensions, in descending order of confidence: external_id_conflict (each member has its own
- * distinct third-party id — the only reason an agent may auto-merge without human approval),
- * exact_name, lastname_match (lowest confidence — also catches unrelated people sharing a
- * surname; exists because Salesforce Contacts with no FirstName get firstname fabricated as a
- * copy of lastname by PullPeopleAction, so a real "Andres Pina" never matches exact_name against
- * a fabricated "Pina Pina"), email_match.
- */
 class FindPeopleDuplicatesService
 {
     use BuildsDuplicateGroups;
@@ -46,6 +36,7 @@ class FindPeopleDuplicatesService
         $groups = array_merge($groups, $this->groupsByExternalIdConflict($appId, $companyId));
         $groups = array_merge($groups, $this->groupsByExactName($appId, $companyId));
         $groups = array_merge($groups, $this->groupsByLastName($appId, $companyId));
+        $groups = array_merge($groups, $this->groupsByFirstName($appId, $companyId));
         $groups = array_merge($groups, $this->groupsByEmailMatch($appId, $companyId));
 
         return array_slice($this->dedupeGroups($groups), 0, $maxGroups);
@@ -62,7 +53,7 @@ class FindPeopleDuplicatesService
         $appId = (int) $person->apps_id;
         $companyId = (int) $person->companies_id;
 
-        $sameNameIds = empty($person->lastname)
+        $sameNameIds = empty($person->lastname) || empty($person->firstname)
             ? []
             : $this->idsMatchingNormalizedName($appId, $companyId, $person->id, $this->normalizedFullName($person));
 
@@ -73,9 +64,29 @@ class FindPeopleDuplicatesService
             $this->groupForRecord(PeopleDuplicateGroup::class, $person->id, $sameNameIds, 'exact_name', $this->displayName($person)),
         );
         $groups = array_merge($groups, $this->lastNameForRecord($person, $appId, $companyId));
+        $groups = array_merge($groups, $this->firstNameForRecord($person, $appId, $companyId));
         $groups = array_merge($groups, $this->emailMatchForRecord($person, $appId, $companyId));
 
         return $this->dedupeGroups($groups);
+    }
+
+    private function scopedPeoples(int $appId, int $companyId): Builder
+    {
+        return DB::connection('crm')
+            ->table('peoples')
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', false);
+    }
+
+    private function externalIdCustomFieldsQuery(int $companyId): Builder
+    {
+        return DB::connection('ecosystem')
+            ->table('apps_custom_fields')
+            ->where('companies_id', $companyId)
+            ->where('model_name', People::class)
+            ->where('is_deleted', false)
+            ->whereIn('name', ThirdPartyPeopleIdFieldEnum::fieldNames());
     }
 
     private function displayName(People $person): string
@@ -90,11 +101,7 @@ class FindPeopleDuplicatesService
 
     private function idsMatchingNormalizedName(int $appId, int $companyId, int $excludeId, string $normName): array
     {
-        return DB::connection('crm')
-            ->table('peoples')
-            ->where('apps_id', $appId)
-            ->where('companies_id', $companyId)
-            ->where('is_deleted', false)
+        return $this->scopedPeoples($appId, $companyId)
             ->where('id', '!=', $excludeId)
             ->whereRaw("LOWER(TRIM(CONCAT(firstname, ' ', lastname))) = ?", [$normName])
             ->pluck('id')
@@ -110,13 +117,8 @@ class FindPeopleDuplicatesService
             return [];
         }
 
-        $ownValues = DB::connection('ecosystem')
-            ->table('apps_custom_fields')
+        $ownValues = $this->externalIdCustomFieldsQuery($companyId)
             ->where('entity_id', $person->id)
-            ->where('model_name', People::class)
-            ->where('companies_id', $companyId)
-            ->where('is_deleted', false)
-            ->whereIn('name', ThirdPartyPeopleIdFieldEnum::fieldNames())
             ->pluck('value')
             ->all();
 
@@ -124,13 +126,8 @@ class FindPeopleDuplicatesService
             return [];
         }
 
-        $othersExternalIds = DB::connection('ecosystem')
-            ->table('apps_custom_fields')
+        $othersExternalIds = $this->externalIdCustomFieldsQuery($companyId)
             ->whereIn('entity_id', $sameNameIds)
-            ->where('model_name', People::class)
-            ->where('companies_id', $companyId)
-            ->where('is_deleted', false)
-            ->whereIn('name', ThirdPartyPeopleIdFieldEnum::fieldNames())
             ->get(['entity_id', 'value']);
 
         $conflictIds = [];
@@ -154,23 +151,37 @@ class FindPeopleDuplicatesService
      */
     private function lastNameForRecord(People $person, int $appId, int $companyId): array
     {
-        if (empty($person->lastname)) {
+        if (empty($person->lastname) || ! empty($person->firstname)) {
             return [];
         }
 
-        $normLastname = strtolower(trim($person->lastname));
-
-        $matchIds = DB::connection('crm')
-            ->table('peoples')
-            ->where('apps_id', $appId)
-            ->where('companies_id', $companyId)
-            ->where('is_deleted', false)
+        $matchIds = $this->scopedPeoples($appId, $companyId)
             ->where('id', '!=', $person->id)
-            ->whereRaw('LOWER(TRIM(lastname)) = ?', [$normLastname])
+            ->where(fn ($q) => $q->whereNull('firstname')->orWhere('firstname', ''))
+            ->whereRaw('LOWER(TRIM(lastname)) = ?', [strtolower(trim($person->lastname))])
             ->pluck('id')
             ->all();
 
         return $this->groupForRecord(PeopleDuplicateGroup::class, $person->id, $matchIds, 'lastname_match', $this->displayName($person));
+    }
+
+    /**
+     * @return list<PeopleDuplicateGroup>
+     */
+    private function firstNameForRecord(People $person, int $appId, int $companyId): array
+    {
+        if (empty($person->firstname) || ! empty($person->lastname)) {
+            return [];
+        }
+
+        $matchIds = $this->scopedPeoples($appId, $companyId)
+            ->where('id', '!=', $person->id)
+            ->where(fn ($q) => $q->whereNull('lastname')->orWhere('lastname', ''))
+            ->whereRaw('LOWER(TRIM(firstname)) = ?', [strtolower(trim($person->firstname))])
+            ->pluck('id')
+            ->all();
+
+        return $this->groupForRecord(PeopleDuplicateGroup::class, $person->id, $matchIds, 'firstname_match', $this->displayName($person));
     }
 
     /**
@@ -226,14 +237,7 @@ class FindPeopleDuplicatesService
      */
     private function groupsByExternalIdConflict(int $appId, int $companyId): array
     {
-        $customFields = DB::connection('ecosystem')
-            ->table('apps_custom_fields')
-            ->select('entity_id', 'value')
-            ->where('companies_id', $companyId)
-            ->where('model_name', People::class)
-            ->where('is_deleted', false)
-            ->whereIn('name', ThirdPartyPeopleIdFieldEnum::fieldNames())
-            ->get();
+        $customFields = $this->externalIdCustomFieldsQuery($companyId)->get(['entity_id', 'value']);
 
         if ($customFields->isEmpty()) {
             return [];
@@ -244,13 +248,9 @@ class FindPeopleDuplicatesService
             $valuesByPeopleId[(int) $row->entity_id][] = (string) $row->value;
         }
 
-        $people = DB::connection('crm')
-            ->table('peoples')
+        $people = $this->scopedPeoples($appId, $companyId)
             ->select('id', 'firstname', 'lastname')
             ->whereIn('id', array_keys($valuesByPeopleId))
-            ->where('apps_id', $appId)
-            ->where('companies_id', $companyId)
-            ->where('is_deleted', false)
             ->whereNotNull('lastname')
             ->where('lastname', '!=', '')
             ->get();
@@ -296,16 +296,14 @@ class FindPeopleDuplicatesService
      */
     private function groupsByExactName(int $appId, int $companyId): array
     {
-        $rows = DB::connection('crm')
-            ->table('peoples')
+        $rows = $this->scopedPeoples($appId, $companyId)
             ->selectRaw(
                 "LOWER(TRIM(CONCAT(firstname, ' ', lastname))) as norm_name, "
                 . 'GROUP_CONCAT(id ORDER BY id ASC) as ids, '
                 . "MIN(CONCAT(firstname, ' ', lastname)) as sample_name",
             )
-            ->where('apps_id', $appId)
-            ->where('companies_id', $companyId)
-            ->where('is_deleted', false)
+            ->whereNotNull('firstname')
+            ->where('firstname', '!=', '')
             ->whereNotNull('lastname')
             ->where('lastname', '!=', '')
             ->groupBy('norm_name')
@@ -320,16 +318,13 @@ class FindPeopleDuplicatesService
      */
     private function groupsByLastName(int $appId, int $companyId): array
     {
-        $rows = DB::connection('crm')
-            ->table('peoples')
+        $rows = $this->scopedPeoples($appId, $companyId)
             ->selectRaw(
                 'LOWER(TRIM(lastname)) as norm_name, '
                 . 'GROUP_CONCAT(id ORDER BY id ASC) as ids, '
                 . "MIN(CONCAT(firstname, ' ', lastname)) as sample_name",
             )
-            ->where('apps_id', $appId)
-            ->where('companies_id', $companyId)
-            ->where('is_deleted', false)
+            ->where(fn ($q) => $q->whereNull('firstname')->orWhere('firstname', ''))
             ->whereNotNull('lastname')
             ->where('lastname', '!=', '')
             ->groupBy('norm_name')
@@ -337,6 +332,27 @@ class FindPeopleDuplicatesService
             ->get();
 
         return $this->mapRowsToGroups(PeopleDuplicateGroup::class, $rows, 'lastname_match');
+    }
+
+    /**
+     * @return list<PeopleDuplicateGroup>
+     */
+    private function groupsByFirstName(int $appId, int $companyId): array
+    {
+        $rows = $this->scopedPeoples($appId, $companyId)
+            ->selectRaw(
+                'LOWER(TRIM(firstname)) as norm_name, '
+                . 'GROUP_CONCAT(id ORDER BY id ASC) as ids, '
+                . "MIN(CONCAT(firstname, ' ', lastname)) as sample_name",
+            )
+            ->where(fn ($q) => $q->whereNull('lastname')->orWhere('lastname', ''))
+            ->whereNotNull('firstname')
+            ->where('firstname', '!=', '')
+            ->groupBy('norm_name')
+            ->havingRaw('COUNT(*) > 1')
+            ->get();
+
+        return $this->mapRowsToGroups(PeopleDuplicateGroup::class, $rows, 'firstname_match');
     }
 
     /**
