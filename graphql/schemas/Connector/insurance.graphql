@@ -2,25 +2,25 @@
 # Setup is done via the generic createIntegrationCompany mutation
 # Reference catalogs are live-queryable; quote/pay/emit operate on a Souk Order.
 extend type Query @guard {
-    insuranceVehicleModels(marca: String = "", modelo: String = ""): Mixed
+    insuranceVehicleModels(brand: String = "", model: String = ""): Mixed
         @field(
             resolver: "App\\GraphQL\\Connector\\Insurance\\Queries\\InsuranceReferenceQuery@vehicleModels"
         )
-    insuranceProvincias: Mixed
+    insuranceProvinces: Mixed
         @field(
-            resolver: "App\\GraphQL\\Connector\\Insurance\\Queries\\InsuranceReferenceQuery@provincias"
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Queries\\InsuranceReferenceQuery@provinces"
         )
-    insuranceMunicipios(provincia: String!): Mixed
+    insuranceMunicipalities(province: String!): Mixed
         @field(
-            resolver: "App\\GraphQL\\Connector\\Insurance\\Queries\\InsuranceReferenceQuery@municipios"
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Queries\\InsuranceReferenceQuery@municipalities"
         )
-    insuranceSectores(provincia: String!, municipio: String!): Mixed
+    insuranceSectors(province: String!, municipality: String!): Mixed
         @field(
-            resolver: "App\\GraphQL\\Connector\\Insurance\\Queries\\InsuranceReferenceQuery@sectores"
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Queries\\InsuranceReferenceQuery@sectors"
         )
-    insuranceAditamentos: Mixed
+    insuranceAdditions: Mixed
         @field(
-            resolver: "App\\GraphQL\\Connector\\Insurance\\Queries\\InsuranceReferenceQuery@aditamentos"
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Queries\\InsuranceReferenceQuery@additions"
         )
 }
 

@@ -22,10 +22,10 @@ class UniversalSegurosService
         $this->client = new Client($app, $company);
     }
 
-    public function getVehicleModels(string $marca = '', string $modelo = ''): array
+    public function getVehicleModels(string $brand = '', string $model = ''): array
     {
         return $this->client->get(
-            '/api/v1/vehiculo/modelos/aliado?numeroPagina=-1&marca=' . rawurlencode($marca) . '&modelo=' . rawurlencode($modelo)
+            '/api/v1/vehiculo/modelos/aliado?numeroPagina=-1&marca=' . rawurlencode($brand) . '&modelo=' . rawurlencode($model)
         );
     }
 
@@ -39,25 +39,25 @@ class UniversalSegurosService
         );
     }
 
-    public function getAditamentos(): array
+    public function getAdditions(): array
     {
         return $this->client->get('/api/v1/aditamentos');
     }
 
-    public function getProvincias(): array
+    public function getProvinces(): array
     {
         return $this->client->get('/api/v1/direcciones/provincias');
     }
 
-    public function getMunicipios(string $provincia): array
+    public function getMunicipalities(string $province): array
     {
-        return $this->client->get('/api/v1/direcciones/municipios?Provincia=' . rawurlencode($provincia));
+        return $this->client->get('/api/v1/direcciones/municipios?Provincia=' . rawurlencode($province));
     }
 
-    public function getSectores(string $provincia, string $municipio): array
+    public function getSectors(string $province, string $municipality): array
     {
         return $this->client->get(
-            '/api/v1/direcciones/sectores?Provincia=' . rawurlencode($provincia) . '&Municipio=' . rawurlencode($municipio)
+            '/api/v1/direcciones/sectores?Provincia=' . rawurlencode($province) . '&Municipio=' . rawurlencode($municipality)
         );
     }
 
