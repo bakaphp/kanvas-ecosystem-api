@@ -4,15 +4,20 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Unit;
 
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
+use Kanvas\Guild\Leads\Exceptions\LeadOptedOutException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Mockery;
 use Tests\TestCaseUnit;
+use Twilio\Http\Client as TwilioHttpClient;
+use Twilio\Http\Response;
+use Twilio\Rest\Client as TwilioClient;
 
 final class SendMessageToLeadActionTest extends TestCaseUnit
 {
@@ -56,6 +61,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
             ->andReturn(null);
 
         $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
         $lead->shouldReceive('getAttribute')->with('app')->andReturn($app);
 
         $action = new class ($lead) extends SendMessageToLeadAction {
@@ -265,12 +271,193 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $this->assertCount(2, $result['messages']);
     }
 
+    public function testLookupPhoneNumberReturnsCanonicalValidNumber(): void
+    {
+        $httpClient = Mockery::mock(TwilioHttpClient::class);
+        $httpClient->shouldReceive('request')
+            ->once()
+            ->andReturn(new Response(200, json_encode([
+                'phone_number' => '+18095551234',
+                'valid' => true,
+                'validation_errors' => [],
+                'line_type_intelligence' => [
+                    'type' => 'mobile',
+                ],
+                'line_status' => [
+                    'status' => 'reachable',
+                ],
+            ], JSON_THROW_ON_ERROR)));
+
+        $client = new TwilioClient(
+            username: 'ACtest',
+            password: 'token',
+            httpClient: $httpClient,
+        );
+
+        $action = $this->makeAction($this->makeLead());
+
+        $this->assertSame(
+            '+18095551234',
+            $action->lookupPhoneNumberForTest($client, '8095551234')
+        );
+    }
+
+    public function testLookupPhoneNumberRejectsInvalidNumber(): void
+    {
+        $httpClient = Mockery::mock(TwilioHttpClient::class);
+        $httpClient->shouldReceive('request')
+            ->once()
+            ->andReturn(new Response(200, json_encode([
+                'phone_number' => '+18095551234',
+                'valid' => false,
+                'validation_errors' => ['INVALID_LENGTH'],
+            ], JSON_THROW_ON_ERROR)));
+
+        $client = new TwilioClient(
+            username: 'ACtest',
+            password: 'token',
+            httpClient: $httpClient,
+        );
+
+        $action = $this->makeAction($this->makeLead());
+
+        $this->expectException(LeadMissingContactException::class);
+        $this->expectExceptionMessage('Lead cellphone number 8095551234 is not valid');
+
+        $action->lookupPhoneNumberForTest($client, '8095551234');
+    }
+
+    public function testLookupPhoneNumberRejectsUnreachableNumberToPreventError30003(): void
+    {
+        $httpClient = Mockery::mock(TwilioHttpClient::class);
+        $httpClient->shouldReceive('request')
+            ->once()
+            ->andReturn(new Response(200, json_encode([
+                'phone_number' => '+18095551234',
+                'valid' => true,
+                'validation_errors' => [],
+                'line_type_intelligence' => [
+                    'type' => 'mobile',
+                ],
+                'line_status' => [
+                    'status' => 'unreachable',
+                ],
+            ], JSON_THROW_ON_ERROR)));
+
+        $client = new TwilioClient(
+            username: 'ACtest',
+            password: 'token',
+            httpClient: $httpClient,
+        );
+
+        $action = $this->makeAction($this->makeLead());
+
+        $this->expectException(LeadMissingContactException::class);
+        $this->expectExceptionMessage(
+            'Lead cellphone number 8095551234 is unreachable and cannot receive SMS messages'
+        );
+
+        $action->lookupPhoneNumberForTest($client, '8095551234');
+    }
+
+    public function testLookupPhoneNumberRejectsLandlineToPreventError30006(): void
+    {
+        $httpClient = Mockery::mock(TwilioHttpClient::class);
+        $httpClient->shouldReceive('request')
+            ->once()
+            ->andReturn(new Response(200, json_encode([
+                'phone_number' => '+18095551234',
+                'valid' => true,
+                'validation_errors' => [],
+                'line_type_intelligence' => [
+                    'type' => 'landline',
+                ],
+            ], JSON_THROW_ON_ERROR)));
+
+        $client = new TwilioClient(
+            username: 'ACtest',
+            password: 'token',
+            httpClient: $httpClient,
+        );
+
+        $action = $this->makeAction($this->makeLead());
+
+        $this->expectException(LeadMissingContactException::class);
+        $this->expectExceptionMessage(
+            'Lead cellphone number 8095551234 is a landline and cannot receive SMS messages'
+        );
+
+        $action->lookupPhoneNumberForTest($client, '8095551234');
+    }
+
+    public function testConstructorRejectsLeadWithOptedOutPhone(): void
+    {
+        $people = Mockery::mock();
+        $people->shouldReceive('getAllPhones')
+            ->once()
+            ->andReturn(new Collection([
+                (object) ['is_opt_out' => 1],
+            ]));
+
+        $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn($people);
+
+        $this->expectException(LeadOptedOutException::class);
+        $this->expectExceptionMessage('Lead has opted out of phone communications');
+
+        new SendMessageToLeadAction($lead);
+    }
+
+    public function testTwilio21610MarksLeadPhoneContactsAsOptedOut(): void
+    {
+        $people = Mockery::mock();
+        $people->shouldReceive('getAllPhones')
+            ->once()
+            ->andReturn(new Collection([
+                (object) ['is_opt_out' => 0],
+            ]));
+        $people->shouldReceive('optOutPhoneContacts')->once()->andReturn(1);
+
+        $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn($people);
+
+        $httpClient = Mockery::mock(TwilioHttpClient::class);
+        $httpClient->shouldReceive('request')
+            ->once()
+            ->andReturn(new Response(400, json_encode([
+                'code' => 21610,
+                'message' => 'Attempt to send to unsubscribed recipient',
+                'more_info' => 'https://www.twilio.com/docs/errors/21610',
+                'status' => 400,
+            ], JSON_THROW_ON_ERROR)));
+
+        $client = new TwilioClient(
+            username: 'ACtest',
+            password: 'token',
+            httpClient: $httpClient,
+        );
+
+        $action = $this->makeAction($lead);
+
+        $this->expectExceptionCode(21610);
+
+        $action->createTwilioMessageForTest(
+            $client,
+            '+18095551234',
+            [
+                'from' => '+18095550000',
+                'body' => 'Hello',
+            ]
+        );
+    }
+
     private function makeLead(): Lead
     {
         $company = Mockery::mock();
         $company->shouldReceive('get')->with('allow_session_hijack', false)->andReturn(false);
 
         $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
         $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
         $lead->shouldReceive('getAttribute')->with('uuid')->andReturn('lead-uuid');
         $lead->shouldReceive('getId')->andReturn(42);
@@ -299,6 +486,16 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
             public function sendRespondIoMessageForTest(string $message, ?string $to = null): array
             {
                 return $this->sendRespondIoMessage($message, $to);
+            }
+
+            public function lookupPhoneNumberForTest(TwilioClient $client, string $cellphone): string
+            {
+                return $this->lookupPhoneNumber($client, $cellphone);
+            }
+
+            public function createTwilioMessageForTest(TwilioClient $client, string $cellphone, array $payload): object
+            {
+                return $this->createTwilioMessage($client, $cellphone, $payload);
             }
 
             public function setProcessedFilesForTest(array $processedFiles): void

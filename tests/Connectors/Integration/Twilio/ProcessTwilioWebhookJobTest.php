@@ -77,6 +77,31 @@ class ProcessTwilioWebhookJobTest extends TestCase
         $this->assertFalse($result[0]['is_from_me']);
     }
 
+    public function testProcessStopMarksPhoneContactsAsOptedOut(): void
+    {
+        $phone = '+1' . fake()->numerify('##########');
+        $payload = $this->buildTwilioPayload([
+            'From' => $phone,
+            'Body' => 'STOP',
+            'OptOutType' => 'STOP',
+        ]);
+
+        $this->dispatchWebhookJob($payload);
+
+        $lead = Lead::fromApp(app(Apps::class))
+            ->fromCompany(auth()->user()->getCurrentCompany())
+            ->where('title', 'like', '%Twilio Opp%')
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertNotEmpty($lead->people->getAllPhones());
+        $this->assertTrue(
+            $lead->people->getAllPhones()->every(
+                fn ($contact) => $contact->is_opt_out === 1
+            )
+        );
+    }
+
     public function testProcessIncomingSmsWithMediaAttachesToLead(): void
     {
         Http::fake([

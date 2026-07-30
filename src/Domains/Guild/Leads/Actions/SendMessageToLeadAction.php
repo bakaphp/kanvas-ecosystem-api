@@ -27,15 +27,20 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
+use Kanvas\Guild\Leads\Exceptions\LeadOptedOutException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Templates\Blank;
 use Ramsey\Uuid\Uuid;
+use Twilio\Exceptions\RestException;
+use Twilio\Rest\Client as TwilioClient;
 
 class SendMessageToLeadAction
 {
+    private const int TWILIO_UNSUBSCRIBED_RECIPIENT_CODE = 21610;
+
     /**
      * Default media items per Twilio MMS API call. Override per-app via
      * `twilio-mms-batch-size` setting. Twilio's documented hard cap is 10 but
@@ -58,6 +63,9 @@ class SendMessageToLeadAction
     public function __construct(
         protected Lead $lead,
     ) {
+        if ($this->lead->people?->getAllPhones()->contains('is_opt_out', 1)) {
+            throw new LeadOptedOutException('Lead has opted out of phone communications');
+        }
     }
 
     public function execute(
@@ -389,6 +397,7 @@ class SendMessageToLeadAction
 
         $cellphone = $this->hijackPhoneNumber((string) $cellphone, 'twilio-');
         $cellphone = Str::toE164($cellphone);
+        $cellphone = $this->lookupPhoneNumber($client, $cellphone);
 
         $engagementUrls = array_filter(array_column($this->videoEngagements, 'url'));
         $fullMessage = $message;
@@ -404,7 +413,7 @@ class SendMessageToLeadAction
                 $payload['body'] = $fullMessage;
             }
 
-            $twilioMessage = $client->messages->create($cellphone, $payload);
+            $twilioMessage = $this->createTwilioMessage($client, $cellphone, $payload);
 
             return [
                 'channel' => 'sms',
@@ -433,7 +442,7 @@ class SendMessageToLeadAction
                 $payload['body'] = $fullMessage;
             }
 
-            $twilioMessages[] = $client->messages->create($cellphone, $payload);
+            $twilioMessages[] = $this->createTwilioMessage($client, $cellphone, $payload);
         }
 
         return [
@@ -445,6 +454,47 @@ class SendMessageToLeadAction
             'lead_uuid' => $this->lead->uuid,
             'messages' => array_map(fn ($m) => $this->describeTwilioMessage($m), $twilioMessages),
         ];
+    }
+
+    protected function lookupPhoneNumber(TwilioClient $client, string $cellphone): string
+    {
+        $phoneNumber = $client->lookups->v2->phoneNumbers($cellphone)->fetch([
+            'fields' => 'line_type_intelligence,line_status',
+        ]);
+
+        if (! $phoneNumber->valid) {
+            throw new LeadMissingContactException(
+                sprintf('Lead cellphone number %s is not valid', $cellphone)
+            );
+        }
+
+        if (($phoneNumber->lineTypeIntelligence['type'] ?? null) === 'landline') {
+            throw new LeadMissingContactException(
+                sprintf('Lead cellphone number %s is a landline and cannot receive SMS messages', $cellphone)
+            );
+        }
+
+        $lineStatus = strtolower((string) ($phoneNumber->lineStatus['status'] ?? 'unknown'));
+        if (in_array($lineStatus, ['inactive', 'unreachable'], true)) {
+            throw new LeadMissingContactException(
+                sprintf('Lead cellphone number %s is %s and cannot receive SMS messages', $cellphone, $lineStatus)
+            );
+        }
+
+        return (string) ($phoneNumber->phoneNumber ?? $cellphone);
+    }
+
+    protected function createTwilioMessage(TwilioClient $client, string $cellphone, array $payload): object
+    {
+        try {
+            return $client->messages->create($cellphone, $payload);
+        } catch (RestException $exception) {
+            if ($exception->getCode() === self::TWILIO_UNSUBSCRIBED_RECIPIENT_CODE) {
+                $this->lead->people?->optOutPhoneContacts();
+            }
+
+            throw $exception;
+        }
     }
 
     private function describeTwilioMessage(object $twilioMessage): array

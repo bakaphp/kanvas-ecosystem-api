@@ -81,6 +81,10 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         if (! $isFromMe) {
             $people = $this->processContactFromMessage($request);
+            if ($this->isOptOutRequest($request)) {
+                $people->optOutPhoneContacts();
+            }
+
             $lead = $this->createLeadFromPeople($people);
             $lead->set(LeadsEnumsConfigurationEnum::IS_ENGAGEMENT->value, true);
         }
@@ -239,6 +243,15 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         // If you're using a queue that supports job cancellation, cancel here
         // For now, we'll use a flag approach
         Cache::put($workflowJobKey . ':cancelled', true, now()->addMinutes(15));
+    }
+
+    protected function isOptOutRequest(array $request): bool
+    {
+        if (strtoupper(trim((string) ($request['OptOutType'] ?? ''))) === 'STOP') {
+            return true;
+        }
+
+        return strtoupper(trim((string) ($request['Body'] ?? ''))) === 'STOP';
     }
 
     public function createLeadFromPeople(PeopleModel $people): Lead
