@@ -40,6 +40,17 @@ final class ProductServiceTest extends TestCase
         $this->assertSame(129.99, $prices['discountPrice']);
     }
 
+    public function testItCalculatesCostsFromTheEffectiveSalePrice(): void
+    {
+        $result = $this->service()->calcDiscountPrice([
+            'price' => '$129.99',
+            'list_price' => '$199.99',
+        ]);
+
+        $this->assertGreaterThan(129.99, $result['total']);
+        $this->assertLessThan(129.99, $result['discount']);
+    }
+
     private function service(): ProductServicePriceTestHarness
     {
         return new ProductServicePriceTestHarness();

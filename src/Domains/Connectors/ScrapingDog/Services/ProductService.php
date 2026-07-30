@@ -232,7 +232,7 @@ class ProductService
     public function calcDiscountPrice(array $product): array
     {
         $discount = 0;
-        $amazonPrice = $this->extractPrice($product);
+        $amazonPrice = $this->extractPrices($product)['discountPrice'];
         $weight = $this->calcWeight($product) / 453.592;
         $deliveryCostMile = 2.50;
         $courierCost = $weight * 1.3;
