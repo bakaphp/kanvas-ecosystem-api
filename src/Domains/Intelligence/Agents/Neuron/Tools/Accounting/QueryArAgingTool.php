@@ -13,7 +13,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-#[AgentTool(name: 'Query AR Aging')]
+#[AgentTool(name: 'Query AR Aging', category: 'accounting')]
 class QueryArAgingTool extends Tool
 {
     use HasKanvasContext;

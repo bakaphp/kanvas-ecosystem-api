@@ -13,7 +13,7 @@ use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
 
-#[AgentTool(name: 'Variant Search')]
+#[AgentTool(name: 'Variant Search', category: 'inventory')]
 class VariantSearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;

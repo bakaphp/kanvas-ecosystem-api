@@ -20,7 +20,7 @@ use Override;
  * the ERP customer whose invoices/orders you want. Matching is suffix-normalized + substring, so it
  * returns candidates to disambiguate rather than a single guess.
  */
-#[AgentTool(name: 'Find Customer')]
+#[AgentTool(name: 'Find Customer', category: 'accounting')]
 class FindCustomerTool extends Tool
 {
     use HasKanvasContext;

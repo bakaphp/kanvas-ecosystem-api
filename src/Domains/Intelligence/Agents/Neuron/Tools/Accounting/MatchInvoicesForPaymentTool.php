@@ -19,7 +19,7 @@ use Override;
  * remittance), lists that customer's OPEN invoices and flags an exact single-invoice match. The agent
  * uses this to PROPOSE the cash application; a human confirms before anything posts. Read-only.
  */
-#[AgentTool(name: 'Match Invoices For Payment')]
+#[AgentTool(name: 'Match Invoices For Payment', category: 'accounting')]
 class MatchInvoicesForPaymentTool extends Tool
 {
     use HasKanvasContext;

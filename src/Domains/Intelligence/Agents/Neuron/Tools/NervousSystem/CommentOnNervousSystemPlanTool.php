@@ -20,7 +20,7 @@ use Throwable;
  * a worker reports what it's doing, what it found, or why it's blocked, without changing task state.
  * The PM and humans read these to follow along.
  */
-#[AgentTool(name: 'Comment On Plan')]
+#[AgentTool(name: 'Comment On Plan', category: 'nervous_system')]
 class CommentOnNervousSystemPlanTool extends Tool
 {
     use HasKanvasContext;

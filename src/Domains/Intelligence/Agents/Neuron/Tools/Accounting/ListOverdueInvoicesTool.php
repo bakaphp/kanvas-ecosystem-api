@@ -16,7 +16,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-#[AgentTool(name: 'List Overdue Invoices')]
+#[AgentTool(name: 'List Overdue Invoices', category: 'accounting')]
 class ListOverdueInvoicesTool extends Tool
 {
     use HasKanvasContext;

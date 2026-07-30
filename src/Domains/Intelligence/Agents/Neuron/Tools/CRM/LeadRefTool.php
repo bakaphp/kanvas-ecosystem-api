@@ -16,7 +16,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-#[AgentTool(name: 'Lead Reference')]
+#[AgentTool(name: 'Lead Reference', category: 'crm')]
 class LeadRefTool extends Tool
 {
     use ResolvesLeadForTool;

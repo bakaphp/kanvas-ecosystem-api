@@ -20,7 +20,7 @@ use Override;
  * the ERP vendor it should code the bill to. Matching is suffix-normalized + substring, so it returns
  * candidates to disambiguate rather than a single guess.
  */
-#[AgentTool(name: 'Find Vendor')]
+#[AgentTool(name: 'Find Vendor', category: 'accounting')]
 class FindVendorTool extends Tool
 {
     use HasKanvasContext;

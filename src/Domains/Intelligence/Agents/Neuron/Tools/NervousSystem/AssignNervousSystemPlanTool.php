@@ -26,7 +26,7 @@ use Override;
  *  - human, or a non-executor/remote agent → recorded as owner, NOT auto-run — @mention them so they
  *    (or their own runtime) do the work and report progress.
  */
-#[AgentTool(name: 'Assign Plan')]
+#[AgentTool(name: 'Assign Plan', category: 'nervous_system')]
 class AssignNervousSystemPlanTool extends Tool
 {
     use HasKanvasContext;

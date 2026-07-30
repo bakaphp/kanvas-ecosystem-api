@@ -15,7 +15,7 @@ use Override;
 use Stringable;
 use Throwable;
 
-#[AgentTool(name: 'Current Time')]
+#[AgentTool(name: 'Current Time', category: 'ecosystem')]
 class CurrentTimeTool implements KanvasToolInterface
 {
     use HasKanvasContext;

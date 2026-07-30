@@ -19,7 +19,7 @@ use Override;
  * Lets the PM remove a task that's no longer needed (superseded, duplicated, or wrong). Soft-deletes
  * via DeleteTaskAction and rolls the project's completion back up.
  */
-#[AgentTool(name: 'Delete Task')]
+#[AgentTool(name: 'Delete Task', category: 'nervous_system')]
 class DeleteNervousSystemTaskTool extends Tool
 {
     use HasKanvasContext;

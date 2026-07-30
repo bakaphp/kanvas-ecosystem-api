@@ -21,7 +21,7 @@ use Override;
  * AddTaskAction (recomputes plan completion, emits ledger events) so an agent-created task is a
  * first-class task like any other.
  */
-#[AgentTool(name: 'Add Task')]
+#[AgentTool(name: 'Add Task', category: 'nervous_system')]
 class AddNervousSystemTaskTool extends Tool
 {
     use HasKanvasContext;

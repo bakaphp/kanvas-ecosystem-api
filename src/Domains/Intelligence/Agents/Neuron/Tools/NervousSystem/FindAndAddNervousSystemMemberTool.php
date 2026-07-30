@@ -25,7 +25,7 @@ use Throwable;
  * nothing matches, the PM is told so it can create the work UNASSIGNED and escalate to a human, rather
  * than assign to the wrong person. Agents are preferred over humans (they can execute).
  */
-#[AgentTool(name: 'Find And Add Member')]
+#[AgentTool(name: 'Find And Add Member', category: 'nervous_system')]
 class FindAndAddNervousSystemMemberTool extends Tool
 {
     use HasKanvasContext;

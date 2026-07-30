@@ -16,7 +16,7 @@ use Override;
  * Lists open sales orders (customer orders not yet completed/cancelled) — the receivables/commerce
  * pipeline. Optionally filtered to one customer by name or email.
  */
-#[AgentTool(name: 'List Open Sales Orders')]
+#[AgentTool(name: 'List Open Sales Orders', category: 'commerce')]
 class ListOpenSalesOrdersTool extends Tool
 {
     use HasKanvasContext;

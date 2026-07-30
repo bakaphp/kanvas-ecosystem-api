@@ -17,7 +17,7 @@ use Override;
  * Total sales revenue over booked orders (excludes draft/canceled/failed), with an optional
  * month-by-month breakdown and date bounds. Read-only aggregation over Souk orders — no ERP calls.
  */
-#[AgentTool(name: 'Sales Revenue')]
+#[AgentTool(name: 'Sales Revenue', category: 'commerce')]
 class SalesRevenueTool extends Tool
 {
     use HasKanvasContext;

@@ -18,7 +18,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Send SMS')]
+#[AgentTool(name: 'Send SMS', category: 'crm')]
 class SendSmsTool extends Tool
 {
     use ResolvesLeadForTool;

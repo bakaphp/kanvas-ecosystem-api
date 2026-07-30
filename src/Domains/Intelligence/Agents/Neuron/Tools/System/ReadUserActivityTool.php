@@ -21,7 +21,7 @@ use Override;
  * entity (lead/order/…). Deliberately entity-scoped: an agent can tell you what someone did on the
  * record you're both looking at, not surveil their whole activity across the company.
  */
-#[AgentTool(name: 'Read User Activity')]
+#[AgentTool(name: 'Read User Activity', category: 'ecosystem')]
 class ReadUserActivityTool extends Tool
 {
     public function __construct(

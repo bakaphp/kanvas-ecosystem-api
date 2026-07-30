@@ -22,7 +22,7 @@ use Override;
  * (the agent's tenant), so the LLM can only ever read THIS company's FAQs — it never passes a
  * company id. The tool just optionally narrows by keyword.
  */
-#[AgentTool(name: 'Company FAQ')]
+#[AgentTool(name: 'Company FAQ', category: 'crm')]
 class FaqLookupTool extends Tool
 {
     private const FAQ_VERB = 'faq';
