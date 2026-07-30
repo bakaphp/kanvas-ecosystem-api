@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Actions\Outreach;
 
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\RespondIO\Enums\MessageTypeEnum as RespondIoMessageTypeEnum;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -151,7 +152,7 @@ class AgentReachOutOnChannelAction
         // Deliver via the canonical Lead-level dispatcher (SMS/email/WhatsApp/voice),
         // unless the draft is held for human approval.
         if (! $outbound->isLocked()) {
-            new SendMessageToLeadAction($this->lead)->execute(
+            $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
                 channel: $this->channelType,
                 message: $responseText,
                 from: null,
@@ -160,6 +161,7 @@ class AgentReachOutOnChannelAction
                 files: null,
                 to: $this->recipient,
             );
+            new StoreMessageSidAction($outbound)->execute($providerResponse);
         }
 
         return $outbound;

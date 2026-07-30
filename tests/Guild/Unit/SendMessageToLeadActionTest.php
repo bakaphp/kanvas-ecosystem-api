@@ -451,6 +451,47 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         );
     }
 
+    public function testTwilioMessageIncludesConfiguredStatusCallback(): void
+    {
+        $sentData = [];
+        $httpClient = Mockery::mock(TwilioHttpClient::class);
+        $httpClient->shouldReceive('request')
+            ->once()
+            ->andReturnUsing(function (...$arguments) use (&$sentData): Response {
+                $sentData = $arguments[3];
+
+                return new Response(201, json_encode([
+                    'sid' => 'SM123',
+                    'status' => 'queued',
+                ], JSON_THROW_ON_ERROR));
+            });
+
+        $client = new TwilioClient(
+            username: 'ACtest',
+            password: 'token',
+            httpClient: $httpClient,
+        );
+
+        $action = $this->makeAction(
+            $this->makeLead(),
+            statusCallbackUrl: 'https://api.example.com/v1/receiver/status-callback',
+        );
+
+        $action->createTwilioMessageForTest(
+            $client,
+            '+18095551234',
+            [
+                'from' => '+18095550000',
+                'body' => 'Hello',
+            ]
+        );
+
+        $this->assertSame(
+            'https://api.example.com/v1/receiver/status-callback',
+            $sentData['StatusCallback']
+        );
+    }
+
     private function makeLead(): Lead
     {
         $company = Mockery::mock();
@@ -465,11 +506,18 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         return $lead;
     }
 
-    private function makeAction(Lead $lead, ?RespondIOClient $client = null): SendMessageToLeadAction
+    private function makeAction(
+        Lead $lead,
+        ?RespondIOClient $client = null,
+        ?string $statusCallbackUrl = null,
+    ): SendMessageToLeadAction
     {
-        return new class ($lead, $client) extends SendMessageToLeadAction {
-            public function __construct(Lead $lead, private readonly ?RespondIOClient $injectedClient = null)
-            {
+        return new class ($lead, $client, $statusCallbackUrl) extends SendMessageToLeadAction {
+            public function __construct(
+                Lead $lead,
+                private readonly ?RespondIOClient $injectedClient = null,
+                private readonly ?string $statusCallbackUrl = null,
+            ) {
                 parent::__construct($lead);
             }
 
@@ -496,6 +544,11 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
             public function createTwilioMessageForTest(TwilioClient $client, string $cellphone, array $payload): object
             {
                 return $this->createTwilioMessage($client, $cellphone, $payload);
+            }
+
+            protected function getTwilioStatusCallbackUrl(): ?string
+            {
+                return $this->statusCallbackUrl;
             }
 
             public function setProcessedFilesForTest(array $processedFiles): void

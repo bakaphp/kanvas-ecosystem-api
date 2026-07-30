@@ -41,6 +41,7 @@ use function Laravel\Ai\agent;
 class CreateMessageFollowUpAction
 {
     protected Agent $agent;
+    protected ?Message $createdMessage = null;
 
     private const int MAX_RETRY_ATTEMPTS = 3;
 
@@ -136,6 +137,7 @@ class CreateMessageFollowUpAction
             ),
             $this->lead->getId(),
         )->execute();
+        $this->createdMessage = $message;
 
         $this->session->channel->addMessage($message);
         $message->addTag('followup');
@@ -149,6 +151,11 @@ class CreateMessageFollowUpAction
         }
 
         return $responseText['message'];
+    }
+
+    public function getCreatedMessage(): ?Message
+    {
+        return $this->createdMessage;
     }
 
     public function buildPrompt(): string

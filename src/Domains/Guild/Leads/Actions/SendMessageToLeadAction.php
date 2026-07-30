@@ -17,6 +17,7 @@ use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
+use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioMessageStatusWebhookJob;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
 use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum as WaSenderConfigurationEnum;
@@ -33,6 +34,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 use Ramsey\Uuid\Uuid;
 use Twilio\Exceptions\RestException;
 use Twilio\Rest\Client as TwilioClient;
@@ -486,6 +488,11 @@ class SendMessageToLeadAction
 
     protected function createTwilioMessage(TwilioClient $client, string $cellphone, array $payload): object
     {
+        $statusCallbackUrl = $this->getTwilioStatusCallbackUrl();
+        if ($statusCallbackUrl !== null) {
+            $payload['statusCallback'] = $statusCallbackUrl;
+        }
+
         try {
             return $client->messages->create($cellphone, $payload);
         } catch (RestException $exception) {
@@ -495,6 +502,22 @@ class SendMessageToLeadAction
 
             throw $exception;
         }
+    }
+
+    protected function getTwilioStatusCallbackUrl(): ?string
+    {
+        $receiver = ReceiverWebhook::query()
+            ->fromApp($this->lead->app)
+            ->fromCompany($this->lead->company)
+            ->notDeleted()
+            ->where('is_active', true)
+            ->whereHas(
+                'action',
+                fn ($query) => $query->where('model_name', ProcessTwilioMessageStatusWebhookJob::class),
+            )
+            ->first();
+
+        return $receiver?->getUrl();
     }
 
     private function describeTwilioMessage(object $twilioMessage): array

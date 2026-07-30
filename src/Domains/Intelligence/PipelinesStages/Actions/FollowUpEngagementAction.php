@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Blade;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
@@ -250,14 +251,15 @@ final class FollowUpEngagementAction implements FollowUpTimeGateOverridable
                 }
 
                 try {
-                    $message = new CreateMessageFollowUpAction(
+                    $createMessageAction = new CreateMessageFollowUpAction(
                         $this->lead,
                         $this->lead->stage,
                         $session,
                         $messageTemplate,
                         (float)$followUpDay->pipelineStage->weight,
                         $messageTemplateChannel
-                    )->execute();
+                    );
+                    $message = $createMessageAction->execute();
 
                     $this->logSuccess('message_created', 'Follow-up message created', $session, $message);
                 } catch (Exception $e) {
@@ -278,12 +280,16 @@ final class FollowUpEngagementAction implements FollowUpTimeGateOverridable
                         $messageToSend = $this->renderTemplate($whatsAppTemplate);
                     }
 
-                    new SendMessageToLeadAction($this->lead)->execute(
+                    $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
                         $messageTemplateChannel,
                         $messageToSend,
                         $this->lead->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value),
                         $emailTitle
                     );
+                    $createdMessage = $createMessageAction->getCreatedMessage();
+                    if ($createdMessage !== null) {
+                        new StoreMessageSidAction($createdMessage)->execute($providerResponse);
+                    }
 
                     $this->logSuccess('message_sent', 'Follow-up message sent to lead', $session, $messageToSend);
 
