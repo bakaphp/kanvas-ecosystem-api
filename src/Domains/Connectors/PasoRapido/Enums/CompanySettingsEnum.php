@@ -5,11 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\PasoRapido\Enums;
 
 /**
- * Per-company overrides stored in `companies_settings` via HashTableTrait.
- *
- * Lowercase on purpose: company settings in this codebase are snake_case
- * (`is_corporate`), unlike the UPPERCASE app-level keys in ConfigurationEnum.
- * Both are case-sensitive — HashTableTrait does no normalization.
+ * Lowercase on purpose: company settings in this codebase are snake_case (`is_corporate`),
+ * unlike the UPPERCASE app-level keys in ConfigurationEnum. Both are case-sensitive —
+ * HashTableTrait does no normalization, so a mismatched key silently reads as unset.
  *
  * Every limit accepts 0, which disables that check for the company.
  */

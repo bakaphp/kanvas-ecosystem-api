@@ -102,14 +102,19 @@ final class PasoRapidoCompanyLimitsTest extends TestCase
 
     public function testCompanyOverrideRaisesTheRetailPerMinuteCap(): void
     {
-        $this->company->set(CompanySettingsEnum::VERIFY_MAX_ATTEMPTS->value, '5');
+        // is_corporate pins which company resolveCorporateCompany() picks. Without it the
+        // resolver falls back to any corporate company the shared test user belongs to, and
+        // the override under test lands on a company the service never reads.
+        $this->company->set('is_corporate', '1');
+        $this->company->set(CompanySettingsEnum::VERIFY_MAX_ATTEMPTS->value, '8');
 
         $service = $this->service();
-        $service->verifyCustomer(self::TAG);
-        $service->verifyCustomer(self::TAG);
-        $service->verifyCustomer(self::TAG);
 
-        // The app default for retail is 3 — the 4th call only survives on the override.
+        // Six calls clear the corporate default of 5 only because of the override.
+        for ($i = 0; $i < 5; $i++) {
+            $service->verifyCustomer(self::TAG);
+        }
+
         $result = $service->verifyCustomer(self::TAG);
 
         $this->assertSame(self::TAG, $result->device);
@@ -145,9 +150,26 @@ final class PasoRapidoCompanyLimitsTest extends TestCase
         $this->service()->verifyCustomer(self::TAG);
     }
 
+    public function testCorporateDefaultsToFivePerMinute(): void
+    {
+        $this->company->set('is_corporate', '1');
+
+        $service = $this->service();
+
+        for ($i = 0; $i < 5; $i++) {
+            $service->verifyCustomer(self::TAG);
+        }
+
+        $this->expectException(TooManyRequestsHttpException::class);
+        $this->expectExceptionMessage('Too many tag verification requests.');
+
+        $service->verifyCustomer(self::TAG);
+    }
+
     public function testCorporateSkipsSequentialDetectionByDefault(): void
     {
         $this->company->set('is_corporate', '1');
+        $this->company->set(CompanySettingsEnum::VERIFY_MAX_ATTEMPTS->value, '0');
 
         // Fleets buy TAG blocks, so consecutive numbers are legitimate for corporate.
         $service = $this->service();
@@ -176,12 +198,13 @@ final class PasoRapidoCompanyLimitsTest extends TestCase
 
     public function testZeroDisablesACheck(): void
     {
+        $this->company->set('is_corporate', '1');
         $this->company->set(CompanySettingsEnum::VERIFY_MAX_ATTEMPTS->value, '0');
 
         $service = $this->service();
 
-        // Retail default is 3 per minute — 5 calls only pass with the check disabled.
-        for ($i = 0; $i < 5; $i++) {
+        // Six calls exceed every default; a disabled check also records no attempts at all.
+        for ($i = 0; $i < 6; $i++) {
             $service->verifyCustomer(self::TAG);
         }
 

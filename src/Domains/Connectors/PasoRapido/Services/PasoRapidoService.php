@@ -299,9 +299,8 @@ class PasoRapidoService
     }
 
     /**
-     * The company whose corporate limits apply to this request. Prefers the current
-     * company, falling back to any corporate company the user belongs to — a corporate
-     * employee can be operating under a different current company.
+     * Falls back to any corporate company the user belongs to, because a corporate employee
+     * can be operating under a different current company.
      */
     private function resolveCorporateCompany(?UserInterface $user): ?CompanyInterface
     {
@@ -350,12 +349,12 @@ class PasoRapidoService
     }
 
     /**
-     * Effective caps for this request. Corporate companies run the same checks as
-     * retail, only against their own app-level defaults; a company setting overrides
-     * either. A resolved 0 disables that check.
+     * Corporate reads its own app settings so the two tiers can diverge without a code
+     * change; today every default matches retail except the per-minute cap and sequential
+     * detection, which stays off for corporate (fleets buy TAGs in blocks, so their
+     * legitimate lookups look exactly like a scan).
      *
-     * Sequential-scan detection defaults to off for corporate: fleets buy TAGs in
-     * blocks, so their legitimate lookups look exactly like a scan.
+     * A resolved 0 disables that check.
      *
      * @return array{minute: int, daily: int, ipDaily: int, ipUsers: int, sequential: int}
      */
@@ -372,19 +371,19 @@ class PasoRapidoService
                 $company,
                 CompanySettingsEnum::VERIFY_MAX_DAILY,
                 $isCorporate ? ConfigurationEnum::VERIFY_MAX_DAILY_CORPORATE : ConfigurationEnum::VERIFY_MAX_DAILY,
-                $isCorporate ? 30 : 30
+                30
             ),
             'ipDaily' => $this->resolveLimit(
                 $company,
                 CompanySettingsEnum::VERIFY_IP_MAX_DAILY,
                 $isCorporate ? ConfigurationEnum::VERIFY_IP_MAX_DAILY_CORPORATE : ConfigurationEnum::VERIFY_IP_MAX_DAILY,
-                $isCorporate ? 50 : 50
+                50
             ),
             'ipUsers' => $this->resolveLimit(
                 $company,
                 CompanySettingsEnum::VERIFY_IP_MAX_USERS,
                 $isCorporate ? ConfigurationEnum::VERIFY_IP_MAX_USERS_CORPORATE : ConfigurationEnum::VERIFY_IP_MAX_USERS,
-                $isCorporate ? 5 : 5
+                5
             ),
             'sequential' => $this->resolveLimit(
                 $company,
@@ -396,9 +395,8 @@ class PasoRapidoService
     }
 
     /**
-     * Company setting wins over the app setting, which wins over the default.
-     * Non-numeric values are skipped rather than cast — a typo'd setting would
-     * otherwise become 0 and silently disable the check.
+     * Non-numeric values are skipped rather than cast — a typo'd setting would otherwise
+     * become 0 and silently disable the check.
      */
     private function resolveLimit(
         CompanyInterface $company,
