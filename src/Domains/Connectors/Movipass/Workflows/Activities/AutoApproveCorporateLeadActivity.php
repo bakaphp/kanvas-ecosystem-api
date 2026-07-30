@@ -7,11 +7,12 @@ namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification as LaravelNotification;
-use Kanvas\Connectors\Movipass\Actions\ApproveCorporateLeadAction;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\CorporateApplications\Actions\ApproveCorporateApplicationAction;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Connectors\Movipass\Actions\ValidateCorporateFieldsAction;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Movipass\Enums\CorporateApplicationStatusEnum;
-use Kanvas\Connectors\Movipass\Enums\CorporateLeadFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -63,7 +64,10 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
                     return $this->markNeedsReview($lead, $app, $validationError);
                 }
 
-                return new ApproveCorporateLeadAction($lead)->execute();
+                return new ApproveCorporateApplicationAction(
+                    $lead,
+                    $app instanceof Apps ? $app : app(Apps::class),
+                )->execute();
             },
             company: $lead->company,
         );
@@ -84,10 +88,10 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
      */
     private function markPending(Lead $lead, AppInterface $app, ?string $validationHint): array
     {
-        $lead->set(CorporateLeadFieldEnum::STATUS->value, CorporateApplicationStatusEnum::PENDING->value);
+        Field::STATUS->writeTo($lead, CorporateApplicationStatusEnum::PENDING->value);
 
         if ($validationHint !== null) {
-            $lead->set(CorporateLeadFieldEnum::VALIDATION_HINT->value, $validationHint);
+            Field::VALIDATION_HINT->writeTo($lead, $validationHint);
         }
 
         $this->sendApplicantEmail(
@@ -108,8 +112,8 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
 
     private function markNeedsReview(Lead $lead, AppInterface $app, string $reason): array
     {
-        $lead->set(CorporateLeadFieldEnum::STATUS->value, CorporateApplicationStatusEnum::NEEDS_REVIEW->value);
-        $lead->set(CorporateLeadFieldEnum::STATUS_REASON->value, $reason);
+        Field::STATUS->writeTo($lead, CorporateApplicationStatusEnum::NEEDS_REVIEW->value);
+        Field::STATUS_REASON->writeTo($lead, $reason);
 
         $this->sendApplicantEmail(
             $app,

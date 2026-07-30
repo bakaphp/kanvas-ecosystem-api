@@ -10,20 +10,27 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\CorporateApplications\Actions\ApproveCorporateApplicationAction;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Movipass\Actions\ApproveCorporateLeadAction;
 use Kanvas\Connectors\Movipass\Actions\EnableCorporateModeAction;
-use Kanvas\Connectors\Movipass\Enums\CorporateApplicationStatusEnum;
-use Kanvas\Connectors\Movipass\Enums\CorporateLeadFieldEnum;
+use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Jobs\MigrateCorporateUserVariantsJob;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SetupApprovedCorporateCompanyActivity;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Models\StoredWorkflow;
+use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
 
 final class EnableCorporateModeActionTest extends TestCase
 {
+    use HasIntegrationCompany;
+
     private Users $kanvasUser;
     private Apps $kanvasApp;
 
@@ -93,23 +100,23 @@ final class EnableCorporateModeActionTest extends TestCase
         $this->assertNotNull($lead);
         $this->assertEquals(
             CorporateApplicationStatusEnum::PENDING->value,
-            $lead->get(CorporateLeadFieldEnum::STATUS->value)
+            $lead->get(Field::STATUS->value)
         );
         $this->assertEquals(
             (string) $company->getId(),
-            (string) $lead->get(CorporateLeadFieldEnum::COMPANY_ID->value)
+            (string) $lead->get(Field::COMPANY_ID->value)
         );
         $this->assertEquals('131123456', $lead->get('rnc'));
     }
 
-    public function testApprovalGrantsThePrivilegeAndMigratesVariants(): void
+    public function testApprovalGrantsThePrivilege(): void
     {
         Bus::fake();
 
         $company = $this->request();
         $lead = $this->latestRequestLead();
 
-        $result = new ApproveCorporateLeadAction($lead, $this->kanvasUser)->execute();
+        $result = new ApproveCorporateApplicationAction($lead, $this->kanvasApp, $this->kanvasUser)->execute();
 
         $this->assertEquals(CorporateApplicationStatusEnum::APPROVED->value, $result['status']);
         $this->assertEquals($company->getId(), $result['company_id']);
@@ -121,6 +128,37 @@ final class EnableCorporateModeActionTest extends TestCase
         $this->kanvasUser->refresh();
         $this->assertTrue((bool) $this->kanvasUser->get('is_corporate'));
         $this->assertEquals($company->getId(), $this->kanvasUser->default_company);
+    }
+
+    /**
+     * Moving the vehicles is Movipass' business, not the generic approval's — it hangs off the
+     * corporate-application-approved workflow event, so it is exercised through the activity.
+     */
+    public function testApprovedUpgradeMigratesVariantsThroughTheWorkflowActivity(): void
+    {
+        Bus::fake();
+
+        $this->setIntegration(
+            $this->kanvasApp,
+            IntegrationsEnum::MOVIPASS,
+            MovipassHandler::class,
+            $this->kanvasUser->getCurrentCompany(),
+            $this->kanvasUser
+        );
+
+        $company = $this->request();
+        $lead = $this->latestRequestLead();
+        new ApproveCorporateApplicationAction($lead, $this->kanvasApp, $this->kanvasUser)->execute();
+
+        $result = new SetupApprovedCorporateCompanyActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        )->execute($lead->fresh(), $this->kanvasApp, []);
+
+        $this->assertEquals($company->getId(), $result['company_id']);
+        $this->assertTrue($result['variants_migration_dispatched']);
 
         Bus::assertDispatched(MigrateCorporateUserVariantsJob::class);
     }
@@ -195,7 +233,7 @@ final class EnableCorporateModeActionTest extends TestCase
                 $q->select('entity_id')
                     ->from(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields')
                     ->where('model_name', Lead::class)
-                    ->where('name', CorporateLeadFieldEnum::UPGRADE_USER_ID->value)
+                    ->where('name', Field::UPGRADE_USER_ID->value)
                     ->where('value', (string) $this->kanvasUser->getId())
                     ->where('is_deleted', 0);
             })

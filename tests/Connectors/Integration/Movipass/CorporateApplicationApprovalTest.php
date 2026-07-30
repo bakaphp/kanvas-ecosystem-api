@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Movipass;
 
-use App\GraphQL\Connector\Movipass\Mutations\CorporateApplicationMutation;
+use App\GraphQL\Ecosystem\Mutations\Companies\CorporateApplicationMutation;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\CorporateApplications\Actions\ApproveCorporateApplicationAction;
+use Kanvas\Companies\CorporateApplications\Actions\RejectCorporateApplicationAction;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Movipass\Actions\ApproveCorporateLeadAction;
-use Kanvas\Connectors\Movipass\Actions\RejectCorporateLeadAction;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Movipass\Enums\CorporateApplicationStatusEnum;
-use Kanvas\Connectors\Movipass\Enums\CorporateLeadFieldEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -43,7 +43,7 @@ final class CorporateApplicationApprovalTest extends TestCase
         $lead = $this->makePendingApplication();
         Notification::fake();
 
-        $result = new ApproveCorporateLeadAction($lead, Auth::user())->execute();
+        $result = new ApproveCorporateApplicationAction($lead, $this->kanvasApp, Auth::user())->execute();
 
         $this->assertEquals(CorporateApplicationStatusEnum::APPROVED->value, $result['status']);
 
@@ -60,13 +60,13 @@ final class CorporateApplicationApprovalTest extends TestCase
         $fresh = $lead->fresh();
         $this->assertEquals(
             CorporateApplicationStatusEnum::APPROVED->value,
-            $fresh->get(CorporateLeadFieldEnum::STATUS->value)
+            $fresh->get(Field::STATUS->value)
         );
         $this->assertEquals(
             (string) Auth::user()->getId(),
-            (string) $fresh->get(CorporateLeadFieldEnum::REVIEWED_BY->value)
+            (string) $fresh->get(Field::REVIEWED_BY->value)
         );
-        $this->assertNotEmpty($fresh->get(CorporateLeadFieldEnum::REVIEWED_AT->value));
+        $this->assertNotEmpty($fresh->get(Field::REVIEWED_AT->value));
 
         Notification::assertSentOnDemand(Blank::class);
     }
@@ -76,8 +76,8 @@ final class CorporateApplicationApprovalTest extends TestCase
         $lead = $this->makePendingApplication();
         Notification::fake();
 
-        $first = new ApproveCorporateLeadAction($lead)->execute();
-        $second = new ApproveCorporateLeadAction($lead->fresh())->execute();
+        $first = new ApproveCorporateApplicationAction($lead, $this->kanvasApp)->execute();
+        $second = new ApproveCorporateApplicationAction($lead->fresh(), $this->kanvasApp)->execute();
 
         $this->assertEquals($first['company_id'], $second['company_id']);
         $this->assertEquals($first['invite_hash'], $second['invite_hash']);
@@ -89,7 +89,7 @@ final class CorporateApplicationApprovalTest extends TestCase
         $lead = $this->makePendingApplication();
         Notification::fake();
 
-        $result = new RejectCorporateLeadAction($lead, 'RNC no existe en DGII', Auth::user())->execute();
+        $result = new RejectCorporateApplicationAction($lead, $this->kanvasApp, 'RNC no existe en DGII', Auth::user())->execute();
 
         $this->assertEquals(CorporateApplicationStatusEnum::REJECTED->value, $result['status']);
         $this->assertEquals('RNC no existe en DGII', $result['reason']);
@@ -98,10 +98,10 @@ final class CorporateApplicationApprovalTest extends TestCase
         $fresh = $lead->fresh();
         $this->assertEquals(
             CorporateApplicationStatusEnum::REJECTED->value,
-            $fresh->get(CorporateLeadFieldEnum::STATUS->value)
+            $fresh->get(Field::STATUS->value)
         );
-        $this->assertEquals('RNC no existe en DGII', $fresh->get(CorporateLeadFieldEnum::STATUS_REASON->value));
-        $this->assertNull($fresh->get(CorporateLeadFieldEnum::COMPANY_ID->value));
+        $this->assertEquals('RNC no existe en DGII', $fresh->get(Field::STATUS_REASON->value));
+        $this->assertNull($fresh->get(Field::COMPANY_ID->value));
 
         Notification::assertNothingSent();
     }
@@ -114,7 +114,7 @@ final class CorporateApplicationApprovalTest extends TestCase
             $lead = $this->makePendingApplication();
             Notification::fake();
 
-            $result = new RejectCorporateLeadAction($lead, 'Datos de contacto no verificables')->execute();
+            $result = new RejectCorporateApplicationAction($lead, $this->kanvasApp, 'Datos de contacto no verificables')->execute();
 
             $this->assertTrue($result['applicant_notified']);
             Notification::assertSentOnDemand(Blank::class);
@@ -142,7 +142,7 @@ final class CorporateApplicationApprovalTest extends TestCase
 
         $this->assertEquals(
             CorporateApplicationStatusEnum::APPROVED->value,
-            $lead->fresh()->get(CorporateLeadFieldEnum::STATUS->value)
+            $lead->fresh()->get(Field::STATUS->value)
         );
     }
 
@@ -166,7 +166,7 @@ final class CorporateApplicationApprovalTest extends TestCase
         $lead = $this->makePendingApplication();
         Notification::fake();
 
-        new RejectCorporateLeadAction($lead, 'RNC falso')->execute();
+        new RejectCorporateApplicationAction($lead, $this->kanvasApp, 'RNC falso')->execute();
 
         $this->graphQL('
             mutation($id: ID!) {
@@ -179,7 +179,7 @@ final class CorporateApplicationApprovalTest extends TestCase
     public function testNonApplicationLeadIsRejectedByTheMutation(): void
     {
         $lead = $this->makePendingApplication();
-        $lead->del(CorporateLeadFieldEnum::STATUS->value);
+        $lead->del(Field::STATUS->value);
 
         $this->graphQL('
             mutation($id: ID!) {
@@ -199,7 +199,7 @@ final class CorporateApplicationApprovalTest extends TestCase
         Notification::fake();
 
         $decided = $this->makePendingApplication();
-        new RejectCorporateLeadAction($decided, 'RNC falso')->execute();
+        new RejectCorporateApplicationAction($decided, $this->kanvasApp, 'RNC falso')->execute();
 
         $response = $this->graphQL('
             query {
@@ -207,7 +207,7 @@ final class CorporateApplicationApprovalTest extends TestCase
                     first: 50
                     hasCustomFields: {
                         AND: [
-                            { column: NAME, value: "movipass_corporate_status" }
+                            { column: NAME, value: "corporate_application_status" }
                             { column: VALUE, operator: IN, value: ["pending", "needs_review"] }
                         ]
                     }
@@ -244,7 +244,7 @@ final class CorporateApplicationApprovalTest extends TestCase
         $lead->set('contact_role', 'Gerente');
         $lead->set('contact_email', $email);
         $lead->set('contact_phone', '8095551234');
-        $lead->set(CorporateLeadFieldEnum::STATUS->value, CorporateApplicationStatusEnum::PENDING->value);
+        $lead->set(Field::STATUS->value, CorporateApplicationStatusEnum::PENDING->value);
 
         return $lead->fresh();
     }

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Movipass\Enums;
+namespace Kanvas\Companies\CorporateApplications\Enums;
 
 enum CorporateApplicationStatusEnum: string
 {

@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Movipass\Enums\CorporateLeadFieldEnum;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -44,7 +44,7 @@ class PropagateCorporateFieldsToUserActivity extends KanvasActivity implements W
                 }
 
                 $copied = [];
-                foreach (CorporateLeadFieldEnum::USER_FIELDS as $key) {
+                foreach (Field::USER_FIELDS as $key) {
                     $value = $invite->get($key);
                     if ($value === null || $value === '') {
                         continue;
