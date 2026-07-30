@@ -15,12 +15,10 @@ use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Customers\Traits\ManagesPeopleContactsTrait;
-use Kanvas\Guild\Duplicates\Jobs\CheckPeopleDuplicateJob;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Throwable;
 
 class CreatePeopleAction
 {
@@ -65,8 +63,6 @@ class CreatePeopleAction
         if (Date::isValid($this->peopleData->created_at, 'Y-m-d H:i:s')) {
             $attributes['created_at'] = date('Y-m-d H:i:s', strtotime($this->peopleData->created_at));
         }
-
-        $isNewRecord = ! $this->peopleData->id;
 
         //@todo how to avoid duplicated? should it be use or frontend?
         if ($this->peopleData->id) {
@@ -135,14 +131,6 @@ class CreatePeopleAction
         }
 
         $people->refresh();
-
-        if ($isNewRecord) {
-            try {
-                CheckPeopleDuplicateJob::dispatch($this->peopleData->app, $people->getId());
-            } catch (Throwable $e) {
-                report($e);
-            }
-        }
 
         return $people;
     }
