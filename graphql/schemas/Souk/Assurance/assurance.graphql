@@ -1,0 +1,20 @@
+
+type AssuranceServiceResult {
+    status: String!
+    message: String
+    data: Mixed
+}
+
+input AssuranceServiceInput {
+    order_id: ID!
+    product: String!
+    service_type: String!
+    payload: Mixed!
+}
+
+extend type Mutation @guard {
+    processAssuranceService(input: AssuranceServiceInput!): AssuranceServiceResult!
+        @field(
+            resolver: "App\\GraphQL\\Souk\\Mutations\\Assurance\\AssuranceServiceMutation@processAssuranceService"
+        )
+}

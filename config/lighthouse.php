@@ -280,6 +280,7 @@ return [
             'App\\GraphQL\\Workflow\\Mutations',
             'App\\GraphQL\\Intelligence\\Mutations',
             'App\\GraphQL\\NervousSystem\\Mutations',
+            'App\\GraphQL\\Souk\\Mutations',
         ],
         'subscriptions' => [
             'App\\GraphQL\\Guild\\Subscriptions',
