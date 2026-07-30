@@ -33,6 +33,22 @@ final class PullPeopleActionTest extends TestCase
         $this->assertSame('003xx000004TmiQAAS', $people->get(CustomFieldEnum::SALESFORCE_CONTACT_ID->value));
     }
 
+    public function testDoesNotFabricateFirstnameWhenSalesforceOmitsIt(): void
+    {
+        $app = app(Apps::class);
+        $user = static::$cachedUser;
+        $company = $user->getCurrentCompany();
+
+        $people = new PullPeopleAction(
+            $app,
+            $company,
+            ['LastName' => 'Abreu' . uniqid()],
+            '003xx000004TmiQAAT',
+        )->execute();
+
+        $this->assertSame('', $people->firstname);
+    }
+
     public function testUpdatesPeopleWhenMatchingCustomFieldExists(): void
     {
         $app = app(Apps::class);
