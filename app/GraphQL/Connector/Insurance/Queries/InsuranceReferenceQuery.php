@@ -13,30 +13,30 @@ class InsuranceReferenceQuery
     public function vehicleModels(mixed $rootValue, array $request): array
     {
         return $this->service()->getVehicleModels(
-            (string) ($request['marca'] ?? ''),
-            (string) ($request['modelo'] ?? '')
+            (string) ($request['brand'] ?? ''),
+            (string) ($request['model'] ?? '')
         );
     }
 
-    public function provincias(mixed $rootValue, array $request): array
+    public function provinces(mixed $rootValue, array $request): array
     {
         return $this->service()->getProvincias();
     }
 
-    public function municipios(mixed $rootValue, array $request): array
+    public function municipalities(mixed $rootValue, array $request): array
     {
-        return $this->service()->getMunicipios((string) $request['provincia']);
+        return $this->service()->getMunicipios((string) $request['province']);
     }
 
-    public function sectores(mixed $rootValue, array $request): array
+    public function sectors(mixed $rootValue, array $request): array
     {
         return $this->service()->getSectores(
-            (string) $request['provincia'],
-            (string) $request['municipio']
+            (string) $request['province'],
+            (string) $request['municipality']
         );
     }
 
-    public function aditamentos(mixed $rootValue, array $request): array
+    public function accessories(mixed $rootValue, array $request): array
     {
         return $this->service()->getAditamentos();
     }
