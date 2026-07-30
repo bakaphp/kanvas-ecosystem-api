@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Event\Events\Jobs\GenerateTimeSlots;
 use Kanvas\Event\Events\Models\ScheduleRules;
+use Kanvas\Event\Events\Services\ResourceTimezoneService;
 
 class CreateScheduleRulesFromOperationDaysAction
 {
@@ -23,6 +24,8 @@ class CreateScheduleRulesFromOperationDaysAction
         'saturday' => 'SA',
         'sunday' => 'SU',
     ];
+
+    private ?string $timezone = null;
 
     public function __construct(
         protected Model $resource,
@@ -39,6 +42,11 @@ class CreateScheduleRulesFromOperationDaysAction
         protected ?Carbon $startAt = null,
         protected ?Carbon $endAt = null,
     ) {
+    }
+
+    protected function timezone(): string
+    {
+        return $this->timezone ??= ResourceTimezoneService::resolve($this->resource);
     }
 
     public function execute(): array
@@ -94,15 +102,19 @@ class CreateScheduleRulesFromOperationDaysAction
     protected function upsertRuleForDay(string $dayName, string $dayCode, array $periods): ?ScheduleRules
     {
         $firstPeriod = $periods[0];
+        // The hours the user typed are the venue's wall clock, so parse them there and pin the
+        // timezone onto DTSTART. Left naive they get read back as app-tz (UTC) and the day
+        // expansion lands on a different instant than the slots themselves.
+        $tz = $this->timezone();
         $baseDate = $this->startAt?->toDateString() ?? 'today';
-        $startAt = Carbon::parse($baseDate . ' ' . $firstPeriod['open']);
+        $startAt = Carbon::parse($baseDate . ' ' . $firstPeriod['open'], $tz);
         $dtstart = $startAt->format('Ymd\THis');
-        $rrule = "DTSTART:{$dtstart}\nRRULE:FREQ={$this->frequency};BYDAY={$dayCode}";
+        $rrule = "DTSTART;TZID={$tz}:{$dtstart}\nRRULE:FREQ={$this->frequency};BYDAY={$dayCode}";
 
         $allHours = [];
         foreach ($periods as $period) {
-            $openCarbon = Carbon::parse('today ' . $period['open']);
-            $closeCarbon = Carbon::parse('today ' . $period['close']);
+            $openCarbon = Carbon::parse('today ' . $period['open'], $tz);
+            $closeCarbon = Carbon::parse('today ' . $period['close'], $tz);
 
             $startHour = (int) $openCarbon->format('H');
             $endHour = (int) $closeCarbon->format('H');
@@ -123,7 +135,7 @@ class CreateScheduleRulesFromOperationDaysAction
         $minutesString = implode(',', $minutes);
 
         $dayDtstart = $startAt->format('Ymd\THis');
-        $dayRrule = "DTSTART:{$dayDtstart}\nRRULE:FREQ=MINUTELY;INTERVAL={$this->slotDurationMinutes};BYHOUR={$hoursString};BYMINUTE={$minutesString}";
+        $dayRrule = "DTSTART;TZID={$tz}:{$dayDtstart}\nRRULE:FREQ=MINUTELY;INTERVAL={$this->slotDurationMinutes};BYHOUR={$hoursString};BYMINUTE={$minutesString}";
 
         $metadata = [
             'operation_day' => $dayName,
@@ -138,7 +150,9 @@ class CreateScheduleRulesFromOperationDaysAction
         $rule = ScheduleRules::withoutGlobalScopes()->updateOrCreate(
             $this->naturalKey($dayName),
             [
-                'start_at' => $startAt,
+                // Eloquent persists a Carbon's wall clock in whatever timezone it carries, so it
+                // has to be converted or the venue-local time is read back as UTC.
+                'start_at' => $startAt->clone()->setTimezone('UTC'),
                 'end_at' => $this->endAt?->clone(),
                 'rrule' => $rrule,
                 'day_rrule' => $dayRrule,
