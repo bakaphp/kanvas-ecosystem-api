@@ -19,7 +19,7 @@ use Override;
 use Stringable;
 use Throwable;
 
-#[AgentTool(name: 'Product Recommendation Lookup')]
+#[AgentTool(name: 'Product Recommendation Lookup', category: 'inventory')]
 class ProductRecommendationLookupTool implements KanvasToolInterface
 {
     use HasKanvasContext;

@@ -17,7 +17,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Send Slack DM')]
+#[AgentTool(name: 'Send Slack DM', category: 'ecosystem')]
 class SendSlackDirectMessageTool extends Tool
 {
     public function __construct(private readonly ?Agent $agent = null)

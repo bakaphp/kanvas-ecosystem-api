@@ -18,7 +18,7 @@ use Override;
 
 use function Laravel\Ai\agent;
 
-#[AgentTool(name: 'Completion Status')]
+#[AgentTool(name: 'Completion Status', category: 'crm')]
 class CompletionStatusTool extends Tool
 {
     use ResolvesLeadForTool;

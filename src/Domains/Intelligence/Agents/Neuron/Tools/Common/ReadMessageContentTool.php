@@ -19,7 +19,7 @@ use Override;
  * prompt should hold — so agents that need the complete content pull it here, paging with `offset`
  * until `has_more` is false. Tenant-scoped: only messages in the agent's own app + company resolve.
  */
-#[AgentTool(name: 'Read Message Content')]
+#[AgentTool(name: 'Read Message Content', category: 'ecosystem')]
 class ReadMessageContentTool extends Tool
 {
     use HasKanvasContext;

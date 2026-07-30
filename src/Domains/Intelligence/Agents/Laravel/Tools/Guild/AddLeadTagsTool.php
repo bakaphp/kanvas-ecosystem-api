@@ -14,7 +14,7 @@ use Override;
 use Stringable;
 use Throwable;
 
-#[AgentTool(name: 'Add Lead Tags')]
+#[AgentTool(name: 'Add Lead Tags', category: 'crm')]
 class AddLeadTagsTool implements KanvasToolInterface
 {
     use HasKanvasContext;

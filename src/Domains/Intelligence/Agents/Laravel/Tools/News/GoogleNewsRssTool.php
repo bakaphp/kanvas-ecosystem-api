@@ -17,7 +17,7 @@ use SimpleXMLElement;
 use Stringable;
 use Throwable;
 
-#[AgentTool(name: 'Google News RSS')]
+#[AgentTool(name: 'Google News RSS', category: 'knowledge')]
 class GoogleNewsRssTool implements KanvasToolInterface
 {
     use HasKanvasContext;

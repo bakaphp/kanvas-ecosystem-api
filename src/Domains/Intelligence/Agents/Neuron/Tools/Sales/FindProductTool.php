@@ -17,7 +17,7 @@ use Override;
  * how the agent turns "the Kraken Elite 360" into `RL-KP336` before creating a sample order. Returns
  * candidates to disambiguate rather than a single guess.
  */
-#[AgentTool(name: 'Find Product')]
+#[AgentTool(name: 'Find Product', category: 'commerce')]
 class FindProductTool extends Tool
 {
     use HasKanvasContext;

@@ -27,6 +27,7 @@ use Override;
  */
 #[AgentTool(
     name: 'Capture Conversation Lead',
+    category: 'crm',
     description: 'Creates a lead for the prospect in the current conversation AND focuses the session on '
         . 'them so later turns are lead-scoped (dedupes a repeat call to the same prospect). For '
         . 'single-prospect conversational agents like sales. Do NOT assign to agents that handle many '

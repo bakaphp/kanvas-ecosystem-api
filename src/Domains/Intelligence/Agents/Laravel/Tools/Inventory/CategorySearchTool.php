@@ -14,7 +14,7 @@ use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
 
-#[AgentTool(name: 'Category Search')]
+#[AgentTool(name: 'Category Search', category: 'inventory')]
 class CategorySearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;

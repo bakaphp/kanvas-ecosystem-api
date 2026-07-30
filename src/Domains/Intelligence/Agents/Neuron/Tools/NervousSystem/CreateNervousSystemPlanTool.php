@@ -21,7 +21,7 @@ use Override;
  * half of orchestration. The plan is linked to the project (Plan.project_id), so it shows up in the
  * project's open-work rollup; the project's completion is recomputed.
  */
-#[AgentTool(name: 'Create Plan')]
+#[AgentTool(name: 'Create Plan', category: 'nervous_system')]
 class CreateNervousSystemPlanTool extends Tool
 {
     use HasKanvasContext;

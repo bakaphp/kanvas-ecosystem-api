@@ -18,7 +18,7 @@ use Override;
  * (total / paid / balance), dates, and line items. The AR mirror of find_bill. Reads synced data;
  * reports found=false when the invoice isn't in Kanvas.
  */
-#[AgentTool(name: 'Find Invoice')]
+#[AgentTool(name: 'Find Invoice', category: 'accounting')]
 class FindInvoiceTool extends Tool
 {
     use FindsTenantRecordForTool;

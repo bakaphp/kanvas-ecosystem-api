@@ -14,7 +14,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Yasumi\Yasumi;
 
-#[AgentTool(name: 'Company Information')]
+#[AgentTool(name: 'Company Information', category: 'crm')]
 class CompanyInformationTool extends Tool
 {
     public function __construct()

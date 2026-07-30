@@ -16,7 +16,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-#[AgentTool(name: 'Read My Ledger')]
+#[AgentTool(name: 'Read My Ledger', category: 'ecosystem')]
 class ReadMyLedgerTool extends Tool
 {
     public function __construct(

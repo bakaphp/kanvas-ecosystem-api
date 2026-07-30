@@ -20,7 +20,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Send Email')]
+#[AgentTool(name: 'Send Email', category: 'crm')]
 class SendEmailTool extends Tool
 {
     use ResolvesLeadForTool;
