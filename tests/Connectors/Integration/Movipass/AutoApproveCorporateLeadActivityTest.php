@@ -65,7 +65,23 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
         $this->assertNull($lead->fresh()->get('movipass_corporate_status'));
     }
 
-    public function testNeedsReviewWhenAutoApproveDisabled(): void
+    public function testPendingIsTheDefaultWithoutAnyAppConfig(): void
+    {
+        // Auto-approve is opt-in — an app that never sets the flag must still queue.
+        $this->kanvasApp->del(ConfigurationEnum::CORPORATE_AUTO_APPROVE->value);
+
+        $lead = $this->makeCorporateLead();
+        Notification::fake();
+
+        $result = $this->runActivity($lead);
+
+        $this->assertEquals('pending', $result['status']);
+        $this->assertEquals('pending', $lead->fresh()->get('movipass_corporate_status'));
+        $this->assertNull($lead->fresh()->get('movipass_corporate_company_id'));
+        Notification::assertSentOnDemand(Blank::class);
+    }
+
+    public function testPendingWhenAutoApproveDisabled(): void
     {
         $this->kanvasApp->set(ConfigurationEnum::CORPORATE_AUTO_APPROVE->value, false);
 
@@ -74,15 +90,32 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
 
         $result = $this->runActivity($lead);
 
-        $this->assertEquals('needs_review', $result['status']);
-        $this->assertEquals('needs_review', $lead->fresh()->get('movipass_corporate_status'));
+        $this->assertEquals('pending', $result['status']);
+        $this->assertEquals('pending', $lead->fresh()->get('movipass_corporate_status'));
         $this->assertNull($lead->fresh()->get('movipass_corporate_company_id'));
         Notification::assertSentOnDemand(Blank::class);
     }
 
+    public function testPendingRecordsValidationHintWithoutBlocking(): void
+    {
+        $this->kanvasApp->set(ConfigurationEnum::CORPORATE_AUTO_APPROVE->value, false);
+
+        // A bad RNC is what the reviewer needs to see, not a reason to drop the lead.
+        $lead = $this->makeCorporateLead(['rnc' => '1234567']);
+        Notification::fake();
+
+        $result = $this->runActivity($lead);
+
+        $this->assertEquals('pending', $result['status']);
+        $this->assertEquals('RNC must be 9 or 11 digits', $result['validation_hint']);
+        $this->assertEquals(
+            'RNC must be 9 or 11 digits',
+            $lead->fresh()->get('movipass_corporate_validation_hint')
+        );
+    }
+
     public function testNeedsReviewOnInvalidRncFormat(): void
     {
-        // RNC must be 9 or 11 digits — 7 should fail validation.
         $lead = $this->makeCorporateLead(['rnc' => '1234567']);
         Notification::fake();
 
@@ -107,12 +140,10 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
         $company = Companies::find($result['company_id']);
         $this->assertNotNull($company);
         $this->assertTrue((bool) $company->get('is_corporate'));
-        // Company-level corporate fields (legal entity identity)
         $this->assertEquals($lead->get('legal_name'), $company->get('legal_name'));
         $this->assertEquals($lead->get('commercial_name'), $company->get('commercial_name'));
         $this->assertEquals($lead->get('rnc'), $company->get('rnc'));
-        // User-level fields (contact_*) are NOT on the Company; they live on
-        // the UsersInvite and propagate to the User via
+        // contact_* belong to the invite, never the Company — they reach the User through
         // PropagateCorporateFieldsToUserActivity on invite acceptance.
         $this->assertNull($company->get('contact_email'));
         $this->assertNull($company->get('contact_phone'));
@@ -121,7 +152,6 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
         $this->assertNotNull($invite);
         $this->assertEquals($company->getId(), $invite->companies_id);
         $this->assertEquals($lead->get('contact_email'), $invite->email);
-        // User-level corporate fields are stamped on the invite
         $this->assertTrue((bool) $invite->get('is_corporate'));
         $this->assertEquals($lead->get('contact_name'), $invite->get('contact_name'));
         $this->assertEquals($lead->get('contact_role'), $invite->get('contact_role'));

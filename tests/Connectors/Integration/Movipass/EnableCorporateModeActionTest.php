@@ -7,16 +7,26 @@ namespace Tests\Connectors\Integration\Movipass;
 use Bouncer;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Movipass\Actions\ApproveCorporateLeadAction;
 use Kanvas\Connectors\Movipass\Actions\EnableCorporateModeAction;
+use Kanvas\Connectors\Movipass\Enums\CorporateApplicationStatusEnum;
+use Kanvas\Connectors\Movipass\Enums\CorporateLeadFieldEnum;
 use Kanvas\Connectors\Movipass\Jobs\MigrateCorporateUserVariantsJob;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Jobs\OnBoardingJob;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 final class EnableCorporateModeActionTest extends TestCase
 {
+    private Users $kanvasUser;
+    private Apps $kanvasApp;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -24,79 +34,102 @@ final class EnableCorporateModeActionTest extends TestCase
         if (getenv('GITHUB_ACTIONS')) {
             $this->markTestSkipped('Movipass corporate workflow tests are skipped in CI');
         }
-    }
 
-    public function testApprovesValidUpgradeAndDispatchesMigrationJob(): void
-    {
-        Bus::fake();
+        $this->kanvasUser = Auth::user();
+        $this->kanvasApp = app(Apps::class);
 
-        $user = Auth::user();
-        $app = app(Apps::class);
+        // These tests run without DatabaseTransactions, so the corporate flag and any
+        // filed request outlive the process and would trip the guards on the next run.
+        $this->kanvasUser->del('is_corporate');
+        $this->discardPreviousRequests();
 
         // Mirror a real GraphQL request: middleware leaves the Bouncer tenant scope on the
         // user's current company, not the app-global company_0 where roles live. This is the
         // exact condition that made the admin-role lookup throw "No query results for Role".
-        Bouncer::scope()->to(RolesEnums::getScope($app, $user->getCurrentCompany()));
+        Bouncer::scope()->to(RolesEnums::getScope($this->kanvasApp, $this->kanvasUser->getCurrentCompany()));
+    }
 
-        $company = new EnableCorporateModeAction(
-            user: $user,
-            app: $app,
-            fields: $this->validFields(),
-        )->execute();
+    public function testRequestProvisionsTheCompanyWithoutGrantingCorporatePrivilege(): void
+    {
+        Bus::fake();
 
-        $this->assertNotNull($company);
-        $this->assertTrue((bool) $company->get('is_corporate'));
+        $company = $this->request();
+
         $this->assertEquals('Empresa de Pruebas SRL', $company->get('legal_name'));
         $this->assertEquals('Empresa Pruebas', $company->get('commercial_name'));
         $this->assertEquals('131123456', $company->get('rnc'));
 
-        $user->refresh();
-        $this->assertTrue((bool) $user->get('is_corporate'));
-        $this->assertEquals('Juan Pérez', $user->get('contact_name'));
-        $this->assertEquals('Gerente', $user->get('contact_role'));
+        // is_corporate is the switch that grants PasoRapido corporate limits, tag access and
+        // RNC on invoices. Self-reported data must not buy it without a human.
+        $this->assertFalse((bool) $company->get('is_corporate'));
 
-        Bus::assertDispatched(MigrateCorporateUserVariantsJob::class);
+        $this->kanvasUser->refresh();
+        $this->assertFalse((bool) $this->kanvasUser->get('is_corporate'));
+        $this->assertEquals('Juan Pérez', $this->kanvasUser->get('contact_name'));
+
+        Bus::assertNotDispatched(MigrateCorporateUserVariantsJob::class);
     }
 
-    public function testSwitchesUserDefaultCompanyToTheNewCorporateCompany(): void
+    public function testRequestDoesNotSwitchTheUserIntoTheUnapprovedCompany(): void
     {
         Bus::fake();
 
-        $user = Auth::user();
-        $app = app(Apps::class);
+        $previousCompanyId = $this->kanvasUser->getCurrentCompany()->getId();
 
-        Bouncer::scope()->to(RolesEnums::getScope($app, $user->getCurrentCompany()));
+        $company = $this->request();
 
-        $previousCompanyId = $user->getCurrentCompany()->getId();
-
-        $company = new EnableCorporateModeAction(
-            user: $user,
-            app: $app,
-            fields: $this->validFields(),
-        )->execute();
-
-        $branch = $company->branch()->firstOrFail();
-
-        $user->refresh();
+        $this->kanvasUser->refresh();
         $this->assertNotEquals($previousCompanyId, $company->getId());
-        $this->assertEquals($company->getId(), $user->default_company);
-        $this->assertEquals($branch->getId(), $user->default_company_branch);
+        $this->assertEquals($previousCompanyId, $this->kanvasUser->default_company);
+    }
+
+    public function testRequestFilesAPendingLeadForTheAdminQueue(): void
+    {
+        Bus::fake();
+
+        $company = $this->request();
+        $lead = $this->latestRequestLead();
+
+        $this->assertNotNull($lead);
+        $this->assertEquals(
+            CorporateApplicationStatusEnum::PENDING->value,
+            $lead->get(CorporateLeadFieldEnum::STATUS->value)
+        );
+        $this->assertEquals(
+            (string) $company->getId(),
+            (string) $lead->get(CorporateLeadFieldEnum::COMPANY_ID->value)
+        );
+        $this->assertEquals('131123456', $lead->get('rnc'));
+    }
+
+    public function testApprovalGrantsThePrivilegeAndMigratesVariants(): void
+    {
+        Bus::fake();
+
+        $company = $this->request();
+        $lead = $this->latestRequestLead();
+
+        $result = new ApproveCorporateLeadAction($lead, $this->kanvasUser)->execute();
+
+        $this->assertEquals(CorporateApplicationStatusEnum::APPROVED->value, $result['status']);
+        $this->assertEquals($company->getId(), $result['company_id']);
+        // No invite: the applicant already has an account.
+        $this->assertNull($result['invite_hash']);
+
+        $this->assertTrue((bool) $company->fresh()->get('is_corporate'));
+
+        $this->kanvasUser->refresh();
+        $this->assertTrue((bool) $this->kanvasUser->get('is_corporate'));
+        $this->assertEquals($company->getId(), $this->kanvasUser->default_company);
+
+        Bus::assertDispatched(MigrateCorporateUserVariantsJob::class);
     }
 
     public function testDispatchesOnboardingForTheCorporateCompany(): void
     {
         Bus::fake();
 
-        $user = Auth::user();
-        $app = app(Apps::class);
-
-        Bouncer::scope()->to(RolesEnums::getScope($app, $user->getCurrentCompany()));
-
-        $company = new EnableCorporateModeAction(
-            user: $user,
-            app: $app,
-            fields: $this->validFields(),
-        )->execute();
+        $company = $this->request();
 
         // Region + warehouse are provisioned by OnBoardingJob (Inventory Setup), the same
         // path the user-registration/lead-accept flow runs.
@@ -111,36 +144,62 @@ final class EnableCorporateModeActionTest extends TestCase
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('RNC must be 9 or 11 digits');
 
-        new EnableCorporateModeAction(
-            user: Auth::user(),
-            app: app(Apps::class),
-            fields: $this->validFields(['rnc' => '1234567']),
-        )->execute();
+        $this->request(['rnc' => '1234567']);
+    }
+
+    public function testRejectsASecondRequestWhileOneIsUnderReview(): void
+    {
+        Bus::fake();
+
+        $this->request();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('You already have a corporate request under review.');
+
+        $this->request();
     }
 
     public function testRejectsAlreadyCorporateUser(): void
     {
-        Bus::fake();
-
-        $user = Auth::user();
-        $app = app(Apps::class);
-
-        new EnableCorporateModeAction(
-            user: $user,
-            app: $app,
-            fields: $this->validFields(),
-        )->execute();
-
-        $user->refresh();
+        $this->kanvasUser->set('is_corporate', true);
 
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('User is already corporate');
 
-        new EnableCorporateModeAction(
-            user: $user,
-            app: $app,
-            fields: $this->validFields(),
+        $this->request();
+    }
+
+    private function request(array $overrides = []): Companies
+    {
+        return new EnableCorporateModeAction(
+            user: $this->kanvasUser,
+            app: $this->kanvasApp,
+            fields: $this->validFields($overrides),
         )->execute();
+    }
+
+    private function latestRequestLead(): ?Lead
+    {
+        return $this->requestLeadQuery()->orderByDesc('id')->first();
+    }
+
+    private function discardPreviousRequests(): void
+    {
+        $this->requestLeadQuery()->get()->each(fn (Lead $lead) => $lead->softDelete());
+    }
+
+    private function requestLeadQuery()
+    {
+        return Lead::query()
+            ->whereIn('id', function ($q) {
+                $q->select('entity_id')
+                    ->from(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields')
+                    ->where('model_name', Lead::class)
+                    ->where('name', CorporateLeadFieldEnum::UPGRADE_USER_ID->value)
+                    ->where('value', (string) $this->kanvasUser->getId())
+                    ->where('is_deleted', 0);
+            })
+            ->notDeleted();
     }
 
     private function validFields(array $overrides = []): array
