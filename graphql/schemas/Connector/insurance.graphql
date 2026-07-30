@@ -1,0 +1,40 @@
+# Insurance connector.
+# Setup is done via the generic createIntegrationCompany mutation
+# Reference catalogs are live-queryable; quote/pay/emit operate on a Souk Order.
+extend type Query @guard {
+    insuranceVehicleModels(marca: String = "", modelo: String = ""): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Queries\\InsuranceReferenceQuery@vehicleModels"
+        )
+    insuranceProvincias: Mixed
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Queries\\InsuranceReferenceQuery@provincias"
+        )
+    insuranceMunicipios(provincia: String!): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Queries\\InsuranceReferenceQuery@municipios"
+        )
+    insuranceSectores(provincia: String!, municipio: String!): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Queries\\InsuranceReferenceQuery@sectores"
+        )
+    insuranceAditamentos: Mixed
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Queries\\InsuranceReferenceQuery@aditamentos"
+        )
+}
+
+extend type Mutation @guard {
+    createInsuranceQuote(order_id: ID!, product: String!, input: Mixed!): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Mutations\\InsuranceMutation@createQuote"
+        )
+    requestInsurancePaymentLink(order_id: ID!, by_email: Boolean = false): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Mutations\\InsuranceMutation@requestPaymentLink"
+        )
+    emitInsurancePolicy(order_id: ID!): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Mutations\\InsuranceMutation@emitPolicy"
+        )
+}

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Connector\UniversalSeguros\Queries;
+namespace App\GraphQL\Connector\Insurance\Queries;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\UniversalSeguros\Services\UniversalSegurosService;
 use Kanvas\Users\Models\Users;
 
-class UniversalSegurosReferenceQuery
+class InsuranceReferenceQuery
 {
     public function vehicleModels(mixed $rootValue, array $request): array
     {

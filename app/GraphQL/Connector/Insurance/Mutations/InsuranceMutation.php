@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\GraphQL\Connector\UniversalSeguros\Mutations;
+namespace App\GraphQL\Connector\Insurance\Mutations;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\UniversalSeguros\Actions\CreateQuoteAction;
@@ -12,7 +12,7 @@ use Kanvas\Connectors\UniversalSeguros\Enums\ProductEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 
-class UniversalSegurosMutation
+class InsuranceMutation
 {
     public function createQuote(mixed $rootValue, array $request): array
     {
