@@ -510,8 +510,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         Lead $lead,
         ?RespondIOClient $client = null,
         ?string $statusCallbackUrl = null,
-    ): SendMessageToLeadAction
-    {
+    ): SendMessageToLeadAction {
         return new class ($lead, $client, $statusCallbackUrl) extends SendMessageToLeadAction {
             public function __construct(
                 Lead $lead,
