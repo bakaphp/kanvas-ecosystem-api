@@ -7,6 +7,7 @@ namespace Tests\Connectors\Integration\Movipass;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
@@ -62,7 +63,7 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
         $result = $this->runActivity($lead);
 
         $this->assertEquals('skipped', $result['status']);
-        $this->assertNull($lead->fresh()->get('movipass_corporate_status'));
+        $this->assertNull(Field::STATUS->readFrom($lead->fresh()));
     }
 
     public function testPendingIsTheDefaultWithoutAnyAppConfig(): void
@@ -76,8 +77,8 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
         $result = $this->runActivity($lead);
 
         $this->assertEquals('pending', $result['status']);
-        $this->assertEquals('pending', $lead->fresh()->get('movipass_corporate_status'));
-        $this->assertNull($lead->fresh()->get('movipass_corporate_company_id'));
+        $this->assertEquals('pending', Field::STATUS->readFrom($lead->fresh()));
+        $this->assertNull(Field::COMPANY_ID->readFrom($lead->fresh()));
         Notification::assertSentOnDemand(Blank::class);
     }
 
@@ -91,8 +92,8 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
         $result = $this->runActivity($lead);
 
         $this->assertEquals('pending', $result['status']);
-        $this->assertEquals('pending', $lead->fresh()->get('movipass_corporate_status'));
-        $this->assertNull($lead->fresh()->get('movipass_corporate_company_id'));
+        $this->assertEquals('pending', Field::STATUS->readFrom($lead->fresh()));
+        $this->assertNull(Field::COMPANY_ID->readFrom($lead->fresh()));
         Notification::assertSentOnDemand(Blank::class);
     }
 
@@ -110,7 +111,7 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
         $this->assertEquals('RNC must be 9 or 11 digits', $result['validation_hint']);
         $this->assertEquals(
             'RNC must be 9 or 11 digits',
-            $lead->fresh()->get('movipass_corporate_validation_hint')
+            Field::VALIDATION_HINT->readFrom($lead->fresh())
         );
     }
 
@@ -123,7 +124,7 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
 
         $this->assertEquals('needs_review', $result['status']);
         $this->assertEquals('RNC must be 9 or 11 digits', $result['reason']);
-        $this->assertNull($lead->fresh()->get('movipass_corporate_company_id'));
+        $this->assertNull(Field::COMPANY_ID->readFrom($lead->fresh()));
     }
 
     public function testApprovesValidLeadAndCreatesCompanyPlusInvite(): void
@@ -159,9 +160,9 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
         $this->assertEquals($lead->get('contact_phone'), $invite->get('contact_phone'));
 
         $fresh = $lead->fresh();
-        $this->assertEquals('approved', $fresh->get('movipass_corporate_status'));
-        $this->assertEquals((string) $company->getId(), (string) $fresh->get('movipass_corporate_company_id'));
-        $this->assertEquals($invite->invite_hash, $fresh->get('movipass_corporate_invite_hash'));
+        $this->assertEquals('approved', Field::STATUS->readFrom($fresh));
+        $this->assertEquals((string) $company->getId(), (string) Field::COMPANY_ID->readFrom($fresh));
+        $this->assertEquals($invite->invite_hash, Field::INVITE_HASH->readFrom($fresh));
 
         Notification::assertSentOnDemand(Blank::class);
     }

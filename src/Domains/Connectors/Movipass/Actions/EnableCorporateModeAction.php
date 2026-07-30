@@ -11,11 +11,11 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Companies\DataTransferObject\Company as CompanyData;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Movipass\Enums\CorporateApplicationStatusEnum;
-use Kanvas\Connectors\Movipass\Enums\CorporateLeadFieldEnum;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -39,7 +39,7 @@ class EnableCorporateModeAction
      * but `is_corporate` stays unset — no corporate privilege is granted until an admin
      * approves, because the RNC and phone here are self-reported and were being faked.
      *
-     * @see GrantCorporateModeAction what approval then runs
+     * @see ApproveCorporateApplicationAction what approval then runs
      */
     public function execute(): Companies
     {
@@ -100,22 +100,22 @@ class EnableCorporateModeAction
         ]);
         $lead->saveOrFail();
 
-        foreach (CorporateLeadFieldEnum::COMPANY_FIELDS as $key) {
+        foreach (Field::COMPANY_FIELDS as $key) {
             if (! empty($this->fields[$key])) {
                 $lead->set($key, $this->fields[$key]);
             }
         }
 
-        foreach (CorporateLeadFieldEnum::USER_FIELDS as $key) {
+        foreach (Field::USER_FIELDS as $key) {
             if ($key !== 'is_corporate' && ! empty($this->fields[$key])) {
                 $lead->set($key, $this->fields[$key]);
             }
         }
 
-        $lead->set(CorporateLeadFieldEnum::STATUS->value, CorporateApplicationStatusEnum::PENDING->value);
-        $lead->set(CorporateLeadFieldEnum::COMPANY_ID->value, (string) $company->getId());
-        $lead->set(CorporateLeadFieldEnum::UPGRADE_USER_ID->value, (string) $this->user->getId());
-        $lead->set(CorporateLeadFieldEnum::UPGRADE_SOURCE_COMPANY_ID->value, (string) $sourceCompanyId);
+        Field::STATUS->writeTo($lead, CorporateApplicationStatusEnum::PENDING->value);
+        Field::COMPANY_ID->writeTo($lead, (string) $company->getId());
+        Field::UPGRADE_USER_ID->writeTo($lead, (string) $this->user->getId());
+        Field::UPGRADE_SOURCE_COMPANY_ID->writeTo($lead, (string) $sourceCompanyId);
     }
 
     private function hasPendingRequest(): bool
@@ -125,7 +125,7 @@ class EnableCorporateModeAction
                 $q->select('entity_id')
                     ->from(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields')
                     ->where('model_name', Lead::class)
-                    ->where('name', CorporateLeadFieldEnum::UPGRADE_USER_ID->value)
+                    ->where('name', Field::UPGRADE_USER_ID->value)
                     ->where('value', (string) $this->user->getId())
                     ->where('is_deleted', 0);
             })
@@ -133,7 +133,7 @@ class EnableCorporateModeAction
                 $q->select('entity_id')
                     ->from(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields')
                     ->where('model_name', Lead::class)
-                    ->where('name', CorporateLeadFieldEnum::STATUS->value)
+                    ->where('name', Field::STATUS->value)
                     ->where('value', CorporateApplicationStatusEnum::PENDING->value)
                     ->where('is_deleted', 0);
             })
@@ -174,7 +174,7 @@ class EnableCorporateModeAction
 
     private function setCompanyFields(Companies $company): void
     {
-        foreach (CorporateLeadFieldEnum::COMPANY_FIELDS as $key) {
+        foreach (Field::COMPANY_FIELDS as $key) {
             $value = $this->fields[$key] ?? null;
             if ($value === null || $value === '') {
                 continue;
@@ -196,7 +196,7 @@ class EnableCorporateModeAction
 
     private function setUserFields(): void
     {
-        foreach (CorporateLeadFieldEnum::USER_FIELDS as $key) {
+        foreach (Field::USER_FIELDS as $key) {
             if ($key === 'is_corporate') {
                 continue;
             }
