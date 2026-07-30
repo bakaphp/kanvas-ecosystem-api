@@ -46,7 +46,15 @@ Enums/                          Environment, Configuration, Product, DocumentTra
 Activities/                     SyncUniversalSegurosPolicyActivity (#[WorkflowAction], auto-discovered)
 ```
 
-GraphQL: `graphql/schemas/Connector/universalSeguros.graphql` + `app/GraphQL/Connector/UniversalSeguros/`.
+GraphQL: reference catalogs live in `graphql/schemas/Connector/universalSeguros.graphql` +
+`app/GraphQL/Connector/UniversalSeguros/Queries/`. Quote/pay/emit are **not** exposed as
+`universalSeguros*` mutations — they go through the provider-agnostic
+`insuranceCreateQuote` / `insuranceRequestPaymentLink` / `insuranceEmitPolicy` mutations
+(`graphql/schemas/Connector/insurance.graphql`, `provider: "universal_seguros"`), which
+route to `Kanvas\Souk\Insurance\Infrastructure\Processors\UniversalSeguros\UniversalSegurosProcessor`
+via `InsuranceProcessorFactory` — same shape as the Payments processor pattern. Adding a
+new insurance provider means implementing `InsuranceProcessorInterface` and registering an
+`insurance_processor.{provider}` binding, **not** adding new `{provider}CreateQuote` mutations.
 
 ## Auth & multi-tenancy
 

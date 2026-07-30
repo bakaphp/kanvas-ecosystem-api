@@ -1,0 +1,30 @@
+# Provider-agnostic insurance mutations. Every insurance connector (Universal Seguros today,
+# any future auto/travel/etc. provider) is quoted/paid/emitted through these three mutations,
+# routed by the `provider` argument (matches `integrations.name`, e.g. "universal_seguros")
+# via Kanvas\Souk\Insurance\Processors\InsuranceProcessorFactory. Do NOT add
+# `{provider}CreateQuote` / `{provider}EmitPolicy` style mutations per provider — that
+# duplicates this surface for every new provider. Instead, register a new
+# `insurance_processor.{provider}` binding in App\Providers\InsuranceProcessorServiceProvider.
+extend type Mutation @guard {
+    insuranceCreateQuote(
+        provider: String!
+        order_id: ID!
+        product: String!
+        input: Mixed!
+    ): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Mutations\\InsuranceMutation@createQuote"
+        )
+    insuranceRequestPaymentLink(
+        provider: String!
+        order_id: ID!
+        by_email: Boolean = false
+    ): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Mutations\\InsuranceMutation@requestPaymentLink"
+        )
+    insuranceEmitPolicy(provider: String!, order_id: ID!): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Insurance\\Mutations\\InsuranceMutation@emitPolicy"
+        )
+}

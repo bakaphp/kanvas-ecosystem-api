@@ -56,6 +56,10 @@ VALUES ('{name}', UUID(), 0, '{"api_key": {"type": "text", "required": true}}', 
 
 `apps_id = 0` means global (available to all apps). Reference the `DriveCentric` row for format.
 
+### Insurance connectors are processor-agnostic, like Payments — don't add `{provider}CreateQuote` mutations
+
+Universal Seguros (and any future auto/travel insurance provider) is quoted/paid/emitted through the fixed, provider-agnostic mutations `insuranceCreateQuote` / `insuranceRequestPaymentLink` / `insuranceEmitPolicy` (`graphql/schemas/Connector/insurance.graphql`), routed by a `provider` argument (e.g. `"universal_seguros"`) through `Kanvas\Souk\Insurance\Processors\InsuranceProcessorFactory` — the same shape as `Kanvas\Souk\Payments\Processors\ProcessorFactory` for payments. If you see `universalSegurosCreateQuote`, `{provider}RequestPaymentLink`, or any other per-provider quote/pay/emit mutation, that's the wrong shape — it creates an n+1 problem (a new mutation trio per provider). New provider → implement `Kanvas\Souk\Insurance\Contracts\InsuranceProcessorInterface` and register an `insurance_processor.{provider}` binding in `App\Providers\InsuranceProcessorServiceProvider`, don't touch the GraphQL schema. Provider-specific *reference/catalog* queries (e.g. `universalSegurosVehicleModels`) are fine to keep per-connector since they aren't part of the shared quote/pay/emit lifecycle.
+
 ### Register workflow activities
 
 Add `#[WorkflowAction]` (from `Kanvas\Workflow\Attributes\WorkflowAction`) on the class. The `kanvas:workflow-sync-actions` command (runs on deploy) auto-discovers every class that carries the attribute via `WorkflowActionDiscoveryService` — no manual registration needed. If the basename collides with another activity in a different connector, pass `#[WorkflowAction(name: 'Human Name')]` to disambiguate. A coverage test (`tests/Workflow/Integration/WorkflowActionCoverageTest.php`) fails if any `KanvasActivity` / `ProcessWebhookJob` subclass is missing the attribute.

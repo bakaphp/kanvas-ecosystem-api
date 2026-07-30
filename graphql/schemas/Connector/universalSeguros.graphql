@@ -1,7 +1,8 @@
 # Universal Seguros (Unit ServicePlattform) Auto-insurance connector.
 # Setup is done via the generic createIntegrationCompany mutation (handler =
-# UniversalSegurosHandler). Reference catalogs are live-queryable; quote/pay/emit
-# operate on a Souk Order.
+# UniversalSegurosHandler). Reference catalogs are live-queryable.
+# Quote/pay/emit mutations are provider-agnostic — see graphql/schemas/Connector/insurance.graphql
+# (insuranceCreateQuote/insuranceRequestPaymentLink/insuranceEmitPolicy with provider: "universal_seguros").
 extend type Query @guard {
     universalSegurosVehicleModels(marca: String = "", modelo: String = ""): Mixed
         @field(
@@ -22,20 +23,5 @@ extend type Query @guard {
     universalSegurosAditamentos: Mixed
         @field(
             resolver: "App\\GraphQL\\Connector\\UniversalSeguros\\Queries\\UniversalSegurosReferenceQuery@aditamentos"
-        )
-}
-
-extend type Mutation @guard {
-    universalSegurosCreateQuote(order_id: ID!, product: String!, input: Mixed!): Mixed
-        @field(
-            resolver: "App\\GraphQL\\Connector\\UniversalSeguros\\Mutations\\UniversalSegurosMutation@createQuote"
-        )
-    universalSegurosRequestPaymentLink(order_id: ID!, by_email: Boolean = false): Mixed
-        @field(
-            resolver: "App\\GraphQL\\Connector\\UniversalSeguros\\Mutations\\UniversalSegurosMutation@requestPaymentLink"
-        )
-    universalSegurosEmitPolicy(order_id: ID!): Mixed
-        @field(
-            resolver: "App\\GraphQL\\Connector\\UniversalSeguros\\Mutations\\UniversalSegurosMutation@emitPolicy"
         )
 }
