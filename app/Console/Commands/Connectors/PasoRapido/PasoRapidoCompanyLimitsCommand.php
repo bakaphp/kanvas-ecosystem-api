@@ -137,22 +137,22 @@ class PasoRapidoCompanyLimitsCommand extends Command
             'max per minute' => [
                 CompanySettingsEnum::VERIFY_MAX_ATTEMPTS,
                 $isCorporate ? ConfigurationEnum::VERIFY_MAX_ATTEMPTS_CORPORATE : ConfigurationEnum::VERIFY_MAX_ATTEMPTS,
-                $isCorporate ? 60 : 3,
+                $isCorporate ? 5 : 3,
             ],
             'max per day' => [
                 CompanySettingsEnum::VERIFY_MAX_DAILY,
                 $isCorporate ? ConfigurationEnum::VERIFY_MAX_DAILY_CORPORATE : ConfigurationEnum::VERIFY_MAX_DAILY,
-                $isCorporate ? 500 : 30,
+                30,
             ],
             'max per day per IP' => [
                 CompanySettingsEnum::VERIFY_IP_MAX_DAILY,
                 $isCorporate ? ConfigurationEnum::VERIFY_IP_MAX_DAILY_CORPORATE : ConfigurationEnum::VERIFY_IP_MAX_DAILY,
-                $isCorporate ? 2000 : 50,
+                50,
             ],
             'users per IP' => [
                 CompanySettingsEnum::VERIFY_IP_MAX_USERS,
                 $isCorporate ? ConfigurationEnum::VERIFY_IP_MAX_USERS_CORPORATE : ConfigurationEnum::VERIFY_IP_MAX_USERS,
-                $isCorporate ? 100 : 5,
+                5,
             ],
             'sequential threshold' => [
                 CompanySettingsEnum::VERIFY_SEQUENTIAL_THRESHOLD,
