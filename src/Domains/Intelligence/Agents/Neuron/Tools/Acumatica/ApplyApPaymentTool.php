@@ -21,7 +21,7 @@ use RuntimeException;
 use Throwable;
 
 /** Applies a disbursement to an existing, already-pushed AP bill and pushes the payment to Acumatica. */
-#[AgentTool(name: 'Apply AP Payment')]
+#[AgentTool(name: 'Apply AP Payment', category: 'accounting')]
 class ApplyApPaymentTool extends Tool
 {
     use HasKanvasContext;
