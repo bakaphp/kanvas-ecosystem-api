@@ -134,7 +134,11 @@ class OrderReportToolsTest extends TestCase
     {
         [$app, $company, $user] = $this->seedOrders();
 
-        $result = new OrderBreakdownTool()->withContext($app, $company, $user)->__invoke(group_by: 'status');
+        // Restrict to the seeded types so the per-status counts stay deterministic — the default test
+        // company accumulates orders of other types/statuses from parallel suite runs.
+        $result = new OrderBreakdownTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(group_by: 'status', order_types: ['movipass', 'paso_rapido']);
 
         $byStatus = collect($result['groups'])->keyBy('status');
         $this->assertSame(1, (int) $byStatus['completed']['orders']);

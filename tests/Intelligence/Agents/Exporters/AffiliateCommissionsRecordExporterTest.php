@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Exporters;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
@@ -15,6 +16,10 @@ use Tests\TestCase;
 
 final class AffiliateCommissionsRecordExporterTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'commerce', 'crm'];
+
     protected Apps $apps;
     protected $user;
     protected $company;
@@ -34,26 +39,35 @@ final class AffiliateCommissionsRecordExporterTest extends TestCase
 
     public function testExportsCompanyConversionsAndFiltersByAffiliate(): void
     {
-        $programId = $this->createProgram();
-        $affiliateUa20 = $this->createAffiliate($programId, 'UA20 Distributor');
-        $affiliateUa21 = $this->createAffiliate($programId, 'UA21 Distributor');
+        // Per-run unique codes: unique_identifier (slug of name) is globally unique, and the assertions
+        // must not be perturbed by conversions left by other affiliates/runs in the shared DB.
+        $codeA = 'UAA' . uniqid();
+        $codeB = 'UAB' . uniqid();
 
-        $this->createConversion($affiliateUa20);
-        $this->createConversion($affiliateUa20);
-        $this->createConversion($affiliateUa21);
+        $programId = $this->createProgram();
+        $affiliateA = $this->createAffiliate($programId, $codeA . ' Distributor');
+        $affiliateB = $this->createAffiliate($programId, $codeB . ' Distributor');
+
+        $this->createConversion($affiliateA);
+        $this->createConversion($affiliateA);
+        $this->createConversion($affiliateB);
 
         $exporter = new AffiliateCommissionsRecordExporter();
 
-        $all = $exporter->rows($this->apps, $this->company, []);
-        $this->assertCount(3, $all);
-        $this->assertCount(count($exporter->headers()), $all[0]);
-
-        $ua20 = $exporter->rows($this->apps, $this->company, ['affiliate' => 'UA20']);
-        $this->assertCount(2, $ua20);
+        $rowsA = $exporter->rows($this->apps, $this->company, ['affiliate' => $codeA]);
+        $this->assertCount(2, $rowsA);
+        $this->assertCount(count($exporter->headers()), $rowsA[0]);
 
         // Case-insensitive match against the affiliate.
-        $ua20Lower = $exporter->rows($this->apps, $this->company, ['affiliate' => 'ua20']);
-        $this->assertCount(2, $ua20Lower);
+        $rowsALower = $exporter->rows($this->apps, $this->company, ['affiliate' => strtolower($codeA)]);
+        $this->assertCount(2, $rowsALower);
+
+        $rowsB = $exporter->rows($this->apps, $this->company, ['affiliate' => $codeB]);
+        $this->assertCount(1, $rowsB);
+
+        // No filter returns the whole company — at least the 3 just created.
+        $all = $exporter->rows($this->apps, $this->company, []);
+        $this->assertGreaterThanOrEqual(3, count($all));
     }
 
     public function testUnknownAffiliateThrows(): void
@@ -61,7 +75,7 @@ final class AffiliateCommissionsRecordExporterTest extends TestCase
         $exporter = new AffiliateCommissionsRecordExporter();
 
         $this->expectException(ValidationException::class);
-        $exporter->rows($this->apps, $this->company, ['affiliate' => 'DOES-NOT-EXIST']);
+        $exporter->rows($this->apps, $this->company, ['affiliate' => 'DOES-NOT-EXIST-' . uniqid()]);
     }
 
     private function createProgram(): string
