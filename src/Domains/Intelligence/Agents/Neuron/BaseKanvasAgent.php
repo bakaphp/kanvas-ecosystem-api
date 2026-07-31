@@ -215,6 +215,26 @@ class BaseKanvasAgent extends NeuronAIAgent implements ProvidesToolDependencies
         return $this->user;
     }
 
+    /**
+     * Apply this agent's context — app, company, and its own acting user — to a list of
+     * HasKanvasContext tools, so a subclass can declare its tool suite without repeating the wiring
+     * on every line.
+     *
+     * @param list<object> $tools
+     *
+     * @return list<ToolInterface>
+     */
+    protected function addToolContext(array $tools): array
+    {
+        /** @var list<ToolInterface> $configured */
+        $configured = array_map(
+            fn (object $tool): object => $tool->withContext($this->app, $this->company, $this->actingUser()),
+            $tools,
+        );
+
+        return $configured;
+    }
+
     public function resolvedModelName(): string
     {
         return AgentProviderService::resolveModel($this->requireAgent());

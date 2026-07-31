@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Souk;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ParsesOrderTypesFilter;
 use Kanvas\Souk\Orders\Services\OrderReportService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -16,6 +17,7 @@ use Override;
 class OrderCommissionStatsTool extends Tool
 {
     use HasKanvasContext;
+    use ParsesOrderTypesFilter;
 
     public function __construct()
     {
@@ -35,23 +37,21 @@ class OrderCommissionStatsTool extends Tool
     protected function properties(): array
     {
         return [
-            new ToolProperty(name: 'order_types', type: PropertyType::ARRAY, description: 'Optional order-type names to restrict to (see list_order_types). Omit for all types.', required: false),
+            new ToolProperty(name: 'order_types', type: PropertyType::STRING, description: 'Optional comma-separated order-type names to restrict to (see list_order_types). Omit for all types.', required: false),
             new ToolProperty(name: 'since', type: PropertyType::STRING, description: 'Lower-bound order date, ISO YYYY-MM-DD. Omit for all-time.', required: false),
             new ToolProperty(name: 'until', type: PropertyType::STRING, description: 'Upper-bound order date, ISO YYYY-MM-DD. Omit for open-ended.', required: false),
         ];
     }
 
     /**
-     * @param string[]|null $order_types
-     *
      * @return array<string, mixed>
      */
     public function __invoke(
-        ?array $order_types = null,
+        ?string $order_types = null,
         ?string $since = null,
         ?string $until = null,
     ): array {
         return new OrderReportService($this->app, $this->company)
-            ->commissionStats($order_types, $since, $until);
+            ->commissionStats($this->parseOrderTypes($order_types), $since, $until);
     }
 }
