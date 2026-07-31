@@ -55,17 +55,17 @@ class CFOAgent extends BaseKanvasAgent
     #[Override]
     protected function tools(): array
     {
-        return array_merge(parent::tools(), [
-            new QueryDataFreshnessTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryBalanceSheetTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryPnlTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryTrialBalanceTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryArAgingTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ListOverdueInvoicesTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new TopLatePayersTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryCashPositionTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryRecentExpensesTool()->withContext($this->app, $this->company, $this->actingUser()),
-        ]);
+        return array_merge(parent::tools(), $this->addToolContext([
+            new QueryDataFreshnessTool(),
+            new QueryBalanceSheetTool(),
+            new QueryPnlTool(),
+            new QueryTrialBalanceTool(),
+            new QueryArAgingTool(),
+            new ListOverdueInvoicesTool(),
+            new TopLatePayersTool(),
+            new QueryCashPositionTool(),
+            new QueryRecentExpensesTool(),
+        ]));
     }
 
     #[Override]
