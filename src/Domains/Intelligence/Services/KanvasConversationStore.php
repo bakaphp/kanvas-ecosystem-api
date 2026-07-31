@@ -22,13 +22,14 @@ use stdClass;
 
 class KanvasConversationStore implements ConversationStore
 {
+    // Kanvas conversations are user-scoped: $participantId maps to user_id, $participantType is unused.
     #[Override]
-    public function latestConversationId(string|int $userId): ?string
+    public function latestConversationId(string $participantType, string|int $participantId): ?string
     {
         [$appsId, $companiesId] = $this->tenantIds();
 
         return DB::connection('intelligence')->table('agent_conversations')
-            ->where('user_id', $userId)
+            ->where('user_id', $participantId)
             ->where('apps_id', $appsId)
             ->where('companies_id', $companiesId)
             ->orderBy('updated_at', 'desc')
@@ -36,9 +37,16 @@ class KanvasConversationStore implements ConversationStore
     }
 
     #[Override]
-    public function storeConversation(string|int|null $userId, string $title): string
-    {
-        return $this->storeConversationForAgent($userId, null, $title);
+    public function storeConversation(
+        ?string $participantType,
+        string|int|null $participantId,
+        string $title
+    ): string {
+        return $this->storeConversationForAgent(
+            $participantId,
+            null,
+            $title
+        );
     }
 
     /**
@@ -71,7 +79,8 @@ class KanvasConversationStore implements ConversationStore
     #[Override]
     public function storeUserMessage(
         string $conversationId,
-        string|int|null $userId,
+        ?string $participantType,
+        string|int|null $participantId,
         AgentPrompt $prompt
     ): string {
         $messageId = (string) Str::uuid7();
@@ -79,7 +88,7 @@ class KanvasConversationStore implements ConversationStore
         DB::connection('intelligence')->table('agent_conversation_messages')->insert([
             'id' => $messageId,
             'conversation_id' => $conversationId,
-            'user_id' => $userId,
+            'user_id' => $participantId,
             'agent' => $prompt->agent::class,
             'role' => 'user',
             'content' => $prompt->prompt,
@@ -100,16 +109,17 @@ class KanvasConversationStore implements ConversationStore
     #[Override]
     public function storeAssistantMessage(
         string $conversationId,
-        string|int|null $userId,
+        ?string $participantType,
+        string|int|null $participantId,
         AgentPrompt $prompt,
         AgentResponse $response
-    ): string {
+    ): ?string {
         $messageId = (string) Str::uuid7();
 
         DB::connection('intelligence')->table('agent_conversation_messages')->insert([
             'id' => $messageId,
             'conversation_id' => $conversationId,
-            'user_id' => $userId,
+            'user_id' => $participantId,
             'agent' => $prompt->agent::class,
             'role' => 'assistant',
             'content' => $response->text,
@@ -125,6 +135,21 @@ class KanvasConversationStore implements ConversationStore
         $this->backfillConversationAgentId($conversationId, $prompt);
 
         return $messageId;
+    }
+
+    /**
+     * No-op: Kanvas handles human approval at the Social message layer (message locking), not via
+     * Laravel AI's native pause/resume, so no agent ever pauses here for this to persist.
+     *
+     * @param array<int, ToolResult> $toolResults
+     */
+    #[Override]
+    public function storeApprovalResults(
+        string $conversationId,
+        ?string $participantType,
+        string|int|null $participantId,
+        array $toolResults
+    ): void {
     }
 
     /**
