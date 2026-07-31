@@ -58,6 +58,7 @@ class AcumaticaWriteService
      * @param array<string, mixed>                                             $body  `{value:}`-wrapped (AcumaticaPayload::wrap)
      * @param array<int, array{name: string, content: string, type?: string}> $files
      * @param array<string, mixed>|null                                        $findQuery OData filter to adopt an existing record
+     * @param string                                                            $releaseAction action name to invoke when $release is true (some entities use a non-generic name, e.g. Check -> ReleaseCheck)
      *
      * @return array<array-key, mixed> the persisted record (includes the `id` GUID)
      */
@@ -66,7 +67,8 @@ class AcumaticaWriteService
         array $body,
         bool $release = false,
         array $files = [],
-        ?array $findQuery = null
+        ?array $findQuery = null,
+        string $releaseAction = 'Release'
     ): array {
         $this->assertWriteEnabled();
 
@@ -91,7 +93,7 @@ class AcumaticaWriteService
                 $id = AcumaticaPayload::recordId($record);
 
                 if ($id !== null) {
-                    $client->invokeAction($entity, 'Release', ['entity' => ['id' => $id]]);
+                    $client->invokeAction($entity, $releaseAction, ['entity' => ['id' => $id]]);
                 }
             }
 

@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Illuminate\Support\Facades\DB;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\UpsertLeadSourceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderBreakdownTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\WhoIsUserTool;
 use Kanvas\Intelligence\Agents\Services\AgentToolDiscoveryService;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use Kanvas\NervousSystem\Capability\Models\ToolCategory;
 use stdClass;
 use Tests\TestCase;
 
@@ -28,6 +33,14 @@ class SyncAgentToolsCommandTest extends TestCase
         $this->assertNotNull($neuronTool, 'Neuron CRM tool should be discovered');
         $this->assertSame(['neuron'], $neuronTool['frameworks']);
         $this->assertSame('crm', $neuronTool['category']);
+
+        $accountingTool = $byClass[FindInvoiceTool::class] ?? null;
+        $this->assertNotNull($accountingTool, 'Neuron Accounting tool should be discovered');
+        $this->assertSame('accounting', $accountingTool['category']);
+
+        $systemTool = $byClass[WhoIsUserTool::class] ?? null;
+        $this->assertNotNull($systemTool, 'Neuron System tool should be discovered');
+        $this->assertSame('ecosystem', $systemTool['category']);
     }
 
     public function testAgentToolFromClassReadsAttribute(): void
@@ -71,6 +84,67 @@ class SyncAgentToolsCommandTest extends TestCase
             $countAfterSecond,
             'Re-running the sync must not create duplicate tool rows',
         );
+    }
+
+    public function testForceBackfillsCategoryOnExistingRows(): void
+    {
+        $this->artisan('kanvas:nervous-system:sync-tools')->assertSuccessful();
+
+        /** @var Tool $tool */
+        $tool = Tool::query()
+            ->where('handler', OrderBreakdownTool::class)
+            ->where('apps_id', 0)
+            ->firstOrFail();
+
+        $tool->tool_category_id = null;
+        $tool->save();
+
+        // Without --force the nulled category stays null (create-only path).
+        $this->artisan('kanvas:nervous-system:sync-tools')->assertSuccessful();
+        $this->assertNull($tool->fresh()->tool_category_id);
+
+        $this->artisan('kanvas:nervous-system:sync-tools', ['--force' => true])->assertSuccessful();
+
+        $categoryId = $tool->fresh()->tool_category_id;
+        $this->assertNotNull($categoryId);
+        $this->assertSame('commerce', ToolCategory::query()->whereKey($categoryId)->value('slug'));
+    }
+
+    public function testPruneDeletesUnreferencedDuplicatesButKeepsInUseAndSurvivor(): void
+    {
+        $this->artisan('kanvas:nervous-system:sync-tools')->assertSuccessful();
+
+        /** @var Tool $canonical */
+        $canonical = Tool::query()
+            ->where('handler', HandOffTool::class)
+            ->where('apps_id', 0)
+            ->firstOrFail();
+
+        // Two extra duplicate rows with the same handler: one referenced (in use), one orphan.
+        $referenced = $this->cloneToolRow($canonical);
+        $orphan = $this->cloneToolRow($canonical);
+
+        DB::connection('intelligence')->table('nervous_system_tool_agent_types')->insert([
+            'tool_id' => $referenced->id,
+            'agent_type_id' => 999999,
+            'created_at' => now(),
+        ]);
+
+        $this->artisan('kanvas:nervous-system:sync-tools', ['--prune' => true])->assertSuccessful();
+
+        $this->assertDatabaseHas('nervous_system_tools', ['id' => $canonical->id], 'intelligence');
+        $this->assertDatabaseHas('nervous_system_tools', ['id' => $referenced->id], 'intelligence');
+        $this->assertDatabaseMissing('nervous_system_tools', ['id' => $orphan->id], 'intelligence');
+    }
+
+    private function cloneToolRow(Tool $source): Tool
+    {
+        $clone = $source->replicate();
+        $clone->uuid = null;
+        $clone->tool_category_id = null;
+        $clone->save();
+
+        return $clone;
     }
 
     private function toolCount(): int

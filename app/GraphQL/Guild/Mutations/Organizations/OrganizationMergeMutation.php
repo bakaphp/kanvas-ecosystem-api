@@ -14,7 +14,8 @@ use Kanvas\Guild\Organizations\Services\FindOrganizationDuplicatesService;
  * flow in `ProposeBillFromPdfAction` / `ProposeExpenseFromPdfAction`.
  *
  * - `merge` collapses two Organizations (source → target), rewriting every Scribe + Guild FK and
- *   soft-deleting the source.
+ *   soft-deleting the source. MergeOrganizationsAction fires WorkflowEnum::AFTER_MERGE on the
+ *   target — connectors (Salesforce, etc.) react to that via their own Rule/Activity, not here.
  * - `findDuplicates` surfaces candidate clusters (exact name, shared email, shared tax id) so the
  *   operator can review and merge in batches rather than chasing per-document.
  */

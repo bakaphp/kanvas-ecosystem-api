@@ -6,9 +6,10 @@ namespace Kanvas\Guild\Organizations\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Illuminate\Support\Collection;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Contracts\Enums\ThirdPartyOrganizationIdFieldEnum;
+use Kanvas\Guild\Duplicates\Concerns\BuildsDuplicateGroups;
 use Kanvas\Guild\Organizations\DataTransferObject\OrganizationDuplicateGroup;
 use Kanvas\Guild\Organizations\Models\Organization;
 
@@ -34,6 +35,8 @@ use Kanvas\Guild\Organizations\Models\Organization;
  */
 class FindOrganizationDuplicatesService
 {
+    use BuildsDuplicateGroups;
+
     /**
      * Trailing legal-entity suffixes stripped before grouping. POSIX/ICU regex for MySQL 8's
      * REGEXP_REPLACE — `i` match-type makes it case-insensitive; the column's accent-insensitive
@@ -50,31 +53,121 @@ class FindOrganizationDuplicatesService
         $companyId = $company->getId();
 
         $groups = [];
+        $groups = array_merge($groups, $this->groupsByExternalIdConflict($appId, $companyId));
+        $groups = array_merge($groups, $this->groupsByExactName($appId, $companyId));
+        $groups = array_merge($groups, $this->groupsByEmailMatch($appId, $companyId));
 
-        $groups = array_merge(
-            $groups,
-            $this->groupsByExternalIdConflict($appId, $companyId),
-        );
-        $groups = array_merge(
-            $groups,
-            $this->groupsByExactName($appId, $companyId),
-        );
-        $groups = array_merge(
-            $groups,
-            $this->groupsByEmailMatch($appId, $companyId),
-        );
+        return array_slice($this->dedupeGroups($groups), 0, $maxGroups);
+    }
 
-        // Stable dedup: an Org can appear in multiple groups (same name AND same email). Dimensions
-        // are merged above in descending confidence order, so external_id_conflict wins ties.
-        $deduped = [];
-        foreach ($groups as $group) {
-            $signature = implode('|', $group->member_ids);
-            if (! isset($deduped[$signature])) {
-                $deduped[$signature] = $group;
+    /**
+     * Same 3 dimensions as generate() (normalized_name excluded — it's opt-in via
+     * generateByNormalizedName), scoped to a single record instead of a full-table GROUP BY.
+     *
+     * @return list<OrganizationDuplicateGroup>
+     */
+    public function checkRecord(Organization $organization): array
+    {
+        $appId = (int) $organization->apps_id;
+        $companyId = (int) $organization->companies_id;
+
+        $sameNameIds = empty($organization->name)
+            ? []
+            : $this->idsMatchingNormalizedName($appId, $companyId, $organization->id, strtolower(trim($organization->name)));
+
+        $groups = [];
+        $groups = array_merge($groups, $this->externalIdConflictForRecord($organization, $companyId, $sameNameIds));
+        $groups = array_merge(
+            $groups,
+            $this->groupForRecord(OrganizationDuplicateGroup::class, $organization->id, $sameNameIds, 'exact_name', $organization->name),
+        );
+        $groups = array_merge($groups, $this->emailMatchForRecord($organization, $appId, $companyId));
+
+        return $this->dedupeGroups($groups);
+    }
+
+    private function scopedOrganizations(int $appId, int $companyId): Builder
+    {
+        return DB::connection('crm')
+            ->table('organizations')
+            ->where('apps_id', $appId)
+            ->where('companies_id', $companyId)
+            ->where('is_deleted', false);
+    }
+
+    private function externalIdCustomFieldsQuery(int $companyId): Builder
+    {
+        return DB::connection('ecosystem')
+            ->table('apps_custom_fields')
+            ->where('companies_id', $companyId)
+            ->where('model_name', Organization::class)
+            ->where('is_deleted', false)
+            ->whereIn('name', ThirdPartyOrganizationIdFieldEnum::fieldNames());
+    }
+
+    private function idsMatchingNormalizedName(int $appId, int $companyId, int $excludeId, string $normName): array
+    {
+        return $this->scopedOrganizations($appId, $companyId)
+            ->where('id', '!=', $excludeId)
+            ->whereRaw('LOWER(TRIM(name)) = ?', [$normName])
+            ->pluck('id')
+            ->all();
+    }
+
+    /**
+     * @return list<OrganizationDuplicateGroup>
+     */
+    private function externalIdConflictForRecord(Organization $organization, int $companyId, array $sameNameIds): array
+    {
+        if (empty($sameNameIds)) {
+            return [];
+        }
+
+        $ownValues = $this->externalIdCustomFieldsQuery($companyId)
+            ->where('entity_id', $organization->id)
+            ->pluck('value')
+            ->all();
+
+        if (empty($ownValues)) {
+            return [];
+        }
+
+        $othersExternalIds = $this->externalIdCustomFieldsQuery($companyId)
+            ->whereIn('entity_id', $sameNameIds)
+            ->get(['entity_id', 'value']);
+
+        $conflictIds = [];
+        foreach ($othersExternalIds as $row) {
+            if (! in_array($row->value, $ownValues, true)) {
+                $conflictIds[] = (int) $row->entity_id;
             }
         }
 
-        return array_slice(array_values($deduped), 0, $maxGroups);
+        return $this->groupForRecord(
+            OrganizationDuplicateGroup::class,
+            $organization->id,
+            array_unique($conflictIds),
+            'external_id_conflict',
+            $organization->name,
+        );
+    }
+
+    /**
+     * @return list<OrganizationDuplicateGroup>
+     */
+    private function emailMatchForRecord(Organization $organization, int $appId, int $companyId): array
+    {
+        if (empty($organization->email)) {
+            return [];
+        }
+
+        $matchIds = $this->scopedOrganizations($appId, $companyId)
+            ->where('id', '!=', $organization->id)
+            ->whereRaw('LOWER(TRIM(email)) = ?', [strtolower(trim($organization->email))])
+            ->pluck('id')
+            ->all();
+
+        return $this->groupForRecord(OrganizationDuplicateGroup::class, $organization->id, $matchIds, 'email_match', $organization->name);
     }
 
     /**
@@ -102,22 +195,18 @@ class FindOrganizationDuplicatesService
      */
     private function groupsByNormalizedName(int $appId, int $companyId): array
     {
-        $rows = DB::connection('crm')
-            ->table('organizations')
+        $rows = $this->scopedOrganizations($appId, $companyId)
             ->selectRaw(
                 "LOWER(TRIM(REGEXP_REPLACE(name, ?, '', 1, 0, 'i'))) as norm_name, GROUP_CONCAT(id ORDER BY id ASC) as ids, MIN(name) as sample_name",
                 [self::LEGAL_SUFFIX_PATTERN],
             )
-            ->where('apps_id', $appId)
-            ->where('companies_id', $companyId)
-            ->where('is_deleted', false)
             ->whereNotNull('name')
             ->where('name', '!=', '')
             ->groupBy('norm_name')
             ->havingRaw('COUNT(*) > 1')
             ->get();
 
-        return $this->mapRowsToGroups($rows, 'normalized_name');
+        return $this->mapRowsToGroups(OrganizationDuplicateGroup::class, $rows, 'normalized_name');
     }
 
     /**
@@ -129,14 +218,7 @@ class FindOrganizationDuplicatesService
      */
     private function groupsByExternalIdConflict(int $appId, int $companyId): array
     {
-        $customFields = DB::connection('ecosystem')
-            ->table('apps_custom_fields')
-            ->select('entity_id', 'value')
-            ->where('companies_id', $companyId)
-            ->where('model_name', Organization::class)
-            ->where('is_deleted', false)
-            ->whereIn('name', ThirdPartyOrganizationIdFieldEnum::fieldNames())
-            ->get();
+        $customFields = $this->externalIdCustomFieldsQuery($companyId)->get(['entity_id', 'value']);
 
         if ($customFields->isEmpty()) {
             return [];
@@ -147,13 +229,9 @@ class FindOrganizationDuplicatesService
             $valuesByOrgId[(int) $row->entity_id][] = (string) $row->value;
         }
 
-        $organizations = DB::connection('crm')
-            ->table('organizations')
+        $organizations = $this->scopedOrganizations($appId, $companyId)
             ->select('id', 'name')
             ->whereIn('id', array_keys($valuesByOrgId))
-            ->where('apps_id', $appId)
-            ->where('companies_id', $companyId)
-            ->where('is_deleted', false)
             ->whereNotNull('name')
             ->where('name', '!=', '')
             ->get();
@@ -199,19 +277,15 @@ class FindOrganizationDuplicatesService
      */
     private function groupsByExactName(int $appId, int $companyId): array
     {
-        $rows = DB::connection('crm')
-            ->table('organizations')
+        $rows = $this->scopedOrganizations($appId, $companyId)
             ->selectRaw('LOWER(TRIM(name)) as norm_name, GROUP_CONCAT(id ORDER BY id ASC) as ids, MIN(name) as sample_name')
-            ->where('apps_id', $appId)
-            ->where('companies_id', $companyId)
-            ->where('is_deleted', false)
             ->whereNotNull('name')
             ->where('name', '!=', '')
             ->groupBy('norm_name')
             ->havingRaw('COUNT(*) > 1')
             ->get();
 
-        return $this->mapRowsToGroups($rows, 'exact_name');
+        return $this->mapRowsToGroups(OrganizationDuplicateGroup::class, $rows, 'exact_name');
     }
 
     /**
@@ -219,43 +293,14 @@ class FindOrganizationDuplicatesService
      */
     private function groupsByEmailMatch(int $appId, int $companyId): array
     {
-        // organizations.email is a first-class column — no JOIN to people contacts needed.
-        $rows = DB::connection('crm')
-            ->table('organizations')
+        $rows = $this->scopedOrganizations($appId, $companyId)
             ->selectRaw('LOWER(TRIM(email)) as norm_email, GROUP_CONCAT(id ORDER BY id ASC) as ids, MIN(name) as sample_name')
-            ->where('apps_id', $appId)
-            ->where('companies_id', $companyId)
-            ->where('is_deleted', false)
             ->whereNotNull('email')
             ->where('email', '!=', '')
             ->groupBy('norm_email')
             ->havingRaw('COUNT(*) > 1')
             ->get();
 
-        return $this->mapRowsToGroups($rows, 'email_match');
-    }
-
-    /**
-     * @param  Collection<int, object>  $rows
-     * @return list<OrganizationDuplicateGroup>
-     */
-    private function mapRowsToGroups(Collection $rows, string $reason): array
-    {
-        $out = [];
-        foreach ($rows as $row) {
-            $memberIds = array_map('intval', explode(',', (string) $row->ids));
-            sort($memberIds);
-            if (count($memberIds) < 2) {
-                continue;
-            }
-            $out[] = new OrganizationDuplicateGroup(
-                canonical_id: $memberIds[0],
-                member_ids: $memberIds,
-                reason: $reason,
-                sample_name: (string) ($row->sample_name ?? ''),
-            );
-        }
-
-        return $out;
+        return $this->mapRowsToGroups(OrganizationDuplicateGroup::class, $rows, 'email_match');
     }
 }

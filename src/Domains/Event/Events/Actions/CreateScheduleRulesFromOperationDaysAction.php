@@ -41,6 +41,7 @@ class CreateScheduleRulesFromOperationDaysAction
         protected bool $generateSlots = true,
         protected ?Carbon $startAt = null,
         protected ?Carbon $endAt = null,
+        protected ?int $horizonDays = null,
     ) {
     }
 
@@ -197,7 +198,11 @@ class CreateScheduleRulesFromOperationDaysAction
 
     protected function dispatchTimeSlotGeneration(ScheduleRules $scheduleRule): void
     {
-        [$windowFrom, $windowTo] = GenerateTimeSlots::resolveWindow($scheduleRule->start_at, $scheduleRule->end_at);
+        [$windowFrom, $windowTo] = GenerateTimeSlots::resolveWindow(
+            $scheduleRule->start_at,
+            $scheduleRule->end_at,
+            $this->horizonDays ?? GenerateTimeSlots::horizonDaysForApp($this->app)
+        );
 
         dispatch(new GenerateTimeSlots(
             $this->resource->getId(),

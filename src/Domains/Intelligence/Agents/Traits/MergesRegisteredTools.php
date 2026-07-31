@@ -90,6 +90,10 @@ trait MergesRegisteredTools
      */
     protected function resolveRegisteredTool(Tool $tool): ?object
     {
+        if ($tool->agents_id !== null && method_exists($this, 'resolveRegisteredSubAgentTool')) {
+            return $this->resolveRegisteredSubAgentTool($tool);
+        }
+
         return $this->defaultRegisteredToolResolver($tool);
     }
 
@@ -137,20 +141,26 @@ trait MergesRegisteredTools
      */
     private function fillKanvasContext(object $tool): object
     {
-        if (! in_array(HasKanvasContext::class, class_uses_recursive($tool), true)) {
-            return $tool;
+        $uses = class_uses_recursive($tool);
+
+        if (in_array(HasKanvasContext::class, $uses, true)) {
+            $candidates = $this instanceof ProvidesToolDependencies
+                ? $this->toolDependencyCandidates()
+                : [];
+
+            $app = $this->firstCandidateOfType($candidates, Apps::class);
+            $company = $this->firstCandidateOfType($candidates, Companies::class);
+            $user = $this->firstCandidateOfType($candidates, Users::class);
+
+            if ($app instanceof Apps && $company instanceof Companies && $user instanceof Users) {
+                $tool->withContext($app, $company, $user);
+            }
         }
 
-        $candidates = $this instanceof ProvidesToolDependencies
-            ? $this->toolDependencyCandidates()
-            : [];
-
-        $app = $this->firstCandidateOfType($candidates, Apps::class);
-        $company = $this->firstCandidateOfType($candidates, Companies::class);
-        $user = $this->firstCandidateOfType($candidates, Users::class);
-
-        if ($app instanceof Apps && $company instanceof Companies && $user instanceof Users) {
-            $tool->withContext($app, $company, $user);
+        // The record in scope can't come from toolDependencyCandidates() by type (Apps/Companies/Users
+        // all extend Model), so hand the agent's own $entity to tools that opt in via HasEntityContext.
+        if (in_array(HasEntityContext::class, $uses, true) && property_exists($this, 'entity')) {
+            $tool->withEntity($this->entity);
         }
 
         return $tool;

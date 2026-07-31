@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Orders\Actions\Corrections;
 use Closure;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 
@@ -35,6 +36,10 @@ abstract class BaseOrderCorrectionAction
 
     protected function guardNotFinalStatus(): void
     {
+        if ((bool) $this->order->app->get(ConfigurationEnum::ALLOW_ORDER_CORRECTION_ON_FINAL_STATUS->value)) {
+            return;
+        }
+
         if ($this->order->orderStatus?->is_final) {
             $slug = $this->order->orderStatus->slug;
 

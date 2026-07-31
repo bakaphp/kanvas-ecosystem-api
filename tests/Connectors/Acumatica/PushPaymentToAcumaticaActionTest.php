@@ -100,8 +100,8 @@ class PushPaymentToAcumaticaActionTest extends ScribeTestCase
         $captured = null;
         $writer = Mockery::mock(AcumaticaWriteService::class);
         $writer->shouldReceive('push')->once()->andReturnUsing(
-            function (string $entity, array $body, bool $release = false, array $files = [], ?array $findQuery = null) use (&$captured): array {
-                $captured = [$entity, $body];
+            function (string $entity, array $body, bool $release = false, array $files = [], ?array $findQuery = null, string $releaseAction = 'Release') use (&$captured): array {
+                $captured = [$entity, $body, $releaseAction];
 
                 return ['id' => 'PAY-1', 'ReferenceNbr' => ['value' => '000900']];
             }
@@ -112,14 +112,15 @@ class PushPaymentToAcumaticaActionTest extends ScribeTestCase
         $this->assertSame('000900', $ref);
         $this->assertSame('PAY-1', $payment->get(CustomFieldEnum::PAYMENT_ID->value));
 
-        [$entity, $body] = $captured;
-        $this->assertSame('Payment', $entity);
+        [$entity, $body, $releaseAction] = $captured;
+        $this->assertSame('Check', $entity);
+        $this->assertSame('ReleaseCheck', $releaseAction);
         $this->assertSame(['value' => 'Check'], $body['Type']);
         $this->assertSame(['value' => 'V0000505'], $body['Vendor']);
         $this->assertSame(['value' => 'CHK-1'], $body['PaymentRef']);
-        $this->assertSame(['value' => 'Bill'], $body['DocumentsToApply'][0]['DocType']);
-        $this->assertSame(['value' => 'AP000777'], $body['DocumentsToApply'][0]['ReferenceNbr']);
-        $this->assertSame(['value' => 500.0], $body['DocumentsToApply'][0]['AmountPaid']);
+        $this->assertSame(['value' => 'Bill'], $body['Details'][0]['DocType']);
+        $this->assertSame(['value' => 'AP000777'], $body['Details'][0]['ReferenceNbr']);
+        $this->assertSame(['value' => 500.0], $body['Details'][0]['AmountPaid']);
     }
 
     public function test_ar_receipt_pushes_a_payment_applied_to_the_customer_invoice(): void
