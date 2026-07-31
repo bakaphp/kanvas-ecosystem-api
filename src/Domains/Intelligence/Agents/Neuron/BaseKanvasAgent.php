@@ -135,7 +135,27 @@ class BaseKanvasAgent extends NeuronAIAgent implements ProvidesToolDependencies
             }
         }
 
-        return $tools;
+        // A registry-granted tool (e.g. toggled on in the admin UI) can share its name with one
+        // a subclass hardcodes in tools() — the registry merge in MergesRegisteredTools can't see
+        // that hardcoded addition since it happens after parent::tools() returns. Keeping the LAST
+        // occurrence favors the hardcoded instance, which is always appended after the registry
+        // merge in this codebase's array_merge(parent::tools(), [...]) convention.
+        return $this->dedupeByName($tools);
+    }
+
+    /**
+     * @param array<int, object> $tools
+     * @return list<object>
+     */
+    private function dedupeByName(array $tools): array
+    {
+        $byName = [];
+        foreach ($tools as $tool) {
+            $key = $tool instanceof ToolInterface ? $tool->getName() : spl_object_id($tool);
+            $byName[$key] = $tool;
+        }
+
+        return array_values($byName);
     }
 
     /**
