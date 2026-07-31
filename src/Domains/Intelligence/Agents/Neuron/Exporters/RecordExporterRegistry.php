@@ -29,6 +29,7 @@ class RecordExporterRegistry
             new ProductsRecordExporter(),
             new EmployeesRecordExporter(),
             new OrdersRecordExporter(),
+            new AffiliateCommissionsRecordExporter(),
         ];
     }
 
