@@ -244,7 +244,7 @@ class KanvasConversationStoreTest extends TestCase
         // Mirror Laravel AI's RememberConversation middleware: the interface
         // creates the conversation with NULL agent_id (no prompt in scope),
         // then storeUserMessage carries the agent via $prompt->agent.
-        $conversationId = $store->storeConversation('user', $user->getId(), 'middleware-flow-test');
+        $conversationId = $store->storeConversation($user->getId(), 'middleware-flow-test');
 
         $rowBefore = DB::connection('intelligence')->table('agent_conversations')
             ->where('id', $conversationId)
@@ -259,7 +259,7 @@ class KanvasConversationStoreTest extends TestCase
             model: 'fake-model',
         );
 
-        $store->storeUserMessage($conversationId, 'user', $user->getId(), $prompt);
+        $store->storeUserMessage($conversationId, $user->getId(), $prompt);
 
         $rowAfter = DB::connection('intelligence')->table('agent_conversations')
             ->where('id', $conversationId)

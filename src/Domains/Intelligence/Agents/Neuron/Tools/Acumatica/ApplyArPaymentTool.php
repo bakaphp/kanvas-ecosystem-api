@@ -21,7 +21,7 @@ use RuntimeException;
 use Throwable;
 
 /** Applies a cash receipt to an existing, already-pushed AR invoice and pushes the payment to Acumatica. */
-#[AgentTool(name: 'Apply AR Payment')]
+#[AgentTool(name: 'Apply AR Payment', category: 'accounting')]
 class ApplyArPaymentTool extends Tool
 {
     use HasKanvasContext;
