@@ -138,7 +138,7 @@ class OrderReportToolsTest extends TestCase
         // company accumulates orders of other types/statuses from parallel suite runs.
         $result = new OrderBreakdownTool()
             ->withContext($app, $company, $user)
-            ->__invoke(group_by: 'status', order_types: ['movipass', 'paso_rapido']);
+            ->__invoke(group_by: 'status', order_types: 'movipass,paso_rapido');
 
         $byStatus = collect($result['groups'])->keyBy('status');
         $this->assertSame(1, (int) $byStatus['completed']['orders']);
@@ -177,7 +177,7 @@ class OrderReportToolsTest extends TestCase
 
         $result = new OrderPaymentStatsTool()
             ->withContext($app, $company, $user)
-            ->__invoke(order_types: ['paso_rapido']);
+            ->__invoke(order_types: 'paso_rapido');
 
         $this->assertSame(1, (int) $result['orders']);
         $this->assertSame(50.0, (float) $result['total_amount']);

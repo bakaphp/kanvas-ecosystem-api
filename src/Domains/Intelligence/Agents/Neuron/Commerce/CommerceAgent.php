@@ -46,26 +46,23 @@ use Override;
 )]
 class CommerceAgent extends SystemUserAgent
 {
-    /**
-     * @return list<object>
-     */
     #[Override]
     protected function tools(): array
     {
-        return array_merge(parent::tools(), [
-            new ListOrderTypesTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new OrderBreakdownTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new OrderPaymentStatsTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new OrderCommissionStatsTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindSalesOrderTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ListOpenSalesOrdersTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindProductTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new CreateSampleOrderTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new SalesByCustomerTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new SalesByProductTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new SalesRevenueTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ExportRecordsTool()->withContext($this->app, $this->company, $this->actingUser()),
-        ]);
+        return array_merge(parent::tools(), $this->addToolContext([
+            new ListOrderTypesTool(),
+            new OrderBreakdownTool(),
+            new OrderPaymentStatsTool(),
+            new OrderCommissionStatsTool(),
+            new FindSalesOrderTool(),
+            new ListOpenSalesOrdersTool(),
+            new FindProductTool(),
+            new CreateSampleOrderTool(),
+            new SalesByCustomerTool(),
+            new SalesByProductTool(),
+            new SalesRevenueTool(),
+            new ExportRecordsTool(),
+        ]));
     }
 
     #[Override]

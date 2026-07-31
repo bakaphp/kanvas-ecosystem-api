@@ -45,25 +45,22 @@ use Override;
 )]
 class AccountsPayableAgent extends SystemUserAgent
 {
-    /**
-     * @return list<object>
-     */
     #[Override]
     protected function tools(): array
     {
-        return array_merge(parent::tools(), [
-            new QueryDataFreshnessTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryApAgingTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ListOpenBillsTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ListOpenPurchaseOrdersTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindPurchaseOrderTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindBillTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindVendorTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new MatchBillsForPaymentTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new CreateApBillTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new VoidApBillTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ApplyApPaymentTool()->withContext($this->app, $this->company, $this->actingUser()),
-        ]);
+        return array_merge(parent::tools(), $this->addToolContext([
+            new QueryDataFreshnessTool(),
+            new QueryApAgingTool(),
+            new ListOpenBillsTool(),
+            new ListOpenPurchaseOrdersTool(),
+            new FindPurchaseOrderTool(),
+            new FindBillTool(),
+            new FindVendorTool(),
+            new MatchBillsForPaymentTool(),
+            new CreateApBillTool(),
+            new VoidApBillTool(),
+            new ApplyApPaymentTool()
+        ]));
     }
 
     #[Override]

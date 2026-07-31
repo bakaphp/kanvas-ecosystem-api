@@ -50,31 +50,28 @@ use Override;
 )]
 class AccountsReceivableAgent extends SystemUserAgent
 {
-    /**
-     * @return list<object>
-     */
     #[Override]
     protected function tools(): array
     {
-        return array_merge(parent::tools(), [
-            new QueryDataFreshnessTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryArAgingTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ListOverdueInvoicesTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new TopLatePayersTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindInvoiceTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindCustomerTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindSalesOrderTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ListOpenSalesOrdersTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindProductTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new CreateSampleOrderTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new SalesByCustomerTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new SalesByProductTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new SalesRevenueTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new MatchInvoicesForPaymentTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new CreateArInvoiceTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new VoidArInvoiceTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ApplyArPaymentTool()->withContext($this->app, $this->company, $this->actingUser()),
-        ]);
+        return array_merge(parent::tools(), $this->addToolContext([
+            new QueryDataFreshnessTool(),
+            new QueryArAgingTool(),
+            new ListOverdueInvoicesTool(),
+            new TopLatePayersTool(),
+            new FindInvoiceTool(),
+            new FindCustomerTool(),
+            new FindSalesOrderTool(),
+            new ListOpenSalesOrdersTool(),
+            new FindProductTool(),
+            new CreateSampleOrderTool(),
+            new SalesByCustomerTool(),
+            new SalesByProductTool(),
+            new SalesRevenueTool(),
+            new MatchInvoicesForPaymentTool(),
+            new CreateArInvoiceTool(),
+            new VoidArInvoiceTool(),
+            new ApplyArPaymentTool()
+        ]));
     }
 
     #[Override]

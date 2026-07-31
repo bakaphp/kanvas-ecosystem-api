@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Souk;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ParsesOrderTypesFilter;
 use Kanvas\Souk\Orders\Services\OrderReportService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -16,6 +17,7 @@ use Override;
 class OrderBreakdownTool extends Tool
 {
     use HasKanvasContext;
+    use ParsesOrderTypesFilter;
 
     public function __construct()
     {
@@ -36,24 +38,22 @@ class OrderBreakdownTool extends Tool
     {
         return [
             new ToolProperty(name: 'group_by', type: PropertyType::STRING, description: 'Dimension to group by: "status" (default) or "type".', required: false),
-            new ToolProperty(name: 'order_types', type: PropertyType::ARRAY, description: 'Optional order-type names to restrict to (see list_order_types). Omit for all types.', required: false),
+            new ToolProperty(name: 'order_types', type: PropertyType::STRING, description: 'Optional comma-separated order-type names to restrict to (see list_order_types). Omit for all types.', required: false),
             new ToolProperty(name: 'since', type: PropertyType::STRING, description: 'Lower-bound order date, ISO YYYY-MM-DD. Omit for all-time.', required: false),
             new ToolProperty(name: 'until', type: PropertyType::STRING, description: 'Upper-bound order date, ISO YYYY-MM-DD. Omit for open-ended.', required: false),
         ];
     }
 
     /**
-     * @param string[]|null $order_types
-     *
      * @return array<string, mixed>
      */
     public function __invoke(
         ?string $group_by = null,
-        ?array $order_types = null,
+        ?string $order_types = null,
         ?string $since = null,
         ?string $until = null,
     ): array {
         return new OrderReportService($this->app, $this->company)
-            ->breakdown($group_by, $order_types, $since, $until);
+            ->breakdown($group_by, $this->parseOrderTypes($order_types), $since, $until);
     }
 }
