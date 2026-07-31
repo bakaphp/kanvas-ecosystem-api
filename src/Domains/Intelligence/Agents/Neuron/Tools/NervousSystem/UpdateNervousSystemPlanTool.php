@@ -19,7 +19,7 @@ use Override;
  * status (use status=done to COMPLETE a plan, blocked to flag it stuck). Wraps UpdatePlanAction and
  * rolls the project's completion up.
  */
-#[AgentTool(name: 'Update Plan')]
+#[AgentTool(name: 'Update Plan', category: 'nervous_system')]
 class UpdateNervousSystemPlanTool extends Tool
 {
     use HasKanvasContext;

@@ -17,7 +17,7 @@ use Override;
 use Throwable;
 
 /** Voids a previously-pushed AR invoice's cash receipt in Acumatica — the cleanup counterpart to CreateArInvoiceTool. */
-#[AgentTool(name: 'Void AR Invoice')]
+#[AgentTool(name: 'Void AR Invoice', category: 'accounting')]
 class VoidArInvoiceTool extends Tool
 {
     use HasKanvasContext;

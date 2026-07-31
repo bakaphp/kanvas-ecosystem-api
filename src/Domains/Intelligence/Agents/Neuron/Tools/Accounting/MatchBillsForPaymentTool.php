@@ -21,7 +21,7 @@ use Override;
  * open bills. The agent uses this to PROPOSE the application; a human confirms before anything posts.
  * Read-only.
  */
-#[AgentTool(name: 'Match Bills For Payment')]
+#[AgentTool(name: 'Match Bills For Payment', category: 'accounting')]
 class MatchBillsForPaymentTool extends Tool
 {
     use HasKanvasContext;

@@ -16,7 +16,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Who Is User')]
+#[AgentTool(name: 'Who Is User', category: 'ecosystem')]
 class WhoIsUserTool extends Tool
 {
     public function __construct(

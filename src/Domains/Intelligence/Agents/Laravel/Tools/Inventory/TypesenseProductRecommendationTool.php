@@ -32,7 +32,7 @@ use Throwable;
  * (SQL / Algolia hybrid): the two matching strategies are never mixed. Wire this
  * tool to agents whose tenant runs on Typesense with an NL model configured.
  */
-#[AgentTool(name: 'Typesense Product Recommendation')]
+#[AgentTool(name: 'Typesense Product Recommendation', category: 'inventory')]
 class TypesenseProductRecommendationTool implements KanvasToolInterface
 {
     use HasKanvasContext;

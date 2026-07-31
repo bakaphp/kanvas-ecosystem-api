@@ -21,7 +21,7 @@ use Throwable;
  * objective is reached, blocked/on_hold when it can't move). Without this the PM can organize tasks
  * but never record the objective or close the project.
  */
-#[AgentTool(name: 'Update Project')]
+#[AgentTool(name: 'Update Project', category: 'nervous_system')]
 class UpdateNervousSystemProjectTool extends Tool
 {
     use HasKanvasContext;

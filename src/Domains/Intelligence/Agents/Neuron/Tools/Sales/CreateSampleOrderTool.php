@@ -30,7 +30,7 @@ use Spatie\LaravelData\DataCollection;
  * the workflow pushes it to Acumatica. The customer is resolved by email (created if new); the SKU
  * must already be synced as a product.
  */
-#[AgentTool(name: 'Create Sample Order')]
+#[AgentTool(name: 'Create Sample Order', category: 'commerce')]
 class CreateSampleOrderTool extends Tool
 {
     use HasKanvasContext;

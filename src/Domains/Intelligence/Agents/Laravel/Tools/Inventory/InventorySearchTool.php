@@ -15,7 +15,7 @@ use Override;
 use Stringable;
 use Throwable;
 
-#[AgentTool(name: 'Inventory Search')]
+#[AgentTool(name: 'Inventory Search', category: 'inventory')]
 class InventorySearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;

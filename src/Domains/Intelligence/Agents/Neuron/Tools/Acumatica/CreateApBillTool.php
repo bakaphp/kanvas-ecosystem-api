@@ -25,7 +25,7 @@ use Spatie\LaravelData\DataCollection;
 use Throwable;
 
 /** Creates a one-line AP bill, auto-approves it, and pushes it to Acumatica, bypassing the normal human-approval gate. */
-#[AgentTool(name: 'Create AP Bill')]
+#[AgentTool(name: 'Create AP Bill', category: 'accounting')]
 class CreateApBillTool extends Tool
 {
     use HasKanvasContext;
