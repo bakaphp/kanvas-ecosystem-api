@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Acumatica\Actions;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Acumatica\Client;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
@@ -26,6 +27,13 @@ use Kanvas\Scribe\Payments\Models\Payment;
  * ACUMATICA_PAYMENT_ID; retry-safe via the PaymentRef find-query.
  *
  * AP applications go through the `Check` entity (Vendor field, Details array); AR through `Payment` (CustomerID field, DocumentsToApply array) — confirmed live, they are not interchangeable.
+ *
+ * AP is a two-step PUT (Dennis, 2026-07-29): sending PaymentAmount together with the Details application
+ * line on a single create makes the header amount land as 0 while the line still shows the real amount,
+ * and Hold=false on that same call forces balance validation immediately — so it fails as "out of
+ * balance" even though the application line itself is correct. Creating on Hold=true first (no
+ * PaymentAmount) skips validation and lands the line; a second PUT keyed on the returned ReferenceNbr
+ * then sets PaymentAmount and flips Hold to false, which both sticks the header amount and releases it.
  */
 class PushPaymentToAcumaticaAction
 {
@@ -71,13 +79,14 @@ class PushPaymentToAcumaticaAction
             );
         }
 
-        $record = $this->writer()->push(
-            $isAp ? 'Check' : 'Payment',
-            $this->buildPayload($isAp, $partyCode, $documents),
-            release: true,
-            findQuery: $this->existingPaymentQuery(),
-            releaseAction: $isAp ? 'ReleaseCheck' : 'Release',
-        );
+        $record = $isAp
+            ? $this->pushApCheck($partyCode, $documents)
+            : $this->writer()->push(
+                'Payment',
+                $this->buildArPayload($partyCode, $documents),
+                release: true,
+                findQuery: $this->existingPaymentQuery(),
+            );
 
         $id = AcumaticaPayload::recordId($record);
         $referenceNbr = (string) (AcumaticaPayload::value($record, 'ReferenceNbr') ?? $id ?? '');
@@ -119,7 +128,9 @@ class PushPaymentToAcumaticaAction
 
             $docs[] = AcumaticaPayload::wrap([
                 'DocType' => 'Bill',
-                'ReferenceNbr' => $bill->bill_number,
+                // The Acumatica ReferenceNbr set when the bill was pushed — not bill_number, which is
+                // Kanvas's own document number and won't resolve on Acumatica's side.
+                'ReferenceNbr' => (string) $bill->get(CustomFieldEnum::BILL_REF->value, ''),
                 'AmountPaid' => (float) $allocation->amount_native,
             ]);
         }
@@ -153,7 +164,9 @@ class PushPaymentToAcumaticaAction
 
             $docs[] = AcumaticaPayload::wrap([
                 'DocType' => 'INV',
-                'ReferenceNbr' => $invoice->invoice_number,
+                // The Acumatica ReferenceNbr set when the invoice was pushed — not invoice_number,
+                // which is Kanvas's own document number and won't resolve on Acumatica's side.
+                'ReferenceNbr' => (string) $invoice->get(CustomFieldEnum::INVOICE_REF->value, ''),
                 'AmountPaid' => (float) $allocation->amount_native,
             ]);
         }
@@ -166,11 +179,11 @@ class PushPaymentToAcumaticaAction
      *
      * @return array<string, mixed>
      */
-    private function buildPayload(bool $isAp, string $partyCode, array $documents): array
+    private function buildArPayload(string $partyCode, array $documents): array
     {
         $header = AcumaticaPayload::wrap([
-            'Type' => $isAp ? 'Check' : 'Payment',
-            $isAp ? 'Vendor' : 'CustomerID' => $partyCode,
+            'Type' => 'Payment',
+            'CustomerID' => $partyCode,
             'CashAccount' => $this->cashAccountCode(),
             'PaymentAmount' => (float) $this->payment->amount_native,
             'PaymentMethod' => strtoupper($this->payment->method->value),
@@ -181,10 +194,61 @@ class PushPaymentToAcumaticaAction
             'Hold' => false,
         ]);
 
-        // AP applies through the Check entity's Details field; AR through Payment's DocumentsToApply.
-        $header[$isAp ? 'Details' : 'DocumentsToApply'] = $documents;
+        $header['DocumentsToApply'] = $documents;
 
         return $header;
+    }
+
+    /**
+     * @param array<int, array<string, array{value: mixed}>> $documents
+     *
+     * @return array<string, mixed> the released Check record
+     */
+    private function pushApCheck(string $vendorCode, array $documents): array
+    {
+        return $this->writer()->withSession(function (Client $client) use ($vendorCode, $documents): array {
+            $findQuery = $this->existingPaymentQuery();
+
+            if ($findQuery !== null) {
+                $found = $client->get('Check', $findQuery);
+
+                if (isset($found[0]) && is_array($found[0])) {
+                    return $found[0];
+                }
+            }
+
+            // Step 1: create on hold with the application line, no header amount yet — sending
+            // PaymentAmount alongside Details on the same call makes it land as 0 on the header.
+            $created = AcumaticaPayload::wrap([
+                'Type' => 'Payment',
+                'Vendor' => $vendorCode,
+                'CashAccount' => $this->cashAccountCode(),
+                'PaymentMethod' => strtoupper($this->payment->method->value),
+                'PaymentRef' => $this->payment->reference,
+                'ApplicationDate' => $this->payment->payment_date->toDateString(),
+                'CurrencyID' => $this->payment->currency,
+                'Hold' => true,
+            ]);
+            $created['Details'] = $documents;
+
+            $record = $client->put('Check', $created);
+            $referenceNbr = (string) (AcumaticaPayload::value($record, 'ReferenceNbr') ?? '');
+
+            if ($referenceNbr === '') {
+                throw new AcumaticaWriteException(
+                    "Payment {$this->payment->getId()}: AP Check creation did not return a usable ReferenceNbr."
+                );
+            }
+
+            // Step 2: the application line now exists, so the header amount sticks — set it and
+            // release by flipping Hold to false.
+            return $client->put('Check', AcumaticaPayload::wrap([
+                'Type' => 'Payment',
+                'ReferenceNbr' => $referenceNbr,
+                'PaymentAmount' => (float) $this->payment->amount_native,
+                'Hold' => false,
+            ]));
+        });
     }
 
     /**
