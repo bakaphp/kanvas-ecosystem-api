@@ -89,6 +89,8 @@ class AccountsReceivableAgent extends SystemUserAgent
             '## How to handle Accounts-Receivable / sales-order questions',
             '- Call query_data_freshness first; if the sync is more than 2 days stale, say so before quoting numbers.',
             '- "Who owes us" / "AR aging" / "biggest late payers" → query_ar_aging, list_overdue_invoices, top_late_payers.',
+            '- "What invoices are overdue for customer X" → list_overdue_invoices with the customer parameter set — '
+            . 'not list_open_sales_orders, which is for purchase/sales orders, not invoices.',
             '- "Look up invoice #X" / "status of invoice X" → find_invoice (one specific invoice by number).',
             '- "Who is customer X" / resolve a customer name to its ERP code → find_customer.',
             '- "Look up sales order #X" → find_sales_order (a sales order is a CUSTOMER order, not a purchase order).',

@@ -8,7 +8,9 @@ use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
+use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoiceLine;
@@ -69,6 +71,55 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $missing = new FindInvoiceTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(invoice_number: 'DOES-NOT-EXIST');
         $this->assertFalse($missing['found']);
+    }
+
+    public function test_list_overdue_invoices_filters_by_customer(): void
+    {
+        $target = $this->seedTestOrganization('Overdue Target Inc');
+        $other = $this->seedTestOrganization('Someone Else Inc');
+
+        $overdueForTarget = Invoice::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'document_type' => DocumentTypeEnum::INVOICE,
+            'invoice_number' => 'INV-OVERDUE-TARGET',
+            'customer_organization_id' => $target->getId(),
+            'billable_display_name' => 'Overdue Target Inc',
+            'document_status' => InvoiceDocumentStatusEnum::ISSUED->value,
+            'currency' => 'USD',
+            'fx_rate_to_base' => 1.0,
+            'subtotal_native' => 500.0, 'total_native' => 500.0, 'paid_native' => 0.0, 'balance_due_native' => 500.0,
+            'subtotal_base' => 500.0, 'total_base' => 500.0, 'paid_base' => 0.0, 'balance_due_base' => 500.0,
+            'issued_date' => Carbon::today()->subDays(30),
+            'due_date' => Carbon::today()->subDays(10),
+            'source' => 'kanvas',
+        ]);
+
+        Invoice::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'document_type' => DocumentTypeEnum::INVOICE,
+            'invoice_number' => 'INV-OVERDUE-OTHER',
+            'customer_organization_id' => $other->getId(),
+            'billable_display_name' => 'Someone Else Inc',
+            'document_status' => InvoiceDocumentStatusEnum::ISSUED->value,
+            'currency' => 'USD',
+            'fx_rate_to_base' => 1.0,
+            'subtotal_native' => 700.0, 'total_native' => 700.0, 'paid_native' => 0.0, 'balance_due_native' => 700.0,
+            'subtotal_base' => 700.0, 'total_base' => 700.0, 'paid_base' => 0.0, 'balance_due_base' => 700.0,
+            'issued_date' => Carbon::today()->subDays(30),
+            'due_date' => Carbon::today()->subDays(10),
+            'source' => 'kanvas',
+        ]);
+
+        $result = new ListOverdueInvoicesTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer: 'Overdue Target');
+
+        $numbers = array_column($result['invoices'], 'invoice_number');
+        $this->assertContains('INV-OVERDUE-TARGET', $numbers);
+        $this->assertNotContains('INV-OVERDUE-OTHER', $numbers);
+        $this->assertSame($overdueForTarget->invoice_number, $numbers[0]);
     }
 
     public function test_match_invoices_for_payment_flags_the_exact_invoice(): void
