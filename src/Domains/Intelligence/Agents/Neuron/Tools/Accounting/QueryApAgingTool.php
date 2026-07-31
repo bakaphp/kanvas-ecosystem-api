@@ -18,7 +18,7 @@ use Override;
  * AP aging — open payables grouped by vendor and bucketed by how far past due they are. The AP-side
  * mirror of the CFO agent's AR aging. Computed directly off open (received, unpaid) bills.
  */
-#[AgentTool(name: 'Query AP Aging')]
+#[AgentTool(name: 'Query AP Aging', category: 'accounting')]
 class QueryApAgingTool extends Tool
 {
     use HasKanvasContext;

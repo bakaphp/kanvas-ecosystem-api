@@ -19,7 +19,7 @@ use Override;
  * can create leads for many people in one conversation (dedup is by the person's contact
  * inside createLead). Single-prospect agents use CaptureConversationLeadTool instead.
  */
-#[AgentTool(name: 'Create Lead')]
+#[AgentTool(name: 'Create Lead', category: 'crm')]
 class CreateLeadTool extends Tool
 {
     use CreatesLeadTrait;

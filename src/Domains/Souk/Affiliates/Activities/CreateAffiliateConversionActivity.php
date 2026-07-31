@@ -32,14 +32,14 @@ class CreateAffiliateConversionActivity extends KanvasActivity
                 $affiliateLink = $order->get('affiliate_link_code') ?? $order->metadata['affiliate_link_code'] ?? null;
                 $affiliateShortCode = $order->get('affiliate_shortcode') ?? $order->metadata['affiliate_shortcode'] ?? null;
                 $useShortCode = $params['use_shortcode'] ?? false;
-                $affiliateLinkMapping = $params['affiliate_link_mapping'] ?? [];
+                $affiliateLinkMapping = is_array($params['affiliate_link_mapping'] ?? null) ? $params['affiliate_link_mapping'] : [];
 
-                // Check hardcoded mapping first: ['link_code' => affiliate_id]
-                if (! empty($affiliateLinkMapping) && isset($affiliateLinkMapping[$affiliateLink])) {
-                    $affiliateShortCode = $affiliateLink;
-                    $affiliateId = $affiliateLinkMapping[$affiliateLink];
-                    $affiliateLink = $affiliateLinkMapping[$affiliateLink];
-                }
+                [$affiliateLink, $affiliateId, $affiliateShortCode] = self::resolveFromMapping(
+                    $affiliateLink !== null ? (string) $affiliateLink : null,
+                    $affiliateId !== null ? (string) $affiliateId : null,
+                    $affiliateShortCode !== null ? (string) $affiliateShortCode : null,
+                    $affiliateLinkMapping,
+                );
 
                 $affiliateLink = AffiliateLink::fromApp($app)
                     ->where(function (Builder $query) use ($affiliateLink, $affiliateId) {
@@ -50,7 +50,6 @@ class CreateAffiliateConversionActivity extends KanvasActivity
                         $query->where('custom_slug', $affiliateShortCode);
                     })
                     ->first();
-                //$affiliateId = $affiliateLink?->affiliates_id ?? $affiliateId;
 
                 if ($affiliateLink === null) {
                     return $this->failWorkflow([
@@ -84,5 +83,38 @@ class CreateAffiliateConversionActivity extends KanvasActivity
             },
             company: $order->company,
         );
+    }
+
+    /**
+     * Match against the link mapping (['link_code' => affiliate_id]) in either direction: an order may
+     * carry a link code ("RD" → "UA20") or the affiliate id itself ("ua20" → normalized "UA20").
+     *
+     * @param array<string, string> $mapping
+     *
+     * @return array{0: ?string, 1: ?string, 2: ?string} [affiliateLink, affiliateId, affiliateShortCode]
+     */
+    public static function resolveFromMapping(
+        ?string $affiliateLink,
+        ?string $affiliateId,
+        ?string $affiliateShortCode,
+        array $mapping,
+    ): array {
+        if ($mapping === []) {
+            return [$affiliateLink, $affiliateId, $affiliateShortCode];
+        }
+
+        if ($affiliateLink !== null && isset($mapping[$affiliateLink])) {
+            return [$mapping[$affiliateLink], $mapping[$affiliateLink], $affiliateLink];
+        }
+
+        if ($affiliateId !== null) {
+            foreach ($mapping as $linkCode => $mappedAffiliateId) {
+                if (strcasecmp($mappedAffiliateId, $affiliateId) === 0) {
+                    return [$mappedAffiliateId, $mappedAffiliateId, $linkCode];
+                }
+            }
+        }
+
+        return [$affiliateLink, $affiliateId, $affiliateShortCode];
     }
 }

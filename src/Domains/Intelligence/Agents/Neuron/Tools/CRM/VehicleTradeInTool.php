@@ -12,7 +12,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-#[AgentTool(name: 'Vehicle Trade In')]
+#[AgentTool(name: 'Vehicle Trade In', category: 'crm')]
 class VehicleTradeInTool extends Tool
 {
     use ResolvesLeadForTool;

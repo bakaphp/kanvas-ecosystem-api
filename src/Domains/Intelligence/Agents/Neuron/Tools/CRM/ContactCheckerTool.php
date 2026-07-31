@@ -17,7 +17,7 @@ use NeuronAI\Tools\Tool;
 
 use function Laravel\Ai\agent;
 
-#[AgentTool(name: 'Contact Checker')]
+#[AgentTool(name: 'Contact Checker', category: 'crm')]
 class ContactCheckerTool extends Tool
 {
     protected Agent $agent;

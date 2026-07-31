@@ -18,7 +18,7 @@ use Override;
  * Lets the PM assign a task to a member agent — the "delegate the work" verb of orchestration. The
  * assigned agent becomes the task's executor (Task.agent_id).
  */
-#[AgentTool(name: 'Assign Task')]
+#[AgentTool(name: 'Assign Task', category: 'nervous_system')]
 class AssignNervousSystemTaskTool extends Tool
 {
     use HasKanvasContext;

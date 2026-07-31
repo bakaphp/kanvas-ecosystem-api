@@ -17,7 +17,7 @@ use Override;
 use Throwable;
 
 /** Voids a previously-pushed AP bill in Acumatica — the cleanup counterpart to CreateApBillTool. */
-#[AgentTool(name: 'Void AP Bill')]
+#[AgentTool(name: 'Void AP Bill', category: 'accounting')]
 class VoidApBillTool extends Tool
 {
     use HasKanvasContext;

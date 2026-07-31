@@ -20,7 +20,7 @@ use Override;
  * every line with GL coding. The "pull up bill #X" lookup (vs list_open_bills which enumerates).
  * Reads synced data; reports found=false when the bill isn't in Kanvas.
  */
-#[AgentTool(name: 'Find Bill')]
+#[AgentTool(name: 'Find Bill', category: 'accounting')]
 class FindBillTool extends Tool
 {
     use FindsTenantRecordForTool;

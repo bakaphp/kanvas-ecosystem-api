@@ -18,7 +18,7 @@ use Override;
  * from a purchase order (what we buy from vendors). Full header + line items. Reads synced Souk
  * orders; reports found=false when the order isn't in Kanvas.
  */
-#[AgentTool(name: 'Find Sales Order')]
+#[AgentTool(name: 'Find Sales Order', category: 'commerce')]
 class FindSalesOrderTool extends Tool
 {
     use FindsTenantRecordForTool;

@@ -20,7 +20,7 @@ use Override;
  * coding. This is the "pull up PO #X" lookup (vs list_open_purchase_orders which enumerates). Reads
  * synced data; if the PO isn't in Kanvas it reports that (it may not have been synced yet).
  */
-#[AgentTool(name: 'Find Purchase Order')]
+#[AgentTool(name: 'Find Purchase Order', category: 'accounting')]
 class FindPurchaseOrderTool extends Tool
 {
     use FindsTenantRecordForTool;

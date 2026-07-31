@@ -28,7 +28,7 @@ use Spatie\LaravelData\DataCollection;
 use Throwable;
 
 /** Creates a one-line AR invoice, issues it, pushes it to Acumatica, then applies and pushes a cash receipt — the AR mirror of CreateApBillTool. */
-#[AgentTool(name: 'Create AR Invoice')]
+#[AgentTool(name: 'Create AR Invoice', category: 'accounting')]
 class CreateArInvoiceTool extends Tool
 {
     use HasKanvasContext;

@@ -21,7 +21,7 @@ use Throwable;
  * UpdateTaskStatusAction (which recomputes plan completion, timestamps transitions, emits ledger
  * events, broadcasts) so the agent's move is indistinguishable from a human/GraphQL move.
  */
-#[AgentTool(name: 'Update Task Status')]
+#[AgentTool(name: 'Update Task Status', category: 'nervous_system')]
 class UpdateNervousSystemTaskStatusTool extends Tool
 {
     use HasKanvasContext;
