@@ -6,6 +6,7 @@ namespace Tests\Connectors\Acumatica;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Actions\PushPaymentToAcumaticaAction;
+use Kanvas\Connectors\Acumatica\Client;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
@@ -72,11 +73,12 @@ class PushPaymentToAcumaticaActionTest extends ScribeTestCase
         )->execute();
         $bill->bill_number = 'AP000777';
         $bill->save();
+        $bill->set(CustomFieldEnum::BILL_REF->value, 'AP000777');
 
         return $bill;
     }
 
-    public function test_ap_payment_pushes_a_check_applied_to_the_vendor_bill(): void
+    public function test_ap_payment_pushes_a_check_via_two_step_put(): void
     {
         $vendor = $this->seedTestOrganization('Globex Supply');
         $vendor->set(CustomFieldEnum::VENDOR_ID->value, 'V0000505');
@@ -97,14 +99,20 @@ class PushPaymentToAcumaticaActionTest extends ScribeTestCase
             'allocated_at' => Carbon::parse('2026-07-01'),
         ]);
 
-        $captured = null;
-        $writer = Mockery::mock(AcumaticaWriteService::class);
-        $writer->shouldReceive('push')->once()->andReturnUsing(
-            function (string $entity, array $body, bool $release = false, array $files = [], ?array $findQuery = null, string $releaseAction = 'Release') use (&$captured): array {
-                $captured = [$entity, $body, $releaseAction];
+        $calls = [];
+        $client = Mockery::mock(Client::class);
+        $client->shouldReceive('get')->once()->with('Check', Mockery::type('array'))->andReturn([]);
+        $client->shouldReceive('put')->twice()->andReturnUsing(
+            function (string $entity, array $body) use (&$calls): array {
+                $calls[] = [$entity, $body];
 
                 return ['id' => 'PAY-1', 'ReferenceNbr' => ['value' => '000900']];
             }
+        );
+
+        $writer = Mockery::mock(AcumaticaWriteService::class);
+        $writer->shouldReceive('withSession')->once()->andReturnUsing(
+            fn (callable $callback) => $callback($client)
         );
 
         $ref = new PushPaymentToAcumaticaAction($payment, $writer)->execute();
@@ -112,15 +120,24 @@ class PushPaymentToAcumaticaActionTest extends ScribeTestCase
         $this->assertSame('000900', $ref);
         $this->assertSame('PAY-1', $payment->get(CustomFieldEnum::PAYMENT_ID->value));
 
-        [$entity, $body, $releaseAction] = $captured;
-        $this->assertSame('Check', $entity);
-        $this->assertSame('ReleaseCheck', $releaseAction);
-        $this->assertSame(['value' => 'Check'], $body['Type']);
-        $this->assertSame(['value' => 'V0000505'], $body['Vendor']);
-        $this->assertSame(['value' => 'CHK-1'], $body['PaymentRef']);
-        $this->assertSame(['value' => 'Bill'], $body['Details'][0]['DocType']);
-        $this->assertSame(['value' => 'AP000777'], $body['Details'][0]['ReferenceNbr']);
-        $this->assertSame(['value' => 500.0], $body['Details'][0]['AmountPaid']);
+        [$step1Entity, $step1Body] = $calls[0];
+        [$step2Entity, $step2Body] = $calls[1];
+
+        $this->assertSame('Check', $step1Entity);
+        $this->assertSame(['value' => 'Payment'], $step1Body['Type']);
+        $this->assertSame(['value' => 'V0000505'], $step1Body['Vendor']);
+        $this->assertSame(['value' => 'CHK-1'], $step1Body['PaymentRef']);
+        $this->assertSame(['value' => true], $step1Body['Hold']);
+        $this->assertArrayNotHasKey('PaymentAmount', $step1Body);
+        $this->assertSame(['value' => 'Bill'], $step1Body['Details'][0]['DocType']);
+        $this->assertSame(['value' => 'AP000777'], $step1Body['Details'][0]['ReferenceNbr']);
+        $this->assertSame(['value' => 500.0], $step1Body['Details'][0]['AmountPaid']);
+
+        $this->assertSame('Check', $step2Entity);
+        $this->assertSame(['value' => 'Payment'], $step2Body['Type']);
+        $this->assertSame(['value' => '000900'], $step2Body['ReferenceNbr']);
+        $this->assertSame(['value' => 500.0], $step2Body['PaymentAmount']);
+        $this->assertSame(['value' => false], $step2Body['Hold']);
     }
 
     public function test_ar_receipt_pushes_a_payment_applied_to_the_customer_invoice(): void
@@ -143,6 +160,7 @@ class PushPaymentToAcumaticaActionTest extends ScribeTestCase
             'issued_date' => Carbon::parse('2026-06-01'),
             'source' => 'kanvas',
         ]);
+        $invoice->set(CustomFieldEnum::INVOICE_REF->value, 'AR000123');
 
         $payment = $this->payment('inbound', ['reference' => 'ACH-77']);
         InvoicePaymentAllocation::create([
