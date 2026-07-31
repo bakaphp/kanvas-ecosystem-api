@@ -5,19 +5,13 @@ declare(strict_types=1);
 namespace App\GraphQL\Guild\Mutations\Organizations;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Duplicates\Actions\UpsertDuplicateReviewGroupAction;
+use Kanvas\Guild\Duplicates\Enums\DuplicateReviewStatusEnum;
+use Kanvas\Guild\Duplicates\Models\DuplicateReviewGroup;
 use Kanvas\Guild\Organizations\Actions\MergeOrganizationsAction;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\FindOrganizationDuplicatesService;
 
-/**
- * Resolvers for the duplicate-cleanup pipeline that pairs with the auto-resolve-or-create-vendor
- * flow in `ProposeBillFromPdfAction` / `ProposeExpenseFromPdfAction`.
- *
- * - `merge` collapses two Organizations (source → target), rewriting every Scribe + Guild FK and
- *   soft-deleting the source.
- * - `findDuplicates` surfaces candidate clusters (exact name, shared email, shared tax id) so the
- *   operator can review and merge in batches rather than chasing per-document.
- */
 class OrganizationMergeMutation
 {
     /**
@@ -29,11 +23,43 @@ class OrganizationMergeMutation
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
+        $groups = DuplicateReviewGroup::query()
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->where('entity_type', Organization::class)
+            ->where('status', DuplicateReviewStatusEnum::PENDING->value)
+            ->where('is_deleted', false)
+            ->orderByDesc('id')
+            ->limit((int) ($request['max_groups'] ?? 100))
+            ->get();
+
+        return $groups->map(fn (DuplicateReviewGroup $group): array => [
+            'canonical_id' => $group->canonical_id,
+            'member_ids' => $group->member_ids,
+            'reason' => $group->reason,
+            'sample_name' => $this->sampleNameFor($group->canonical_id),
+        ])->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function detectDuplicates(mixed $rootValue, array $request): array
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
         $groups = new FindOrganizationDuplicatesService()->generate(
             app: $app,
             company: $company,
             maxGroups: (int) ($request['max_groups'] ?? 100),
         );
+
+        $upserter = new UpsertDuplicateReviewGroupAction(Organization::class, $app->getId(), $company->getId());
+        foreach ($groups as $group) {
+            $upserter->execute($group);
+        }
 
         return array_map(
             fn ($group): array => [
@@ -44,6 +70,13 @@ class OrganizationMergeMutation
             ],
             $groups,
         );
+    }
+
+    private function sampleNameFor(int $organizationId): string
+    {
+        $organization = Organization::query()->where('id', $organizationId)->first();
+
+        return $organization?->name ?? '';
     }
 
     /**

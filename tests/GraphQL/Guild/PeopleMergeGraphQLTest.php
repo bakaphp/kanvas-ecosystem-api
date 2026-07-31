@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Guild;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
@@ -26,7 +27,39 @@ class PeopleMergeGraphQLTest extends TestCase
         $this->company = static::$cachedUser->getCurrentCompany();
     }
 
-    public function test_find_duplicates_query_returns_clusters(): void
+    public function test_detect_duplicates_mutation_scans_and_persists(): void
+    {
+        Queue::fake();
+
+        $lastname = 'Pina' . uniqid();
+        $a = $this->seedPeople('Andres', $lastname);
+        $b = $this->seedPeople('andres', strtolower($lastname));
+
+        $response = $this->graphQL('
+            mutation {
+                detectPeopleDuplicates(max_groups: 50) {
+                    canonical_id
+                    member_ids
+                    reason
+                    sample_name
+                }
+            }
+        ')->assertSuccessful();
+
+        $groups = $response->json('data.detectPeopleDuplicates');
+        $matching = $this->findClusterFor($groups, $a, $b);
+        $this->assertSame((int) $a->id, $matching['canonical_id'], 'Canonical = oldest id.');
+        $this->assertSame('exact_name', $matching['reason']);
+
+        $this->assertDatabaseHas('duplicate_review_groups', [
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'entity_type' => People::class,
+            'status' => 'pending',
+        ], 'crm');
+    }
+
+    public function test_find_duplicates_query_reads_the_persisted_queue(): void
     {
         $lastname = 'Pina' . uniqid();
         $a = $this->seedPeople('Andres', $lastname);
@@ -49,17 +82,7 @@ class PeopleMergeGraphQLTest extends TestCase
         ')->assertSuccessful();
 
         $groups = $response->json('data.findPeopleDuplicates');
-        $this->assertIsArray($groups);
-
-        $matching = array_filter($groups, function (array $g) use ($a, $b): bool {
-            $ids = array_map('intval', $g['member_ids']);
-            sort($ids);
-
-            return $ids === [(int) $a->id, (int) $b->id];
-        });
-        $this->assertCount(1, $matching, 'The seeded duplicate cluster should appear once in the GraphQL response.');
-
-        $group = array_values($matching)[0];
+        $group = $this->findClusterFor($groups, $a, $b);
         $this->assertSame((int) $a->id, $group['canonical_id'], 'Canonical = oldest id.');
         $this->assertSame('exact_name', $group['reason']);
 
@@ -67,6 +90,21 @@ class PeopleMergeGraphQLTest extends TestCase
         $this->assertEqualsCanonicalizing([(int) $a->id, (int) $b->id], $memberIds);
         $memberA = array_values(array_filter($group['peoples'], fn ($m) => (int) $m['id'] === (int) $a->id))[0];
         $this->assertSame('Andres', $memberA['firstname']);
+    }
+
+    private function findClusterFor(?array $groups, People $a, People $b): array
+    {
+        $this->assertIsArray($groups);
+
+        $matching = array_values(array_filter($groups, function (array $g) use ($a, $b): bool {
+            $ids = array_map('intval', $g['member_ids']);
+            sort($ids);
+
+            return $ids === [(int) $a->id, (int) $b->id];
+        }));
+        $this->assertCount(1, $matching, 'The seeded duplicate cluster should appear once in the GraphQL response.');
+
+        return $matching[0];
     }
 
     public function test_merge_mutation_collapses_a_single_source_into_target(): void

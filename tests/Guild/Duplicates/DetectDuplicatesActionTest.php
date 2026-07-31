@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Guild\Duplicates;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
@@ -26,6 +27,7 @@ class DetectDuplicatesActionTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Queue::fake();
         $this->kanvasApp = app(Apps::class);
         $this->company = static::$cachedUser->getCurrentCompany();
     }
