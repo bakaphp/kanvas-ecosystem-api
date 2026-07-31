@@ -599,7 +599,22 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
             }
         }
 
-        $companyId = (int) ($this->get(Companies::cacheKey()) ?? $this->default_company);
+        $cachedCompanyId = (int) ($this->get(Companies::cacheKey()) ?? 0);
+        $companyId = $cachedCompanyId > 0 ? $cachedCompanyId : (int) $this->default_company;
+
+        /**
+         * `default_company` is a plain column on the `users` row, shared across the whole
+         * ecosystem, it is NOT scoped per app. A user that belongs to more than one app can
+         * carry a `default_company` (or a stale cached hint) that belongs to a *different*
+         * app/tenant. If we trust it blindly, a new resource created on an app that has no
+         * company of its own can end up scoped to a completely unrelated company.
+         *
+         * Only trust a non zero value here if it's actually a company the user is
+         * associated with on the *current* app, otherwise force a fresh resolution below.
+         */
+        if ($companyId > 0 && ! $this->companies()->where('companies.id', $companyId)->exists()) {
+            $companyId = 0;
+        }
 
         if ($companyId === 0) {
             $company = $this->companies()->first();
@@ -609,6 +624,7 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
                 $this->default_company = $companyId;
                 $this->default_company_branch = (int) ($company->branches()->first()?->getId() ?? 0);
                 $this->saveQuietly();
+                $this->set(Companies::cacheKey(), $companyId);
             }
         }
 
