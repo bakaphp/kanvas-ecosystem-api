@@ -11,6 +11,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Neuron\Exporters\AffiliateCommissionsRecordExporter;
 use Kanvas\Intelligence\Agents\Neuron\Exporters\RecordExporterRegistry;
+use Kanvas\Souk\Affiliates\Models\Affiliate;
 use Kanvas\Souk\Orders\Models\Order;
 use Tests\TestCase;
 
@@ -76,6 +77,23 @@ final class AffiliateCommissionsRecordExporterTest extends TestCase
 
         $this->expectException(ValidationException::class);
         $exporter->rows($this->apps, $this->company, ['affiliate' => 'DOES-NOT-EXIST-' . uniqid()]);
+    }
+
+    public function testCommissionSurfacesEvenWhenAffiliateFiledUnderAnotherCompany(): void
+    {
+        $code = 'UAZ' . uniqid();
+        $programId = $this->createProgram();
+        $affiliateId = $this->createAffiliate($programId, $code . ' Distributor');
+        $this->createConversion($affiliateId);
+
+        // The order lives in this company; move the affiliate row to a different company. Because the
+        // report anchors tenancy on the order, the commission must still surface.
+        Affiliate::where('id', (int) $affiliateId)->update(['companies_id' => 999999]);
+
+        $all = new AffiliateCommissionsRecordExporter()->rows($this->apps, $this->company, []);
+
+        $mine = array_filter($all, fn (array $row): bool => str_contains((string) $row[3], $code));
+        $this->assertCount(1, $mine);
     }
 
     private function createProgram(): string

@@ -66,11 +66,11 @@ class AffiliateCommissionsRecordExporter implements RecordExporterInterface
 
         $conversions = AffiliateConversion::query()
             ->where('apps_id', $app->getId())
-            ->when(
-                $affiliateIds !== null,
-                fn (Builder $q) => $q->whereIn('affiliates_id', $affiliateIds),
-                fn (Builder $q) => $q->whereHas('affiliate', fn (Builder $a) => $a->where('companies_id', $company->getId())),
-            )
+            // A conversion carries no companies_id — anchor the tenant on the ORDER it belongs to, so an
+            // order in this company always surfaces its commission even if the affiliate row is filed
+            // under a different company. The affiliate filter only narrows within that.
+            ->whereHas('order', fn (Builder $order) => $order->where('companies_id', $company->getId()))
+            ->when($affiliateIds !== null, fn (Builder $q) => $q->whereIn('affiliates_id', $affiliateIds))
             ->when($status !== null, fn (Builder $q) => $q->where('status', $status))
             ->when($from !== null, fn (Builder $q) => $q->where('converted_at', '>=', Carbon::parse((string) $from)->startOfDay()))
             ->when($to !== null, fn (Builder $q) => $q->where('converted_at', '<=', Carbon::parse((string) $to)->endOfDay()))
