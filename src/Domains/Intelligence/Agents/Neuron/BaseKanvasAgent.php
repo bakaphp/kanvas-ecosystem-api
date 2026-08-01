@@ -14,16 +14,22 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\CurrentTimeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\DynamicSubAgentTool;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
+use Kanvas\Intelligence\Knowledge\Retrieval\LeadKnowledgeRetrieval;
+use Kanvas\Intelligence\Knowledge\Services\LeadRagComponents;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
-use NeuronAI\Agent\Agent as NeuronAIAgent;
 use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Providers\AIProviderInterface;
+use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
+use NeuronAI\RAG\RAG;
+use NeuronAI\RAG\Retrieval\RetrievalInterface;
+use NeuronAI\RAG\VectorStore\MemoryVectorStore;
+use NeuronAI\RAG\VectorStore\VectorStoreInterface;
 use NeuronAI\Tools\ToolInterface;
 use Override;
 
-class BaseKanvasAgent extends NeuronAIAgent implements ProvidesToolDependencies
+class BaseKanvasAgent extends RAG implements ProvidesToolDependencies
 {
     protected ?Agent $agent = null;
     protected ?Apps $app = null;
@@ -166,6 +172,38 @@ class BaseKanvasAgent extends NeuronAIAgent implements ProvidesToolDependencies
         return [
             new CurrentTimeTool(),
         ];
+    }
+
+    /**
+     * Neuron's native RAG pipeline calls this retrieval before it augments the prompt.
+     * It becomes a no-op when the app flag is disabled or the turn has no current Lead.
+     */
+    #[Override]
+    protected function retrieval(): RetrievalInterface
+    {
+        return new LeadKnowledgeRetrieval($this->resolveLeadForTurn());
+    }
+
+    #[Override]
+    protected function embeddings(): EmbeddingsProviderInterface
+    {
+        if ($this->app === null) {
+            throw new ValidationException(
+                'App not set. Call setConfiguration() before resolving RAG embeddings.'
+            );
+        }
+
+        return LeadRagComponents::embeddings($this->app);
+    }
+
+    #[Override]
+    protected function vectorStore(): VectorStoreInterface
+    {
+        $lead = $this->resolveLeadForTurn();
+
+        return $lead !== null
+            ? LeadRagComponents::vectorStore($lead)
+            : new MemoryVectorStore();
     }
 
     /**
