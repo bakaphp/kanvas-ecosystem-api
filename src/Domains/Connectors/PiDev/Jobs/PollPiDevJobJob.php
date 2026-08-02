@@ -23,6 +23,7 @@ use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
 use Throwable;
 
 final class PollPiDevJobJob implements ShouldQueue
@@ -75,7 +76,11 @@ final class PollPiDevJobJob implements ShouldQueue
                     blockedReason: 'pi.dev no longer knows this job (service restarted before it finished)',
                 )->execute();
                 $this->finalizePlan($task, PlanStatusEnum::FAILED);
-                $this->postPlanComment($task, '⚠️ pi.dev no longer knows this coding job — the server restarted before it finished.');
+                $this->announce(
+                    $task,
+                    'Coding job failed',
+                    '⚠️ pi.dev no longer knows this coding job — the server restarted before it finished.'
+                );
 
                 return;
             }
@@ -89,7 +94,11 @@ final class PollPiDevJobJob implements ShouldQueue
 
         if ($job->isTerminal()) {
             $this->finalizePlan($task, $this->planStatusFor($job->status));
-            $this->postPlanComment($task, $this->terminalComment($task, $job));
+            $this->announce(
+                $task,
+                $this->terminalTitle($job->status),
+                $this->terminalComment($task, $job)
+            );
 
             return;
         }
@@ -108,7 +117,52 @@ final class PollPiDevJobJob implements ShouldQueue
             blockedReason: 'Timed out waiting for pi.dev to finish the job',
         )->execute();
         $this->finalizePlan($task, PlanStatusEnum::FAILED);
-        $this->postPlanComment($task, '⚠️ Timed out waiting for pi.dev to finish this coding job.');
+        $this->announce(
+            $task,
+            'Coding job failed',
+            '⚠️ Timed out waiting for pi.dev to finish this coding job.'
+        );
+    }
+
+    private function terminalTitle(JobStatusEnum $status): string
+    {
+        return match ($status) {
+            JobStatusEnum::COMPLETED => 'Coding job completed',
+            JobStatusEnum::CANCELLED => 'Coding job cancelled',
+            default => 'Coding job failed',
+        };
+    }
+
+    /**
+     * Post the outcome to the plan's Activities channel AND notify the plan's human owner out-of-band
+     * (email + push + in-app bell) — so whoever dispatched it hears back without watching the UI.
+     */
+    private function announce(Task $task, string $title, string $message): void
+    {
+        $this->postPlanComment($task, $message);
+
+        try {
+            /** @var Plan|null $plan */
+            $plan = $task->plan;
+            $owner = $plan?->user;
+            if ($plan === null || $owner === null) {
+                return;
+            }
+
+            $owner->notify(new PlanProgressNotification(
+                $plan,
+                $title,
+                $message,
+                metadata: [
+                    'task_id' => $task->getId(),
+                    'pull_request_url' => $task->get(TaskCustomFieldEnum::PIDEV_PULL_REQUEST_URL->value),
+                    'repo' => $task->get(TaskCustomFieldEnum::PIDEV_REPO_SLUG->value),
+                ],
+                via: ['mail', 'push'],
+            ));
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     private function planStatusFor(JobStatusEnum $status): PlanStatusEnum
@@ -149,10 +203,10 @@ final class PollPiDevJobJob implements ShouldQueue
         $repo = (string) ($task->get(TaskCustomFieldEnum::PIDEV_REPO_SLUG->value) ?? '');
 
         return match ($job->status) {
-            JobStatusEnum::COMPLETED => "✅ Coding job completed" . ($repo !== '' ? " on `{$repo}`" : '') . ".\n\n"
+            JobStatusEnum::COMPLETED => '✅ Coding job completed' . ($repo !== '' ? " on `{$repo}`" : '') . ".\n\n"
                 . 'Pull request: ' . ($job->pullRequestUrl ?? 'none reported')
                 . ($job->result !== null ? "\n\n" . $job->result : ''),
-            JobStatusEnum::FAILED => "⚠️ Coding job failed" . ($repo !== '' ? " on `{$repo}`" : '') . ".\n\n"
+            JobStatusEnum::FAILED => '⚠️ Coding job failed' . ($repo !== '' ? " on `{$repo}`" : '') . ".\n\n"
                 . 'Reason: ' . ($job->error ?? 'unknown'),
             JobStatusEnum::CANCELLED => '🛑 Coding job was cancelled.'
                 . ($job->pullRequestUrl !== null ? "\n\nA pull request was already opened: " . $job->pullRequestUrl : ''),
@@ -203,7 +257,7 @@ final class PollPiDevJobJob implements ShouldQueue
             }
 
             if ($narration !== []) {
-                $this->postPlanComment($task, "🔧 " . implode("\n", $narration));
+                $this->postPlanComment($task, '🔧 ' . implode("\n", $narration));
             }
 
             $task->set(TaskCustomFieldEnum::PIDEV_EVENTS_CURSOR->value, $maxId);

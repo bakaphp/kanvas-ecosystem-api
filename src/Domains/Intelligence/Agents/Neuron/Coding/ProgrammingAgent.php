@@ -84,7 +84,7 @@ class ProgrammingAgent extends SystemUserAgent
         $core = [
             ...$this->identityTools(),
             new CheckCodingSetupTool($agent),
-            new DispatchCodingTaskTool($agent),
+            new DispatchCodingTaskTool($agent, $this->user),
             new CheckCodingJobStatusTool($app, $company, $agent),
             new ListMyCodingJobsTool($app, $company, $agent),
             new CancelCodingJobTool($app, $company, $agent),

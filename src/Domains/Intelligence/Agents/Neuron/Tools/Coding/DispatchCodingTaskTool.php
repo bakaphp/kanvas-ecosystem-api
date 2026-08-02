@@ -8,17 +8,19 @@ use Kanvas\Connectors\PiDev\Actions\DispatchCodingJobAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Dispatch Coding Task')]
+#[AgentTool(name: 'Dispatch Coding Task', category: 'coding')]
 class DispatchCodingTaskTool extends Tool
 {
     public function __construct(
         private readonly Agent $agent,
+        private readonly ?Users $requestedBy = null,
     ) {
         parent::__construct(
             name: 'dispatch_coding_task',
@@ -69,7 +71,7 @@ class DispatchCodingTaskTool extends Tool
         }
 
         try {
-            $task = new DispatchCodingJobAction($this->agent, $repoSlug, $taskText)->execute();
+            $task = new DispatchCodingJobAction($this->agent, $repoSlug, $taskText, requestedBy: $this->requestedBy)->execute();
         } catch (ValidationException $e) {
             // Unknown repo slug or an agent not configured for pi.dev — actionable, not a crash.
             return [

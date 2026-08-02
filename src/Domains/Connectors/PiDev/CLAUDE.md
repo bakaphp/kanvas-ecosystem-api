@@ -71,11 +71,14 @@ plan/task UI + ledger for free.
   `overwriteAppService($this->app)` is the first line of `handle()`. It mirrors pi.dev state onto the
   Task: fine-grained status + PR URL into custom fields, coarse status via `UpdateTaskStatusAction`
   (which stamps timestamps, rolls up the plan, emits `plan.task.*` ledger events).
-- **Result posted as a plan comment.** On terminal the poller posts a human-readable summary (PR link,
-  or failure/cancel reason) onto the plan's **Activities channel** via `PostPlanActivityMessageAction` —
-  the durable record humans read on the plan. For that channel to exist, the coding-job plan is created
-  with `user: $agent->user` (owner), which is what makes `PlanObserver` create the Activities channel
-  (same reason as the Kanban plan sync). Best-effort: a missing channel never breaks polling.
+- **Result posted as a plan comment + owner notification.** On terminal the poller (`announce()`) posts
+  a human-readable summary (PR link, or failure/cancel reason) onto the plan's **Activities channel** via
+  `PostPlanActivityMessageAction`, AND notifies the plan's **human owner** out-of-band (`database` + `mail`
+  + `push`) via `PlanProgressNotification` — so whoever dispatched hears back without watching the UI. The
+  plan owner is the **requesting human** (`DispatchCodingJobAction`'s `requestedBy`, passed by the tool as
+  the conversation user), falling back to the agent's user for autonomous runs. That owner is also what
+  makes `PlanObserver` create the Activities channel. Best-effort: a missing channel/notify never breaks
+  polling.
 - Poll loop re-dispatches every **30s (2/min) to terminal, caps at 62 attempts (~31min)** — just past
   pi.dev's own 30-min limit so we capture its terminal state — and treats a **404 mid-poll as BLOCKED**
   (pi.dev forgot the job).

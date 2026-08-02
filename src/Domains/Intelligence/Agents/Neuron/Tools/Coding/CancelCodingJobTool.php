@@ -16,7 +16,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Cancel Coding Job')]
+#[AgentTool(name: 'Cancel Coding Job', category: 'coding')]
 class CancelCodingJobTool extends Tool
 {
     use ResolvesTaskForTool;

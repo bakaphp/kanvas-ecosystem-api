@@ -16,7 +16,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Check Coding Setup')]
+#[AgentTool(name: 'Check Coding Setup', category: 'coding')]
 class CheckCodingSetupTool extends Tool
 {
     private const string PROBE_JOB_ID = '00000000-0000-0000-0000-000000000000';

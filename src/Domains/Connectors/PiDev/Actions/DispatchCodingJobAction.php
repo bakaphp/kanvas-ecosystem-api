@@ -19,6 +19,7 @@ use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\Users\Models\Users;
 
 class DispatchCodingJobAction
 {
@@ -27,6 +28,7 @@ class DispatchCodingJobAction
         private readonly string $repoSlug,
         private readonly string $task,
         private readonly ?Client $client = null,
+        private readonly ?Users $requestedBy = null,
     ) {
     }
 
@@ -74,11 +76,7 @@ class DispatchCodingJobAction
                 title: 'Coding: ' . Str::limit(trim($this->task), 80),
                 planType: 'coding_job',
                 agent: $this->agent,
-                // Stays draft while running (never `active` — avoids stale-plan nudges/executors picking
-                // it up); the poller promotes it to done/failed/cancelled when the job reaches terminal.
-                // Owner = the agent's user so PlanObserver creates the Activities channel we later
-                // post the coding result onto (same reason as the Kanban plan sync).
-                user: $this->agent->user,
+                user: $this->requestedBy ?? $this->agent->user,
                 description: $this->task,
                 input: ['repo_slug' => $this->repoSlug, 'repo_url' => $repoUrl],
             ),
@@ -89,8 +87,6 @@ class DispatchCodingJobAction
                     description: $this->task,
                 ),
             ],
-            // fromSync: the dispatch IS the agent's own action — creating this plan must NOT wake the
-            // agent (WakeAgentOnPlanChangeListener), or it re-dispatches → new plan → wake → infinite loop.
             fromSync: true,
         )->execute();
 

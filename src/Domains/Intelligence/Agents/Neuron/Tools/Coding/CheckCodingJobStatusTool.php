@@ -16,7 +16,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-#[AgentTool(name: 'Check Coding Job Status')]
+#[AgentTool(name: 'Check Coding Job Status', category: 'coding')]
 class CheckCodingJobStatusTool extends Tool
 {
     use ResolvesTaskForTool;

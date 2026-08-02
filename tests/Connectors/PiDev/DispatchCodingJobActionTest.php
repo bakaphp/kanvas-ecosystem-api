@@ -77,6 +77,23 @@ final class DispatchCodingJobActionTest extends TestCase
         Queue::assertNotPushed(WakeAgentForPlanJob::class);
     }
 
+    public function testRequesterOwnsThePlanForNotification(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $requester = auth()->user();
+        $agent = $this->makeConfiguredAgent();
+
+        $client = $this->piDevClientReturning($app, $company, [
+            $this->piDevJsonResponse(202, ['jobId' => 'job-1', 'status' => 'queued', 'repoName' => 'widgets']),
+        ]);
+
+        $task = new DispatchCodingJobAction($agent, 'widgets', 'Add a changelog', $client, requestedBy: $requester)->execute();
+
+        // The human who asked owns the plan — that's who the poller notifies on completion.
+        $this->assertSame($requester->getId(), $task->plan->users_id);
+    }
+
     public function testDispatchRejectsRepoOutsideAllowList(): void
     {
         $agent = $this->makeConfiguredAgent();

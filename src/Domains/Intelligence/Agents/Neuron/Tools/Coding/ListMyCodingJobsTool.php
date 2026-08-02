@@ -16,7 +16,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-#[AgentTool(name: 'List My Coding Jobs')]
+#[AgentTool(name: 'List My Coding Jobs', category: 'coding')]
 class ListMyCodingJobsTool extends Tool
 {
     public function __construct(
