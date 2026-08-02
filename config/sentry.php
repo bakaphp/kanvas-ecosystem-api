@@ -52,6 +52,16 @@ return [
 
     'traces_sample_rate' => (float)(env('SENTRY_TRACES_SAMPLE_RATE', 0.0)),
 
+    'before_send' => function (\Sentry\Event $event, ?\Sentry\EventHint $hint): ?\Sentry\Event {
+        $exception = $hint?->exception;
+
+        if ($exception instanceof \InvalidArgumentException && $exception->getMessage() === 'Input array cannot be empty.') {
+            return null;
+        }
+
+        return $event;
+    },
+
     'controllers_base_namespace' => env('SENTRY_CONTROLLERS_BASE_NAMESPACE', 'App\\Http\\Controllers'),
 
     // Sentry Structured Logs — sends Log:: calls to Sentry's Logs product
