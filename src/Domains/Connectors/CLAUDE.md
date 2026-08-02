@@ -2,6 +2,9 @@
 
 Loads when work touches `src/Domains/Connectors/`. For the full scaffold pattern (Handler + Client + DTO + Enums + Webhook + Workflow + GraphQL + `integrations` row), invoke the `kanvas-connector` skill.
 
+Per-connector `CLAUDE.md` (load when working in that connector's tree):
+- [`PiDev/CLAUDE.md`](PiDev/CLAUDE.md) — pi.dev coding-agent job runner: agent-scoped GitHub token/allow-list, 3-tier rules of engagement, Kanvas-owned job durability + poller, `Neuron/Tools/Coding/` tools.
+
 ## Hard rules specific to this tree
 
 ### AgentRuntime is a primary domain, NOT a connector

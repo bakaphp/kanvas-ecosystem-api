@@ -1,0 +1,259 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\PiDev\Jobs;
+
+use Baka\Traits\KanvasJobsTrait;
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\PiDev\Client;
+use Kanvas\Connectors\PiDev\DataTransferObject\PiDevJob;
+use Kanvas\Connectors\PiDev\Enums\JobStatusEnum;
+use Kanvas\Connectors\PiDev\Enums\TaskCustomFieldEnum;
+use Kanvas\Connectors\PiDev\Exceptions\PiDevApiException;
+use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
+use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Models\Task;
+use Throwable;
+
+final class PollPiDevJobJob implements ShouldQueue
+{
+    use Dispatchable;
+    use InteractsWithQueue;
+    use KanvasJobsTrait;
+    use Queueable;
+    use SerializesModels;
+
+    // 2 polls/min. pi.dev's own hard limit is 1_800_000ms (30min); 62 attempts ≈ 31min so we poll
+    // just past the ceiling to capture pi.dev's own terminal "time limit exceeded" state.
+    private const int POLL_INTERVAL_SECONDS = 30;
+    private const int MAX_ATTEMPTS = 62;
+
+    public function __construct(
+        public readonly Apps $app,
+        public readonly int $taskId,
+        public readonly int $attempt = 1,
+    ) {
+        $this->onQueue('agent-runtime');
+    }
+
+    public function handle(): void
+    {
+        $this->overwriteAppService($this->app);
+
+        /** @var Task $task */
+        $task = Task::getById($this->taskId, $this->app);
+
+        if ($this->taskIsTerminal($task)) {
+            return;
+        }
+
+        $jobId = $task->get(TaskCustomFieldEnum::PIDEV_JOB_ID->value);
+        if (! is_string($jobId) || $jobId === '') {
+            return;
+        }
+
+        $client = new Client($this->app, $task->company);
+
+        try {
+            $response = $client->getJob($jobId);
+        } catch (PiDevApiException $e) {
+            if ($e->status === 404) {
+                $task->set(TaskCustomFieldEnum::PIDEV_STATUS->value, JobStatusEnum::FAILED->value);
+                new UpdateTaskStatusAction(
+                    task: $task,
+                    newStatus: TaskStatusEnum::BLOCKED,
+                    blockedReason: 'pi.dev no longer knows this job (service restarted before it finished)',
+                )->execute();
+                $this->finalizePlan($task, PlanStatusEnum::FAILED);
+                $this->postPlanComment($task, '⚠️ pi.dev no longer knows this coding job — the server restarted before it finished.');
+
+                return;
+            }
+
+            throw $e;
+        }
+
+        $job = PiDevJob::fromApiResponse($response);
+        $this->mirrorOntoTask($task, $job);
+        $this->postProgressComments($task, $client, $jobId);
+
+        if ($job->isTerminal()) {
+            $this->finalizePlan($task, $this->planStatusFor($job->status));
+            $this->postPlanComment($task, $this->terminalComment($task, $job));
+
+            return;
+        }
+
+        if ($this->attempt < self::MAX_ATTEMPTS) {
+            self::dispatch($this->app, $this->taskId, $this->attempt + 1)
+                ->delay(now()->addSeconds(self::POLL_INTERVAL_SECONDS));
+
+            return;
+        }
+
+        $task->set(TaskCustomFieldEnum::PIDEV_STATUS->value, JobStatusEnum::FAILED->value);
+        new UpdateTaskStatusAction(
+            task: $task,
+            newStatus: TaskStatusEnum::BLOCKED,
+            blockedReason: 'Timed out waiting for pi.dev to finish the job',
+        )->execute();
+        $this->finalizePlan($task, PlanStatusEnum::FAILED);
+        $this->postPlanComment($task, '⚠️ Timed out waiting for pi.dev to finish this coding job.');
+    }
+
+    private function planStatusFor(JobStatusEnum $status): PlanStatusEnum
+    {
+        return match ($status) {
+            JobStatusEnum::COMPLETED => PlanStatusEnum::DONE,
+            JobStatusEnum::FAILED => PlanStatusEnum::FAILED,
+            JobStatusEnum::CANCELLED => PlanStatusEnum::CANCELLED,
+            default => PlanStatusEnum::ACTIVE,
+        };
+    }
+
+    /**
+     * Promote the coding-job plan out of `active` when its single task reaches terminal — task
+     * status and plan status are independent, and nothing else moves it.
+     */
+    private function finalizePlan(Task $task, PlanStatusEnum $status): void
+    {
+        /** @var Plan|null $plan */
+        $plan = $task->plan;
+        if ($plan === null) {
+            return;
+        }
+
+        $plan->status = $status->value;
+        if ($status === PlanStatusEnum::DONE) {
+            $plan->completed_at = Carbon::now();
+        }
+        $plan->saveQuietly();
+    }
+
+    /**
+     * A human-readable summary posted onto the plan's Activities channel — the durable record of the
+     * coding job's outcome (PR link / failure reason) for future reference.
+     */
+    private function terminalComment(Task $task, PiDevJob $job): string
+    {
+        $repo = (string) ($task->get(TaskCustomFieldEnum::PIDEV_REPO_SLUG->value) ?? '');
+
+        return match ($job->status) {
+            JobStatusEnum::COMPLETED => "✅ Coding job completed" . ($repo !== '' ? " on `{$repo}`" : '') . ".\n\n"
+                . 'Pull request: ' . ($job->pullRequestUrl ?? 'none reported')
+                . ($job->result !== null ? "\n\n" . $job->result : ''),
+            JobStatusEnum::FAILED => "⚠️ Coding job failed" . ($repo !== '' ? " on `{$repo}`" : '') . ".\n\n"
+                . 'Reason: ' . ($job->error ?? 'unknown'),
+            JobStatusEnum::CANCELLED => '🛑 Coding job was cancelled.'
+                . ($job->pullRequestUrl !== null ? "\n\nA pull request was already opened: " . $job->pullRequestUrl : ''),
+            default => 'Coding job finished with status: ' . $job->status->value,
+        };
+    }
+
+    private function postPlanComment(Task $task, string $content): void
+    {
+        $plan = $task->plan;
+        if ($plan === null) {
+            return;
+        }
+
+        // Best-effort: PostPlanActivityMessageAction reports failures rather than throwing, so a
+        // missing channel or social hiccup never breaks the poll.
+        new PostPlanActivityMessageAction(
+            plan: $plan,
+            content: $content,
+            verb: 'coding_job_result',
+        )->execute();
+    }
+
+    /**
+     * Stream the agent's NEW narration since last tick onto the plan's Activities channel as a single
+     * progress comment — so humans watching the plan see live progress. Only `text` frames (the agent's
+     * own narration) are posted; the raw tool_start/tool_end pings are dropped to keep the feed
+     * readable. A cursor custom field marks the last event id so we never re-post the replay.
+     * Best-effort and isolated: a stream hiccup must never break status polling.
+     */
+    private function postProgressComments(Task $task, Client $client, string $jobId): void
+    {
+        try {
+            $cursor = (int) ($task->get(TaskCustomFieldEnum::PIDEV_EVENTS_CURSOR->value) ?? 0);
+            $frames = $client->fetchJobEvents($jobId, $cursor);
+            if ($frames === []) {
+                return;
+            }
+
+            $maxId = $cursor;
+            $narration = [];
+
+            foreach ($frames as $frame) {
+                $maxId = max($maxId, $frame['id']);
+                if ($frame['event'] === 'text' && is_string($frame['data']) && trim($frame['data']) !== '') {
+                    $narration[] = trim($frame['data']);
+                }
+            }
+
+            if ($narration !== []) {
+                $this->postPlanComment($task, "🔧 " . implode("\n", $narration));
+            }
+
+            $task->set(TaskCustomFieldEnum::PIDEV_EVENTS_CURSOR->value, $maxId);
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    private function mirrorOntoTask(Task $task, PiDevJob $job): void
+    {
+        $task->set(TaskCustomFieldEnum::PIDEV_STATUS->value, $job->status->value);
+
+        if ($job->pullRequestUrl !== null) {
+            $task->set(TaskCustomFieldEnum::PIDEV_PULL_REQUEST_URL->value, $job->pullRequestUrl);
+        }
+
+        $targetStatus = $job->status->toTaskStatus();
+        if ($targetStatus->value === $task->status) {
+            return;
+        }
+
+        new UpdateTaskStatusAction(
+            task: $task,
+            newStatus: $targetStatus,
+            result: $this->resultPayload($job),
+            blockedReason: $job->status === JobStatusEnum::FAILED ? ($job->error ?? 'pi.dev job failed') : null,
+        )->execute();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function resultPayload(PiDevJob $job): ?array
+    {
+        if ($job->status !== JobStatusEnum::COMPLETED) {
+            return null;
+        }
+
+        return array_filter([
+            'summary' => $job->result,
+            'pull_request_url' => $job->pullRequestUrl,
+        ], static fn ($value): bool => $value !== null);
+    }
+
+    private function taskIsTerminal(Task $task): bool
+    {
+        return in_array($task->status, [
+            TaskStatusEnum::DONE->value,
+            TaskStatusEnum::SKIPPED->value,
+            TaskStatusEnum::BLOCKED->value,
+        ], true);
+    }
+}
