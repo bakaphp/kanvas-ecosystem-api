@@ -70,7 +70,12 @@ plan/task UI + ledger for free.
 - **The poller (`PollPiDevJobJob`) rides the existing `agent-runtime` queue.**
   `overwriteAppService($this->app)` is the first line of `handle()`. It mirrors pi.dev state onto the
   Task: fine-grained status + PR URL into custom fields, coarse status via `UpdateTaskStatusAction`
-  (which stamps timestamps, rolls up the plan, emits `plan.task.*` ledger events).
+  (which stamps timestamps, rolls up the plan, emits `plan.task.*` ledger events, **and broadcasts
+  `plan.changed` live over Pusher** on `company-{c}-app-{a}-plan-{id}` / `…-plans` /
+  `…-agent-{id}-plans`). On terminal, `finalizePlan()` also calls
+  `$plan->broadcastChange(UPDATED, …)` explicitly — it flips `plan.status` via `saveQuietly()` (no
+  model events), so without the explicit call the board would show the task done but the plan header
+  stuck on `active` until refresh.
 - **Result posted as a plan comment + owner notification.** On terminal the poller (`announce()`) posts
   a human-readable summary (PR link, or failure/cancel reason) onto the plan's **Activities channel** via
   `PostPlanActivityMessageAction`, AND notifies the plan's **human owner** out-of-band (`database` + `mail`

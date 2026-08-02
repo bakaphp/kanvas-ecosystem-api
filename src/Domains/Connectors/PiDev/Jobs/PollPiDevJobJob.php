@@ -19,6 +19,7 @@ use Kanvas\Connectors\PiDev\Enums\TaskCustomFieldEnum;
 use Kanvas\Connectors\PiDev\Exceptions\PiDevApiException;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
+use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
@@ -69,16 +70,9 @@ final class PollPiDevJobJob implements ShouldQueue
             $response = $client->getJob($jobId);
         } catch (PiDevApiException $e) {
             if ($e->status === 404) {
-                $task->set(TaskCustomFieldEnum::PIDEV_STATUS->value, JobStatusEnum::FAILED->value);
-                new UpdateTaskStatusAction(
-                    task: $task,
-                    newStatus: TaskStatusEnum::BLOCKED,
-                    blockedReason: 'pi.dev no longer knows this job (service restarted before it finished)',
-                )->execute();
-                $this->finalizePlan($task, PlanStatusEnum::FAILED);
-                $this->announce(
+                $this->failLocally(
                     $task,
-                    'Coding job failed',
+                    'pi.dev no longer knows this job (service restarted before it finished)',
                     '⚠️ pi.dev no longer knows this coding job — the server restarted before it finished.'
                 );
 
@@ -110,18 +104,28 @@ final class PollPiDevJobJob implements ShouldQueue
             return;
         }
 
+        $this->failLocally(
+            $task,
+            'Timed out waiting for pi.dev to finish the job',
+            '⚠️ Timed out waiting for pi.dev to finish this coding job.'
+        );
+    }
+
+    /**
+     * Fail a job Kanvas-side (pi.dev forgot it, or we gave up waiting): mark the Task blocked, flip
+     * the plan to failed, and tell the owner. Distinct from a pi.dev-reported terminal failure, which
+     * flows through mirrorOntoTask + terminalComment.
+     */
+    private function failLocally(Task $task, string $blockedReason, string $announceMessage): void
+    {
         $task->set(TaskCustomFieldEnum::PIDEV_STATUS->value, JobStatusEnum::FAILED->value);
         new UpdateTaskStatusAction(
             task: $task,
             newStatus: TaskStatusEnum::BLOCKED,
-            blockedReason: 'Timed out waiting for pi.dev to finish the job',
+            blockedReason: $blockedReason,
         )->execute();
         $this->finalizePlan($task, PlanStatusEnum::FAILED);
-        $this->announce(
-            $task,
-            'Coding job failed',
-            '⚠️ Timed out waiting for pi.dev to finish this coding job.'
-        );
+        $this->announce($task, 'Coding job failed', $announceMessage);
     }
 
     private function terminalTitle(JobStatusEnum $status): string
@@ -187,17 +191,19 @@ final class PollPiDevJobJob implements ShouldQueue
             return;
         }
 
+        $previousStatus = $plan->status;
         $plan->status = $status->value;
         if ($status === PlanStatusEnum::DONE) {
             $plan->completed_at = Carbon::now();
         }
         $plan->saveQuietly();
+
+        // saveQuietly skips model events, so broadcast the plan's own status flip explicitly (as
+        // UpdatePlanAction does) — the board updates the plan header live the instant the job ends,
+        // not on next refresh. The task change already broadcast via UpdateTaskStatusAction upstream.
+        $plan->broadcastChange(PlanChangeTypeEnum::UPDATED, previousStatus: $previousStatus);
     }
 
-    /**
-     * A human-readable summary posted onto the plan's Activities channel — the durable record of the
-     * coding job's outcome (PR link / failure reason) for future reference.
-     */
     private function terminalComment(Task $task, PiDevJob $job): string
     {
         $repo = (string) ($task->get(TaskCustomFieldEnum::PIDEV_REPO_SLUG->value) ?? '');
@@ -231,11 +237,9 @@ final class PollPiDevJobJob implements ShouldQueue
     }
 
     /**
-     * Stream the agent's NEW narration since last tick onto the plan's Activities channel as a single
-     * progress comment — so humans watching the plan see live progress. Only `text` frames (the agent's
-     * own narration) are posted; the raw tool_start/tool_end pings are dropped to keep the feed
-     * readable. A cursor custom field marks the last event id so we never re-post the replay.
-     * Best-effort and isolated: a stream hiccup must never break status polling.
+     * Post the agent's NEW narration since last tick as one progress comment. Only `text` frames are
+     * kept (raw tool_start/tool_end pings would clutter the feed); a cursor custom field marks the last
+     * event id so the SSE replay is never re-posted. Best-effort — a stream hiccup must not break polling.
      */
     private function postProgressComments(Task $task, Client $client, string $jobId): void
     {
