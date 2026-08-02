@@ -93,6 +93,32 @@ Kanvas is composed of operational building blocks:
 You don’t install disconnected features.  
 You assemble an **operational nervous system** for your business.
 
+## What is Nervosys
+
+**Nervosys** is the nervous-system management platform inside Kanvas — the layer that keeps track of everything happening across the ecosystem: events, ledgers, users, and the work being executed on their behalf.
+
+Where the rest of Kanvas connects your commerce, CRM, inventory, and workflow systems together, Nervosys is what makes that connective tissue **observable and accountable**. Every signal an agent receives, every decision it makes, and every action it takes is recorded so humans can see, trust, and steer what's happening.
+
+Nervosys is built around a few core components:
+
+- **Nervous-system ledger** – an append-only, auditable log of everything that happens across the ecosystem. Every domain can emit events into the ledger, giving you a single, chronological source of truth for what agents and users observed, decided, and did.
+- **User management** – identity and lookup for the people and agents interacting with the system, so events, tasks, and jobs can always be tied back to who (or what) triggered them.
+- **Coding task dispatching** – a way to hand off coding work to agents, track what was asked for, and follow it through to completion.
+- **Job tracking** – status monitoring for long-running or asynchronous work, so you always know whether a job is pending, running, completed, or failed — and why.
+
+Together, these components turn Kanvas from a set of connected systems into a platform where operational work — human or AI-driven — is fully traceable from request to result.
+
+## What's New
+
+Recent updates to Nervosys focus on making agent and user activity easier to track, reason about, and act on:
+
+- **Improved event tracking** – the nervous-system ledger now captures a richer, more consistent stream of events, making it easier to audit exactly what happened and when across the ecosystem.
+- **Handle-based user lookup** – user management now supports looking users up by handle, in addition to existing identifiers, simplifying integrations and agent interactions that only have a handle to work with.
+- **Coding task management** – a new coding task system lets work be dispatched to agents with associated job tracking, so you can monitor status (queued, running, completed, failed) throughout the task's lifecycle.
+- **Pull request integration** – coding jobs can now open and update pull requests through the GitHub token system, connecting task execution directly to the repositories being worked on.
+- **Time zone-aware scheduling** – scheduling and time-relative reasoning are now time zone aware, so agents and users reasoning about "today," "tomorrow," or specific times get consistent, locally-correct results regardless of where they're operating from.
+- **More robust job handling** – improved error handling and cancellation mechanisms for coding jobs make it easier to stop, retry, or recover from failed work without leaving the system in an inconsistent state.
+
 ## What People Use Kanvas For
 
 - 🚘 Dealer platforms (inventory + CRM + lead routing)  
