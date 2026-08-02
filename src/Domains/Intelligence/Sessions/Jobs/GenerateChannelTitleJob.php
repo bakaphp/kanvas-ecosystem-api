@@ -10,7 +10,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Sessions\Actions\GenerateChannelTitleAction;
 use Kanvas\Social\Channels\Models\Channel;
 
@@ -27,7 +26,6 @@ final class GenerateChannelTitleJob implements ShouldQueue
     use SerializesModels;
 
     public function __construct(
-        public readonly Apps $app,
         public readonly Channel $channel,
         public readonly string $userMessage,
         public readonly string $assistantResponse,
@@ -36,7 +34,7 @@ final class GenerateChannelTitleJob implements ShouldQueue
 
     public function handle(): void
     {
-        $this->overwriteAppService($this->app);
+        $this->overwriteAppService($this->channel->app);
 
         new GenerateChannelTitleAction(
             $this->channel,

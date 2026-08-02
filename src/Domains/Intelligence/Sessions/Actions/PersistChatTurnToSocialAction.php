@@ -206,7 +206,6 @@ class PersistChatTurnToSocialAction
         }
 
         GenerateChannelTitleJob::dispatch(
-            $this->app,
             $channel,
             $this->userMessage,
             $this->assistantResponse,
