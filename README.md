@@ -89,9 +89,24 @@ Kanvas is composed of operational building blocks:
 - **Commerce** – orders, fulfillment, operational logic  
 - **Social** – messaging, feeds, interactions  
 - **Agents** – execution, orchestration, operational memory  
+- **Nervous System** – the domain that makes agent execution observable and governable (see below)  
 
 You don’t install disconnected features.  
 You assemble an **operational nervous system** for your business.
+
+## Inside the `NervousSystem` Domain
+
+"Nervous system" isn't only a metaphor — it's a concrete domain in this codebase, at `src/Domains/NervousSystem/`, with its own GraphQL schemas under `graphql/schemas/NervousSystem/`. It's the substrate that lets AI agents plan, act, and be supervised safely across every other domain. It's made up of several cooperating sub-domains:
+
+- **Ledger** (`NervousSystem/Ledger`) – an append-only event log that every domain can emit to (via the `EmitsNervousSystemEvents` / `EmitsLedgerEventsForEntity` traits). Events are categorized as `SIGNAL`, `UNDERSTAND`, `DECIDE`, `ACT`, or `WARNING`, giving a full audit trail of what agents observed and did. Hot events live in MySQL for a configurable retention window (`config/nervous-system.php`) and are swept to S3/archive storage on a schedule, with a restore path back out of the archive.
+- **Capability** (`NervousSystem/Capability`) – the catalog of **Tools** and **Skills** agents can be granted or have revoked, with expirable grants, tool categories, and reconciliation against the Kanvas modules an app has enabled.
+- **Claims** (`NervousSystem/Claims`) – short-lived exclusive locks (`EntityClaim`) an agent holds while acting on a specific entity, so two agents can't step on each other's work; claims expire automatically and every acquire/release is written to the Ledger.
+- **Plan** & **Project** (`NervousSystem/Plan`, `NervousSystem/Project`) – agentic project management: workspaces, projects, plans, and tasks that agents and humans collaborate on, including two-way Kanban sync, stalled-task detection, and nudges for plans that have gone quiet.
+- **Orchestrator** (`NervousSystem/Orchestrator`) – ingests external signals (meeting transcripts, webhooks) through source adapters (plain text, WebVTT, Read.ai), classifies/segments them, and routes them to the right project, with a human-approval path when routing is ambiguous.
+- **Dashboard** & **Pulse** (`NervousSystem/Dashboard`, `NervousSystem/Pulse`) – daily metric rollups that power operational dashboards showing how the nervous system (and the agents running on it) are performing.
+- **DailyLearning** (`NervousSystem/DailyLearning`) – summarizes each agent's prior day of activity from the Ledger and emails a digest, so operators can see what their agents actually did.
+
+All of this is wired into the app scheduler (`app/Console/Commands/NervousSystem/Schedules/NervousSystemSchedule.php`) and exposed to clients through dedicated GraphQL queries/mutations (`nervousSystemHealth`, `ledgerEvents`, capability, plan, project, dashboard, and pulse metric schemas).
 
 ## What People Use Kanvas For
 
