@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Notifications\AgentReplyNotification;
+use Kanvas\Intelligence\Sessions\Jobs\GenerateChannelTitleJob;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -136,6 +137,8 @@ class PersistChatTurnToSocialAction
         $channel->addMessage($incoming, $this->user);
         $channel->addMessage($reply, $aiUser);
 
+        $this->maybeGenerateChannelTitle($channel);
+
         // Internal system agents never post into the lead timeline (chat stays on the
         // user↔agent channel). Others fall back to the People's active Lead so a mid-turn
         // create_lead still hits the Lead channel.
@@ -182,6 +185,31 @@ class PersistChatTurnToSocialAction
         );
 
         return $reply;
+    }
+
+    /**
+     * ChatGPT-style: after the very first exchange, rename the still-default channel to a short
+     * title distilled from the conversation. Gated on message count so it fires exactly once, and
+     * dispatched async so the LLM round-trip never delays the reply.
+     *
+     * @todo Extend auto-titling to connector channels (Slack/WhatsApp/email) — those persist via
+     *       BaseAgentChannelReplyAction and skip this action, so they never get titled today.
+     */
+    protected function maybeGenerateChannelTitle(Channel $channel): void
+    {
+        if (! GenerateChannelTitleAction::hasDefaultName($channel)) {
+            return;
+        }
+
+        if ($channel->messages()->count() > 2) {
+            return;
+        }
+
+        GenerateChannelTitleJob::dispatch(
+            $channel,
+            $this->userMessage,
+            $this->assistantResponse,
+        );
     }
 
     protected function resolveEntity(): ?Model
