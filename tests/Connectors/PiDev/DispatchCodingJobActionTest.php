@@ -79,6 +79,9 @@ final class DispatchCodingJobActionTest extends TestCase
 
     public function testRequesterOwnsThePlanForNotification(): void
     {
+        // Fake the queue so the poller isn't run inline (sync queue in CI would hit the network).
+        Queue::fake();
+
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
         $requester = auth()->user();

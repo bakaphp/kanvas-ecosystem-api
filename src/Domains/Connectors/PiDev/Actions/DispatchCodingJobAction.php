@@ -18,6 +18,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Users\Models\Users;
 
@@ -78,6 +79,7 @@ class DispatchCodingJobAction
                 agent: $this->agent,
                 user: $this->requestedBy ?? $this->agent->user,
                 description: $this->task,
+                status: PlanStatusEnum::ACTIVE,
                 input: ['repo_slug' => $this->repoSlug, 'repo_url' => $repoUrl],
             ),
             tasks: [
@@ -99,7 +101,10 @@ class DispatchCodingJobAction
             ? JobStatusEnum::from((string) $response['status'])->value
             : JobStatusEnum::QUEUED->value;
 
-        $task->set(TaskCustomFieldEnum::PIDEV_JOB_ID->value, isset($response['jobId']) ? (string) $response['jobId'] : null);
+        $task->set(
+            TaskCustomFieldEnum::PIDEV_JOB_ID->value,
+            isset($response['jobId']) ? (string) $response['jobId'] : null
+        );
         $task->set(TaskCustomFieldEnum::PIDEV_AGENT_ID->value, $this->agent->uuid);
         $task->set(TaskCustomFieldEnum::PIDEV_REPO_SLUG->value, $this->repoSlug);
         $task->set(TaskCustomFieldEnum::PIDEV_REPO_URL->value, $repoUrl);
