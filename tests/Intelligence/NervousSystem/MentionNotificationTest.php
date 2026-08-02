@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -101,6 +103,34 @@ class MentionNotificationTest extends TestCase
         );
 
         Notification::assertNothingSent();
+    }
+
+    public function testMentionNotificationUsesDedicatedTemplate(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user, $this->makeAgent($app, $company, $user));
+        $message = $this->postMessage($project, $user);
+
+        $notification = new UserMentionedNotification($message, $user);
+
+        $this->assertSame('email-user-mention', $notification->getTemplateName());
+    }
+
+    public function testMentionEmailTemplateIncludesMessageBody(): void
+    {
+        $rendered = Blade::render(
+            File::get(resource_path('views/emails/userMentioned.blade.php')),
+            [
+                'user' => (object) ['firstname' => 'Johnny'],
+                'fromUserName' => 'Roven PM',
+                'body' => 'please review the new design',
+            ],
+        );
+
+        $this->assertStringContainsString('Johnny', $rendered);
+        $this->assertStringContainsString('Roven PM', $rendered);
+        $this->assertStringContainsString('mentioned you', $rendered);
+        $this->assertStringContainsString('please review the new design', $rendered);
     }
 
     public function testAgentMentionIsNotHandledByHumanListener(): void
