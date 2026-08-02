@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
+use Kanvas\Intelligence\Agents\Neuron\Traits\HasLeadRag;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CalendarEventTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CancelCalendarEventTool;
@@ -50,6 +51,7 @@ use Override;
 class SalesAgent extends BaseKanvasAgent implements ConversesWithCustomer
 {
     use HasCustomerPersona;
+    use HasLeadRag;
     use HasTemporalContext;
     use MergesRegisteredTools;
 
