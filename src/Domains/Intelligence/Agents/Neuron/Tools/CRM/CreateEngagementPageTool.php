@@ -16,7 +16,11 @@ use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
+use Sentry\State\Scope;
 use Throwable;
+
+use function Sentry\captureException;
+use function Sentry\withScope;
 
 #[AgentTool(name: 'Create Engagement Page', category: 'crm')]
 class CreateEngagementPageTool extends Tool
@@ -100,7 +104,7 @@ class CreateEngagementPageTool extends Tool
                 data: $data,
             ));
         } catch (Throwable $e) {
-            report($e);
+            $this->reportException($e, $lead_id, $action);
 
             return [
                 'status' => 'error',
@@ -136,5 +140,22 @@ class CreateEngagementPageTool extends Tool
     protected function createEngagement(EngagementData $data): Engagement
     {
         return new CreateEngagementAction($data)->execute();
+    }
+
+    protected function reportException(Throwable $exception, int $leadId, string $action): void
+    {
+        withScope(function (Scope $scope) use ($exception, $leadId, $action): void {
+            $scope->setTag('operation', 'create_engagement_page');
+            $scope->setTag('action_slug', $action);
+            $scope->setContext('create_engagement_page', [
+                'lead_id' => $leadId,
+                'action' => $action,
+                'app_id' => $this->app->getId(),
+                'company_id' => $this->company->getId(),
+                'user_id' => $this->user->getId(),
+            ]);
+
+            captureException($exception);
+        });
     }
 }
