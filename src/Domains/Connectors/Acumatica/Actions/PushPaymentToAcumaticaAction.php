@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Acumatica\Actions;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Acumatica\Client;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
@@ -16,18 +17,9 @@ use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
 use Kanvas\Scribe\Payments\Models\Payment;
 
 /**
- * Pushes a Kanvas payment (with its allocations) to Acumatica — the write half of the cash-application
- * use cases. One action covers both directions:
- *   - OUTBOUND (AP payment / UC3): applies the disbursement to the vendor's open Bills, closing them.
- *   - INBOUND  (AR receipt / UC2): applies the receipt to the customer's open Invoices.
- *
- * Kanvas is the system of record for the application (which docs, how much) — the matching/judgment
- * already happened in Scribe. This just mirrors the applied payment into the ERP. Idempotent by
- * ACUMATICA_PAYMENT_ID; retry-safe via the PaymentRef find-query.
- *
- * NOTE: the `Payment` entity and `Type` are confirmed against a live push; the DocumentsToApply
- * DocType ('INV' for AR, 'Bill' for AP) follows Acumatica's defaults — verify on the first live
- * payment that carries applications.
+ * Pushes a Kanvas payment to Acumatica: AP via `Check` (two-step PUT — create on Hold, then set amount
+ * + release, since both on one call zeroes the header amount), AR via `Payment` directly. Idempotent by
+ * ACUMATICA_PAYMENT_ID.
  */
 class PushPaymentToAcumaticaAction
 {
@@ -73,12 +65,14 @@ class PushPaymentToAcumaticaAction
             );
         }
 
-        $record = $this->writer()->push(
-            'Payment',
-            $this->buildPayload($isAp, $partyCode, $documents),
-            release: true,
-            findQuery: $this->existingPaymentQuery(),
-        );
+        $record = $isAp
+            ? $this->pushApCheck($partyCode, $documents)
+            : $this->writer()->push(
+                'Payment',
+                $this->buildArPayload($partyCode, $documents),
+                release: true,
+                findQuery: $this->existingPaymentQuery(),
+            );
 
         $id = AcumaticaPayload::recordId($record);
         $referenceNbr = (string) (AcumaticaPayload::value($record, 'ReferenceNbr') ?? $id ?? '');
@@ -120,7 +114,8 @@ class PushPaymentToAcumaticaAction
 
             $docs[] = AcumaticaPayload::wrap([
                 'DocType' => 'Bill',
-                'ReferenceNbr' => $bill->bill_number,
+                // Acumatica's own reference, not bill_number (Kanvas's internal number).
+                'ReferenceNbr' => (string) $bill->get(CustomFieldEnum::BILL_REF->value, ''),
                 'AmountPaid' => (float) $allocation->amount_native,
             ]);
         }
@@ -154,7 +149,8 @@ class PushPaymentToAcumaticaAction
 
             $docs[] = AcumaticaPayload::wrap([
                 'DocType' => 'INV',
-                'ReferenceNbr' => $invoice->invoice_number,
+                // Acumatica's own reference, not invoice_number (Kanvas's internal number).
+                'ReferenceNbr' => (string) $invoice->get(CustomFieldEnum::INVOICE_REF->value, ''),
                 'AmountPaid' => (float) $allocation->amount_native,
             ]);
         }
@@ -167,11 +163,11 @@ class PushPaymentToAcumaticaAction
      *
      * @return array<string, mixed>
      */
-    private function buildPayload(bool $isAp, string $partyCode, array $documents): array
+    private function buildArPayload(string $partyCode, array $documents): array
     {
         $header = AcumaticaPayload::wrap([
-            'Type' => $isAp ? 'Check' : 'Payment',
-            $isAp ? 'Vendor' : 'CustomerID' => $partyCode,
+            'Type' => 'Payment',
+            'CustomerID' => $partyCode,
             'CashAccount' => $this->cashAccountCode(),
             'PaymentAmount' => (float) $this->payment->amount_native,
             'PaymentMethod' => strtoupper($this->payment->method->value),
@@ -185,6 +181,56 @@ class PushPaymentToAcumaticaAction
         $header['DocumentsToApply'] = $documents;
 
         return $header;
+    }
+
+    /**
+     * @param array<int, array<string, array{value: mixed}>> $documents
+     *
+     * @return array<string, mixed> the released Check record
+     */
+    private function pushApCheck(string $vendorCode, array $documents): array
+    {
+        return $this->writer()->withSession(function (Client $client) use ($vendorCode, $documents): array {
+            $findQuery = $this->existingPaymentQuery();
+
+            if ($findQuery !== null) {
+                $found = $client->get('Check', $findQuery);
+
+                if (isset($found[0]) && is_array($found[0])) {
+                    return $found[0];
+                }
+            }
+
+            // Create on hold, no PaymentAmount yet — sending it with Details zeroes the header amount.
+            $created = AcumaticaPayload::wrap([
+                'Type' => 'Payment',
+                'Vendor' => $vendorCode,
+                'CashAccount' => $this->cashAccountCode(),
+                'PaymentMethod' => strtoupper($this->payment->method->value),
+                'PaymentRef' => $this->payment->reference,
+                'ApplicationDate' => $this->payment->payment_date->toDateString(),
+                'CurrencyID' => $this->payment->currency,
+                'Hold' => true,
+            ]);
+            $created['Details'] = $documents;
+
+            $record = $client->put('Check', $created);
+            $referenceNbr = (string) (AcumaticaPayload::value($record, 'ReferenceNbr') ?? '');
+
+            if ($referenceNbr === '') {
+                throw new AcumaticaWriteException(
+                    "Payment {$this->payment->getId()}: AP Check creation did not return a usable ReferenceNbr."
+                );
+            }
+
+            // Now the amount sticks; flip Hold to false to release.
+            return $client->put('Check', AcumaticaPayload::wrap([
+                'Type' => 'Payment',
+                'ReferenceNbr' => $referenceNbr,
+                'PaymentAmount' => (float) $this->payment->amount_native,
+                'Hold' => false,
+            ]));
+        });
     }
 
     /**
