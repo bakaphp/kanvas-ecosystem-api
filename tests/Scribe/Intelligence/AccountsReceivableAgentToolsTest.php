@@ -11,10 +11,12 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoiceLine;
+use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Tests\Scribe\ScribeTestCase;
 
 class AccountsReceivableAgentToolsTest extends ScribeTestCase
@@ -156,6 +158,25 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $this->assertFalse($result['applied']);
         $this->assertSame('invoice_not_pushed', $result['reason']);
+    }
+
+    public function test_create_ar_invoice_leaves_it_open_with_no_auto_payment(): void
+    {
+        $customer = $this->seedTestOrganization('Open Invoice Customer');
+        $customer->set(CustomFieldEnum::CUSTOMER_ID->value, 'C0000999');
+
+        $result = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(amount: 50.0, memo: 'test invoice', customer_name: 'Open Invoice Customer');
+
+        $this->assertTrue($result['created']);
+        $this->assertArrayNotHasKey('payment_pushed', $result);
+        $this->assertArrayNotHasKey('payment_ref', $result);
+
+        $allocations = InvoicePaymentAllocation::query()
+            ->where('invoice_id', $result['invoice_id'])
+            ->count();
+        $this->assertSame(0, $allocations);
     }
 
     public function test_match_invoices_for_payment_flags_the_exact_invoice(): void
