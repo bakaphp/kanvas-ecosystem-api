@@ -238,21 +238,28 @@ class AgentChatKernel
 
     protected function broadcastChatResponse(string $sessionId, string $response): void
     {
-        AgentChatResponseEvent::dispatch(
-            $this->agent,
-            $sessionId,
-            $this->message,
-            $response
-        );
+        // Best-effort: broadcasting is a live-update nicety. The reply is already computed and
+        // persisted, so a Pusher/subscription outage must NEVER crash the chat turn (otherwise a
+        // transient broadcast failure surfaces to the client as a 500 "Internal server error").
+        try {
+            AgentChatResponseEvent::dispatch(
+                $this->agent,
+                $sessionId,
+                $this->message,
+                $response
+            );
 
-        Subscription::broadcast('agentChatResponse', [
-            'agent_id' => $this->agent->getId(),
-            'agent_name' => $this->agent->name,
-            'session_id' => $sessionId,
-            ...$this->limitBroadcastPayloadSet([
-                'message' => $this->message,
-                'response' => $response,
-            ]),
-        ]);
+            Subscription::broadcast('agentChatResponse', [
+                'agent_id' => $this->agent->getId(),
+                'agent_name' => $this->agent->name,
+                'session_id' => $sessionId,
+                ...$this->limitBroadcastPayloadSet([
+                    'message' => $this->message,
+                    'response' => $response,
+                ]),
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 }

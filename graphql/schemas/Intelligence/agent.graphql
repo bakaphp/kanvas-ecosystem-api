@@ -21,6 +21,7 @@ type AgentAi {
     identity: Mixed
     user_context: String
     tools_config: String
+    voice_config: Mixed
     deployment_status: String!
     activeDeployment: AgentDeploymentType @hasOne
     agent_model_id: ID
@@ -225,7 +226,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentIntegrationConfigMutation@set"
         )
-    createAgentConfigBackup(agent_id: ID!, notes: String): AgentConfigBackupType!
+    createAgentConfigBackup(
+        agent_id: ID!
+        notes: String
+    ): AgentConfigBackupType!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentConfigBackupMutation@create"
         )
@@ -292,10 +296,7 @@ extend type Query @guard {
         )
     agentConfigBackups(
         agent_id: ID!
-        where: _
-            @whereConditions(
-                columns: ["id", "status", "created_at"]
-            )
+        where: _ @whereConditions(columns: ["id", "status", "created_at"])
         orderBy: _ @orderBy(columns: ["id", "created_at"])
     ): [AgentConfigBackupType!]!
         @paginate(
@@ -336,7 +337,6 @@ extend type Subscription @guard {
         )
 }
 
-# Canonical path is observer-driven; these are app-owner overrides only.
 extend type Mutation @guardByAppKey {
     setAgentKanvasModule(
         agent_id: ID!

@@ -18,7 +18,7 @@ type User {
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@contact")
     address: AddressType
         @field(resolver: "App\\GraphQL\\Ecosystem\\Types\\UserType@address")
-    addresses: [Address!] @HasMany(relation: "addresses")
+    addresses: [Address!] @hasMany(relation: "addresses")
     sex: String
     user_active: Boolean!
     is_verified: Boolean! @method(name: "getAppIsVerified")
@@ -31,9 +31,9 @@ type User {
     created_at: DateTime
     systemModule: SystemModule! @belongsTo(relation: "systemModule")
     updated_at: DateTime
-    branches: [CompanyBranch!]! @HasManyThrough
-    companies: [Company!]! @HasManyThrough
-    apps: [App!]! @HasManyThrough
+    branches: [CompanyBranch!]! @hasManyThrough(relation: "branches")
+    companies: [Company!]! @hasManyThrough(relation: "companies")
+    apps: [App!]! @hasManyThrough(relation: "apps")
     photo: Filesystem @method(name: "getPhoto")
     social: UserSocialInfo @method(name: "getSocialInfo")
     total_unread_notifications: Int!

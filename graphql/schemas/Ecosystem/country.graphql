@@ -49,7 +49,7 @@ input CreateCountryInput {
 input CreateStateInput {
     name: String!
     code: String!
-    cities: [CreateCityInput!]! @hasMany
+    cities: [CreateCityInput!]!
 }
 input CreateCityInput {
     name: String!

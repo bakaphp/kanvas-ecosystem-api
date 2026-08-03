@@ -115,10 +115,10 @@ final class ExpandProductSlotsActivityTest extends TestCase
 
         // Assert RRULE format is correct
         foreach ($scheduleRules as $rule) {
-            $this->assertStringContainsString('DTSTART:', $rule->rrule);
+            $this->assertStringContainsString('DTSTART;TZID=', $rule->rrule);
             $this->assertStringContainsString('RRULE:FREQ=WEEKLY;BYDAY=', $rule->rrule);
             $this->assertNotNull($rule->day_rrule);
-            $this->assertStringContainsString('DTSTART:', $rule->day_rrule);
+            $this->assertStringContainsString('DTSTART;TZID=', $rule->day_rrule);
             $this->assertStringContainsString('RRULE:FREQ=MINUTELY;INTERVAL=15', $rule->day_rrule);
         }
 
