@@ -22,6 +22,6 @@ class VoiceAgentSpecQuery
         $app = app(Apps::class);
         $agent = AgentsRepository::getByUuidFromApp((string) $args['uuid'], $app);
 
-        return (new VoiceAgentSpecService($agent, $app))->compile();
+        return new VoiceAgentSpecService($agent, $app)->compile();
     }
 }
