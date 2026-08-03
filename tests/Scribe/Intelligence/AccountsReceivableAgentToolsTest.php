@@ -160,6 +160,16 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame('invoice_not_pushed', $result['reason']);
     }
 
+    public function test_create_ar_invoice_refuses_an_empty_customer_name(): void
+    {
+        $result = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: '', amount: 50.0, memo: 'test invoice');
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('customer_name_required', $result['reason']);
+    }
+
     public function test_create_ar_invoice_leaves_it_open_with_no_auto_payment(): void
     {
         $customer = $this->seedTestOrganization('Open Invoice Customer');
@@ -167,7 +177,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $result = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(amount: 50.0, memo: 'test invoice', customer_name: 'Open Invoice Customer');
+            ->__invoke(customer_name: 'Open Invoice Customer', amount: 50.0, memo: 'test invoice');
 
         $this->assertTrue($result['created']);
         $this->assertArrayNotHasKey('payment_pushed', $result);
