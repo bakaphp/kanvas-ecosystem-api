@@ -21,7 +21,6 @@ use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Enums\ProjectMemberRoleEnum;
-use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Services\ProjectContextService;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
@@ -167,32 +166,7 @@ class ProjectContextServiceTest extends TestCase
             user: $user,
         )->execute();
 
-        $department = new CreateDepartmentAction(
-            new DepartmentData(app: $app, company: $company, user: $user, name: 'Platform'),
-        )->execute();
-
-        $position = new CreatePositionAction(
-            new PositionData(app: $app, company: $company, user: $user, title: 'Staff Engineer'),
-        )->execute();
-
-        $people = People::factory()->create([
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'users_id' => $user->getId(),
-        ]);
-
-        new CreateEmployeeAction(
-            new EmployeeData(
-                app: $app,
-                company: $company,
-                loginUser: $user,
-                people: $people,
-                position: $position,
-                hiredAt: '2026-01-15',
-                department: $department,
-                description: 'Owns CI',
-            ),
-        )->execute();
+        $this->createEmployee($app, $company, $user, 'Staff Engineer', 'Platform', 'Owns CI');
 
         $bundle = new ProjectContextService()->buildContextBundle($project);
 
@@ -229,5 +203,76 @@ class ProjectContextServiceTest extends TestCase
         // adds signal without regressing members who aren't employees.
         $this->assertSame('user', $bundle->members[0]['type']);
         $this->assertNull($bundle->members[0]['description']);
+    }
+
+    public function testAgentMemberPrefersOwnDescriptionThenHrRole(): void
+    {
+        [$app, $company, $user] = $this->context();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId(), 'description' => 'Handles CRM chores']);
+
+        $project = new CreateProjectAction(
+            ProjectData::from($app, $user, $company, ['title' => 'Ops', 'agent_id' => $agent->id]),
+        )->execute();
+
+        new AddProjectMemberAction(
+            project: $project,
+            role: ProjectMemberRoleEnum::CONTRIBUTOR,
+            agent: $agent,
+        )->execute();
+
+        // The agent's user is in the HR org chart too, but an agent's own description is the sharper
+        // routing signal, so it wins over the HR role.
+        $this->createEmployee($app, $company, $user, 'Staff Engineer', 'Platform');
+
+        $bundle = new ProjectContextService()->buildContextBundle($project);
+        $this->assertSame('agent', $bundle->members[0]['type']);
+        $this->assertSame('Handles CRM chores', $bundle->members[0]['description']);
+
+        // Strip the self-description → the HR org-chart role takes over as the fallback.
+        $agent->description = null;
+        $agent->saveOrFail();
+
+        $bundle = new ProjectContextService()->buildContextBundle($project);
+        $this->assertSame('Staff Engineer — Platform', $bundle->members[0]['description']);
+    }
+
+    private function createEmployee(
+        Apps $app,
+        Companies $company,
+        Users $user,
+        string $title,
+        string $department,
+        ?string $description = null,
+    ): void {
+        $departmentModel = new CreateDepartmentAction(
+            new DepartmentData(app: $app, company: $company, user: $user, name: $department),
+        )->execute();
+
+        $position = new CreatePositionAction(
+            new PositionData(app: $app, company: $company, user: $user, title: $title),
+        )->execute();
+
+        $people = People::factory()->create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+        ]);
+
+        new CreateEmployeeAction(
+            new EmployeeData(
+                app: $app,
+                company: $company,
+                loginUser: $user,
+                people: $people,
+                position: $position,
+                hiredAt: '2026-01-15',
+                department: $departmentModel,
+                description: $description,
+            ),
+        )->execute();
     }
 }

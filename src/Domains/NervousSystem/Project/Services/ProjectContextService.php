@@ -74,7 +74,7 @@ class ProjectContextService
     {
         /** @var Collection<int, ProjectMember> $members */
         $members = $project->members()->with(['user', 'agent'])->get();
-        $humanDescriptions = $this->humanCapabilityDescriptions($project, $members);
+        $memberDescriptions = $this->memberCapabilityDescriptions($project, $members);
 
         return $members
             ->toBase()
@@ -85,26 +85,28 @@ class ProjectContextService
                 'handle' => $this->memberHandle($project, $member),
                 'users_id' => $member->users_id,
                 'agent_id' => $member->agent_id,
+                // An agent's own description is its sharpest routing signal, so it wins for agents;
+                // otherwise use the HR org-chart role (which lists agents and humans alike). Humans
+                // have no self-description, so for them HR is the source; none in HR → null.
                 'description' => $member->agent?->description
-                    ?? $member->agent?->type?->description
-                    ?? ($humanDescriptions[$member->users_id] ?? null),
+                    ?? $memberDescriptions[$member->users_id]
+                    ?? $member->agent?->type?->description,
                 'can_execute' => (bool) $member->agent?->canExecuteBoardWork(),
             ])
             ->all();
     }
 
     /**
-     * Map each HUMAN member's users_id to their HR capability string (agents describe themselves),
-     * so the PM routes by fit. One `hr` query for all of them — no N+1 across connections.
+     * Map each member's users_id to their HR org-chart role — HR lists agents and humans alike, so
+     * this covers both. One `hr` query for all members; no N+1 across connections.
      *
      * @param Collection<int, ProjectMember> $members
      *
      * @return array<int, string> keyed by users_id
      */
-    private function humanCapabilityDescriptions(Project $project, Collection $members): array
+    private function memberCapabilityDescriptions(Project $project, Collection $members): array
     {
         $userIds = $members
-            ->filter(fn (ProjectMember $member): bool => $member->agent_id === null)
             ->pluck('users_id')
             ->map(fn ($id): int => (int) $id)
             ->values()
