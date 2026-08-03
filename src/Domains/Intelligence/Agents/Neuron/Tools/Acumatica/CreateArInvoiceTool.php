@@ -6,20 +6,15 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Actions\PushInvoiceToAcumaticaAction;
-use Kanvas\Connectors\Acumatica\Actions\PushPaymentToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Scribe\Invoices\Actions\AllocateInvoicePaymentAction;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
-use Kanvas\Scribe\Invoices\Models\Invoice;
-use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
-use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -27,7 +22,7 @@ use Override;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
-/** Creates a one-line AR invoice, issues it, pushes it to Acumatica, then applies and pushes a cash receipt — the AR mirror of CreateApBillTool. */
+/** Creates a one-line AR invoice, issues it, and pushes it to Acumatica — the AR mirror of CreateApBillTool. Stays open; use apply_ar_payment to record a payment against it separately. */
 #[AgentTool(name: 'Create AR Invoice', category: 'accounting')]
 class CreateArInvoiceTool extends Tool
 {
@@ -37,10 +32,10 @@ class CreateArInvoiceTool extends Tool
     {
         parent::__construct(
             name: 'create_ar_invoice',
-            description: 'Creates a one-line AR invoice for a customer, issues it, pushes it to Acumatica, then '
-                . 'applies a cash receipt against it and pushes that too — returning the invoice ref and payment '
-                . 'ref. Bypasses the normal human approval gate — use only when the user explicitly asks to '
-                . 'create an invoice this way, never on a whim.',
+            description: 'Creates a one-line AR invoice for a customer, issues it, and pushes it to Acumatica — '
+                . 'returning the invoice ref. The invoice stays open; use apply_ar_payment separately to record a '
+                . 'payment against it. Bypasses the normal human approval gate — use only when the user explicitly '
+                . 'asks to create an invoice this way, never on a whim.',
         );
     }
 
@@ -54,7 +49,7 @@ class CreateArInvoiceTool extends Tool
             new ToolProperty(
                 name: 'amount',
                 type: PropertyType::NUMBER,
-                description: 'The invoice amount, e.g. 1.00. The cash receipt applied afterward is for the same amount.',
+                description: 'The invoice amount, e.g. 1.00.',
                 required: true,
             ),
             new ToolProperty(
@@ -153,43 +148,9 @@ class CreateArInvoiceTool extends Tool
             ];
         }
 
-        // Payment application matches against the invoice's own invoice_number.
-        $invoice->invoice_number = $invoiceRef;
-        $invoice->saveQuietly();
-
-        $allocation = new AllocateInvoicePaymentAction(
-            invoice: $invoice,
-            amountNative: $amount,
-            method: PaymentMethodEnum::CHECK,
-            cashAccountSubType: AccountSubTypeEnum::CASH_CHECKING,
-            reference: 'TEST-' . $invoiceRef,
-            user: $actingUser,
-        )->execute();
-
-        $payment = $allocation->payment;
-
-        try {
-            $paymentRef = $this->retryOnReleaseDisabled(
-                fn (): string => new PushPaymentToAcumaticaAction($payment)->execute(),
-            );
-        } catch (AcumaticaWriteException|Throwable $e) {
-            return [
-                'created' => true,
-                'invoice_pushed' => true,
-                'invoice_ref' => $invoiceRef,
-                'payment_pushed' => false,
-                'invoice_id' => $invoice->getId(),
-                'reason' => 'payment_push_failed',
-                'message' => "Invoice pushed to Acumatica (ref {$invoiceRef}) and the cash receipt was recorded "
-                    . 'in Kanvas, but pushing the payment to Acumatica failed: ' . $e->getMessage()
-                    . '. It needs manual attention — it will not auto-retry.',
-            ];
-        }
-
         return [
             'created' => true,
             'invoice_pushed' => true,
-            'payment_pushed' => true,
             'invoice_id' => $invoice->getId(),
             'document_status' => $invoice->fresh()->document_status->value,
             'customer' => $customer->name,
@@ -198,10 +159,8 @@ class CreateArInvoiceTool extends Tool
             'memo' => $memo,
             'invoice_ref' => $invoiceRef,
             'acumatica_invoice_id' => (string) $invoice->get(AcumaticaCustomFieldEnum::INVOICE_ID->value, ''),
-            'payment_ref' => $paymentRef,
-            'acumatica_payment_id' => (string) $payment->get(AcumaticaCustomFieldEnum::PAYMENT_ID->value, ''),
-            'next' => 'Invoice and cash receipt both pushed to Acumatica. Use invoice_ref and payment_ref to '
-                . 'find the records.',
+            'next' => 'Invoice pushed to Acumatica and left open. Use apply_ar_payment with this invoice_id to '
+                . 'record a payment against it.',
         ];
     }
 
