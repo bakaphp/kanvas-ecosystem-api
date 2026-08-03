@@ -47,6 +47,12 @@ final class MechanicServiceTypeTest extends TestCase
             mutation SetServiceType($id: ID!, $serviceType: String!) {
                 setMechanicServiceType(id: $id, service_type: $serviceType) {
                     id
+                    custom_fields {
+                        data {
+                            name
+                            value
+                        }
+                    }
                 }
             }
         ', [
@@ -65,6 +71,16 @@ final class MechanicServiceTypeTest extends TestCase
         $this->assertSame(
             'ASISTENCIA VIAL',
             $this->authUser->fresh()->get(CustomFieldEnum::MECHANIC_SERVICE_TYPE->value)
+        );
+
+        // HashFieldsQuery::getAllByGraphType only returns is_public=1 rows, so the mutation
+        // must persist the field as public or it silently disappears from custom_fields.
+        $customFields = collect($response->json('data.setMechanicServiceType.custom_fields.data'));
+        $this->assertTrue(
+            $customFields->contains(
+                fn (array $field) => $field['name'] === CustomFieldEnum::MECHANIC_SERVICE_TYPE->value
+                    && $field['value'] === 'ASISTENCIA VIAL'
+            )
         );
     }
 

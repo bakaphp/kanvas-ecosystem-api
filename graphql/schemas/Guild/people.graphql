@@ -83,7 +83,7 @@ type PeopleDuplicateGroup {
     canonical_id: Int!
     "All member people ids, including canonical_id, ascending."
     member_ids: [Int!]!
-    "Which dimension flagged this cluster: external_id_conflict | exact_name | lastname_match | email_match"
+    "Which dimension flagged this cluster: external_id_conflict | exact_name | lastname_match | firstname_match | email_match"
     reason: String!
     "A representative full name from the group (for display)."
     sample_name: String!
@@ -332,5 +332,11 @@ extend type Mutation @guard {
     mergePeople(source_ids: [Int!]!, target_id: Int!): People!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleMergeMutation@merge"
+        )
+    detectPeopleDuplicates(
+        max_groups: Int
+    ): [PeopleDuplicateGroup!]!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleMergeMutation@detectDuplicates"
         )
 }
