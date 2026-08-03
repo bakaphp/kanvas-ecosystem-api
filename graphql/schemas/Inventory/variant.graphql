@@ -39,7 +39,7 @@ type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
         @cacheRedis
     companies: Company! @belongsTo(relation: "company")
     channels(currencyCode: String): [VariantChannelRelationship!]!
-        @BelongsToMany(relation: "channels")
+        @belongsToMany(relation: "channels")
     channel(currencyCode: String): VariantPricingInfo
         @cacheRedis
         @field(

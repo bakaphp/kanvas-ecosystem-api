@@ -111,7 +111,7 @@ type Order {
             resolver: "App\\GraphQL\\Souk\\Builders\\Order\\TransactionLinkBuilder@getLink"
         )
     items(includeAllItems: Boolean = false): [OrderItem!]
-        @HasMany(relation: "allItems")
+        @hasMany(relation: "allItems")
         @builder(
             method: "App\\GraphQL\\Souk\\Builders\\Order\\OrderBuilder@filterByItems"
         )
