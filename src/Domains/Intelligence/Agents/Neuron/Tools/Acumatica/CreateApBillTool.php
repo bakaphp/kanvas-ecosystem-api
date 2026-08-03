@@ -62,15 +62,15 @@ class CreateApBillTool extends Tool
             new ToolProperty(
                 name: 'memo',
                 type: PropertyType::STRING,
-                description: 'Description / memo for the bill and its single line, e.g. "TEST write-path".',
+                description: 'Description / memo for the bill and its single line.',
                 required: true,
             ),
             new ToolProperty(
                 name: 'vendor_name',
                 type: PropertyType::STRING,
-                description: 'Vendor name to match (substring). Omit to use any existing active vendor '
-                    . 'organization on this app/company — fine for a write-path smoke test.',
-                required: false,
+                description: 'Vendor name to match (substring). Always required — never guess or pick an '
+                    . 'arbitrary vendor; ask the user which one if it is not clear from context.',
+                required: true,
             ),
             new ToolProperty(
                 name: 'currency',
@@ -85,33 +85,35 @@ class CreateApBillTool extends Tool
      * @return array<string, mixed>
      */
     public function __invoke(
+        string $vendor_name,
         float $amount,
         string $gl_account_number,
         string $memo,
-        ?string $vendor_name = null,
         ?string $currency = null,
     ): array {
         $app = $this->app;
         $company = $this->company;
 
-        $vendorQuery = Organization::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_deleted', false);
-
-        if ($vendor_name !== null && trim($vendor_name) !== '') {
-            $vendorQuery->where('name', 'like', '%' . trim($vendor_name) . '%');
+        if (trim($vendor_name) === '') {
+            return [
+                'created' => false,
+                'reason' => 'vendor_name_required',
+                'message' => 'A vendor_name is required — never pick an arbitrary vendor.',
+            ];
         }
 
-        $vendor = $vendorQuery->first();
+        $vendor = Organization::query()
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->where('is_deleted', false)
+            ->where('name', 'like', '%' . trim($vendor_name) . '%')
+            ->first();
 
         if ($vendor === null) {
             return [
                 'created' => false,
                 'reason' => 'vendor_not_found',
-                'message' => $vendor_name !== null
-                    ? "No vendor organization matching \"{$vendor_name}\" for this app/company."
-                    : 'No active vendor organization exists for this app/company yet.',
+                'message' => "No vendor organization matching \"{$vendor_name}\" for this app/company.",
             ];
         }
 
