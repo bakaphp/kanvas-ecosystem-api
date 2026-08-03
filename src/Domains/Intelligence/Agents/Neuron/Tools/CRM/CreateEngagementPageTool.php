@@ -11,6 +11,7 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -27,7 +28,7 @@ class CreateEngagementPageTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
+    public function __construct(private readonly Agent $agent)
     {
         parent::__construct(
             name: 'create_engagement_page',
@@ -90,10 +91,18 @@ class CreateEngagementPageTool extends Tool
         }
 
         try {
+            $agentUser = $this->agent->user;
+            if ($agentUser === null) {
+                return [
+                    'status' => 'error',
+                    'message' => 'The agent must have an acting user configured to create an engagement page.',
+                ];
+            }
+
             $engagement = $this->createEngagement(new EngagementData(
                 app: $this->app,
                 company: $this->company,
-                user: $this->user,
+                user: $agentUser,
                 lead: $lead,
                 action: $action,
                 requestId: (string) Str::uuid(),
@@ -152,7 +161,7 @@ class CreateEngagementPageTool extends Tool
                 'action' => $action,
                 'app_id' => $this->app->getId(),
                 'company_id' => $this->company->getId(),
-                'user_id' => $this->user->getId(),
+                'user_id' => $this->agent->user_id,
             ]);
 
             captureException($exception);
