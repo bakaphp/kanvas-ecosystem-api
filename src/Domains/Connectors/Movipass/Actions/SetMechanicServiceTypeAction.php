@@ -17,7 +17,7 @@ class SetMechanicServiceTypeAction
 
     public function execute(): Users
     {
-        $this->mechanic->set(CustomFieldEnum::MECHANIC_SERVICE_TYPE->value, trim($this->serviceType));
+        $this->mechanic->set(CustomFieldEnum::MECHANIC_SERVICE_TYPE->value, trim($this->serviceType), isPublic: true);
 
         return $this->mechanic;
     }
