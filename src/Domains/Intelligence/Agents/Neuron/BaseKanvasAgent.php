@@ -118,39 +118,19 @@ class BaseKanvasAgent extends NeuronAIAgent implements ProvidesToolDependencies
     }
 
     /**
-     * Souls tell the model to call get_current_time, and Neuron kills the turn with a
-     * ProviderException when the model names a tool the provider was never given
-     * (Sentry KANVAS-ECOSYSTEM-600). Time must therefore reach every agent whatever its
-     * tools() returns — a hardcoded baseline, a registry selection, or nothing at all.
-     * Deduped by tool name, so an operator who also grants it in the registry gets one copy.
+     * Universal tools (get_current_time) must reach every agent whatever its tools() returned —
+     * souls tell the model to call get_current_time and Neuron kills the turn if the tool was never
+     * given (Sentry KANVAS-ECOSYSTEM-600). We then collapse by tool name so no duplicate name hits
+     * the provider (Gemini rejects the turn with "Duplicate function declaration"). Duplicates arise
+     * two ways: a universal tool an operator also granted in the registry, or a registry grant
+     * colliding with a tool a subclass hardcodes in tools() after parent::tools() already merged the
+     * registry — which MergesRegisteredTools' by-class dedupe can't see.
      */
     #[Override]
     public function getTools(): array
     {
-        $tools = parent::getTools();
-
-        foreach ($this->universalTools() as $universal) {
-            if (! $this->hasToolNamed($tools, $universal->getName())) {
-                $tools[] = $universal;
-            }
-        }
-
-        // A registry-granted tool (e.g. toggled on in the admin UI) can share its name with one
-        // a subclass hardcodes in tools() — the registry merge in MergesRegisteredTools can't see
-        // that hardcoded addition since it happens after parent::tools() returns. Keeping the LAST
-        // occurrence favors the hardcoded instance, which is always appended after the registry
-        // merge in this codebase's array_merge(parent::tools(), [...]) convention.
-        return $this->dedupeByName($tools);
-    }
-
-    /**
-     * @param array<int, object> $tools
-     * @return list<object>
-     */
-    private function dedupeByName(array $tools): array
-    {
         $byName = [];
-        foreach ($tools as $tool) {
+        foreach (array_merge(parent::getTools(), $this->universalTools()) as $tool) {
             $key = $tool instanceof ToolInterface ? $tool->getName() : spl_object_id($tool);
             $byName[$key] = $tool;
         }
@@ -166,20 +146,6 @@ class BaseKanvasAgent extends NeuronAIAgent implements ProvidesToolDependencies
         return [
             new CurrentTimeTool(),
         ];
-    }
-
-    /**
-     * @param array<int, object> $tools
-     */
-    private function hasToolNamed(array $tools, string $name): bool
-    {
-        foreach ($tools as $tool) {
-            if ($tool instanceof ToolInterface && $tool->getName() === $name) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
