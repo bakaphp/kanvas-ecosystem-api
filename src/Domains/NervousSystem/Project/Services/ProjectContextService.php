@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Project\Services;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Str;
+use Kanvas\HumanResources\Employees\Services\EmployeeIdentityResolver;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
@@ -16,11 +18,6 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
-/**
- * Assembles a project's full situational-awareness bundle — objective, members, open work, recent
- * narrative and structured trail — so an agent reads the whole story before it acts. Reads across
- * ALL of the project's channels for the narrative; the ledger for the structured trail.
- */
 class ProjectContextService
 {
     private const int RECENT_MESSAGE_CHAR_CAP = 1200;
@@ -75,28 +72,53 @@ class ProjectContextService
      */
     private function members(Project $project): array
     {
-        return $project->members()
-            ->with(['user', 'agent'])
-            ->get()
+        /** @var Collection<int, ProjectMember> $members */
+        $members = $project->members()->with(['user', 'agent'])->get();
+        $humanDescriptions = $this->humanCapabilityDescriptions($project, $members);
+
+        return $members
             ->toBase()
             ->map(fn (ProjectMember $member): array => [
                 'type' => $member->member_type,
                 'role' => $member->role,
                 'name' => $this->memberName($member),
-                // The exact @handle the mention parser resolves (app displayname). Null when the
-                // member has no resolvable handle — the PM can't notify them, so don't offer one.
                 'handle' => $this->memberHandle($project, $member),
-                // Every member is a Kanvas user — this is the id assign_plan/assign_task need to hand
-                // work to a HUMAN. Without it the PM can only ever assign to agents (agent_id below).
                 'users_id' => $member->users_id,
                 'agent_id' => $member->agent_id,
-                // What this agent is for — so the PM assigns by fit, not by name.
-                'description' => $member->agent?->description ?? $member->agent?->type?->description,
-                // Only agents that can actually own a plan / move the board. Never assign executable
-                // work (assign_plan/assign_task) to a member where this is false — they'll stall or fail.
+                'description' => $member->agent?->description
+                    ?? $member->agent?->type?->description
+                    ?? ($humanDescriptions[$member->users_id] ?? null),
                 'can_execute' => (bool) $member->agent?->canExecuteBoardWork(),
             ])
             ->all();
+    }
+
+    /**
+     * Map each HUMAN member's users_id to their HR capability string (agents describe themselves),
+     * so the PM routes by fit. One `hr` query for all of them — no N+1 across connections.
+     *
+     * @param Collection<int, ProjectMember> $members
+     *
+     * @return array<int, string> keyed by users_id
+     */
+    private function humanCapabilityDescriptions(Project $project, Collection $members): array
+    {
+        $userIds = $members
+            ->filter(fn (ProjectMember $member): bool => $member->agent_id === null)
+            ->pluck('users_id')
+            ->map(fn ($id): int => (int) $id)
+            ->values()
+            ->all();
+
+        $descriptions = [];
+        foreach (new EmployeeIdentityResolver()->fromUsers($userIds, $project->company, $project->app) as $employee) {
+            $description = $employee->describeForAssignment();
+            if ($description !== null) {
+                $descriptions[(int) $employee->users_id] = $description;
+            }
+        }
+
+        return $descriptions;
     }
 
     private function memberName(ProjectMember $member): string

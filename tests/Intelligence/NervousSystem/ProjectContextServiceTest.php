@@ -4,8 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\HumanResources\Departments\Actions\CreateDepartmentAction;
+use Kanvas\HumanResources\Departments\DataTransferObject\Department as DepartmentData;
+use Kanvas\HumanResources\Employees\Actions\CreateEmployeeAction;
+use Kanvas\HumanResources\Employees\DataTransferObject\Employee as EmployeeData;
+use Kanvas\HumanResources\Positions\Actions\CreatePositionAction;
+use Kanvas\HumanResources\Positions\DataTransferObject\Position as PositionData;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Actions\AddProjectMemberAction;
@@ -20,6 +28,10 @@ use Tests\TestCase;
 
 class ProjectContextServiceTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'crm', 'hr', 'intelligence', 'social'];
+
     /**
      * @return array{0: Apps, 1: Companies, 2: Users}
      */
@@ -134,5 +146,88 @@ class ProjectContextServiceTest extends TestCase
             $this->assertFalse(str_starts_with((string) $content, '[NS:'), 'scaffolding leaked into context');
             $this->assertLessThanOrEqual(1210, strlen((string) $content), 'message content not capped');
         }
+    }
+
+    public function testHumanMemberSurfacesHrCapabilityDescription(): void
+    {
+        [$app, $company, $user] = $this->context();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+
+        $project = new CreateProjectAction(
+            ProjectData::from($app, $user, $company, ['title' => 'Launch', 'agent_id' => $agent->id]),
+        )->execute();
+
+        new AddProjectMemberAction(
+            project: $project,
+            role: ProjectMemberRoleEnum::CONTRIBUTOR,
+            user: $user,
+        )->execute();
+
+        $department = new CreateDepartmentAction(
+            new DepartmentData(app: $app, company: $company, user: $user, name: 'Platform'),
+        )->execute();
+
+        $position = new CreatePositionAction(
+            new PositionData(app: $app, company: $company, user: $user, title: 'Staff Engineer'),
+        )->execute();
+
+        $people = People::factory()->create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => $user->getId(),
+        ]);
+
+        new CreateEmployeeAction(
+            new EmployeeData(
+                app: $app,
+                company: $company,
+                loginUser: $user,
+                people: $people,
+                position: $position,
+                hiredAt: '2026-01-15',
+                department: $department,
+                description: 'Owns CI',
+            ),
+        )->execute();
+
+        $bundle = new ProjectContextService()->buildContextBundle($project);
+
+        // The human member is described by their HR record, so the PM can route work by fit —
+        // the same signal an agent's description carries.
+        $this->assertSame('user', $bundle->members[0]['type']);
+        $this->assertSame('Staff Engineer — Platform — Owns CI', $bundle->members[0]['description']);
+        // A human is never an auto-runner: the description carries the routing signal, not can_execute.
+        $this->assertFalse($bundle->members[0]['can_execute']);
+    }
+
+    public function testHumanMemberWithoutHrRecordHasNoDescription(): void
+    {
+        [$app, $company, $user] = $this->context();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+
+        $project = new CreateProjectAction(
+            ProjectData::from($app, $user, $company, ['title' => 'NoHr', 'agent_id' => $agent->id]),
+        )->execute();
+
+        new AddProjectMemberAction(
+            project: $project,
+            role: ProjectMemberRoleEnum::CONTRIBUTOR,
+            user: $user,
+        )->execute();
+
+        $bundle = new ProjectContextService()->buildContextBundle($project);
+
+        // No HR record → no description, so the PM falls back to name matching. Proves the HR wiring
+        // adds signal without regressing members who aren't employees.
+        $this->assertSame('user', $bundle->members[0]['type']);
+        $this->assertNull($bundle->members[0]['description']);
     }
 }
