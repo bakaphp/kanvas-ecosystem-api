@@ -12,6 +12,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateEngagementPageTool;
 use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
+use Throwable;
 
 class CreateEngagementPageToolTest extends TestCase
 {
@@ -125,5 +126,48 @@ class CreateEngagementPageToolTest extends TestCase
 
         $this->assertSame('error', $result['status']);
         $this->assertSame(124, $result['engagement_id']);
+    }
+
+    public function testReportsEngagementCreationFailureWithSafeContext(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $lead = Lead::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create();
+        $exception = new \RuntimeException('Action Engine failed');
+
+        $tool = new class ($exception) extends CreateEngagementPageTool {
+            public ?Throwable $reportedException = null;
+            public ?int $reportedLeadId = null;
+            public ?string $reportedAction = null;
+
+            public function __construct(private readonly Throwable $exception)
+            {
+                parent::__construct();
+            }
+
+            protected function createEngagement(EngagementData $data): Engagement
+            {
+                throw $this->exception;
+            }
+
+            protected function reportException(Throwable $exception, int $leadId, string $action): void
+            {
+                $this->reportedException = $exception;
+                $this->reportedLeadId = $leadId;
+                $this->reportedAction = $action;
+            }
+        };
+        $tool->withContext($app, $company, $user);
+
+        $result = $tool->__invoke($lead->getId(), 'view-vehicle');
+
+        $this->assertSame('error', $result['status']);
+        $this->assertSame($exception, $tool->reportedException);
+        $this->assertSame($lead->getId(), $tool->reportedLeadId);
+        $this->assertSame('view-vehicle', $tool->reportedAction);
     }
 }
