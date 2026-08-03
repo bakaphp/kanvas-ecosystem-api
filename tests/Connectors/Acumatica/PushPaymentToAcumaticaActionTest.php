@@ -106,7 +106,7 @@ class PushPaymentToAcumaticaActionTest extends ScribeTestCase
             function (string $entity, array $body) use (&$calls): array {
                 $calls[] = [$entity, $body];
 
-                return ['id' => 'PAY-1', 'ReferenceNbr' => ['value' => '000900']];
+                return ['id' => 'PAY-1', 'ReferenceNbr' => ['value' => '000900'], 'Status' => ['value' => 'Pending Print']];
             }
         );
 
@@ -115,10 +115,12 @@ class PushPaymentToAcumaticaActionTest extends ScribeTestCase
             fn (callable $callback) => $callback($client)
         );
 
-        $ref = new PushPaymentToAcumaticaAction($payment, $writer)->execute();
+        $action = new PushPaymentToAcumaticaAction($payment, $writer);
+        $ref = $action->execute();
 
         $this->assertSame('000900', $ref);
         $this->assertSame('PAY-1', $payment->get(CustomFieldEnum::PAYMENT_ID->value));
+        $this->assertSame('Pending Print', $action->getLastPushedStatus());
 
         [$step1Entity, $step1Body] = $calls[0];
         [$step2Entity, $step2Body] = $calls[1];

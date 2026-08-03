@@ -28,12 +28,20 @@ class PushPaymentToAcumaticaAction
     /** The payment's own app — the tenant whose Acumatica config/credentials this push runs against. */
     protected Apps $app;
 
+    /** Acumatica's own Status on the record this call just pushed/released — null when the push was skipped (already pushed earlier). */
+    private ?string $lastPushedStatus = null;
+
     public function __construct(
         protected Payment $payment,
         ?AcumaticaWriteService $writer = null,
     ) {
         $this->app = $payment->app;
         $this->writer = $writer;
+    }
+
+    public function getLastPushedStatus(): ?string
+    {
+        return $this->lastPushedStatus;
     }
 
     public function execute(): string
@@ -76,6 +84,7 @@ class PushPaymentToAcumaticaAction
 
         $id = AcumaticaPayload::recordId($record);
         $referenceNbr = (string) (AcumaticaPayload::value($record, 'ReferenceNbr') ?? $id ?? '');
+        $this->lastPushedStatus = (string) (AcumaticaPayload::value($record, 'Status') ?? '') ?: null;
 
         if ($id !== null) {
             $this->payment->set(CustomFieldEnum::PAYMENT_ID->value, $id);

@@ -44,6 +44,17 @@ abstract class AbstractApplyAcumaticaPaymentTool extends Tool
     abstract protected function refreshedState(BaseModel $document): array;
 
     /**
+     * Extra response keys derived from Acumatica's own status on the just-pushed payment (e.g. a note when
+     * an AP Check lands in "Pending Print" rather than "Closed"). Empty by default.
+     *
+     * @return array<string, mixed>
+     */
+    protected function additionalContext(?string $acumaticaPaymentStatus): array
+    {
+        return [];
+    }
+
+    /**
      * @return array<int, ToolProperty>
      */
     #[Override]
@@ -111,8 +122,10 @@ abstract class AbstractApplyAcumaticaPaymentTool extends Tool
             ];
         }
 
+        $pushAction = new PushPaymentToAcumaticaAction($payment);
+
         try {
-            $paymentRef = new PushPaymentToAcumaticaAction($payment)->execute();
+            $paymentRef = $pushAction->execute();
         } catch (Throwable $e) {
             return [
                 'applied' => true,
@@ -123,6 +136,8 @@ abstract class AbstractApplyAcumaticaPaymentTool extends Tool
             ];
         }
 
+        $acumaticaStatus = $pushAction->getLastPushedStatus();
+
         return [
             'applied' => true,
             'pushed' => true,
@@ -130,7 +145,9 @@ abstract class AbstractApplyAcumaticaPaymentTool extends Tool
             $noun . '_ref' => $ref,
             'amount' => $amount,
             'payment_ref' => $paymentRef,
+            'acumatica_payment_status' => $acumaticaStatus,
             ...$this->refreshedState($document),
+            ...$this->additionalContext($acumaticaStatus),
         ];
     }
 }

@@ -86,4 +86,28 @@ class ApplyApPaymentTool extends AbstractApplyAcumaticaPaymentTool
             'document_status' => $fresh->document_status->value,
         ];
     }
+
+    /**
+     * A print-enabled Check payment method lands in Acumatica's "Pending Print" status on release — it
+     * doesn't post to GL or close the bill until someone runs Print/Release Checks (AP505000) there.
+     * Kanvas's own bookkeeping above already shows the bill as paid; this note keeps that from being
+     * mistaken for the bill being closed on the Acumatica side too.
+     *
+     * @return array<string, mixed>
+     */
+    #[Override]
+    protected function additionalContext(?string $acumaticaPaymentStatus): array
+    {
+        if ($acumaticaPaymentStatus === null || $acumaticaPaymentStatus === 'Closed') {
+            return [];
+        }
+
+        return [
+            'acumatica_note' => "The payment is in Acumatica status \"{$acumaticaPaymentStatus}\", not yet "
+                . 'Closed. This bill\'s cash account uses a Check payment method with printing enabled, so '
+                . 'Acumatica queues the check instead of posting it — the bill will not actually close there '
+                . 'until someone runs Print/Release Checks (screen AP505000). Kanvas shows this bill as paid '
+                . 'for internal tracking, but the ERP side is still pending that manual step.',
+        ];
+    }
 }
