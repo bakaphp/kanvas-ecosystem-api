@@ -55,15 +55,15 @@ class CreateArInvoiceTool extends Tool
             new ToolProperty(
                 name: 'memo',
                 type: PropertyType::STRING,
-                description: 'Description / memo for the invoice and its single line, e.g. "TEST write-path".',
+                description: 'Description / memo for the invoice and its single line.',
                 required: true,
             ),
             new ToolProperty(
                 name: 'customer_name',
                 type: PropertyType::STRING,
-                description: 'Customer name to match (substring). Omit to use any existing active customer '
-                    . 'organization on this app/company — fine for a write-path smoke test.',
-                required: false,
+                description: 'Customer name to match (substring). Always required — never guess or pick an '
+                    . 'arbitrary customer; ask the user which one if it is not clear from context.',
+                required: true,
             ),
             new ToolProperty(
                 name: 'currency',
@@ -78,32 +78,34 @@ class CreateArInvoiceTool extends Tool
      * @return array<string, mixed>
      */
     public function __invoke(
+        string $customer_name,
         float $amount,
         string $memo,
-        ?string $customer_name = null,
         ?string $currency = null,
     ): array {
         $app = $this->app;
         $company = $this->company;
 
-        $customerQuery = Organization::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_deleted', false);
-
-        if ($customer_name !== null && trim($customer_name) !== '') {
-            $customerQuery->where('name', 'like', '%' . trim($customer_name) . '%');
+        if (trim($customer_name) === '') {
+            return [
+                'created' => false,
+                'reason' => 'customer_name_required',
+                'message' => 'A customer_name is required — never pick an arbitrary customer.',
+            ];
         }
 
-        $customer = $customerQuery->first();
+        $customer = Organization::query()
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->where('is_deleted', false)
+            ->where('name', 'like', '%' . trim($customer_name) . '%')
+            ->first();
 
         if ($customer === null) {
             return [
                 'created' => false,
                 'reason' => 'customer_not_found',
-                'message' => $customer_name !== null
-                    ? "No customer organization matching \"{$customer_name}\" for this app/company."
-                    : 'No active customer organization exists for this app/company yet.',
+                'message' => "No customer organization matching \"{$customer_name}\" for this app/company.",
             ];
         }
 
