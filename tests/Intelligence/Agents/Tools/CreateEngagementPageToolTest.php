@@ -9,10 +9,8 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateEngagementPageTool;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 class CreateEngagementPageToolTest extends TestCase
@@ -22,8 +20,6 @@ class CreateEngagementPageToolTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        $agentUser = Users::factory()->create();
-        $agent = $this->makeAgent($app, $company->getId(), $agentUser->getId());
         $lead = Lead::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
@@ -41,12 +37,12 @@ class CreateEngagementPageToolTest extends TestCase
         $engagement->id = 123;
         $engagement->setRelation('message', $message);
 
-        $tool = new class ($agent, $engagement) extends CreateEngagementPageTool {
+        $tool = new class ($engagement) extends CreateEngagementPageTool {
             public ?EngagementData $receivedData = null;
 
-            public function __construct(Agent $agent, private readonly Engagement $engagementResult)
+            public function __construct(private readonly Engagement $engagementResult)
             {
-                parent::__construct($agent);
+                parent::__construct();
             }
 
             protected function createEngagement(EngagementData $data): Engagement
@@ -56,6 +52,8 @@ class CreateEngagementPageToolTest extends TestCase
                 return $this->engagementResult;
             }
         };
+        $tool->withContext($app, $company, $user);
+
         $result = $tool->__invoke(
             lead_id: $lead->getId(),
             action: 'view-vehicle',
@@ -72,8 +70,6 @@ class CreateEngagementPageToolTest extends TestCase
         $this->assertSame(123, $result['engagement_id']);
         $this->assertSame(456, $result['message_id']);
         $this->assertSame($lead->getId(), $tool->receivedData?->lead->getId());
-        $this->assertSame($agentUser->getId(), $tool->receivedData?->user->getId());
-        $this->assertNotSame($user->getId(), $tool->receivedData?->user->getId());
         $this->assertSame('view-vehicle', $tool->receivedData?->action);
         $this->assertSame(ActionStatusEnum::SENT, $tool->receivedData?->status);
         $this->assertSame('agent', $tool->receivedData?->source);
@@ -86,8 +82,8 @@ class CreateEngagementPageToolTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        $agent = $this->makeAgent($app, $company->getId(), $user->getId());
-        $tool = new CreateEngagementPageTool($agent);
+        $tool = new CreateEngagementPageTool();
+        $tool->withContext($app, $company, $user);
 
         $missingAction = $tool->__invoke(1, '   ');
         $missingLead = $tool->__invoke(PHP_INT_MAX, 'view-vehicle');
@@ -101,7 +97,6 @@ class CreateEngagementPageToolTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        $agent = $this->makeAgent($app, $company->getId(), $user->getId());
         $lead = Lead::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
@@ -113,10 +108,10 @@ class CreateEngagementPageToolTest extends TestCase
         $engagement->id = 124;
         $engagement->setRelation('message', new Message(['message' => []]));
 
-        $tool = new class ($agent, $engagement) extends CreateEngagementPageTool {
-            public function __construct(Agent $agent, private readonly Engagement $engagementResult)
+        $tool = new class ($engagement) extends CreateEngagementPageTool {
+            public function __construct(private readonly Engagement $engagementResult)
             {
-                parent::__construct($agent);
+                parent::__construct();
             }
 
             protected function createEngagement(EngagementData $data): Engagement
@@ -124,17 +119,11 @@ class CreateEngagementPageToolTest extends TestCase
                 return $this->engagementResult;
             }
         };
+        $tool->withContext($app, $company, $user);
+
         $result = $tool->__invoke($lead->getId(), 'view-vehicle');
 
         $this->assertSame('error', $result['status']);
         $this->assertSame(124, $result['engagement_id']);
-    }
-
-    private function makeAgent(Apps $app, int $companyId, int $userId): Agent
-    {
-        return Agent::factory()
-            ->withAppId($app->getId())
-            ->withCompanyId($companyId)
-            ->create(['user_id' => $userId]);
     }
 }

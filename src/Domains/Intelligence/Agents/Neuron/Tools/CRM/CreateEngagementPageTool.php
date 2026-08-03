@@ -11,7 +11,7 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,7 +21,9 @@ use Throwable;
 #[AgentTool(name: 'Create Engagement Page', category: 'crm')]
 class CreateEngagementPageTool extends Tool
 {
-    public function __construct(private readonly Agent $agent)
+    use HasKanvasContext;
+
+    public function __construct()
     {
         parent::__construct(
             name: 'create_engagement_page',
@@ -74,18 +76,8 @@ class CreateEngagementPageTool extends Tool
             ];
         }
 
-        $app = $this->agent->app;
-        $company = $this->agent->company;
-        $user = $this->agent->user;
-        if ($app === null || $company === null || $user === null) {
-            return [
-                'status' => 'error',
-                'message' => 'The agent must have an app, company, and acting user before creating an engagement.',
-            ];
-        }
-
         try {
-            $lead = Lead::getByIdFromCompanyApp($lead_id, $company, $app);
+            $lead = Lead::getByIdFromCompanyApp($lead_id, $this->company, $this->app);
         } catch (Throwable) {
             return [
                 'status' => 'error',
@@ -95,9 +87,9 @@ class CreateEngagementPageTool extends Tool
 
         try {
             $engagement = $this->createEngagement(new EngagementData(
-                app: $app,
-                company: $company,
-                user: $user,
+                app: $this->app,
+                company: $this->company,
+                user: $this->user,
                 lead: $lead,
                 action: $action,
                 requestId: (string) Str::uuid(),
