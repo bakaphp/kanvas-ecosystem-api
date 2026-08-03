@@ -59,7 +59,7 @@ class AccountsPayableAgent extends SystemUserAgent
             new MatchBillsForPaymentTool(),
             new CreateApBillTool(),
             new VoidApBillTool(),
-            new ApplyApPaymentTool()
+            new ApplyApPaymentTool(),
         ]));
     }
 
