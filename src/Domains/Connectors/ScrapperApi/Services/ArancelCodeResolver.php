@@ -86,6 +86,6 @@ final class ArancelCodeResolver
 
     private static function keywordMap(): array
     {
-        return self::$keywordMap ??= require __DIR__ . '/../Resources/arancel_keyword_map.php';
+        return self::$keywordMap ??= require dirname(__DIR__, 5) . '/resources/data/arancel/arancel_keyword_map.php';
     }
 }

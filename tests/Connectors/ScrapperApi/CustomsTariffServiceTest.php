@@ -91,7 +91,7 @@ class CustomsTariffServiceTest extends TestCase
 
     public function testEveryKeywordMapCodeExistsInTheSchedule(): void
     {
-        $map = require __DIR__ . '/../../../src/Domains/Connectors/ScrapperApi/Resources/arancel_keyword_map.php';
+        $map = require dirname(__DIR__, 3) . '/resources/data/arancel/arancel_keyword_map.php';
 
         $this->assertNotEmpty($map);
 
@@ -105,7 +105,7 @@ class CustomsTariffServiceTest extends TestCase
 
     public function testEveryKeywordMapPatternCompiles(): void
     {
-        $map = require __DIR__ . '/../../../src/Domains/Connectors/ScrapperApi/Resources/arancel_keyword_map.php';
+        $map = require dirname(__DIR__, 3) . '/resources/data/arancel/arancel_keyword_map.php';
 
         foreach ($map as $rule) {
             $this->assertNotFalse(

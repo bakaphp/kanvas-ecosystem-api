@@ -134,6 +134,6 @@ final class CustomsTariffService
 
     private static function schedule(): array
     {
-        return self::$schedule ??= require __DIR__ . '/../Resources/arancel_rates.php';
+        return self::$schedule ??= require dirname(__DIR__, 5) . '/resources/data/arancel/arancel_rates.php';
     }
 }

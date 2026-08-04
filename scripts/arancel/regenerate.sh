@@ -14,7 +14,7 @@ fi
 
 PDF="$1"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-TARGET="$ROOT/src/Domains/Connectors/ScrapperApi/Resources/arancel_rates.php"
+TARGET="$ROOT/resources/data/arancel/arancel_rates.php"
 TXT="$(mktemp -t arancel).txt"
 
 trap 'rm -f "$TXT" "${TARGET%.php}.json"' EXIT
