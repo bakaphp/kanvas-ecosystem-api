@@ -23,6 +23,7 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Models\Channel;
+use Override;
 
 use function Sentry\captureException;
 
@@ -38,6 +39,14 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
     protected array $skippedReasons = [];
     protected bool $ignoreTimeGate = false;
 
+    /**
+     * Stop nudging once this many of our own outbound messages go unanswered in a row.
+     * WhatsApp already stops at the first unanswered touch (24h-window policy); SMS/email
+     * get a short drip cap so a customer who never replies isn't messaged forever.
+     */
+    private const int MAX_UNANSWERED_FOLLOW_UPS = 2;
+
+    #[Override]
     public function withIgnoreTimeGate(bool $ignore = true): static
     {
         $this->ignoreTimeGate = $ignore;
@@ -151,6 +160,21 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
                             'entity_type' => \get_class($entity),
                         ];
                     }
+                }
+            } elseif (is_array($lastMessage->message) && ($lastMessage->message['from_me'] ?? false) === true) {
+                // twilio-sms / email: unlike WhatsApp these have no unanswered guard, so a lead
+                // who never replies got a near-identical nudge every cron tick. Stop once our own
+                // outbound has gone unanswered MAX_UNANSWERED_FOLLOW_UPS times in a row.
+                $unansweredStreak = $this->countTrailingUnansweredOutbound($session->channel);
+
+                if ($unansweredStreak >= self::MAX_UNANSWERED_FOLLOW_UPS) {
+                    $this->logSkip(
+                        'max_unanswered_follow_ups',
+                        "Skipping '{$messageTemplateChannel}': last {$unansweredStreak} outbound messages went unanswered",
+                        $session
+                    );
+
+                    continue;
                 }
             }
 
@@ -284,6 +308,25 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
         }
 
         return null;
+    }
+
+    protected function countTrailingUnansweredOutbound(Channel $channel): int
+    {
+        $messages = $channel->messages()
+            ->where('messages.is_deleted', 0)
+            ->orderBy('messages.created_at', 'DESC')
+            ->get();
+
+        $streak = 0;
+        foreach ($messages as $message) {
+            if (! is_array($message->message) || ($message->message['from_me'] ?? false) !== true) {
+                break;
+            }
+
+            $streak++;
+        }
+
+        return $streak;
     }
 
     protected function getLastClientMessageTime(Channel $channel): ?Carbon
