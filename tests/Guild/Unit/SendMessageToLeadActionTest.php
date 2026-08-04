@@ -528,6 +528,9 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
     {
         $company = Mockery::mock();
         $company->shouldReceive('get')->with('allow_session_hijack', false)->andReturn(false);
+        $company->shouldReceive('get')
+            ->with(TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value)
+            ->andReturn(null);
 
         $lead = Mockery::mock(Lead::class);
         $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
