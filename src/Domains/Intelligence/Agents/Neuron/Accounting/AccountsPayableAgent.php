@@ -14,7 +14,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersToo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyApPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidApBillTool;
 use Override;
@@ -60,6 +62,8 @@ class AccountsPayableAgent extends SystemUserAgent
             new CreateApBillTool(),
             new VoidApBillTool(),
             new ApplyApPaymentTool(),
+            new AddBillNoteTool(),
+            new AttachBillFileTool(),
         ]));
     }
 
@@ -86,6 +90,8 @@ class AccountsPayableAgent extends SystemUserAgent
             '- "Void/cancel/undo that bill" → void_ap_bill, given the bill_id from create_ap_bill.',
             '- "Pay a vendor bill" / "record a payment against bill Y" → apply_ap_payment, only when the user '
             . 'explicitly asks to record a real payment. Needs the bill_id, amount, and a payment reference.',
+            '- "Add a note to bill Y" → add_bill_note; "attach this file to bill Y" → attach_bill_file. Both '
+            . 'require the bill to already be pushed to Acumatica.',
         ]);
     }
 }
