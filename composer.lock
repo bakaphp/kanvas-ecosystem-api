@@ -384,16 +384,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.390.2",
+            "version": "3.390.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "a09e95bf062e15b7343f9c1362fd45c7a0dec39b"
+                "reference": "8026ec372223fb3ffa010b96ca14a1df329085f5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/a09e95bf062e15b7343f9c1362fd45c7a0dec39b",
-                "reference": "a09e95bf062e15b7343f9c1362fd45c7a0dec39b",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/8026ec372223fb3ffa010b96ca14a1df329085f5",
+                "reference": "8026ec372223fb3ffa010b96ca14a1df329085f5",
                 "shasum": ""
             },
             "require": {
@@ -475,9 +475,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.390.2"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.390.3"
             },
-            "time": "2026-07-31T18:06:07+00:00"
+            "time": "2026-08-03T18:28:24+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -2260,16 +2260,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.452.0",
+            "version": "v0.453.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "2b86a7203ffd6520968ec568d58131ed380a59e1"
+                "reference": "9eeab572613c0b533f8268e5df0954a63100061d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/2b86a7203ffd6520968ec568d58131ed380a59e1",
-                "reference": "2b86a7203ffd6520968ec568d58131ed380a59e1",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/9eeab572613c0b533f8268e5df0954a63100061d",
+                "reference": "9eeab572613c0b533f8268e5df0954a63100061d",
                 "shasum": ""
             },
             "require": {
@@ -2298,9 +2298,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.452.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.453.0"
             },
-            "time": "2026-07-27T01:28:26+00:00"
+            "time": "2026-08-03T01:20:25+00:00"
         },
         {
             "name": "google/auth",
@@ -5428,16 +5428,16 @@
         },
         {
             "name": "league/commonmark",
-            "version": "2.8.3",
+            "version": "2.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/commonmark.git",
-                "reference": "1902f60f984235023acbe03db6ad614a37b3c3e7"
+                "reference": "5703d83ba3da3b2e356a5fedc848ed6d8ffb6529"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/1902f60f984235023acbe03db6ad614a37b3c3e7",
-                "reference": "1902f60f984235023acbe03db6ad614a37b3c3e7",
+                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/5703d83ba3da3b2e356a5fedc848ed6d8ffb6529",
+                "reference": "5703d83ba3da3b2e356a5fedc848ed6d8ffb6529",
                 "shasum": ""
             },
             "require": {
@@ -5474,7 +5474,7 @@
             "type": "library",
             "extra": {
                 "branch-alias": {
-                    "dev-main": "2.9-dev"
+                    "dev-main": "2.10-dev"
                 }
             },
             "autoload": {
@@ -5531,7 +5531,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-12T15:29:16+00:00"
+            "time": "2026-08-03T13:42:31+00:00"
         },
         {
             "name": "league/config",
@@ -6681,16 +6681,16 @@
         },
         {
             "name": "mike-bronner/laravel-model-caching",
-            "version": "13.1.6",
+            "version": "13.1.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mike-bronner/laravel-model-caching.git",
-                "reference": "d234967c6848e32059ddd2e44964f48651a12573"
+                "reference": "a294cf7b66dbbac35dd6bc46f52628a86c0cb560"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/d234967c6848e32059ddd2e44964f48651a12573",
-                "reference": "d234967c6848e32059ddd2e44964f48651a12573",
+                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/a294cf7b66dbbac35dd6bc46f52628a86c0cb560",
+                "reference": "a294cf7b66dbbac35dd6bc46f52628a86c0cb560",
                 "shasum": ""
             },
             "require": {
@@ -6715,7 +6715,6 @@
                 "larastan/larastan": "^2.0|^3.0",
                 "laravel/boost": "^2.0",
                 "laravel/pint": "^1.27",
-                "mikebronner/development-settings": "^0.1.15",
                 "orchestra/testbench": "^9.0|^10.0|^11.0",
                 "pestphp/pest": "^3.0|^4.0",
                 "pestphp/pest-plugin-laravel": "^3.0|^4.0",
@@ -6754,9 +6753,9 @@
             "description": "Automatic caching for Eloquent models.",
             "support": {
                 "issues": "https://github.com/mike-bronner/laravel-model-caching/issues",
-                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.6"
+                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.7"
             },
-            "time": "2026-07-07T23:40:51+00:00"
+            "time": "2026-08-01T15:56:33+00:00"
         },
         {
             "name": "mikebronner/laravel-pivot-events",
@@ -9100,16 +9099,16 @@
         },
         {
             "name": "phpseclib/phpseclib",
-            "version": "3.0.55",
+            "version": "3.0.56",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpseclib/phpseclib.git",
-                "reference": "db9744e6d47e742b1f974e965ad49bdd041105af"
+                "reference": "7adbbe38cde25e2df2116dbf2673c407e24fa305"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/db9744e6d47e742b1f974e965ad49bdd041105af",
-                "reference": "db9744e6d47e742b1f974e965ad49bdd041105af",
+                "url": "https://api.github.com/repos/phpseclib/phpseclib/zipball/7adbbe38cde25e2df2116dbf2673c407e24fa305",
+                "reference": "7adbbe38cde25e2df2116dbf2673c407e24fa305",
                 "shasum": ""
             },
             "require": {
@@ -9190,7 +9189,7 @@
             ],
             "support": {
                 "issues": "https://github.com/phpseclib/phpseclib/issues",
-                "source": "https://github.com/phpseclib/phpseclib/tree/3.0.55"
+                "source": "https://github.com/phpseclib/phpseclib/tree/3.0.56"
             },
             "funding": [
                 {
@@ -9206,7 +9205,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-06-14T23:24:10+00:00"
+            "time": "2026-08-03T04:36:50+00:00"
         },
         {
             "name": "phpstan/phpdoc-parser",
