@@ -2,23 +2,23 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Knowledge\Services;
+namespace Kanvas\Intelligence\Agents\Neuron\RAG;
 
+use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
 use NeuronAI\RAG\Document;
 use NeuronAI\RAG\VectorSimilarity;
 use NeuronAI\RAG\VectorStore\VectorStoreInterface;
+use RuntimeException;
 use Typesense\Client;
 use Typesense\Exceptions\ObjectNotFound;
 
-class LeadTypesenseVectorStore implements VectorStoreInterface
+class TypesenseVectorStore implements VectorStoreInterface
 {
     public function __construct(
         private readonly Client $client,
         private readonly string $collection,
         private readonly int $vectorDimension,
-        private readonly int $appId,
-        private readonly int $companyId,
-        private readonly int $leadId,
+        private readonly KnowledgeEntity $entity,
         private readonly int $topK = 8,
     ) {
     }
@@ -44,12 +44,45 @@ class LeadTypesenseVectorStore implements VectorStoreInterface
                 'sourceName' => $document->getSourceName(),
                 ...$document->metadata,
             ],
-            $documents
+            $documents,
         );
-        $this->client->collections[$this->collection]->documents->import(
+        $results = $this->client->collections[$this->collection]->documents->import(
             $records,
-            ['action' => 'upsert']
+            ['action' => 'upsert'],
         );
+
+        foreach ($results as $result) {
+            if (($result['success'] ?? false) !== true) {
+                throw new RuntimeException(
+                    'Typesense rejected a knowledge document: ' . ($result['error'] ?? 'unknown error'),
+                );
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * Import the new snapshot before removing stale records. A failed embedding/import therefore
+     * leaves the previous snapshot queryable instead of creating a knowledge gap.
+     *
+     * @param list<Document> $documents
+     */
+    public function replaceDocuments(array $documents, string $sourceType, string $sourceName): self
+    {
+        $existingIds = $this->documentIds($sourceType, $sourceName);
+        $this->addDocuments($documents);
+
+        $currentIds = array_fill_keys(
+            array_map(fn (Document $document): string => (string) $document->getId(), $documents),
+            true,
+        );
+
+        foreach ($existingIds as $id) {
+            if (! isset($currentIds[$id])) {
+                $this->client->collections[$this->collection]->documents[$id]->delete();
+            }
+        }
 
         return $this;
     }
@@ -62,13 +95,12 @@ class LeadTypesenseVectorStore implements VectorStoreInterface
     public function deleteBy(string $sourceType, ?string $sourceName = null): VectorStoreInterface
     {
         $this->ensureCollection();
-        $filter = $this->tenantLeadFilter() . ' && sourceType:=`' . $sourceType . '`';
+        $filter = $this->entityFilter() . ' && sourceType:=' . $this->filterValue($sourceType);
         if ($sourceName !== null) {
-            $filter .= ' && sourceName:=`' . $sourceName . '`';
+            $filter .= ' && sourceName:=' . $this->filterValue($sourceName);
         }
-        $this->client->collections[$this->collection]->documents->delete([
-            'filter_by' => $filter,
-        ]);
+
+        $this->client->collections[$this->collection]->documents->delete(['filter_by' => $filter]);
 
         return $this;
     }
@@ -81,7 +113,7 @@ class LeadTypesenseVectorStore implements VectorStoreInterface
                 'collection' => $this->collection,
                 'q' => '*',
                 'vector_query' => 'embedding:(' . json_encode($embedding) . ')',
-                'filter_by' => $this->tenantLeadFilter(),
+                'filter_by' => $this->entityFilter(),
                 'exclude_fields' => 'embedding',
                 'per_page' => $this->topK,
                 'num_candidates' => max(50, $this->topK * 4),
@@ -94,9 +126,7 @@ class LeadTypesenseVectorStore implements VectorStoreInterface
             $document->id = $item['id'];
             $document->sourceType = $item['sourceType'];
             $document->sourceName = $item['sourceName'];
-            $document->score = VectorSimilarity::similarityFromDistance(
-                $hit['vector_distance']
-            );
+            $document->score = VectorSimilarity::similarityFromDistance($hit['vector_distance']);
 
             foreach (['source_type', 'source_id', 'channel_names', 'created_at'] as $field) {
                 if (isset($item[$field])) {
@@ -111,7 +141,16 @@ class LeadTypesenseVectorStore implements VectorStoreInterface
     private function ensureCollection(): void
     {
         try {
-            $this->client->collections[$this->collection]->retrieve();
+            $schema = $this->client->collections[$this->collection]->retrieve();
+            $embedding = collect($schema['fields'] ?? [])->firstWhere('name', 'embedding');
+
+            if ((int) ($embedding['num_dim'] ?? 0) !== $this->vectorDimension) {
+                throw new RuntimeException(sprintf(
+                    'Typesense collection [%s] has an incompatible embedding dimension. '
+                    . 'Configure a new knowledge collection before changing embedding models or dimensions.',
+                    $this->collection,
+                ));
+            }
 
             return;
         } catch (ObjectNotFound) {
@@ -135,14 +174,47 @@ class LeadTypesenseVectorStore implements VectorStoreInterface
         }
     }
 
-    private function tenantLeadFilter(): string
+    private function entityFilter(): string
     {
-        // @todo Replace the Lead-only discriminator with a registered multi-entity scope.
         return sprintf(
-            'apps_id:=%d && companies_id:=%d && entity_type:=lead && entity_id:=%d',
-            $this->appId,
-            $this->companyId,
-            $this->leadId
+            'apps_id:=%d && companies_id:=%d && entity_type:=%s && entity_id:=%d',
+            $this->entity->appId,
+            $this->entity->companyId,
+            $this->filterValue($this->entity->type),
+            $this->entity->id,
         );
+    }
+
+    /** @return list<string> */
+    private function documentIds(string $sourceType, string $sourceName): array
+    {
+        $this->ensureCollection();
+        $filter = $this->entityFilter()
+            . ' && sourceType:=' . $this->filterValue($sourceType)
+            . ' && sourceName:=' . $this->filterValue($sourceName);
+        $ids = [];
+        $page = 1;
+
+        do {
+            $response = $this->client->collections[$this->collection]->documents->search([
+                'q' => '*',
+                'query_by' => 'content',
+                'filter_by' => $filter,
+                'include_fields' => 'id',
+                'per_page' => 250,
+                'page' => $page++,
+            ]);
+            $hits = $response['hits'] ?? [];
+            foreach ($hits as $hit) {
+                $ids[] = (string) $hit['document']['id'];
+            }
+        } while ($hits !== [] && count($ids) < (int) ($response['found'] ?? 0));
+
+        return $ids;
+    }
+
+    private function filterValue(string $value): string
+    {
+        return '`' . str_replace(['\\', '`'], ['\\\\', '\\`'], $value) . '`';
     }
 }

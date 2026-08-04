@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Traits;
 
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Knowledge\Retrieval\LeadKnowledgeRetrieval;
-use Kanvas\Intelligence\Knowledge\Services\LeadRagComponents;
+use Kanvas\Intelligence\Agents\Neuron\RAG\KnowledgeRetrieval;
+use Kanvas\Intelligence\Agents\Neuron\RAG\RagComponents;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
 use NeuronAI\RAG\Nodes\InstructionsNode;
 use NeuronAI\RAG\Nodes\PostProcessNode;
@@ -36,7 +36,7 @@ trait HasLeadRag
     #[Override]
     protected function retrieval(): RetrievalInterface
     {
-        return new LeadKnowledgeRetrieval($this->resolveLeadForTurn());
+        return new KnowledgeRetrieval($this->resolveLeadForTurn());
     }
 
     #[Override]
@@ -48,7 +48,7 @@ trait HasLeadRag
             );
         }
 
-        return LeadRagComponents::embeddings($this->app);
+        return RagComponents::embeddings($this->app);
     }
 
     #[Override]
@@ -57,7 +57,7 @@ trait HasLeadRag
         $lead = $this->resolveLeadForTurn();
 
         return $lead !== null
-            ? LeadRagComponents::vectorStore($lead)
+            ? RagComponents::vectorStore($lead)
             : new MemoryVectorStore();
     }
 }

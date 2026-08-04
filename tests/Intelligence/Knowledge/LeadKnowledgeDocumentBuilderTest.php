@@ -10,7 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Intelligence\Knowledge\Services\LeadKnowledgeDocumentBuilder;
+use Kanvas\Intelligence\Agents\Neuron\RAG\KnowledgeDocumentBuilder;
 use Mockery;
 use Tests\TestCase;
 
@@ -58,9 +58,11 @@ class LeadKnowledgeDocumentBuilderTest extends TestCase
         $lead->setRelation('company', $company);
         $lead->setRelation('people', $people);
         $lead->setRelation('organization', $organization);
+        // Relations may be supplied as a base Support collection by callers/tests, not only
+        // EloquentCollection (which is the only collection exposing modelKeys()).
         $lead->setRelation('socialChannels', new Collection());
 
-        $documents = new LeadKnowledgeDocumentBuilder()->build($lead);
+        $documents = new KnowledgeDocumentBuilder()->build($lead);
 
         $this->assertCount(4, $documents);
         $this->assertSame(
@@ -68,11 +70,11 @@ class LeadKnowledgeDocumentBuilderTest extends TestCase
             array_map(fn ($document): string => (string) $document->getId(), $documents)
         );
         foreach ($documents as $document) {
-            $this->assertSame('lead', $document->getSourceType());
-            $this->assertSame('company-22-lead-55', $document->getSourceName());
+            $this->assertSame(Lead::class, $document->getSourceType());
+            $this->assertSame(Lead::class . ':11:22:55', $document->getSourceName());
             $this->assertSame(11, $document->metadata['apps_id']);
             $this->assertSame(22, $document->metadata['companies_id']);
-            $this->assertSame('lead', $document->metadata['entity_type']);
+            $this->assertSame(Lead::class, $document->metadata['entity_type']);
             $this->assertSame(55, $document->metadata['entity_id']);
             $this->assertNotSame('', $document->getContent());
         }

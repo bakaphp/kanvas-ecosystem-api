@@ -19,7 +19,9 @@ use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
 use Kanvas\Intelligence\AgentRuntime\Listeners\SendAgentDeploymentLifecycleEmailListener;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
-use Kanvas\Intelligence\Knowledge\Listeners\QueueLeadKnowledgeIndexListener;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Listeners\QueueChannelKnowledgeIndexListener;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Listeners\QueueKnowledgeIndexListener;
+use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
@@ -90,7 +92,10 @@ class EventServiceProvider extends ServiceProvider
             UpdatePeopleMessageTimestampsListener::class,
         ],
         ChannelMessageAttachedEvent::class => [
-            QueueLeadKnowledgeIndexListener::class,
+            QueueChannelKnowledgeIndexListener::class,
+        ],
+        KnowledgeIndexRequested::class => [
+            QueueKnowledgeIndexListener::class,
         ],
         MessageMentionsStoredEvent::class => [
             RespondToAgentMentionListener::class,

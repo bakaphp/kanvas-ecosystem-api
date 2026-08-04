@@ -14,8 +14,8 @@ use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Actions\WriteLeadStageChangeThreadMessageAction;
-use Kanvas\Intelligence\Knowledge\Jobs\IndexLeadKnowledgeJob;
-use Kanvas\Intelligence\Knowledge\Services\LeadRagComponents;
+use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
+use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -154,7 +154,19 @@ class LeadObserver
         if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
             new UpdateLeadSessionsAction($lead)->execute();
         }
-        $this->queueKnowledgeIndex($lead);
+        if ($lead->wasChanged([
+            'firstname',
+            'lastname',
+            'title',
+            'email',
+            'phone',
+            'description',
+            'people_id',
+            'organization_id',
+            'companies_id',
+        ])) {
+            $this->queueKnowledgeIndex($lead);
+        }
         //$lead->clearLightHouseCacheJob();
     }
 
@@ -183,8 +195,6 @@ class LeadObserver
 
     private function queueKnowledgeIndex(Lead $lead): void
     {
-        if (LeadRagComponents::isEnabled($lead)) {
-            IndexLeadKnowledgeJob::dispatch($lead);
-        }
+        KnowledgeIndexRequested::dispatch(KnowledgeEntity::fromModel($lead));
     }
 }

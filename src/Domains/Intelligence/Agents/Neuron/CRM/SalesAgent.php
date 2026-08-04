@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\NeuronRagAgent;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Traits\HasLeadRag;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
@@ -48,7 +48,7 @@ use Override;
     description: 'Conversational sales assistant for inbound prospect chat — qualifies leads, creates them when intent shows, schedules meetings, and recommends inventory using the CRM + inventory tool suite.',
     provider: 'neuron',
 )]
-class SalesAgent extends BaseKanvasAgent implements ConversesWithCustomer
+class SalesAgent extends NeuronRagAgent implements ConversesWithCustomer
 {
     use HasCustomerPersona;
     use HasLeadRag;
