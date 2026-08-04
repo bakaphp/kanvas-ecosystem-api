@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Knowledge;
 
 use Kanvas\Intelligence\Agents\Neuron\Accounting\CFOAgent;
+use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\FollowUpAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\ReceptionistAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\NeuronRagAgent;
 use Kanvas\Intelligence\Agents\Neuron\Traits\HasLeadRag;
 use NeuronAI\RAG\RAG;

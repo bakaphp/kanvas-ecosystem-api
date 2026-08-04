@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Knowledge\Sources;
 
 use Illuminate\Database\Eloquent\Model;
+use InvalidArgumentException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Knowledge\Contracts\KnowledgeSource;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeDocument;
@@ -12,7 +13,6 @@ use Kanvas\Intelligence\Knowledge\Enums\LeadRagConfigurationEnum;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
-use InvalidArgumentException;
 
 final class LeadKnowledgeSource implements KnowledgeSource
 {

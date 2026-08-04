@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Contracts;
 
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Providers\AIProviderInterface;
 

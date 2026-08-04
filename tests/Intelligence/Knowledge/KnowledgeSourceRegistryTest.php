@@ -14,7 +14,7 @@ class KnowledgeSourceRegistryTest extends TestCase
 {
     public function testOnlyExplicitlyRegisteredEntityTypesAreSupported(): void
     {
-        $source = new class implements KnowledgeSource {
+        $source = new class () implements KnowledgeSource {
             public function entityType(): string
             {
                 return Lead::class;
