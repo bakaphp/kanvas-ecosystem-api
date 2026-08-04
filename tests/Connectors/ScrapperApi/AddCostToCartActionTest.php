@@ -16,6 +16,7 @@ use Mockery\Adapter\Phpunit\MockeryPHPUnitIntegration;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 use Wearepixel\Cart\Cart;
+use Wearepixel\Cart\CartCondition;
 
 class AddCostToCartActionTest extends TestCase
 {
@@ -122,6 +123,59 @@ class AddCostToCartActionTest extends TestCase
                 float $insurance
             ): array {
                 throw new RuntimeException('Tax calculation must not run at or below the threshold.');
+            }
+        };
+
+        $action->execute();
+
+        $shipping = $cart->getCondition('Shipping');
+        $attributes = $shipping->getAttributes();
+
+        $this->assertSame('+17.25', $shipping->getValue());
+        $this->assertSame(0, $attributes['Custom Tax']);
+        $this->assertSame([], $attributes['Custom Tax Details']);
+    }
+
+    public function testIgnoresExistingShippingConditionWhenEvaluatingTaxThreshold(): void
+    {
+        $app = $this->enabledApp();
+        $cart = $this->cart('stale-tax-cart');
+        $cart->add(404, 'Remaining product', 100.0, 1);
+        $cart->condition(new CartCondition([
+            'name' => 'Shipping',
+            'type' => 'shipping',
+            'target' => 'subtotal',
+            'value' => '+343.94',
+            'attributes' => [
+                'Custom Tax' => 304.55,
+            ],
+        ]));
+
+        $action = new class ($app, $cart, []) extends AddCostToCartAction {
+            protected function findVariant(int|string $id): Variants
+            {
+                return Mockery::mock(Variants::class)->makePartial();
+            }
+
+            protected function calculateShipping(Variants $variant, float $quantity): array
+            {
+                return [
+                    'shippingCost' => 10.0,
+                    'otherFee' => 2.0,
+                    'serviceFee' => 3.0,
+                    'total' => 15.0,
+                    'pounds' => 1.0,
+                    'insurance' => 3.2,
+                ];
+            }
+
+            protected function calculateCustomTax(
+                Variants $variant,
+                float $quantity,
+                float $freight,
+                float $insurance
+            ): array {
+                throw new RuntimeException('A stale shipping condition must not trigger tax calculation.');
             }
         };
 

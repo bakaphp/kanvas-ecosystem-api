@@ -26,7 +26,7 @@ class AddCostToCartAction
         }
 
         // Check if cart subtotal is over $200 USD for custom tax calculation
-        $cartSubtotal = $this->cart->getSubTotal();
+        $cartSubtotal = $this->cart->getSubTotalWithoutConditions(false);
         $shouldCalculateCustomTax = $cartSubtotal > 200;
 
         $fees = array_map(function ($item) use ($shouldCalculateCustomTax) {
