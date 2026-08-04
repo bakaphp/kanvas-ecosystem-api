@@ -91,7 +91,7 @@ class FollowUpEngagementV2UnansweredCapTest extends TestCase
             $followUpKey = new LeadConfigurationService(true)->getFollowUpModeKey($lead);
             $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
-            $lead->people->addPhone(fake()->phoneNumber);
+            $lead->people->addCellPhone(fake()->phoneNumber);
 
             $pipelineStage = $lead->getCurrentPipelineStage();
 

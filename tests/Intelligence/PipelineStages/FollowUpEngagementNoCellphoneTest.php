@@ -31,20 +31,19 @@ use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Tests\TestCase;
 
 /**
- * Root-cause regression: the drip must fire at most once per day-stage. A lead parked on a
- * stage it already got a follow-up for (never advanced — terminal stage / no next stage /
- * move_to_stage_id null) must be skipped with reason `stage_not_advanced` and send nothing,
- * instead of re-nudging the same day every cron tick. Reproduces Frederik's "20 follow-ups,
- * same day, not advancing" production report.
+ * Regression for Frederik's second report: a lead with only a landline "Phone" (no cellphone)
+ * on the sms channel must be skipped with reason `no_reachable_contact` BEFORE any message is
+ * generated — instead of the AI producing + persisting a phantom message and then
+ * SendMessageToLeadAction throwing LeadMissingContactException (which also blocked stage advance).
  */
-class FollowUpEngagementStageAdvanceGateTest extends TestCase
+class FollowUpEngagementNoCellphoneTest extends TestCase
 {
-    public function testV2SkipsWhenStageDidNotAdvance(): void
+    public function testV2SkipsSmsWhenLeadHasNoCellphone(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 1, 14, 12, 0, 0, 'America/Los_Angeles'));
 
         try {
-            [$lead, $channel] = $this->makeStuckLead(v2: true);
+            [$lead, $channel] = $this->makeLandlineOnlyLead(v2: true);
 
             $messageCountBefore = $channel->messages()->count();
 
@@ -52,19 +51,19 @@ class FollowUpEngagementStageAdvanceGateTest extends TestCase
             $result = $action->execute();
 
             $this->assertNull($result);
-            $this->assertContains('stage_not_advanced', array_column($action->getSkippedReasons(), 'reason'));
+            $this->assertContains('no_reachable_contact', array_column($action->getSkippedReasons(), 'reason'));
             $this->assertSame($messageCountBefore, $channel->messages()->count());
         } finally {
             Carbon::setTestNow();
         }
     }
 
-    public function testV1SkipsWhenStageDidNotAdvance(): void
+    public function testV1SkipsSmsWhenLeadHasNoCellphone(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 1, 14, 12, 0, 0, 'America/Los_Angeles'));
 
         try {
-            [$lead, $channel] = $this->makeStuckLead(v2: false);
+            [$lead, $channel] = $this->makeLandlineOnlyLead(v2: false);
 
             $messageCountBefore = $channel->messages()->count();
 
@@ -72,7 +71,7 @@ class FollowUpEngagementStageAdvanceGateTest extends TestCase
             $result = $action->execute();
 
             $this->assertNull($result);
-            $this->assertContains('stage_not_advanced', array_column($action->getSkippedReasons(), 'reason'));
+            $this->assertContains('no_reachable_contact', array_column($action->getSkippedReasons(), 'reason'));
             $this->assertSame($messageCountBefore, $channel->messages()->count());
         } finally {
             Carbon::setTestNow();
@@ -82,7 +81,7 @@ class FollowUpEngagementStageAdvanceGateTest extends TestCase
     /**
      * @return array{0: Lead, 1: \Kanvas\Social\Channels\Models\Channel}
      */
-    private function makeStuckLead(bool $v2): array
+    private function makeLandlineOnlyLead(bool $v2): array
     {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -130,7 +129,10 @@ class FollowUpEngagementStageAdvanceGateTest extends TestCase
         $followUpKey = new LeadConfigurationService($v2)->getFollowUpModeKey($lead);
         $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
-        $lead->people->addCellPhone(fake()->phoneNumber);
+        // Landline only — NO cellphone. This is the reproduction: SMS is not deliverable.
+        // The Lead factory seeds a cellphone; strip it so getCellPhones() is genuinely empty.
+        $lead->people->getCellPhones()->each(fn ($contact) => $contact->forceDelete());
+        $lead->people->addPhone(fake()->phoneNumber);
 
         $pipelineStage = $lead->getCurrentPipelineStage();
 
@@ -184,8 +186,6 @@ class FollowUpEngagementStageAdvanceGateTest extends TestCase
             'languages_id' => 1,
         ]);
 
-        // A single inbound (customer) message so a $lastMessage exists and the unanswered
-        // guard does NOT fire — isolating the stage-advance gate as the reason for the skip.
         $inbound = new CreateMessageAction(
             MessageInput::from([
                 'app' => $app,
@@ -229,9 +229,6 @@ class FollowUpEngagementStageAdvanceGateTest extends TestCase
         $session->content = new CreateContentSessionAction($session)->execute();
         $session->uuid = 'twilio-' . fake()->phoneNumber();
         $session->saveOrFail();
-
-        // Simulate a prior follow-up already sent on the lead's current stage — it never advanced.
-        $lead->set('follow_up_last_stage_id', $pipelineStage->getId());
 
         return [$lead, $channel];
     }

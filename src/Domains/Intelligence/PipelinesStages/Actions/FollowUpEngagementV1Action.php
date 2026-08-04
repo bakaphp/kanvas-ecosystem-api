@@ -145,6 +145,20 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
                 continue;
             }
 
+            // The lead must actually be reachable on this channel BEFORE we generate a message:
+            // sms/whatsapp need a cellphone, email needs an email. A landline "Phone" is NOT a
+            // cellphone, so SendMessageToLeadAction would throw LeadMissingContactException AFTER
+            // the AI already produced + persisted a phantom message and BEFORE the stage advances.
+            if (! $this->leadCanReceiveOnChannel($messageTemplateChannel)) {
+                $this->logSkip(
+                    'no_reachable_contact',
+                    "Lead has no reachable contact for channel '{$messageTemplateChannel}' (sms/whatsapp require a cellphone, email requires an email)",
+                    $session
+                );
+
+                continue;
+            }
+
             $lastMessage = $session->channel->getLastMessage();
             if (! $lastMessage) {
                 $this->logSkip('no_last_message', 'No last message found in channel', $session);
@@ -330,6 +344,17 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
         }
 
         return null;
+    }
+
+    protected function leadCanReceiveOnChannel(string $channel): bool
+    {
+        $value = match ($channel) {
+            'sms', 'whatsapp' => $this->lead->people->getCellPhones()->first()?->value,
+            'email' => $this->lead->people->getEmails()->first()?->value,
+            default => 'n/a',
+        };
+
+        return $value !== null && $value !== '';
     }
 
     protected function countTrailingUnansweredOutbound(Channel $channel): int
