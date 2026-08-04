@@ -11,19 +11,24 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
+use Sentry\State\Scope;
 use Throwable;
+
+use function Sentry\captureException;
+use function Sentry\withScope;
 
 #[AgentTool(name: 'Create Engagement Page', category: 'crm')]
 class CreateEngagementPageTool extends Tool
 {
     use HasKanvasContext;
 
-    public function __construct()
+    public function __construct(private readonly Agent $agent)
     {
         parent::__construct(
             name: 'create_engagement_page',
@@ -86,10 +91,18 @@ class CreateEngagementPageTool extends Tool
         }
 
         try {
+            $agentUser = $this->agent->user;
+            if ($agentUser === null) {
+                return [
+                    'status' => 'error',
+                    'message' => 'The agent must have an acting user configured to create an engagement page.',
+                ];
+            }
+
             $engagement = $this->createEngagement(new EngagementData(
                 app: $this->app,
                 company: $this->company,
-                user: $this->user,
+                user: $agentUser,
                 lead: $lead,
                 action: $action,
                 requestId: (string) Str::uuid(),
@@ -100,7 +113,7 @@ class CreateEngagementPageTool extends Tool
                 data: $data,
             ));
         } catch (Throwable $e) {
-            report($e);
+            $this->reportException($e, $lead_id, $action);
 
             return [
                 'status' => 'error',
@@ -136,5 +149,22 @@ class CreateEngagementPageTool extends Tool
     protected function createEngagement(EngagementData $data): Engagement
     {
         return new CreateEngagementAction($data)->execute();
+    }
+
+    protected function reportException(Throwable $exception, int $leadId, string $action): void
+    {
+        withScope(function (Scope $scope) use ($exception, $leadId, $action): void {
+            $scope->setTag('operation', 'create_engagement_page');
+            $scope->setTag('action_slug', $action);
+            $scope->setContext('create_engagement_page', [
+                'lead_id' => $leadId,
+                'action' => $action,
+                'app_id' => $this->app->getId(),
+                'company_id' => $this->company->getId(),
+                'user_id' => $this->agent->user_id,
+            ]);
+
+            captureException($exception);
+        });
     }
 }
