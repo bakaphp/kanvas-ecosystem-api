@@ -314,6 +314,7 @@ class Order extends BaseModel implements PayableInterface
         }
     }
 
+    #[Override]
     public function markAsPaid(UserInterface $user): void
     {
         $this->transitionToStatus($user, PaymentStatusEnum::PAID->value);
@@ -516,6 +517,8 @@ class Order extends BaseModel implements PayableInterface
             'updated_at' => $this->updated_at?->getTimestamp() ?? 0,
         ];
 
+        unset($order['metadata'], $order['private_metadata']);
+
         if ($this->isAlgolia()) {
             $order = $this->fitWithinAlgoliaRecordLimit($order);
         }
@@ -527,12 +530,6 @@ class Order extends BaseModel implements PayableInterface
     {
         $limit = 95000; // headroom under Algolia's 100,000-byte hard limit
 
-        if (Arr::sizeInBytes($order) <= $limit) {
-            return $order;
-        }
-
-        // Raw integration payloads; metadata_text already carries the searchable scalars.
-        unset($order['private_metadata'], $order['metadata']);
         if (Arr::sizeInBytes($order) <= $limit) {
             return $order;
         }
@@ -767,11 +764,6 @@ class Order extends BaseModel implements PayableInterface
                     'type' => 'string[]',
                     'optional' => true,
                     'facet' => true,
-                ],
-                [
-                    'name' => 'metadata',
-                    'type' => 'object',
-                    'optional' => true,
                 ],
                 [
                     'name' => 'order_number_text',
