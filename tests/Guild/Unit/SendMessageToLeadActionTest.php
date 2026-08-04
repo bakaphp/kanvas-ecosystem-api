@@ -147,6 +147,9 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
 
         $company = Mockery::mock();
         $company->shouldReceive('get')->with('allow_session_hijack', false)->andReturn(false);
+        $company->shouldReceive('get')
+            ->with(TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value)
+            ->andReturn(null);
 
         $lead = Mockery::mock(Lead::class);
         $lead->shouldReceive('getAttribute')->with('people')->andReturn($people);
@@ -389,26 +392,22 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $action->lookupPhoneNumberForTest($client, '8095551234');
     }
 
-    public function testExecuteReturnsReportedErrorForLeadWithOptedOutPhone(): void
+    public function testFailedResultClassifiesNonRetryableTwilioError(): void
     {
-        $people = Mockery::mock();
-        $people->shouldReceive('getAllPhones')
-            ->once()
-            ->andReturn(new Collection([
-                (object) ['is_opt_out' => 1],
-            ]));
+        $lead = $this->makeLead();
+        $action = new class ($lead) extends SendMessageToLeadAction {
+            protected function sendSmsMessage(string $from, string $message, ?string $to = null): array
+            {
+                throw new \Twilio\Exceptions\RestException('Invalid destination', 21211, 400);
+            }
+        };
 
-        $lead = Mockery::mock(Lead::class);
-        $lead->shouldReceive('getAttribute')->with('people')->andReturn($people);
-        $lead->shouldReceive('getAttribute')->with('uuid')->andReturn('lead-uuid');
-        $lead->shouldReceive('getId')->andReturn(42);
-
-        $result = new SendMessageToLeadAction($lead)->execute('sms', 'Hello');
+        $result = $action->execute('sms', 'Hello', '+18095550000');
 
         $this->assertFalse($result['success']);
-        $this->assertSame('error', $result['status']);
-        $this->assertSame('Lead has opted out of phone communications', $result['error']);
-        $this->assertSame([], $result['messages']);
+        $this->assertSame(21211, $result['twilio_error_code']);
+        $this->assertSame('validation_failed', $result['classification']);
+        $this->assertFalse($result['retryable']);
     }
 
     public function testExecuteReportsAndReturnsErrorInsteadOfThrowing(): void
@@ -429,15 +428,28 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $this->assertSame([], $result['messages']);
     }
 
+    public function testExecuteRethrowsRetryableTwilioFailure(): void
+    {
+        $lead = $this->makeLead();
+        $action = new class ($lead) extends SendMessageToLeadAction {
+            protected function sendSmsMessage(string $from, string $message, ?string $to = null): array
+            {
+                throw new \Twilio\Exceptions\RestException('Temporary failure', 30003, 500);
+            }
+        };
+
+        $this->expectExceptionCode(30003);
+
+        $action->execute('sms', 'Hello', '+18095550000');
+    }
+
     public function testTwilio21610MarksLeadPhoneContactsAsOptedOut(): void
     {
         $people = Mockery::mock();
-        $people->shouldReceive('getAllPhones')
+        $people->shouldReceive('setPhoneOptOut')
             ->once()
-            ->andReturn(new Collection([
-                (object) ['is_opt_out' => 0],
-            ]));
-        $people->shouldReceive('optOutPhoneContacts')->once()->andReturn(1);
+            ->with('+18095551234')
+            ->andReturn(1);
 
         $lead = Mockery::mock(Lead::class);
         $lead->shouldReceive('getAttribute')->with('people')->andReturn($people);

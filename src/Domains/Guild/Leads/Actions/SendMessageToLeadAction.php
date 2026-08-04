@@ -15,8 +15,10 @@ use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementD
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
+use Kanvas\Connectors\Twilio\Actions\RecordMessageAttemptAction;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
+use Kanvas\Connectors\Twilio\Services\MessageErrorClassifier;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioMessageStatusWebhookJob;
 use Kanvas\Connectors\VoiceBridge\Actions\InitVoiceSessionAction;
 use Kanvas\Connectors\VoiceBridge\Actions\TriggerVoiceCallAction;
@@ -25,6 +27,8 @@ use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Filesystem\Actions\ProcessVideoWithGifAction;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
@@ -62,16 +66,14 @@ class SendMessageToLeadAction
 
     protected array $processedFiles = [];
     protected array $videoEngagements = [];
-    protected ?Throwable $blockingException = null;
+    protected string $attemptUuid;
+    protected ?string $attemptedFrom = null;
+    protected ?string $attemptedTo = null;
 
     public function __construct(
         protected Lead $lead,
     ) {
-        if ($this->lead->people?->getAllPhones()->contains('is_opt_out', 1)) {
-            $this->blockingException = new LeadOptedOutException(
-                'Lead has opted out of phone communications'
-            );
-        }
+        $this->attemptUuid = Uuid::uuid4()->toString();
     }
 
     public function execute(
@@ -84,17 +86,13 @@ class SendMessageToLeadAction
         ?string $to = null,
         ?array $cc = null
     ): array {
-        if ($this->blockingException instanceof Throwable) {
-            return $this->failedResult($channel, $this->blockingException);
-        }
-
         try {
             if ($files !== null && $files->isNotEmpty()) {
                 $this->processedFiles = $this->prepareFiles($files);
                 $this->createVideoEngagements();
             }
 
-            return match ($channel) {
+            $result = match ($channel) {
                 LeadCommunicationChannelEnum::WHATSAPP->value => $this->sendWhatsAppMessage($message, $to),
                 LeadCommunicationChannelEnum::SMS->value => $this->sendSmsMessage(
                     $this->resolveTwilioFrom($from),
@@ -105,7 +103,18 @@ class SendMessageToLeadAction
                 LeadCommunicationChannelEnum::VOICE->value => $this->sendVoiceMessage($message),
                 default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
             };
+
+            if ($channel === LeadCommunicationChannelEnum::SMS->value) {
+                $result['attempt_uuid'] = $this->attemptUuid;
+                $this->recordTwilioAttempt($result);
+            }
+
+            return $result;
         } catch (Throwable $exception) {
+            if (MessageErrorClassifier::classify($exception)['retryable']) {
+                throw $exception;
+            }
+
             return $this->failedResult($channel, $exception);
         }
     }
@@ -114,7 +123,9 @@ class SendMessageToLeadAction
     {
         report($exception);
 
-        return [
+        $classification = MessageErrorClassifier::classify($exception);
+
+        $result = array_merge([
             'status' => 'error',
             'success' => false,
             'channel' => $channel,
@@ -122,7 +133,30 @@ class SendMessageToLeadAction
             'lead_uuid' => $this->lead->uuid,
             'messages' => [],
             'error' => $exception->getMessage(),
-        ];
+            'attempt_uuid' => $this->attemptUuid,
+            'account_sid' => $this->lead->company?->get(TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value),
+            'from' => $this->attemptedFrom,
+            'to' => $this->attemptedTo,
+        ], $classification);
+
+        if ($channel === LeadCommunicationChannelEnum::SMS->value) {
+            $this->recordTwilioAttempt($result);
+        }
+
+        return $result;
+    }
+
+    protected function recordTwilioAttempt(array $providerResponse): void
+    {
+        if (! $this->lead->exists) {
+            return;
+        }
+
+        new RecordMessageAttemptAction(
+            app: $this->lead->app,
+            company: $this->lead->company,
+            leadId: $this->lead->getId(),
+        )->execute($providerResponse);
     }
 
     protected function resolveTwilioFrom(?string $from): string
@@ -426,6 +460,9 @@ class SendMessageToLeadAction
 
         $cellphone = $this->hijackPhoneNumber((string) $cellphone, 'twilio-');
         $cellphone = Str::toE164($cellphone);
+        $this->attemptedFrom = $from;
+        $this->attemptedTo = $cellphone;
+        $this->guardSmsDestination($cellphone, $from);
         $cellphone = $this->lookupPhoneNumber($client, $cellphone);
 
         $engagementUrls = array_filter(array_column($this->videoEngagements, 'url'));
@@ -524,10 +561,36 @@ class SendMessageToLeadAction
             return $client->messages->create($cellphone, $payload);
         } catch (RestException $exception) {
             if ($exception->getCode() === self::TWILIO_UNSUBSCRIBED_RECIPIENT_CODE) {
-                $this->lead->people?->optOutPhoneContacts();
+                $this->lead->people?->setPhoneOptOut($cellphone);
             }
 
             throw $exception;
+        }
+    }
+
+    protected function guardSmsDestination(string $cellphone, string $from): void
+    {
+        if ($from === '') {
+            throw new InvalidArgumentException('Twilio sender is not configured');
+        }
+
+        $normalizedFrom = Str::toE164($from);
+        if ($normalizedFrom === $cellphone) {
+            throw new InvalidArgumentException('Twilio To and From numbers must be different');
+        }
+
+        $isOptedOut = $this->lead->people?->getAllPhones()->contains(
+            fn ($contact): bool => Contact::normalizeValue(
+                (string) $contact->value,
+                (int) $contact->contacts_types_id,
+            ) === Contact::normalizeValue(
+                $cellphone,
+                ContactTypeEnum::CELLPHONE->value,
+            ) && (int) $contact->is_opt_out === 1,
+        ) ?? false;
+
+        if ($isOptedOut) {
+            throw new LeadOptedOutException('Destination phone has opted out of SMS communications');
         }
     }
 

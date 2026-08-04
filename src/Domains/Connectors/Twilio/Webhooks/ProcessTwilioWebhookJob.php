@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\Twilio\Webhooks;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Contracts\Database\Query\Builder;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Twilio\Actions\DownloadMessageFileAction;
+use Kanvas\Connectors\Twilio\Services\WebhookSignatureValidator;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -41,6 +43,7 @@ use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
@@ -49,6 +52,16 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 {
     protected bool $hijackSession = false;
     protected int $batchDelaySeconds = 3; // Configurable delay
+
+    #[Override]
+    public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
+    {
+        return WebhookSignatureValidator::validate(
+            request: $request,
+            company: $receiver->company,
+            expectedUrl: $receiver->getUrl(),
+        );
+    }
 
     #[Override]
     public function execute(array $params = []): array
@@ -73,6 +86,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         $batchKey = "message_batch:{$this->receiver->getId()}:{$phoneNumber}";
 
         $isFromMe = $request['From'] === $request['To'];
+        $consentType = $this->consentType($request);
         $batch = Cache::get($batchKey, [
                         'messages' => [],
                         'first_message_time' => now(),
@@ -81,8 +95,10 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         if (! $isFromMe) {
             $people = $this->processContactFromMessage($request);
-            if ($this->isOptOutRequest($request)) {
-                $people->optOutPhoneContacts();
+            if ($consentType === 'STOP') {
+                $people->setPhoneOptOut((string) $request['From']);
+            } elseif ($consentType === 'START') {
+                $people->setPhoneOptOut((string) $request['From'], false);
             }
 
             $lead = $this->createLeadFromPeople($people);
@@ -133,7 +149,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             $createMessageAction = new CreateMessageAction($messageInput);
             $message = $createMessageAction->execute();
 
-            if (! $isFromMe) {
+            if (! $isFromMe && $consentType === null) {
                 $this->cancelPendingWorkflow($batchKey);
                 // Add current message to batch
                 $batch['messages'][] = [
@@ -162,6 +178,24 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         }
 
         $channel->addMessage($message);
+
+        if ($consentType !== null) {
+            $message->addTag('twilio-consent');
+            $message->addTag(strtolower($consentType));
+            $this->cancelPendingWorkflow($batchKey);
+
+            return [[
+                'message_id' => $message->getId(),
+                'uuid' => $message->uuid,
+                'channel_id' => $channel->getId(),
+                'chat_jid' => $request['From'],
+                'text' => $request['Body'] ?? '',
+                'is_from_me' => false,
+                'type' => $message->messageType->name,
+                'consent_type' => $consentType,
+                'automated_response_suppressed' => true,
+            ]];
+        }
 
         for ($i = 0; isset($request["MediaUrl{$i}"]); $i++) {
             try {
@@ -245,13 +279,21 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         Cache::put($workflowJobKey . ':cancelled', true, now()->addMinutes(15));
     }
 
-    protected function isOptOutRequest(array $request): bool
+    protected function consentType(array $request): ?string
     {
-        if (strtoupper(trim((string) ($request['OptOutType'] ?? ''))) === 'STOP') {
-            return true;
+        $optOutType = strtoupper(trim((string) ($request['OptOutType'] ?? '')));
+        if (in_array($optOutType, ['STOP', 'START', 'HELP'], true)) {
+            return $optOutType;
         }
 
-        return strtoupper(trim((string) ($request['Body'] ?? ''))) === 'STOP';
+        $body = strtoupper(trim((string) ($request['Body'] ?? '')));
+
+        return match (true) {
+            in_array($body, ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT'], true) => 'STOP',
+            in_array($body, ['START', 'YES', 'UNSTOP'], true) => 'START',
+            $body === 'HELP' => 'HELP',
+            default => null,
+        };
     }
 
     public function createLeadFromPeople(PeopleModel $people): Lead
