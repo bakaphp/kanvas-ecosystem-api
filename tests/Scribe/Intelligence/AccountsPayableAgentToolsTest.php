@@ -14,6 +14,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
@@ -170,5 +172,63 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame('received', $result['document_status']);
         $this->assertSame(640.0, (float) $result['balance_due_native']);
         $this->assertNotEmpty($result['lines']);
+    }
+
+    public function test_add_bill_note_reports_not_found_for_unknown_bill(): void
+    {
+        $result = new AddBillNoteTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: 999999999, note: 'Called vendor.');
+
+        $this->assertFalse($result['note_added']);
+        $this->assertSame('bill_not_found', $result['reason']);
+    }
+
+    public function test_add_bill_note_reports_not_pushed_when_bill_has_no_acumatica_ref(): void
+    {
+        $vendor = $this->seedTestOrganization('Globex Supply');
+        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
+
+        $bill = \Kanvas\Scribe\Bills\Models\Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->latest('id')
+            ->first();
+
+        $result = new AddBillNoteTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: (int) $bill->id, note: 'Called vendor.');
+
+        $this->assertFalse($result['note_added']);
+        $this->assertSame('bill_not_pushed', $result['reason']);
+    }
+
+    public function test_attach_bill_file_reports_not_found_for_unknown_bill(): void
+    {
+        $result = new AttachBillFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: 999999999, file_url: 'https://example.test/invoice.pdf');
+
+        $this->assertFalse($result['file_attached']);
+        $this->assertSame('bill_not_found', $result['reason']);
+    }
+
+    public function test_attach_bill_file_reports_not_pushed_when_bill_has_no_acumatica_ref(): void
+    {
+        $vendor = $this->seedTestOrganization('Globex Supply');
+        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
+
+        $bill = \Kanvas\Scribe\Bills\Models\Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->latest('id')
+            ->first();
+
+        $result = new AttachBillFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: (int) $bill->id, file_url: 'https://example.test/invoice.pdf');
+
+        $this->assertFalse($result['file_attached']);
+        $this->assertSame('bill_not_pushed', $result['reason']);
     }
 }
