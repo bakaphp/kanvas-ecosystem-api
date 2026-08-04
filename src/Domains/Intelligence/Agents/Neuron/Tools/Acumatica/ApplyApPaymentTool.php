@@ -88,10 +88,7 @@ class ApplyApPaymentTool extends AbstractApplyAcumaticaPaymentTool
     }
 
     /**
-     * A print-enabled Check payment method lands in Acumatica's "Pending Print" status on release — it
-     * doesn't post to GL or close the bill until someone runs Print/Release Checks (AP505000) there.
-     * Kanvas's own bookkeeping above already shows the bill as paid; this note keeps that from being
-     * mistaken for the bill being closed on the Acumatica side too.
+     * A print-enabled Check method leaves the payment "Pending Print" — not posted to GL/closed — until someone runs Print/Release Checks (AP505000).
      *
      * @return array<string, mixed>
      */
