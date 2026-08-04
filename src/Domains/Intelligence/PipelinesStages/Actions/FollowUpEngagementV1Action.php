@@ -144,7 +144,7 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
 
                 continue;
             }
-            
+
             if (! $this->leadCanReceiveOnChannel($messageTemplateChannel)) {
                 $this->logSkip(
                     'no_reachable_contact',
