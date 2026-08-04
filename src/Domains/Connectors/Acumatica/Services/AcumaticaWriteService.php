@@ -203,13 +203,7 @@ class AcumaticaWriteService
         }
     }
 
-    /**
-     * PHP aborts script execution the moment the client disconnects unless told otherwise — which
-     * skips straight past our finally-block logout, leaving the Acumatica session held open until it
-     * expires on its own (~20-30 min). A slow multi-step write (e.g. void's poll loops) is exactly
-     * when a client is most likely to give up and disconnect, so every write session opts out of that
-     * default: the logout always runs, whether or not anyone is still listening for the response.
-     */
+    /** A client disconnect mid-write would otherwise abort PHP before our finally-block logout runs, leaking the Acumatica session. */
     private function keepRunningPastClientDisconnect(): void
     {
         ignore_user_abort(true);
