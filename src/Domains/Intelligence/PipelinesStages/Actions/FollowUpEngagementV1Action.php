@@ -144,11 +144,7 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
 
                 continue;
             }
-
-            // The lead must actually be reachable on this channel BEFORE we generate a message:
-            // sms/whatsapp need a cellphone, email needs an email. A landline "Phone" is NOT a
-            // cellphone, so SendMessageToLeadAction would throw LeadMissingContactException AFTER
-            // the AI already produced + persisted a phantom message and BEFORE the stage advances.
+            
             if (! $this->leadCanReceiveOnChannel($messageTemplateChannel)) {
                 $this->logSkip(
                     'no_reachable_contact',

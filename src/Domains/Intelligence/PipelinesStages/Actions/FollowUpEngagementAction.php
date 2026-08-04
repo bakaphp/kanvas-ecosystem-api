@@ -41,20 +41,7 @@ final class FollowUpEngagementAction implements FollowUpTimeGateOverridable
     protected ?FollowUpLog $log = null;
     protected array $skippedReasons = [];
     protected bool $ignoreTimeGate = false;
-
-    /**
-     * Backstop only. The primary stop is the stage-advance gate below; this caps the
-     * unanswered outbound streak in case state is inconsistent. WhatsApp already stops
-     * at the first unanswered touch.
-     */
     private const int MAX_UNANSWERED_FOLLOW_UPS = 2;
-
-    /**
-     * Lead custom field holding the pipeline stage id of the last follow-up we sent.
-     * If the lead is still on that same stage on a later run it never advanced (terminal
-     * stage / no next stage / move_to_stage_id null), so we must NOT re-send — the drip is
-     * done for that stage. A follow-up fires at most once per day-stage.
-     */
     private const string LAST_FOLLOW_UP_STAGE_KEY = 'follow_up_last_stage_id';
 
     #[Override]
