@@ -8,9 +8,11 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\IPInfo;
 use Baka\Users\Contracts\UserInterface;
+use GuzzleHttp\Exception\ClientException;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Kanvas\Companies\Models\CompaniesSettings;
 use Kanvas\Connectors\PasoRapido\Client;
@@ -29,9 +31,14 @@ use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 class PasoRapidoService
 {
-    private const MINUTE_WINDOW_SECONDS = 60;
-    private const DAILY_WINDOW_SECONDS = 86400;
-    private const RECENT_TAGS_TTL_SECONDS = 600;
+    private const int MINUTE_WINDOW_SECONDS = 60;
+    private const int DAILY_WINDOW_SECONDS = 86400;
+    private const int RECENT_TAGS_TTL_SECONDS = 600;
+    private const int VERIFY_ERROR_REPORT_THRESHOLD = 10;
+    private const int VERIFY_ERROR_REPORT_WINDOW_SECONDS = 300;
+    public const int VERIFY_ERROR_BLOCK_THRESHOLD = 20;
+    private const int VERIFY_ERROR_BLOCK_WINDOW_SECONDS = 300;
+    private const int VERIFY_ERROR_BLOCK_TTL_SECONDS = 3600;
 
     protected Client $client;
 
@@ -55,6 +62,8 @@ class PasoRapidoService
         $appId = $this->app->getId();
 
         $clientIp = IPInfo::getClientIp();
+
+        $this->assertIpNotAutoBlocked($clientIp);
 
         if ($this->app->get(ConfigurationEnum::VERIFY_REQUIRE_VERIFIED_ACCOUNT->value) && $user && ! $user->getAppIsVerified()) {
             $email = $user->email ?? 'unknown';
@@ -175,7 +184,11 @@ class PasoRapidoService
 
         $this->logTagVerification($user, $tag);
 
-        $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag, []);
+        try {
+            $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag, []);
+        } catch (ClientException $e) {
+            $this->handleVerifyClientException($e, $tag, $context);
+        }
 
         return VerifyCustomerResponse::from([
             'username' => $response['nombreUsuario'] ?? '',
@@ -189,6 +202,88 @@ class PasoRapidoService
             'account' => $response['cuenta'],
             'status' => $response['estado'],
         ]);
+    }
+
+    private function handleVerifyClientException(ClientException $e, string $tag, string $context): never
+    {
+        $response = $e->getResponse();
+        $statusCode = $response->getStatusCode();
+        $decoded = json_decode((string) $response->getBody(), true);
+        $apiMessage = is_array($decoded) && is_string($decoded['descripcionMensaje'] ?? null)
+            ? $decoded['descripcionMensaje']
+            : null;
+
+        $clientIp = IPInfo::getClientIp();
+
+        $this->registerFailedLookup($statusCode, $clientIp, $context);
+
+        $rateLimitKey = "paso-rapido-verify-error:{$this->app->getId()}:{$statusCode}";
+
+        if (RateLimiter::tooManyAttempts($rateLimitKey, self::VERIFY_ERROR_REPORT_THRESHOLD)) {
+            Log::warning('PasoRapido tag verification failed', [
+                'status' => $statusCode,
+                'message' => $apiMessage,
+                'tag' => $tag,
+                'ip' => $clientIp,
+                'user_id' => auth()->id() ?? 0,
+                'context' => $context,
+            ]);
+        } else {
+            RateLimiter::hit($rateLimitKey, self::VERIFY_ERROR_REPORT_WINDOW_SECONDS);
+            report($e);
+        }
+
+        throw new ValidationException($apiMessage ?: 'Unable to verify the tag at this time. Please try again later.');
+    }
+
+    /**
+     * Reject requests from an IP that has been auto-blocked for repeated failed
+     * lookups — checked before any DB/API work so a probing IP is cut off at the door.
+     */
+    private function assertIpNotAutoBlocked(string $clientIp): void
+    {
+        if (! Cache::get($this->autoBlockKey($clientIp))) {
+            return;
+        }
+
+        throw new TooManyRequestsHttpException(
+            message: 'Suspicious activity detected. Access temporarily restricted.'
+        );
+    }
+
+    /**
+     * Count a failed upstream lookup against the IP and auto-block it once the
+     * threshold is crossed. 401 is our own auth problem (the client retries it),
+     * and 5xx is the upstream being down — neither counts as tag probing.
+     */
+    private function registerFailedLookup(int $statusCode, string $clientIp, string $context): void
+    {
+        if ($statusCode === 401 || $statusCode < 400 || $statusCode >= 500) {
+            return;
+        }
+
+        $failKey = "paso-rapido-verify-fail:{$this->app->getId()}:{$clientIp}";
+        RateLimiter::hit($failKey, self::VERIFY_ERROR_BLOCK_WINDOW_SECONDS);
+
+        if (RateLimiter::attempts($failKey) < self::VERIFY_ERROR_BLOCK_THRESHOLD) {
+            return;
+        }
+
+        $blockKey = $this->autoBlockKey($clientIp);
+
+        // Set (and report) the block once — re-reporting every blocked attempt would
+        // re-flood Sentry, the very thing this whole path exists to prevent.
+        if (! Cache::get($blockKey)) {
+            Cache::put($blockKey, true, self::VERIFY_ERROR_BLOCK_TTL_SECONDS);
+            report(new TooManyRequestsHttpException(
+                message: "PasoRapido auto-blocked IP after repeated failed lookups - ip:{$clientIp} {$context}"
+            ));
+        }
+    }
+
+    private function autoBlockKey(string $clientIp): string
+    {
+        return "paso-rapido-verify-blocked-ip:{$this->app->getId()}:{$clientIp}";
     }
 
     /**

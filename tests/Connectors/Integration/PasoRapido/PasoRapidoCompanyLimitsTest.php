@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\PasoRapido;
 
 use Baka\Support\IPInfo;
+use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -199,6 +203,74 @@ final class PasoRapidoCompanyLimitsTest extends TestCase
         $this->assertSame(self::TAG, $result->device);
     }
 
+    public function testUpstreamErrorIsRateLimitedIntoLogsAndReturnsCleanMessage(): void
+    {
+        $this->disableUserFacingGuards();
+
+        Log::spy();
+
+        $client = Mockery::mock(Client::class);
+        $client->shouldReceive('post')->andThrow($this->upstreamForbidden());
+
+        $service = $this->service($client);
+
+        // 10 reports to Sentry, then the rest are demoted to the log — but every call
+        // still surfaces the upstream message to the client as a ValidationException.
+        for ($i = 0; $i < 12; $i++) {
+            try {
+                $service->verifyCustomer(self::TAG);
+                $this->fail('Expected a ValidationException from the upstream 403.');
+            } catch (ValidationException $e) {
+                $this->assertSame('Dispositivo inválido (Estado: Inhabilitado).', $e->getMessage());
+            }
+        }
+
+        Log::shouldHaveReceived('warning')
+            ->with('PasoRapido tag verification failed', Mockery::type('array'))
+            ->twice();
+
+        $this->assertSame(
+            10,
+            RateLimiter::attempts("paso-rapido-verify-error:{$this->kanvasApp->getId()}:403"),
+        );
+    }
+
+    public function testRepeatedUpstreamFailuresAutoBlockTheIp(): void
+    {
+        $this->disableUserFacingGuards();
+
+        Log::spy();
+
+        $threshold = PasoRapidoService::VERIFY_ERROR_BLOCK_THRESHOLD;
+
+        // Capped at the block threshold: the request after the last failure must be
+        // rejected before it ever reaches the API, or Mockery fails on the next post.
+        $client = Mockery::mock(Client::class);
+        $client->shouldReceive('post')
+            ->times($threshold)
+            ->andThrow($this->upstreamForbidden());
+
+        $service = $this->service($client);
+
+        for ($i = 0; $i < $threshold; $i++) {
+            try {
+                $service->verifyCustomer(self::TAG);
+            } catch (ValidationException) {
+                // Each failed lookup surfaces the upstream 403 to the client.
+            }
+        }
+
+        $this->assertTrue(
+            (bool) Cache::get("paso-rapido-verify-blocked-ip:{$this->kanvasApp->getId()}:" . IPInfo::getClientIp()),
+            'The IP should be auto-blocked after crossing the failure threshold.',
+        );
+
+        $this->expectException(TooManyRequestsHttpException::class);
+        $this->expectExceptionMessage('Suspicious activity detected.');
+
+        $service->verifyCustomer(self::TAG);
+    }
+
     private function service(?Client $client = null): PasoRapidoService
     {
         return new PasoRapidoService(
@@ -228,6 +300,31 @@ final class PasoRapidoCompanyLimitsTest extends TestCase
         return $client;
     }
 
+    private function disableUserFacingGuards(): void
+    {
+        foreach ([
+            CompanySettingsEnum::VERIFY_MAX_ATTEMPTS,
+            CompanySettingsEnum::VERIFY_MAX_DAILY,
+            CompanySettingsEnum::VERIFY_IP_MAX_DAILY,
+            CompanySettingsEnum::VERIFY_IP_MAX_USERS,
+            CompanySettingsEnum::VERIFY_SEQUENTIAL_THRESHOLD,
+        ] as $setting) {
+            $this->company->set($setting->value, '0');
+        }
+    }
+
+    private function upstreamForbidden(): ClientException
+    {
+        return new ClientException(
+            'Client error',
+            new Request('POST', ConfigurationEnum::VERIFY_PATH->value),
+            new Response(403, [], (string) json_encode([
+                'codigoMensaje' => 403,
+                'descripcionMensaje' => 'Dispositivo inválido (Estado: Inhabilitado).',
+            ])),
+        );
+    }
+
     private function neutralizeAppSetting(ConfigurationEnum $setting): void
     {
         $this->originalAppSettings[$setting->value] = $this->kanvasApp->get($setting->value);
@@ -242,7 +339,10 @@ final class PasoRapidoCompanyLimitsTest extends TestCase
         RateLimiter::clear("paso-rapido-verify:{$appId}:{$this->userId}");
         RateLimiter::clear("paso-rapido-verify-daily:{$appId}:{$this->userId}");
         RateLimiter::clear("paso-rapido-verify-ip-daily:{$appId}:{$ip}");
+        RateLimiter::clear("paso-rapido-verify-error:{$appId}:403");
+        RateLimiter::clear("paso-rapido-verify-fail:{$appId}:{$ip}");
         Cache::forget("paso-rapido-verify-tags:{$appId}:{$this->userId}");
         Cache::forget("paso-rapido-ip-users:{$appId}:{$ip}");
+        Cache::forget("paso-rapido-verify-blocked-ip:{$appId}:{$ip}");
     }
 }

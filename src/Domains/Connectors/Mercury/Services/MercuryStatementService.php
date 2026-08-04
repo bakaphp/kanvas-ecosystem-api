@@ -28,4 +28,9 @@ class MercuryStatementService extends MercuryApiService
             (array) ($response['statements'] ?? []),
         ));
     }
+
+    public function downloadStatementPdf(string $statementId): string
+    {
+        return $this->client->getBinary("statements/{$statementId}/pdf", 'application/pdf');
+    }
 }
