@@ -40,19 +40,11 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
     protected bool $ignoreTimeGate = false;
 
     /**
-     * Backstop only. The primary stop is the stage-advance gate below; this caps the
-     * unanswered outbound streak in case state is inconsistent. WhatsApp already stops
-     * at the first unanswered touch (24h-window policy).
+     * Hard bound on how long a lead keeps receiving follow-ups, measured from the lead's
+     * created_at. The drip advances day-stages and keeps messaging (varied copy) until this
+     * window closes; after it, no further follow-ups are sent.
      */
-    private const int MAX_UNANSWERED_FOLLOW_UPS = 2;
-
-    /**
-     * Lead custom field holding the pipeline stage id of the last follow-up we sent.
-     * If the lead is still on that same stage on a later run it never advanced (terminal
-     * stage / no next stage / move_to_stage_id null), so we must NOT re-send — the drip is
-     * done for that stage. A follow-up fires at most once per day-stage.
-     */
-    private const string LAST_FOLLOW_UP_STAGE_KEY = 'follow_up_last_stage_id';
+    private const int FOLLOW_UP_WINDOW_DAYS = 90;
 
     #[Override]
     public function withIgnoreTimeGate(bool $ignore = true): static
@@ -84,6 +76,15 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
     public function execute(): ?array
     {
         if (! $this->followUp) {
+            return null;
+        }
+
+        if ($this->isPastFollowUpWindow()) {
+            $this->logSkip(
+                'follow_up_window_expired',
+                sprintf('Lead is older than the %d-day follow-up window', self::FOLLOW_UP_WINDOW_DAYS)
+            );
+
             return null;
         }
 
@@ -179,21 +180,6 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
                         ];
                     }
                 }
-            } elseif (is_array($lastMessage->message) && ($lastMessage->message['from_me'] ?? false) === true) {
-                // twilio-sms / email: unlike WhatsApp these have no unanswered guard, so a lead
-                // who never replies got a near-identical nudge every cron tick. Stop once our own
-                // outbound has gone unanswered MAX_UNANSWERED_FOLLOW_UPS times in a row.
-                $unansweredStreak = $this->countTrailingUnansweredOutbound($session->channel);
-
-                if ($unansweredStreak >= self::MAX_UNANSWERED_FOLLOW_UPS) {
-                    $this->logSkip(
-                        'max_unanswered_follow_ups',
-                        "Skipping '{$messageTemplateChannel}': last {$unansweredStreak} outbound messages went unanswered",
-                        $session
-                    );
-
-                    continue;
-                }
             }
 
             $timezone = $this->lead->company->timezone ?? 'UTC';
@@ -252,19 +238,6 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
                 $isActive = $this->lead->isActive();
             }
 
-            $currentStageId = (int) $this->lead->pipeline_stage_id;
-            $lastFollowUpStageId = $this->lead->get(self::LAST_FOLLOW_UP_STAGE_KEY);
-
-            if ($lastFollowUpStageId !== null && (int) $lastFollowUpStageId === $currentStageId) {
-                $this->logSkip(
-                    'stage_not_advanced',
-                    "Lead has not advanced past stage {$currentStageId} since the last follow-up; skipping to avoid repeating the same day",
-                    $session
-                );
-
-                continue;
-            }
-
             if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
                 && ($this->ignoreTimeGate || $timeDiff > $followUpDay->time_value)
                 && $contacted === false
@@ -279,24 +252,44 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
                     continue;
                 }
 
-                try {
-                    $message = new CreateMessageFollowUpAction(
-                        $this->lead,
-                        $this->lead->stage,
-                        $session,
-                        $messageTemplate,
-                        (float)$followUpDay->pipelineStage->weight,
-                        $messageTemplateChannel
-                    )->execute();
+                $creator = new CreateMessageFollowUpAction(
+                    $this->lead,
+                    $this->lead->stage,
+                    $session,
+                    $messageTemplate,
+                    (float) $followUpDay->pipelineStage->weight,
+                    $messageTemplateChannel
+                );
 
-                    $this->logSuccess('message_created', 'Follow-up message created', $session, $message);
+                try {
+                    $candidate = $creator->generateMessageText();
                 } catch (Exception $e) {
                     captureException($e);
-                }
 
-                if ($message === null) {
                     continue;
                 }
+
+                if ($candidate === null) {
+                    continue;
+                }
+
+                // Same message as a prior touch: do NOT resend it. Mark the day complete by
+                // advancing the pipeline so the next run uses the next day-stage's template
+                // (the drip keeps moving toward the 90-day window instead of repeating).
+                if ($creator->isDuplicate($candidate)) {
+                    $this->lead->moveToNextPipelineStage();
+                    $this->logSkip(
+                        'duplicate_message_advanced_stage',
+                        'Generated follow-up duplicated a prior message; advanced stage instead of resending',
+                        $session
+                    );
+
+                    continue;
+                }
+
+                $creator->persistMessage($candidate);
+                $message = $candidate;
+                $this->logSuccess('message_created', 'Follow-up message created', $session, $message);
 
                 if ($followUpDay->send_message) {
                     $emailTitle = $this->lead->get('title_email_follow_up') ?? $this->lead->company->name;
@@ -326,7 +319,6 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
                 $intentNumber++;
 
                 $this->lead->set('intent_number', $intentNumber);
-                $this->lead->set(self::LAST_FOLLOW_UP_STAGE_KEY, $currentStageId);
             }
         }
 
@@ -342,6 +334,17 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
         return null;
     }
 
+    protected function isPastFollowUpWindow(): bool
+    {
+        if ($this->lead->created_at === null) {
+            return false;
+        }
+
+        return Carbon::parse($this->lead->created_at)
+            ->addDays(self::FOLLOW_UP_WINDOW_DAYS)
+            ->isPast();
+    }
+
     protected function leadCanReceiveOnChannel(string $channel): bool
     {
         $value = match ($channel) {
@@ -351,25 +354,6 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
         };
 
         return $value !== null && $value !== '';
-    }
-
-    protected function countTrailingUnansweredOutbound(Channel $channel): int
-    {
-        $messages = $channel->messages()
-            ->where('messages.is_deleted', 0)
-            ->orderBy('messages.created_at', 'DESC')
-            ->get();
-
-        $streak = 0;
-        foreach ($messages as $message) {
-            if (! is_array($message->message) || ($message->message['from_me'] ?? false) !== true) {
-                break;
-            }
-
-            $streak++;
-        }
-
-        return $streak;
     }
 
     protected function getLastClientMessageTime(Channel $channel): ?Carbon

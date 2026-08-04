@@ -5,12 +5,17 @@ declare(strict_types=1);
 namespace Tests\Intelligence\PipelineStages;
 
 use Carbon\Carbon;
+use Kanvas\ActionEngine\Actions\Models\Action;
+use Kanvas\ActionEngine\Actions\Models\CompanyAction;
+use Kanvas\ActionEngine\Pipelines\Models\Pipeline as ActionEnginePipeline;
+use Kanvas\ActionEngine\Pipelines\Models\PipelineStage as ActionEnginePipelineStage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\LeadSources\Models\LeadSource;
+use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpTypeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
@@ -18,33 +23,37 @@ use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpTemplate;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
-use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementV1Action;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session;
+use Kanvas\Inventory\Support\Setup as InventorySetup;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Laravel\Ai\StructuredAnonymousAgent;
 use Tests\TestCase;
 
 /**
- * Root-cause regression: the drip must fire at most once per day-stage. A lead parked on a
- * stage it already got a follow-up for (never advanced — terminal stage / no next stage /
- * move_to_stage_id null) must be skipped with reason `stage_not_advanced` and send nothing,
- * instead of re-nudging the same day every cron tick. Reproduces Frederik's "20 follow-ups,
- * same day, not advancing" production report.
+ * Covers the behavior Fred asked for: the follow-up keeps messaging for up to 90 days (no
+ * unanswered cap), but never resends the same copy — if the generated message duplicates a
+ * prior one, the day is marked complete by advancing the pipeline stage instead of sending.
  */
-class FollowUpEngagementStageAdvanceGateTest extends TestCase
+class FollowUpEngagementWindowAndDedupeTest extends TestCase
 {
-    public function testV2SkipsWhenStageDidNotAdvance(): void
+    public function testSkipsWhenLeadIsPastNinetyDayWindow(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 1, 14, 12, 0, 0, 'America/Los_Angeles'));
 
         try {
-            [$lead, $channel] = $this->makeStuckLead(v2: true);
+            [$lead, $channel] = $this->makeLead();
+
+            // Lead created 91 days ago — outside the 90-day follow-up window.
+            $lead->created_at = Carbon::now()->subDays(91);
+            $lead->saveOrFail();
 
             $messageCountBefore = $channel->messages()->count();
 
@@ -52,41 +61,127 @@ class FollowUpEngagementStageAdvanceGateTest extends TestCase
             $result = $action->execute();
 
             $this->assertNull($result);
-            $this->assertContains('stage_not_advanced', array_column($action->getSkippedReasons(), 'reason'));
+            $this->assertContains('follow_up_window_expired', array_column($action->getSkippedReasons(), 'reason'));
             $this->assertSame($messageCountBefore, $channel->messages()->count());
         } finally {
             Carbon::setTestNow();
         }
     }
 
-    public function testV1SkipsWhenStageDidNotAdvance(): void
+    public function testAdvancesStageInsteadOfResendingWhenMessageIsDuplicate(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 1, 14, 12, 0, 0, 'America/Los_Angeles'));
 
         try {
-            [$lead, $channel] = $this->makeStuckLead(v2: false);
+            [$lead, $channel, $pipelineStage, $session] = $this->makeLead(withGeneration: true);
+
+            $duplicateText = 'Hi David, would you like to schedule a visit this week?';
+
+            // A prior follow-up we already sent, two hours ago.
+            $smsType = MessageType::firstOrCreate([
+                'apps_id' => $lead->apps_id,
+                'name' => 'twilio-sms',
+                'verb' => 'twilio-sms',
+            ], [
+                'languages_id' => 1,
+            ]);
+            $prior = new CreateMessageAction(
+                MessageInput::from([
+                    'app' => $lead->app,
+                    'company' => $lead->company,
+                    'user' => auth()->user(),
+                    'type' => $smsType,
+                    'message' => [
+                        'content' => $duplicateText,
+                        'from_me' => true,
+                    ],
+                ])
+            )->execute();
+            $prior->created_at = Carbon::now('America/Los_Angeles')->subHours(2);
+            $prior->saveOrFail();
+            $channel->addMessage($prior);
+
+            // Guarantee a next stage exists so moveToNextPipelineStage() can advance.
+            PipelineStage::create([
+                'pipelines_id' => $pipelineStage->pipelines_id,
+                'name' => 'Day 2',
+                'weight' => (int) $pipelineStage->weight + 1,
+                'is_deleted' => 0,
+            ]);
+
+            // The agent regenerates the SAME copy — it must NOT be resent.
+            StructuredAnonymousAgent::fake([
+                ['message' => $duplicateText, 'should_respond' => true],
+            ]);
 
             $messageCountBefore = $channel->messages()->count();
+            $originalStageId = (int) $lead->pipeline_stage_id;
 
-            $action = new FollowUpEngagementV1Action($lead);
+            $action = new FollowUpEngagementAction($lead, null, true);
             $result = $action->execute();
 
             $this->assertNull($result);
-            $this->assertContains('stage_not_advanced', array_column($action->getSkippedReasons(), 'reason'));
-            $this->assertSame($messageCountBefore, $channel->messages()->count());
+            $this->assertContains('duplicate_message_advanced_stage', array_column($action->getSkippedReasons(), 'reason'));
+            $this->assertSame($messageCountBefore, $channel->messages()->count(), 'Duplicate copy must not be persisted/sent');
+            $this->assertNotSame($originalStageId, (int) $lead->pipeline_stage_id, 'Pipeline must advance instead of resending');
         } finally {
             Carbon::setTestNow();
         }
     }
 
     /**
-     * @return array{0: Lead, 1: \Kanvas\Social\Channels\Models\Channel}
+     * @return array{0: Lead, 1: Channel, 2: PipelineStage, 3: \Kanvas\Intelligence\Sessions\Models\Session}
      */
-    private function makeStuckLead(bool $v2): array
+    private function makeLead(bool $withGeneration = false): array
     {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $app = app(Apps::class);
+
+        if ($withGeneration) {
+            new InventorySetup($app, $user, $company)->run();
+
+            // CreateMessageFollowUpAction builds a view-vehicle engagement while composing the
+            // prompt; without this pipeline/action it throws and the send is silently skipped.
+            $actionEnginePipeline = ActionEnginePipeline::firstOrCreate([
+                'slug' => 'view-vehicle',
+                'companies_id' => $company->getId(),
+                'apps_id' => $app->getId(),
+            ], [
+                'users_id' => $user->getId(),
+                'name' => 'view-vehicle',
+                'weight' => 0,
+            ]);
+
+            ActionEnginePipelineStage::firstOrCreate([
+                'pipelines_id' => $actionEnginePipeline->getId(),
+                'slug' => 'sent',
+            ], [
+                'name' => 'Sent',
+                'weight' => 1,
+            ]);
+
+            $viewVehicleAction = Action::firstOrCreate([
+                'slug' => 'view-vehicle',
+            ], [
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+                'users_id' => $user->getId(),
+                'pipelines_id' => $actionEnginePipeline->getId(),
+                'name' => 'view-vehicle',
+            ]);
+
+            CompanyAction::firstOrCreate([
+                'actions_id' => $viewVehicleAction->getId(),
+                'companies_id' => $company->getId(),
+                'apps_id' => $app->getId(),
+            ], [
+                'users_id' => $user->getId(),
+                'companies_branches_id' => $company->defaultBranch->getId(),
+                'pipelines_id' => $actionEnginePipeline->getId(),
+                'name' => 'view-vehicle',
+            ]);
+        }
 
         $company->set('timezone', 'America/Los_Angeles');
         $workHours = [
@@ -100,6 +195,16 @@ class FollowUpEngagementStageAdvanceGateTest extends TestCase
         ];
         $company->set(ConfigurationEnum::WORKING_HOURS->value, $workHours);
         $company->set(ConfigurationEnum::WORKING_DAYS->value, array_keys($workHours));
+        $company->set(ConfigurationEnum::WORKING_HOLIDAY_DAYS->value, ['New Year\'s Day']);
+        $company->set('adf_sources', [
+            [
+                'Source' => 'Default',
+                'Sub_Source' => 'Website',
+                'Backend' => 'ADVANCED_REQUEST',
+                'Default_Completion_Status' => 'Incomplete',
+                'is_default' => true,
+            ],
+        ]);
 
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
 
@@ -127,7 +232,7 @@ class FollowUpEngagementStageAdvanceGateTest extends TestCase
 
         $lead->setContactStatus(LeadGroupStatusEnum::WAITING);
 
-        $followUpKey = new LeadConfigurationService($v2)->getFollowUpModeKey($lead);
+        $followUpKey = new LeadConfigurationService(true)->getFollowUpModeKey($lead);
         $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
         $lead->people->addCellPhone(fake()->phoneNumber);
@@ -176,32 +281,6 @@ class FollowUpEngagementStageAdvanceGateTest extends TestCase
         ]);
         $channel = new CreateChannelAction($channelDto)->execute();
 
-        $smsType = MessageType::firstOrCreate([
-            'apps_id' => $app->getId(),
-            'name' => 'twilio-sms',
-            'verb' => 'twilio-sms',
-        ], [
-            'languages_id' => 1,
-        ]);
-
-        // A single inbound (customer) message so a $lastMessage exists and the unanswered
-        // guard does NOT fire — isolating the stage-advance gate as the reason for the skip.
-        $inbound = new CreateMessageAction(
-            MessageInput::from([
-                'app' => $app,
-                'company' => $company,
-                'user' => $user,
-                'type' => $smsType,
-                'message' => [
-                    'content' => 'Still thinking about it',
-                    'from_me' => false,
-                ],
-            ])
-        )->execute();
-        $inbound->created_at = Carbon::now('America/Los_Angeles')->subHours(3);
-        $inbound->saveOrFail();
-        $channel->addMessage($inbound);
-
         $agent = Agent::factory()->create([
             'name' => 'FollowUpEngagerAgent',
             'apps_id' => $lead->apps_id,
@@ -230,9 +309,6 @@ class FollowUpEngagementStageAdvanceGateTest extends TestCase
         $session->uuid = 'twilio-' . fake()->phoneNumber();
         $session->saveOrFail();
 
-        // Simulate a prior follow-up already sent on the lead's current stage — it never advanced.
-        $lead->set('follow_up_last_stage_id', $pipelineStage->getId());
-
-        return [$lead, $channel];
+        return [$lead, $channel, $pipelineStage, $session];
     }
 }
