@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Unit;
 
-use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
