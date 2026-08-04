@@ -40,11 +40,19 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
     protected bool $ignoreTimeGate = false;
 
     /**
-     * Stop nudging once this many of our own outbound messages go unanswered in a row.
-     * WhatsApp already stops at the first unanswered touch (24h-window policy); SMS/email
-     * get a short drip cap so a customer who never replies isn't messaged forever.
+     * Backstop only. The primary stop is the stage-advance gate below; this caps the
+     * unanswered outbound streak in case state is inconsistent. WhatsApp already stops
+     * at the first unanswered touch (24h-window policy).
      */
     private const int MAX_UNANSWERED_FOLLOW_UPS = 2;
+
+    /**
+     * Lead custom field holding the pipeline stage id of the last follow-up we sent.
+     * If the lead is still on that same stage on a later run it never advanced (terminal
+     * stage / no next stage / move_to_stage_id null), so we must NOT re-send — the drip is
+     * done for that stage. A follow-up fires at most once per day-stage.
+     */
+    private const string LAST_FOLLOW_UP_STAGE_KEY = 'follow_up_last_stage_id';
 
     #[Override]
     public function withIgnoreTimeGate(bool $ignore = true): static
@@ -234,6 +242,19 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
                 $isActive = $this->lead->isActive();
             }
 
+            $currentStageId = (int) $this->lead->pipeline_stage_id;
+            $lastFollowUpStageId = $this->lead->get(self::LAST_FOLLOW_UP_STAGE_KEY);
+
+            if ($lastFollowUpStageId !== null && (int) $lastFollowUpStageId === $currentStageId) {
+                $this->logSkip(
+                    'stage_not_advanced',
+                    "Lead has not advanced past stage {$currentStageId} since the last follow-up; skipping to avoid repeating the same day",
+                    $session
+                );
+
+                continue;
+            }
+
             if (! $this->lead->get(ConfigurationEnum::AGENT_HAND_OFF->value)
                 && ($this->ignoreTimeGate || $timeDiff > $followUpDay->time_value)
                 && $contacted === false
@@ -295,6 +316,7 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
                 $intentNumber++;
 
                 $this->lead->set('intent_number', $intentNumber);
+                $this->lead->set(self::LAST_FOLLOW_UP_STAGE_KEY, $currentStageId);
             }
         }
 
