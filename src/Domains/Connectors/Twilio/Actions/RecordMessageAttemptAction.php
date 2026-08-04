@@ -75,6 +75,8 @@ final class RecordMessageAttemptAction
                 'last_error_message' => $errorMessage,
                 'classification' => self::nullableString($providerResponse['classification'] ?? null),
                 'remediation_action' => self::remediationAction($providerResponse),
+                'retry_number' => (int) ($providerResponse['retry_number'] ?? $attempt->retry_number ?? 0),
+                'parent_attempt_id' => $providerResponse['parent_attempt_id'] ?? $attempt->parent_attempt_id,
                 'terminal_at' => self::isTerminal($status) ? now() : null,
             ]);
             $attempt->saveOrFail();

@@ -7,6 +7,8 @@ namespace Kanvas\Connectors\Twilio\Webhooks;
 use Illuminate\Http\Request;
 use Kanvas\Connectors\Twilio\Actions\RecordDeliveryStatusEventAction;
 use Kanvas\Connectors\Twilio\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Twilio\Jobs\RetryMessageAttemptJob;
+use Kanvas\Connectors\Twilio\Models\MessageAttempt;
 use Kanvas\Connectors\Twilio\Services\WebhookSignatureValidator;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -73,6 +75,7 @@ class ProcessTwilioMessageStatusWebhookJob extends ProcessWebhookJob
             )->execute();
             if ($recordedDelivery['created']) {
                 $this->applyDestinationRemediation($payload, $errorCode);
+                $this->applyCarrierRetryPolicy($recordedDelivery['attempt'], $errorCode);
             }
 
             return [
@@ -146,6 +149,7 @@ class ProcessTwilioMessageStatusWebhookJob extends ProcessWebhookJob
 
         if ($recordedDelivery['created']) {
             $this->applyDestinationRemediation($payload, $errorCode);
+            $this->applyCarrierRetryPolicy($attempt, $errorCode);
         }
 
         return [
@@ -186,6 +190,70 @@ class ProcessTwilioMessageStatusWebhookJob extends ProcessWebhookJob
                 continue;
             }
 
+            $person->contacts()
+                ->whereIn('contacts_types_id', Contact::PHONE_TYPES)
+                ->get()
+                ->filter(
+                    fn (Contact $contact): bool => Contact::normalizeValue(
+                        $contact->value,
+                        $contact->contacts_types_id,
+                    ) === $normalizedDestination,
+                )
+                ->each(fn (Contact $contact): bool => $contact->markInvalid());
+        }
+    }
+
+    protected function applyCarrierRetryPolicy(MessageAttempt $attempt, string $errorCode): void
+    {
+        if (! in_array($errorCode, ['30003', '30005'], true)) {
+            return;
+        }
+
+        if ($attempt->retry_number >= 1) {
+            $attempt->remediation_action = 'suppress_sms';
+            $attempt->saveOrFail();
+            $this->markDestinationInvalid((string) $attempt->to_number);
+
+            return;
+        }
+
+        $claimed = MessageAttempt::query()
+            ->whereKey($attempt->getId())
+            ->where('retry_number', 0)
+            ->where('remediation_action', 'delayed_retry')
+            ->update(['remediation_action' => 'retry_scheduled']);
+
+        if ($claimed !== 1) {
+            return;
+        }
+
+        $delayMinutes = max(
+            1,
+            (int) ($this->receiver->company->get('twilio-carrier-retry-delay-minutes', 30) ?? 30),
+        );
+
+        RetryMessageAttemptJob::dispatch($attempt->getId())
+            ->delay(now()->addMinutes($delayMinutes));
+    }
+
+    protected function markDestinationInvalid(string $destination): void
+    {
+        if ($destination === '') {
+            return;
+        }
+
+        $normalizedDestination = Contact::normalizeValue(
+            $destination,
+            ContactTypeEnum::CELLPHONE->value,
+        );
+
+        $people = PeoplesRepository::getByPhoneNumber(
+            app: $this->receiver->app,
+            company: $this->receiver->company,
+            phoneNumbers: [$destination, Contact::cleanPhone($destination)],
+        )->get();
+
+        foreach ($people as $person) {
             $person->contacts()
                 ->whereIn('contacts_types_id', Contact::PHONE_TYPES)
                 ->get()

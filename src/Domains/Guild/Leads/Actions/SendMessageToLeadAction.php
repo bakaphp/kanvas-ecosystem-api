@@ -69,11 +69,21 @@ class SendMessageToLeadAction
     protected string $attemptUuid;
     protected ?string $attemptedFrom = null;
     protected ?string $attemptedTo = null;
+    protected int $retryNumber = 0;
+    protected ?int $parentAttemptId = null;
 
     public function __construct(
         protected Lead $lead,
     ) {
         $this->attemptUuid = Uuid::uuid4()->toString();
+    }
+
+    public function withRetryContext(int $parentAttemptId, int $retryNumber = 1): self
+    {
+        $this->parentAttemptId = $parentAttemptId;
+        $this->retryNumber = $retryNumber;
+
+        return $this;
     }
 
     public function execute(
@@ -106,6 +116,8 @@ class SendMessageToLeadAction
 
             if ($channel === LeadCommunicationChannelEnum::SMS->value) {
                 $result['attempt_uuid'] = $this->attemptUuid;
+                $result['parent_attempt_id'] = $this->parentAttemptId;
+                $result['retry_number'] = $this->retryNumber;
                 $this->recordTwilioAttempt($result);
             }
 
@@ -137,6 +149,8 @@ class SendMessageToLeadAction
             'account_sid' => $this->lead->company?->get(TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value),
             'from' => $this->attemptedFrom,
             'to' => $this->attemptedTo,
+            'parent_attempt_id' => $this->parentAttemptId,
+            'retry_number' => $this->retryNumber,
         ], $classification);
 
         if ($channel === LeadCommunicationChannelEnum::SMS->value) {
