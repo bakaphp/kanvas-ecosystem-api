@@ -44,8 +44,7 @@ abstract class AbstractApplyAcumaticaPaymentTool extends Tool
     abstract protected function refreshedState(BaseModel $document): array;
 
     /**
-     * Extra response keys derived from Acumatica's own status on the just-pushed payment (e.g. a note when
-     * an AP Check lands in "Pending Print" rather than "Closed"). Empty by default.
+     * Extra response keys derived from Acumatica's own status on the just-pushed payment. Empty by default.
      *
      * @return array<string, mixed>
      */
