@@ -6,6 +6,7 @@ namespace Kanvas\ActionEngine\Engagements\Observers;
 
 use Kanvas\ActionEngine\Engagements\Events\EngagementCompanyUpdateEvent;
 use Kanvas\ActionEngine\Engagements\Events\EngagementStatusChangedEvent;
+use Kanvas\ActionEngine\Engagements\Jobs\NotifyEngagementPipelineStageJob;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 
 class EngagementObserver
@@ -14,6 +15,10 @@ class EngagementObserver
     {
         if (! $engagement->wasChanged('message_id') && ! $engagement->wasChanged('pipelines_stages_id')) {
             return;
+        }
+
+        if ($engagement->wasChanged('pipelines_stages_id')) {
+            NotifyEngagementPipelineStageJob::dispatch($engagement);
         }
 
         $message = $engagement->message;
@@ -27,6 +32,8 @@ class EngagementObserver
 
     public function created(Engagement $engagement): void
     {
+        NotifyEngagementPipelineStageJob::dispatch($engagement);
+
         $message = $engagement->message;
         if (! $message) {
             return;
