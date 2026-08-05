@@ -15,8 +15,9 @@ trait HasAcumaticaWriter
 {
     protected ?AcumaticaWriteService $writer = null;
 
-    private function writer(): AcumaticaWriteService
+    /** $companyOverride only takes effect the first call — the writer is memoized after that. */
+    private function writer(?string $companyOverride = null): AcumaticaWriteService
     {
-        return $this->writer ??= new AcumaticaWriteService($this->app);
+        return $this->writer ??= new AcumaticaWriteService($this->app, companyOverride: $companyOverride);
     }
 }
