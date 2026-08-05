@@ -50,6 +50,12 @@ class NotifyEngagementPipelineStageJob implements ShouldQueue
             return;
         }
 
+        $note = self::composeSlackNote(
+            (string) ($this->engagement->company->name ?? ''),
+            (string) ($this->engagement->message->user?->email ?? ''),
+            $messageText
+        );
+
         $slackChannel = (string) ($this->engagement->app->get('slack_channel') ?? '');
         $slackBotToken = (string) ($this->engagement->app->get('slack_bot_token') ?? '');
 
@@ -67,7 +73,7 @@ class NotifyEngagementPipelineStageJob implements ShouldQueue
             )->notify(
                 new EngagementPipelineStageNotification(
                     $slackChannel,
-                    $messageText
+                    $note
                 )
             );
         } catch (Throwable $e) {
@@ -77,5 +83,14 @@ class NotifyEngagementPipelineStageJob implements ShouldQueue
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    public static function composeSlackNote(string $companyName, string $email, string $text): string
+    {
+        $prefix = array_filter([trim($companyName), trim($email)]);
+
+        return $prefix === []
+            ? $text
+            : implode(' - ', $prefix) . ' - ' . $text;
     }
 }

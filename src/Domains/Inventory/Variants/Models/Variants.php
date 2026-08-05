@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Redis;
 use Kanvas\Activities\Contracts\ActivityLogInterface;
 use Kanvas\Activities\Models\Activity;
 use Kanvas\Apps\Models\Apps;
@@ -53,6 +54,7 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
+use Nuwave\Lighthouse\Cache\CacheKeyAndTagsGenerator;
 use Override;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
@@ -84,7 +86,9 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     use UuidTrait;
     use SocialInteractionsTrait;
     use HasShopifyCustomField;
-    use HasLightHouseCache;
+    use HasLightHouseCache {
+        clearLightHouseCache as protected clearLightHouseCacheBase;
+    }
     use IntegrationEntityTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
@@ -1008,5 +1012,22 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     public static function newFactory(): VariantFactory
     {
         return new VariantFactory();
+    }
+
+    /**
+     * override the clearLightHouseCache to also clear the VariantChannel namespace in Redis.
+     */
+    public function clearLightHouseCache(
+        bool $withKanvasConfiguration = true,
+        bool $cleanGlobalKey = false
+    ): void {
+        $this->clearLightHouseCacheBase(
+            $withKanvasConfiguration,
+            $cleanGlobalKey
+        );
+
+        Redis::connection('graph-cache')->del(
+            CacheKeyAndTagsGenerator::PREFIX . ":VariantChannel:{$this->getId()}"
+        );
     }
 }

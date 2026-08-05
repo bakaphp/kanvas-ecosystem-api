@@ -25,7 +25,7 @@ type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
         @cacheRedis
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getPaginatedFileByGraphType"
         )
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")

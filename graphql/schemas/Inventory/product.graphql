@@ -20,7 +20,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
         @cacheRedis
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getPaginatedFileByGraphType"
         )
     is_published: Boolean
     created_at: DateTime!
