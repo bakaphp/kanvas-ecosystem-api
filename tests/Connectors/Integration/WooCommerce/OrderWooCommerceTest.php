@@ -313,4 +313,134 @@ class OrderWooCommerceTest extends TestCase
           )->execute();
         $this->assertInstanceOf(Order::class, $orderDB);
     }
+
+    public function testDiscountedOrderStoresPaidTotalAndMetadata(): void
+    {
+        $user = auth()->user();
+        $regionDto = RegionDto::from([
+            'company' => $user->getCurrentCompany(),
+            'app' => app(Apps::class),
+            'user' => $user,
+            'currency' => Currencies::getByCode('USD'),
+            'name' => 'Region Test',
+            'short_slug' => Str::createRandomStringsNormally() . Str::random(5),
+        ]);
+        $region = (new CreateRegionAction($regionDto, $user))->execute();
+
+        $product = json_decode(json_encode([
+            'id' => Str::uuid(),
+            'name' => Str::random(),
+            'slug' => Str::random(),
+            'type' => 'simple',
+            'status' => 'publish',
+            'sku' => Str::uuid(),
+            'price' => '6',
+            'regular_price' => '6',
+            'stock_quantity' => null,
+            'description' => '',
+            'short_description' => '',
+            'categories' => [],
+            'images' => [],
+            'attributes' => [],
+            'variations' => [],
+            'meta_data' => [],
+        ]));
+        $productDb = (
+            new CreateProductAction(
+                app(Apps::class),
+                $user->getCurrentCompany(),
+                $user,
+                $region,
+                $product
+            )
+        )->execute();
+
+        $billingEmail = 'dairon+' . Str::random(5) . '@example.com';
+
+        // subtotal 6.00 - discount 1.20 = 4.80 actually charged (no tax, no shipping)
+        $order = json_decode(json_encode([
+            'id' => rand(1, 100000),
+            'number' => rand(1, 100000),
+            'order_key' => Str::random(5),
+            'status' => 'completed',
+            'currency' => 'USD',
+            'discount_total' => '1.20',
+            'shipping_total' => '0.00',
+            'total' => '4.80',
+            'total_tax' => '0.00',
+            'payment_method' => 'wallet',
+            'payment_method_title' => 'Pago mediante Mi Wallet',
+            'billing' => [
+                'first_name' => 'Dairon',
+                'last_name' => 'Amador',
+                'company' => '',
+                'address_1' => '',
+                'address_2' => '',
+                'city' => '',
+                'state' => '',
+                'postcode' => '',
+                'country' => 'US',
+                'email' => $billingEmail,
+                'phone' => '8094913594',
+            ],
+            'shipping' => [
+                'first_name' => '',
+                'last_name' => '',
+                'company' => '',
+                'address_1' => '',
+                'address_2' => '',
+                'city' => '',
+                'state' => '',
+                'postcode' => '',
+                'country' => '',
+            ],
+            'meta_data' => [
+                ['id' => 1, 'key' => 'purchase_type', 'value' => 'new'],
+                ['id' => 2, 'key' => '_ga_tracked', 'value' => '1'],
+                ['id' => 3, 'key' => 'trp_language', 'value' => 'es_ES'],
+            ],
+            'line_items' => [
+                [
+                    'id' => $productDb->id,
+                    'name' => $productDb->name,
+                    'product_id' => 473,
+                    'variation_id' => 0,
+                    'quantity' => 1,
+                    'subtotal' => '6.00',
+                    'subtotal_tax' => '0.00',
+                    'total' => '4.80',
+                    'total_tax' => '0.00',
+                    'sku' => $productDb->variants()->first()->sku,
+                    'price' => 4.80,
+                    'meta_data' => [],
+                ],
+            ],
+            'tax_lines' => [],
+            'shipping_lines' => [],
+            'fee_lines' => [],
+        ]));
+
+        $orderDB = (
+            new CreateOrderAction(
+                app(Apps::class),
+                $user->getCurrentCompany(),
+                $user,
+                $region,
+                $order
+            )
+        )->execute();
+
+        // total_gross_amount must equal the line-item subtotal actually charged (4.80), not the
+        // pre-discount 6.00 nor a double-counted total — this is what the affiliate commission uses.
+        $this->assertEquals(4.80, (float) $orderDB->total_gross_amount);
+        $this->assertEquals(1.20, (float) $orderDB->discount_amount);
+        $this->assertEquals('new', $orderDB->metadata['woocommerce_meta_data']['purchase_type']);
+        $this->assertEquals('1', $orderDB->metadata['woocommerce_meta_data']['_ga_tracked']);
+
+        // First-class order fields mapped from the WooCommerce payload.
+        $this->assertEquals($billingEmail, $orderDB->user_email);
+        $this->assertEquals('8094913594', $orderDB->user_phone);
+        $this->assertContains('Pago mediante Mi Wallet', (array) $orderDB->payment_gateway_names);
+        $this->assertEquals('es', $orderDB->language_code);
+    }
 }

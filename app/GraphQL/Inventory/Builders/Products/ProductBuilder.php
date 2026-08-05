@@ -105,6 +105,9 @@ class ProductBuilder
             );
         }
 
+        // Batch-load the visible attributes for n+1 query prevention when resolving visibleAttributesRelation
+        $query->with('visibleAttributesRelation');
+
         return $query;
     }
 
