@@ -38,6 +38,32 @@ final class EngagementPipelineStageNotificationTest extends TestCase
         );
     }
 
+    public function testComposeSlackNoteMatchesSalesAssistFormat(): void
+    {
+        $note = 'Timothy Mc ginley submitted the Credit App that you shared today.';
+
+        $this->assertSame(
+            'Magic GMC Cadillac - rjavadi@magicgmccadillac.edealerhub.com - ' . $note,
+            NotifyEngagementPipelineStageJob::composeSlackNote(
+                'Magic GMC Cadillac',
+                'rjavadi@magicgmccadillac.edealerhub.com',
+                $note
+            )
+        );
+
+        // Missing email drops the segment instead of leaving an empty " - ".
+        $this->assertSame(
+            'Magic GMC Cadillac - ' . $note,
+            NotifyEngagementPipelineStageJob::composeSlackNote('Magic GMC Cadillac', '', $note)
+        );
+
+        // No dealer and no email → just the note.
+        $this->assertSame(
+            $note,
+            NotifyEngagementPipelineStageJob::composeSlackNote('', '', $note)
+        );
+    }
+
     public function testObserverDispatchesJobOnStageChange(): void
     {
         Queue::fake();

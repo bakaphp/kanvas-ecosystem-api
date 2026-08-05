@@ -241,7 +241,7 @@ class EventVersion extends BaseModel
     public function toSearchableArray(): array
     {
         return [
-            'objectID' => $this->id,
+            'objectID' => (string) $this->id,
             'id' => (string) $this->id,
             'uuid' => $this->uuid,
             'name' => $this->name,

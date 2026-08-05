@@ -70,7 +70,7 @@ class OrderTypes extends BaseModel
     public function toSearchableArray(): array
     {
         return [
-            'objectID' => $this->id,
+            'objectID' => (string) $this->id,
             'id' => (string) $this->id,
             'name' => $this->name,
             'apps_id' => $this->apps_id,
