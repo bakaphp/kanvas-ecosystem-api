@@ -90,7 +90,7 @@ class PushInvoiceToAcumaticaAction
     private function buildPayload(string $customerCode): array
     {
         $header = AcumaticaPayload::wrap([
-            'Type' => 'Invoice',
+            'Type' => $this->invoice->isCreditNote() ? 'Credit Memo' : 'Invoice',
             'Customer' => $customerCode,
             'CustomerRef' => $this->invoice->invoice_number,
             'Description' => $this->invoice->notes ?? ('Kanvas invoice ' . $this->invoice->invoice_number),

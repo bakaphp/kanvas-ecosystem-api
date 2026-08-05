@@ -10,7 +10,10 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddInvoiceNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
@@ -215,5 +218,79 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $this->assertNotEmpty($result['open_invoices']);
         $this->assertSame('INV-9001', $result['exact_match']);
+    }
+
+    public function test_create_ar_credit_memo_requires_an_invoice_number(): void
+    {
+        $result = new CreateArCreditMemoTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_number: '', amount: 50.0, memo: 'Damaged goods');
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('invoice_number_required', $result['reason']);
+    }
+
+    public function test_create_ar_credit_memo_reports_not_found_for_unknown_invoice(): void
+    {
+        $result = new CreateArCreditMemoTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_number: 'DOES-NOT-EXIST', amount: 50.0, memo: 'Damaged goods');
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('invoice_not_found', $result['reason']);
+    }
+
+    public function test_create_ar_credit_memo_issues_against_the_parent_invoice(): void
+    {
+        $customer = $this->seedTestOrganization('Acme Corporation');
+
+        $parent = Invoice::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'document_type' => DocumentTypeEnum::INVOICE,
+            'invoice_number' => 'INV-CREDIT-1',
+            'customer_organization_id' => $customer->getId(),
+            'billable_display_name' => 'Acme Corporation',
+            'document_status' => InvoiceDocumentStatusEnum::ISSUED->value,
+            'currency' => 'USD',
+            'fx_rate_to_base' => 1.0,
+            'subtotal_native' => 500.0, 'total_native' => 500.0, 'paid_native' => 0.0, 'balance_due_native' => 500.0,
+            'subtotal_base' => 500.0, 'total_base' => 500.0, 'paid_base' => 0.0, 'balance_due_base' => 500.0,
+            'issued_date' => Carbon::parse('2026-06-01'),
+            'source' => 'kanvas',
+        ]);
+
+        $result = new CreateArCreditMemoTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_number: 'INV-CREDIT-1', amount: 100.0, memo: 'Damaged goods allowance');
+
+        $this->assertTrue($result['created']);
+        $this->assertSame('INV-CREDIT-1', $result['parent_invoice_number']);
+
+        /** @var Invoice $creditNote */
+        $creditNote = Invoice::query()->where('id', $result['credit_memo_id'])->firstOrFail();
+        $this->assertSame(DocumentTypeEnum::CREDIT_NOTE, $creditNote->document_type);
+        $this->assertSame($parent->getId(), $creditNote->parent_invoice_id);
+        $this->assertSame(100.0, (float) $creditNote->total_native);
+    }
+
+    public function test_add_invoice_note_reports_not_found_for_unknown_invoice(): void
+    {
+        $result = new AddInvoiceNoteTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_id: 999999999, note: 'Called customer.');
+
+        $this->assertFalse($result['note_added']);
+        $this->assertSame('invoice_not_found', $result['reason']);
+    }
+
+    public function test_attach_invoice_file_reports_not_found_for_unknown_invoice(): void
+    {
+        $result = new AttachInvoiceFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_id: 999999999, file_url: 'https://example.test/credit.xlsx');
+
+        $this->assertFalse($result['file_attached']);
+        $this->assertSame('invoice_not_found', $result['reason']);
     }
 }
