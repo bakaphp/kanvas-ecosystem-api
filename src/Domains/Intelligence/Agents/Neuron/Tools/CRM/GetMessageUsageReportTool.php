@@ -194,5 +194,4 @@ class GetMessageUsageReportTool extends Tool
             ->values()
             ->all();
     }
-
 }
