@@ -26,4 +26,7 @@ enum CustomFieldEnum: string
 
     /** Cached dominant subaccount for an expense Account, derived once from the replica's AP history. */
     case DERIVED_SUBACCOUNT = 'ACUMATICA_DERIVED_SUBACCOUNT';
+
+    /** The Acumatica CompanyID this specific document should push to, overriding the app's default tenant. */
+    case TARGET_COMPANY = 'ACUMATICA_TARGET_COMPANY';
 }

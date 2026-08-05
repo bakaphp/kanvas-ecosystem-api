@@ -96,6 +96,17 @@ class CreateApBillTool extends Tool
                 description: 'Currency code. Defaults to USD.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'acumatica_company',
+                type: PropertyType::STRING,
+                description: 'The Acumatica CompanyID this bill belongs to, when it is not the tenant\'s default. '
+                    . 'Infer it from the invoice\'s "Bill to" entity — match it by reasoning (name, country, legal '
+                    . 'suffix like GmbH/Ltd/Inc), not exact spelling, against the active companies: NZXT (US), '
+                    . '"NZXT Germany - USD", "NZXT Europe GmbH - Germany", "NZXT China", "NZXT AU", "NZXT UK LTD", '
+                    . '"NZXT UK", "NZXT TAIWAN", "NZXT TAIWAN CO LTD". If none is a reasonably confident match, '
+                    . 'omit this and ask the user instead of guessing — never invent a CompanyID.',
+                required: false,
+            ),
         ];
     }
 
@@ -110,6 +121,7 @@ class CreateApBillTool extends Tool
         string $invoice_number,
         ?string $subaccount = null,
         ?string $currency = null,
+        ?string $acumatica_company = null,
     ): array {
         $app = $this->app;
         $company = $this->company;
@@ -187,6 +199,10 @@ class CreateApBillTool extends Tool
             $actingUser,
         )->execute();
 
+        if ($acumatica_company !== null && trim($acumatica_company) !== '') {
+            $bill->set(AcumaticaCustomFieldEnum::TARGET_COMPANY->value, trim($acumatica_company));
+        }
+
         new SubmitBillForApprovalAction($bill, $actingUser)->execute();
 
         /** @var Organization $approvalVendor */
@@ -203,6 +219,7 @@ class CreateApBillTool extends Tool
                 'bill_id' => $bill->getId(),
                 'bill_number' => $bill->bill_number,
                 'document_status' => $bill->document_status->value,
+                'acumatica_company' => $acumatica_company,
                 'reason' => 'push_failed',
                 'message' => 'Bill was created and approved in Kanvas (status: received) but the push to '
                     . 'Acumatica failed: ' . $e->getMessage() . '. It needs manual attention — it will not '
@@ -221,6 +238,7 @@ class CreateApBillTool extends Tool
             'currency' => $currency,
             'gl_account' => $gl_account_number,
             'subaccount' => $subaccount,
+            'acumatica_company' => $acumatica_company,
             'memo' => $memo,
             'bill_ref' => $reference,
             'acumatica_bill_id' => (string) $bill->get(AcumaticaCustomFieldEnum::BILL_ID->value, ''),
