@@ -54,8 +54,12 @@ class VariantBuilder
             $builder->limit($limit);
         }
 
-        // load to avoid n+1 queries when resolving visibleAttributesRelation
-        $builder->with('visibleAttributesRelation');
+        // Batch-load in a single query per relation to avoid N+1s a bulk products list
+        $builder->with([
+            'visibleAttributesRelation',
+            'variantChannels.productVariantWarehouse',
+            'variantChannels.channel',
+        ]);
 
         return $builder;
     }
