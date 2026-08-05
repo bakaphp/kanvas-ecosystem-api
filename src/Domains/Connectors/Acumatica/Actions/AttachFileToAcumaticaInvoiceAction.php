@@ -66,6 +66,7 @@ class AttachFileToAcumaticaInvoiceAction
             'jpg', 'jpeg' => 'image/jpeg',
             'xlsx' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             'xls' => 'application/vnd.ms-excel',
+            'csv' => 'text/csv',
             default => 'application/octet-stream',
         };
     }
