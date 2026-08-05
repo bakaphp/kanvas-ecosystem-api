@@ -6,7 +6,8 @@ namespace Tests\GraphQL\Inventory;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Channels\Actions\CreateChannel;
+use Kanvas\Inventory\Channels\DataTransferObject\Channels as ChannelsDto;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
@@ -53,7 +54,18 @@ class VariantChannelFilesCacheInvalidationTest extends TestCase
         $variant = $product->variants()->where('is_deleted', 0)->firstOrFail();
 
         $warehouse = Warehouses::fromApp($app)->fromCompany($company)->firstOrFail();
-        $channel = Channels::fromApp($app)->fromCompany($company)->firstOrFail();
+
+        // Dedicated channel so channelVariants returns only this test's variant — the shared
+        // default channel is populated with other published variants across the seeded company.
+        $channel = new CreateChannel(
+            new ChannelsDto(
+                app: $app,
+                company: $company,
+                user: $user,
+                name: 'CacheInvalidationChannel-' . uniqid(),
+            ),
+            $user
+        )->execute();
 
         $variantWarehouse = VariantsWarehouses::updateOrCreate(
             [

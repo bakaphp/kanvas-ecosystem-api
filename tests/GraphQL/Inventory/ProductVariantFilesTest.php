@@ -6,7 +6,8 @@ namespace Tests\GraphQL\Inventory;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Channels\Actions\CreateChannel;
+use Kanvas\Inventory\Channels\DataTransferObject\Channels as ChannelsDto;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
@@ -117,7 +118,18 @@ class ProductVariantFilesTest extends TestCase
         $variant = $product->variants()->where('is_deleted', 0)->firstOrFail();
 
         $warehouse = Warehouses::fromApp($app)->fromCompany($company)->firstOrFail();
-        $channel = Channels::fromApp($app)->fromCompany($company)->firstOrFail();
+
+        // Dedicated channel so channelVariants returns only this test's variant — the shared
+        // default channel is populated with other published variants across the seeded company.
+        $channel = new CreateChannel(
+            new ChannelsDto(
+                app: $app,
+                company: $company,
+                user: $user,
+                name: 'GqlChannelFilesChannel-' . uniqid(),
+            ),
+            $user
+        )->execute();
 
         $variantWarehouse = VariantsWarehouses::updateOrCreate(
             [
@@ -146,7 +158,9 @@ class ProductVariantFilesTest extends TestCase
         $channelFileUrl = 'https://example.com/channel-variant-' . uniqid() . '.png';
         $variant->addFileFromUrl($channelFileUrl, 'channel-variant.png');
 
-        $this->graphQL('
+        // The default channel is shared across the seeded company, so channelVariants can
+        // return other published variants too — locate ours by id rather than assuming data[0].
+        $response = $this->graphQL('
             query ($id: String!) {
                 channelVariants(id: $id) {
                     data {
@@ -155,19 +169,15 @@ class ProductVariantFilesTest extends TestCase
                     }
                 }
             }
-        ', ['id' => $channel->uuid])
-            ->assertSuccessful()
-            ->assertJson([
-                'data' => [
-                    'channelVariants' => [
-                        'data' => [
-                            [
-                                'id' => (string) $variant->getId(),
-                                'files' => ['data' => [['url' => $channelFileUrl]]],
-                            ],
-                        ],
-                    ],
-                ],
-            ]);
+        ', ['id' => $channel->uuid])->assertSuccessful();
+
+        $row = collect($response->json('data.channelVariants.data'))
+            ->firstWhere('id', (string) $variant->getId());
+
+        $this->assertNotNull($row, 'Variant not found in channelVariants response');
+        $this->assertSame(
+            [$channelFileUrl],
+            collect($row['files']['data'])->pluck('url')->all()
+        );
     }
 }

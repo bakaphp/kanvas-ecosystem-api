@@ -77,7 +77,12 @@ class FilesystemQuery
         $perPage = max(1, (int) ($args['first'] ?? 25));
         $page = max(1, (int) ($args['page'] ?? 1));
 
-        $files = $this->getFileByGraphType($root, $args, $context, $resolveInfo)->get();
+        $files = $this->getFileByGraphType(
+            $root,
+            $args,
+            $context,
+            $resolveInfo
+        )->get();
 
         return new LengthAwarePaginator(
             $files->forPage($page, $perPage)->values(),
