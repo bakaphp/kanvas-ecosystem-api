@@ -12,6 +12,7 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Users\Models\Users;
 use Throwable;
 
 class RecordLeadNoteAction
@@ -21,10 +22,20 @@ class RecordLeadNoteAction
     ) {
     }
 
-    public function execute(string $body, string $tag = 'note'): ?Message
-    {
+    /**
+     * @param  Users|null  $actingUser  Who the note is attributed to. Defaults to the AI agent user
+     *                                  (agent-authored notes). Pass a human for manager-driven records.
+     * @param  bool  $fromIa  Whether the note is AI-authored. Pair with $actingUser=null for AI,
+     *                        or a human + false for manager-attributed records (e.g. batch outreach).
+     */
+    public function execute(
+        string $body,
+        string $tag = 'note',
+        ?Users $actingUser = null,
+        bool $fromIa = true
+    ): ?Message {
         try {
-            $user = $this->lead->company->getAiAgentUser() ?? $this->lead->user;
+            $user = $actingUser ?? $this->lead->company->getAiAgentUser() ?? $this->lead->user;
             if ($user === null) {
                 return null;
             }
@@ -45,7 +56,7 @@ class RecordLeadNoteAction
             $messagePayload = new AiChatMessagePayload(
                 content: $body,
                 from_me: true,
-                from_ia: true,
+                from_ia: $fromIa,
                 raw_data: $body,
             );
 

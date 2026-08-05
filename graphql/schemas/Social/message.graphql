@@ -597,4 +597,5 @@ type MessageAnalytics {
     periods: [AnalyticsPoint!]!
     total: Int!
     by_type: [AnalyticsCategoryPoint!]!
+    by_sender: [AnalyticsCategoryPoint!]!
 }

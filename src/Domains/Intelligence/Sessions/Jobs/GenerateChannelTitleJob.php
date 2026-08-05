@@ -13,10 +13,6 @@ use Illuminate\Queue\SerializesModels;
 use Kanvas\Intelligence\Sessions\Actions\GenerateChannelTitleAction;
 use Kanvas\Social\Channels\Models\Channel;
 
-/**
- * Auto-titles an agent chat channel from its opening exchange, ChatGPT-style. Runs async so title
- * generation (an LLM round-trip) never delays the chat reply the user is waiting on.
- */
 final class GenerateChannelTitleJob implements ShouldQueue
 {
     use Dispatchable;
@@ -29,6 +25,7 @@ final class GenerateChannelTitleJob implements ShouldQueue
         public readonly Channel $channel,
         public readonly string $userMessage,
         public readonly string $assistantResponse,
+        public readonly bool $refine = false,
     ) {
     }
 
@@ -40,6 +37,7 @@ final class GenerateChannelTitleJob implements ShouldQueue
             $this->channel,
             $this->userMessage,
             $this->assistantResponse,
+            $this->refine,
         )->execute();
     }
 }
