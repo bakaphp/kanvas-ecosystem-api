@@ -54,6 +54,9 @@ class VariantBuilder
             $builder->limit($limit);
         }
 
+        // load to avoid n+1 queries when resolving visibleAttributesRelation
+        $builder->with('visibleAttributesRelation');
+
         return $builder;
     }
 }
