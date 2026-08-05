@@ -28,6 +28,7 @@ class WooCommerceImportOrder extends OrderDto
         object $order,
         ?Address $shippingAddress = null,
         ?Address $billingAddress = null,
+        ?string $orderNumberOverride = null,
     ): self {
         $items = [];
         $currency = Currencies::getByCode($order->currency);
@@ -100,7 +101,7 @@ class WooCommerceImportOrder extends OrderDto
             people: $people,
             user: $user,
             token: $order->order_key,
-            orderNumber: (string)$order->number,
+            orderNumber: $orderNumberOverride ?? (string) $order->number,
             shippingAddress: $shippingAddress,
             billingAddress: $billingAddress,
             email: $order->billing->email ?? null,
