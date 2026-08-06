@@ -103,8 +103,13 @@ class CreateApBillTool extends Tool
                     . 'Infer it from the invoice\'s "Bill to" entity — match it by reasoning (name, country, legal '
                     . 'suffix like GmbH/Ltd/Inc), not exact spelling, against the active companies: NZXT (US), '
                     . '"NZXT Germany - USD", "NZXT Europe GmbH - Germany", "NZXT China", "NZXT AU", "NZXT UK LTD", '
-                    . '"NZXT UK", "NZXT TAIWAN", "NZXT TAIWAN CO LTD". If none is a reasonably confident match, '
-                    . 'omit this and ask the user instead of guessing — never invent a CompanyID.',
+                    . '"NZXT UK", "NZXT TAIWAN", "NZXT TAIWAN CO LTD". Some countries have two companies sharing '
+                    . 'the exact same legal name on the Bill to — for Germany, "NZXT Europe GmbH" maps to either '
+                    . '"NZXT Germany - USD" or "NZXT Europe GmbH - Germany" depending ONLY on the invoice\'s own '
+                    . 'currency: USD invoices go to "NZXT Germany - USD", any other currency (e.g. EUR) goes to '
+                    . '"NZXT Europe GmbH - Germany". Apply the same currency-based rule if another country turns '
+                    . 'out to have this same split. If none is a reasonably confident match, omit this and ask '
+                    . 'the user instead of guessing — never invent a CompanyID.',
                 required: false,
             ),
         ];
