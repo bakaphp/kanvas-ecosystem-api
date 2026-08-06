@@ -15,7 +15,7 @@ type SocialChannel {
     metadata: Mixed
     messages: [Message!]! @belongsToMany
     users: [User!]! @belongsToMany
-    systemModule: SystemModule! @belongsTo(relation: "systemModule")
+    systemModule: SystemModule @belongsTo(relation: "systemModule")
     created_at: DateTime!
     updated_at: DateTime
     categories: [Category!]
