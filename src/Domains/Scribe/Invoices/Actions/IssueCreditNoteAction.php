@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Invoices\Actions;
 
+use Baka\Contracts\BillableInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -25,30 +26,32 @@ use Kanvas\Scribe\Invoices\Services\InvoiceJournalEntryComposerService;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
 
 /**
- * Issues a credit note against a parent Invoice.
+ * Issues a credit note, either against a parent Invoice or standalone (e.g. a period/campaign-based
+ * back-end rebate that never referenced a specific invoice).
  *
  * A credit note is a new row in `accounting.invoices` with:
  *   - `document_type = 'credit_note'`
- *   - `parent_invoice_id = <parent>`
+ *   - `parent_invoice_id = <parent>` when there is one, else null
  *   - `document_status = 'issued'` (credit notes skip the DRAFT stage — they're issued instantly with a JE)
  *   - amounts stored POSITIVE (the document_type discriminator + JE direction carry the credit sign)
  *
  * Side effects (all atomic in one accounting-DB transaction):
- *   1. Validate parent invoice state (must be ISSUED / SENT / PAID — not draft, not voided, not already-credit-note)
- *   2. Validate credit_amount ≤ parent.total_native (can't credit more than billed)
+ *   1. Validate parent invoice state when there is one (must be ISSUED / SENT / PAID)
+ *   2. Validate credit_amount > 0, and ≤ parent.total_native when there is a parent
  *   3. Create credit-note Invoice row + lines + tax_lines
- *   4. Allocate credit-note number via DocumentNumberAllocatorService (CREDIT_NOTE document_type)
- *   5. Post the credit-note JE via composeCreditNote (DR Revenue + DR Tax Payable / CR AR)
- *   6. Insert InvoicePaymentAllocation row on parent with source_type='credit_note'
- *   7. Re-run MarkInvoicePaidAction on the parent — recomputes balance_due, flips to PAID if balance hit zero
+ *   4. Allocate credit-note number via DocumentNumberAllocatorService, unless the caller supplied one
+ *   5. Post the credit-note JE via composeCreditNote (DR Revenue or per-line account + DR Tax Payable / CR AR)
+ *   6. When there is a parent: insert InvoicePaymentAllocation with source_type='credit_note' and
+ *      re-run MarkInvoicePaidAction — recomputes balance_due, flips to PAID if balance hit zero
  *
  * @see plan §7.3 — credit notes as document_type discriminator
  */
 class IssueCreditNoteAction
 {
     public function __construct(
-        public readonly Invoice $parentInvoice,
+        public readonly ?Invoice $parentInvoice,
         public readonly InvoiceData $data,
+        public readonly ?BillableInterface $billable = null,
         public readonly ?UserInterface $user = null,
         protected readonly InvoiceJournalEntryComposerService $composer = new InvoiceJournalEntryComposerService(),
         protected readonly ?DocumentNumberAllocatorService $allocator = null,
@@ -58,6 +61,12 @@ class IssueCreditNoteAction
     public function execute(): Invoice
     {
         $this->validateParentState();
+
+        if ($this->parentInvoice === null && $this->billable === null) {
+            throw new InvalidInvoiceTransitionException(
+                'A standalone credit note (no parent invoice) requires a billable customer.'
+            );
+        }
 
         return DB::connection('accounting')->transaction(function (): Invoice {
             $parent = $this->parentInvoice;
@@ -70,15 +79,15 @@ class IssueCreditNoteAction
                 );
             }
 
-            if ($totals['total'] > (float) $parent->total_native + 0.0001) {
+            if ($parent !== null && $totals['total'] > (float) $parent->total_native + 0.0001) {
                 throw new InvalidInvoiceTransitionException(
                     "Credit note total ({$totals['total']}) exceeds parent invoice total ({$parent->total_native})."
                 );
             }
 
             $creditNote = new Invoice();
-            $creditNote->apps_id = $parent->apps_id;
-            $creditNote->companies_id = $parent->companies_id;
+            $creditNote->apps_id = $this->data->app->getId();
+            $creditNote->companies_id = $this->data->company->getId();
             $creditNote->document_type = DocumentTypeEnum::CREDIT_NOTE;
             $creditNote->document_status = InvoiceDocumentStatusEnum::ISSUED;
             $creditNote->collection_state = null;
@@ -107,7 +116,8 @@ class IssueCreditNoteAction
             $creditNote->notes = $this->data->notes;
             $creditNote->internal_notes = $this->data->internal_notes;
             $creditNote->terms = $this->data->terms;
-            $creditNote->parent_invoice_id = $parent->id;
+            $creditNote->parent_invoice_id = $parent?->id;
+            $creditNote->invoice_number = $this->data->invoice_number;
             $creditNote->source = $this->data->source;
             $creditNote->external_id = $this->data->external_id;
             $creditNote->external_url = $this->data->external_url;
@@ -115,14 +125,7 @@ class IssueCreditNoteAction
             $creditNote->metadata = $this->data->metadata;
             $creditNote->users_id = $this->user?->getId();
 
-            // Inherit billable snapshot from parent (frozen — same customer the credit goes to)
-            $creditNote->customer_organization_id = $parent->customer_organization_id;
-            $creditNote->billable_display_name = $parent->billable_display_name;
-            $creditNote->billable_legal_name = $parent->billable_legal_name;
-            $creditNote->billable_tax_id = $parent->billable_tax_id;
-            $creditNote->billable_email = $parent->billable_email;
-            $creditNote->billing_address_snapshot = $parent->billing_address_snapshot;
-            $creditNote->shipping_address_snapshot = $parent->shipping_address_snapshot;
+            $this->hydrateBillableSnapshot($creditNote, $parent);
 
             $creditNote->save();
 
@@ -141,19 +144,21 @@ class IssueCreditNoteAction
                 postedByUser: $this->user,
             )->execute();
 
-            $this->writeAllocationOnParent($parent, $creditNote);
+            if ($parent !== null) {
+                $this->writeAllocationOnParent($parent, $creditNote);
 
-            new MarkInvoicePaidAction(
-                invoice: $parent,
-                user: $this->user,
-            )->execute();
+                new MarkInvoicePaidAction(
+                    invoice: $parent,
+                    user: $this->user,
+                )->execute();
+            }
 
             $creditNote->emitLedgerEvent(
                 eventType: 'scribe.credit_note.issued',
                 payload: [
                     'credit_note_number' => $creditNote->invoice_number,
-                    'parent_invoice_id' => $parent->id,
-                    'parent_invoice_number' => $parent->invoice_number,
+                    'parent_invoice_id' => $parent?->id,
+                    'parent_invoice_number' => $parent?->invoice_number,
                     'currency' => $creditNote->currency,
                     'total_native' => (float) $creditNote->total_native,
                     'total_base' => (float) $creditNote->total_base,
@@ -167,6 +172,10 @@ class IssueCreditNoteAction
     private function validateParentState(): void
     {
         $parent = $this->parentInvoice;
+
+        if ($parent === null) {
+            return;
+        }
 
         if ($parent->document_type === DocumentTypeEnum::CREDIT_NOTE) {
             throw new InvalidInvoiceTransitionException(
@@ -188,6 +197,31 @@ class IssueCreditNoteAction
         }
     }
 
+    /** Inherits the frozen snapshot from the parent when there is one, else freezes it from the standalone billable. */
+    private function hydrateBillableSnapshot(Invoice $creditNote, ?Invoice $parent): void
+    {
+        if ($parent !== null) {
+            $creditNote->customer_organization_id = $parent->customer_organization_id;
+            $creditNote->billable_display_name = $parent->billable_display_name;
+            $creditNote->billable_legal_name = $parent->billable_legal_name;
+            $creditNote->billable_tax_id = $parent->billable_tax_id;
+            $creditNote->billable_email = $parent->billable_email;
+            $creditNote->billing_address_snapshot = $parent->billing_address_snapshot;
+            $creditNote->shipping_address_snapshot = $parent->shipping_address_snapshot;
+
+            return;
+        }
+
+        /** @var BillableInterface $billable */
+        $billable = $this->billable;
+        $creditNote->customer_organization_id = $billable->getBillableId();
+        $creditNote->billable_display_name = $billable->getBillableDisplayName();
+        $creditNote->billable_legal_name = $billable->getBillableLegalName();
+        $creditNote->billable_tax_id = $billable->getBillableTaxId();
+        $creditNote->billable_email = $billable->getBillingEmail();
+        $creditNote->billing_address_snapshot = $billable->getBillingAddressArray();
+    }
+
     private function persistLines(Invoice $creditNote, float $fxRate): void
     {
         $sortOrder = 0;
@@ -197,6 +231,7 @@ class IssueCreditNoteAction
             $line->invoice_id = $creditNote->id;
             $line->sort_order = $lineData->sort_order ?? $sortOrder++;
             $line->item_id = $lineData->item_id;
+            $line->account_id = $lineData->account_id;
             $line->sku = $lineData->sku;
             $line->description = $lineData->description;
             $line->quantity = $lineData->quantity;

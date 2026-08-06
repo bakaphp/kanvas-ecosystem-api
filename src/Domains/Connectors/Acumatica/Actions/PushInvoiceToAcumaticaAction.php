@@ -14,6 +14,7 @@ use Kanvas\Connectors\Acumatica\Traits\HasAcumaticaWriter;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoiceLine;
+use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 
 /** Pushes a Kanvas invoice to Acumatica as an AR Invoice (create + Release), the AR mirror of PushBillToAcumaticaAction. */
@@ -103,11 +104,30 @@ class PushInvoiceToAcumaticaAction
             'Hold' => false,
             // Intermittently flags brand-new customers into Credit Hold regardless of CreditLimit.
             'CreditHold' => false,
+            // Header-level hint; the line-level TaxCategory in buildLines() is what actually drives the calc.
+            'TaxZone' => $this->taxExemptCode(),
         ]);
 
         $header['Details'] = $this->buildLines();
 
         return $header;
+    }
+
+    /**
+     * Only exempts when Kanvas itself computed zero tax — a normal taxable document is untouched.
+     * The same configured code is used for both the header TaxZone and each line's TaxCategory:
+     * Acumatica computes tax off the line's TaxCategory (which otherwise defaults from the GL
+     * account), not the header TaxZone alone — setting only the header leaves VAT applied per line.
+     */
+    private function taxExemptCode(): ?string
+    {
+        if ((float) $this->invoice->tax_native !== 0.0) {
+            return null;
+        }
+
+        $code = (string) $this->app->get(ConfigurationEnum::ACUMATICA_TAX_EXEMPT_ZONE->value);
+
+        return $code !== '' ? $code : null;
     }
 
     /**
@@ -117,18 +137,33 @@ class PushInvoiceToAcumaticaAction
     {
         $lines = [];
         $defaultSubaccount = (string) $this->app->get(ConfigurationEnum::ACUMATICA_DEFAULT_SUBACCOUNT->value);
+        $taxExemptCode = $this->taxExemptCode();
 
         foreach ($this->invoice->lines as $line) {
             /** @var InvoiceLine $line */
+            $accountCode = $this->lineAccountCode($line->account_id);
+
             $lines[] = AcumaticaPayload::wrap([
                 'Description' => $line->description,
                 'Qty' => (float) $line->quantity,
                 'UnitPrice' => (float) $line->unit_price_native,
+                'Account' => $accountCode,
                 'Subaccount' => $defaultSubaccount !== '' ? $defaultSubaccount : null,
+                'TaxCategory' => $taxExemptCode,
             ]);
         }
 
         return $lines;
+    }
+
+    /** Resolves a line's own GL account (e.g. a rebate's Control Acct#) to the Acumatica account code; null lets Acumatica derive its default. */
+    private function lineAccountCode(?int $accountId): ?string
+    {
+        if ($accountId === null) {
+            return null;
+        }
+
+        return Account::query()->where('id', $accountId)->value('account_number');
     }
 
     /** Find-or-create the customer in Acumatica, mirroring EnsureAcumaticaVendorAction for the AP side. */
