@@ -59,8 +59,6 @@ class InvoiceJournalEntryComposerService
         $netRevenueBase = (float) $invoice->subtotal_base - (float) $invoice->discount_base;
         $totalNative = (float) $invoice->total_native;
         $totalBase = (float) $invoice->total_base;
-        $taxNative = (float) $invoice->tax_native;
-        $taxBase = (float) $invoice->tax_base;
         $currency = $invoice->currency;
         $fxRate = (float) $invoice->fx_rate_to_base;
 
@@ -95,41 +93,7 @@ class InvoiceJournalEntryComposerService
             ),
         ];
 
-        // CR Sales Tax Payable — one line per tax jurisdiction when tax_lines are populated;
-        // single fallback line when only the header tax_native is set.
-        if ($taxNative > 0) {
-            $taxLines = $invoice->taxLines;
-            if ($taxLines->isNotEmpty()) {
-                $sortOrder = 2;
-                foreach ($taxLines as $taxLine) {
-                    $taxAccount = $this->resolveTaxAccount($invoice, $taxLine->jurisdiction);
-                    $lines[] = new JournalEntryLineData(
-                        account_id: $taxAccount->id,
-                        debit_native: 0.0,
-                        credit_native: (float) $taxLine->tax_amount_native,
-                        debit_base: 0.0,
-                        credit_base: (float) $taxLine->tax_amount_base,
-                        currency: $currency,
-                        fx_rate_to_base: $fxRate,
-                        sort_order: $sortOrder++,
-                        memo: "Invoice {$invoice->invoice_number} — {$taxLine->name}",
-                    );
-                }
-            } else {
-                $taxAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::SALES_TAX_PAYABLE);
-                $lines[] = new JournalEntryLineData(
-                    account_id: $taxAccount->id,
-                    debit_native: 0.0,
-                    credit_native: $taxNative,
-                    debit_base: 0.0,
-                    credit_base: $taxBase,
-                    currency: $currency,
-                    fx_rate_to_base: $fxRate,
-                    sort_order: 2,
-                    memo: "Invoice {$invoice->invoice_number} — Sales Tax",
-                );
-            }
-        }
+        array_push($lines, ...$this->buildTaxLines($invoice, credit: true, memoSuffix: '', startSortOrder: 2));
 
         return new JournalEntryData(
             app: $app,
@@ -228,8 +192,6 @@ class InvoiceJournalEntryComposerService
 
         $totalNative = (float) $creditNote->total_native;
         $totalBase = (float) $creditNote->total_base;
-        $taxNative = (float) $creditNote->tax_native;
-        $taxBase = (float) $creditNote->tax_base;
         $currency = $creditNote->currency;
         $fxRate = (float) $creditNote->fx_rate_to_base;
 
@@ -267,39 +229,7 @@ class InvoiceJournalEntryComposerService
             ];
         }
 
-        if ($taxNative > 0) {
-            $taxLines = $creditNote->taxLines;
-            if ($taxLines->isNotEmpty()) {
-                $sortOrder = 1;
-                foreach ($taxLines as $taxLine) {
-                    $taxAccount = $this->resolveTaxAccount($creditNote, $taxLine->jurisdiction);
-                    $lines[] = new JournalEntryLineData(
-                        account_id: $taxAccount->id,
-                        debit_native: (float) $taxLine->tax_amount_native,
-                        credit_native: 0.0,
-                        debit_base: (float) $taxLine->tax_amount_base,
-                        credit_base: 0.0,
-                        currency: $currency,
-                        fx_rate_to_base: $fxRate,
-                        sort_order: $sortOrder++,
-                        memo: "Credit Note {$creditNote->invoice_number} — {$taxLine->name} reversal",
-                    );
-                }
-            } else {
-                $taxAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::SALES_TAX_PAYABLE);
-                $lines[] = new JournalEntryLineData(
-                    account_id: $taxAccount->id,
-                    debit_native: $taxNative,
-                    credit_native: 0.0,
-                    debit_base: $taxBase,
-                    credit_base: 0.0,
-                    currency: $currency,
-                    fx_rate_to_base: $fxRate,
-                    sort_order: 1,
-                    memo: "Credit Note {$creditNote->invoice_number} — Sales Tax reversal",
-                );
-            }
-        }
+        array_push($lines, ...$this->buildTaxLines($creditNote, credit: false, memoSuffix: ' reversal', startSortOrder: 1));
 
         // CR Accounts Receivable
         $lines[] = new JournalEntryLineData(
@@ -361,6 +291,64 @@ class InvoiceJournalEntryComposerService
                 customer_billable_type: $billableType,
                 customer_billable_id: $billableId,
                 memo: "Credit Note {$creditNote->invoice_number} — {$account->name}",
+            );
+        }
+
+        return $lines;
+    }
+
+    /**
+     * Shared by composeIssue (credit: true) and composeCreditNote (credit: false, " reversal" suffix):
+     * one tax-payable line per jurisdiction when tax_lines are populated, else a single fallback line
+     * off the header tax_native/tax_base. Empty array when there's no tax to book.
+     *
+     * @return array<int, JournalEntryLineData>
+     */
+    private function buildTaxLines(Invoice $invoice, bool $credit, string $memoSuffix, int $startSortOrder): array
+    {
+        $taxNative = (float) $invoice->tax_native;
+
+        if ($taxNative <= 0) {
+            return [];
+        }
+
+        $label = $invoice->isCreditNote() ? 'Credit Note' : 'Invoice';
+        $currency = $invoice->currency;
+        $fxRate = (float) $invoice->fx_rate_to_base;
+        $taxLines = $invoice->taxLines;
+
+        if ($taxLines->isEmpty()) {
+            $taxAccount = $this->accountResolver->bySubType($invoice->app, $invoice->company, AccountSubTypeEnum::SALES_TAX_PAYABLE);
+
+            return [
+                new JournalEntryLineData(
+                    account_id: $taxAccount->id,
+                    debit_native: $credit ? 0.0 : $taxNative,
+                    credit_native: $credit ? $taxNative : 0.0,
+                    debit_base: $credit ? 0.0 : (float) $invoice->tax_base,
+                    credit_base: $credit ? (float) $invoice->tax_base : 0.0,
+                    currency: $currency,
+                    fx_rate_to_base: $fxRate,
+                    sort_order: $startSortOrder,
+                    memo: "{$label} {$invoice->invoice_number} — Sales Tax{$memoSuffix}",
+                ),
+            ];
+        }
+
+        $lines = [];
+        $sortOrder = $startSortOrder;
+        foreach ($taxLines as $taxLine) {
+            $taxAccount = $this->resolveTaxAccount($invoice, $taxLine->jurisdiction);
+            $lines[] = new JournalEntryLineData(
+                account_id: $taxAccount->id,
+                debit_native: $credit ? 0.0 : (float) $taxLine->tax_amount_native,
+                credit_native: $credit ? (float) $taxLine->tax_amount_native : 0.0,
+                debit_base: $credit ? 0.0 : (float) $taxLine->tax_amount_base,
+                credit_base: $credit ? (float) $taxLine->tax_amount_base : 0.0,
+                currency: $currency,
+                fx_rate_to_base: $fxRate,
+                sort_order: $sortOrder++,
+                memo: "{$label} {$invoice->invoice_number} — {$taxLine->name}{$memoSuffix}",
             );
         }
 
