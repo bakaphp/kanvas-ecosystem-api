@@ -106,8 +106,10 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Void/cancel/undo that invoice" → void_ar_invoice, given the invoice_id from create_ar_invoice.',
             '- "Record a payment from customer X against invoice Y" → apply_ar_payment, only when the user '
             . 'explicitly asks to record a real payment. Needs the invoice_id, amount, and a payment reference.',
-            '- "Issue a credit/allowance against invoice X" → create_ar_credit_memo, only on explicit request. '
-            . 'Needs the original invoice_number, credit amount, and a reason.',
+            '- "Issue a standalone credit memo for customer X" (e.g. a back-end rebate) → create_ar_credit_memo, '
+            . 'only on explicit request. Not tied to any invoice — needs the customer name, a reference (e.g. '
+            . 'the Credit Request Form\'s Request Reference No), and one or more lines with a Control Acct# and '
+            . 'amount each.',
             '- "Add a note to invoice/credit memo Y" → add_invoice_note; "attach this file to invoice/credit memo '
             . 'Y" → attach_invoice_file. Both require the document to already be pushed to Acumatica.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',

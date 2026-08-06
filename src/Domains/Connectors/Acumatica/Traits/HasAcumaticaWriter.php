@@ -15,7 +15,7 @@ trait HasAcumaticaWriter
 {
     protected ?AcumaticaWriteService $writer = null;
 
-    private function writer(): AcumaticaWriteService
+    protected function writer(): AcumaticaWriteService
     {
         return $this->writer ??= new AcumaticaWriteService($this->app);
     }

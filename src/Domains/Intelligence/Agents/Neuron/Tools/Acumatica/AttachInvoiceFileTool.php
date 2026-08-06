@@ -9,7 +9,7 @@ use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnu
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPushedInvoiceForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,6 +21,7 @@ use Throwable;
 class AttachInvoiceFileTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesPushedInvoiceForTool;
 
     public function __construct()
     {
@@ -65,28 +66,10 @@ class AttachInvoiceFileTool extends Tool
      */
     public function __invoke(int $invoice_id, string $file_url, ?string $file_name = null): array
     {
-        $invoice = Invoice::query()
-            ->where('id', $invoice_id)
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->first();
+        $invoice = $this->resolvePushedInvoice($invoice_id);
 
-        if ($invoice === null) {
-            return [
-                'file_attached' => false,
-                'reason' => 'invoice_not_found',
-                'message' => "No invoice with id {$invoice_id} for this app/company.",
-            ];
-        }
-
-        $ref = (string) $invoice->get(AcumaticaCustomFieldEnum::INVOICE_REF->value, '');
-
-        if ($ref === '') {
-            return [
-                'file_attached' => false,
-                'reason' => 'invoice_not_pushed',
-                'message' => "Invoice {$invoice_id} hasn't been pushed to Acumatica yet — push it before attaching a file.",
-            ];
+        if (is_array($invoice)) {
+            return ['file_attached' => false, ...$invoice];
         }
 
         $name = $file_name !== null && $file_name !== '' ? $file_name : basename(parse_url($file_url, PHP_URL_PATH) ?: 'file');
@@ -110,7 +93,7 @@ class AttachInvoiceFileTool extends Tool
             'file_attached' => true,
             'pushed' => true,
             'invoice_id' => $invoice->getId(),
-            'invoice_ref' => $ref,
+            'invoice_ref' => (string) $invoice->get(AcumaticaCustomFieldEnum::INVOICE_REF->value, ''),
             'file_name' => $name,
         ];
     }
