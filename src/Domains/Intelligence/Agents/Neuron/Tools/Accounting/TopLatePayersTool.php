@@ -13,7 +13,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-#[AgentTool(name: 'Top Late Payers')]
+#[AgentTool(name: 'Top Late Payers', category: 'accounting')]
 class TopLatePayersTool extends Tool
 {
     use HasKanvasContext;

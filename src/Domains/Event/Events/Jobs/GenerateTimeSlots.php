@@ -4,15 +4,22 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Jobs;
 
+use Baka\Contracts\AppInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
+use Kanvas\Event\Events\Enums\ConfigurationEnum;
 use Kanvas\Event\Events\Models\ScheduleException;
 use Kanvas\Event\Events\Models\ScheduleRules;
 use Kanvas\Event\Events\Models\TimeSlots;
+use Kanvas\Event\Events\Services\ResourceTimezoneService;
+use Kanvas\Inventory\Variants\Models\Variants;
 use RRule\RRule;
 
 class GenerateTimeSlots implements ShouldQueue
 {
+    public const DEFAULT_HORIZON_DAYS = 60;
+
     public function __construct(
         public int $resourceId,
         public int $ruleId,
@@ -22,44 +29,60 @@ class GenerateTimeSlots implements ShouldQueue
     }
 
     /**
-     * Resolve the [from, to] generation window for a rule: never backfill the past, and bound
-     * the upper end by end_at when set (otherwise a year out). Shared by both schedule mutations
-     * so they behave identically.
+     * Resolve the [from, to] generation window for a rule: never backfill the past, and cap
+     * the upper end at the booking horizon (never a year of mostly-unsold slots). The daily
+     * top-up command keeps rolling the window forward, so a short horizon doesn't starve
+     * long-lived rules — and re-upserting inside the horizon refreshes price snapshots.
+     * Shared by both schedule mutations so they behave identically.
      *
      * @return array{0: Carbon, 1: Carbon}
      */
-    public static function resolveWindow(?Carbon $startAt, ?Carbon $endAt): array
-    {
+    public static function resolveWindow(
+        ?Carbon $startAt,
+        ?Carbon $endAt,
+        ?int $horizonDays = null,
+    ): array {
         $now = Carbon::now();
 
         $windowFrom = $startAt && $startAt->greaterThan($now) ? $startAt->clone() : $now;
-        $windowTo = $endAt?->clone() ?? $now->clone()->addYear();
+        $horizonEnd = $now->clone()->addDays($horizonDays ?? self::DEFAULT_HORIZON_DAYS);
+        $windowTo = $endAt && $endAt->lessThan($horizonEnd) ? $endAt->clone() : $horizonEnd;
 
         return [$windowFrom, $windowTo];
+    }
+
+    public static function horizonDaysForApp(AppInterface $app): int
+    {
+        $configured = (int) $app->get(ConfigurationEnum::BOOKING_HORIZON_DAYS->value);
+
+        return $configured > 0 ? $configured : self::DEFAULT_HORIZON_DAYS;
     }
 
     public function handle()
     {
         $rule       = ScheduleRules::findOrFail($this->ruleId);
         $resource   = $rule->resource;
-        $tz         = $resource->tz ?? $resource->company->timezone  ?? "America/Santo_Domingo";
+        $tz         = ResourceTimezoneService::resolve($resource);
 
-        // 1) Expand RRULE in venue TZ to get the days
         $rrule = RRule::createFromRfcString($rule->rrule, $rule->start_at->setTimezone($tz));
         if ($rule->end_at) {
             $rrule->getOccurrencesBefore($rule->end_at->setTimezone($tz));
         }
-        $occurrences = $rrule->getOccurrencesBetween($this->windowFrom->clone()->tz($tz), $this->windowTo->clone()->tz($tz));
+        // Expand from the start of the day, not from `now`: a day occurrence carries DTSTART's
+        // time-of-day, so a rule that opens at 09:00 would drop today entirely once it's past 09:00
+        // — even though the rest of the day is still bookable. Slots already in the past are
+        // discarded per-slot in createTimeSlot().
+        $occurrences = $rrule->getOccurrencesBetween(
+            $this->windowFrom->clone()->tz($tz)->startOfDay(),
+            $this->windowTo->clone()->tz($tz)
+        );
 
-        // 2) For each day occurrence, generate time slots based on day_rrule
         foreach ($occurrences as $dayOccurrence) {
             $dayOccurrence = Carbon::instance($dayOccurrence);
 
-            // If day_rrule exists, use it to generate slots within this day
             if ($rule->day_rrule) {
                 $this->generateSlotsForDayWithRRule($rule, $resource, $dayOccurrence, $tz);
             } else {
-                // Fallback to old behavior: single slot per occurrence
                 $localStart = $dayOccurrence;
                 $localEnd = $localStart->copy()->addMinutes($rule->slot_duration_min);
 
@@ -68,9 +91,6 @@ class GenerateTimeSlots implements ShouldQueue
         }
     }
 
-    /**
-     * Generate time slots for a specific day using day_rrule.
-     */
     protected function generateSlotsForDayWithRRule(
         ScheduleRules $rule,
         $resource,
@@ -93,7 +113,6 @@ class GenerateTimeSlots implements ShouldQueue
             ? $base->copy()->setTime((int) $um[2], (int) $um[3], (int) $um[4])
             : $base->copy()->endOfDay();
 
-        // Slot cadence comes from INTERVAL, falling back to the slot length.
         preg_match('/INTERVAL=(\d+)/', $rule->day_rrule, $im);
         $stepMinutes = isset($im[1]) ? max(1, (int) $im[1]) : max(1, $rule->slot_duration_min);
 
@@ -117,9 +136,6 @@ class GenerateTimeSlots implements ShouldQueue
         }
     }
 
-    /**
-     * Create a single time slot.
-     */
     protected function createTimeSlot(
         ScheduleRules $rule,
         $resource,
@@ -127,14 +143,19 @@ class GenerateTimeSlots implements ShouldQueue
         Carbon $localEnd,
         string $tz
     ): void {
-        // Skip if blacked out
+        if ($localStart->lt($this->windowFrom)) {
+            return;
+        }
+
         if ($this->isBlackedOut($resource->id, $localStart, $localEnd, $tz)) {
             return;
         }
 
-        // Compute capacity & price
-        $capacity = $rule->capacity_override ?? $resource->default_capacity;
-        $price = $resource?->getPriceInfoFromDefaultChannel()?->price;
+        // Variants have no default_capacity column, so a rule without capacity_override must
+        // still land on a non-null value — the column is NOT NULL and a null here fails the
+        // whole generation job.
+        $capacity = $rule->capacity_override ?? $resource->default_capacity ?? 1;
+        $price = $this->resolvePrice($resource);
 
         TimeSlots::upsert([[
           'resources_id'        => $resource->id,
@@ -153,6 +174,33 @@ class GenerateTimeSlots implements ShouldQueue
         ]], uniqueBy: ['resources_id', 'resources_type', 'start_at'], update: [
           'schedule_rules_id','end_at','initial_capacity','price_snapshot','currency','updated_at'
         ]);
+    }
+
+    /**
+     * The default channel is the source of truth, but a variant never attached to it has no pivot
+     * row (and an app with no default channel throws outright) — either case would kill the whole
+     * generation run. A 0 channel price means the same thing in practice: the price was only ever
+     * set on the warehouse, which is what the UI shows as the variant's price.
+     */
+    protected function resolvePrice(mixed $resource): ?float
+    {
+        if (! $resource instanceof Variants) {
+            return null;
+        }
+
+        try {
+            $channelPrice = (float) ($resource->getChannelInfo()?->price ?? 0);
+        } catch (ModelNotFoundException) {
+            $channelPrice = 0.0;
+        }
+
+        if ($channelPrice > 0) {
+            return $channelPrice;
+        }
+
+        $warehousePrice = $resource->variantWarehouses()->value('price');
+
+        return $warehousePrice !== null ? (float) $warehousePrice : null;
     }
 
     protected function isBlackedOut(int $resourceId, Carbon $start, Carbon $end, string $tz): bool

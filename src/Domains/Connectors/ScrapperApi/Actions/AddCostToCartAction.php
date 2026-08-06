@@ -26,16 +26,21 @@ class AddCostToCartAction
         }
 
         // Check if cart subtotal is over $200 USD for custom tax calculation
-        $cartSubtotal = $this->cart->getSubTotal();
+        $cartSubtotal = $this->cart->getSubTotalWithoutConditions(false);
         $shouldCalculateCustomTax = $cartSubtotal > 200;
 
         $fees = array_map(function ($item) use ($shouldCalculateCustomTax) {
-            $variant = Variants::getById($item['id']);
-            $calc = (new CalculateShippingCostAction($this->app, $variant, (float) $item['quantity']))->execute();
+            $variant = $this->findVariant($item['id']);
+            $calc = $this->calculateShipping($variant, (float) $item['quantity']);
 
             // Calculate custom tax only if cart value is over $200 USD
             if ($shouldCalculateCustomTax) {
-                $customTaxCalc = (new CalculateCustomTaxAction($this->app, $variant, (float) $item['quantity'], $item))->execute();
+                $customTaxCalc = $this->calculateCustomTax(
+                    $variant,
+                    (float) $item['quantity'],
+                    $calc['shippingCost'],
+                    $calc['insurance'],
+                );
                 $calc['customTax'] = $customTaxCalc['customTax'];
                 $calc['customTaxInfo'] = $customTaxCalc;
             } else {
@@ -76,7 +81,7 @@ class AddCostToCartAction
                     'itbisRate' => $taxInfo['itbisRate'] ?? 18,
                     'tasaAduanal' => $taxInfo['tasaAduanal'] ?? 0,
                     'tasaAduanalRD' => $taxInfo['tasaAduanalRD'] ?? 0,
-                    'tasaAduanalRate' => $taxInfo['tasaAduanalRate'] ?? 3,
+                    'tasaAduanalRate' => $taxInfo['tasaAduanalRate'] ?? 0,
                     'isc' => $taxInfo['isc'] ?? 0,
                     'iscRD' => $taxInfo['iscRD'] ?? 0,
                     'iscDescription' => $taxInfo['iscDescription'] ?? '',
@@ -113,5 +118,29 @@ class AddCostToCartAction
             ],
         ]);
         $this->cart->condition([$condition]);
+    }
+
+    protected function findVariant(int|string $id): Variants
+    {
+        return Variants::getById($id);
+    }
+
+    protected function calculateShipping(Variants $variant, float $quantity): array
+    {
+        return new CalculateShippingCostAction($this->app, $variant, $quantity)->execute();
+    }
+
+    protected function calculateCustomTax(
+        Variants $variant,
+        float $quantity,
+        float $freight,
+        float $insurance
+    ): array {
+        return new CalculateCustomTaxAction(
+            $variant,
+            $quantity,
+            $freight,
+            $insurance,
+        )->execute();
     }
 }

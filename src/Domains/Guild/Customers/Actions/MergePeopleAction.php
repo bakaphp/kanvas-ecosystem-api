@@ -8,10 +8,12 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Duplicates\Actions\MarkDuplicateGroupsResolvedAction;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as LedgerEventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use RuntimeException;
 use Throwable;
 
@@ -93,6 +95,25 @@ class MergePeopleAction
             $addressesTransferred,
             $customFieldsAdopted,
         );
+
+        new MarkDuplicateGroupsResolvedAction(
+            entityType: People::class,
+            appsId: (int) $this->target->apps_id,
+            companiesId: (int) $this->target->companies_id,
+            sourceId: $sourceId,
+            targetId: $targetId,
+            user: $this->user,
+        )->execute();
+
+        try {
+            $this->target->fireWorkflow(WorkflowEnum::AFTER_MERGE->value, true, [
+                'app' => $this->target->app,
+                'source_id' => $sourceId,
+                'target_id' => $targetId,
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         return $this->target->refresh();
     }

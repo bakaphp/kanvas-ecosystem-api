@@ -18,7 +18,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Stop Contact')]
+#[AgentTool(name: 'Stop Contact', category: 'crm')]
 class StopContactTool extends Tool
 {
     use ResolvesLeadForTool;

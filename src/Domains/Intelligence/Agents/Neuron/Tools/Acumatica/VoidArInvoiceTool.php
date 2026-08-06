@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
 
 use Kanvas\Connectors\Acumatica\Actions\VoidArInvoiceAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
@@ -17,7 +17,7 @@ use Override;
 use Throwable;
 
 /** Voids a previously-pushed AR invoice's cash receipt in Acumatica — the cleanup counterpart to CreateArInvoiceTool. */
-#[AgentTool(name: 'Void AR Invoice')]
+#[AgentTool(name: 'Void AR Invoice', category: 'accounting')]
 class VoidArInvoiceTool extends Tool
 {
     use HasKanvasContext;

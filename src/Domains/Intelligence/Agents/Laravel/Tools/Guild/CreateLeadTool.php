@@ -13,7 +13,7 @@ use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
 
-#[AgentTool(name: 'Create Lead')]
+#[AgentTool(name: 'Create Lead', category: 'crm')]
 class CreateLeadTool implements KanvasToolInterface
 {
     use CreatesLeadTrait;

@@ -11,7 +11,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use NeuronAI\Tools\Tool;
 use Override;
 
-#[AgentTool(name: 'Query Data Freshness')]
+#[AgentTool(name: 'Query Data Freshness', category: 'accounting')]
 class QueryDataFreshnessTool extends Tool
 {
     use HasKanvasContext;

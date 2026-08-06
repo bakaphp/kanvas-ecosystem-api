@@ -25,7 +25,7 @@ type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
         @cacheRedis
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getPaginatedFileByGraphType"
         )
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
@@ -39,7 +39,7 @@ type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
         @cacheRedis
     companies: Company! @belongsTo(relation: "company")
     channels(currencyCode: String): [VariantChannelRelationship!]!
-        @BelongsToMany(relation: "channels")
+        @belongsToMany(relation: "channels")
     channel(currencyCode: String): VariantPricingInfo
         @cacheRedis
         @field(

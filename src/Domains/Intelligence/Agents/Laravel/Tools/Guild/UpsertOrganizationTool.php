@@ -13,7 +13,7 @@ use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
 
-#[AgentTool(name: 'Upsert Organization')]
+#[AgentTool(name: 'Upsert Organization', category: 'crm')]
 class UpsertOrganizationTool implements KanvasToolInterface
 {
     use HasKanvasContext;

@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
@@ -14,7 +13,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\CreateSampleOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindProductTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindSalesOrderTool;
@@ -30,7 +31,7 @@ use Override;
  * order #X" over receivables (Scribe invoices) + customer orders (Souk).
  *
  * Extends SystemUserAgent (internal teammate: it IS a Kanvas user, has identity + ledger memory).
- * Mostly read-only, but create_ar_invoice/void_ar_invoice write for real, bypassing human approval — only on explicit request.
+ * Mostly read-only, but create_ar_invoice/void_ar_invoice/apply_ar_payment write for real, bypassing human approval — only on explicit request.
  *
  * Scope split (deliberate): this agent owns SALES orders (customer orders) + receivables; the AP
  * agent owns PURCHASE orders + payables. A sales order is a CUSTOMER order (revenue side), never an
@@ -42,37 +43,35 @@ use Override;
         . '(Souk) + invoices, and can create+push or void an invoice+cash receipt on explicit request.',
     provider: 'neuron',
     soul: 'You are the Accounts-Receivable teammate. You answer questions about money customers owe us and about '
-        . 'customer sales orders, using your read tools. You are precise with numbers. create_ar_invoice and '
-        . 'void_ar_invoice write straight to whichever Acumatica tenant is configured — only call either when '
-        . 'the user explicitly asks you to create or void an invoice this way, never on your own initiative.',
+        . 'customer sales orders, using your read tools. You are precise with numbers. create_ar_invoice, '
+        . 'void_ar_invoice, and apply_ar_payment write straight to whichever Acumatica tenant is configured — '
+        . 'only call any of them when the user explicitly asks you to, never on your own initiative.',
     outputFormat: 'Plain text. Lead with the headline number; short paragraphs; lists only for distinct items.',
 )]
 class AccountsReceivableAgent extends SystemUserAgent
 {
-    /**
-     * @return list<object>
-     */
     #[Override]
     protected function tools(): array
     {
-        return array_merge(parent::tools(), [
-            new QueryDataFreshnessTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryArAgingTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ListOverdueInvoicesTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new TopLatePayersTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindInvoiceTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindCustomerTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindSalesOrderTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ListOpenSalesOrdersTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindProductTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new CreateSampleOrderTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new SalesByCustomerTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new SalesByProductTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new SalesRevenueTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new MatchInvoicesForPaymentTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new CreateArInvoiceTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new VoidArInvoiceTool()->withContext($this->app, $this->company, $this->actingUser()),
-        ]);
+        return array_merge(parent::tools(), $this->addToolContext([
+            new QueryDataFreshnessTool(),
+            new QueryArAgingTool(),
+            new ListOverdueInvoicesTool(),
+            new TopLatePayersTool(),
+            new FindInvoiceTool(),
+            new FindCustomerTool(),
+            new FindSalesOrderTool(),
+            new ListOpenSalesOrdersTool(),
+            new FindProductTool(),
+            new CreateSampleOrderTool(),
+            new SalesByCustomerTool(),
+            new SalesByProductTool(),
+            new SalesRevenueTool(),
+            new MatchInvoicesForPaymentTool(),
+            new CreateArInvoiceTool(),
+            new VoidArInvoiceTool(),
+            new ApplyArPaymentTool(),
+        ]));
     }
 
     #[Override]
@@ -87,6 +86,8 @@ class AccountsReceivableAgent extends SystemUserAgent
             '## How to handle Accounts-Receivable / sales-order questions',
             '- Call query_data_freshness first; if the sync is more than 2 days stale, say so before quoting numbers.',
             '- "Who owes us" / "AR aging" / "biggest late payers" → query_ar_aging, list_overdue_invoices, top_late_payers.',
+            '- "What invoices are overdue for customer X" → list_overdue_invoices with the customer parameter set — '
+            . 'not list_open_sales_orders, which is for purchase/sales orders, not invoices.',
             '- "Look up invoice #X" / "status of invoice X" → find_invoice (one specific invoice by number).',
             '- "Who is customer X" / resolve a customer name to its ERP code → find_customer.',
             '- "Look up sales order #X" → find_sales_order (a sales order is a CUSTOMER order, not a purchase order).',
@@ -97,6 +98,8 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Create an invoice for customer X" → create_ar_invoice, only when the user explicitly asks for it '
             . '— it writes straight to Acumatica, bypassing human approval.',
             '- "Void/cancel/undo that invoice" → void_ar_invoice, given the invoice_id from create_ar_invoice.',
+            '- "Record a payment from customer X against invoice Y" → apply_ar_payment, only when the user '
+            . 'explicitly asks to record a real payment. Needs the invoice_id, amount, and a payment reference.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }

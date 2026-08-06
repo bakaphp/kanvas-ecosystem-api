@@ -12,7 +12,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Inventory Search')]
+#[AgentTool(name: 'Inventory Search', category: 'inventory')]
 class InventorySearchTool extends Tool
 {
     public function __construct()

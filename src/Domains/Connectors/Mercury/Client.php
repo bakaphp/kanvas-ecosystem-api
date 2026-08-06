@@ -103,4 +103,13 @@ class Client
     {
         return (string) $this->client->get(ltrim($endpoint, '/'))->getBody();
     }
+
+    public function getBinary(string $endpoint, string $accept = 'application/octet-stream'): string
+    {
+        $response = $this->client->get(ltrim($endpoint, '/'), [
+            'headers' => ['Accept' => $accept],
+        ]);
+
+        return (string) $response->getBody();
+    }
 }

@@ -15,7 +15,7 @@ use Override;
 use Stringable;
 use Throwable;
 
-#[AgentTool(name: 'Tavily Web Research')]
+#[AgentTool(name: 'Tavily Web Research', category: 'knowledge')]
 class TavilyWebResearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;

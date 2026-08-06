@@ -13,7 +13,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Current Time')]
+#[AgentTool(name: 'Current Time', category: 'ecosystem')]
 class CurrentTimeTool extends Tool
 {
     public function __construct()

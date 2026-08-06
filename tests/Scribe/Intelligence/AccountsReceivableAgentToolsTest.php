@@ -8,10 +8,15 @@ use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
+use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoiceLine;
+use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Tests\Scribe\ScribeTestCase;
 
 class AccountsReceivableAgentToolsTest extends ScribeTestCase
@@ -69,6 +74,119 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $missing = new FindInvoiceTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser)->__invoke(invoice_number: 'DOES-NOT-EXIST');
         $this->assertFalse($missing['found']);
+    }
+
+    public function test_list_overdue_invoices_filters_by_customer(): void
+    {
+        $target = $this->seedTestOrganization('Overdue Target Inc');
+        $other = $this->seedTestOrganization('Someone Else Inc');
+
+        $overdueForTarget = Invoice::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'document_type' => DocumentTypeEnum::INVOICE,
+            'invoice_number' => 'INV-OVERDUE-TARGET',
+            'customer_organization_id' => $target->getId(),
+            'billable_display_name' => 'Overdue Target Inc',
+            'document_status' => InvoiceDocumentStatusEnum::ISSUED->value,
+            'currency' => 'USD',
+            'fx_rate_to_base' => 1.0,
+            'subtotal_native' => 500.0, 'total_native' => 500.0, 'paid_native' => 0.0, 'balance_due_native' => 500.0,
+            'subtotal_base' => 500.0, 'total_base' => 500.0, 'paid_base' => 0.0, 'balance_due_base' => 500.0,
+            'issued_date' => Carbon::today()->subDays(30),
+            'due_date' => Carbon::today()->subDays(10),
+            'source' => 'kanvas',
+        ]);
+
+        Invoice::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'document_type' => DocumentTypeEnum::INVOICE,
+            'invoice_number' => 'INV-OVERDUE-OTHER',
+            'customer_organization_id' => $other->getId(),
+            'billable_display_name' => 'Someone Else Inc',
+            'document_status' => InvoiceDocumentStatusEnum::ISSUED->value,
+            'currency' => 'USD',
+            'fx_rate_to_base' => 1.0,
+            'subtotal_native' => 700.0, 'total_native' => 700.0, 'paid_native' => 0.0, 'balance_due_native' => 700.0,
+            'subtotal_base' => 700.0, 'total_base' => 700.0, 'paid_base' => 0.0, 'balance_due_base' => 700.0,
+            'issued_date' => Carbon::today()->subDays(30),
+            'due_date' => Carbon::today()->subDays(10),
+            'source' => 'kanvas',
+        ]);
+
+        $result = new ListOverdueInvoicesTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer: 'Overdue Target');
+
+        $numbers = array_column($result['invoices'], 'invoice_number');
+        $this->assertContains('INV-OVERDUE-TARGET', $numbers);
+        $this->assertNotContains('INV-OVERDUE-OTHER', $numbers);
+        $this->assertSame($overdueForTarget->invoice_number, $numbers[0]);
+    }
+
+    public function test_apply_ar_payment_reports_not_found_for_unknown_invoice(): void
+    {
+        $result = new ApplyArPaymentTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_id: 999999999, amount: 100.0, reference: 'CHK-1');
+
+        $this->assertFalse($result['applied']);
+        $this->assertSame('invoice_not_found', $result['reason']);
+    }
+
+    public function test_apply_ar_payment_reports_not_pushed_when_invoice_has_no_acumatica_ref(): void
+    {
+        $invoice = Invoice::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'document_type' => 'invoice',
+            'invoice_number' => 'INV-NOPUSH',
+            'billable_display_name' => 'Acme Corporation',
+            'document_status' => InvoiceDocumentStatusEnum::ISSUED->value,
+            'currency' => 'USD',
+            'fx_rate_to_base' => 1.0,
+            'subtotal_native' => 300.0, 'total_native' => 300.0, 'paid_native' => 0.0, 'balance_due_native' => 300.0,
+            'subtotal_base' => 300.0, 'total_base' => 300.0, 'paid_base' => 0.0, 'balance_due_base' => 300.0,
+            'issued_date' => Carbon::parse('2026-06-01'),
+            'source' => 'kanvas',
+        ]);
+
+        $result = new ApplyArPaymentTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_id: (int) $invoice->id, amount: 100.0, reference: 'CHK-1');
+
+        $this->assertFalse($result['applied']);
+        $this->assertSame('invoice_not_pushed', $result['reason']);
+    }
+
+    public function test_create_ar_invoice_refuses_an_empty_customer_name(): void
+    {
+        $result = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: '', amount: 50.0, memo: 'test invoice');
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('customer_name_required', $result['reason']);
+    }
+
+    public function test_create_ar_invoice_leaves_it_open_with_no_auto_payment(): void
+    {
+        $customer = $this->seedTestOrganization('Open Invoice Customer');
+        $customer->set(CustomFieldEnum::CUSTOMER_ID->value, 'C0000999');
+
+        $result = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: 'Open Invoice Customer', amount: 50.0, memo: 'test invoice');
+
+        $this->assertTrue($result['created']);
+        $this->assertArrayNotHasKey('payment_pushed', $result);
+        $this->assertArrayNotHasKey('payment_ref', $result);
+
+        $allocations = InvoicePaymentAllocation::query()
+            ->where('invoice_id', $result['invoice_id'])
+            ->count();
+        $this->assertSame(0, $allocations);
     }
 
     public function test_match_invoices_for_payment_flags_the_exact_invoice(): void

@@ -63,13 +63,30 @@ class CreateMessageFollowUpAction
 
     public function execute(): ?string
     {
-        // Log entry to this action
         if ($this->log) {
             $this->log->update([
                 'entered_create_message_action' => true,
             ]);
         }
 
+        $text = $this->generateMessageText();
+
+        if ($text === null || $this->onlyPrompt) {
+            return $text;
+        }
+
+        $this->persistMessage($text);
+
+        return $text;
+    }
+
+    /**
+     * Generate the follow-up copy from the agent WITHOUT persisting it, so the caller can
+     * dedupe (see isDuplicate) before deciding whether to send. Returns null when the template
+     * is missing or the agent declines to respond; returns the raw prompt when onlyPrompt is set.
+     */
+    public function generateMessageText(): ?string
+    {
         if ($this->messageTemplate === null) {
             return null;
         }
@@ -81,10 +98,8 @@ class CreateMessageFollowUpAction
         }
 
         $responseText = $this->generateResponseWithRetry($prompt);
-
         $shouldRespond = (bool) ($responseText['should_respond'] ?? false);
 
-        // Log the should_respond value
         if ($this->log) {
             $this->log->update([
                 'should_respond' => $shouldRespond,
@@ -100,19 +115,21 @@ class CreateMessageFollowUpAction
             ]);
         }
 
-        //if no response or should not respond
         if ($shouldRespond === false) {
             return null;
         }
 
+        return $responseText['message'];
+    }
+
+    public function persistMessage(string $message): Message
+    {
         $messageType = MessageTypeService::getOrCreate(
             $this->session->app,
             $this->getMessageTypeVerb()
         );
 
         $user = $this->lead->company->getAiAgentUser() ?? Users::getById($this->session->agent->user_id);
-
-        $message = $responseText['message'];
 
         $messageInput = MessageInput::from([
             'app' => $this->session->app,
@@ -126,10 +143,10 @@ class CreateMessageFollowUpAction
                 'chat_jid' => '--',
                 'from_me' => true,
             ],
-           'is_public' => 1,
+            'is_public' => 1,
         ]);
 
-        $message = new CreateSocialMessageAction(
+        $created = new CreateSocialMessageAction(
             $messageInput,
             SystemModulesRepository::getByModelName(
                 get_class($this->lead),
@@ -139,18 +156,69 @@ class CreateMessageFollowUpAction
         )->execute();
         $this->createdMessage = $message;
 
-        $this->session->channel->addMessage($message);
-        $message->addTag('followup');
+        $this->session->channel->addMessage($created);
+        $created->addTag('followup');
 
-        // Log message creation
         if ($this->log) {
             $this->log->update([
                 'message_created' => true,
-                'messages_id' => $message->getId(),
+                'messages_id' => $created->getId(),
             ]);
         }
 
-        return $responseText['message'];
+        return $created;
+    }
+
+    /**
+     * True when the candidate copy is (near) identical to a follow-up we already sent on this
+     * channel. Guards the "same message over and over" case: rather than resend, the caller
+     * advances the pipeline stage so the next day-stage template is used. A 90% similarity
+     * threshold catches greeting-only variations ("Good morning..." vs "Good afternoon...").
+     */
+    public function isDuplicate(string $candidate): bool
+    {
+        $normalizedCandidate = $this->normalizeForCompare($candidate);
+
+        if ($normalizedCandidate === '') {
+            return false;
+        }
+
+        $recent = $this->session->channel->messages()
+            ->where('messages.is_deleted', 0)
+            ->orderBy('messages.created_at', 'DESC')
+            ->limit(15)
+            ->get();
+
+        foreach ($recent as $priorMessage) {
+            $payload = $priorMessage->message;
+
+            if (! is_array($payload) || ($payload['from_me'] ?? false) !== true) {
+                continue;
+            }
+
+            $normalizedPrior = $this->normalizeForCompare((string) ($payload['content'] ?? $payload['raw_data'] ?? ''));
+
+            if ($normalizedPrior === '') {
+                continue;
+            }
+
+            if ($normalizedPrior === $normalizedCandidate) {
+                return true;
+            }
+
+            similar_text($normalizedCandidate, $normalizedPrior, $percent);
+
+            if ($percent >= 90.0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function normalizeForCompare(string $text): string
+    {
+        return strtolower(trim((string) preg_replace('/\s+/', ' ', $text)));
     }
 
     public function getCreatedMessage(): ?Message
@@ -210,7 +278,38 @@ class CreateMessageFollowUpAction
             'day' => $this->day,
         ];
 
-        return Blade::render(implode(' ', $this->agent->role['background']), $data);
+        return Blade::render(implode(' ', $this->agent->role['background']), $data) . $this->buildAntiRepeatDirective();
+    }
+
+    /**
+     * Appends the follow-ups we already sent plus an explicit "do not repeat" instruction to the
+     * prompt. The lead may be parked on the same day-stage for a while (a 90-day drip), so the
+     * agent must vary each touch instead of re-emitting the template with only the greeting changed.
+     * Returns '' for a fresh lead with no prior sends so the base prompt is untouched.
+     */
+    private function buildAntiRepeatDirective(): string
+    {
+        $priorFollowUps = $this->session->channel->messages()
+            ->where('messages.is_deleted', 0)
+            ->orderBy('messages.created_at', 'DESC')
+            ->limit(5)
+            ->get()
+            ->filter(fn (Message $m): bool => is_array($m->message) && ($m->message['from_me'] ?? false) === true)
+            ->map(fn (Message $m): string => (string) ($m->message['content'] ?? $m->message['raw_data'] ?? ''))
+            ->filter(fn (string $text): bool => trim($text) !== '')
+            ->values();
+
+        if ($priorFollowUps->isEmpty()) {
+            return '';
+        }
+
+        $list = $priorFollowUps
+            ->map(fn (string $text, int $i): string => sprintf('%d. %s', $i + 1, $text))
+            ->implode("\n");
+
+        return "\n\nIMPORTANT — DO NOT REPEAT YOURSELF. You have already sent these follow-up messages to this lead:\n"
+            . $list
+            . "\n\nYour new message MUST be meaningfully different from every message above — a different angle, wording, and call to action. A greeting-only variation of a previous message is NOT acceptable.";
     }
 
     private function generateResponseWithRetry(string $prompt): array

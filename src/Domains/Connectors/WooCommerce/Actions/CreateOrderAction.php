@@ -30,6 +30,7 @@ class CreateOrderAction
         protected Regions $region,
         protected object $order,
         protected bool $runWorkflows = true,
+        protected ?string $orderNumberOverride = null,
     ) {
     }
 
@@ -97,6 +98,7 @@ class CreateOrderAction
             $this->order,
             isset($shippingAddress) ? $shippingAddress : $billingAddress,
             $billingAddress,
+            orderNumberOverride: $this->orderNumberOverride,
         );
         $createOrder = new SoukCreateOrderAction($orderDto);
         if (! $this->runWorkflows) {

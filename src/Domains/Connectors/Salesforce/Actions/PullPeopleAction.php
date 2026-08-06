@@ -43,7 +43,7 @@ class PullPeopleAction
             app: $this->app,
             branch: $branch,
             user: $this->company->user,
-            firstname: $firstName !== '' ? $firstName : $lastName,
+            firstname: $firstName,
             contacts: Contact::collect($contacts, DataCollection::class),
             address: Address::collect([], DataCollection::class),
             lastname: $lastName,

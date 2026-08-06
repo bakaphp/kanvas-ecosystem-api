@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
+namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
 
 use Kanvas\Connectors\Acumatica\Actions\VoidApBillAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
@@ -17,7 +17,7 @@ use Override;
 use Throwable;
 
 /** Voids a previously-pushed AP bill in Acumatica — the cleanup counterpart to CreateApBillTool. */
-#[AgentTool(name: 'Void AP Bill')]
+#[AgentTool(name: 'Void AP Bill', category: 'accounting')]
 class VoidApBillTool extends Tool
 {
     use HasKanvasContext;

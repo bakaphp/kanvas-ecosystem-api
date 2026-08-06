@@ -11,7 +11,7 @@ use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\LeadSearchTool;
 use Override;
 use Stringable;
 
-#[AgentTool(name: 'Check Lead Duplicate')]
+#[AgentTool(name: 'Check Lead Duplicate', category: 'crm')]
 class CheckLeadDuplicateSubAgent extends KanvasAgentAsTool
 {
     #[Override]

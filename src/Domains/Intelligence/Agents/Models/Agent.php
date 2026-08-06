@@ -62,6 +62,7 @@ use Override;
  * @property array|null $identity
  * @property string|null $user_context
  * @property string|null $tools_config
+ * @property array|null $voice_config
  * @property string|null $deployment_status
  * @property int|null $agent_model_id
  * @property int|null $agent_llm_config_id
@@ -106,6 +107,7 @@ class Agent extends BaseModel
         'identity',
         'user_context',
         'tools_config',
+        'voice_config',
         'deployment_status',
         'agent_model_id',
         'agent_llm_config_id',
@@ -134,6 +136,7 @@ class Agent extends BaseModel
             'config' => Json::class,
             'role' => Json::class,
             'identity' => Json::class,
+            'voice_config' => Json::class,
             'is_active' => 'boolean',
             'is_sub_agent' => 'boolean',
             'last_state_changed_at' => 'datetime',

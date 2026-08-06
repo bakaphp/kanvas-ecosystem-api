@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Acumatica;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
@@ -137,5 +138,37 @@ class AcumaticaSyncTest extends TestCase
         $this->artisan('kanvas:acumatica-sync')->assertSuccessful();
 
         Bus::assertNotDispatched(SyncAcumaticaCompanyJob::class);
+    }
+
+    /**
+     * Regression: a bare WithoutOverlapping (expiresAfter=0, releaseAfter=0) wedged the company
+     * permanently — a killed run left a TTL-less lock, and every later dispatch released instantly,
+     * burning all attempts into MaxAttemptsExceededException. Guard must have a self-healing TTL and
+     * must not release-and-retry on contention.
+     */
+    public function testOverlapGuardSelfHealsAndDoesNotBurnAttempts(): void
+    {
+        $company = $this->company();
+
+        $job = new SyncAcumaticaCompanyJob(
+            $this->app(),
+            $company,
+            auth()->user(),
+            2,
+        );
+
+        $middleware = $job->middleware();
+        $this->assertCount(1, $middleware);
+
+        $guard = $middleware[0];
+        $this->assertInstanceOf(WithoutOverlapping::class, $guard);
+        $this->assertSame('acumatica-sync-' . $company->getId(), $guard->key);
+
+        // TTL must outlive the worker --timeout (3750s) so a live run never loses its lock,
+        // yet a killed run's lock still expires instead of wedging the company forever.
+        $this->assertGreaterThan(3750, $guard->expiresAfter);
+
+        // dontRelease() → contention drops the duplicate dispatch rather than retrying it to death.
+        $this->assertNull($guard->releaseAfter);
     }
 }
