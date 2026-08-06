@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Invoices\Services;
 
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Ledger\DataTransferObject\JournalEntry as JournalEntryData;
@@ -210,6 +211,10 @@ class InvoiceJournalEntryComposerService
      *   DR Sales Tax Payable      {tax}                   (reverses the tax liability)
      *     CR Accounts Receivable   {total}                (reduces customer balance)
      *
+     * When a line carries its own account_id (e.g. a back-end-rebate's Control Acct#), that line debits
+     * its own account instead of Service Revenue — one JE line per distinct account, lines sharing an
+     * account are summed together. Falls back to the single Service-Revenue line when no line overrides it.
+     *
      * The credit_note Invoice row carries POSITIVE amounts; the JE direction is what makes it a credit.
      */
     public function composeCreditNote(Invoice $creditNote): JournalEntryData
@@ -220,10 +225,7 @@ class InvoiceJournalEntryComposerService
         $billableId = $creditNote->customer_organization_id;
 
         $arAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::ACCOUNTS_RECEIVABLE);
-        $revenueAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::SERVICE_REVENUE);
 
-        $netRevenueNative = (float) $creditNote->subtotal_native - (float) $creditNote->discount_native;
-        $netRevenueBase = (float) $creditNote->subtotal_base - (float) $creditNote->discount_base;
         $totalNative = (float) $creditNote->total_native;
         $totalBase = (float) $creditNote->total_base;
         $taxNative = (float) $creditNote->tax_native;
@@ -231,22 +233,39 @@ class InvoiceJournalEntryComposerService
         $currency = $creditNote->currency;
         $fxRate = (float) $creditNote->fx_rate_to_base;
 
-        $lines = [
-            // DR Revenue
-            new JournalEntryLineData(
-                account_id: $revenueAccount->id,
-                debit_native: $netRevenueNative,
-                credit_native: 0.0,
-                debit_base: $netRevenueBase,
-                credit_base: 0.0,
-                currency: $currency,
-                fx_rate_to_base: $fxRate,
-                sort_order: 0,
-                customer_billable_type: $billableType,
-                customer_billable_id: $billableId,
-                memo: "Credit Note {$creditNote->invoice_number} — Revenue reversal",
-            ),
-        ];
+        $codedLines = $creditNote->lines->whereNotNull('account_id');
+
+        if ($codedLines->isNotEmpty()) {
+            $lines = $this->composeCreditNoteDebitLinesByAccount(
+                $creditNote,
+                $codedLines,
+                $billableType,
+                $billableId,
+                $currency,
+                $fxRate,
+            );
+        } else {
+            $revenueAccount = $this->accountResolver->bySubType($app, $company, AccountSubTypeEnum::SERVICE_REVENUE);
+            $netRevenueNative = (float) $creditNote->subtotal_native - (float) $creditNote->discount_native;
+            $netRevenueBase = (float) $creditNote->subtotal_base - (float) $creditNote->discount_base;
+
+            $lines = [
+                // DR Revenue
+                new JournalEntryLineData(
+                    account_id: $revenueAccount->id,
+                    debit_native: $netRevenueNative,
+                    credit_native: 0.0,
+                    debit_base: $netRevenueBase,
+                    credit_base: 0.0,
+                    currency: $currency,
+                    fx_rate_to_base: $fxRate,
+                    sort_order: 0,
+                    customer_billable_type: $billableType,
+                    customer_billable_id: $billableId,
+                    memo: "Credit Note {$creditNote->invoice_number} — Revenue reversal",
+                ),
+            ];
+        }
 
         if ($taxNative > 0) {
             $taxLines = $creditNote->taxLines;
@@ -309,6 +328,43 @@ class InvoiceJournalEntryComposerService
             externalId: $creditNote->external_id,
             origin: $creditNote->origin,
         );
+    }
+
+    /**
+     * One DR JE line per distinct account_id among the coded lines (lines sharing an account are summed).
+     *
+     * @return array<int, JournalEntryLineData>
+     */
+    private function composeCreditNoteDebitLinesByAccount(
+        Invoice $creditNote,
+        Collection $codedLines,
+        string $billableType,
+        ?int $billableId,
+        string $currency,
+        float $fxRate,
+    ): array {
+        $lines = [];
+        $sortOrder = 0;
+
+        foreach ($codedLines->groupBy('account_id') as $accountId => $groupLines) {
+            $account = Account::query()->where('id', $accountId)->firstOrFail();
+
+            $lines[] = new JournalEntryLineData(
+                account_id: $account->id,
+                debit_native: (float) $groupLines->sum('line_total_native'),
+                credit_native: 0.0,
+                debit_base: (float) $groupLines->sum('line_total_base'),
+                credit_base: 0.0,
+                currency: $currency,
+                fx_rate_to_base: $fxRate,
+                sort_order: $sortOrder++,
+                customer_billable_type: $billableType,
+                customer_billable_id: $billableId,
+                memo: "Credit Note {$creditNote->invoice_number} — {$account->name}",
+            );
+        }
+
+        return $lines;
     }
 
     /**
