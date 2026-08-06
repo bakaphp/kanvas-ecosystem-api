@@ -2,9 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\RAG;
+namespace Kanvas\Intelligence\Agents\Neuron\RAG\Indexers;
 
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Builders\KnowledgeDocumentBuilder;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeSourceRegistry;
 

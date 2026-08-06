@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\RAG;
+namespace Kanvas\Intelligence\Agents\Neuron\RAG\VectorStores;
 
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
 use NeuronAI\RAG\Document;

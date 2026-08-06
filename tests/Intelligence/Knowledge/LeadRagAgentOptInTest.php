@@ -9,7 +9,7 @@ use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\FollowUpAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\ReceptionistAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
-use Kanvas\Intelligence\Agents\Neuron\NeuronRagAgent;
+use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
 use Kanvas\Intelligence\Agents\Neuron\Traits\HasLeadRag;
 use NeuronAI\RAG\RAG;
 use Tests\TestCase;
@@ -18,7 +18,7 @@ class LeadRagAgentOptInTest extends TestCase
 {
     public function testOnlySalesAgentOptsIntoLeadRag(): void
     {
-        $this->assertTrue(is_subclass_of(SalesAgent::class, NeuronRagAgent::class));
+        $this->assertTrue(is_subclass_of(SalesAgent::class, BaseRagAgent::class));
         $this->assertTrue(is_subclass_of(SalesAgent::class, RAG::class));
         $this->assertFalse(is_subclass_of(SalesAgent::class, BaseKanvasAgent::class));
         $this->assertFalse(is_subclass_of(BaseKanvasAgent::class, RAG::class));

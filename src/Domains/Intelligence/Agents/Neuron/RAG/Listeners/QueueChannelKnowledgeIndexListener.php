@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\RAG\Listeners;
 
-use Kanvas\Intelligence\Agents\Neuron\RAG\RagComponents;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
 use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeSourceRegistry;

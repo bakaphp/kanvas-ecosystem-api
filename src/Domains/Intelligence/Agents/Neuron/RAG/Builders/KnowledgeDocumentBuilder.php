@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\RAG;
+namespace Kanvas\Intelligence\Agents\Neuron\RAG\Builders;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeDocument;

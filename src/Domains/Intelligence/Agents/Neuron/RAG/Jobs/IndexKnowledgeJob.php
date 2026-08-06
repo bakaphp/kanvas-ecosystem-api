@@ -2,13 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\RAG;
+namespace Kanvas\Intelligence\Agents\Neuron\RAG\Jobs;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Indexers\KnowledgeIndexer;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeSourceRegistry;
 

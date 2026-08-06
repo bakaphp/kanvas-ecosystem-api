@@ -10,7 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Intelligence\Agents\Neuron\RAG\KnowledgeDocumentBuilder;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Builders\KnowledgeDocumentBuilder;
 use Mockery;
 use Tests\TestCase;
 

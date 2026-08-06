@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Knowledge;
 
-use Kanvas\Intelligence\Agents\Neuron\RAG\KnowledgeRetrieval;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\KnowledgeRetrieval;
 use NeuronAI\Chat\Messages\UserMessage;
 use Tests\TestCase;
 

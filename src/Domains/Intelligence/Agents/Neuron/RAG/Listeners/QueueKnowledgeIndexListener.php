@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\RAG\Listeners;
 
-use Kanvas\Intelligence\Agents\Neuron\RAG\IndexKnowledgeJob;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Jobs\IndexKnowledgeJob;
 use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 
 final class QueueKnowledgeIndexListener

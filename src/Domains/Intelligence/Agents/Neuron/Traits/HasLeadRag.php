@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Traits;
 
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Neuron\RAG\KnowledgeRetrieval;
-use Kanvas\Intelligence\Agents\Neuron\RAG\RagComponents;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval\KnowledgeRetrieval;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
 use NeuronAI\RAG\Nodes\InstructionsNode;
 use NeuronAI\RAG\Nodes\PostProcessNode;

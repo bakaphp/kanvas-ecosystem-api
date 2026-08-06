@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\RAG;
+namespace Kanvas\Intelligence\Agents\Neuron\RAG\Retrieval;
 
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\RAG\Document;
 use NeuronAI\RAG\Retrieval\RetrievalInterface;

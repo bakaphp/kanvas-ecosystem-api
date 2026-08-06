@@ -6,7 +6,7 @@ namespace Tests\Intelligence\Knowledge;
 
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Neuron\RAG\IndexKnowledgeJob;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Jobs\IndexKnowledgeJob;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
 use Tests\TestCase;
 

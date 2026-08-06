@@ -14,7 +14,12 @@ use NeuronAI\Providers\AIProviderInterface;
 
 interface KanvasNeuronAgent extends ProvidesToolDependencies
 {
-    public function setConfiguration(Agent $agent, ?Model $entity = null, ?string $externalReferenceId = null, ?Users $user = null): void;
+    public function setConfiguration(
+        Agent $agent,
+        ?Model $entity = null,
+        ?string $externalReferenceId = null,
+        ?Users $user = null,
+    ): void;
 
     public function setThreadId(string $threadId): void;
 

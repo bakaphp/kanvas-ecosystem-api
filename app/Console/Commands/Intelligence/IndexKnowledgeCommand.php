@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands\Intelligence;
 
 use Illuminate\Console\Command;
-use Kanvas\Intelligence\Agents\Neuron\RAG\KnowledgeIndexer;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Indexers\KnowledgeIndexer;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeSourceRegistry;
 
 class IndexKnowledgeCommand extends Command
