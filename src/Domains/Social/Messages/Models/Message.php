@@ -57,6 +57,7 @@ use Override;
  *  @property int $users_id
  *  @property int $message_types_id
  *  @property string|array $message
+ *  @property string|null $sender_type
  *  @property string $slug
  *  @property int $reactions_count
  *  @property int $comments_count

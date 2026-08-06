@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Social\Messages\Observers;
 
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
+use Kanvas\Social\Messages\Enums\MessageSenderTypeEnum;
 use Kanvas\Social\Messages\Jobs\ProcessMessageMentionsJob;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
@@ -12,6 +13,14 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class MessageObserver
 {
+    public function saving(Message $message): void
+    {
+        $payload = $message->message;
+        $message->sender_type = is_array($payload)
+            ? MessageSenderTypeEnum::fromPayload($payload)?->value
+            : null;
+    }
+
     public function creating(Message $message): void
     {
         //$messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
