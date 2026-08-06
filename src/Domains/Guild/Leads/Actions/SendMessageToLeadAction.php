@@ -47,6 +47,8 @@ use Twilio\Rest\Client as TwilioClient;
 class SendMessageToLeadAction
 {
     private const int TWILIO_UNSUBSCRIBED_RECIPIENT_CODE = 21610;
+    private const int DEFAULT_TWILIO_MAX_MESSAGE_BODY_LENGTH = 1600;
+    private const array APPROVED_A2P_REGISTRATION_STATUSES = ['approved', 'registered', 'verified', 'active'];
 
     /**
      * Default media items per Twilio MMS API call. Override per-app via
@@ -462,6 +464,7 @@ class SendMessageToLeadAction
         //     return $this->sendRespondIoMessage($message, $to);
         // }
 
+        $route = $this->validateTwilioSenderRoute($from);
         $client = Client::getInstanceByCompany($this->lead->company);
 
         $cellphone = ($to !== null && $to !== '')
@@ -474,9 +477,9 @@ class SendMessageToLeadAction
 
         $cellphone = $this->hijackPhoneNumber((string) $cellphone, 'twilio-');
         $cellphone = Str::toE164($cellphone);
-        $this->attemptedFrom = $from;
+        $this->attemptedFrom = $route['from'] ?? null;
         $this->attemptedTo = $cellphone;
-        $this->guardSmsDestination($cellphone, $from);
+        $this->guardSmsDestination($cellphone, $route['from'] ?? null);
         $cellphone = $this->lookupPhoneNumber($client, $cellphone);
 
         $engagementUrls = array_filter(array_column($this->videoEngagements, 'url'));
@@ -485,10 +488,12 @@ class SendMessageToLeadAction
             $fullMessage .= "\n\n" . implode("\n", $engagementUrls);
         }
 
+        $this->validateTwilioMessageBody($fullMessage);
+
         $mediaUrls = $this->getMediaUrlsForTwilio();
 
         if (empty($mediaUrls)) {
-            $payload = ['from' => $from];
+            $payload = $route;
             if ($fullMessage !== '') {
                 $payload['body'] = $fullMessage;
             }
@@ -513,10 +518,7 @@ class SendMessageToLeadAction
         $twilioMessages = [];
 
         foreach ($batches as $index => $batch) {
-            $payload = [
-                'from' => $from,
-                'mediaUrl' => $batch,
-            ];
+            $payload = $route + ['mediaUrl' => $batch];
 
             if ($index === 0 && $fullMessage !== '') {
                 $payload['body'] = $fullMessage;
@@ -534,6 +536,130 @@ class SendMessageToLeadAction
             'lead_uuid' => $this->lead->uuid,
             'messages' => array_map(fn ($m) => $this->describeTwilioMessage($m), $twilioMessages),
         ];
+    }
+
+    /**
+     * Resolve and validate the locally-authoritative sender route before any
+     * destination Lookup or Messages API call. This prevents deterministic
+     * 21603/21660 failures without adding a per-message Twilio API request.
+     *
+     * @return array{from: string}|array{messagingServiceSid: string}
+     */
+    protected function validateTwilioSenderRoute(string $from): array
+    {
+        $company = $this->lead->company;
+        $messagingServiceSid = trim((string) ($company->get(
+            TwilioConfigurationEnum::TWILIO_MESSAGING_SERVICE_SID->value
+        ) ?? ''));
+        $from = trim($from);
+
+        if ($from === '' && $messagingServiceSid === '') {
+            throw new InvalidArgumentException(
+                'Twilio sender route is missing: configure a From number or MessagingServiceSid (prevents error 21603)'
+            );
+        }
+
+        $accountSid = trim((string) ($company->get(TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value) ?? ''));
+        $senderAccountSid = trim((string) ($company->get(
+            TwilioConfigurationEnum::TWILIO_SENDER_ACCOUNT_SID->value
+        ) ?? ''));
+
+        if ($senderAccountSid !== '' && ! hash_equals($accountSid, $senderAccountSid)) {
+            throw new InvalidArgumentException(
+                'Twilio sender route belongs to a different account/subaccount (prevents error 21660)'
+            );
+        }
+
+        if ($from !== '') {
+            $normalizedFrom = Str::toE164($from);
+            $allowedFromNumbers = $this->configuredStringList(
+                $company->get(TwilioConfigurationEnum::TWILIO_ALLOWED_FROM_PHONE_NUMBERS->value)
+            );
+
+            if ($allowedFromNumbers !== []) {
+                $allowedFromNumbers = array_map(
+                    static fn (string $number): string => Str::toE164($number),
+                    $allowedFromNumbers,
+                );
+
+                if (! in_array($normalizedFrom, $allowedFromNumbers, true)) {
+                    throw new InvalidArgumentException(
+                        'Twilio From number is not registered for this dealership/account (prevents sender leakage and error 21660)'
+                    );
+                }
+            }
+
+            $this->validateA2pRegistration($normalizedFrom);
+
+            return ['from' => $normalizedFrom];
+        }
+
+        if (! str_starts_with($messagingServiceSid, 'MG')) {
+            throw new InvalidArgumentException('Twilio MessagingServiceSid must start with MG');
+        }
+
+        $this->validateA2pRegistration(null);
+
+        return ['messagingServiceSid' => $messagingServiceSid];
+    }
+
+    protected function validateTwilioMessageBody(string $message): void
+    {
+        $configuredLimit = (int) ($this->lead->company->get(
+            TwilioConfigurationEnum::TWILIO_MAX_MESSAGE_BODY_LENGTH->value
+        ) ?: self::DEFAULT_TWILIO_MAX_MESSAGE_BODY_LENGTH);
+        $limit = max(1, min(self::DEFAULT_TWILIO_MAX_MESSAGE_BODY_LENGTH, $configuredLimit));
+
+        if (mb_strlen($message, 'UTF-8') > $limit) {
+            throw new InvalidArgumentException(sprintf(
+                'Twilio message body exceeds the configured carrier-safe limit of %d characters (prevents avoidable error 30019)',
+                $limit,
+            ));
+        }
+    }
+
+    protected function validateA2pRegistration(?string $from): void
+    {
+        if ($from !== null && ! str_starts_with($from, '+1')) {
+            return;
+        }
+
+        $enforceRegistration = filter_var(
+            $this->lead->company->get(TwilioConfigurationEnum::TWILIO_ENFORCE_A2P_REGISTRATION->value),
+            FILTER_VALIDATE_BOOL,
+        );
+        if (! $enforceRegistration) {
+            return;
+        }
+
+        $status = strtolower(trim((string) ($this->lead->company->get(
+            TwilioConfigurationEnum::TWILIO_A2P_REGISTRATION_STATUS->value
+        ) ?? '')));
+
+        if (! in_array($status, self::APPROVED_A2P_REGISTRATION_STATUSES, true)) {
+            throw new InvalidArgumentException(sprintf(
+                'Twilio A2P sender registration is %s; outbound SMS is blocked to prevent error 30034',
+                $status !== '' ? $status : 'missing',
+            ));
+        }
+    }
+
+    /** @return list<string> */
+    private function configuredStringList(mixed $value): array
+    {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : explode(',', $value);
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(
+            static fn (mixed $item): string => trim((string) $item),
+            $value,
+        )));
     }
 
     protected function lookupPhoneNumber(TwilioClient $client, string $cellphone): string
@@ -582,14 +708,10 @@ class SendMessageToLeadAction
         }
     }
 
-    protected function guardSmsDestination(string $cellphone, string $from): void
+    protected function guardSmsDestination(string $cellphone, ?string $from): void
     {
-        if ($from === '') {
-            throw new InvalidArgumentException('Twilio sender is not configured');
-        }
-
-        $normalizedFrom = Str::toE164($from);
-        if ($normalizedFrom === $cellphone) {
+        $normalizedFrom = $from !== null ? Str::toE164($from) : null;
+        if ($normalizedFrom !== null && $normalizedFrom === $cellphone) {
             throw new InvalidArgumentException('Twilio To and From numbers must be different');
         }
 

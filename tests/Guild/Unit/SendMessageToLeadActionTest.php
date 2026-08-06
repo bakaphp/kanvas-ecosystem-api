@@ -19,6 +19,71 @@ use Twilio\Rest\Client as TwilioClient;
 
 final class SendMessageToLeadActionTest extends TestCaseUnit
 {
+    public function testTwilioSenderPrecheckRejectsMissingRouteBeforeApiCall(): void
+    {
+        $action = $this->makeTwilioPrecheckAction([]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('21603');
+
+        $action->validateTwilioSenderRouteForTest('');
+    }
+
+    public function testTwilioSenderPrecheckRejectsCrossAccountRoute(): void
+    {
+        $action = $this->makeTwilioPrecheckAction([
+            TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value => 'ACdealer',
+            TwilioConfigurationEnum::TWILIO_SENDER_ACCOUNT_SID->value => 'ACother',
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('21660');
+
+        $action->validateTwilioSenderRouteForTest('+12722917870');
+    }
+
+    public function testTwilioSenderPrecheckUsesConfiguredMessagingService(): void
+    {
+        $action = $this->makeTwilioPrecheckAction([
+            TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value => 'ACdealer',
+            TwilioConfigurationEnum::TWILIO_MESSAGING_SERVICE_SID->value => 'MG123',
+            TwilioConfigurationEnum::TWILIO_A2P_REGISTRATION_STATUS->value => 'approved',
+        ]);
+
+        $this->assertSame(
+            ['messagingServiceSid' => 'MG123'],
+            $action->validateTwilioSenderRouteForTest(''),
+        );
+        $action->guardSmsDestinationForTest('+12722917870', null);
+    }
+
+    public function testTwilioSenderPrecheckRejectsUnregisteredA2pRoute(): void
+    {
+        $action = $this->makeTwilioPrecheckAction([
+            TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value => 'ACdealer',
+            TwilioConfigurationEnum::TWILIO_ALLOWED_FROM_PHONE_NUMBERS->value => ['+12722917870'],
+            TwilioConfigurationEnum::TWILIO_ENFORCE_A2P_REGISTRATION->value => true,
+            TwilioConfigurationEnum::TWILIO_A2P_REGISTRATION_STATUS->value => 'pending',
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('30034');
+
+        $action->validateTwilioSenderRouteForTest('+1 (272) 291-7870');
+    }
+
+    public function testTwilioBodyPrecheckUsesConfiguredCarrierSafeLimit(): void
+    {
+        $action = $this->makeTwilioPrecheckAction([
+            TwilioConfigurationEnum::TWILIO_MAX_MESSAGE_BODY_LENGTH->value => 10,
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('30019');
+
+        $action->validateTwilioMessageBodyForTest('eleven chars');
+    }
+
     public function testSmsResolvesConfiguredCompanySenderWhenCallerPassesNull(): void
     {
         $company = Mockery::mock();
@@ -49,6 +114,35 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         );
 
         $this->assertSame('+12722917870', $action->capturedFrom);
+    }
+
+    private function makeTwilioPrecheckAction(array $configuration): SendMessageToLeadAction
+    {
+        $company = Mockery::mock();
+        $company->shouldReceive('get')
+            ->zeroOrMoreTimes()
+            ->andReturnUsing(static fn (string $key) => $configuration[$key] ?? null);
+
+        $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
+        $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
+
+        return new class ($lead) extends SendMessageToLeadAction {
+            public function validateTwilioSenderRouteForTest(string $from): array
+            {
+                return $this->validateTwilioSenderRoute($from);
+            }
+
+            public function validateTwilioMessageBodyForTest(string $message): void
+            {
+                $this->validateTwilioMessageBody($message);
+            }
+
+            public function guardSmsDestinationForTest(string $cellphone, ?string $from): void
+            {
+                $this->guardSmsDestination($cellphone, $from);
+            }
+        };
     }
 
     public function testTwilioMediaUrlsIncludeDocuments(): void
