@@ -169,6 +169,9 @@ class SetupRolesCommand extends Command
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
             ],
+            'insurance-client' => [
+                RolesEnums::INSURANCE_CLIENT,
+            ],
         ];
 
         Bouncer::scope()->to(RolesEnums::getScope($app));
