@@ -56,7 +56,7 @@ class GetOrderStatsAction
 
         $currentCount = $this->getCurrentCount($baseDate, $timezone);
         $dailyTurnover = $this->getDailyTurnover($start, $end, $timezone);
-        $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $currentCount);
+        $ordersInPeriod = $this->getOrdersInPeriod($start, $end, $timezone);
 
         $groupByEnum = DateGroupByEnum::from($groupBy);
 
@@ -170,124 +170,135 @@ class GetOrderStatsAction
     }
 
     /**
-     * Get orders in period grouped by date and state
+     * Get orders in period grouped by date and state.
+     *
+     * The stored `ended_at` is not trustworthy — a superseded row that kept a NULL `ended_at`
+     * reads as "still current" forever, so an order that was already dispatched went on being
+     * counted in its old state every later day. Each state's end is derived from the next
+     * transition instead, which is self-consistent no matter how the row was written.
      */
-    private function getOrdersInPeriod($start, $end, $currentCount = null): array
+    private function getOrdersInPeriod(Carbon $start, Carbon $end, string $timezone = 'UTC'): array
     {
-        $dateList = DateHelper::generateDateList($start, $end);
+        $daysInRange = collect(DateHelper::generateDateList($start, $end, $timezone))
+            ->map(fn (string $date) => trim($date, "'"));
 
-        $dateRangeSub = DB::raw('(SELECT ' . implode(' UNION ALL SELECT ', $dateList) . ') as date_list(date_val)');
+        if ($daysInRange->isEmpty()) {
+            return [
+                'orderAvg' => 0,
+                'maxOrdersDate' => ['date' => null, 'count' => 0],
+                'minOrdersDate' => ['date' => null, 'count' => 0],
+                'data' => [],
+            ];
+        }
 
-        $orderTypeFilter = '';
+        // Each day gets its own UTC cutoff so the boundary follows the caller's timezone
+        // (and its DST shifts) instead of cutting at UTC midnight.
+        $cutoffs = $daysInRange->mapWithKeys(fn (string $date) => [
+            $date => Carbon::parse($date, $timezone)->endOfDay()->timezone('UTC')->format('Y-m-d H:i:s'),
+        ]);
+
+        $bindings = [$this->app->getId(), $cutoffs->last()];
+        $filters = '';
+
         if (! empty($this->orderTypeNames)) {
-            $orderTypeNamesEscaped = array_map(fn ($name) => "'" . addslashes($name) . "'", $this->orderTypeNames);
-            $orderTypeNamesString = implode(', ', $orderTypeNamesEscaped);
-            $orderTypeFilter = "AND EXISTS (
+            $filters .= ' AND EXISTS (
                 SELECT 1 FROM orders
-                INNER JOIN order_types ON orders.order_types_id = order_types.id
-                WHERE orders.id = order_transitions_history.order_id
-                AND order_types.name IN ({$orderTypeNamesString})
-            )";
+                INNER JOIN order_types ON order_types.id = orders.order_types_id
+                WHERE orders.id = history.order_id
+                  AND order_types.name IN (' . $this->bindList($this->orderTypeNames, $bindings) . ')
+            )';
         }
 
-        $productFilter = '';
         if ($this->productVariantIds && $this->productVariantIds->isNotEmpty()) {
-            $variantIdsString = $this->productVariantIds->implode(', ');
-            $productFilter = "AND EXISTS (
+            $filters .= ' AND EXISTS (
                 SELECT 1 FROM order_items
-                WHERE order_items.order_id = order_transitions_history.order_id
-                AND order_items.variant_id IN ({$variantIdsString})
-                AND order_items.is_deleted = 0
-            )";
+                WHERE order_items.order_id = history.order_id
+                  AND order_items.is_deleted = 0
+                  AND order_items.variant_id IN (' . $this->bindList($this->productVariantIds->all(), $bindings) . ')
+            )';
         }
 
-        $providerFilter = '';
         if (! empty($this->providerCompanyIds)) {
             $db = config('database.connections.commerce.database', 'commerce');
-            $ids = implode(',', array_map('intval', $this->providerCompanyIds));
-            $providerFilter = "AND order_id IN (SELECT order_id FROM {$db}.order_providers WHERE company_id IN ({$ids}))";
+            $filters .= " AND EXISTS (
+                SELECT 1 FROM {$db}.order_providers
+                WHERE order_providers.order_id = history.order_id
+                  AND order_providers.company_id IN (" . $this->bindList($this->providerCompanyIds, $bindings) . ')
+            )';
         }
 
-        $userEmailFilter = '';
         if ($this->userEmail) {
-            $escapedEmail = addslashes($this->userEmail);
-            $userEmailFilter = "AND order_id IN (SELECT id FROM orders WHERE user_email LIKE '{$escapedEmail}')";
+            $bindings[] = $this->userEmail;
+            $filters .= ' AND EXISTS (
+                SELECT 1 FROM orders WHERE orders.id = history.order_id AND orders.user_email LIKE ?
+            )';
         }
 
-        $activeOrders = DB::raw("
-            (SELECT DISTINCT order_id
-             FROM order_transitions_history
-             WHERE apps_id = {$this->app->id}
-               AND is_deleted = 0
-               AND changed_at <= '{$end} 23:59:59'
-               {$orderTypeFilter}
-               {$productFilter}
-               {$providerFilter}
-               {$userEmailFilter}) AS active_orders
-        ");
+        $dateRows = $cutoffs->map(function (string $cutoff, string $date) use (&$bindings) {
+            $bindings[] = $date;
+            $bindings[] = $cutoff;
 
-        $latestStatus = DB::raw("
-            (
-                SELECT * FROM (
-                    SELECT 
-                        order_id,
-                        to_status_id,
-                        changed_at,
-                        ended_at,
-                        ROW_NUMBER() OVER (PARTITION BY order_id, date(changed_at) ORDER BY changed_at DESC) AS rn
-                    FROM order_transitions_history
-                    WHERE apps_id = {$this->app->id}
-                      AND is_deleted = 0
-                ) ranked
-                WHERE rn = 1
-            ) AS latest_status
-        ");
+            return 'SELECT ? AS report_date, ? AS cutoff_utc';
+        })->implode(' UNION ALL ');
 
-        $results = DB::connection('commerce')->query()
-            ->fromSub(function ($query) use ($dateRangeSub) {
-                $query->selectRaw('date_val as report_date')->from($dateRangeSub);
-            }, 'date_range')
-            ->crossJoin($activeOrders)
-            ->leftJoin($latestStatus, function ($join) {
-                $join->on('active_orders.order_id', '=', 'latest_status.order_id')
-                    ->whereRaw('latest_status.changed_at <= CONCAT(date_range.report_date, " 23:59:59")')
-                    ->whereRaw('(latest_status.ended_at IS NULL OR latest_status.ended_at > CONCAT(date_range.report_date, " 23:59:59"))');
-            })
-            ->join('order_statuses', 'latest_status.to_status_id', '=', 'order_statuses.id')
-            ->when(! empty($this->currentCountStates), function ($query) {
-                $query->whereIn('order_statuses.slug', $this->currentCountStates);
-            })
-            ->selectRaw('
-                order_statuses.slug as state, 
-                COUNT(DISTINCT active_orders.order_id) as count, 
-                date_range.report_date as date
-            ')
-            ->groupBy('order_statuses.slug', 'date_range.report_date')
-            ->orderBy('date_range.report_date')
-            ->get();
+        $stateFilter = '';
+        if (! empty($this->currentCountStates)) {
+            $stateFilter = ' WHERE order_statuses.slug IN (' . $this->bindList($this->currentCountStates, $bindings) . ')';
+        }
 
-        $daysInRange = collect(DateHelper::generateDateList($start, $end))
-            ->map(fn ($date) => trim($date, "'"));
+        $sql = "
+            WITH state_intervals AS (
+                SELECT
+                    history.order_id,
+                    history.to_status_id,
+                    history.changed_at,
+                    LEAD(history.changed_at) OVER (
+                        PARTITION BY history.order_id
+                        ORDER BY history.changed_at, history.id
+                    ) AS superseded_at
+                FROM order_transitions_history AS history
+                WHERE history.apps_id = ?
+                  AND history.is_deleted = 0
+                  AND history.changed_at <= CAST(? AS DATETIME)
+                  {$filters}
+            )
+            SELECT
+                order_statuses.slug AS state,
+                date_range.report_date AS date,
+                COUNT(DISTINCT state_intervals.order_id) AS count
+            FROM ({$dateRows}) AS date_range
+            INNER JOIN state_intervals
+                ON state_intervals.changed_at <= CAST(date_range.cutoff_utc AS DATETIME)
+               AND (
+                    state_intervals.superseded_at IS NULL
+                    OR state_intervals.superseded_at > CAST(date_range.cutoff_utc AS DATETIME)
+               )
+            INNER JOIN order_statuses ON order_statuses.id = state_intervals.to_status_id
+            {$stateFilter}
+            GROUP BY date_range.report_date, order_statuses.slug
+            ORDER BY date_range.report_date
+        ";
 
-        $groupedResults = $results->groupBy('date');
+        $groupedResults = collect(DB::connection('commerce')->select($sql, $bindings))
+            ->groupBy('date');
 
-        $byDates = $daysInRange->map(function ($date) use ($groupedResults) {
+        $byDates = $daysInRange->map(function (string $date) use ($groupedResults) {
             $group = $groupedResults->get($date, collect());
 
             return [
                 'date' => $date,
-                'count' => $group?->sum('count') ?? 0,
-                'states' => $group?->map(fn ($item) => [
+                'count' => (int) $group->sum('count'),
+                'states' => $group->map(fn ($item) => [
                     'state' => $item->state ?? 'Unknown',
                     'count' => (int) $item->count,
-                ])->toArray() ?? [],
+                ])->values()->toArray(),
             ];
         });
 
-        $totalEntries = $byDates->sum(fn ($entry) => $entry['count'] ?? 0);
+        $totalEntries = $byDates->sum(fn (array $entry) => $entry['count']);
 
-        $maxOrders = $byDates->sortByDesc(fn ($entry) => $entry['count'] ?? 0)->first();
-        $minOrders = $byDates->sortBy(fn ($entry) => $entry['count'] ?? 0)->first();
+        $maxOrders = $byDates->sortByDesc(fn (array $entry) => $entry['count'])->first();
+        $minOrders = $byDates->sortBy(fn (array $entry) => $entry['count'])->first();
 
         return [
             'orderAvg' => $totalEntries / $daysInRange->count(),
@@ -301,6 +312,15 @@ class GetOrderStatsAction
             ],
             'data' => $byDates->toArray(),
         ];
+    }
+
+    private function bindList(array $values, array &$bindings): string
+    {
+        foreach ($values as $value) {
+            $bindings[] = $value;
+        }
+
+        return implode(', ', array_fill(0, count($values), '?'));
     }
 
     private function getCurrentCount(?string $baseDate = null, string $timezone = 'UTC'): int
