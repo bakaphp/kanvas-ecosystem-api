@@ -14,7 +14,7 @@ use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Exceptions\AgentProviderException;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\Contracts\KanvasNeuronAgent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\KanvasAgent;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Sessions\Actions\PersistChatTurnToSocialAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -189,7 +189,7 @@ class AgentChatKernel
             user: $this->user,
         );
 
-        if ($handler instanceof KanvasNeuronAgent) {
+        if ($handler instanceof KanvasAgent) {
             // userChat (sourceChannel === null): scope history to this thread.
             // Channel agents: thread by entity — Lead+People IS the conversation,
             // not the per-channel session. Cross-channel rollup is the design
@@ -204,7 +204,7 @@ class AgentChatKernel
             $handler->setTurnMedia($this->nativeMedia());
         }
 
-        if ($this->additionalTools !== [] && $handler instanceof KanvasNeuronAgent) {
+        if ($this->additionalTools !== [] && $handler instanceof KanvasAgent) {
             $handler->addTool($this->additionalTools);
         }
 
