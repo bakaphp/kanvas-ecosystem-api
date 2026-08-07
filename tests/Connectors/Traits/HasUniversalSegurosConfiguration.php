@@ -19,7 +19,7 @@ trait HasUniversalSegurosConfiguration
         $company->set(ConfigurationEnum::ENVIRONMENT->value, getenv('TEST_UNIVERSAL_SEGUROS_ENVIRONMENT') ?: EnvironmentEnum::QA->value);
         $company->set(ConfigurationEnum::CLIENT_ID->value, getenv('TEST_UNIVERSAL_SEGUROS_CLIENT_ID'));
         $company->set(ConfigurationEnum::CLIENT_SECRET->value, getenv('TEST_UNIVERSAL_SEGUROS_CLIENT_SECRET'));
-        $company->set(ConfigurationEnum::SCOPES->value, getenv('TEST_UNIVERSAL_SEGUROS_SCOPES') ?: ConfigurationEnum::DEFAULT_SCOPES);
+        $company->set(ConfigurationEnum::SCOPES->value, getenv('TEST_UNIVERSAL_SEGUROS_SCOPES') ?: ConfigurationEnum::defaultScopes());
 
         return new Client($app, $company);
     }

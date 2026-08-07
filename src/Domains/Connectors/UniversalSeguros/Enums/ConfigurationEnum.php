@@ -11,5 +11,18 @@ enum ConfigurationEnum: string
     case CLIENT_SECRET = 'universal_seguros_client_secret';
     case SCOPES = 'universal_seguros_scopes';
 
-    public const DEFAULT_SCOPES = 'unit.serviceplattform.externos unit.serviceplattform.cotizaciones unit.serviceplattform.polizas unit.serviceplattform.emitir.paratusegurodeley unit.serviceplattform.emitir.paratuauto unit.serviceplattform.emitir.porloqueconduces';
+    public const BASE_SCOPES = 'unit.serviceplattform.externos unit.serviceplattform.cotizaciones unit.serviceplattform.polizas';
+
+    /**
+     * Emission is scoped per product, so the token must carry every product we sell
+     * or that product dies at emit time — after the customer has paid. Derived from
+     * ProductEnum so adding a product can't silently skip its scope.
+     */
+    public static function defaultScopes(): string
+    {
+        return implode(' ', [
+            self::BASE_SCOPES,
+            ...array_map(fn (ProductEnum $product): string => $product->emitScope(), ProductEnum::cases()),
+        ]);
+    }
 }

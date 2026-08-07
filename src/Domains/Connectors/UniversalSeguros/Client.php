@@ -38,7 +38,7 @@ class Client
 
         $this->clientId = (string) $company->get(ConfigurationEnum::CLIENT_ID->value);
         $this->clientSecret = (string) $company->get(ConfigurationEnum::CLIENT_SECRET->value);
-        $this->scopes = (string) ($company->get(ConfigurationEnum::SCOPES->value) ?: ConfigurationEnum::DEFAULT_SCOPES);
+        $this->scopes = (string) ($company->get(ConfigurationEnum::SCOPES->value) ?: ConfigurationEnum::defaultScopes());
 
         if (empty($this->clientId) || empty($this->clientSecret)) {
             throw new ValidationException('Universal Seguros credentials are not configured for this company');

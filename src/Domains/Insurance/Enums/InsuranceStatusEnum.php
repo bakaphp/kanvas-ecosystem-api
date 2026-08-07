@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\UniversalSeguros\Enums;
+namespace Kanvas\Insurance\Enums;
 
-enum InsuranceOrderStatusEnum: string
+enum InsuranceStatusEnum: string
 {
     case QUOTED = 'quoted';
     case DOCUMENTS_UPLOADED = 'documents_uploaded';

@@ -127,6 +127,7 @@
             "Kanvas\\Analytics\\": "src/Domains/Analytics",
             "Kanvas\\NervousSystem\\": "src/Domains/NervousSystem",
             "Kanvas\\HumanResources\\": "src/Domains/HumanResources",
+            "Kanvas\\Insurance\\": "src/Domains/Insurance",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }

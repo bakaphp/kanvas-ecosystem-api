@@ -1,0 +1,37 @@
+# Provider-agnostic insurance surface.
+#
+# Only two operations are direct: reference data to render the forms, and a price
+# to compare. Contracting is an Order like any other Movipass vertical, and the
+# insurer round-trips (documents, emission, policy sync) run as workflow activities
+# off the order's status — so adding an insurer adds a container binding, never a
+# mutation.
+#
+# Setup is done through the generic createIntegrationCompany mutation.
+
+type InsuranceQuoteResult {
+    provider: String!
+    product: String!
+    success: Boolean!
+    message: String!
+    quote_number: String!
+    premium: Float
+    tax: Float
+    total: Float
+    currency: String
+    data: Mixed
+}
+
+extend type Query @guard {
+    insuranceCatalog(catalog: String!, params: Mixed, provider: String): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Insurance\\Queries\\InsuranceQuery@catalog"
+        )
+    insuranceQuote(
+        product: String!
+        input: Mixed!
+        provider: String
+    ): InsuranceQuoteResult!
+        @field(
+            resolver: "App\\GraphQL\\Insurance\\Queries\\InsuranceQuery@quote"
+        )
+}

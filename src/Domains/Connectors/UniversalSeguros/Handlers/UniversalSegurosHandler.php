@@ -20,7 +20,7 @@ class UniversalSegurosHandler extends BaseIntegration
         $clientId = (string) ($this->data['client_id'] ?? '');
         $clientSecret = (string) ($this->data['client_secret'] ?? '');
         $environment = (string) ($this->data['environment'] ?? EnvironmentEnum::QA->value);
-        $scopes = (string) ($this->data['scopes'] ?? ConfigurationEnum::DEFAULT_SCOPES);
+        $scopes = (string) ($this->data['scopes'] ?? ConfigurationEnum::defaultScopes());
 
         if ($clientId === '' || $clientSecret === '') {
             throw new ValidationException('Universal Seguros client_id and client_secret are required');

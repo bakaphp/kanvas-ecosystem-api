@@ -4,6 +4,7 @@ Loads when work touches `src/Domains/Connectors/`. For the full scaffold pattern
 
 Per-connector `CLAUDE.md` (load when working in that connector's tree):
 - [`PiDev/CLAUDE.md`](PiDev/CLAUDE.md) — pi.dev coding-agent job runner: agent-scoped GitHub token/allow-list, 3-tier rules of engagement, Kanvas-owned job durability + poller, `Neuron/Tools/Coding/` tools.
+- [`UniversalSeguros/CLAUDE.md`](UniversalSeguros/CLAUDE.md) — auto-insurance SDK + its `Providers/UniversalSegurosProvider` implementation of the `Kanvas\Insurance` contracts. Per-product emit scopes, QA chassis blocker, problem+json error shape.
 
 ## Hard rules specific to this tree
 

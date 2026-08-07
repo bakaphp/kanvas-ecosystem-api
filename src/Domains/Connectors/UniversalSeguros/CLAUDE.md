@@ -15,24 +15,41 @@ Pierdes Tu Auto, Para Tu Seguro de Ley).
   the `Servicios Movipass` Postman collection. Re-read those for field-level detail.
 - Live QA verified 2026-06-29: auth + reference GETs + quote routing all work.
 
+## This connector is an SDK — the domain logic lives in `Kanvas\Insurance`
+
+**Read [`src/Domains/Insurance/CLAUDE.md`](../../Insurance/CLAUDE.md) first.**
+This folder is a typed client for Universal's API plus the adapter that implements the shared
+contract. Orders, custom fields, statuses, GraphQL and workflow activities are
+provider-agnostic and live in `Kanvas\Insurance`.
+
+This is the **AgentRuntime shape**, not the payments one: the shared contract is a primary
+domain, and each connector holds its own implementation of it — the same way
+`Connectors/OpenClaw/Providers/OpenClawProvider.php` implements
+`Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider`.
+
+The adapter is [`Providers/UniversalSegurosProvider.php`](Providers/UniversalSegurosProvider.php).
+It is the only class that knows Universal's field names (`numeroCotizacion`, `terminos.prima`,
+`Matricula`/`VideoInspeccion`). **Nothing outside it should reference them.**
+
+There are no `universalSeguros*` GraphQL operations, and there is no connector-level Action or
+Activity — that was the n+1 shape (a new mutation per insurer) this was refactored out of.
+
 ## The entity: a Souk **Order** backs each quote/policy
 
 There is no bespoke "insurance quote" table. The cotización → póliza lifecycle rides on a
-`Kanvas\Souk\Orders\Models\Order`, consistent with the rest of the Movipass app (its
-`OrderTypeEnum` already distinguishes order subtypes). Mapping:
+`Kanvas\Souk\Orders\Models\Order`. Mapping:
 
 | Universal concept | Kanvas | Where |
 |---|---|---|
-| Cotización (quote) → Póliza (emitted) | the **same Order** through its lifecycle | — |
-| `numeroCotizacion`, `numeroPoliza`, `requestId`, primas, status | **Order custom fields** | `Enums/CustomFieldEnum` |
+| Cotización (quote) | **nothing persisted** — it is a price, returned by `insuranceQuote` | — |
+| Póliza + the chosen quote | **Order** custom fields, generic keys | `Kanvas\Insurance\Enums\InsuranceCustomFieldEnum` |
+| `requestId`, product code (A-PA…A-PL) | Order custom fields, Universal-only keys | `Enums/CustomFieldEnum` |
 | Product (A-PA…A-PL) | catalog **Product/Variant** (a line item) | `Enums/ProductEnum` |
 | Cliente (cédula, contacto) | **People** on the order | — |
-| Vehículo + inspección | order item metadata (optionally a Vehicle) | quote `$input` |
-| Status lifecycle | `Enums/InsuranceOrderStatusEnum` stamped on the order | — |
+| Vehículo + inspección | order item metadata (optionally a Vehicle) | quote `payload` |
 
-**Actions take an `Order`, call Universal, and stamp the result back onto it.** The mapping from
-an Order's people/vehicle into the quote `$input` array is the **caller's** job (resolver or a
-future `Order → QuoteRequest` builder) — the connector does not assume an order shape.
+Mapping an Order's people/vehicle into the quote payload is still the **caller's** job — the
+`Order → QuoteRequest` builder does not exist yet.
 
 ## Layout
 
@@ -40,13 +57,10 @@ future `Order → QuoteRequest` builder) — the connector does not assume an or
 Client.php                      OAuth2 client_credentials + Redis token cache + problem+json error surfacing
 Services/UniversalSegurosService one method per documented endpoint (catalogs, quote, docs, pay, emit, policy)
 DataTransferObject/             QuoteRequest::make() → exact cotizar JSON (QuoteData/Vehiculo/Cliente/Terminos/…)
-Actions/                        CreateQuote, UploadInspectionDocuments, RequestPaymentLink, EmitPolicy, SyncPolicyStatus
 Handlers/UniversalSegurosHandler setup() — validates + stores company creds, does a real token round-trip
-Enums/                          Environment, Configuration, Product, DocumentTransaction/Operation, CustomField, InsuranceOrderStatus
-Activities/                     SyncUniversalSegurosPolicyActivity (#[WorkflowAction], auto-discovered)
+Providers/UniversalSegurosProvider implements the Kanvas\Insurance contracts — the only Universal↔Kanvas mapping
+Enums/                          Environment, Configuration, Product, DocumentTransaction/Operation, CustomField
 ```
-
-GraphQL: `graphql/schemas/Connector/universalSeguros.graphql` + `app/GraphQL/Connector/UniversalSeguros/`.
 
 ## Auth & multi-tenancy
 
@@ -68,11 +82,14 @@ describes the setup fields: `environment`, `client_id`, `client_secret`, `scopes
 
 ## End-to-end flow (§5 of the spec)
 
-1. **Cotizar** — `CreateQuoteAction($order, ProductEnum, $input)` → stamps `numeroCotizacion` + primas, status `QUOTED`.
-2. **Docs** — `UploadInspectionDocumentsAction($order, matriculaPath, videoPath)` → multipart `/documentos`, status `DOCUMENTS_UPLOADED`. (All products except A-PL require inspection.)
-3. **Pago** — `RequestPaymentLinkAction($order, byEmail?)` → pay link / email, status `AWAITING_PAYMENT`. (Gateway-token form path `/pagos/generar-formulario` exists on the Service but isn't wired to an Action yet.)
-4. **Emitir** — `EmitPolicyAction($order)` → emit + read-back, stamps `numeroPoliza`, status `EMITTED`/`POLICY_ACTIVE`.
-5. **Sync** — `SyncUniversalSegurosPolicyActivity` polls `getPolicy` to follow pay+emit completed out-of-band.
+Every step is a method on `UniversalSegurosProvider`; who calls it and when is the domain
+layer's business — see the Insurance CLAUDE.md table.
+
+1. **Cotizar** — `quote(InsuranceQuoteRequest)` → returns `numeroCotizacion` + primas. Persists nothing.
+2. **Docs** — `uploadDocuments($order, [InsuranceDocument, …])` → multipart `/documentos`, status `DOCUMENTS_UPLOADED`. (All products except A-PL require inspection — `requiresInspection($order)`.)
+3. **Pago** — `requestPaymentLink($order, byEmail?)` → pay link / email, status `AWAITING_PAYMENT`. (Gateway-token form path `/pagos/generar-formulario` exists on the Service but isn't wired.)
+4. **Emitir** — `emit($order)` → emit + read-back, stamps the policy number, status `EMITTED`/`POLICY_ACTIVE`.
+5. **Sync** — `syncPolicy($order)`, driven by the generic `SyncInsurancePolicyActivity`, to follow pay+emit completed out-of-band.
 
 ## Gotchas / open items
 
@@ -87,20 +104,34 @@ describes the setup fields: `environment`, `client_id`, `client_secret`, `scopes
 - **A-PC (Por Si Chocas)** requires `vehiculo.sumaAsegurada`. **A-KM** primas come back as
   `primaFija` + `primaKm` instead of `prima`.
 - **DTO casing:** use `debidaDiligencia` (the A-KM Postman sample misspells it `debidadiligencia`).
-- Scopes are space-separated; only request scopes you're permitted to use (`ConfigurationEnum::DEFAULT_SCOPES`).
+- **Emission is scoped per product.** `ConfigurationEnum::defaultScopes()` derives the scope list
+  from `ProductEnum::emitScope()` so a new product can't ship without its emit scope. The old
+  hardcoded string covered only 3 of 5 — A-PC and A-PT would have died at emit time, *after* the
+  customer paid. Regression: `tests/Connectors/UniversalSeguros/ConfigurationScopesTest.php`.
 
 ## Tests
 
 - `tests/Connectors/Traits/HasUniversalSegurosConfiguration.php` — sets company creds from
   `TEST_UNIVERSAL_SEGUROS_*` env, returns a `Client`.
 - `tests/Connectors/UniversalSeguros/QuoteRequestTest.php` — pure DTO-shape tests (green, no network).
+- `tests/Connectors/UniversalSeguros/ConfigurationScopesTest.php` — emit scopes cover every product.
+- `tests/Insurance/UniversalSegurosProviderTest.php` — the adapter against a mocked service:
+  response mapping, A-KM premium sum, document-type mapping, policy stamping.
 - Live auth/quote/reference tests should follow the AppKey-guarded pattern (see `tests/CLAUDE.md`)
   and only run when `TEST_UNIVERSAL_SEGUROS_*` creds are present.
 
 ## TODO for the next dev
 
-- [ ] `Order → QuoteRequest` builder (map People + vehicle custom fields into the quote `$input`).
-- [ ] Wire the gateway-token pay form (`generatePaymentForm`) to an Action + return-URL handling.
-- [ ] Upload inspection files straight from the Order's `Filesystem` attachments (temp-path bridge).
+Connector-level only — the domain-level open items (payment decision, document-upload
+trigger, unwired emit) live in the Insurance CLAUDE.md.
+
+- [ ] Vehicle → quote payload builder (map the Kanvas vehicle product's custom fields into
+      `vehiculo`). Until this exists the caller hand-builds the payload; the insurance-specific
+      vehicle fields (`fuel_type`, `is_new`, `estimated_value`) don't exist on products yet.
+- [ ] Wire the gateway-token pay form (`generatePaymentForm`) + return-URL handling — blocked on
+      the payment decision.
 - [ ] Live integration tests once Universal provides an insurable QA chassis.
 - [ ] Confirm prod credentials/scopes and the allowed enum values (ocupacion/tipoDocumento/combustible/seguroLey).
+- [ ] Response field names (`url` on the pay link, `numeroPoliza`/`numero` on the policy) were
+      taken from the original implementation and never verified — the spec (`MOVIPASS_AUTO_INTEGRATION.md`,
+      the Postman collection) is **not in the repo**. Confirm before prod.
