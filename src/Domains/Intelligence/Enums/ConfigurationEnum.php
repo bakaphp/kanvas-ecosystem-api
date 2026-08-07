@@ -17,6 +17,8 @@ enum ConfigurationEnum: string
     case OPEN_AI_EMBEDDINGS_MODEL = 'kanvas-intelligence-openai-embeddings-model';
     case PINECONE_API_KEY = 'kanvas-intelligence-pinecone-api-key';
     case PINECONE_INDEX_URL = 'kanvas-intelligence-pinecone-index-url';
+    case TYPESENSE_VECTOR_COLLECTION = 'kanvas-intelligence-typesense-vector-collection';
+    case TYPESENSE_VECTOR_DIMENSION = 'kanvas-intelligence-typesense-vector-dimension';
     case ADK_BASE_URL = 'google_orchestrator_base_url';
     case ADK_API_KEY = 'google_orchestrator_api_key';
     case ADK_APP_NAME = 'google_orchestrator_app_name';
