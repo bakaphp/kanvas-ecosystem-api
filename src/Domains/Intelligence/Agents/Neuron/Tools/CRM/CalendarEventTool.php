@@ -10,6 +10,7 @@ use Kanvas\Event\Events\DataTransferObject\Event as EventData;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -133,6 +134,13 @@ class CalendarEventTool extends Tool
             ];
         }
 
+        if (! $start->isSameDay($end)) {
+            return [
+                'status' => 'error',
+                'message' => 'Appointments must start and end on the same local calendar date.',
+            ];
+        }
+
         $attendeeBlock = $attendee_emails === [] ? '' : "\nAttendees: " . implode(', ', $attendee_emails);
         $fullDescription = trim(($description ?? '') . $attendeeBlock);
 
@@ -161,10 +169,19 @@ class CalendarEventTool extends Tool
                 ]
             );
 
-            $event = new CreateEventAction($eventData)->disableWorkflow()->execute();
+            $event = new CreateEventAction($eventData, [
+                'google_calendar' => [
+                    'attendee_emails' => array_values(array_unique($attendee_emails)),
+                ],
+            ])->disableWorkflow()->execute();
             $event->resources_id = $lead->getId();
             $event->resources_type = Lead::class;
             $event->saveQuietly();
+            $event->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                ['app' => $lead->app, 'company' => $company],
+            );
         } catch (Throwable $e) {
             return [
                 'status' => 'error',
