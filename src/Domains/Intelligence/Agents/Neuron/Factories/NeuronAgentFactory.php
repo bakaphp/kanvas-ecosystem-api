@@ -7,7 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Factories;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\Contracts\KanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Users\Models\Users;
 use RuntimeException;
 
@@ -19,7 +19,7 @@ class NeuronAgentFactory
         ?Model $entity = null,
         ?string $externalReferenceId = null,
         ?Users $user = null,
-    ): KanvasAgent {
+    ): BehavesAsKanvasAgent {
         $agent = Agent::where('name', $name)
             ->where('apps_id', $app->getId())
             ->where('is_deleted', 0)
@@ -34,7 +34,7 @@ class NeuronAgentFactory
         ?Model $entity = null,
         ?string $externalReferenceId = null,
         ?Users $user = null,
-    ): KanvasAgent {
+    ): BehavesAsKanvasAgent {
         $agent = Agent::where('slug', $slug)
             ->where('apps_id', $app->getId())
             ->where('is_deleted', 0)
@@ -48,16 +48,16 @@ class NeuronAgentFactory
         ?Model $entity = null,
         ?string $externalReferenceId = null,
         ?Users $user = null,
-    ): KanvasAgent {
+    ): BehavesAsKanvasAgent {
         $handlerClass = $agent->type->handler;
 
-        if (! is_subclass_of($handlerClass, KanvasAgent::class)) {
+        if (! is_subclass_of($handlerClass, BehavesAsKanvasAgent::class)) {
             throw new RuntimeException(
-                "Agent handler [{$handlerClass}] must implement " . KanvasAgent::class
+                "Agent handler [{$handlerClass}] must implement " . BehavesAsKanvasAgent::class
             );
         }
 
-        /** @var KanvasAgent $neuronAgent */
+        /** @var BehavesAsKanvasAgent $neuronAgent */
         $neuronAgent = new $handlerClass();
         $neuronAgent->setConfiguration(
             agent: $agent,

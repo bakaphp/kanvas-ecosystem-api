@@ -8,7 +8,7 @@ use Baka\Http\SafeUrlFetcher;
 use finfo;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\Contracts\KanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Enums\SourceType;
 use NeuronAI\Chat\Messages\ContentBlocks\AudioContent;
@@ -58,7 +58,7 @@ class AttachmentDescriptionService
 
         $handler = new $handlerClass();
 
-        if (! $handler instanceof KanvasAgent) {
+        if (! $handler instanceof BehavesAsKanvasAgent) {
             return null;
         }
 

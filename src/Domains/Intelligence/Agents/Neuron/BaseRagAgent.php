@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron;
 
-use Kanvas\Intelligence\Agents\Neuron\Contracts\KanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\Traits\HasKanvasAgentBehavior;
 use NeuronAI\RAG\RAG;
 use NeuronAI\Workflow\Node;
 use Override;
 
-class BaseRagAgent extends RAG implements KanvasAgent
+class BaseRagAgent extends RAG implements BehavesAsKanvasAgent
 {
     use HasKanvasAgentBehavior;
 

@@ -12,7 +12,7 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Providers\AIProviderInterface;
 
-interface KanvasAgent extends ProvidesToolDependencies
+interface BehavesAsKanvasAgent extends ProvidesToolDependencies
 {
     public function setConfiguration(
         Agent $agent,

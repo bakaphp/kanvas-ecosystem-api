@@ -29,7 +29,7 @@ use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
-use Kanvas\Intelligence\Agents\Neuron\Contracts\KanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Models\BaseModel;
@@ -358,7 +358,7 @@ class Agent extends BaseModel
 
         return is_string($handler)
             && ! $this->isContainerRuntime()
-            && is_a($handler, KanvasAgent::class, true);
+            && is_a($handler, BehavesAsKanvasAgent::class, true);
     }
 
     /**
