@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
-use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCompanyUserForTool;
@@ -16,13 +16,13 @@ use Override;
 use Throwable;
 
 /**
- * Reassigns a lead to a new owner (sales rep). The new owner is resolved by name/email but ONLY
- * among users of the current company — a lead can never be handed to a user outside the tenant.
+ * Assigns a deal to a different owner (sales rep). The new owner is resolved by name/email but ONLY
+ * among users of the current company — a deal can never be handed to a user outside the tenant.
  * Ambiguous matches return the candidates so the agent can disambiguate instead of guessing.
  * Company-wide write — an internal-teammate capability, NOT for the customer-facing prospect surface.
  */
-#[AgentTool(name: 'Reassign Lead Owner', category: 'crm')]
-class ReassignLeadOwnerTool extends Tool
+#[AgentTool(name: 'Reassign Deal Owner', category: 'crm')]
+class ReassignDealOwnerTool extends Tool
 {
     use HasKanvasContext;
     use ResolvesCompanyUserForTool;
@@ -30,11 +30,11 @@ class ReassignLeadOwnerTool extends Tool
     public function __construct()
     {
         parent::__construct(
-            name: 'reassign_lead_owner',
-            description: 'Change the owner (assigned sales rep) of a lead. Provide the lead_id and the new owner\'s '
-                . 'name or email. Use search_leads first to find the lead_id and confirm the current owner. If the '
-                . 'name matches several people the tool returns the candidates — ask which one, then call again with '
-                . 'their email. Only users of this company can be assigned.',
+            name: 'reassign_deal_owner',
+            description: 'Assign a deal to another person (change the owner / assigned sales rep). Provide the deal_id '
+                . 'and the new owner\'s name or email. Use search_deals first to find the deal_id and confirm the '
+                . 'current owner. If the name matches several people the tool returns the candidates — ask which one, '
+                . 'then call again with their email. Only users of this company can be assigned.',
         );
     }
 
@@ -46,9 +46,9 @@ class ReassignLeadOwnerTool extends Tool
     {
         return [
             new ToolProperty(
-                name: 'lead_id',
+                name: 'deal_id',
                 type: PropertyType::INTEGER,
-                description: 'The ID of the lead to reassign (from search_leads or get_lead_ref).',
+                description: 'The ID of the deal to reassign (from search_deals).',
                 required: true,
             ),
             new ToolProperty(
@@ -63,7 +63,7 @@ class ReassignLeadOwnerTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $lead_id, string $new_owner): array
+    public function __invoke(int $deal_id, string $new_owner): array
     {
         $new_owner = trim($new_owner);
         if ($new_owner === '') {
@@ -71,10 +71,10 @@ class ReassignLeadOwnerTool extends Tool
         }
 
         try {
-            /** @var Lead $lead */
-            $lead = Lead::getByIdFromCompanyApp($lead_id, $this->company, $this->app);
+            /** @var Deal $deal */
+            $deal = Deal::getByIdFromCompanyApp($deal_id, $this->company, $this->app);
         } catch (Throwable) {
-            return ['error' => sprintf('Lead #%d not found in this company.', $lead_id)];
+            return ['error' => sprintf('Deal #%d not found in this company.', $deal_id)];
         }
 
         $candidates = $this->resolveCompanyUsers($new_owner);
@@ -96,14 +96,14 @@ class ReassignLeadOwnerTool extends Tool
 
         /** @var Users $owner */
         $owner = $candidates->first();
-        $previousOwner = $lead->owner;
+        $previousOwner = $deal->owner;
 
-        $lead->leads_owner_id = $owner->getId();
-        $lead->saveOrFail();
+        $deal->owner_id = $owner->getId();
+        $deal->saveOrFail();
 
         return [
-            'lead_id' => $lead->getId(),
-            'title' => $lead->title,
+            'deal_id' => $deal->getId(),
+            'title' => $deal->title,
             'previous_owner' => $previousOwner
                 ? trim($previousOwner->firstname . ' ' . $previousOwner->lastname)
                 : null,
@@ -112,7 +112,7 @@ class ReassignLeadOwnerTool extends Tool
                 'name' => trim($owner->firstname . ' ' . $owner->lastname),
                 'email' => $owner->email,
             ],
-            'message' => 'Lead owner updated.',
+            'message' => 'Deal owner updated.',
         ];
     }
 }
