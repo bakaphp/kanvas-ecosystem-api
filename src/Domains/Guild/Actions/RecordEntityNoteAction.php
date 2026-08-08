@@ -15,10 +15,6 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
-/**
- * Shared note-writing flow for Guild entities. Subclasses only supply the entity and its notes
- * channel; Lead and Deal note recording stay in sync through here.
- */
 abstract class RecordEntityNoteAction
 {
     abstract protected function entity(): BaseModel;

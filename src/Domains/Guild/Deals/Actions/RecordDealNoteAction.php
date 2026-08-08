@@ -30,7 +30,12 @@ class RecordDealNoteAction extends RecordEntityNoteAction
     #[Override]
     protected function resolveNotesChannel(Users $user): ?Channel
     {
-        return $this->deal->notes ?? $this->createNotesChannel($user);
+        /** @var Channel|null $channel */
+        $channel = $this->deal->defaultChannel
+            ?? $this->deal->notes
+            ?? $this->createNotesChannel($user);
+
+        return $channel;
     }
 
     private function createNotesChannel(Users $user): Channel

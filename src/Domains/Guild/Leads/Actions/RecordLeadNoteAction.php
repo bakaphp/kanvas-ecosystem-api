@@ -28,12 +28,16 @@ class RecordLeadNoteAction extends RecordEntityNoteAction
     #[Override]
     protected function resolveNotesChannel(Users $user): ?Channel
     {
-        return $this->lead->systemNotes
+        /** @var Channel|null $channel */
+        $channel = $this->lead->systemNotes
+            ?? $this->lead->notes
             ?? new LeadChannelService()->findOrCreateForLead(
                 $this->lead,
                 $this->lead->app,
                 $this->lead->company,
                 $user
             );
+
+        return $channel;
     }
 }
