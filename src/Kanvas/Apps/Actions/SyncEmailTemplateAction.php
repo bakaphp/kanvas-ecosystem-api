@@ -105,6 +105,9 @@ class SyncEmailTemplateAction
                 'name' => EngagementsEnumsNotificationTemplateEnum::ENGAGEMENT_STATUS_CHANGED_DATABASE->value,
                 'template' => File::get(resource_path('views/push/engagement-status-changed-db.blade.php')),
             ], [
+                'name' => EnumsNotificationTemplateEnum::EMAIL_USER_MENTION->value,
+                'template' => File::get(resource_path('views/emails/userMentioned.blade.php')),
+            ], [
                 'name' => IntelligenceNotificationTemplateEnum::EMAIL_AGENT_MENTION_REPLY->value,
                 'template' => File::get(resource_path('views/emails/agentMentionReply.blade.php')),
             ], [

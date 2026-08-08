@@ -63,7 +63,7 @@
         "pusher/pusher-php-server": "^7.2",
         "quickbooks/v3-php-sdk": "^6.2",
         "recombee/php-api-client": "^6.0",
-        "rlanvin/php-rrule": "^2.6",
+        "rlanvin/php-rrule": "^3.0",
         "ryanwinchester/netsuite-php": "^2024.2",
         "sentry/sentry-laravel": "^4.2",
         "shish/safe": "^2.6",

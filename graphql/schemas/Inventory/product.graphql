@@ -20,20 +20,20 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
         @cacheRedis
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getPaginatedFileByGraphType"
         )
     is_published: Boolean
     created_at: DateTime!
     message: [Message] @hasMany(relation: "getIntegrationMessage")
     updated_at: DateTime
-    categories: [Category!]! @BelongsToMany
-    warehouses: [Warehouse!]! @BelongsToMany
+    categories: [Category!]! @belongsToMany(relation: "categories")
+    warehouses: [Warehouse!]! @belongsToMany(relation: "warehouses")
     attributes: [ProductAttribute!]!
         @method(name: "visibleAttributes")
         @cacheRedis
     variants(includeUnpublished: Boolean = false, limit: Int): [Variant!]!
         @cacheRedis
-        @HasMany
+        @hasMany
         @builder(
             method: "App\\GraphQL\\Inventory\\Builders\\Variants\\VariantBuilder@filterByPublished"
         )

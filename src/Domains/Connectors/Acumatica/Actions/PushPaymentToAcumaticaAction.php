@@ -17,23 +17,9 @@ use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
 use Kanvas\Scribe\Payments\Models\Payment;
 
 /**
- * Pushes a Kanvas payment (with its allocations) to Acumatica — the write half of the cash-application
- * use cases. One action covers both directions:
- *   - OUTBOUND (AP payment / UC3): applies the disbursement to the vendor's open Bills, closing them.
- *   - INBOUND  (AR receipt / UC2): applies the receipt to the customer's open Invoices.
- *
- * Kanvas is the system of record for the application (which docs, how much) — the matching/judgment
- * already happened in Scribe. This just mirrors the applied payment into the ERP. Idempotent by
- * ACUMATICA_PAYMENT_ID; retry-safe via the PaymentRef find-query.
- *
- * AP applications go through the `Check` entity (Vendor field, Details array); AR through `Payment` (CustomerID field, DocumentsToApply array) — confirmed live, they are not interchangeable.
- *
- * AP is a two-step PUT (Dennis, 2026-07-29): sending PaymentAmount together with the Details application
- * line on a single create makes the header amount land as 0 while the line still shows the real amount,
- * and Hold=false on that same call forces balance validation immediately — so it fails as "out of
- * balance" even though the application line itself is correct. Creating on Hold=true first (no
- * PaymentAmount) skips validation and lands the line; a second PUT keyed on the returned ReferenceNbr
- * then sets PaymentAmount and flips Hold to false, which both sticks the header amount and releases it.
+ * Pushes a Kanvas payment to Acumatica: AP via `Check` (two-step PUT — create on Hold, then set amount
+ * + release, since both on one call zeroes the header amount), AR via `Payment` directly. Idempotent by
+ * ACUMATICA_PAYMENT_ID.
  */
 class PushPaymentToAcumaticaAction
 {
@@ -42,12 +28,20 @@ class PushPaymentToAcumaticaAction
     /** The payment's own app — the tenant whose Acumatica config/credentials this push runs against. */
     protected Apps $app;
 
+    /** Acumatica's own Status on the record this call just pushed/released — null when the push was skipped (already pushed earlier). */
+    private ?string $lastPushedStatus = null;
+
     public function __construct(
         protected Payment $payment,
         ?AcumaticaWriteService $writer = null,
     ) {
         $this->app = $payment->app;
         $this->writer = $writer;
+    }
+
+    public function getLastPushedStatus(): ?string
+    {
+        return $this->lastPushedStatus;
     }
 
     public function execute(): string
@@ -90,6 +84,7 @@ class PushPaymentToAcumaticaAction
 
         $id = AcumaticaPayload::recordId($record);
         $referenceNbr = (string) (AcumaticaPayload::value($record, 'ReferenceNbr') ?? $id ?? '');
+        $this->lastPushedStatus = (string) (AcumaticaPayload::value($record, 'Status') ?? '') ?: null;
 
         if ($id !== null) {
             $this->payment->set(CustomFieldEnum::PAYMENT_ID->value, $id);
@@ -128,8 +123,7 @@ class PushPaymentToAcumaticaAction
 
             $docs[] = AcumaticaPayload::wrap([
                 'DocType' => 'Bill',
-                // The Acumatica ReferenceNbr set when the bill was pushed — not bill_number, which is
-                // Kanvas's own document number and won't resolve on Acumatica's side.
+                // Acumatica's own reference, not bill_number (Kanvas's internal number).
                 'ReferenceNbr' => (string) $bill->get(CustomFieldEnum::BILL_REF->value, ''),
                 'AmountPaid' => (float) $allocation->amount_native,
             ]);
@@ -164,8 +158,7 @@ class PushPaymentToAcumaticaAction
 
             $docs[] = AcumaticaPayload::wrap([
                 'DocType' => 'INV',
-                // The Acumatica ReferenceNbr set when the invoice was pushed — not invoice_number,
-                // which is Kanvas's own document number and won't resolve on Acumatica's side.
+                // Acumatica's own reference, not invoice_number (Kanvas's internal number).
                 'ReferenceNbr' => (string) $invoice->get(CustomFieldEnum::INVOICE_REF->value, ''),
                 'AmountPaid' => (float) $allocation->amount_native,
             ]);
@@ -217,8 +210,7 @@ class PushPaymentToAcumaticaAction
                 }
             }
 
-            // Step 1: create on hold with the application line, no header amount yet — sending
-            // PaymentAmount alongside Details on the same call makes it land as 0 on the header.
+            // Create on hold, no PaymentAmount yet — sending it with Details zeroes the header amount.
             $created = AcumaticaPayload::wrap([
                 'Type' => 'Payment',
                 'Vendor' => $vendorCode,
@@ -240,8 +232,7 @@ class PushPaymentToAcumaticaAction
                 );
             }
 
-            // Step 2: the application line now exists, so the header amount sticks — set it and
-            // release by flipping Hold to false.
+            // Now the amount sticks; flip Hold to false to release.
             return $client->put('Check', AcumaticaPayload::wrap([
                 'Type' => 'Payment',
                 'ReferenceNbr' => $referenceNbr,

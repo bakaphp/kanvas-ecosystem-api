@@ -52,6 +52,8 @@ class Client
         $this->client = new GuzzleClient(
             [
                 'base_uri' => $this->baseUrl,
+                'timeout' => 30,
+                'connect_timeout' => 10,
                 'curl' => [
                     CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_2,
                 ],

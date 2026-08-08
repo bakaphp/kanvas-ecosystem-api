@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Notifications\AgentReplyNotification;
+use Kanvas\Intelligence\Sessions\Jobs\GenerateChannelTitleJob;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -38,6 +39,13 @@ use Throwable;
 class PersistChatTurnToSocialAction
 {
     protected string $messageTypeVerb = 'ai-chat';
+
+    /**
+     * Message count (user + assistant turns) at which we re-title the channel one final time from the
+     * fuller conversation. Grows by 2 per turn, so 6 == the 3rd exchange — enough context to sharpen
+     * the rough opening-line title without waiting so long the label feels stale.
+     */
+    protected const int REFINE_TITLE_AT_MESSAGE_COUNT = 6;
 
     /**
      * @param list<string> $images
@@ -136,6 +144,8 @@ class PersistChatTurnToSocialAction
         $channel->addMessage($incoming, $this->user);
         $channel->addMessage($reply, $aiUser);
 
+        $this->maybeGenerateChannelTitle($channel);
+
         // Internal system agents never post into the lead timeline (chat stays on the
         // user↔agent channel). Others fall back to the People's active Lead so a mid-turn
         // create_lead still hits the Lead channel.
@@ -182,6 +192,46 @@ class PersistChatTurnToSocialAction
         );
 
         return $reply;
+    }
+
+    /**
+     * ChatGPT-style two-pass auto-titling, both dispatched async so the LLM round-trip never delays
+     * the reply:
+     *   1. After the opening exchange, rename the still-default channel to a rough title distilled
+     *      from that single turn — gives the conversation a label immediately.
+     *   2. Once the chat has enough turns (REFINE_TITLE_AT_MESSAGE_COUNT), re-title it one final time
+     *      from the fuller conversation, then lock it. This also catches up channels that never got a
+     *      first title (predate the feature, or their first-pass job failed) — as long as they still
+     *      carry a system-default name. A human rename in between wins and cancels the refine
+     *      (GenerateChannelTitleAction::canTitle checks the name is still ours or a default).
+     *
+     * @todo Extend auto-titling to connector channels (Slack/WhatsApp/email) — those persist via
+     *       BaseAgentChannelReplyAction and skip this action, so they never get titled today.
+     */
+    protected function maybeGenerateChannelTitle(Channel $channel): void
+    {
+        $messageCount = $channel->messages()->count();
+        $hasDefaultName = GenerateChannelTitleAction::hasDefaultName($channel);
+
+        if ($messageCount >= self::REFINE_TITLE_AT_MESSAGE_COUNT
+            && (GenerateChannelTitleAction::canRefine($channel) || $hasDefaultName)) {
+            GenerateChannelTitleJob::dispatch(
+                $channel,
+                $this->userMessage,
+                $this->assistantResponse,
+                refine: true,
+            );
+
+            return;
+        }
+
+        if ($hasDefaultName && $messageCount <= 2) {
+            GenerateChannelTitleJob::dispatch(
+                $channel,
+                $this->userMessage,
+                $this->assistantResponse,
+            );
+        }
     }
 
     protected function resolveEntity(): ?Model

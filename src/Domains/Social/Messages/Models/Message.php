@@ -57,6 +57,7 @@ use Override;
  *  @property int $users_id
  *  @property int $message_types_id
  *  @property string|array $message
+ *  @property string|null $sender_type
  *  @property string $slug
  *  @property int $reactions_count
  *  @property int $comments_count
@@ -486,6 +487,7 @@ class Message extends BaseModel
             'objectID' => $this->uuid,
             ...$this->toArray(),
             'id' => (string) $this->id, // Typesense requires the document id to be a string
+            'message' => $this->normalizeMessageForSearch(), // schema declares `message` as object; legacy string/list bodies get rejected otherwise
             'message_text' => $this->contentText(),
             'user' => [
                 'id' => $this->users_id,
@@ -534,7 +536,7 @@ class Message extends BaseModel
             ->map(fn ($child) => [
                 'id' => $child->id,
                 'uuid' => $child->uuid,
-                'message' => $child->message,
+                'message' => $child->normalizeMessageForSearch(),
                 'created_at' => $child->created_at->toIso8601String(),
                 'user' => [
                     'id' => $child->users_id,
@@ -542,6 +544,25 @@ class Message extends BaseModel
                     'displayname' => $child->user->displayname,
                 ],
             ])->toArray();
+    }
+
+    /**
+     * The Typesense `message` field is declared as `object`, but legacy bodies are inconsistent
+     * (plain string, list, or object — see getMessage()). Any non-object shape triggers
+     * "Field `message` has an incorrect type" on import (Sentry KANVAS-ECOSYSTEM-628), so coerce
+     * every body into an object. Cast to stdClass so an empty body encodes as `{}`, not `[]`.
+     */
+    private function normalizeMessageForSearch(): object
+    {
+        $message = $this->getMessage(); // always array; [] when the body isn't a JSON object
+
+        if (array_is_list($message)) {
+            $text = $this->contentText();
+
+            return $text !== '' ? (object) ['content' => $text] : (object) [];
+        }
+
+        return (object) $message;
     }
 
     /**

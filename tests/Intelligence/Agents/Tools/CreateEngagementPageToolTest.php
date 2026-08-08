@@ -9,17 +9,25 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateEngagementPageTool;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
+use Throwable;
 
 class CreateEngagementPageToolTest extends TestCase
 {
     public function testCreatesEngagementPageAndReturnsUnsentActionLink(): void
     {
         $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $requestingUser = auth()->user();
+        $company = $requestingUser->getCurrentCompany();
+        $agentUser = Users::factory()->create();
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $agentUser->getId()]);
         $lead = Lead::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
@@ -37,12 +45,12 @@ class CreateEngagementPageToolTest extends TestCase
         $engagement->id = 123;
         $engagement->setRelation('message', $message);
 
-        $tool = new class ($engagement) extends CreateEngagementPageTool {
+        $tool = new class ($agent, $engagement) extends CreateEngagementPageTool {
             public ?EngagementData $receivedData = null;
 
-            public function __construct(private readonly Engagement $engagementResult)
+            public function __construct(Agent $agent, private readonly Engagement $engagementResult)
             {
-                parent::__construct();
+                parent::__construct($agent);
             }
 
             protected function createEngagement(EngagementData $data): Engagement
@@ -52,7 +60,7 @@ class CreateEngagementPageToolTest extends TestCase
                 return $this->engagementResult;
             }
         };
-        $tool->withContext($app, $company, $user);
+        $tool->withContext($app, $company, $requestingUser);
 
         $result = $tool->__invoke(
             lead_id: $lead->getId(),
@@ -74,6 +82,8 @@ class CreateEngagementPageToolTest extends TestCase
         $this->assertSame(ActionStatusEnum::SENT, $tool->receivedData?->status);
         $this->assertSame('agent', $tool->receivedData?->source);
         $this->assertSame('agent', $tool->receivedData?->via);
+        $this->assertSame($agentUser->getId(), $tool->receivedData?->user->getId());
+        $this->assertNotSame($requestingUser->getId(), $tool->receivedData?->user->getId());
         $this->assertTrue($tool->receivedData?->data['products'][0]['interested']);
     }
 
@@ -82,7 +92,11 @@ class CreateEngagementPageToolTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        $tool = new CreateEngagementPageTool();
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+        $tool = new CreateEngagementPageTool($agent);
         $tool->withContext($app, $company, $user);
 
         $missingAction = $tool->__invoke(1, '   ');
@@ -97,6 +111,10 @@ class CreateEngagementPageToolTest extends TestCase
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
         $lead = Lead::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
@@ -108,10 +126,10 @@ class CreateEngagementPageToolTest extends TestCase
         $engagement->id = 124;
         $engagement->setRelation('message', new Message(['message' => []]));
 
-        $tool = new class ($engagement) extends CreateEngagementPageTool {
-            public function __construct(private readonly Engagement $engagementResult)
+        $tool = new class ($agent, $engagement) extends CreateEngagementPageTool {
+            public function __construct(Agent $agent, private readonly Engagement $engagementResult)
             {
-                parent::__construct();
+                parent::__construct($agent);
             }
 
             protected function createEngagement(EngagementData $data): Engagement
@@ -125,5 +143,52 @@ class CreateEngagementPageToolTest extends TestCase
 
         $this->assertSame('error', $result['status']);
         $this->assertSame(124, $result['engagement_id']);
+    }
+
+    public function testReportsEngagementCreationFailureWithSafeContext(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+        $lead = Lead::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create();
+        $exception = new \RuntimeException('Action Engine failed');
+
+        $tool = new class ($agent, $exception) extends CreateEngagementPageTool {
+            public ?Throwable $reportedException = null;
+            public ?int $reportedLeadId = null;
+            public ?string $reportedAction = null;
+
+            public function __construct(Agent $agent, private readonly Throwable $exception)
+            {
+                parent::__construct($agent);
+            }
+
+            protected function createEngagement(EngagementData $data): Engagement
+            {
+                throw $this->exception;
+            }
+
+            protected function reportException(Throwable $exception, int $leadId, string $action): void
+            {
+                $this->reportedException = $exception;
+                $this->reportedLeadId = $leadId;
+                $this->reportedAction = $action;
+            }
+        };
+        $tool->withContext($app, $company, $user);
+
+        $result = $tool->__invoke($lead->getId(), 'view-vehicle');
+
+        $this->assertSame('error', $result['status']);
+        $this->assertSame($exception, $tool->reportedException);
+        $this->assertSame($lead->getId(), $tool->reportedLeadId);
+        $this->assertSame('view-vehicle', $tool->reportedAction);
     }
 }

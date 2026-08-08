@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\InternalAgentChannelResponderAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
@@ -144,6 +145,20 @@ class InternalAgentChannelResponderActionTest extends TestCase
             $recipient,
             AgentReplyNotification::class,
         );
+    }
+
+    public function testEmptyInboundThrowsValidationExceptionForActivityToCatch(): void
+    {
+        // A content-less inbound (reaction, read receipt, presence event, empty attachment payload)
+        // has nothing to answer. The action signals this with a ValidationException, which
+        // MessageAgentChannelResponderActivity catches and returns as a skip result instead of
+        // letting it reach executeIntegration's report() and flood Sentry (KANVAS-ECOSYSTEM-5XF).
+        [$agent, $channel, $inbound] = $this->makeChannelConversation('', fromMe: false);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Message has no content or attachments to send to the agent');
+
+        new InternalAgentChannelResponderAction($agent, $inbound, $channel)->execute();
     }
 
     /**

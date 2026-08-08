@@ -1,4 +1,4 @@
 {
-    "title": "{{$title}}",
-    "message": "{{$message}}"
+    "title": "{{ $title ?? '' }}",
+    "message": "{{ $message ?? '' }}"
 }

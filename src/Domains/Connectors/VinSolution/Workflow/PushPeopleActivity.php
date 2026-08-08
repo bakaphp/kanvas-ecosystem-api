@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Actions\PushPeopleAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
@@ -32,12 +33,24 @@ class PushPeopleActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::VIN_SOLUTION,
             additionalParams: $params,
-            integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) {
-                $pushPeopleAction = new PushPeopleAction(
-                    people: $people,
-                );
+            integrationOperation: function ($people, $app, $integrationCompany, $additionalParams): array {
+                try {
+                    $pushPeopleAction = new PushPeopleAction(
+                        people: $people,
+                    );
 
-                $results = $pushPeopleAction->execute();
+                    $results = $pushPeopleAction->execute();
+                } catch (ClientException $e) {
+                    if ($e->getResponse()?->getStatusCode() !== 404) {
+                        throw $e;
+                    }
+
+                    return $this->failWorkflow([
+                        'error' => 'VinSolution assigned user not found',
+                        'people_id' => $people->getId(),
+                        'company_id' => $people->companies_id,
+                    ]);
+                }
 
                 return [
                     'message' => 'VinSolution integration completed successfully',

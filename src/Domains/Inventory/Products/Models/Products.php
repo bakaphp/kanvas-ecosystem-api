@@ -217,13 +217,22 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     }
 
     /**
-     * @todo add integration and graph test
+     * Eager-loadable version of the visible-attributes query.
+     * for n+1 query prevention when resolving visibleAttributesRelation
      */
+    public function visibleAttributesRelation(): HasMany
+    {
+        return $this->buildAttributesQuery(['is_visible' => true]);
+    }
+
     public function visibleAttributes(): array
     {
-        return $this->mapAttributes(
-            $this->buildAttributesQuery(['is_visible' => true])->get()
-        );
+        /** @var Collection $attributes */
+        $attributes = $this->relationLoaded('visibleAttributesRelation')
+            ? $this->getRelation('visibleAttributesRelation')
+            : $this->buildAttributesQuery(['is_visible' => true])->get();
+
+        return $this->mapAttributes($attributes);
     }
 
     public function searchableAttributes(): array

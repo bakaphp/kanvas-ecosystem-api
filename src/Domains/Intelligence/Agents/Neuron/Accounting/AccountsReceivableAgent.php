@@ -70,7 +70,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new MatchInvoicesForPaymentTool(),
             new CreateArInvoiceTool(),
             new VoidArInvoiceTool(),
-            new ApplyArPaymentTool()
+            new ApplyArPaymentTool(),
         ]));
     }
 

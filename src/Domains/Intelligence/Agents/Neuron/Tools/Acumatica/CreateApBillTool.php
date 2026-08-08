@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
@@ -17,6 +19,7 @@ use Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
 use Kanvas\Scribe\Ledger\Models\Account;
+use Kanvas\Scribe\Ledger\Models\Subaccount;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -62,14 +65,29 @@ class CreateApBillTool extends Tool
             new ToolProperty(
                 name: 'memo',
                 type: PropertyType::STRING,
-                description: 'Description / memo for the bill and its single line, e.g. "TEST write-path".',
+                description: 'Description / memo for the bill and its single line.',
                 required: true,
             ),
             new ToolProperty(
                 name: 'vendor_name',
                 type: PropertyType::STRING,
-                description: 'Vendor name to match (substring). Omit to use any existing active vendor '
-                    . 'organization on this app/company — fine for a write-path smoke test.',
+                description: 'Vendor name to match (substring). Always required — never guess or pick an '
+                    . 'arbitrary vendor; ask the user which one if it is not clear from context.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'invoice_number',
+                type: PropertyType::STRING,
+                description: 'The vendor\'s own invoice number (not a Kanvas-generated one) — becomes the '
+                    . 'Vendor Ref on the Acumatica document. Always required.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'subaccount',
+                type: PropertyType::STRING,
+                description: 'Acumatica subaccount code for the line, e.g. "BB-0G-M1", when the vendor or '
+                    . 'project requires a specific one. Optional — omit to let Acumatica derive a default from '
+                    . 'the GL account\'s history, which is not always correct for every vendor on that account.',
                 required: false,
             ),
             new ToolProperty(
@@ -85,33 +103,45 @@ class CreateApBillTool extends Tool
      * @return array<string, mixed>
      */
     public function __invoke(
+        string $vendor_name,
         float $amount,
         string $gl_account_number,
         string $memo,
-        ?string $vendor_name = null,
+        string $invoice_number,
+        ?string $subaccount = null,
         ?string $currency = null,
     ): array {
         $app = $this->app;
         $company = $this->company;
 
-        $vendorQuery = Organization::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_deleted', false);
-
-        if ($vendor_name !== null && trim($vendor_name) !== '') {
-            $vendorQuery->where('name', 'like', '%' . trim($vendor_name) . '%');
+        if (trim($vendor_name) === '') {
+            return [
+                'created' => false,
+                'reason' => 'vendor_name_required',
+                'message' => 'A vendor_name is required — never pick an arbitrary vendor.',
+            ];
         }
 
-        $vendor = $vendorQuery->first();
+        if (trim($invoice_number) === '') {
+            return [
+                'created' => false,
+                'reason' => 'invoice_number_required',
+                'message' => 'An invoice_number (the vendor\'s own invoice reference) is required.',
+            ];
+        }
+
+        $vendor = Organization::query()
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->where('is_deleted', false)
+            ->where('name', 'like', '%' . trim($vendor_name) . '%')
+            ->first();
 
         if ($vendor === null) {
             return [
                 'created' => false,
                 'reason' => 'vendor_not_found',
-                'message' => $vendor_name !== null
-                    ? "No vendor organization matching \"{$vendor_name}\" for this app/company."
-                    : 'No active vendor organization exists for this app/company yet.',
+                'message' => "No vendor organization matching \"{$vendor_name}\" for this app/company.",
             ];
         }
 
@@ -132,6 +162,7 @@ class CreateApBillTool extends Tool
 
         $currency = $currency !== null && trim($currency) !== '' ? strtoupper(trim($currency)) : 'USD';
         $actingUser = $this->user;
+        $subaccountId = $this->resolveSubaccountId($subaccount, $app, $company);
 
         $bill = new CreateBillAction(
             new BillData(
@@ -144,10 +175,12 @@ class CreateApBillTool extends Tool
                         quantity: 1.0,
                         unit_price_native: $amount,
                         expense_account_id: $account->getId(),
+                        subaccount_id: $subaccountId,
                     ),
                 ]),
                 currency: $currency,
                 fx_rate_to_base: 1.0,
+                bill_number: $invoice_number,
                 bill_date: Carbon::today(),
                 notes: $memo,
             ),
@@ -187,10 +220,29 @@ class CreateApBillTool extends Tool
             'amount' => $amount,
             'currency' => $currency,
             'gl_account' => $gl_account_number,
+            'subaccount' => $subaccount,
             'memo' => $memo,
             'bill_ref' => $reference,
             'acumatica_bill_id' => (string) $bill->get(AcumaticaCustomFieldEnum::BILL_ID->value, ''),
             'next' => 'Pushed to Acumatica. bill_ref is the ERP reference.',
         ];
+    }
+
+    private function resolveSubaccountId(?string $subaccount, Apps $app, Companies $company): ?int
+    {
+        if ($subaccount === null || trim($subaccount) === '') {
+            return null;
+        }
+
+        $subaccountModel = Subaccount::firstOrCreate(
+            [
+                'apps_id' => $app->getId(),
+                'companies_id' => $company->getId(),
+                'sub_code' => trim($subaccount),
+            ],
+            ['source' => 'kanvas'],
+        );
+
+        return (int) $subaccountModel->getKey();
     }
 }

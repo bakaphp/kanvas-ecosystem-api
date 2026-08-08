@@ -24,6 +24,7 @@ class CalculateShippingCostAction
         $pounds = $weightAttr ? ($weightAttr / 453.59237) : 1;
         $pounds = $pounds * $this->quantity;
         $price = $this->variant->getPriceInfoFromDefaultChannel()->price;
+        $linePrice = $price * $this->quantity;
         // LoCompro Cost
         $deliveryCost = (float)($this->app->get(ShippingCostEnum::DELIVERY_COST_LAST_MILE->value) ?? 2.50);
         $courierCost = (float)($this->app->get(ShippingCostEnum::COURIER_COST->value) ?? 1.30);
@@ -31,8 +32,8 @@ class CalculateShippingCostAction
         $customService = (float)($this->app->get(ShippingCostEnum::CUSTOM_SERVICE->value) ?? 0.15);
         $airportFee = (float)($this->app->get(ShippingCostEnum::AIRPORT_FEE->value) ?? 0.07);
         $insurance = match (true) {
-            $price < 200 => $price * 0.013,
-            $price >= 200 => $price * 0.016,
+            $linePrice < 200 => $linePrice * 0.013,
+            $linePrice >= 200 => $linePrice * 0.016,
             //$price > 300 => $price * 0.30,
         };
         $localTransfer = (float)($this->app->get(ShippingCostEnum::LOCAL_TRANSFER->value) ?? 0.00);
@@ -51,7 +52,7 @@ class CalculateShippingCostAction
         $otherFee = $costFuel + $customServiceCost + $airportFeeCost + $insuranceCost;
         $serviceFeeCost = $pounds * $serviceFee;
         $totalLoCompro = $shippingCost + $otherFee + $serviceFeeCost;
-        $paymentFeeCost = (($price + $totalLoCompro) * $paymentFee) + 3;
+        $paymentFeeCost = (($linePrice + $totalLoCompro) * $paymentFee) + 3;
 
         return [
             'shippingCost' => $shippingCost,
@@ -59,6 +60,9 @@ class CalculateShippingCostAction
             'serviceFee' => $serviceFeeCost,
             'total' => $totalLoCompro,
             'pounds' => $pounds,
+            // Freight and insurance are exposed separately because they are the two
+            // components the tariff adds to FOB to form the CIF value.
+            'insurance' => $insuranceCost,
         ];
     }
 }
