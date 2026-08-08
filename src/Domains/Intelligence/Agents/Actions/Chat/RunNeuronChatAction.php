@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Baka\Http\SafeUrlFetcher;
 use finfo;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -105,17 +106,10 @@ class RunNeuronChatAction
         } catch (Throwable $e) {
             report($e);
 
-            // User-facing fallback stays friendly for channel responders.
-            // The trailing `[provider_error: ...]` marker is parseable by
-            // structured callers (e.g. FollowUpLeadAction) so they don't have
-            // to correlate two Sentry events to debug a provider failure.
-            $fallback = sprintf(
-                'I ran into a hiccup processing that. Could you try rephrasing, '
-                . "or let me know if you want me to hand off to a human?\n"
-                . '[provider_error: %s: %s]',
-                $e::class,
-                substr($e->getMessage(), 0, 500),
-            );
+            // Never leak exception class/message/SQL/hostnames to the channel — that's
+            // internal detail, logged below via `usage` (Sentry + KanvasConversationStore)
+            // for ops, not shown to the person on the other end of the chat.
+            $fallback = $this->humanizedFallback($e);
 
             if (! $selfRecords) {
                 new KanvasConversationStore()->logTurn(
@@ -159,6 +153,29 @@ class RunNeuronChatAction
         $this->backfillChannelMessagesToLead();
 
         return $content;
+    }
+
+    /** A duplicate-key violation is a recoverable, explainable case — everything else stays generic. */
+    private function humanizedFallback(Throwable $e): string
+    {
+        if ($this->isDuplicateEntryError($e)) {
+            return "It looks like that already exists — I didn't create a duplicate. Let me know if you'd "
+                . 'like me to look into it or handle it a different way.';
+        }
+
+        return 'I ran into a hiccup processing that. Could you try rephrasing, '
+            . 'or let me know if you want me to hand off to a human?';
+    }
+
+    private function isDuplicateEntryError(Throwable $e): bool
+    {
+        for ($current = $e; $current !== null; $current = $current->getPrevious()) {
+            if ($current instanceof UniqueConstraintViolationException) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function backfillChannelMessagesToLead(): void

@@ -1204,12 +1204,12 @@ class FollowUpLeadActionTest extends TestCase
         );
     }
 
-    public function testProviderErrorMarkerSurfacedInOutcomeReasonViaFallback(): void
+    public function testProviderErrorFallbackReachesOutcomeReasonWithoutLeakingRawException(): void
     {
-        // Force the provider to throw so RunNeuronChatAction's catch block
-        // fires and returns its `[provider_error: ...]`-tagged fallback.
-        // The follow-up action's invalid-JSON catch should bubble that marker
-        // into the outcome.reason so debugging needs ONE Sentry event, not two.
+        // Force the provider to throw so RunNeuronChatAction's catch block fires and returns its
+        // humanized fallback. The follow-up action's invalid-JSON catch bubbles that fallback into
+        // outcome.reason — but the raw exception class/message must never appear in it, since that
+        // string is also what a live-chat channel would show a real user.
         $cfg = $this->defaultStageConfig();
         $cfg['follow_up']['channels'] = [
             ['type' => 'sms', 'enabled' => true, 'template_name' => null],
@@ -1232,9 +1232,9 @@ class FollowUpLeadActionTest extends TestCase
 
         $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
         $this->assertStringStartsWith('agent_call_failed: ', (string) $outcome->reason);
-        // The provider error class and message reached the follow-up outcome.
-        $this->assertStringContainsString('[provider_error: RuntimeException', (string) $outcome->reason);
-        $this->assertStringContainsString('Simulated Gemini timeout', (string) $outcome->reason);
+        $this->assertStringContainsString("I ran into a hiccup processing that", (string) $outcome->reason);
+        $this->assertStringNotContainsString('RuntimeException', (string) $outcome->reason);
+        $this->assertStringNotContainsString('Simulated Gemini timeout', (string) $outcome->reason);
 
         // Lead is NOT exhausted — retries next tick.
         $lead->refresh();
