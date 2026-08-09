@@ -49,11 +49,6 @@ class OnBoardingJob implements ShouldQueue
     ) {
     }
 
-    /**
-     * handle.
-     *
-     * @return void
-     */
     public function handle(): void
     {
         $runOnboardingGuild = $this->app->get(AppSettingsEnums::ONBOARDING_GUILD_SETUP->getValue());
