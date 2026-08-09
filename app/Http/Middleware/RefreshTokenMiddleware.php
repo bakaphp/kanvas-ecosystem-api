@@ -4,7 +4,9 @@ namespace App\Http\Middleware;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Auth\Traits\TokenTrait;
+use Lcobucci\JWT\Exception as JwtException;
 
 class RefreshTokenMiddleware
 {
@@ -12,11 +14,23 @@ class RefreshTokenMiddleware
 
     public function handle(Request $request, \Closure $next, string ...$guards): mixed
     {
-        if (empty($request->bearerToken())) {
+        $bearerToken = $request->bearerToken();
+
+        if ($bearerToken === null || empty($bearerToken)) {
             return $next($request);
         }
 
-        $token = $this->decodeToken($request->bearerToken());
+        try {
+            $token = $this->decodeToken($bearerToken);
+        } catch (JwtException $e) {
+            // A malformed bearer token is a client error, not a system fault — log it
+            // locally and return 401 instead of letting it bubble up as a 500 to Sentry.
+            Log::warning('Malformed JWT received in RefreshTokenMiddleware', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse(401, 'Invalid Token');
+        }
 
         if (! $this->validateJwtToken($token)) {
             return $this->buildErrorResponse(401, 'Invalid Token');
