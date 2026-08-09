@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Deals\Actions\RecordDealNoteAction;
 use Kanvas\Guild\Deals\Actions\UpdateDealAction;
 use Kanvas\Guild\Deals\DataTransferObject\Deal as DealData;
 use Kanvas\Guild\Deals\Models\Deal;
@@ -175,6 +176,13 @@ class UpdateDealTool extends Tool
             if ($hasNotes) {
                 $deal->set('deal_notes', trim($notes));
             }
+
+            // Attribute the update to the acting agent user so the deal's activity log shows who did it.
+            new RecordDealNoteAction($deal)->execute(
+                $this->describeUpdate($request, $hasNotes),
+                'deal-update',
+                $this->user,
+            );
         } catch (Throwable $e) {
             report($e);
 
@@ -191,6 +199,28 @@ class UpdateDealTool extends Tool
             'current_pipeline_stage' => $deal->pipelineStage?->name,
             'deal_status' => $deal->status,
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $request
+     */
+    private function describeUpdate(array $request, bool $hasNotes): string
+    {
+        $labels = [
+            'title' => 'title',
+            'description' => 'description',
+            'owner_id' => 'owner',
+            'pipeline_id' => 'pipeline',
+            'pipeline_stage_id' => 'stage',
+            'status' => 'status',
+        ];
+
+        $parts = array_map(fn (string $key): string => $labels[$key] ?? $key, array_keys($request));
+        if ($hasNotes) {
+            $parts[] = 'notes';
+        }
+
+        return 'Deal updated: ' . ($parts === [] ? 'no changes' : implode(', ', $parts)) . '.';
     }
 
     /**

@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\TakesMessageForEntity;
 use NeuronAI\Tools\PropertyType;
@@ -16,6 +17,7 @@ use Override;
 #[AgentTool(name: 'Take Message', category: 'crm')]
 class TakeMessageTool extends Tool
 {
+    use HasKanvasContext;
     use ResolvesLeadForTool;
     use TakesMessageForEntity;
 
@@ -83,7 +85,7 @@ class TakeMessageTool extends Tool
         $callback = $this->normalizeOptional($callback_number);
 
         $body = $this->receptionistMessageBody($message, $forWhom, $callback);
-        $recorded = new RecordLeadNoteAction($lead)->execute($body, 'receptionist-note') !== null;
+        $recorded = new RecordLeadNoteAction($lead)->execute($body, 'receptionist-note', $this->actingNoteUser()) !== null;
 
         return $this->finalizeTakenMessage($lead, 'lead_id', $message, $forWhom, $callback, $recorded);
     }

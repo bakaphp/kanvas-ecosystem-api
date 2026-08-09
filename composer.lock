@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a67a0ecb5bd20fd9c9d9edba2458bf9e",
+    "content-hash": "57935b775575a8aa7b2de3d91e60dfab",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -18303,6 +18303,68 @@
             "time": "2026-05-28T08:00:58+00:00"
         },
         {
+            "name": "laravel/agent-detector",
+            "version": "v2.0.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laravel/agent-detector.git",
+                "reference": "90694b9256099591cf9e55d08c18ba7a00bf099f"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laravel/agent-detector/zipball/90694b9256099591cf9e55d08c18ba7a00bf099f",
+                "reference": "90694b9256099591cf9e55d08c18ba7a00bf099f",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.2.0"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.24.0",
+                "pestphp/pest": "^3.8.5|^4.1.0",
+                "pestphp/pest-plugin-type-coverage": "^3.0|^4.0.2",
+                "phpstan/phpstan": "^2.1.26",
+                "rector/rector": "^2.1.7",
+                "symfony/var-dumper": "^7.3.3"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/functions.php"
+                ],
+                "psr-4": {
+                    "Laravel\\AgentDetector\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Taylor Otwell",
+                    "email": "taylor@laravel.com"
+                }
+            ],
+            "description": "Detect if code is running in an AI agent or automated development environment",
+            "homepage": "https://github.com/laravel/agent-detector",
+            "keywords": [
+                "Agent",
+                "ai",
+                "automation",
+                "claude",
+                "cursor",
+                "detection",
+                "devin",
+                "php"
+            ],
+            "support": {
+                "issues": "https://github.com/laravel/agent-detector/issues",
+                "source": "https://github.com/laravel/agent-detector"
+            },
+            "time": "2026-04-29T18:32:34+00:00"
+        },
+        {
             "name": "laravel/boost",
             "version": "v2.5.0",
             "source": {
@@ -18367,6 +18429,76 @@
                 "source": "https://github.com/laravel/boost"
             },
             "time": "2026-08-04T21:10:39+00:00"
+        },
+        {
+            "name": "laravel/doctor",
+            "version": "v0.1.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/laravel/doctor.git",
+                "reference": "6e634a0746f70f9dd9abaf4d9c8a4b81ceebdd4c"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/laravel/doctor/zipball/6e634a0746f70f9dd9abaf4d9c8a4b81ceebdd4c",
+                "reference": "6e634a0746f70f9dd9abaf4d9c8a4b81ceebdd4c",
+                "shasum": ""
+            },
+            "require": {
+                "composer-runtime-api": "^2.0",
+                "composer/semver": "^3.0",
+                "illuminate/console": "^12.0|^13.0",
+                "illuminate/contracts": "^12.0|^13.0",
+                "illuminate/process": "^12.0|^13.0",
+                "illuminate/support": "^12.0|^13.0",
+                "laravel/agent-detector": "^2.0.1",
+                "laravel/prompts": "^0.3.21",
+                "php": "^8.3"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.28.0",
+                "orchestra/testbench": "^10.0|^11.0",
+                "pestphp/pest": "^4.0",
+                "phpstan/phpstan": "^2.0",
+                "rector/rector": "^2.3"
+            },
+            "type": "library",
+            "extra": {
+                "laravel": {
+                    "providers": [
+                        "Laravel\\Doctor\\DoctorServiceProvider"
+                    ]
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Laravel\\Doctor\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Taylor Otwell",
+                    "email": "taylor@laravel.com"
+                }
+            ],
+            "description": "First-party diagnostics for Laravel applications",
+            "homepage": "https://github.com/laravel/doctor",
+            "keywords": [
+                "configuration",
+                "diagnostics",
+                "doctor",
+                "health",
+                "laravel"
+            ],
+            "support": {
+                "issues": "https://github.com/laravel/doctor/issues",
+                "source": "https://github.com/laravel/doctor"
+            },
+            "time": "2026-07-22T17:39:59+00:00"
         },
         {
             "name": "laravel/mcp",

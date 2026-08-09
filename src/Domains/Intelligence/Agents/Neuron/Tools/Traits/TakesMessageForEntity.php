@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
 
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Intelligence\Notifications\ReceptionistMessageNotification;
+use Kanvas\Users\Models\Users;
 
 /**
  * Shared "take a message" logic for lead and deal tools: message-body formatting, owner
@@ -23,6 +24,16 @@ trait TakesMessageForEntity
             'status' => 'error',
             'message' => 'The message is empty — capture what the person actually wants passed along before calling this tool.',
         ];
+    }
+
+    /**
+     * Attribute the note to the agent's own acting user (via HasKanvasContext) instead of letting the
+     * record action fall back to the shared company AI user. Null when no context is set (e.g. direct
+     * invocation), so the action's own default still applies.
+     */
+    protected function actingNoteUser(): ?Users
+    {
+        return isset($this->user) ? $this->user : null;
     }
 
     protected function normalizeOptional(?string $value): ?string

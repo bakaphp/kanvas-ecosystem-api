@@ -8,7 +8,9 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Guild\Deals\Actions\CreateDealAction;
+use Kanvas\Guild\Deals\Actions\RecordDealNoteAction;
 use Kanvas\Guild\Deals\DataTransferObject\Deal as DealData;
+use Kanvas\Users\Models\Users;
 use Throwable;
 
 trait CreatesDealTrait
@@ -58,6 +60,13 @@ trait CreatesDealTrait
             $deal = new CreateDealAction(
                 DealData::fromMultiple($user, $app, $company, $request),
             )->execute();
+
+            // Attribute creation to the acting agent user so the deal's activity log shows who did it.
+            new RecordDealNoteAction($deal)->execute(
+                'Deal created.',
+                'deal-create',
+                $user instanceof Users ? $user : null,
+            );
         } catch (Throwable $e) {
             report($e);
 
