@@ -6,10 +6,16 @@ namespace Kanvas\Connectors\VinSolution;
 
 use Baka\Contracts\AppInterface;
 use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
+use GuzzleHttp\Psr7\Request;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
+use Psr\Http\Message\ResponseInterface;
+use Throwable;
 
 class Client
 {
@@ -54,11 +60,60 @@ class Client
                 'base_uri' => $this->baseUrl,
                 'timeout' => 30,
                 'connect_timeout' => 10,
-                'curl' => [
-                    CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_2,
-                ],
+                'handler' => self::buildHandlerStack(),
+                // Force TLS 1.2 via Guzzle's managed option; the raw
+                // CURLOPT_SSLVERSION curl option is deprecated in guzzle 7.11+.
+                'crypto_method' => STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT,
             ]
         );
+    }
+
+    /**
+     * Guzzle stack with retry-on-transient-failure.
+     *
+     * VinSolutions intermittently resets connections mid-request during bulk
+     * pulls (cURL 35 "Recv failure: Connection reset by peer") and occasionally
+     * returns 429/5xx. Those are transient, so retry with exponential backoff
+     * instead of letting them bubble up and abort a lead pull / flood Sentry.
+     *
+     * A base handler can be injected to exercise the retry policy in tests.
+     */
+    public static function buildHandlerStack(?callable $handler = null): HandlerStack
+    {
+        $stack = $handler !== null ? HandlerStack::create($handler) : HandlerStack::create();
+
+        /** @var callable(callable):callable $retry */
+        $retry = Middleware::retry(
+            self::shouldRetry(...),
+            static fn (int $retries): int => 500 * (2 ** $retries)
+        );
+
+        $stack->push($retry);
+
+        return $stack;
+    }
+
+    /**
+     * Retry decider for the Guzzle retry middleware.
+     *
+     * Signature is fixed by Guzzle — $request is passed positionally before
+     * $response/$exception, so it stays in the list even though it's unused.
+     */
+    protected static function shouldRetry(
+        int $retries,
+        Request $request,
+        ?ResponseInterface $response = null,
+        ?Throwable $exception = null
+    ): bool {
+        if ($retries >= 3) {
+            return false;
+        }
+
+        if ($exception instanceof ConnectException) {
+            return true;
+        }
+
+        return $response !== null && in_array($response->getStatusCode(), [429, 500, 502, 503, 504], true);
     }
 
     /**
@@ -104,9 +159,6 @@ class Client
         return json_decode($token, true);
     }
 
-    /**
-     * Set this request headers.
-     */
     protected function setHeaders(array $headers): array
     {
         $headers['headers']['api_key'] = ! $this->useDigitalShowRoomKey ? $this->apiKey : $this->apiKeyDigitalShowRoom;
@@ -115,9 +167,6 @@ class Client
         return $headers;
     }
 
-    /**
-     * Run Get request against VinSolutions API.
-     */
     public function get(string $path, array $params = []): array
     {
         $response = $this->client->get(
@@ -131,9 +180,6 @@ class Client
         );
     }
 
-    /**
-     * Post to the api.
-     */
     public function post(string $path, string $json, array $params = []): array
     {
         $params = $this->setHeaders($params);
@@ -154,9 +200,6 @@ class Client
         );
     }
 
-    /**
-     * Post to the api.
-     */
     public function put(string $path, string $json, array $params = []): array
     {
         $params = $this->setHeaders($params);

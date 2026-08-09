@@ -56,7 +56,22 @@ class PushTemplateParser
 
     private static function clean(string $rendered): string
     {
-        return (string) preg_replace('/\s+/', ' ', trim($rendered));
+        $collapsed = (string) preg_replace('/\s+/', ' ', trim($rendered));
+
+        return self::repairInvalidEscapes($collapsed);
+    }
+
+    /**
+     * Drop backslashes that don't form a valid JSON escape sequence.
+     *
+     * Placeholder values pass through addslashes-style escaping before Blade
+     * HTML-escapes them, so a name like `Man's` becomes `Man\&#039;s` in the
+     * rendered template — a stray `\&` that makes the whole string invalid JSON.
+     * Valid escapes (\" \\ \/ \b \f \n \r \t \uXXXX) are left untouched.
+     */
+    private static function repairInvalidEscapes(string $raw): string
+    {
+        return (string) preg_replace('/\\\\(?!["\\\\\/bfnrtu])/', '', $raw);
     }
 
     private static function extractField(string $raw, string $key): ?string

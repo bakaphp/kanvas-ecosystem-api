@@ -43,10 +43,6 @@ class PushPeopleAction
         try {
             return $this->syncContact();
         } catch (ClientException $e) {
-            // VinSolutions rejects an unverifiable address with a 400 (System.ArgumentException,
-            // "<email> is not valid") — tenant data quality, not our bug. Flag the address so we
-            // stop pushing it (see prepareEmails) and retry the sync without it. If nothing was
-            // flagged it's a genuine error — let it surface to Sentry.
             if ($this->flagRejectedContactsFromError($e) === 0) {
                 throw $e;
             }
