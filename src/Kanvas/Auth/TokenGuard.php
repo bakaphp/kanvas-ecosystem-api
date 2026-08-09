@@ -7,7 +7,9 @@ namespace Kanvas\Auth;
 use Baka\Support\IPInfo;
 use Illuminate\Auth\TokenGuard as AuthTokenGuard;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Traits\TokenTrait;
 use Kanvas\Users\Models\Users;
@@ -41,6 +43,12 @@ class TokenGuard extends AuthTokenGuard
                 $token = $this->getRequestJwtToken();
                 $user = $this->sessionUser($token, $this->request);
             } catch (InvalidTokenStructure $e) {
+                return null;
+            } catch (ModelNotFoundException $e) {
+                Log::warning('Session not found for valid JWT in TokenGuard', [
+                    'message' => $e->getMessage(),
+                ]);
+
                 return null;
             }
         }
