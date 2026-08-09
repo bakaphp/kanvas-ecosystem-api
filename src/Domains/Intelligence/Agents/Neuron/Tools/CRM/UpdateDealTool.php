@@ -6,9 +6,11 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Deals\Actions\RecordDealNoteAction;
 use Kanvas\Guild\Deals\Actions\UpdateDealAction;
 use Kanvas\Guild\Deals\DataTransferObject\Deal as DealData;
 use Kanvas\Guild\Deals\Models\Deal;
+use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesDealForTool;
 use Kanvas\Users\Models\Users;
@@ -175,6 +177,12 @@ class UpdateDealTool extends Tool
             if ($hasNotes) {
                 $deal->set('deal_notes', trim($notes));
             }
+
+            new RecordDealNoteAction($deal)->execute(
+                $this->describeUpdate($request, $hasNotes),
+                'deal-update',
+                $this->user,
+            );
         } catch (Throwable $e) {
             report($e);
 
@@ -194,6 +202,28 @@ class UpdateDealTool extends Tool
     }
 
     /**
+     * @param array<string, mixed> $request
+     */
+    private function describeUpdate(array $request, bool $hasNotes): string
+    {
+        $labels = [
+            'title' => 'title',
+            'description' => 'description',
+            'owner_id' => 'owner',
+            'pipeline_id' => 'pipeline',
+            'pipeline_stage_id' => 'stage',
+            'status' => 'status',
+        ];
+
+        $parts = array_map(fn (string $key): string => $labels[$key] ?? $key, array_keys($request));
+        if ($hasNotes) {
+            $parts[] = 'notes';
+        }
+
+        return 'Deal updated: ' . ($parts === [] ? 'no changes' : implode(', ', $parts)) . '.';
+    }
+
+    /**
      * Deal (unlike Lead) has no moveToNextPipelineStage helper, so resolve the next stage by weight
      * from the deal's own pipeline. Returns null when there is no pipeline or no further stage.
      */
@@ -205,11 +235,11 @@ class UpdateDealTool extends Tool
         }
 
         $stages = $pipeline->stages; // ordered by weight ASC
-        $currentIndex = $stages->search(fn ($stage): bool => $stage->getId() === $deal->pipeline_stage_id);
+        $currentIndex = $stages->search(fn (PipelineStage $stage): bool => $stage->getId() === $deal->pipeline_stage_id);
 
         $next = $currentIndex === false
             ? $stages->first()
-            : $stages->get($currentIndex + 1);
+            : $stages->get((int) $currentIndex + 1);
 
         if ($next === null || $next->getId() === $deal->pipeline_stage_id) {
             return null;

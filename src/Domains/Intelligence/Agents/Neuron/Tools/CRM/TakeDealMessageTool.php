@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Guild\Deals\Actions\RecordDealNoteAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesDealForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\TakesMessageForEntity;
 use NeuronAI\Tools\PropertyType;
@@ -16,6 +17,7 @@ use Override;
 #[AgentTool(name: 'Take Deal Message', category: 'crm')]
 class TakeDealMessageTool extends Tool
 {
+    use HasKanvasContext;
     use ResolvesDealForTool;
     use TakesMessageForEntity;
 
@@ -89,7 +91,7 @@ class TakeDealMessageTool extends Tool
         $callback = $this->normalizeOptional($callback_number);
 
         $body = $this->receptionistMessageBody($message, $forWhom, $callback);
-        $recorded = new RecordDealNoteAction($deal)->execute($body, 'receptionist-note') !== null;
+        $recorded = new RecordDealNoteAction($deal)->execute($body, 'receptionist-note', $this->actingNoteUser()) !== null;
 
         return $this->finalizeTakenMessage($deal, 'deal_id', $message, $forWhom, $callback, $recorded);
     }

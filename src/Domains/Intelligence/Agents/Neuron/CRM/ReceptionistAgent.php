@@ -190,9 +190,13 @@ class ReceptionistAgent extends BaseKanvasAgent implements ConversesWithCustomer
             new LeadIntentTool(),
             new LeadRefTool(),
             new UpdateLeadTool(),
-            new TakeMessageTool(),
             new StopContactTool(),
         ];
+
+        if ($this->app !== null && $this->company !== null && $this->user !== null) {
+            // Context so the receptionist note is attributed to the agent's own user, not the shared AI user.
+            $tools[] = new TakeMessageTool()->withContext($this->app, $this->company, $this->user);
+        }
 
         if ($this->entity instanceof Message) {
             $tools[] = new ContactCheckerTool($this->entity);
