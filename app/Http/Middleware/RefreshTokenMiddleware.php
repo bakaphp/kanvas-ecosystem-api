@@ -23,8 +23,6 @@ class RefreshTokenMiddleware
         try {
             $token = $this->decodeToken($bearerToken);
         } catch (JwtException $e) {
-            // A malformed bearer token is a client error, not a system fault — log it
-            // locally and return 401 instead of letting it bubble up as a 500 to Sentry.
             Log::warning('Malformed JWT received in RefreshTokenMiddleware', [
                 'message' => $e->getMessage(),
             ]);
