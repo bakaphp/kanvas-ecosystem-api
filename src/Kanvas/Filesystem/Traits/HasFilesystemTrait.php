@@ -203,6 +203,53 @@ trait HasFilesystemTrait
     }
 
     /**
+     * Files shaped exactly like FilesystemQuery@getFileByGraphType (same columns + scoping),
+     * exposed as a relation so it can be eager-loaded. Eager-loading this across a page of
+     * entities collapses the per-entity `files` N+1 into a single `entity_id IN (...)` query.
+     *
+     * The companies_id guard uses `$this->companies_id`, which is null during eager-load
+     * construction (Eloquent builds the relation off a blank instance). Callers eager-loading
+     * across a known tenant should re-apply the company filter in the `with()` closure; entity_id
+     * is a global PK, so batched matching stays correct either way.
+     */
+    public function filesForGraphType(): HasManyThrough
+    {
+        $app = $this->app ?? app(Apps::class);
+        $systemModule = SystemModulesRepository::getByModelName(static::class, $app);
+
+        $relation = $this->hasManyThrough(
+            Filesystem::class,
+            FilesystemEntities::class,
+            'entity_id',
+            'id',
+            'id',
+            'filesystem_id'
+        )
+            ->select(
+                'filesystem_entities.uuid',
+                'filesystem.uuid as filesystem_uuid',
+                'filesystem_entities.field_name',
+                'filesystem_entities.weight',
+                'filesystem.name',
+                'filesystem.url',
+                'filesystem.size',
+                'filesystem.file_type',
+                'filesystem.file_type as type',
+                'filesystem_entities.id',
+                'filesystem.created_at',
+            )
+            ->where('filesystem_entities.system_modules_id', $systemModule->getId())
+            ->where('filesystem_entities.is_deleted', StateEnums::NO->getValue())
+            ->where('filesystem.is_deleted', StateEnums::NO->getValue());
+
+        if (isset($this->companies_id) && ! $app->get(AppSettingsEnums::GLOBAL_APP_IMAGES->getValue())) {
+            $relation->where('filesystem_entities.companies_id', $this->companies_id);
+        }
+
+        return $relation;
+    }
+
+    /**
      * Delete all files associated with this entity.
      */
     public function deleteFiles(): int

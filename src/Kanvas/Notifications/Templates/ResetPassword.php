@@ -7,9 +7,6 @@ use Kanvas\Notifications\Notification;
 use Kanvas\Templates\Enums\EmailTemplateEnum;
 use Override;
 
-/**
- * @deprecated version 2 , move to DynamicKanvasNotification
- */
 class ResetPassword extends Notification
 {
     public ?string $templateName = EmailTemplateEnum::RESET_PASSWORD->value;

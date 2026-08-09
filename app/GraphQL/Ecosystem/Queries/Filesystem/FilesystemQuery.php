@@ -77,12 +77,17 @@ class FilesystemQuery
         $perPage = max(1, (int) ($args['first'] ?? 25));
         $page = max(1, (int) ($args['page'] ?? 1));
 
-        $files = $this->getFileByGraphType(
-            $root,
-            $args,
-            $context,
-            $resolveInfo
-        )->get();
+        // A high-fan-out list (e.g. channelVariants) can eager-load `filesForGraphType` so the
+        // per-entity files query is batched into one `entity_id IN (...)`. Read the loaded
+        // relation when present; otherwise fall back to the single-entity query.
+        $files = is_object($root) && method_exists($root, 'relationLoaded') && $root->relationLoaded('filesForGraphType')
+            ? $root->getRelation('filesForGraphType')
+            : $this->getFileByGraphType(
+                $root,
+                $args,
+                $context,
+                $resolveInfo
+            )->get();
 
         return new LengthAwarePaginator(
             $files->forPage($page, $perPage)->values(),
