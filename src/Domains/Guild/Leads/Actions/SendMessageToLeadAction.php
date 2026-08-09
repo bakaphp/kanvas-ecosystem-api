@@ -33,9 +33,20 @@ use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Notifications\Templates\Blank;
 use Ramsey\Uuid\Uuid;
+use Twilio\Exceptions\RestException;
+use Twilio\Rest\Client as TwilioClient;
 
+/**
+ * @todo we have to break this class apart, its becoming overly complex
+ */
 class SendMessageToLeadAction
 {
+    /**
+     * Twilio error code returned when the recipient has opted out (texted STOP)
+     * and can no longer be messaged. See https://www.twilio.com/docs/api/errors/21610.
+     */
+    private const int TWILIO_UNSUBSCRIBED_RECIPIENT_CODE = 21610;
+
     /**
      * Default media items per Twilio MMS API call. Override per-app via
      * `twilio-mms-batch-size` setting. Twilio's documented hard cap is 10 but
@@ -310,6 +321,11 @@ class SendMessageToLeadAction
         return new RespondIOClient($this->lead->app, $this->lead->company);
     }
 
+    protected function getTwilioClient(): TwilioClient
+    {
+        return Client::getInstanceByCompany($this->lead->company);
+    }
+
     protected function sendRespondIoMessage(string $message, ?string $to = null): array
     {
         $client = $this->getRespondIoClient();
@@ -377,7 +393,7 @@ class SendMessageToLeadAction
         //     return $this->sendRespondIoMessage($message, $to);
         // }
 
-        $client = Client::getInstanceByCompany($this->lead->company);
+        $client = $this->getTwilioClient();
 
         $cellphone = ($to !== null && $to !== '')
             ? $to
@@ -398,53 +414,91 @@ class SendMessageToLeadAction
 
         $mediaUrls = $this->getMediaUrlsForTwilio();
 
-        if (empty($mediaUrls)) {
-            $payload = ['from' => $from];
-            if ($fullMessage !== '') {
-                $payload['body'] = $fullMessage;
+        try {
+            if (empty($mediaUrls)) {
+                $payload = ['from' => $from];
+                if ($fullMessage !== '') {
+                    $payload['body'] = $fullMessage;
+                }
+
+                $twilioMessage = $client->messages->create($cellphone, $payload);
+
+                return [
+                    'channel' => 'sms',
+                    'batches' => 1,
+                    'batch_size' => 0,
+                    'media_per_batch' => [0],
+                    'lead_id' => $this->lead->getId(),
+                    'lead_uuid' => $this->lead->uuid,
+                    'messages' => [$this->describeTwilioMessage($twilioMessage)],
+                ];
             }
 
-            $twilioMessage = $client->messages->create($cellphone, $payload);
+            $batchSize = (int) ($this->lead->app->get(TwilioConfigurationEnum::TWILIO_MMS_BATCH_SIZE->value) ?: self::DEFAULT_MMS_BATCH_SIZE);
+            $batchSize = max(1, min(self::MAX_MMS_BATCH_SIZE, $batchSize));
+
+            $batches = array_chunk($mediaUrls, $batchSize);
+            $twilioMessages = [];
+
+            foreach ($batches as $index => $batch) {
+                $payload = [
+                    'from' => $from,
+                    'mediaUrl' => $batch,
+                ];
+
+                if ($index === 0 && $fullMessage !== '') {
+                    $payload['body'] = $fullMessage;
+                }
+
+                $twilioMessages[] = $client->messages->create($cellphone, $payload);
+            }
 
             return [
                 'channel' => 'sms',
-                'batches' => 1,
-                'batch_size' => 0,
-                'media_per_batch' => [0],
+                'batches' => count($batches),
+                'batch_size' => $batchSize,
+                'media_per_batch' => array_map('count', $batches),
                 'lead_id' => $this->lead->getId(),
                 'lead_uuid' => $this->lead->uuid,
-                'messages' => [$this->describeTwilioMessage($twilioMessage)],
+                'messages' => array_map(fn ($m) => $this->describeTwilioMessage($m), $twilioMessages),
             ];
-        }
-
-        $batchSize = (int) ($this->lead->app->get(TwilioConfigurationEnum::TWILIO_MMS_BATCH_SIZE->value) ?: self::DEFAULT_MMS_BATCH_SIZE);
-        $batchSize = max(1, min(self::MAX_MMS_BATCH_SIZE, $batchSize));
-
-        $batches = array_chunk($mediaUrls, $batchSize);
-        $twilioMessages = [];
-
-        foreach ($batches as $index => $batch) {
-            $payload = [
-                'from' => $from,
-                'mediaUrl' => $batch,
-            ];
-
-            if ($index === 0 && $fullMessage !== '') {
-                $payload['body'] = $fullMessage;
+        } catch (RestException $e) {
+            // Recipient replied STOP → Twilio auto-unsubscribed the number and
+            // rejects any further send with 21610. That's an expected opt-out,
+            // not a fault: flag the phone contacts, note it, and return gracefully
+            // so the activity doesn't retry 3× and flood Sentry.
+            if ($e->getCode() !== self::TWILIO_UNSUBSCRIBED_RECIPIENT_CODE) {
+                throw $e;
             }
 
-            $twilioMessages[] = $client->messages->create($cellphone, $payload);
+            return $this->handleUnsubscribedRecipient($cellphone, $fullMessage);
         }
+    }
+
+    protected function handleUnsubscribedRecipient(string $cellphone, string $body): array
+    {
+        $this->lead->people?->optOutPhoneContacts();
+
+        $this->recordOptOutNote($cellphone, $body);
 
         return [
             'channel' => 'sms',
-            'batches' => count($batches),
-            'batch_size' => $batchSize,
-            'media_per_batch' => array_map('count', $batches),
+            'batches' => 0,
+            'batch_size' => 0,
+            'media_per_batch' => [],
             'lead_id' => $this->lead->getId(),
             'lead_uuid' => $this->lead->uuid,
-            'messages' => array_map(fn ($m) => $this->describeTwilioMessage($m), $twilioMessages),
+            'messages' => [],
+            'opted_out' => true,
         ];
+    }
+
+    protected function recordOptOutNote(string $cellphone, string $body): void
+    {
+        new RecordLeadNoteAction($this->lead)->execute(
+            "SMS not delivered: {$cellphone} has opted out of messages (replied STOP). Attempted message: \"{$body}\"",
+            'sms-opt-out',
+        );
     }
 
     private function describeTwilioMessage(object $twilioMessage): array
