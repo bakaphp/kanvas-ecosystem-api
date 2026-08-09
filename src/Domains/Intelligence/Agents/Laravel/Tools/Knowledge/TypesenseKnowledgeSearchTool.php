@@ -9,7 +9,8 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
-use Kanvas\Intelligence\Agents\Services\AgentTypesenseKnowledgeService;
+use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
+use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
@@ -39,8 +40,14 @@ class TypesenseKnowledgeSearchTool implements KanvasToolInterface
         }
 
         try {
-            $service = new AgentTypesenseKnowledgeService($this->app);
-            $hits = $service->search($service->embed($query), $limit);
+            $scope = KnowledgeScope::forTenant($this->app->getId(), $this->company->getId());
+            $embedding = KnowledgeComponents::embedder($this->app)->embed($query);
+            $hits = KnowledgeComponents::store($this->app)->search(
+                $embedding,
+                $scope,
+                $limit,
+                KnowledgeComponents::minScore($this->app),
+            );
         } catch (Throwable $e) {
             // Unreachable cluster / missing key / not-yet-created collection — degrade
             // to a clean message rather than throwing into the agent loop, but log it

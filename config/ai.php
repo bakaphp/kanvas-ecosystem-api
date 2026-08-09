@@ -32,7 +32,11 @@ return [
 
     'caching' => [
         'embeddings' => [
-            'cache' => false,
+            // Enabled so re-indexing unchanged knowledge chunks (the attach-file
+            // activity re-embeds all of an agent's files on every attach) hits the
+            // cache instead of paying the embedding API again. Cache key includes
+            // model + input, so switching embedding models never returns stale vectors.
+            'cache' => env('AI_EMBEDDINGS_CACHE', true),
             'store' => env('CACHE_STORE', 'database'),
         ],
     ],

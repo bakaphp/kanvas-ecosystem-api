@@ -18,6 +18,7 @@ class KnowledgeRetrieval implements RetrievalInterface
     }
 
     /** @return list<Document> */
+    #[Override]
     public function retrieve(Message $query): array
     {
         if (! RagComponents::isEnabled($this->entity)) {

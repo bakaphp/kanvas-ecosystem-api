@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Knowledge\TypesenseKnowledgeSearchTool;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Users\Models\Users;
 use Laravel\Ai\Embeddings;
 use Laravel\Ai\Tools\Request;
@@ -29,15 +30,15 @@ class TypesenseKnowledgeSearchToolTest extends TestCase
         $user = auth()->user();
         $this->user = $user;
 
-        // Avoid real OpenAI calls — the tool only needs *an* embedding vector,
+        // Avoid real embedding calls — the tool only needs *an* embedding vector,
         // not a real one, to exercise the Typesense search path.
         Embeddings::fake();
     }
 
     protected function tearDown(): void
     {
-        $this->kanvasApp->del(ConfigurationEnum::TYPESENSE_VECTOR_COLLECTION->value);
-        $this->kanvasApp->del(ConfigurationEnum::OPEN_AI_EMBEDDINGS_KEY->value);
+        $this->kanvasApp->del(KnowledgeConfigurationEnum::COLLECTION->value);
+        $this->kanvasApp->del(ConfigurationEnum::GEMINI_KEY->value);
 
         parent::tearDown();
     }
@@ -49,25 +50,30 @@ class TypesenseKnowledgeSearchToolTest extends TestCase
         $this->assertStringContainsString('Provide a `query`', $result);
     }
 
-    public function testDegradesGracefullyWhenTypesenseUnreachable(): void
+    public function testDegradesGracefullyWhenNoKnowledgeIsAvailable(): void
     {
-        // No reachable Typesense cluster in the test environment — the tool
-        // must catch that and return a clean message, never throw into the
+        // Whether Typesense is unreachable or simply has no collection/rows for this
+        // tenant yet, the tool must return a clean message and never throw into the
         // agent loop (same contract as TypesenseProductRecommendationTool).
         $result = (string) $this->tool()->handle(new Request(['query' => 'refund policy']));
 
-        $this->assertStringContainsString('not reachable', $result);
+        $this->assertTrue(
+            str_contains($result, 'not reachable') || str_contains($result, 'No relevant knowledge found'),
+            "Expected a graceful degradation message, got: {$result}",
+        );
     }
 
     public function testRegistersAPerAppEmbeddingProvider(): void
     {
-        $this->kanvasApp->set(ConfigurationEnum::OPEN_AI_EMBEDDINGS_KEY->value, 'sk-test-key');
+        $this->kanvasApp->set(ConfigurationEnum::GEMINI_KEY->value, 'test-gemini-key');
 
+        // The embedder registers its per-app provider before the search runs, so the
+        // registration is observable even though the unreachable search then degrades.
         $this->tool()->handle(new Request(['query' => 'refund policy']));
 
-        $name = "openai_agent_knowledge_app_{$this->kanvasApp->getId()}";
+        $name = "knowledge_gemini_app_{$this->kanvasApp->getId()}";
 
-        $this->assertSame('sk-test-key', config("ai.providers.{$name}.key"));
+        $this->assertSame('test-gemini-key', config("ai.providers.{$name}.key"));
     }
 
     private function tool(): TypesenseKnowledgeSearchTool

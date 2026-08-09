@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
 use NeuronAI\RAG\Document;
 use NeuronAI\RAG\VectorSimilarity;
 use NeuronAI\RAG\VectorStore\VectorStoreInterface;
+use Override;
 use RuntimeException;
 use Typesense\Client;
 use Typesense\Exceptions\ObjectNotFound;
@@ -23,11 +24,13 @@ class TypesenseVectorStore implements VectorStoreInterface
     ) {
     }
 
+    #[Override]
     public function addDocument(Document $document): VectorStoreInterface
     {
         return $this->addDocuments([$document]);
     }
 
+    #[Override]
     public function addDocuments(array $documents): VectorStoreInterface
     {
         if ($documents === []) {
@@ -87,11 +90,13 @@ class TypesenseVectorStore implements VectorStoreInterface
         return $this;
     }
 
+    #[Override]
     public function deleteBySource(string $sourceType, string $sourceName): VectorStoreInterface
     {
         return $this->deleteBy($sourceType, $sourceName);
     }
 
+    #[Override]
     public function deleteBy(string $sourceType, ?string $sourceName = null): VectorStoreInterface
     {
         $this->ensureCollection();
@@ -105,6 +110,7 @@ class TypesenseVectorStore implements VectorStoreInterface
         return $this;
     }
 
+    #[Override]
     public function similaritySearch(array $embedding): iterable
     {
         $this->ensureCollection();

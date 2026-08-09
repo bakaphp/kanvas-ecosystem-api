@@ -18,8 +18,8 @@ class BaseRagAgent extends RAG implements BehavesAsKanvasAgent
     #[Override]
     protected function ragNodes(): array
     {
-        return method_exists($this, 'leadRagNodes')
-            ? $this->leadRagNodes()
+        return method_exists($this, 'knowledgeRagNodes')
+            ? $this->knowledgeRagNodes()
             : [];
     }
 }

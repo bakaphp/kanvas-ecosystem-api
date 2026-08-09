@@ -10,7 +10,7 @@ use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\FollowUpAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\ReceptionistAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
-use Kanvas\Intelligence\Agents\Neuron\Traits\HasLeadRag;
+use Kanvas\Intelligence\Agents\Neuron\Traits\HasKnowledgeRag;
 use NeuronAI\RAG\RAG;
 use Tests\TestCase;
 
@@ -26,9 +26,9 @@ class LeadRagAgentOptInTest extends TestCase
         $this->assertTrue(is_subclass_of(FollowUpAgent::class, BaseKanvasAgent::class));
         $this->assertTrue(is_subclass_of(CFOAgent::class, BaseKanvasAgent::class));
 
-        $this->assertContains(HasLeadRag::class, class_uses_recursive(SalesAgent::class));
-        $this->assertNotContains(HasLeadRag::class, class_uses_recursive(ReceptionistAgent::class));
-        $this->assertNotContains(HasLeadRag::class, class_uses_recursive(FollowUpAgent::class));
-        $this->assertNotContains(HasLeadRag::class, class_uses_recursive(CFOAgent::class));
+        $this->assertContains(HasKnowledgeRag::class, class_uses_recursive(SalesAgent::class));
+        $this->assertNotContains(HasKnowledgeRag::class, class_uses_recursive(ReceptionistAgent::class));
+        $this->assertNotContains(HasKnowledgeRag::class, class_uses_recursive(FollowUpAgent::class));
+        $this->assertNotContains(HasKnowledgeRag::class, class_uses_recursive(CFOAgent::class));
     }
 }
