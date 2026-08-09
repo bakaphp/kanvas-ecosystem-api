@@ -32,7 +32,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\InventorySearchTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\ListAvailableProductsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\VariantDetailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\VariantSearchTool;
-use Kanvas\Intelligence\Agents\Neuron\Traits\HasKnowledgeRag;
 use Kanvas\Intelligence\Agents\Traits\HasCustomerPersona;
 use Kanvas\Intelligence\Agents\Traits\HasTemporalContext;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
@@ -51,7 +50,6 @@ use Override;
 class SalesAgent extends BaseRagAgent implements ConversesWithCustomer
 {
     use HasCustomerPersona;
-    use HasKnowledgeRag;
     use HasTemporalContext;
     use MergesRegisteredTools;
 

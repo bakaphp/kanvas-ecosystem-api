@@ -44,7 +44,11 @@ trait HasKnowledgeRag
     #[Override]
     protected function retrieval(): RetrievalInterface
     {
-        return new KnowledgeRetrieval($this->resolveEntityForTurn());
+        return new KnowledgeRetrieval(
+            $this->app,
+            $this->company,
+            $this->resolveEntityForTurn()
+        );
     }
 
     #[Override]
