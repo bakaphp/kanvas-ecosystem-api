@@ -10,6 +10,7 @@ use NeuronAI\Chat\Messages\Message;
 use NeuronAI\RAG\Document;
 use NeuronAI\RAG\Retrieval\RetrievalInterface;
 use NeuronAI\RAG\Retrieval\SimilarityRetrieval;
+use Override;
 
 class KnowledgeRetrieval implements RetrievalInterface
 {
