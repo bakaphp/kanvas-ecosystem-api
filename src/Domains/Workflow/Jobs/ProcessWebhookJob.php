@@ -15,9 +15,6 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
-
-use function Sentry\captureException;
-
 use Throwable;
 
 abstract class ProcessWebhookJob implements ShouldQueue
