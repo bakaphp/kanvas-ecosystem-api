@@ -42,7 +42,7 @@ class IndexKnowledgeDocumentActivity extends KanvasActivity
         }
 
         $extractor = new KnowledgeTextExtractor();
-        $textFiles = $entity->getFiles()
+        $textFiles = $entity->files
             ->filter(fn (Filesystem $file): bool => $extractor->supports($file) && $this->isStaffUpload($file, $entity))
             ->values();
 
@@ -58,7 +58,7 @@ class IndexKnowledgeDocumentActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
-            integrationOperation: function (Agent $agent, $app, $integrationCompany, $additionalParams) use ($extractor, $textFiles): array {
+            integrationOperation: function (Agent $agent) use ($extractor, $textFiles): array {
                 $chunks = 0;
 
                 foreach ($textFiles as $file) {
@@ -100,7 +100,7 @@ class IndexKnowledgeDocumentActivity extends KanvasActivity
      */
     private function isStaffUpload(Filesystem $file, Agent $agent): bool
     {
-        $uploaderId = (int) $file->users_id;
+        $uploaderId = $file->users_id;
 
         return $uploaderId > 0 && $uploaderId !== (int) ($agent->user?->getId() ?? 0);
     }

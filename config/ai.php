@@ -37,7 +37,10 @@ return [
             // cache instead of paying the embedding API again. Cache key includes
             // model + input, so switching embedding models never returns stale vectors.
             'cache' => env('AI_EMBEDDINGS_CACHE', true),
-            'store' => env('CACHE_STORE', 'database'),
+            // Redis (not the default 'database' store, which needs a `cache` table that
+            // isn't guaranteed to exist) so the embedding cache is shared across web +
+            // queue workers and survives without extra migration.
+            'store' => env('AI_EMBEDDINGS_CACHE_STORE', 'redis'),
         ],
     ],
 

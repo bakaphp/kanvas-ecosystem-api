@@ -47,8 +47,6 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
     ): void {
         $this->agentRecord = $agent;
         $this->entity = $entity;
-        // Request-scoped app/company take precedence over the agent's own values,
-        // which may be null or id=0 for global agents.
         $this->app = $app ?? $agent->app;
         $this->company = $company ?? $agent->company;
         $this->externalReferenceId = $externalReferenceId;
@@ -78,7 +76,9 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
             'mistral' => Lab::Mistral,
             'ollama' => Lab::Ollama,
             'deepseek' => Lab::DeepSeek,
-            default => null,
+            default => $this->agentRecord !== null
+                ? self::labForProvider(AgentProviderService::resolveProviderEnum($this->agentRecord))
+                : null,
         };
     }
 
@@ -86,7 +86,7 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
     {
         return $this->selectedLlmConfig()?->model
             ?? $this->agentRecord?->model?->config['model']
-            ?? null;
+            ?? ($this->agentRecord !== null ? AgentProviderService::resolveModel($this->agentRecord) : null);
     }
 
     private function selectedLlmConfig(): ?AgentLlmConfig
