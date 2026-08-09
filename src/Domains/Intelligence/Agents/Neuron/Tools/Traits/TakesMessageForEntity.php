@@ -27,9 +27,8 @@ trait TakesMessageForEntity
     }
 
     /**
-     * Attribute the note to the agent's own acting user (via HasKanvasContext) instead of letting the
-     * record action fall back to the shared company AI user. Null when no context is set (e.g. direct
-     * invocation), so the action's own default still applies.
+     * The agent's own acting user (via HasKanvasContext), so the note isn't attributed to the shared
+     * company AI user. Null without context, letting the record action's own default apply.
      */
     protected function actingNoteUser(): ?Users
     {

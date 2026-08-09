@@ -10,6 +10,7 @@ use Kanvas\Guild\Deals\Actions\RecordDealNoteAction;
 use Kanvas\Guild\Deals\Actions\UpdateDealAction;
 use Kanvas\Guild\Deals\DataTransferObject\Deal as DealData;
 use Kanvas\Guild\Deals\Models\Deal;
+use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesDealForTool;
 use Kanvas\Users\Models\Users;
@@ -177,7 +178,6 @@ class UpdateDealTool extends Tool
                 $deal->set('deal_notes', trim($notes));
             }
 
-            // Attribute the update to the acting agent user so the deal's activity log shows who did it.
             new RecordDealNoteAction($deal)->execute(
                 $this->describeUpdate($request, $hasNotes),
                 'deal-update',
@@ -235,11 +235,11 @@ class UpdateDealTool extends Tool
         }
 
         $stages = $pipeline->stages; // ordered by weight ASC
-        $currentIndex = $stages->search(fn ($stage): bool => $stage->getId() === $deal->pipeline_stage_id);
+        $currentIndex = $stages->search(fn (PipelineStage $stage): bool => $stage->getId() === $deal->pipeline_stage_id);
 
         $next = $currentIndex === false
             ? $stages->first()
-            : $stages->get($currentIndex + 1);
+            : $stages->get((int) $currentIndex + 1);
 
         if ($next === null || $next->getId() === $deal->pipeline_stage_id) {
             return null;

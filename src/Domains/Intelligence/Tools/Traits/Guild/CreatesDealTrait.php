@@ -61,7 +61,6 @@ trait CreatesDealTrait
                 DealData::fromMultiple($user, $app, $company, $request),
             )->execute();
 
-            // Attribute creation to the acting agent user so the deal's activity log shows who did it.
             new RecordDealNoteAction($deal)->execute(
                 'Deal created.',
                 'deal-create',
