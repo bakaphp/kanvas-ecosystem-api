@@ -21,7 +21,7 @@ use function Sentry\captureException;
 class ProductImporterJob extends AbstractImporterJob
 {
     #[Override]
-    public function handle()
+    public function handle(): void
     {
         config(['laravel-model-caching.disabled' => true]);
         Auth::loginUsingId($this->user->getId());

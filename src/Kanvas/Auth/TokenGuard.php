@@ -109,7 +109,7 @@ class TokenGuard extends AuthTokenGuard
         }
     }
 
-    public function loginUsingId(mixed $id, bool $remember = false)
+    public function loginUsingId(mixed $id, bool $remember = false): Users
     {
         $user = Users::getById((int) $id);
         $this->setUser($user);

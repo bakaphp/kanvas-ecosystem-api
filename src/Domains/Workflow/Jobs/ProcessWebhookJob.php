@@ -37,7 +37,7 @@ abstract class ProcessWebhookJob implements ShouldQueue
         $this->receiver = $this->webhookRequest->receiverWebhook()->firstOrFail();
     }
 
-    public function handle()
+    public function handle(): ?array
     {
         try {
             config(['laravel-model-caching.disabled' => true]);

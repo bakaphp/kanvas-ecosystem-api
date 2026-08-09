@@ -18,13 +18,15 @@ use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
+use Override;
 use Throwable;
 
 use function Sentry\captureException;
 
 class ImporterEventJob extends ProductImporterJob
 {
-    public function handle()
+    #[Override]
+    public function handle(): void
     {
         config(['laravel-model-caching.disabled' => true]);
         Auth::loginUsingId($this->user->getId());
