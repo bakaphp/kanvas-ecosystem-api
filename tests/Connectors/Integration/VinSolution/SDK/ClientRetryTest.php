@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\VinSolution\SDK;
 
 use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
@@ -69,6 +70,35 @@ final class ClientRetryTest extends TestCase
         $this->expectException(ConnectException::class);
 
         $client->get('/leads/id/1');
+    }
+
+    /**
+     * A VinSolutions-side null-deref on PUT /contact is a deterministic 500: it survives all
+     * retries and surfaces as a ServerException with the vendor body intact — which is what
+     * PushPeopleActivity catches and turns into failWorkflow (KANVAS-ECOSYSTEM-5Q8). If retries
+     * ever swallowed it or the exception type changed, that catch would silently stop matching.
+     */
+    public function testPersistentServerErrorSurfacesAsServerExceptionWithBody(): void
+    {
+        $body = '{"ClassName":"System.NullReferenceException","Message":"Object reference not set to an instance of an object."}';
+
+        $mock = new MockHandler([
+            new Response(500, [], $body),
+            new Response(500, [], $body),
+            new Response(500, [], $body),
+            new Response(500, [], $body),
+        ]);
+
+        $client = new GuzzleClient(['handler' => Client::buildHandlerStack($mock)]);
+
+        try {
+            $client->put('/gateway/v1/contact/1329395656');
+            $this->fail('A persistent 500 must surface as a ServerException.');
+        } catch (ServerException $e) {
+            $this->assertSame(500, $e->getResponse()?->getStatusCode());
+            $this->assertStringContainsString('System.NullReferenceException', (string) $e->getResponse()?->getBody());
+            $this->assertSame(0, $mock->count(), 'The original request plus all 3 retries must be consumed.');
+        }
     }
 
     public function testDoesNotRetryClientErrors(): void

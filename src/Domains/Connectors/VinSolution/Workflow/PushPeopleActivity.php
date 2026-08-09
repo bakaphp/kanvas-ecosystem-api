@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
 use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\ServerException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Actions\PushPeopleAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
@@ -47,6 +48,14 @@ class PushPeopleActivity extends KanvasActivity
 
                     return $this->failWorkflow([
                         'error' => 'VinSolution assigned user not found',
+                        'people_id' => $people->getId(),
+                        'company_id' => $people->companies_id,
+                    ]);
+                } catch (ServerException $e) {
+                    return $this->failWorkflow([
+                        'error' => 'VinSolution server error on contact push',
+                        'status' => $e->getResponse()?->getStatusCode(),
+                        'response' => (string) $e->getResponse()?->getBody(),
                         'people_id' => $people->getId(),
                         'company_id' => $people->companies_id,
                     ]);
