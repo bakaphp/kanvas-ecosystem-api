@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCompanyUserForTool;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -24,6 +25,7 @@ use Throwable;
 class ReassignLeadOwnerTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesCompanyUserForTool;
 
     public function __construct()
     {
@@ -112,30 +114,5 @@ class ReassignLeadOwnerTool extends Tool
             ],
             'message' => 'Lead owner updated.',
         ];
-    }
-
-    /**
-     * Users of the CURRENT company only (via users_associated_company) matching name or email.
-     * CONCAT match lets "firstname lastname" resolve as a single query term.
-     *
-     * @return \Illuminate\Support\Collection<int, Users>
-     */
-    private function resolveCompanyUsers(string $term): \Illuminate\Support\Collection
-    {
-        $like = '%' . $term . '%';
-
-        return Users::query()
-            ->select('users.*')
-            ->join('users_associated_company', 'users_associated_company.users_id', '=', 'users.id')
-            ->where('users_associated_company.companies_id', $this->company->getId())
-            ->where(
-                fn ($q) => $q->where('users.firstname', 'like', $like)
-                    ->orWhere('users.lastname', 'like', $like)
-                    ->orWhere('users.email', 'like', $like)
-                    ->orWhereRaw("CONCAT(users.firstname, ' ', users.lastname) like ?", [$like]),
-            )
-            ->distinct()
-            ->limit(10)
-            ->get();
     }
 }

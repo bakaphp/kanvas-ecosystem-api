@@ -100,6 +100,7 @@
         "laramint/laravel-brain": "^2.0",
         "larastan/larastan": "^3.0",
         "laravel/boost": "^2.0",
+        "laravel/doctor": "^0.1.0",
         "mockery/mockery": "^1.4.4",
         "nunomaduro/collision": "^8.1",
         "pelmered/fake-car": "^2.1",
