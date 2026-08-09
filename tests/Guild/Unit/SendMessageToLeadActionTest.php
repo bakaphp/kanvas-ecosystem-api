@@ -13,6 +13,8 @@ use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Mockery;
 use Tests\TestCaseUnit;
+use Twilio\Exceptions\RestException;
+use Twilio\Rest\Client as TwilioClient;
 
 final class SendMessageToLeadActionTest extends TestCaseUnit
 {
@@ -263,6 +265,100 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $result = $action->sendRespondIoMessageForTest('caption', '+15551234567');
 
         $this->assertCount(2, $result['messages']);
+    }
+
+    public function testSmsUnsubscribedRecipientOptsOutPhoneAndReturnsGracefully(): void
+    {
+        $messages = Mockery::mock();
+        $messages->shouldReceive('create')
+            ->once()
+            ->andThrow(new RestException('Attempt to send to unsubscribed recipient', 21610, 400));
+
+        $twilioClient = $this->makeFakeTwilioClient($messages);
+
+        $people = Mockery::mock();
+        $people->shouldReceive('optOutPhoneContacts')->once()->andReturn(1);
+
+        $lead = $this->makeLead();
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn($people);
+
+        $action = $this->makeTwilioAction($lead, $twilioClient);
+
+        $result = $action->sendSmsMessageForTest('+15550001111', 'Following up on your test drive', '+15551234567');
+
+        $this->assertTrue($result['opted_out']);
+        $this->assertSame('sms', $result['channel']);
+        $this->assertSame([], $result['messages']);
+        $this->assertTrue($action->optOutNoteRecorded);
+    }
+
+    public function testSmsRethrowsTwilioErrorsThatAreNotOptOut(): void
+    {
+        $messages = Mockery::mock();
+        $messages->shouldReceive('create')
+            ->once()
+            ->andThrow(new RestException('The "To" number is not a valid phone number', 21211, 400));
+
+        $twilioClient = $this->makeFakeTwilioClient($messages);
+
+        $people = Mockery::mock();
+        $people->shouldNotReceive('optOutPhoneContacts');
+
+        $lead = $this->makeLead();
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn($people);
+
+        $action = $this->makeTwilioAction($lead, $twilioClient);
+
+        $this->expectException(RestException::class);
+        $action->sendSmsMessageForTest('+15550001111', 'hello', '+15551234567');
+
+        $this->assertFalse($action->optOutNoteRecorded);
+    }
+
+    private function makeFakeTwilioClient(object $messages): TwilioClient
+    {
+        return new class ($messages) extends TwilioClient {
+            public function __construct(private readonly object $messagesStub)
+            {
+            }
+
+            public function __get(string $name): object
+            {
+                return $this->messagesStub;
+            }
+        };
+    }
+
+    private function makeTwilioAction(Lead $lead, TwilioClient $twilioClient): SendMessageToLeadAction
+    {
+        return new class ($lead, $twilioClient) extends SendMessageToLeadAction {
+            public bool $optOutNoteRecorded = false;
+
+            public function __construct(Lead $lead, private readonly TwilioClient $injectedTwilioClient)
+            {
+                parent::__construct($lead);
+            }
+
+            protected function getTwilioClient(): TwilioClient
+            {
+                return $this->injectedTwilioClient;
+            }
+
+            protected function getMediaUrlsForTwilio(): array
+            {
+                return [];
+            }
+
+            protected function recordOptOutNote(string $cellphone, string $body): void
+            {
+                $this->optOutNoteRecorded = true;
+            }
+
+            public function sendSmsMessageForTest(string $from, string $message, ?string $to = null): array
+            {
+                return $this->sendSmsMessage($from, $message, $to);
+            }
+        };
     }
 
     private function makeLead(): Lead
