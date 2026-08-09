@@ -60,9 +60,8 @@ class OrderItem extends BaseModel
 
     public function variant(): BelongsTo
     {
-        // An order line is an immutable historical record — the variant must still
-        // resolve even after the catalog soft-deletes it, or the whole order query 500s.
-        return $this->belongsTo(Variants::class, 'variant_id', 'id')->withTrashed();
+        return $this->belongsTo(Variants::class, 'variant_id', 'id')
+                ->withTrashed();
     }
 
     #[Override]
