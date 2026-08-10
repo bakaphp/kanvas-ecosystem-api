@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\BookingOptionsTool;
@@ -53,7 +53,7 @@ use Override;
     description: 'Inbound receptionist for prospect chat — answers FAQs, qualifies and updates leads, books internal appointments, takes messages, honors opt-outs, and hands off to a human when needed.',
     provider: 'neuron',
 )]
-class ReceptionistAgent extends BaseKanvasAgent implements ConversesWithCustomer
+class ReceptionistAgent extends BaseRagAgent implements ConversesWithCustomer
 {
     use HasCustomerPersona;
     use HasTemporalContext;
@@ -190,9 +190,13 @@ class ReceptionistAgent extends BaseKanvasAgent implements ConversesWithCustomer
             new LeadIntentTool(),
             new LeadRefTool(),
             new UpdateLeadTool(),
-            new TakeMessageTool(),
             new StopContactTool(),
         ];
+
+        if ($this->app !== null && $this->company !== null && $this->user !== null) {
+            // Context so the receptionist note is attributed to the agent's own user, not the shared AI user.
+            $tools[] = new TakeMessageTool()->withContext($this->app, $this->company, $this->user);
+        }
 
         if ($this->entity instanceof Message) {
             $tools[] = new ContactCheckerTool($this->entity);

@@ -536,7 +536,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $action->execute('sms', 'Hello', '+18095550000');
     }
 
-    public function testTwilio21610MarksLeadPhoneContactsAsOptedOut(): void
+    public function testTwilio21610ReturnsGracefullyAndOptsOutOnlyTheDestinationPhone(): void
     {
         $people = Mockery::mock();
         $people->shouldReceive('setPhoneOptOut')
@@ -546,35 +546,25 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
 
         $lead = Mockery::mock(Lead::class);
         $lead->shouldReceive('getAttribute')->with('people')->andReturn($people);
-
-        $httpClient = Mockery::mock(TwilioHttpClient::class);
-        $httpClient->shouldReceive('request')
-            ->once()
-            ->andReturn(new Response(400, json_encode([
-                'code' => 21610,
-                'message' => 'Attempt to send to unsubscribed recipient',
-                'more_info' => 'https://www.twilio.com/docs/errors/21610',
-                'status' => 400,
-            ], JSON_THROW_ON_ERROR)));
-
-        $client = new TwilioClient(
-            username: 'ACtest',
-            password: 'token',
-            httpClient: $httpClient,
-        );
+        $lead->shouldReceive('getAttribute')->with('company')->andReturn(null);
+        $lead->shouldReceive('getAttribute')->with('uuid')->andReturn('lead-uuid');
+        $lead->shouldReceive('getId')->andReturn(42);
 
         $action = $this->makeAction($lead);
 
-        $this->expectExceptionCode(21610);
-
-        $action->createTwilioMessageForTest(
-            $client,
+        $result = $action->handleUnsubscribedRecipientForTest(
             '+18095551234',
-            [
-                'from' => '+18095550000',
-                'body' => 'Hello',
-            ]
+            'Hello',
         );
+
+        $this->assertTrue($result['opted_out']);
+        $this->assertSame('sms', $result['channel']);
+        $this->assertSame([], $result['messages']);
+        $this->assertSame('opted_out', $result['classification']);
+        $this->assertSame(21610, $result['twilio_error_code']);
+        $this->assertFalse($result['retryable']);
+        $this->assertSame('+18095551234', $result['to']);
+        $this->assertTrue($action->optOutNoteRecorded);
     }
 
     public function testTwilioMessageIncludesConfiguredStatusCallback(): void
@@ -641,6 +631,8 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         ?string $statusCallbackUrl = null,
     ): SendMessageToLeadAction {
         return new class ($lead, $client, $statusCallbackUrl) extends SendMessageToLeadAction {
+            public bool $optOutNoteRecorded = false;
+
             public function __construct(
                 Lead $lead,
                 private readonly ?RespondIOClient $injectedClient = null,
@@ -672,6 +664,16 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
             public function createTwilioMessageForTest(TwilioClient $client, string $cellphone, array $payload): object
             {
                 return $this->createTwilioMessage($client, $cellphone, $payload);
+            }
+
+            public function handleUnsubscribedRecipientForTest(string $cellphone, string $body): array
+            {
+                return $this->handleUnsubscribedRecipient($cellphone, $body);
+            }
+
+            protected function recordOptOutNote(string $cellphone, string $body): void
+            {
+                $this->optOutNoteRecorded = true;
             }
 
             protected function getTwilioStatusCallbackUrl(): ?string

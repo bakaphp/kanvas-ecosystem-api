@@ -47,4 +47,47 @@ class MessageSearchableArrayTest extends TestCaseUnit
         $this->assertFalse($data['is_locked']);
         $this->assertFalse($data['is_deleted']);
     }
+
+    /**
+     * Regression: the Typesense schema declares `message` as `object`. Legacy bodies can be a plain
+     * string, which Typesense rejects with "Field `message` has an incorrect type."
+     * (Sentry KANVAS-ECOSYSTEM-628). toSearchableArray() must coerce it to an object.
+     */
+    public function testMessageFieldIsAlwaysAnObject(): void
+    {
+        $plainStringBody = $this->searchableMessageFor('just a plain text body');
+        $this->assertIsObject($plainStringBody['message']);
+        $this->assertSame('just a plain text body', $plainStringBody['message']->content);
+
+        $jsonObjectBody = $this->searchableMessageFor('{"content":"hello world","extra":1}');
+        $this->assertIsObject($jsonObjectBody['message']);
+        $this->assertSame('hello world', $jsonObjectBody['message']->content);
+
+        $emptyBody = $this->searchableMessageFor('');
+        $this->assertIsObject($emptyBody['message']);
+        // Empty body must serialize to `{}` (object), never `[]` (array), or Typesense rejects it.
+        $this->assertSame('{}', json_encode($emptyBody['message']));
+    }
+
+    private function searchableMessageFor(string $rawMessage): array
+    {
+        $message = new Message();
+        $message->setRawAttributes([
+            'id' => 1,
+            'uuid' => 'test-uuid',
+            'users_id' => 10,
+            'parent_id' => 99, // set so the children DB query is skipped
+            'message' => $rawMessage,
+            'is_public' => 1,
+            'is_premium' => 0,
+            'is_locked' => 0,
+            'is_deleted' => 0,
+        ], true); // sync original so getRawOriginal('message') behaves like a DB-loaded model
+
+        $message->setRelation('user', new Users(['firstname' => 'Jane', 'lastname' => 'Doe', 'displayname' => 'jane']));
+        $message->setRelation('messageType', new MessageType(['name' => 'post', 'verb' => 'post']));
+        $message->setRelation('parent', null);
+
+        return $message->toSearchableArray();
+    }
 }

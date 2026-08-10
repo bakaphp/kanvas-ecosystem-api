@@ -729,6 +729,80 @@ class ChannelsTest extends TestCase
         ]);
     }
 
+    /**
+     * Regression for Sentry KANVAS-ECOSYSTEM-5GS: a channel whose entity_namespace has no
+     * matching SystemModule (e.g. app-wide "Agent" channels) resolved systemModule to null.
+     * With `systemModule: SystemModule!` (non-null) that crashed the whole socialChannels
+     * query with InvariantViolation. The field is now nullable — querying it on an orphan
+     * channel must succeed and return null instead of erroring.
+     */
+    public function testListSocialChannelsWithOrphanSystemModuleDoesNotCrash(): void
+    {
+        $systemModule = SystemModules::fromApp()
+            ->fromApp()
+            ->notDeleted()
+            ->firstOrFail();
+
+        $response = $this->graphQL('
+            mutation createSocialChannel($input: SocialChannelInput!) {
+                createSocialChannel(input: $input) {
+                    id
+                }
+            }
+        ', [
+            'input' => [
+                'name' => fake()->name(),
+                'description' => fake()->text(),
+                'entity_id' => fake()->uuid(),
+                'entity_namespace_uuid' => $systemModule->uuid,
+            ],
+        ])->assertSuccessful();
+
+        $channel = Channel::findOrFail((int) $response->json('data.createSocialChannel.id'));
+
+        // Point the channel at a namespace that maps to no SystemModule for this app,
+        // reproducing the orphan state that triggered the InvariantViolation.
+        $channel->entity_namespace = 'Orphan_' . substr(fake()->unique()->uuid(), 0, 8);
+        $channel->saveQuietly();
+
+        $this->assertNull($channel->systemModule, 'Test setup: channel must have no matching SystemModule');
+
+        $this->graphQL('
+            query socialChannels($where: QuerySocialChannelsWhereWhereConditions) {
+                socialChannels(where: $where) {
+                    data {
+                        id
+                        entity_namespace
+                        systemModule {
+                            id
+                            model_name
+                        }
+                    }
+                }
+            }
+        ', [
+            'where' => [
+                'column' => 'ENTITY_NAMESPACE',
+                'operator' => 'EQ',
+                'value' => $channel->entity_namespace,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'socialChannels' => [
+                    'data' => [
+                        [
+                            'id' => (string) $channel->getId(),
+                            'entity_namespace' => $channel->entity_namespace,
+                            'systemModule' => null,
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
     public function testDetachUserFromSocialChannel(): void
     {
         $systemModule = SystemModules::fromApp()

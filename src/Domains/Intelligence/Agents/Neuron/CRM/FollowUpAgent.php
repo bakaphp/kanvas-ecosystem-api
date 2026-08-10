@@ -6,7 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\CRM;
 
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Chat\History\AbstractChatHistory;
@@ -26,7 +26,7 @@ use Override;
     description: 'Re-engages idle leads after a silence window — decides whether to send a nudge, advance the pipeline stage, or stand down. Returns a strict JSON decision.',
     provider: 'neuron',
 )]
-class FollowUpAgent extends BaseKanvasAgent
+class FollowUpAgent extends BaseRagAgent
 {
     private const LOCAL_BACKGROUND = 'You are the follow-up engager. You re-engage idle leads after a silence window and decide whether to send a nudge, advance the pipeline stage, or stand down.';
 

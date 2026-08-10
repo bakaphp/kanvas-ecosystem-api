@@ -84,11 +84,6 @@ class InternalAgentChannelResponderAction extends AbstractAgentChannelResponderA
         return $replyMessage;
     }
 
-    /**
-     * Find-or-create the channel's durable session (uuid is channel-derived, so it's the one
-     * conversation thread). Entity is the channel unless the inbound is tied to a Lead/People/Users
-     * — those keep rich session content; anything else skips the generator (it only knows those three).
-     */
     private function resolveChannelSession(): Session
     {
         $entity = $this->message->entity();

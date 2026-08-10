@@ -492,6 +492,24 @@ class SendMessageToLeadAction
 
         $mediaUrls = $this->getMediaUrlsForTwilio();
 
+        try {
+            return $this->sendTwilioMessages($client, $cellphone, $route, $fullMessage, $mediaUrls);
+        } catch (RestException $exception) {
+            if ($exception->getCode() !== self::TWILIO_UNSUBSCRIBED_RECIPIENT_CODE) {
+                throw $exception;
+            }
+
+            return $this->handleUnsubscribedRecipient($cellphone, $fullMessage);
+        }
+    }
+
+    protected function sendTwilioMessages(
+        TwilioClient $client,
+        string $cellphone,
+        array $route,
+        string $fullMessage,
+        array $mediaUrls,
+    ): array {
         if (empty($mediaUrls)) {
             $payload = $route;
             if ($fullMessage !== '') {
@@ -536,6 +554,41 @@ class SendMessageToLeadAction
             'lead_uuid' => $this->lead->uuid,
             'messages' => array_map(fn ($m) => $this->describeTwilioMessage($m), $twilioMessages),
         ];
+    }
+
+    protected function handleUnsubscribedRecipient(string $cellphone, string $body): array
+    {
+        $this->lead->people?->setPhoneOptOut($cellphone);
+
+        $this->recordOptOutNote($cellphone, $body);
+
+        return [
+            'status' => 'failed',
+            'success' => false,
+            'channel' => 'sms',
+            'batches' => 0,
+            'batch_size' => 0,
+            'media_per_batch' => [],
+            'lead_id' => $this->lead->getId(),
+            'lead_uuid' => $this->lead->uuid,
+            'messages' => [],
+            'opted_out' => true,
+            'classification' => 'opted_out',
+            'retryable' => false,
+            'twilio_error_code' => self::TWILIO_UNSUBSCRIBED_RECIPIENT_CODE,
+            'error' => 'Attempt to send to unsubscribed recipient',
+            'account_sid' => $this->lead->company?->get(TwilioConfigurationEnum::TWILIO_ACCOUNT_SID->value),
+            'from' => $this->attemptedFrom,
+            'to' => $cellphone,
+        ];
+    }
+
+    protected function recordOptOutNote(string $cellphone, string $body): void
+    {
+        new RecordLeadNoteAction($this->lead)->execute(
+            "SMS not delivered: {$cellphone} has opted out of messages (replied STOP). Attempted message: \"{$body}\"",
+            'sms-opt-out',
+        );
     }
 
     /**
@@ -697,15 +750,7 @@ class SendMessageToLeadAction
             $payload['statusCallback'] = $statusCallbackUrl;
         }
 
-        try {
-            return $client->messages->create($cellphone, $payload);
-        } catch (RestException $exception) {
-            if ($exception->getCode() === self::TWILIO_UNSUBSCRIBED_RECIPIENT_CODE) {
-                $this->lead->people?->setPhoneOptOut($cellphone);
-            }
-
-            throw $exception;
-        }
+        return $client->messages->create($cellphone, $payload);
     }
 
     protected function guardSmsDestination(string $cellphone, ?string $from): void

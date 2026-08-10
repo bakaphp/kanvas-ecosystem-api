@@ -108,10 +108,10 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
     {
         $registerInput = $this->prepareRegisterInput([
             'email' => $user->email,
-            'firstname' => $user->firstname,
-            'lastname' => $user->lastname,
+            'first_name' => $user->firstname,
+            'last_name' => $user->lastname,
             'displayname' => $user->displayname,
-            'password' => $userData['password'],
+            'password' => $userData['password'] ?? null,
             'phone_number' => $user->phone_number,
             'cell_phone_number' => $user->cell_phone_number,
             'custom_fields' => $userData['custom_fields'] ?? [],
