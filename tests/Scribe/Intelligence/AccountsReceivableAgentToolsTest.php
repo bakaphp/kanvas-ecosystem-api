@@ -10,13 +10,18 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddInvoiceNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
+use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
+use Kanvas\Scribe\Ledger\Models\Account;
 use Tests\Scribe\ScribeTestCase;
 
 class AccountsReceivableAgentToolsTest extends ScribeTestCase
@@ -215,5 +220,103 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $this->assertNotEmpty($result['open_invoices']);
         $this->assertSame('INV-9001', $result['exact_match']);
+    }
+
+    public function test_create_ar_credit_memo_requires_a_customer_name(): void
+    {
+        $result = new CreateArCreditMemoTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: '', invoice_number: 'REF-1', lines: [['control_account_number' => '71610', 'amount' => 50.0]]);
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('customer_name_required', $result['reason']);
+    }
+
+    public function test_create_ar_credit_memo_requires_an_invoice_number(): void
+    {
+        $customer = $this->seedTestOrganization('Proshop');
+
+        $result = new CreateArCreditMemoTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: 'Proshop', invoice_number: '', lines: [['control_account_number' => '71610', 'amount' => 50.0]]);
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('invoice_number_required', $result['reason']);
+    }
+
+    public function test_create_ar_credit_memo_reports_not_found_for_unknown_customer(): void
+    {
+        $result = new CreateArCreditMemoTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: 'Does Not Exist Inc', invoice_number: 'REF-1', lines: [['control_account_number' => '71610', 'amount' => 50.0]]);
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('customer_not_found', $result['reason']);
+    }
+
+    public function test_create_ar_credit_memo_reports_not_found_for_unknown_control_account(): void
+    {
+        $this->seedTestOrganization('Proshop');
+
+        $result = new CreateArCreditMemoTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: 'Proshop', invoice_number: 'REF-1', lines: [['control_account_number' => 'DOES-NOT-EXIST', 'amount' => 50.0]]);
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('account_not_found', $result['reason']);
+    }
+
+    public function test_create_ar_credit_memo_issues_a_standalone_credit_note(): void
+    {
+        $customer = $this->seedTestOrganization('Proshop Rebate QA Customer');
+        $controlAccount = Account::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('account_sub_type', AccountSubTypeEnum::TRAVEL_AND_MEALS->value)
+            ->firstOrFail();
+
+        $result = new CreateArCreditMemoTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                customer_name: 'Proshop Rebate QA Customer',
+                invoice_number: 'Proshop Superdays Sell-Out (22/05-07/06)',
+                lines: [
+                    ['control_account_number' => $controlAccount->account_number, 'amount' => 250.0, 'description' => 'Promotion Discount'],
+                ],
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertSame('Proshop Rebate QA Customer', $result['customer']);
+
+        /** @var Invoice $creditNote */
+        $creditNote = Invoice::query()->where('id', $result['credit_memo_id'])->firstOrFail();
+        $this->assertSame(DocumentTypeEnum::CREDIT_NOTE, $creditNote->document_type);
+        $this->assertNull($creditNote->parent_invoice_id);
+        $this->assertSame('Proshop Superdays Sell-Out (22/05-07/06)', $creditNote->invoice_number);
+        $this->assertSame($customer->getId(), $creditNote->customer_organization_id);
+        $this->assertSame(250.0, (float) $creditNote->total_native);
+
+        $line = $creditNote->lines->first();
+        $this->assertSame($controlAccount->getId(), $line->account_id);
+    }
+
+    public function test_add_invoice_note_reports_not_found_for_unknown_invoice(): void
+    {
+        $result = new AddInvoiceNoteTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_id: 999999999, note: 'Called customer.');
+
+        $this->assertFalse($result['note_added']);
+        $this->assertSame('invoice_not_found', $result['reason']);
+    }
+
+    public function test_attach_invoice_file_reports_not_found_for_unknown_invoice(): void
+    {
+        $result = new AttachInvoiceFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_id: 999999999, file_url: 'https://example.test/credit.xlsx');
+
+        $this->assertFalse($result['file_attached']);
+        $this->assertSame('invoice_not_found', $result['reason']);
     }
 }
