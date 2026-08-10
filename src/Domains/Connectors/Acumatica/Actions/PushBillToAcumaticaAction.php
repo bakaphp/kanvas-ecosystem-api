@@ -71,7 +71,10 @@ class PushBillToAcumaticaAction
             return $existing;
         }
 
-        $vendorCode = $this->ensureVendorCode();
+        $targetCompany = (string) $this->bill->get(CustomFieldEnum::TARGET_COMPANY->value, '');
+        $targetCompany = $targetCompany !== '' ? $targetCompany : null;
+
+        $vendorCode = $this->ensureVendorCode($targetCompany);
 
         if ($vendorCode === '') {
             throw new AcumaticaWriteException(
@@ -79,7 +82,7 @@ class PushBillToAcumaticaAction
             );
         }
 
-        $record = $this->writer()->push(
+        $record = $this->writer($targetCompany)->push(
             'Bill',
             $this->buildPayload($vendorCode),
             release: true,
@@ -384,7 +387,7 @@ class PushBillToAcumaticaAction
      * Find-or-create the vendor in Acumatica (push path). Creates the ERP vendor lazily when the org
      * has no code yet — only reached on a real push, so a rejected bill never spawns a junk vendor.
      */
-    private function ensureVendorCode(): string
+    private function ensureVendorCode(?string $targetCompany = null): string
     {
         $vendor = $this->vendorOrg();
 
@@ -397,7 +400,7 @@ class PushBillToAcumaticaAction
             taxId: $this->bill->vendor_tax_id,
             name: $this->bill->vendor_display_name,
             email: $this->bill->vendor_email,
-            writer: $this->writer(),
+            writer: $this->writer($targetCompany),
         )->execute();
     }
 

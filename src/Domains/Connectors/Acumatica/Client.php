@@ -19,8 +19,10 @@ class Client
     protected array $config;
     protected string $entityBase;
 
-    public function __construct(protected AppInterface $app)
-    {
+    public function __construct(
+        protected AppInterface $app,
+        protected ?string $companyOverride = null,
+    ) {
         $config = $this->app->get(ConfigurationEnum::ACUMATICA_CONFIG->value);
 
         if (empty($config) || empty($config['baseUrl'])) {
@@ -46,9 +48,9 @@ class Client
         );
     }
 
-    public static function getInstance(AppInterface $app): self
+    public static function getInstance(AppInterface $app, ?string $companyOverride = null): self
     {
-        return new self($app);
+        return new self($app, $companyOverride);
     }
 
     public function login(): void
@@ -57,7 +59,7 @@ class Client
             'json' => [
                 'name' => $this->config['username'],
                 'password' => $this->config['password'],
-                'company' => $this->config['acumaticaCompany'],
+                'company' => $this->companyOverride ?? $this->config['acumaticaCompany'],
                 'branch' => $this->config['branch'] ?? '',
             ],
         ]);
