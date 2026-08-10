@@ -283,4 +283,59 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame('1498', $bill->bill_number);
         $this->assertSame('BB-0G-M1', $bill->lines->first()->subaccount->sub_code);
     }
+
+    public function test_create_ap_bill_stores_the_target_company_when_given(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 2500.0,
+                gl_account_number: $accountCode,
+                memo: 'Community Building & Management Services',
+                invoice_number: '1498-DE',
+                acumatica_company: 'NZXT Germany - USD',
+            );
+
+        /** @var Bill $bill */
+        $bill = Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->latest('id')
+            ->first();
+
+        $this->assertSame('NZXT Germany - USD', $bill->get(CustomFieldEnum::TARGET_COMPANY->value));
+    }
+
+    public function test_create_ap_bill_leaves_target_company_unset_by_default(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 2500.0,
+                gl_account_number: $accountCode,
+                memo: 'Community Building & Management Services',
+                invoice_number: '1498-US',
+            );
+
+        /** @var Bill $bill */
+        $bill = Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->latest('id')
+            ->first();
+
+        $this->assertSame('', (string) $bill->get(CustomFieldEnum::TARGET_COMPANY->value, ''));
+    }
 }

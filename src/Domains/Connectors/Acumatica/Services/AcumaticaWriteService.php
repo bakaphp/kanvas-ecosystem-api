@@ -28,6 +28,7 @@ class AcumaticaWriteService
     public function __construct(
         protected AppInterface $app,
         ?Client $client = null,
+        protected ?string $companyOverride = null,
     ) {
         $this->client = $client;
     }
@@ -191,7 +192,7 @@ class AcumaticaWriteService
 
     private function client(): Client
     {
-        return $this->client ??= Client::getInstance($this->app);
+        return $this->client ??= Client::getInstance($this->app, $this->companyOverride);
     }
 
     private function safeLogout(): void
