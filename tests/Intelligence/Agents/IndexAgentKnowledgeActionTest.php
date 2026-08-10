@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
-use Baka\Search\SearchEngineResolver;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\IndexAgentKnowledgeAction;
@@ -12,13 +11,14 @@ use Kanvas\Intelligence\Agents\DataTransferObject\AgentKnowledgeDocument;
 use Kanvas\Intelligence\Agents\Services\AgentTypesenseKnowledgeService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Laravel\Ai\Embeddings;
+use Tests\Intelligence\Traits\InteractsWithLiveTypesense;
 use Tests\TestCase;
-use Throwable;
 use Typesense\Exceptions\ObjectNotFound;
 
 class IndexAgentKnowledgeActionTest extends TestCase
 {
     use DatabaseTransactions;
+    use InteractsWithLiveTypesense;
 
     private const string LIVE_TEST_COLLECTION = 'test_index_agent_knowledge_action';
 
@@ -28,7 +28,14 @@ class IndexAgentKnowledgeActionTest extends TestCase
     {
         parent::setUp();
 
+        // Initialize kanvasApp BEFORE the skip check: PHPUnit still runs
+        // tearDown() after a setUp()-triggered skip, and tearDown() reads
+        // kanvasApp — skipping first would leave that typed property
+        // uninitialized and crash tearDown() instead of cleanly skipping.
         $this->kanvasApp = app(Apps::class);
+
+        $this->skipIfTypesenseUnreachable();
+
         $this->kanvasApp->set('typesense_search_settings', $this->liveTypesenseSettings());
         $this->kanvasApp->set(ConfigurationEnum::TYPESENSE_VECTOR_COLLECTION->value, self::LIVE_TEST_COLLECTION);
         $this->kanvasApp->set(ConfigurationEnum::TYPESENSE_VECTOR_DIMENSION->value, 4);
@@ -44,7 +51,7 @@ class IndexAgentKnowledgeActionTest extends TestCase
         $this->kanvasApp->del(ConfigurationEnum::TYPESENSE_VECTOR_DIMENSION->value);
         $this->kanvasApp->del('typesense_search_settings');
 
-        $this->deleteLiveTestCollectionIfExists();
+        $this->deleteTypesenseTestCollection(self::LIVE_TEST_COLLECTION);
 
         parent::tearDown();
     }
@@ -116,44 +123,16 @@ class IndexAgentKnowledgeActionTest extends TestCase
         $secondChunks = new IndexAgentKnowledgeAction($document('Just one short paragraph now.'))->execute();
         $this->assertSame(1, $secondChunks);
 
-        $client = SearchEngineResolver::getTypesenseClient($this->liveTypesenseSettings());
         $collection = new AgentTypesenseKnowledgeService($this->kanvasApp)->collection();
 
         $oldChunkStillExists = true;
 
         try {
-            $client->collections[$collection]->documents['policy:changing_policy:1']->retrieve();
+            $this->liveTypesenseClient()->collections[$collection]->documents['policy:changing_policy:1']->retrieve();
         } catch (ObjectNotFound) {
             $oldChunkStillExists = false;
         }
 
         $this->assertFalse($oldChunkStillExists, 'Expected reindexing to delete the old chunks before adding the new one.');
-    }
-
-    /**
-     * @return array{typesense_api_key: string, typesense_nodes: array<int, array<string, mixed>>}
-     */
-    private function liveTypesenseSettings(): array
-    {
-        return [
-            'typesense_api_key' => 'xyz',
-            'typesense_nodes' => [[
-                'host' => 'typesense',
-                'port' => 8108,
-                'path' => '/',
-                'protocol' => 'http',
-            ]],
-        ];
-    }
-
-    private function deleteLiveTestCollectionIfExists(): void
-    {
-        try {
-            SearchEngineResolver::getTypesenseClient($this->liveTypesenseSettings())
-                ->collections[self::LIVE_TEST_COLLECTION]
-                ->delete();
-        } catch (Throwable) {
-            // Never created, or already cleaned up — fine either way.
-        }
     }
 }

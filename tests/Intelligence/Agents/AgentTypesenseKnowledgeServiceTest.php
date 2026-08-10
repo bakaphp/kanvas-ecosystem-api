@@ -4,18 +4,19 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
-use Baka\Search\SearchEngineResolver;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Services\AgentTypesenseKnowledgeService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Tests\Intelligence\Traits\InteractsWithLiveTypesense;
 use Tests\TestCase;
 use Throwable;
 
 class AgentTypesenseKnowledgeServiceTest extends TestCase
 {
     use DatabaseTransactions;
+    use InteractsWithLiveTypesense;
 
     private const string LIVE_TEST_COLLECTION = 'test_agent_typesense_knowledge_service';
 
@@ -35,7 +36,7 @@ class AgentTypesenseKnowledgeServiceTest extends TestCase
         $this->kanvasApp->del(ConfigurationEnum::TYPESENSE_VECTOR_DIMENSION->value);
         $this->kanvasApp->del('typesense_search_settings');
 
-        $this->deleteLiveTestCollectionIfExists();
+        $this->deleteTypesenseTestCollection(self::LIVE_TEST_COLLECTION);
 
         parent::tearDown();
     }
@@ -115,6 +116,8 @@ class AgentTypesenseKnowledgeServiceTest extends TestCase
 
     public function testStoreAndSearchRoundTripThroughTheRealTypesenseCluster(): void
     {
+        $this->skipIfTypesenseUnreachable();
+
         $this->kanvasApp->set('typesense_search_settings', $this->liveTypesenseSettings());
         $this->kanvasApp->set(ConfigurationEnum::TYPESENSE_VECTOR_COLLECTION->value, self::LIVE_TEST_COLLECTION);
         $this->kanvasApp->set(ConfigurationEnum::TYPESENSE_VECTOR_DIMENSION->value, 4);
@@ -138,30 +141,4 @@ class AgentTypesenseKnowledgeServiceTest extends TestCase
         $this->assertSame('unit-test', $results[0]['sourceName']);
     }
 
-    /**
-     * @return array{typesense_api_key: string, typesense_nodes: array<int, array<string, mixed>>}
-     */
-    private function liveTypesenseSettings(): array
-    {
-        return [
-            'typesense_api_key' => 'xyz',
-            'typesense_nodes' => [[
-                'host' => 'typesense',
-                'port' => 8108,
-                'path' => '/',
-                'protocol' => 'http',
-            ]],
-        ];
-    }
-
-    private function deleteLiveTestCollectionIfExists(): void
-    {
-        try {
-            SearchEngineResolver::getTypesenseClient($this->liveTypesenseSettings())
-                ->collections[self::LIVE_TEST_COLLECTION]
-                ->delete();
-        } catch (Throwable) {
-            // Never created, or already cleaned up — fine either way.
-        }
-    }
 }
