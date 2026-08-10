@@ -107,12 +107,21 @@ trait HasKanvasAgentBehavior
         return $this->provider();
     }
 
-    // Per-turn lead resolution: the kernel-plumbed currentLead wins; entity-as-Lead
-    // is the legacy fallback for sessions that still point directly at a Lead row.
+    // The record this turn is about, entity-agnostic: the kernel-plumbed currentLead
+    // wins, else the entity in scope (any Model). This is the generic seam RAG and
+    // any future non-Lead agent resolve against.
+    protected function resolveEntityForTurn(): ?Model
+    {
+        return $this->currentLead ?? $this->entity;
+    }
+
+    // CRM lens over the record in scope. The entity-as-Lead branch is the legacy
+    // fallback for sessions that still point directly at a Lead row.
     protected function resolveLeadForTurn(): ?Lead
     {
-        return $this->currentLead
-            ?? ($this->entity instanceof Lead ? $this->entity : null);
+        $entity = $this->resolveEntityForTurn();
+
+        return $entity instanceof Lead ? $entity : null;
     }
 
     /**

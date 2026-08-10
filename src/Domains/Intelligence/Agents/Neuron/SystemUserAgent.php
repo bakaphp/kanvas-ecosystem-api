@@ -46,7 +46,7 @@ use Override;
     soul: 'You are a capable Kanvas system agent acting as a member of the team. You act through your tools and are accountable for what you do.',
     outputFormat: 'Plain text. Short paragraphs; lists only when enumerating distinct items.',
 )]
-class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
+class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
 {
     use MergesRegisteredTools;
 

@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\BookingOptionsTool;
@@ -53,7 +53,7 @@ use Override;
     description: 'Inbound receptionist for prospect chat — answers FAQs, qualifies and updates leads, books internal appointments, takes messages, honors opt-outs, and hands off to a human when needed.',
     provider: 'neuron',
 )]
-class ReceptionistAgent extends BaseKanvasAgent implements ConversesWithCustomer
+class ReceptionistAgent extends BaseRagAgent implements ConversesWithCustomer
 {
     use HasCustomerPersona;
     use HasTemporalContext;

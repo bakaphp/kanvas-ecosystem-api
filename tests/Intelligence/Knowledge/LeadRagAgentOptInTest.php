@@ -10,25 +10,25 @@ use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\FollowUpAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\ReceptionistAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
-use Kanvas\Intelligence\Agents\Neuron\Traits\HasLeadRag;
+use Kanvas\Intelligence\Agents\Neuron\KanvasGenericNeuronAgent;
+use Kanvas\Intelligence\Agents\Neuron\Traits\HasKnowledgeRag;
 use NeuronAI\RAG\RAG;
 use Tests\TestCase;
 
 class LeadRagAgentOptInTest extends TestCase
 {
-    public function testOnlySalesAgentOptsIntoLeadRag(): void
+    public function testRagAgentsHaveKnowledgeRetrieval(): void
     {
-        $this->assertTrue(is_subclass_of(SalesAgent::class, BaseRagAgent::class));
-        $this->assertTrue(is_subclass_of(SalesAgent::class, RAG::class));
-        $this->assertFalse(is_subclass_of(SalesAgent::class, BaseKanvasAgent::class));
-        $this->assertFalse(is_subclass_of(BaseKanvasAgent::class, RAG::class));
-        $this->assertTrue(is_subclass_of(ReceptionistAgent::class, BaseKanvasAgent::class));
-        $this->assertTrue(is_subclass_of(FollowUpAgent::class, BaseKanvasAgent::class));
-        $this->assertTrue(is_subclass_of(CFOAgent::class, BaseKanvasAgent::class));
+        // RAG-enabled agents extend BaseRagAgent (→ NeuronAI RAG) and inherit HasKnowledgeRag.
+        foreach ([SalesAgent::class, ReceptionistAgent::class, FollowUpAgent::class, CFOAgent::class] as $agent) {
+            $this->assertTrue(is_subclass_of($agent, BaseRagAgent::class), "{$agent} should be a RAG agent");
+            $this->assertTrue(is_subclass_of($agent, RAG::class));
+            $this->assertContains(HasKnowledgeRag::class, class_uses_recursive($agent));
+        }
 
-        $this->assertContains(HasLeadRag::class, class_uses_recursive(SalesAgent::class));
-        $this->assertNotContains(HasLeadRag::class, class_uses_recursive(ReceptionistAgent::class));
-        $this->assertNotContains(HasLeadRag::class, class_uses_recursive(FollowUpAgent::class));
-        $this->assertNotContains(HasLeadRag::class, class_uses_recursive(CFOAgent::class));
+        // A plain generic agent stays non-RAG.
+        $this->assertTrue(is_subclass_of(KanvasGenericNeuronAgent::class, BaseKanvasAgent::class));
+        $this->assertFalse(is_subclass_of(KanvasGenericNeuronAgent::class, RAG::class));
+        $this->assertNotContains(HasKnowledgeRag::class, class_uses_recursive(KanvasGenericNeuronAgent::class));
     }
 }

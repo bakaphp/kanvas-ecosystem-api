@@ -10,10 +10,13 @@ use Tests\TestCase;
 
 class LeadKnowledgeRetrievalTest extends TestCase
 {
-    public function testRetrievalIsANoOpWithoutACurrentLead(): void
+    public function testRetrievalIsANoOpWithoutTenantContext(): void
     {
-        $documents = new KnowledgeRetrieval(null)->retrieve(
-            new UserMessage('What did this lead say about pricing?')
+        // No app/company in scope: retrieval short-circuits to [] before touching
+        // the embedder or the store (the retrieve-docs path is covered live by
+        // KnowledgeScopeIsolationTest).
+        $documents = new KnowledgeRetrieval(null, null, null)->retrieve(
+            new UserMessage('What does our refund policy say?')
         );
 
         $this->assertSame([], $documents);

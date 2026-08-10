@@ -39,8 +39,12 @@ final class KnowledgeSourceRegistry
         return array_keys($this->aliases);
     }
 
-    public function resolveAlias(string $alias, int $entityId, int $appId, int $companyId): ?Model
-    {
+    public function resolveAlias(
+        string $alias,
+        int $entityId,
+        int $appId,
+        int $companyId,
+    ): ?Model {
         $entityType = $this->aliases[strtolower($alias)] ?? null;
 
         return $entityType === null
@@ -52,8 +56,12 @@ final class KnowledgeSourceRegistry
      * Resolve only an explicitly registered model and always apply tenant boundaries.
      * Channel namespaces are data, so they must never be instantiated directly.
      */
-    public function resolve(string $entityType, int $entityId, int $appId, int $companyId): ?Model
-    {
+    public function resolve(
+        string $entityType,
+        int $entityId,
+        int $appId,
+        int $companyId
+    ): ?Model {
         $source = $this->for($entityType);
         if ($source === null) {
             return null;

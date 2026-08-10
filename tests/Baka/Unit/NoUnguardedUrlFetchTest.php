@@ -38,7 +38,7 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         // CLI: operates on local temp files.
         'app/Console/Commands/Connectors/ScrapperApi/CleanScrapperImageCommand.php',
         // CLI: reads a local agent-type definition file.
-        'app/Console/Commands/Intelligence/CreateAgentTypeCommand.php',
+        'app/Console/Commands/Intelligence/Agents/CreateAgentTypeCommand.php',
         // Hardcoded SightEngine moderation API URL from config.
         'src/Domains/Connectors/SightEngine/Services/ContentModerationService.php',
         // Local PDF generation.
