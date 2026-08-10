@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Blade;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
@@ -326,12 +327,16 @@ final class FollowUpEngagementAction implements FollowUpTimeGateOverridable
                         $messageToSend = $this->renderTemplate($whatsAppTemplate);
                     }
 
-                    new SendMessageToLeadAction($this->lead)->execute(
+                    $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
                         $messageTemplateChannel,
                         $messageToSend,
                         $this->lead->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value),
                         $emailTitle
                     );
+                    $createdMessage = $creator->getCreatedMessage();
+                    if ($createdMessage !== null) {
+                        new StoreMessageSidAction($createdMessage)->execute($providerResponse);
+                    }
 
                     $this->logSuccess('message_sent', 'Follow-up message sent to lead', $session, $messageToSend);
 

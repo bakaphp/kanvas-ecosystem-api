@@ -116,6 +116,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             return;
         }
 
+        $entity->people?->optOutPhoneContacts();
+
         new RecordLeadNoteAction($entity)->execute(
             "SMS not delivered: {$to} has opted out of messages (replied STOP). Attempted reply: \"{$body}\"",
             'sms-opt-out',

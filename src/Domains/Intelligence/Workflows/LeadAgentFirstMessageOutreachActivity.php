@@ -15,6 +15,7 @@ use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigurationEnum;
 use Kanvas\Connectors\VoiceBridge\Jobs\LeadVoiceFollowUpJob;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
@@ -273,12 +274,13 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                                 $totalSentMessages++;
 
                                 if ($shouldSendFirstMessageNow) {
-                                    new SendMessageToLeadAction($lead)->execute(
+                                    $providerResponse = new SendMessageToLeadAction($lead)->execute(
                                         $communicationChannel,
                                         $firstLeadMessage['message'],
                                         $params['from'] ?? null,
                                         $firstLeadMessage['title'] ?? null,
                                     );
+                                    new StoreMessageSidAction($createMessage)->execute($providerResponse);
 
                                     $this->addMessageToChannel($createMessage, $channel ?? null, $lead);
 

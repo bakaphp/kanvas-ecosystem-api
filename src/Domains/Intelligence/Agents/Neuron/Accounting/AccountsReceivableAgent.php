@@ -13,7 +13,10 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddInvoiceNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\CreateSampleOrderTool;
@@ -71,6 +74,9 @@ class AccountsReceivableAgent extends SystemUserAgent
             new CreateArInvoiceTool(),
             new VoidArInvoiceTool(),
             new ApplyArPaymentTool(),
+            new CreateArCreditMemoTool(),
+            new AddInvoiceNoteTool(),
+            new AttachInvoiceFileTool(),
         ]));
     }
 
@@ -100,6 +106,12 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Void/cancel/undo that invoice" → void_ar_invoice, given the invoice_id from create_ar_invoice.',
             '- "Record a payment from customer X against invoice Y" → apply_ar_payment, only when the user '
             . 'explicitly asks to record a real payment. Needs the invoice_id, amount, and a payment reference.',
+            '- "Issue a standalone credit memo for customer X" (e.g. a back-end rebate) → create_ar_credit_memo, '
+            . 'only on explicit request. Not tied to any invoice — needs the customer name, a reference (e.g. '
+            . 'the Credit Request Form\'s Request Reference No), and one or more lines with a Control Acct# and '
+            . 'amount each.',
+            '- "Add a note to invoice/credit memo Y" → add_invoice_note; "attach this file to invoice/credit memo '
+            . 'Y" → attach_invoice_file. Both require the document to already be pushed to Acumatica.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }

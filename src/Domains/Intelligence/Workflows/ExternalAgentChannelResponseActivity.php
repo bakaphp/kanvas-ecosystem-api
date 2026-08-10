@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Workflows;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
@@ -169,6 +170,7 @@ class ExternalAgentChannelResponseActivity extends KanvasActivity
                     false,
                     $files->isNotEmpty() ? $files : null
                 );
+                new StoreMessageSidAction($message)->execute($result);
 
                 new MarkLeadMessagesAsRespondedAction($lead, $message)->execute();
                 new NotifyLeadStakeholdersService($lead)->onAgentReply($message, isHuman: false);
