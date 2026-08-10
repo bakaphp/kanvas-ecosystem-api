@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeDocument;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
 use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
+use Kanvas\Intelligence\Knowledge\Workflows\IndexKnowledgeDocumentActivity;
 use Laravel\Ai\Embeddings;
 use Tests\TestCase;
 use Throwable;
@@ -143,6 +144,31 @@ class KnowledgeScopeIsolationTest extends TestCase
 
         $this->assertTrue($companyB->contains(fn (string $c): bool => str_contains($c, 'Beta shipping')));
         $this->assertFalse($companyB->contains(fn (string $c): bool => str_contains($c, 'Alpha refund')));
+    }
+
+    public function testDeleteBySourceRemovesADeletedDocumentsChunks(): void
+    {
+        $this->requireTypesense();
+
+        $appId = $this->kanvasApp->getId();
+        $scope = new KnowledgeScope($appId, self::COMPANY_A);
+        KnowledgeComponents::indexer($this->kanvasApp)->indexTenantDocument(
+            $scope,
+            IndexKnowledgeDocumentActivity::SOURCE_TYPE,
+            'file-to-delete',
+            'Gamma handbook: this document is about to be deleted.',
+        );
+
+        $vector = KnowledgeComponents::embedder($this->kanvasApp)->embed('handbook');
+        $store = KnowledgeComponents::store($this->kanvasApp);
+        $present = collect($store->search($vector, $scope, 10))->pluck('content');
+        $this->assertTrue($present->contains(fn (string $c): bool => str_contains($c, 'about to be deleted')));
+
+        // What PruneKnowledgeDocumentActivity does on a Filesystem delete.
+        $store->deleteBySource($scope, IndexKnowledgeDocumentActivity::SOURCE_TYPE, 'file-to-delete');
+
+        $afterPrune = collect($store->search($vector, $scope, 10))->pluck('content');
+        $this->assertFalse($afterPrune->contains(fn (string $c): bool => str_contains($c, 'about to be deleted')));
     }
 
     private function requireTypesense(): void

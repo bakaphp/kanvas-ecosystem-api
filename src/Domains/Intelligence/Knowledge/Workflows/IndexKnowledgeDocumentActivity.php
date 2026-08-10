@@ -15,21 +15,12 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
-/**
- * Fires on attach-file for an Agent: indexes the agent's text/PDF documents as
- * the company's shared knowledge base (tenant-scoped, entity_id = 0 via
- * IndexTenantKnowledgeAction), so every agent in the company can search them.
- *
- * The attach-file seam only carries app + company (not the specific file), so we
- * re-index all currently-attached indexable files; replace-by-source (keyed on
- * each file's uuid) makes that idempotent, and unchanged chunks hit the
- * embedder's cache. Guarded to Agent + staff uploads so a customer/agent file
- * (which structurally never reaches an Agent anyway) can never be promoted to
- * company-wide knowledge.
- */
 #[WorkflowAction]
 class IndexKnowledgeDocumentActivity extends KanvasActivity
 {
+    /** sourceType stamped on every agent-uploaded knowledge chunk (write + prune share this). */
+    public const string SOURCE_TYPE = 'agent_document';
+
     public function execute(Model $entity, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);
@@ -77,7 +68,7 @@ class IndexKnowledgeDocumentActivity extends KanvasActivity
                     $chunks += new IndexTenantKnowledgeAction(
                         app: $agent->app,
                         company: $agent->company,
-                        sourceType: 'agent_document',
+                        sourceType: self::SOURCE_TYPE,
                         sourceName: $file->uuid,
                         content: $content,
                     )->execute();

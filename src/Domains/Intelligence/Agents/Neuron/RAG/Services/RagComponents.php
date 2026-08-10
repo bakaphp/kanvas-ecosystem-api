@@ -7,38 +7,21 @@ namespace Kanvas\Intelligence\Agents\Neuron\RAG\Services;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Embeddings\NeuronEmbeddingsAdapter;
-use Kanvas\Intelligence\Agents\Neuron\RAG\VectorStores\NeuronVectorStoreAdapter;
-use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
-use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
 use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeSourceRegistry;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
-use NeuronAI\RAG\VectorStore\VectorStoreInterface;
 
 /**
- * Neuron-facing resolver: wraps the shared knowledge stack (KnowledgeComponents)
- * in NeuronAI adapters so a Neuron RAG agent gets EmbeddingsProviderInterface /
- * VectorStoreInterface without the Knowledge domain knowing NeuronAI exists.
+ * Neuron-facing resolver: wraps the shared embedder in a NeuronAI adapter and
+ * gates indexing/retrieval on a registered source, so the Neuron RAG path never
+ * needs to know the Knowledge domain's internals.
  */
 class RagComponents
 {
     public static function embeddings(Apps $app): EmbeddingsProviderInterface
     {
         return new NeuronEmbeddingsAdapter(KnowledgeComponents::embedder($app));
-    }
-
-    public static function vectorStore(Model $model): VectorStoreInterface
-    {
-        /** @var Apps $app */
-        $app = $model->app;
-
-        return new NeuronVectorStoreAdapter(
-            store: KnowledgeComponents::store($app),
-            scope: KnowledgeScope::fromEntity(KnowledgeEntity::fromModel($model)),
-            topK: KnowledgeComponents::resultLimit($app),
-            minScore: KnowledgeComponents::minScore($app),
-        );
     }
 
     public static function isEnabled(?Model $model): bool

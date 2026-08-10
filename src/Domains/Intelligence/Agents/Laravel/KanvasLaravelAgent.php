@@ -59,27 +59,27 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
 
     protected function getProvider(): ?Lab
     {
-        // A named AgentLlmConfig selected on the agent wins over the legacy AgentModel.config,
-        // so the same selection drives BOTH runtimes (Neuron via AgentProviderService, Laravel here).
         $selected = $this->selectedLlmConfig();
         if ($selected !== null) {
             return self::labForProvider($selected->providerEnum());
         }
 
+        // groq is the one laravel-ai provider AgentLlmProviderEnum has no case for.
         $provider = $this->agentRecord?->model?->config['provider'] ?? null;
+        if ($provider === 'groq') {
+            return Lab::Groq;
+        }
 
-        return match ($provider) {
-            'anthropic' => Lab::Anthropic,
-            'openai' => Lab::OpenAI,
-            'gemini' => Lab::Gemini,
-            'groq' => Lab::Groq,
-            'mistral' => Lab::Mistral,
-            'ollama' => Lab::Ollama,
-            'deepseek' => Lab::DeepSeek,
-            default => $this->agentRecord !== null
-                ? self::labForProvider(AgentProviderService::resolveProviderEnum($this->agentRecord))
-                : null,
-        };
+        $enum = AgentLlmProviderEnum::tryFrom((string) $provider);
+        if ($enum !== null) {
+            return self::labForProvider($enum);
+        }
+
+        // Fall back to the app default rather than null — a null provider leaves the
+        // agent with a key but nothing to call, and it replies empty.
+        return $this->agentRecord !== null
+            ? self::labForProvider(AgentProviderService::resolveProviderEnum($this->agentRecord))
+            : null;
     }
 
     protected function getModel(): ?string

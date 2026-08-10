@@ -18,11 +18,9 @@ use NeuronAI\RAG\Retrieval\RetrievalInterface;
 use Override;
 
 /**
- * Native Neuron retrieval over the shared knowledge store. Always pulls the
- * company-wide knowledge base (entity_id = 0) — shared by every agent — and,
- * when a record is in scope (a Lead), additionally its own prospect-isolated
- * knowledge. Gated by the app's knowledge-enabled flag so it no-ops (zero
- * embedding/Typesense cost) for apps that don't use knowledge.
+ * Native Neuron retrieval over the shared knowledge store: always the company-wide
+ * base (entity_id = 0), plus the record's own knowledge when one is in scope.
+ * No-ops when the app hasn't enabled knowledge.
  */
 class KnowledgeRetrieval implements RetrievalInterface
 {
@@ -57,16 +55,13 @@ class KnowledgeRetrieval implements RetrievalInterface
             $minScore,
         );
 
-        // Add the record-in-scope's own (prospect-isolated) knowledge — but only
-        // when it forms a valid tenant knowledge entity. A global row like a Users
-        // (apps_id/companies_id = 0) has no indexed knowledge and can't be scoped,
-        // so we skip it and return company-wide docs only.
+        // Add the record's own (prospect-isolated) knowledge — but a global row like
+        // a Users (apps_id/companies_id = 0) can't form a KnowledgeEntity, so skip it.
         if ($this->entity !== null) {
             try {
                 $entityScope = KnowledgeScope::fromEntity(KnowledgeEntity::fromModel($this->entity));
                 $hits = array_merge($hits, $store->search($embedding, $entityScope, $topK, $minScore));
             } catch (InvalidArgumentException) {
-                // not a tenant-scoped knowledge entity — company-wide only
             }
         }
 
@@ -85,8 +80,7 @@ class KnowledgeRetrieval implements RetrievalInterface
         $documents = [];
 
         foreach ($hits as $hit) {
-            // Dedup by content so the same passage (company + entity scope, or
-            // re-indexed under a different source) never lands in context twice.
+            // Dedup by content so the same passage never lands in context twice.
             $key = md5($hit['content']);
             if (isset($seen[$key])) {
                 continue;

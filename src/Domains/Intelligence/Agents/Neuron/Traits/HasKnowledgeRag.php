@@ -19,12 +19,9 @@ use NeuronAI\Workflow\Node;
 use Override;
 
 /**
- * Entity-scoped RAG wiring for a Neuron agent. Entity-agnostic — it retrieves
- * knowledge for whatever record is in scope this turn (resolveEntityForTurn():
- * a Lead for SalesAgent; a Deal/Order/etc. for a future agent, once that entity
- * has a registered KnowledgeSource). Retrieval, embeddings and the vector store
- * all resolve from that one entity, so a customer-facing agent's memory stays
- * scoped to the record in scope.
+ * RAG wiring for a Neuron agent. Retrieval pulls the company knowledge base plus
+ * the record in scope this turn (resolveEntityForTurn() — a Lead for SalesAgent,
+ * any registered-source entity for a future agent).
  */
 trait HasKnowledgeRag
 {
@@ -63,13 +60,11 @@ trait HasKnowledgeRag
         return RagComponents::embeddings($this->app);
     }
 
+    // Retrieval is custom (retrieval() → KnowledgeRetrieval), so the RAG base never
+    // queries this store; it only needs *a* VectorStoreInterface to satisfy the abstract.
     #[Override]
     protected function vectorStore(): VectorStoreInterface
     {
-        $entity = $this->resolveEntityForTurn();
-
-        return $entity !== null
-            ? RagComponents::vectorStore($entity)
-            : new MemoryVectorStore();
+        return new MemoryVectorStore();
     }
 }
