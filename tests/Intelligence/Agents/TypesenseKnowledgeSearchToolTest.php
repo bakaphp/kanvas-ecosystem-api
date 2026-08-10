@@ -6,7 +6,10 @@ namespace Tests\Intelligence\Agents;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Laravel\KanvasGenericLaravelAgent;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Knowledge\TypesenseKnowledgeSearchTool;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Users\Models\Users;
@@ -69,16 +72,31 @@ class TypesenseKnowledgeSearchToolTest extends TestCase
 
         // The embedder registers its per-app provider before the search runs, so the
         // registration is observable even though the unreachable search then degrades.
-        $this->tool()->handle(new Request(['query' => 'refund policy']));
+        $this->tool($this->agent())->handle(new Request(['query' => 'refund policy']));
 
         $name = "knowledge_gemini_app_{$this->kanvasApp->getId()}";
 
         $this->assertSame('test-gemini-key', config("ai.providers.{$name}.key"));
     }
 
-    private function tool(): TypesenseKnowledgeSearchTool
+    private function tool(?Agent $agent = null): TypesenseKnowledgeSearchTool
     {
         return new TypesenseKnowledgeSearchTool()
-            ->withContext($this->kanvasApp, $this->user->getCurrentCompany());
+            ->withContext($this->kanvasApp, $this->user->getCurrentCompany(), $agent);
+    }
+
+    private function agent(): Agent
+    {
+        $agentType = AgentType::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->create(['provider' => 'laravel', 'handler' => KanvasGenericLaravelAgent::class]);
+
+        return Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->user->getCurrentCompany()->getId())
+            ->create([
+                'agent_type_id' => $agentType->getId(),
+                'user_id' => $this->user->getId(),
+            ]);
     }
 }
