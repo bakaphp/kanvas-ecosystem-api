@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\Agents\Services;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
@@ -132,12 +131,16 @@ class VoiceAgentSpecService
      */
     private function telephony(): array
     {
+        // Load the owning company defensively — find() returns null instead of
+        // throwing on a missing/invalid companies_id, so a telephony problem can
+        // never 503 the whole spec fetch. Read the number straight off the
+        // company's `phone` column (not the settings store).
         $company = $this->agent->companies_id > 0
-            ? Companies::getById($this->agent->companies_id)
+            ? Companies::find($this->agent->companies_id)
             : null;
 
         return [
-            'from_number' => $company?->get(TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value),
+            'from_number' => $company?->phone,
         ];
     }
 
