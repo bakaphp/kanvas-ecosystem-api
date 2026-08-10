@@ -6,8 +6,9 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
-use Kanvas\Intelligence\Notifications\ReceptionistMessageNotification;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\TakesMessageForEntity;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -16,7 +17,9 @@ use Override;
 #[AgentTool(name: 'Take Message', category: 'crm')]
 class TakeMessageTool extends Tool
 {
+    use HasKanvasContext;
     use ResolvesLeadForTool;
+    use TakesMessageForEntity;
 
     public function __construct()
     {
@@ -68,10 +71,7 @@ class TakeMessageTool extends Tool
         ?string $callback_number = null,
     ): array {
         if (trim($message) === '') {
-            return [
-                'status' => 'error',
-                'message' => 'The message is empty — capture what the prospect actually wants passed along before calling take_message.',
-            ];
+            return $this->emptyMessageError();
         }
 
         $result = $this->resolveLeadOrError($lead_id);
@@ -80,41 +80,13 @@ class TakeMessageTool extends Tool
         }
         $lead = $result;
 
-        $forWhom = $for_whom !== null && trim($for_whom) !== '' ? trim($for_whom) : null;
-        $callback = $callback_number !== null && trim($callback_number) !== '' ? trim($callback_number) : null;
+        $message = trim($message);
+        $forWhom = $this->normalizeOptional($for_whom);
+        $callback = $this->normalizeOptional($callback_number);
 
-        $body = 'Receptionist message'
-            . ($forWhom !== null ? ' for ' . $forWhom : '')
-            . ': ' . trim($message)
-            . ($callback !== null ? ' (callback: ' . $callback . ')' : '');
+        $body = $this->receptionistMessageBody($message, $forWhom, $callback);
+        $recorded = new RecordLeadNoteAction($lead)->execute($body, 'receptionist-note', $this->actingNoteUser()) !== null;
 
-        $recorded = new RecordLeadNoteAction($lead)->execute($body, 'receptionist-note') !== null;
-
-        $owner = $lead->owner;
-        $notified = false;
-        if ($owner !== null) {
-            $owner->notify(new ReceptionistMessageNotification(
-                $lead,
-                [
-                    'app' => $lead->app,
-                    'company' => $lead->company,
-                    'message' => trim($message),
-                    'for_whom' => $forWhom,
-                    'callback_number' => $callback,
-                    'lead_id' => $lead->getId(),
-                ],
-            ));
-            $notified = true;
-        }
-
-        return [
-            'status' => 'success',
-            'lead_id' => $lead_id,
-            'recorded' => $recorded,
-            'owner_notified' => $notified,
-            'note' => $notified
-                ? 'Message saved as a note on the lead and the assigned owner was notified.'
-                : 'Message saved as a note on the lead. No owner is assigned, so no one was pinged — consider handoff_lead if it is urgent.',
-        ];
+        return $this->finalizeTakenMessage($lead, 'lead_id', $message, $forWhom, $callback, $recorded);
     }
 }

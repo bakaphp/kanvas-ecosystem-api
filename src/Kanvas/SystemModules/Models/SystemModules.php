@@ -18,6 +18,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\HumanResources\Employees\Models\Employee;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
@@ -145,6 +146,7 @@ class SystemModules extends BaseModel
     {
         $internalMapping = [
             'lead' => Lead::class,
+            'deal' => Deal::class,
             'people' => People::class,
             'message' => Message::class,
             'product' => Products::class,
@@ -166,6 +168,7 @@ class SystemModules extends BaseModel
     {
         $internalMapping = [
             Lead::class => 'lead',
+            Deal::class => 'deal',
             People::class => 'people',
             Message::class => 'message',
             Products::class => 'product',

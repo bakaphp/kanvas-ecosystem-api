@@ -9,6 +9,7 @@ use Carbon\CarbonInterface;
 use Kanvas\Connectors\Google\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Spatie\GoogleCalendar\Event as GoogleCalendarEvent;
+use Throwable;
 
 class CreateGoogleCalendarMeetingAction
 {
@@ -20,12 +21,28 @@ class CreateGoogleCalendarMeetingAction
         protected CarbonInterface $endDateTime,
         protected ?string $description = null,
         protected bool $withMeetLink = true,
+        protected ?string $externalEventId = null,
     ) {
     }
 
     public function execute(): array
     {
         $this->applyCompanyCalendarConfig();
+
+        if ($this->externalEventId !== null) {
+            try {
+                $existing = GoogleCalendarEvent::find($this->externalEventId);
+                if ($existing !== null) {
+                    return $this->formatResult($existing);
+                }
+            } catch (Throwable $e) {
+                if ((int) $e->getCode() !== 404) {
+                    throw $e;
+                }
+
+                // Missing is expected on the first execution or after external deletion.
+            }
+        }
 
         $emails = array_values(array_unique(array_filter(
             $this->attendeeEmails,
@@ -38,6 +55,10 @@ class CreateGoogleCalendarMeetingAction
         $event->startDateTime = $this->startDateTime;
         $event->endDateTime = $this->endDateTime;
 
+        if ($this->externalEventId !== null) {
+            $event->googleEvent->setId($this->externalEventId);
+        }
+
         foreach ($emails as $email) {
             $event->addAttendee(['email' => $email]);
         }
@@ -46,8 +67,13 @@ class CreateGoogleCalendarMeetingAction
             $event->addMeetLink();
         }
 
-        $saved = $event->save();
+        $saved = $event->save($this->externalEventId !== null ? 'insertEvent' : null);
 
+        return $this->formatResult($saved, $emails);
+    }
+
+    protected function formatResult(GoogleCalendarEvent $saved, ?array $emails = null): array
+    {
         return [
             'id' => $saved->id,
             'calendar_id' => $saved->getCalendarId(),
@@ -57,7 +83,7 @@ class CreateGoogleCalendarMeetingAction
             'end' => $this->endDateTime->toIso8601String(),
             'meet_link' => $saved->googleEvent->getHangoutLink(),
             'html_link' => $saved->googleEvent->getHtmlLink(),
-            'attendees' => $emails,
+            'attendees' => $emails ?? $this->attendeeEmails,
         ];
     }
 

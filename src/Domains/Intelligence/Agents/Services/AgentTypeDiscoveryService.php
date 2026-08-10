@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Agents\Types\BaseAgent;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
@@ -41,6 +42,7 @@ class AgentTypeDiscoveryService extends AttributeClassDiscovery
     private const array HANDLER_BASES = [
         BaseAgent::class,
         BaseKanvasAgent::class,
+        BaseRagAgent::class,
         KanvasLaravelAgent::class,
         ADKAgent::class,
         OpenClawAgentHandler::class,
@@ -125,7 +127,9 @@ class AgentTypeDiscoveryService extends AttributeClassDiscovery
             $reflection->isSubclassOf(KanvasLaravelAgent::class) => AgentProviderEnum::LARAVEL->value,
             $reflection->isSubclassOf(ADKAgent::class) => AgentProviderEnum::ADK->value,
             $reflection->isSubclassOf(OpenClawAgentHandler::class) => AgentProviderEnum::OPENCLAW->value,
-            $reflection->isSubclassOf(BaseAgent::class), $reflection->isSubclassOf(BaseKanvasAgent::class) => AgentProviderEnum::NEURON->value,
+            $reflection->isSubclassOf(BaseAgent::class),
+            $reflection->isSubclassOf(BaseKanvasAgent::class),
+            $reflection->isSubclassOf(BaseRagAgent::class) => AgentProviderEnum::NEURON->value,
             default => null,
         };
     }

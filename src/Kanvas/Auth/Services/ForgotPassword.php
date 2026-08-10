@@ -56,6 +56,11 @@ class ForgotPassword
         }
 
         $recoverUser = $query->firstOrFail()->user;
+
+        if (! $recoverUser instanceof Users) {
+            throw new ExceptionsModelNotFoundException('No user found with the given email.');
+        }
+
         $recoverUser->generateForgotHash($this->app);
 
         try {
@@ -69,7 +74,6 @@ class ForgotPassword
                 ]
             ));
         } catch (ModelNotFoundException $e) {
-            //throw $th;
         }
 
         return $recoverUser;
