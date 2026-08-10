@@ -19,9 +19,10 @@ use NeuronAI\Workflow\Node;
 use Override;
 
 /**
- * RAG wiring for a Neuron agent. Retrieval pulls the company knowledge base plus
- * the record in scope this turn (resolveEntityForTurn() — a Lead for SalesAgent,
- * any registered-source entity for a future agent).
+ * RAG wiring for a Neuron agent. Retrieval pulls the agent's own uploaded docs
+ * plus the record in scope this turn (resolveEntityForTurn() — a Lead for
+ * SalesAgent, any registered-source entity for a future agent). Scoped per agent
+ * so knowledge never leaks between agents.
  */
 trait HasKnowledgeRag
 {
@@ -44,6 +45,7 @@ trait HasKnowledgeRag
         return new KnowledgeRetrieval(
             $this->app,
             $this->company,
+            $this->agent,
             $this->resolveEntityForTurn()
         );
     }

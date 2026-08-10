@@ -39,8 +39,13 @@ class TypesenseKnowledgeSearchTool implements KanvasToolInterface
             return 'Provide a `query` to search the knowledge base.';
         }
 
+        if ($this->agent === null) {
+            return 'No relevant knowledge found.';
+        }
+
         try {
-            $scope = KnowledgeScope::forTenant($this->app->getId(), $this->company->getId());
+            // Scope to THIS agent's own docs — knowledge isn't shared across agents.
+            $scope = KnowledgeScope::forModel($this->agent);
             $embedding = KnowledgeComponents::embedder($this->app)->embed($query);
             $hits = KnowledgeComponents::store($this->app)->search(
                 $embedding,

@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
-use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -34,8 +33,9 @@ class PruneKnowledgeDocumentActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function (Filesystem $file) use ($app): array {
-                KnowledgeComponents::store($app)->deleteBySource(
-                    KnowledgeScope::forTenant($app->getId(), $file->companies_id),
+                KnowledgeComponents::store($app)->deleteBySourceAcrossEntities(
+                    $app->getId(),
+                    $file->companies_id,
                     IndexKnowledgeDocumentActivity::SOURCE_TYPE,
                     $file->uuid,
                 );

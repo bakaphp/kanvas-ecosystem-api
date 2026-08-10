@@ -104,8 +104,14 @@ final class LeadKnowledgeSource implements KnowledgeSource
             ->all();
     }
 
-    private function document(Lead $lead, string $type, string $id, string $content, string $channels = '', int $createdAt = 0): KnowledgeDocument
-    {
+    private function document(
+        Lead $lead,
+        string $type,
+        string $id,
+        string $content,
+        string $channels = '',
+        int $createdAt = 0,
+    ): KnowledgeDocument {
         return new KnowledgeDocument(
             id: implode('-', ['lead', $lead->getId(), $type, $id]),
             content: $content,

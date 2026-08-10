@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Knowledge\Actions\IndexTenantKnowledgeAction;
+use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
+use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeTextExtractor;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -50,6 +51,10 @@ class IndexKnowledgeDocumentActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function (Agent $agent) use ($extractor, $textFiles): array {
+                // Scope the docs to THIS agent (not company-wide) so an upload to one
+                // agent isn't retrievable by another.
+                $indexer = KnowledgeComponents::indexer($agent->app);
+                $scope = KnowledgeScope::forModel($agent);
                 $chunks = 0;
 
                 foreach ($textFiles as $file) {
@@ -65,13 +70,7 @@ class IndexKnowledgeDocumentActivity extends KanvasActivity
                         continue;
                     }
 
-                    $chunks += new IndexTenantKnowledgeAction(
-                        app: $agent->app,
-                        company: $agent->company,
-                        sourceType: self::SOURCE_TYPE,
-                        sourceName: $file->uuid,
-                        content: $content,
-                    )->execute();
+                    $chunks += $indexer->indexDocument($scope, self::SOURCE_TYPE, $file->uuid, $content);
                 }
 
                 return [

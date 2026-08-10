@@ -15,11 +15,10 @@ use Kanvas\Intelligence\Knowledge\VectorStores\TypesenseKnowledgeStore;
 
 /**
  * The single framework-neutral indexer (chunk -> embed -> store). Serves two
- * entry points that write to the same collection but different scopes:
- * indexEntity() for entity-scoped knowledge (a Lead + its messages) and
- * indexTenantDocument() for tenant-scoped company docs (uploaded policy/FAQ
- * files, entity_id = 0). Both replace-by-source so re-indexing swaps a source's
- * chunks in place instead of piling up duplicates.
+ * entry points: indexEntity() builds a KnowledgeSource's documents for an entity
+ * (a Lead + its messages), indexDocument() indexes raw content under any scope
+ * (an Agent's own uploaded docs, or company-wide). Both replace-by-source so
+ * re-indexing swaps a source's chunks in place instead of duplicating them.
  */
 final class KnowledgeIndexer
 {
@@ -57,22 +56,30 @@ final class KnowledgeIndexer
         );
     }
 
-    public function indexTenantDocument(
+    /**
+     * Index raw content under a scope — company-wide (entity_id = 0) or scoped to
+     * a specific entity (e.g. an Agent's own docs). entity_id is baked into the
+     * chunk id so the same file attached to two agents doesn't collide.
+     */
+    public function indexDocument(
         KnowledgeScope $scope,
         string $sourceType,
         string $sourceName,
         string $content,
     ): int {
+        $entityType = $scope->entityType ?? '';
+        $entityId = $scope->entityId ?? 0;
+
         $chunks = [];
         foreach ($this->chunker->chunk($content) as $index => $piece) {
             $chunks[] = new KnowledgeDocument(
-                id: "{$sourceType}:{$sourceName}:{$index}",
+                id: "{$sourceType}:{$sourceName}:{$entityId}:{$index}",
                 content: $piece,
                 metadata: [
                     'apps_id' => $scope->appId,
                     'companies_id' => $scope->companyId,
-                    'entity_type' => '',
-                    'entity_id' => 0,
+                    'entity_type' => $entityType,
+                    'entity_id' => $entityId,
                     'source_type' => $sourceType,
                     'source_id' => (string) $index,
                     'sourceType' => $sourceType,
@@ -90,8 +97,12 @@ final class KnowledgeIndexer
      *
      * @param array<int, KnowledgeDocument> $chunks
      */
-    private function persistChunks(array $chunks, KnowledgeScope $scope, string $sourceType, string $sourceName): int
-    {
+    private function persistChunks(
+        array $chunks,
+        KnowledgeScope $scope,
+        string $sourceType,
+        string $sourceName,
+    ): int {
         $this->store->replaceBySource($this->embed($chunks), $scope, $sourceType, $sourceName);
 
         return count($chunks);

@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
 use Kanvas\Intelligence\Knowledge\Enums\KnowledgeConfigurationEnum;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
@@ -18,8 +17,9 @@ use NeuronAI\RAG\Retrieval\RetrievalInterface;
 use Override;
 
 /**
- * Native Neuron retrieval over the shared knowledge store: always the company-wide
- * base (entity_id = 0), plus the record's own knowledge when one is in scope.
+ * Native Neuron retrieval over the shared knowledge store. Retrieves the agent's
+ * own uploaded docs plus, for a customer-facing agent, the lead in scope — each
+ * scoped to its entity so knowledge never leaks between agents (or prospects).
  * No-ops when the app hasn't enabled knowledge.
  */
 class KnowledgeRetrieval implements RetrievalInterface
@@ -27,6 +27,7 @@ class KnowledgeRetrieval implements RetrievalInterface
     public function __construct(
         private readonly ?Apps $app,
         private readonly ?Companies $company,
+        private readonly ?Model $agent = null,
         private readonly ?Model $entity = null,
     ) {
     }
@@ -48,21 +49,20 @@ class KnowledgeRetrieval implements RetrievalInterface
         $minScore = KnowledgeComponents::minScore($this->app);
         $embedding = KnowledgeComponents::embedder($this->app)->embed((string) $query->getContent());
 
-        $hits = $store->search(
-            $embedding,
-            KnowledgeScope::forTenant($this->app->getId(), $this->company->getId()),
-            $topK,
-            $minScore,
-        );
-
-        // Add the record's own (prospect-isolated) knowledge — but a global row like
-        // a Users (apps_id/companies_id = 0) can't form a KnowledgeEntity, so skip it.
-        if ($this->entity !== null) {
-            try {
-                $entityScope = KnowledgeScope::fromEntity(KnowledgeEntity::fromModel($this->entity));
-                $hits = array_merge($hits, $store->search($embedding, $entityScope, $topK, $minScore));
-            } catch (InvalidArgumentException) {
+        // The agent's own docs, plus the record in scope (a Lead). A global row like
+        // a Users (apps_id/companies_id = 0) can't form a KnowledgeEntity, so it's skipped.
+        $hits = [];
+        foreach ([$this->agent, $this->entity] as $scopeEntity) {
+            if ($scopeEntity === null) {
+                continue;
             }
+
+            try {
+                $scope = KnowledgeScope::forModel($scopeEntity);
+            } catch (InvalidArgumentException) {
+                continue;
+            }
+            $hits = array_merge($hits, $store->search($embedding, $scope, $topK, $minScore));
         }
 
         return $this->toDocuments($hits, $topK);

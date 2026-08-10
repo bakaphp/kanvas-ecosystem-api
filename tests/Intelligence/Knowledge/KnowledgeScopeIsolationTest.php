@@ -76,7 +76,7 @@ class KnowledgeScopeIsolationTest extends TestCase
 
         $appId = $this->kanvasApp->getId();
         $scope = new KnowledgeScope($appId, self::COMPANY_A);
-        KnowledgeComponents::indexer($this->kanvasApp)->indexTenantDocument(
+        KnowledgeComponents::indexer($this->kanvasApp)->indexDocument(
             $scope,
             'agent_document',
             'company-a-policy',
@@ -98,13 +98,13 @@ class KnowledgeScopeIsolationTest extends TestCase
         $appId = $this->kanvasApp->getId();
         $indexer = KnowledgeComponents::indexer($this->kanvasApp);
 
-        $indexer->indexTenantDocument(
+        $indexer->indexDocument(
             new KnowledgeScope($appId, self::COMPANY_A),
             'agent_document',
             'company-a-policy',
             'Alpha refund policy: refunds within 30 days.',
         );
-        $indexer->indexTenantDocument(
+        $indexer->indexDocument(
             new KnowledgeScope($appId, self::COMPANY_B),
             'agent_document',
             'company-b-policy',
@@ -146,13 +146,49 @@ class KnowledgeScopeIsolationTest extends TestCase
         $this->assertFalse($companyB->contains(fn (string $c): bool => str_contains($c, 'Alpha refund')));
     }
 
+    public function testAgentScopedSearchNeverReturnsAnotherAgentsKnowledge(): void
+    {
+        $this->requireTypesense();
+
+        $appId = $this->kanvasApp->getId();
+        $agentType = 'Kanvas\\Intelligence\\Agents\\Models\\Agent';
+        $scopeAgentA = new KnowledgeScope($appId, self::COMPANY_A, $agentType, 7001);
+        $scopeAgentB = new KnowledgeScope($appId, self::COMPANY_A, $agentType, 7002);
+
+        $indexer = KnowledgeComponents::indexer($this->kanvasApp);
+        $indexer->indexDocument(
+            $scopeAgentA,
+            IndexKnowledgeDocumentActivity::SOURCE_TYPE,
+            'agent-a-doc',
+            'Agent A handbook: onboarding steps for the sales team.',
+        );
+        $indexer->indexDocument(
+            $scopeAgentB,
+            IndexKnowledgeDocumentActivity::SOURCE_TYPE,
+            'agent-b-doc',
+            'Agent B handbook: escalation matrix for support.',
+        );
+
+        $vector = KnowledgeComponents::embedder($this->kanvasApp)->embed('handbook');
+        $store = KnowledgeComponents::store($this->kanvasApp);
+
+        $agentA = collect($store->search($vector, $scopeAgentA, 10))->pluck('content');
+        $agentB = collect($store->search($vector, $scopeAgentB, 10))->pluck('content');
+
+        $this->assertTrue($agentA->contains(fn (string $c): bool => str_contains($c, 'Agent A handbook')));
+        $this->assertFalse($agentA->contains(fn (string $c): bool => str_contains($c, 'Agent B handbook')));
+
+        $this->assertTrue($agentB->contains(fn (string $c): bool => str_contains($c, 'Agent B handbook')));
+        $this->assertFalse($agentB->contains(fn (string $c): bool => str_contains($c, 'Agent A handbook')));
+    }
+
     public function testDeleteBySourceRemovesADeletedDocumentsChunks(): void
     {
         $this->requireTypesense();
 
         $appId = $this->kanvasApp->getId();
         $scope = new KnowledgeScope($appId, self::COMPANY_A);
-        KnowledgeComponents::indexer($this->kanvasApp)->indexTenantDocument(
+        KnowledgeComponents::indexer($this->kanvasApp)->indexDocument(
             $scope,
             IndexKnowledgeDocumentActivity::SOURCE_TYPE,
             'file-to-delete',

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Knowledge\DataTransferObject;
 
+use Illuminate\Database\Eloquent\Model;
+
 final readonly class KnowledgeScope
 {
     /**
@@ -30,6 +32,12 @@ final readonly class KnowledgeScope
             entityType: $entity->type,
             entityId: $entity->id,
         );
+    }
+
+    /** Scope a search/index to one Eloquent model. Throws InvalidArgumentException for a global (apps_id/companies_id = 0) row. */
+    public static function forModel(Model $model): self
+    {
+        return self::fromEntity(KnowledgeEntity::fromModel($model));
     }
 
     /** Company-wide knowledge: no entity, so a search matches only entity_id = 0 rows. */

@@ -93,12 +93,37 @@ final class TypesenseKnowledgeStore
     }
 
     /**
+     * Delete a source's chunks under a company regardless of entity scope — used
+     * when a file is deleted and we don't know which agent(s) it was scoped to.
+     */
+    public function deleteBySourceAcrossEntities(
+        int $appId,
+        int $companyId,
+        string $sourceType,
+        string $sourceName
+    ): void {
+        if (! $this->collectionExists()) {
+            return;
+        }
+
+        $filter = sprintf('apps_id:=%d && companies_id:=%d', $appId, $companyId)
+            . ' && sourceType:=' . KnowledgeScope::escapeFilterValue($sourceType)
+            . ' && sourceName:=' . KnowledgeScope::escapeFilterValue($sourceName);
+
+        $this->client->collections[$this->collection]->documents->delete(['filter_by' => $filter]);
+    }
+
+    /**
      * @param array<int, float> $embedding
      * @param float|null $minScore drop hits below this similarity (score = 1 - distance); null keeps all
      * @return array<int, array{content: string, sourceType: string, sourceName: string, score: float, metadata: array<string, mixed>}>
      */
-    public function search(array $embedding, KnowledgeScope $scope, int $topK = 8, ?float $minScore = null): array
-    {
+    public function search(
+        array $embedding,
+        KnowledgeScope $scope,
+        int $topK = 8,
+        ?float $minScore = null
+    ): array {
         if (! $this->collectionExists()) {
             return [];
         }
@@ -201,8 +226,11 @@ final class TypesenseKnowledgeStore
     }
 
     /** @return array<int, string> */
-    private function documentIds(KnowledgeScope $scope, string $sourceType, string $sourceName): array
-    {
+    private function documentIds(
+        KnowledgeScope $scope,
+        string $sourceType,
+        string $sourceName
+    ): array {
         if (! $this->collectionExists()) {
             return [];
         }
@@ -229,8 +257,11 @@ final class TypesenseKnowledgeStore
         return $ids;
     }
 
-    private function sourceFilter(KnowledgeScope $scope, string $sourceType, string $sourceName): string
-    {
+    private function sourceFilter(
+        KnowledgeScope $scope,
+        string $sourceType,
+        string $sourceName
+    ): string {
         return $scope->filter()
             . ' && sourceType:=' . KnowledgeScope::escapeFilterValue($sourceType)
             . ' && sourceName:=' . KnowledgeScope::escapeFilterValue($sourceName);

@@ -39,8 +39,12 @@ final class KnowledgeSourceRegistry
         return array_keys($this->aliases);
     }
 
-    public function resolveAlias(string $alias, int $entityId, int $appId, int $companyId): ?Model
-    {
+    public function resolveAlias(
+        string $alias,
+        int $entityId,
+        int $appId,
+        int $companyId,
+    ): ?Model {
         $entityType = $this->aliases[strtolower($alias)] ?? null;
 
         return $entityType === null
