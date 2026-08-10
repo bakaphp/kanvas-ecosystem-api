@@ -12,11 +12,6 @@ use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeSourceRegistry;
 use NeuronAI\RAG\Embeddings\EmbeddingsProviderInterface;
 
-/**
- * Neuron-facing resolver: wraps the shared embedder in a NeuronAI adapter and
- * gates indexing/retrieval on a registered source, so the Neuron RAG path never
- * needs to know the Knowledge domain's internals.
- */
 class RagComponents
 {
     public static function embeddings(Apps $app): EmbeddingsProviderInterface
