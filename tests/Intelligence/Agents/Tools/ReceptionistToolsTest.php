@@ -11,9 +11,11 @@ use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\BookingOptionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FaqLookupTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\StopContactTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TakeMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateLeadTool;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Notifications\ReceptionistMessageNotification;
 use Kanvas\Social\Messages\Models\Message;
@@ -82,6 +84,40 @@ class ReceptionistToolsTest extends TestCase
         $result = new UpdateLeadTool()->__invoke(lead_id: 999999999, budget: 'x');
 
         $this->assertSame('error', $result['status']);
+    }
+
+    public function testHandOffToolExecutesPromptSelectedType(): void
+    {
+        Notification::fake();
+        $lead = $this->makeLead();
+
+        $result = new HandOffTool()->__invoke(
+            lead_id: $lead->getId(),
+            handoff_type: 'human',
+            conversation_summary: 'Customer requested a person.',
+        );
+
+        $this->assertTrue($result['success']);
+
+        $lead->refresh();
+        $this->assertEquals(1, $lead->get(ConfigurationEnum::AGENT_HAND_OFF->value));
+        $this->assertSame('human', $lead->get(ConfigurationEnum::AGENT_HAND_OFF_TYPE->value));
+    }
+
+    public function testHandOffToolRejectsUnsupportedTypeWithoutChangingLead(): void
+    {
+        $lead = $this->makeLead();
+
+        $result = new HandOffTool()->__invoke(
+            lead_id: $lead->getId(),
+            handoff_type: 'unsupported',
+        );
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('Unsupported handoff type.', $result['error']);
+
+        $lead->refresh();
+        $this->assertNull($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value));
     }
 
     public function testBookingOptionsReturnsCompanyServiceTypesAndIsTenantScoped(): void
