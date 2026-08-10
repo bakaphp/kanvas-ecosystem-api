@@ -41,6 +41,7 @@ use function Laravel\Ai\agent;
 class CreateMessageFollowUpAction
 {
     protected Agent $agent;
+    protected ?Message $createdMessage = null;
 
     private const int MAX_RETRY_ATTEMPTS = 3;
 
@@ -153,6 +154,7 @@ class CreateMessageFollowUpAction
             ),
             $this->lead->getId(),
         )->execute();
+        $this->createdMessage = $message;
 
         $this->session->channel->addMessage($created);
         $created->addTag('followup');
@@ -217,6 +219,11 @@ class CreateMessageFollowUpAction
     private function normalizeForCompare(string $text): string
     {
         return strtolower(trim((string) preg_replace('/\s+/', ' ', $text)));
+    }
+
+    public function getCreatedMessage(): ?Message
+    {
+        return $this->createdMessage;
     }
 
     public function buildPrompt(): string

@@ -19,6 +19,7 @@ use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum as DriveCentricConfig
 use Kanvas\Connectors\Elead\Entities\Lead as EntitiesLead;
 use Kanvas\Connectors\Elead\Entities\SalesActivities;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
@@ -202,12 +203,13 @@ class SendDelayMessageCommand extends Command
         $title = $message->get('title');
 
         try {
-            new SendMessageToLeadAction($lead)->execute(
+            $providerResponse = new SendMessageToLeadAction($lead)->execute(
                 $communicationChannel,
                 $messageContent,
                 $fromNumber,
                 $title,
             );
+            new StoreMessageSidAction($message)->execute($providerResponse);
 
             $message->setUnlock();
             $message->setPublic();

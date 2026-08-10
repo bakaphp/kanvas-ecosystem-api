@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -88,12 +89,13 @@ class ProcessElevenLabsProductShareWebhookJob extends ProcessElevenLabsWebhookJo
 
         try {
             if ($fromPhone) {
-                $sendMessage->execute(
+                $providerResponse = $sendMessage->execute(
                     channel: 'sms',
                     message: $smsMessage,
                     from: (string) $fromPhone,
                     to: $phone,
                 );
+                new StoreMessageSidAction($engagement->message)->execute($providerResponse);
                 $smsSent = true;
             }
         } catch (Throwable $e) {

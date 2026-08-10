@@ -406,6 +406,29 @@ class People extends BaseModel
             ->update(['is_opt_out' => 1]);
     }
 
+    public function setPhoneOptOut(string $phoneNumber, bool $optOut = true): int
+    {
+        $normalizedPhone = Contact::normalizeValue(
+            $phoneNumber,
+            ContactTypeEnum::CELLPHONE->value,
+        );
+
+        return $this->contacts()
+            ->whereIn('contacts_types_id', Contact::PHONE_TYPES)
+            ->get()
+            ->filter(
+                fn (Contact $contact): bool => Contact::normalizeValue(
+                    $contact->value,
+                    $contact->contacts_types_id,
+                ) === $normalizedPhone,
+            )
+            ->each(function (Contact $contact) use ($optOut): void {
+                $contact->is_opt_out = (int) $optOut;
+                $contact->saveOrFail();
+            })
+            ->count();
+    }
+
     public static function findByEmailOrCreate(
         string $email,
         Companies $company,
