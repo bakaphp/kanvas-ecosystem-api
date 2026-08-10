@@ -6,7 +6,6 @@ namespace Tests\Connectors\Acumatica;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Actions\PushInvoiceToAcumaticaAction;
-use Kanvas\Connectors\Acumatica\Client;
 use Kanvas\Connectors\Acumatica\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Services\AcumaticaWriteService;
