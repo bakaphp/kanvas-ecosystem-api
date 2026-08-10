@@ -154,7 +154,7 @@ class CreateMessageFollowUpAction
             ),
             $this->lead->getId(),
         )->execute();
-        $this->createdMessage = $message;
+        $this->createdMessage = $created;
 
         $this->session->channel->addMessage($created);
         $created->addTag('followup');
