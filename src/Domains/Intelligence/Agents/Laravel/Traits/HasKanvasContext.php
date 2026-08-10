@@ -14,8 +14,11 @@ trait HasKanvasContext
     protected Companies $company;
     protected ?Agent $agent = null;
 
-    public function withContext(Apps $app, Companies $company, ?Agent $agent = null): static
-    {
+    public function withContext(
+        Apps $app,
+        Companies $company,
+        ?Agent $agent = null
+    ): static {
         $this->app = $app;
         $this->company = $company;
         $this->agent = $agent;
