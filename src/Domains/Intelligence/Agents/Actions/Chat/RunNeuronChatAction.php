@@ -12,7 +12,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -55,7 +55,7 @@ class RunNeuronChatAction
         // Agents whose chatHistory already records each turn (KanvasMessageHistory) must not also
         // logTurn here — that writes a second, parallel conversation. SalesAssist-style agents write
         // their history to Social messages, so they keep logTurn as their only conversation record.
-        $selfRecords = $this->handler instanceof BaseKanvasAgent
+        $selfRecords = $this->handler instanceof BehavesAsKanvasAgent
             && $this->handler->persistsTurnsToConversationStore();
 
         $userMessage = new UserMessage($this->message);

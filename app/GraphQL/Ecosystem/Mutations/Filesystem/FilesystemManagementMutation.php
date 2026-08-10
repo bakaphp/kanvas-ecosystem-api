@@ -25,6 +25,7 @@ use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use League\Csv\Reader;
 use Throwable;
 
@@ -96,9 +97,6 @@ class FilesystemManagementMutation
         );
     }
 
-    /**
-     * deAttach a file from filesystem
-     */
     public function deAttachFile(mixed $rootValue, array $request): bool
     {
         $app = app(Apps::class);
@@ -119,6 +117,10 @@ class FilesystemManagementMutation
         $entityId = $fileEntity->entity_id;
 
         $response = $fileEntity->softDelete();
+
+        if ($response) {
+            $this->fireFileDeletedWorkflow($fileEntity->filesystem);
+        }
 
         try {
             $entityData = $systemModule::getById($entityId);
@@ -154,6 +156,7 @@ class FilesystemManagementMutation
 
             if ($fileEntity->softDelete()) {
                 $i++;
+                $this->fireFileDeletedWorkflow($fileEntity->filesystem);
 
                 try {
                     $systemModule = $fileEntity->systemModule->model_name;
@@ -170,10 +173,26 @@ class FilesystemManagementMutation
         return $i == count($request['uuids']);
     }
 
+    private function fireFileDeletedWorkflow(?Filesystem $file): void
+    {
+        if ($file === null || ! $file->hasWorkflow()) {
+            return;
+        }
+
+        $file->fireWorkflow(
+            WorkflowEnum::DELETED->value,
+            true,
+            [
+                'app' => $file->app,
+                'company' => $file->company,
+            ]
+        );
+    }
+
     /**
      * Handle file validation logic.
      */
-    protected function validateFileSize(\Illuminate\Http\UploadedFile $file, int $defaultSize = 20480): void
+    protected function validateFileSize(UploadedFile $file, int $defaultSize = 20480): void
     {
         $app = app(Apps::class);
         $maxFileSize = $app->get(AppSettingsEnums::DEFAULT_FILESYSTEM_UPLOAD_FILE_SIZE->getValue()) ?? $defaultSize;
@@ -279,7 +298,13 @@ class FilesystemManagementMutation
         $filesystemService = new FilesystemServices(app(Apps::class));
 
         if ($filesystemService->delete($filesystem)) {
-            return $filesystem->delete();
+            $deleted = (bool) $filesystem->delete();
+
+            if ($deleted) {
+                $this->fireFileDeletedWorkflow($filesystem);
+            }
+
+            return $deleted;
         }
 
         return false;

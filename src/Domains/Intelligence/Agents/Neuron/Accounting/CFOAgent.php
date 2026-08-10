@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryBalanceSheetTool;
@@ -48,7 +48,7 @@ use Override;
         . 'data-freshness check before any numeric statement.',
     provider: 'neuron',
 )]
-class CFOAgent extends BaseKanvasAgent
+class CFOAgent extends BaseRagAgent
 {
     use HasTemporalContext;
 
