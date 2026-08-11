@@ -6,16 +6,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
 
 use Kanvas\Users\Models\Users;
 
-/**
- * Gate a mutating tool on an admin — the tool-layer mirror of the GraphQL `@guardByAdmin` directive.
- *
- * Authorization is checked against the REQUESTING (human) user — the person the agent is helping —
- * NOT the agent's own acting user. An agent must not let a non-admin human drive privileged writes
- * through it just because the agent's own user happens to be an admin. Set it with
- * forRequestingUser($agentHumanUser); when unset it falls back to the tool's context user.
- *
- *   if ($denied = $this->requireAdminOrError()) { return $denied; }
- */
 trait GuardsAdminForTool
 {
     protected ?Users $requestingUser = null;
