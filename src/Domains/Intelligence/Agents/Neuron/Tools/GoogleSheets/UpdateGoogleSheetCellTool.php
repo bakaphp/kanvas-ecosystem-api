@@ -56,7 +56,9 @@ class UpdateGoogleSheetCellTool extends Tool
             new ToolProperty(
                 name: 'value',
                 type: PropertyType::STRING,
-                description: 'The new value for that cell, e.g. "Approved" or "250.00".',
+                description: 'The new value for that cell, e.g. "Approved" or "250.00". A value starting with "=" '
+                    . 'is entered as a live formula (e.g. "=SUM(C2:C10)" or "=VLOOKUP(A5,Sheet2!A:B,2,FALSE)"), '
+                    . 'exactly as if typed into the sheet by hand — not stored as plain text.',
                 required: true,
             ),
         ];

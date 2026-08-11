@@ -116,6 +116,33 @@ class GoogleSheetsActionsTest extends TestCase
         $this->assertSame(1, $result['updated_cells']);
     }
 
+    public function test_update_sheet_range_passes_a_formula_value_through_unmodified(): void
+    {
+        $valuesResource = Mockery::mock(SpreadsheetsValues::class);
+        $valuesResource->shouldReceive('update')
+            ->once()
+            ->with(
+                'SHEET_ID',
+                'Invoices!E2',
+                Mockery::on(fn (ValueRange $body) => $body->getValues() === [['=SUM(C2:C10)']]),
+                ['valueInputOption' => 'USER_ENTERED'],
+            )
+            ->andReturn(new UpdateValuesResponse(['updatedRange' => 'Invoices!E2', 'updatedCells' => 1]));
+
+        $service = Mockery::mock(GoogleSheetsService::class);
+        $service->spreadsheets_values = $valuesResource;
+
+        $result = new UpdateSheetRangeAction(
+            app: app(Apps::class),
+            spreadsheetId: 'SHEET_ID',
+            range: 'Invoices!E2',
+            values: [['=SUM(C2:C10)']],
+            service: $service,
+        )->execute();
+
+        $this->assertSame(1, $result['updated_cells']);
+    }
+
     public function test_clear_sheet_range_wipes_the_target_range_without_deleting_it(): void
     {
         $valuesResource = Mockery::mock(SpreadsheetsValues::class);
