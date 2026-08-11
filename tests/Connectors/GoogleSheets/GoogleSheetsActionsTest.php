@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\GoogleSheets;
 
-use Google\Service\Sheets as GoogleSheetsService;
 use Google\Service\Sheets\AddSheetResponse;
 use Google\Service\Sheets\AppendValuesResponse;
+use Google\Service\Sheets as GoogleSheetsService;
 use Google\Service\Sheets\BatchUpdateSpreadsheetRequest;
 use Google\Service\Sheets\BatchUpdateSpreadsheetResponse;
 use Google\Service\Sheets\ClearValuesResponse;
