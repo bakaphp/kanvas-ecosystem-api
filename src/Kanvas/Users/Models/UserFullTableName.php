@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Users\Models;
 
 use Illuminate\Support\Facades\DB;
+use Override;
 
 class UserFullTableName extends Users
 {
@@ -12,5 +13,11 @@ class UserFullTableName extends Users
     {
         $this->setTable(DB::connection('ecosystem')->getDatabaseName() . '.' . $this->table);
         parent::__construct($attributes);
+    }
+
+    #[Override]
+    public function getMorphClass(): string
+    {
+        return Users::class;
     }
 }
