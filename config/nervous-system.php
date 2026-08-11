@@ -52,10 +52,14 @@ return [
         | `people.email_validated` powers the bounce/invalid-email export). A
         | one-time bulk-enriched cohort would otherwise vanish wholesale the
         | moment it crossed the retention window. Comma-separated env override.
+        |
+        | `agent.knowledge.saved` backs agent long-term memory (the `remember`
+        | tool) — it is durable by design and MUST survive the sweep, since the
+        | whole point is recall long after emission.
         */
         'preserve_event_types' => array_values(array_filter(array_map(
             'trim',
-            explode(',', (string) env('NERVOUS_SYSTEM_PRESERVE_EVENT_TYPES', 'people.enriched,people.email_validated')),
+            explode(',', (string) env('NERVOUS_SYSTEM_PRESERVE_EVENT_TYPES', 'people.enriched,people.email_validated,agent.knowledge.saved')),
         ))),
     ],
 ];
