@@ -19,6 +19,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyApPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\CreateGoogleSheetTabTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ReadGoogleSheetTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\UpdateGoogleSheetCellTool;
 use Override;
 
 /**
@@ -64,6 +69,11 @@ class AccountsPayableAgent extends SystemUserAgent
             new ApplyApPaymentTool(),
             new AddBillNoteTool(),
             new AttachBillFileTool(),
+            new ReadGoogleSheetTool(),
+            new AppendGoogleSheetRowsTool(),
+            new UpdateGoogleSheetCellTool(),
+            new ClearGoogleSheetRangeTool(),
+            new CreateGoogleSheetTabTool(),
         ]));
     }
 
@@ -92,6 +102,11 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'explicitly asks to record a real payment. Needs the bill_id, amount, and a payment reference.',
             '- "Add a note to bill Y" → add_bill_note; "attach this file to bill Y" → attach_bill_file. Both '
             . 'require the bill to already be pushed to Acumatica.',
+            '- "Read/check this Google Sheet" → read_google_sheet, given the URL the user shared. "Add these '
+            . 'rows to the sheet" → write_google_sheet. "Mark that row as X in the sheet" → '
+            . 'update_google_sheet_cell, only after confirming the exact cell with read_google_sheet first — '
+            . 'never guess a row/column. "Clear/wipe that row/cell" → clear_google_sheet_range — this empties '
+            . 'the values but never removes the row itself. "Create a new tab called X" → create_google_sheet_tab.',
         ]);
     }
 }
