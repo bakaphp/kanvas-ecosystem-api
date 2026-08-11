@@ -60,8 +60,10 @@ class AddCostToCartAction
         $total = $fee->sum('total');
         $customTaxTotal = $fee->sum('customTax');
 
-        // Add 15% service fee to shipping only, not custom tax
-        $total = $total + $total * 0.15;
+        // The pricing strategy treats the per-pound service fee and the merchandise
+        // markup as separate charges. The markup applies to merchandise only.
+        $markUp = $cartSubtotal * 0.15;
+        $total += $markUp;
 
         // Collect detailed tax breakdown
         $customTaxDetails = $fee->where('customTaxInfo.customTax', '>', 0)
@@ -105,6 +107,7 @@ class AddCostToCartAction
                 'Shipping Cost' => $fee->sum('shippingCost'),
                 'Other Fees' => $fee->sum('otherFee'),
                 'Service Fee' => $fee->sum('serviceFee'),
+                'Mark-Up / Comm Rev' => $markUp,
                 'Pounds' => $fee->sum('pounds'),
                 'Last Mile' => 0,
                 'Custom Tax' => $customTaxTotal,
