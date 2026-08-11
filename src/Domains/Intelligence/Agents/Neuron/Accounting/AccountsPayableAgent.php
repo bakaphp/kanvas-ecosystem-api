@@ -19,6 +19,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyApPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReadEmailDetailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\CreateGoogleSheetTabTool;
@@ -74,6 +77,9 @@ class AccountsPayableAgent extends SystemUserAgent
             new UpdateGoogleSheetCellTool(),
             new ClearGoogleSheetRangeTool(),
             new CreateGoogleSheetTabTool(),
+            new ListEmailsTool(),
+            new ReadEmailDetailsTool(),
+            new DownloadAttachmentTool(),
         ]));
     }
 
@@ -107,6 +113,11 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'update_google_sheet_cell, only after confirming the exact cell with read_google_sheet first — '
             . 'never guess a row/column. "Clear/wipe that row/cell" → clear_google_sheet_range — this empties '
             . 'the values but never removes the row itself. "Create a new tab called X" → create_google_sheet_tab.',
+            '- "Check for new invoice emails" / "any unread bills in the inbox" → list_emails with a query like '
+            . '"has:attachment is:unread". "What does this email say" / "does it have an invoice attached" → '
+            . 'read_email_details with the message_id. "Pull that PDF out" / "save this attachment" → '
+            . 'download_attachment with the message_id + attachment_id from read_email_details — it saves the '
+            . 'file to Kanvas and returns a filesystem_id/url.',
         ]);
     }
 }
