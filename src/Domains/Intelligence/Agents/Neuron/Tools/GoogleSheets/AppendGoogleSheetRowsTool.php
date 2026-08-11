@@ -56,7 +56,9 @@ class AppendGoogleSheetRowsTool extends Tool
                 name: 'values',
                 type: PropertyType::ARRAY,
                 description: 'Array of rows to append, each row itself an array of cell values in column order, '
-                    . 'e.g. [["1498", "Windwalk Games Corp", 250.00, "Pending"]]. At least one row is required.',
+                    . 'e.g. [["1498", "Windwalk Games Corp", 250.00, "Pending"]]. At least one row is required. '
+                    . 'A cell value starting with "=" is entered as a live formula (e.g. "=SUM(C2:C10)"), exactly '
+                    . 'as if typed into the sheet by hand — not stored as plain text.',
                 required: true,
             ),
         ];
