@@ -17,9 +17,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPositionAndDepartmentForTool;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -29,11 +31,12 @@ use Override;
  * the same CreateEmployeeAction as the mutation (so the one-employee-per-user guard still holds).
  */
 #[AgentTool(name: 'Create Employee', category: 'human_resources')]
-class CreateEmployeeTool extends Tool
+class CreateEmployeeTool extends Tool implements HasRunKey
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ResolvesPositionAndDepartmentForTool;
+    use TrackByInputs;
 
     public function __construct()
     {

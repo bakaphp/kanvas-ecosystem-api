@@ -8,16 +8,19 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExtractsPersonContacts;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'List People', category: 'crm')]
-class ListPeopleTool extends Tool
+class ListPeopleTool extends Tool implements HasRunKey
 {
     use ExtractsPersonContacts;
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

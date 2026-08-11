@@ -8,9 +8,11 @@ use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -20,9 +22,10 @@ use Override;
  * prospect must never be able to search other prospects' deals; see Agents/CLAUDE.md audience rule).
  */
 #[AgentTool(name: 'Search Deals', category: 'crm')]
-class SearchDealsTool extends Tool
+class SearchDealsTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {
