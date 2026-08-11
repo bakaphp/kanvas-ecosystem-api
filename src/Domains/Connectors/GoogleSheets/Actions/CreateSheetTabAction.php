@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\GoogleSheets\Actions;
 
 use Baka\Contracts\AppInterface;
-use Google\Service\Sheets as GoogleSheetsService;
 use Google\Service\Sheets\AddSheetRequest;
+use Google\Service\Sheets as GoogleSheetsService;
 use Google\Service\Sheets\BatchUpdateSpreadsheetRequest;
 use Google\Service\Sheets\Request as SheetsBatchRequest;
 use Google\Service\Sheets\SheetProperties;
