@@ -12,9 +12,11 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExposesPersonCustomFields;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
@@ -24,10 +26,11 @@ use Throwable;
  * fields. Company-wide read — an internal-teammate capability, NOT the customer-facing surface.
  */
 #[AgentTool(name: 'Get Person', category: 'crm')]
-class GetPersonTool extends Tool
+class GetPersonTool extends Tool implements HasRunKey
 {
     use ExposesPersonCustomFields;
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

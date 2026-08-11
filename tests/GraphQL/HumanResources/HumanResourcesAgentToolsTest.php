@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\GetEmployeeLeaveBalan
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\RequestLeaveTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\UpdateEmployeeTool;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\HasRunKey;
 use Tests\TestCase;
 
 class HumanResourcesAgentToolsTest extends TestCase
@@ -253,6 +254,30 @@ class HumanResourcesAgentToolsTest extends TestCase
 
         $this->assertFalse($request['created']);
         $this->assertStringContainsString('administrator', $request['message']);
+    }
+
+    public function testBulkCreateToolsBudgetRunsPerInputsNotPerToolName(): void
+    {
+        // Regression (Sentry KANVAS-ECOSYSTEM-621): NeuronAI caps a tool at 10 executions per turn keyed on
+        // the tool NAME by default, so onboarding an org chart (11+ DISTINCT create_position/create_employee
+        // calls) threw ToolRunsExceededException. HasRunKey keys the counter on the inputs instead: distinct
+        // arguments → distinct keys (own budget), identical arguments → same key (loop still capped).
+        $position = new CreatePositionTool();
+        $this->assertInstanceOf(HasRunKey::class, $position);
+
+        $keyCeo = $position->setInputs(['title' => 'CEO'])->getRunKey();
+        $keyCto = $position->setInputs(['title' => 'CTO'])->getRunKey();
+        $keyCeoAgain = $position->setInputs(['title' => 'CEO'])->getRunKey();
+
+        $this->assertNotEquals($keyCeo, $keyCto, 'Distinct positions must not share a run budget.');
+        $this->assertEquals($keyCeo, $keyCeoAgain, 'Identical calls must collapse to one key so a loop is capped.');
+
+        $employee = new CreateEmployeeTool();
+        $this->assertInstanceOf(HasRunKey::class, $employee);
+
+        $keyOne = $employee->setInputs(['user_email' => 'a@x.com', 'position_title' => 'Dev'])->getRunKey();
+        $keyTwo = $employee->setInputs(['user_email' => 'b@x.com', 'position_title' => 'Dev'])->getRunKey();
+        $this->assertNotEquals($keyOne, $keyTwo, 'Distinct employees must not share a run budget.');
     }
 
     public function testCreateEmployeeToolOnboardsExistingUser(): void
