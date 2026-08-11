@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\FindEmployeeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\GetEmployeeLeaveBalanceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\RequestLeaveTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\UpdateEmployeeTool;
+use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\HasRunKey;
 use Tests\TestCase;
@@ -298,5 +299,25 @@ class HumanResourcesAgentToolsTest extends TestCase
             ->__invoke($newUser->email, 'Designer', '2026-02-01');
 
         $this->assertFalse($again['created']);
+    }
+
+    public function testAdminCheckHonorsUserFullTableNameActor(): void
+    {
+        // Regression: connector paths pass Message::user(), which returns UserFullTableName (a Users
+        // subclass that only forces a fully-qualified table name). Its morph class must equal Users,
+        // or Bouncer queries assigned_roles.entity_type = UserFullTableName, finds no role, and a real
+        // Owner is denied "Only an administrator can perform this action" over Slack.
+        $employee = $this->selfEmployee();
+        [$app, $company, $adminUser] = $this->context();
+
+        // The morph identity is the whole fix — a distinct morph here is the bug.
+        $actor = UserFullTableName::find($adminUser->getId());
+        $this->assertSame(Users::class, $actor->getMorphClass());
+
+        $result = new UpdateEmployeeTool()->withContext($app, $company, Users::factory()->create())
+            ->forRequestingUser($actor)
+            ->__invoke(employee_id: $employee->getId(), description: 'ok');
+
+        $this->assertTrue($result['updated']);
     }
 }
