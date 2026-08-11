@@ -5,14 +5,21 @@ declare(strict_types=1);
 namespace Tests\Connectors\GoogleSheets;
 
 use Google\Service\Sheets as GoogleSheetsService;
+use Google\Service\Sheets\AddSheetResponse;
 use Google\Service\Sheets\AppendValuesResponse;
+use Google\Service\Sheets\BatchUpdateSpreadsheetRequest;
+use Google\Service\Sheets\BatchUpdateSpreadsheetResponse;
 use Google\Service\Sheets\ClearValuesResponse;
+use Google\Service\Sheets\Resource\Spreadsheets;
 use Google\Service\Sheets\Resource\SpreadsheetsValues;
+use Google\Service\Sheets\Response as SheetsBatchResponse;
+use Google\Service\Sheets\SheetProperties;
 use Google\Service\Sheets\UpdateValuesResponse;
 use Google\Service\Sheets\ValueRange;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\GoogleSheets\Actions\AppendSheetRowsAction;
 use Kanvas\Connectors\GoogleSheets\Actions\ClearSheetRangeAction;
+use Kanvas\Connectors\GoogleSheets\Actions\CreateSheetTabAction;
 use Kanvas\Connectors\GoogleSheets\Actions\ReadSheetRangeAction;
 use Kanvas\Connectors\GoogleSheets\Actions\UpdateSheetRangeAction;
 use Mockery;
@@ -162,5 +169,39 @@ class GoogleSheetsActionsTest extends TestCase
         )->execute();
 
         $this->assertSame('Invoices!A5:D5', $result['cleared_range']);
+    }
+
+    public function test_create_sheet_tab_adds_a_new_tab_and_returns_its_id_and_title(): void
+    {
+        $spreadsheetsResource = Mockery::mock(Spreadsheets::class);
+        $spreadsheetsResource->shouldReceive('batchUpdate')
+            ->once()
+            ->with(
+                'SHEET_ID',
+                Mockery::on(fn (BatchUpdateSpreadsheetRequest $body) => $body->getRequests()[0]->getAddSheet()
+                    ->getProperties()->getTitle() === 'Q3 Invoices'),
+            )
+            ->andReturn(new BatchUpdateSpreadsheetResponse([
+                'replies' => [
+                    new SheetsBatchResponse([
+                        'addSheet' => new AddSheetResponse([
+                            'properties' => new SheetProperties(['sheetId' => 987654321, 'title' => 'Q3 Invoices']),
+                        ]),
+                    ]),
+                ],
+            ]));
+
+        $service = Mockery::mock(GoogleSheetsService::class);
+        $service->spreadsheets = $spreadsheetsResource;
+
+        $result = new CreateSheetTabAction(
+            app: app(Apps::class),
+            spreadsheetId: 'SHEET_ID',
+            sheetTitle: 'Q3 Invoices',
+            service: $service,
+        )->execute();
+
+        $this->assertSame(987654321, $result['sheet_id']);
+        $this->assertSame('Q3 Invoices', $result['title']);
     }
 }

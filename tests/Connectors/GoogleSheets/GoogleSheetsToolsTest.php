@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\CreateGoogleSheetTabTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ReadGoogleSheetTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\UpdateGoogleSheetCellTool;
 use Tests\TestCase;
@@ -76,6 +77,18 @@ class GoogleSheetsToolsTest extends TestCase
         $result = new ClearGoogleSheetRangeTool()
             ->withContext($app, $company, static::$cachedUser)
             ->__invoke(sheet_url_or_id: 'nope', range: 'Sheet1!A5:D5');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('invalid_sheet_reference', $result['reason']);
+    }
+
+    public function test_create_google_sheet_tab_rejects_a_url_that_is_not_a_sheet(): void
+    {
+        [$app, $company] = $this->context();
+
+        $result = new CreateGoogleSheetTabTool()
+            ->withContext($app, $company, static::$cachedUser)
+            ->__invoke(sheet_url_or_id: 'nope', title: 'Q3 Invoices');
 
         $this->assertFalse($result['success']);
         $this->assertSame('invalid_sheet_reference', $result['reason']);
