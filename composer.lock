@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "57935b775575a8aa7b2de3d91e60dfab",
+    "content-hash": "92fb4b5777bbcf961fc899dd582b6892",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -384,16 +384,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.390.3",
+            "version": "3.391.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "8026ec372223fb3ffa010b96ca14a1df329085f5"
+                "reference": "50e1ed57a0b75921efcbcabe2f8702e7508c501c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/8026ec372223fb3ffa010b96ca14a1df329085f5",
-                "reference": "8026ec372223fb3ffa010b96ca14a1df329085f5",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/50e1ed57a0b75921efcbcabe2f8702e7508c501c",
+                "reference": "50e1ed57a0b75921efcbcabe2f8702e7508c501c",
                 "shasum": ""
             },
             "require": {
@@ -475,9 +475,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.390.3"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.391.2"
             },
-            "time": "2026-08-03T18:28:24+00:00"
+            "time": "2026-08-10T18:12:09+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -4262,20 +4262,20 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.10.2",
+            "version": "v0.10.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "71b90141894a409de0929c4e1c522bbf7a706bfb"
+                "reference": "c3848aae389f45c605eefb0dda5bd5fa7df76eaa"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/71b90141894a409de0929c4e1c522bbf7a706bfb",
-                "reference": "71b90141894a409de0929c4e1c522bbf7a706bfb",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/c3848aae389f45c605eefb0dda5bd5fa7df76eaa",
+                "reference": "c3848aae389f45c605eefb0dda5bd5fa7df76eaa",
                 "shasum": ""
             },
             "require": {
-                "aws/aws-sdk-php": "^3.339",
+                "aws/aws-sdk-php": "^3.369.1",
                 "illuminate/console": "^12.0|^13.0",
                 "illuminate/container": "^12.0|^13.0",
                 "illuminate/contracts": "^12.0|^13.0",
@@ -4334,7 +4334,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-07-28T20:04:31+00:00"
+            "time": "2026-08-06T13:39:04+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -5428,16 +5428,16 @@
         },
         {
             "name": "league/commonmark",
-            "version": "2.9.0",
+            "version": "2.9.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/thephpleague/commonmark.git",
-                "reference": "5703d83ba3da3b2e356a5fedc848ed6d8ffb6529"
+                "reference": "73cb188c785abfa7a7bec73487148202968274c6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/5703d83ba3da3b2e356a5fedc848ed6d8ffb6529",
-                "reference": "5703d83ba3da3b2e356a5fedc848ed6d8ffb6529",
+                "url": "https://api.github.com/repos/thephpleague/commonmark/zipball/73cb188c785abfa7a7bec73487148202968274c6",
+                "reference": "73cb188c785abfa7a7bec73487148202968274c6",
                 "shasum": ""
             },
             "require": {
@@ -5531,7 +5531,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-08-03T13:42:31+00:00"
+            "time": "2026-08-09T14:10:38+00:00"
         },
         {
             "name": "league/config",
@@ -7253,16 +7253,16 @@
         },
         {
             "name": "nesbot/carbon",
-            "version": "3.13.1",
+            "version": "3.13.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/CarbonPHP/carbon.git",
-                "reference": "2937ad3d1d2c506fd2bc97d571438a95641f44e2"
+                "reference": "a1c54919f5fff9800cd03c32bd01defd5a4061cb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/2937ad3d1d2c506fd2bc97d571438a95641f44e2",
-                "reference": "2937ad3d1d2c506fd2bc97d571438a95641f44e2",
+                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/a1c54919f5fff9800cd03c32bd01defd5a4061cb",
+                "reference": "a1c54919f5fff9800cd03c32bd01defd5a4061cb",
                 "shasum": ""
             },
             "require": {
@@ -7354,7 +7354,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-07-09T18:23:49+00:00"
+            "time": "2026-08-08T11:40:35+00:00"
         },
         {
             "name": "nette/schema",
