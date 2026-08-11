@@ -8,11 +8,11 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrUpdateOrganizationTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreateOrganizationTool;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
-final class CreateOrUpdateOrganizationToolTest extends TestCase
+final class CreateOrganizationToolTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -54,7 +54,7 @@ final class CreateOrUpdateOrganizationToolTest extends TestCase
         $this->assertSame('Santo Domingo', $org->state);
     }
 
-    public function test_create_dedups_on_name(): void
+    public function test_dedups_on_name(): void
     {
         $name = 'DedupOrgUniq' . fake()->unique()->uuid();
         $existing = $this->seedOrg($name);
@@ -65,60 +65,38 @@ final class CreateOrUpdateOrganizationToolTest extends TestCase
         $this->assertSame((int) $existing->getId(), (int) $result['organization_id']);
     }
 
-    public function test_create_requires_name(): void
+    public function test_blank_name_returns_error(): void
     {
-        $result = $this->tool()->__invoke(email: 'noname@createorg.test');
+        $result = $this->tool()->__invoke(name: '   ');
 
         $this->assertArrayHasKey('error', $result);
     }
 
-    public function test_updates_only_provided_fields(): void
+    public function test_unknown_organization_type_returns_error(): void
     {
-        $org = $this->seedOrg('UpdateOrgUniq' . fake()->unique()->uuid(), [
-            'email' => 'old@updateorg.test',
-            'phone' => '18090000000',
-            'address' => 'Old Address',
-        ]);
-
         $result = $this->tool()->__invoke(
-            organization_id: (int) $org->getId(),
-            phone: '18099999999',
+            name: 'TypeErrOrgUniq' . fake()->unique()->uuid(),
+            organization_type_id: 999999999,
         );
 
-        $this->assertArrayNotHasKey('error', $result);
-        $this->assertFalse($result['created']);
-
-        $org->refresh();
-        $this->assertSame('18099999999', $org->phone);
-        $this->assertSame('old@updateorg.test', $org->email);
-        $this->assertSame('Old Address', $org->address);
-    }
-
-    public function test_update_unknown_id_returns_error(): void
-    {
-        $result = $this->tool()->__invoke(organization_id: 999999999, name: 'Whatever');
-
         $this->assertArrayHasKey('error', $result);
     }
 
-    private function tool(): CreateOrUpdateOrganizationTool
+    private function tool(): CreateOrganizationTool
     {
-        return new CreateOrUpdateOrganizationTool()
+        return new CreateOrganizationTool()
             ->withContext($this->currentApp, $this->currentCompany, $this->actingUser);
     }
 
-    /**
-     * @param array<string, mixed> $attributes
-     */
-    private function seedOrg(string $name, array $attributes = []): Organization
+    private function seedOrg(string $name): Organization
     {
-        return Organization::create(array_merge([
+        return Organization::create([
             'apps_id' => $this->currentApp->getId(),
             'companies_id' => $this->currentCompany->getId(),
             'users_id' => $this->actingUser->getId(),
             'name' => $name,
             'address' => '',
             'total_employees' => 0,
-        ], $attributes));
+        ]);
     }
 }
