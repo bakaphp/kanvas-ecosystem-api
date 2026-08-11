@@ -6,11 +6,13 @@ namespace Tests\Connectors\GoogleSheets;
 
 use Google\Service\Sheets as GoogleSheetsService;
 use Google\Service\Sheets\AppendValuesResponse;
+use Google\Service\Sheets\ClearValuesResponse;
 use Google\Service\Sheets\Resource\SpreadsheetsValues;
 use Google\Service\Sheets\UpdateValuesResponse;
 use Google\Service\Sheets\ValueRange;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\GoogleSheets\Actions\AppendSheetRowsAction;
+use Kanvas\Connectors\GoogleSheets\Actions\ClearSheetRangeAction;
 use Kanvas\Connectors\GoogleSheets\Actions\ReadSheetRangeAction;
 use Kanvas\Connectors\GoogleSheets\Actions\UpdateSheetRangeAction;
 use Mockery;
@@ -112,5 +114,26 @@ class GoogleSheetsActionsTest extends TestCase
 
         $this->assertSame('Invoices!D5', $result['updated_range']);
         $this->assertSame(1, $result['updated_cells']);
+    }
+
+    public function test_clear_sheet_range_wipes_the_target_range_without_deleting_it(): void
+    {
+        $valuesResource = Mockery::mock(SpreadsheetsValues::class);
+        $valuesResource->shouldReceive('clear')
+            ->once()
+            ->with('SHEET_ID', 'Invoices!A5:D5', Mockery::type('Google\Service\Sheets\ClearValuesRequest'))
+            ->andReturn(new ClearValuesResponse(['clearedRange' => 'Invoices!A5:D5']));
+
+        $service = Mockery::mock(GoogleSheetsService::class);
+        $service->spreadsheets_values = $valuesResource;
+
+        $result = new ClearSheetRangeAction(
+            app: app(Apps::class),
+            spreadsheetId: 'SHEET_ID',
+            range: 'Invoices!A5:D5',
+            service: $service,
+        )->execute();
+
+        $this->assertSame('Invoices!A5:D5', $result['cleared_range']);
     }
 }

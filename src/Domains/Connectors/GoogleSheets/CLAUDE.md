@@ -10,8 +10,9 @@ shares a link to — e.g. an invoice tracking list a team keeps outside Kanvas.
 | `read_google_sheet(sheet_url_or_id, range?)` | Reads rows/columns. `range` defaults to `A:Z` on the first sheet. |
 | `write_google_sheet(sheet_url_or_id, range, values)` | Appends one or more new rows after the last row of data — never overwrites. |
 | `update_google_sheet_cell(sheet_url_or_id, range, value)` | Overwrites a specific cell in place, e.g. flipping a status column to "Approved". |
+| `clear_google_sheet_range(sheet_url_or_id, range)` | Wipes the values in a cell/row/range without deleting the row itself — the safe alternative to a structural delete. |
 
-All three accept either a full Sheets URL or a bare spreadsheet id — the id is extracted with a
+All four accept either a full Sheets URL or a bare spreadsheet id — the id is extracted with a
 regex (`SpreadsheetUrlParser::extractId()`), never asked of the LLM directly.
 
 ## Configuration

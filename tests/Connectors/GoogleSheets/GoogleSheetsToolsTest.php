@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ReadGoogleSheetTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\UpdateGoogleSheetCellTool;
 use Tests\TestCase;
@@ -63,6 +64,18 @@ class GoogleSheetsToolsTest extends TestCase
         $result = new UpdateGoogleSheetCellTool()
             ->withContext($app, $company, static::$cachedUser)
             ->__invoke(sheet_url_or_id: 'nope', range: 'Sheet1!D5', value: 'Approved');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('invalid_sheet_reference', $result['reason']);
+    }
+
+    public function test_clear_google_sheet_range_rejects_a_url_that_is_not_a_sheet(): void
+    {
+        [$app, $company] = $this->context();
+
+        $result = new ClearGoogleSheetRangeTool()
+            ->withContext($app, $company, static::$cachedUser)
+            ->__invoke(sheet_url_or_id: 'nope', range: 'Sheet1!A5:D5');
 
         $this->assertFalse($result['success']);
         $this->assertSame('invalid_sheet_reference', $result['reason']);
