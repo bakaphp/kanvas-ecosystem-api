@@ -11,9 +11,11 @@ use Kanvas\Guild\Leads\Services\BatchRecipientResolverService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -27,9 +29,10 @@ use Override;
  * staleness); vehicle make/model/price filtering is a planned follow-up.
  */
 #[AgentTool(name: 'Find Leads By Traits', category: 'crm')]
-class FindLeadsByTraitsTool extends Tool
+class FindLeadsByTraitsTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct(
         private readonly BatchRecipientResolverService $resolver = new BatchRecipientResolverService(),
