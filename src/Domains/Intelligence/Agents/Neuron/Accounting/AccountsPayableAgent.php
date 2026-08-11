@@ -21,6 +21,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\CreateGoogleSheetTabTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ReadGoogleSheetTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\UpdateGoogleSheetCellTool;
 use Override;
@@ -72,6 +73,7 @@ class AccountsPayableAgent extends SystemUserAgent
             new AppendGoogleSheetRowsTool(),
             new UpdateGoogleSheetCellTool(),
             new ClearGoogleSheetRangeTool(),
+            new CreateGoogleSheetTabTool(),
         ]));
     }
 
@@ -104,7 +106,7 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'rows to the sheet" → write_google_sheet. "Mark that row as X in the sheet" → '
             . 'update_google_sheet_cell, only after confirming the exact cell with read_google_sheet first — '
             . 'never guess a row/column. "Clear/wipe that row/cell" → clear_google_sheet_range — this empties '
-            . 'the values but never removes the row itself.',
+            . 'the values but never removes the row itself. "Create a new tab called X" → create_google_sheet_tab.',
         ]);
     }
 }

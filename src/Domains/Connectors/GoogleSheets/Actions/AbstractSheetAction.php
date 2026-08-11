@@ -14,7 +14,7 @@ abstract class AbstractSheetAction
     public function __construct(
         protected AppInterface $app,
         protected string $spreadsheetId,
-        protected string $range,
+        protected ?string $range = null,
         protected ?GoogleSheetsService $service = null,
     ) {
     }
