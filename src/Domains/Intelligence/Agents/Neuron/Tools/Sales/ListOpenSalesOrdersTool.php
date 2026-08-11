@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Sales;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Souk\Orders\Models\Order;
 use NeuronAI\Tools\PropertyType;
@@ -67,13 +68,27 @@ class ListOpenSalesOrdersTool extends Tool
             ->where('companies_id', $company->getId())
             ->where('is_deleted', false)
             ->whereNotIn('status', ['completed', 'canceled', 'cancelled', 'voided'])
-            ->when($customer !== null && $customer !== '', function ($q) use ($customer): void {
-                $q->where(function ($sub) use ($customer): void {
-                    $sub->where('user_email', 'like', '%' . $customer . '%')
-                        ->orWhereHas('people', function ($p) use ($customer): void {
-                            $p->where('firstname', 'like', '%' . $customer . '%')
-                                ->orWhere('lastname', 'like', '%' . $customer . '%');
-                        });
+            ->when($customer !== null && $customer !== '', function ($q) use ($customer, $app, $company): void {
+                // People lives on the `crm` connection while Order is on `commerce`; a cross-database
+                // whereHas would emit `kanvas_commerce.peoples` (nonexistent). Resolve matching people
+                // ids on their own connection first, then filter orders by people_id.
+                $peopleIds = People::query()
+                    ->fromApp($app)
+                    ->fromCompany($company)
+                    ->notDeleted()
+                    ->where(function ($p) use ($customer): void {
+                        $p->where('firstname', 'like', '%' . $customer . '%')
+                            ->orWhere('lastname', 'like', '%' . $customer . '%');
+                    })
+                    ->pluck('id')
+                    ->all();
+
+                $q->where(function ($sub) use ($customer, $peopleIds): void {
+                    $sub->where('user_email', 'like', '%' . $customer . '%');
+
+                    if ($peopleIds !== []) {
+                        $sub->orWhereIn('people_id', $peopleIds);
+                    }
                 });
             })
             ->orderByDesc('created_at')
