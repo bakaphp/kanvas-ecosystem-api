@@ -41,6 +41,7 @@ class CreateAgentAction
             'identity' => $this->agent->identity,
             'user_context' => $this->agent->userContext,
             'tools_config' => $this->agent->toolsConfig,
+            'voice_config' => $this->agent->voiceConfig,
             'parent_id' => $this->agent->parentAgent?->getId(),
             'is_sub_agent' => $this->agent->isSubAgent,
             'deployment_status' => 'pending',
