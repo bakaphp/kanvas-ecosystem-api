@@ -135,7 +135,9 @@ class SendMessageToLeadAction
 
     protected function failedResult(string $channel, Throwable $exception): array
     {
-        report($exception);
+        if (! $this->isExpectedLeadCondition($exception)) {
+            report($exception);
+        }
 
         $classification = MessageErrorClassifier::classify($exception);
 
@@ -160,6 +162,12 @@ class SendMessageToLeadAction
         }
 
         return $result;
+    }
+
+    protected function isExpectedLeadCondition(Throwable $exception): bool
+    {
+        return $exception instanceof LeadOptedOutException
+            || $exception instanceof LeadMissingContactException;
     }
 
     protected function recordTwilioAttempt(array $providerResponse): void

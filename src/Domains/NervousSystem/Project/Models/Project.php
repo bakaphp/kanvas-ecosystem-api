@@ -17,6 +17,7 @@ use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Project\Enums\ProjectStatusEnum;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Observers\ProjectObserver;
 use Kanvas\NervousSystem\Project\Services\ProjectMentionTriggerService;
@@ -256,6 +257,19 @@ class Project extends BaseModel implements HandlesAgentMention
     protected function resolveDefaultActorId(): ?int
     {
         return $this->agent_id;
+    }
+
+    public function isOverdue(): bool
+    {
+        return ! in_array($this->status, ProjectStatusEnum::terminalStatusValues(), true)
+            && $this->deadline_at !== null
+            && $this->deadline_at->isPast()
+            && $this->completion_pct < 100;
+    }
+
+    public function isAtRisk(): bool
+    {
+        return $this->isOverdue() || $this->status === ProjectStatusEnum::BLOCKED->value;
     }
 
     /**
