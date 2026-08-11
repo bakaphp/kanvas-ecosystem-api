@@ -20,6 +20,12 @@ class AcumaticaSyncTest extends TestCase
 {
     use DatabaseTransactions;
 
+    // enableCompany() writes SYNC_* custom fields on the `ecosystem` connection. Without listing it
+    // here, DatabaseTransactions only wraps the default `mysql` connection, so those writes commit and
+    // leak an enabled company into the shared DB — which then makes BackfillAcumaticaCommandTest see a
+    // stray target and fail.
+    protected array $connectionsToTransact = ['mysql', 'ecosystem'];
+
     private function app(): Apps
     {
         return app(Apps::class);
