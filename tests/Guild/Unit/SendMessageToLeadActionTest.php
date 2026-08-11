@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Unit;
 
+use Illuminate\Support\Facades\Exceptions;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
-use Illuminate\Support\Facades\Exceptions;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;

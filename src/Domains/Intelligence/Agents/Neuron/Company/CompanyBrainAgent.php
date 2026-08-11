@@ -17,6 +17,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ListStaleLeadsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetProjectAnalyticsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\RememberKnowledgeTool;
 use Override;
 
 #[AgentTypeDefinition(
@@ -46,7 +47,9 @@ class CompanyBrainAgent extends SystemUserAgent
      * Read-broad, write-narrow. The brain inherits SystemUserAgent's baseline — its own ledger
      * memory, entity grounding, and the two SAFE internal-only send tools (email/Slack a teammate,
      * closed-set verified) — then adds this curated cross-domain READ bundle so it can see the
-     * business without being handed a loaded gun.
+     * business without being handed a loaded gun. The one write here is `remember` — the safe
+     * self-memory write that pairs with the inherited read_my_ledger; it touches only the agent's
+     * own durable memory, nothing customer-facing.
      *
      * It deliberately does NOT hardcode customer-facing sends (send_email/send_sms to a prospect),
      * bulk (send_batch_message), or irreversible mutations — those belong to the specialist agents;
@@ -64,12 +67,14 @@ class CompanyBrainAgent extends SystemUserAgent
         $app = $this->app;
         $company = $this->company;
         $user = $this->user;
+        $agent = $this->agent;
 
-        if ($app === null || $company === null || $user === null) {
+        if ($app === null || $company === null || $user === null || $agent === null) {
             return $tools;
         }
 
         $readBundle = [
+            new RememberKnowledgeTool($app, $company, $agent),
             new GetSalesSummaryTool()->withContext($app, $company, $user),
             new GetLeadAnalyticsTool()->withContext($app, $company, $user),
             new GetDealAnalyticsTool()->withContext($app, $company, $user),
