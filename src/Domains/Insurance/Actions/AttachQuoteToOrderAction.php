@@ -37,6 +37,7 @@ class AttachQuoteToOrderAction
         $this->order->set(InsuranceCustomFieldEnum::PROVIDER->value, $provider->name());
         $this->order->set(InsuranceCustomFieldEnum::QUOTE_NUMBER->value, $this->quoteNumber);
         $this->order->set(InsuranceCustomFieldEnum::PREMIUM->value, $quote->premium);
+        $this->order->set(InsuranceCustomFieldEnum::RATE_PER_KM->value, $quote->ratePerKm);
         $this->order->set(InsuranceCustomFieldEnum::TAX->value, $quote->tax);
         $this->order->set(InsuranceCustomFieldEnum::TOTAL->value, $quote->total);
         $this->order->set(InsuranceCustomFieldEnum::STATUS->value, InsuranceStatusEnum::QUOTED->value);

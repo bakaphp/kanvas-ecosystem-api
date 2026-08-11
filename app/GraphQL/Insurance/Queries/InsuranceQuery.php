@@ -56,12 +56,13 @@ class InsuranceQuery
         );
 
         return [
-            'provider' => $providerName,
+            'provider' => $provider->name(),
             'product' => (string) $request['product'],
             'success' => $quote->success,
             'message' => $quote->message,
             'quote_number' => $quote->quoteNumber,
             'premium' => $quote->premium,
+            'rate_per_km' => $quote->ratePerKm,
             'tax' => $quote->tax,
             'total' => $quote->total,
             'currency' => $quote->currency,
@@ -79,11 +80,7 @@ class InsuranceQuery
         $ctx = $this->actingContext();
 
         try {
-            return InsuranceProviderFactory::make(
-                InsuranceProviderFactory::resolveName($ctx->company, $requested),
-                $ctx->app,
-                $ctx->company
-            );
+            return InsuranceProviderFactory::forQuoting($ctx->app, $ctx->company, $requested);
         } catch (InvalidArgumentException $e) {
             throw new ValidationException($e->getMessage());
         }

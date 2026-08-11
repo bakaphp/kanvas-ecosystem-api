@@ -12,6 +12,21 @@ enum ProductEnum: string
     case POR_SI_PIERDES_TU_AUTO = 'A-PT';
     case PARA_TU_SEGURO_DE_LEY = 'A-PL';
 
+    /**
+     * Their commercial names, from §4.1 of the integration doc — there is no products
+     * endpoint. Customer-facing copy is authored on the seeded Product, not here.
+     */
+    public function label(): string
+    {
+        return match ($this) {
+            self::PARA_TU_AUTO => 'Para Tu Auto',
+            self::POR_LO_QUE_CONDUCES => 'Por Lo Que Conduces',
+            self::POR_SI_CHOCAS => 'Por Si Chocas',
+            self::POR_SI_PIERDES_TU_AUTO => 'Por Si Pierdes Tu Auto',
+            self::PARA_TU_SEGURO_DE_LEY => 'Para Tu Seguro de Ley',
+        };
+    }
+
     public function defaultTipo(): string
     {
         return match ($this) {

@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use DomainException;
 use Kanvas\Connectors\UniversalSeguros\DataTransferObject\QuoteRequest;
+use Kanvas\Connectors\UniversalSeguros\Enums\ConfigurationEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\CustomFieldEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\DocumentOperationEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\DocumentTransactionEnum;
@@ -19,8 +20,10 @@ use Kanvas\Insurance\Contracts\InspectionProviderInterface;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\Contracts\PaymentLinkProviderInterface;
 use Kanvas\Insurance\Contracts\PolicyProviderInterface;
+use Kanvas\Insurance\Contracts\ProductCatalogProviderInterface;
 use Kanvas\Insurance\DataTransferObject\DocumentUploadResult;
 use Kanvas\Insurance\DataTransferObject\InsuranceDocument;
+use Kanvas\Insurance\DataTransferObject\InsuranceProduct;
 use Kanvas\Insurance\DataTransferObject\InsuranceQuoteRequest;
 use Kanvas\Insurance\DataTransferObject\PaymentLinkResult;
 use Kanvas\Insurance\DataTransferObject\PolicyResult;
@@ -28,6 +31,7 @@ use Kanvas\Insurance\DataTransferObject\QuoteResult;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Enums\InsuranceDocumentTypeEnum;
 use Kanvas\Insurance\Enums\InsuranceStatusEnum;
+use Kanvas\Insurance\Services\CatalogCache;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 
@@ -36,9 +40,21 @@ class UniversalSegurosProvider implements
     InspectionProviderInterface,
     InsuranceProviderInterface,
     PaymentLinkProviderInterface,
-    PolicyProviderInterface
+    PolicyProviderInterface,
+    ProductCatalogProviderInterface
 {
     public const NAME = 'universal_seguros';
+
+    /** Seconds; 0 means never cache. */
+    protected const CATALOG_TTL = [
+        'vehicle_models' => 604800,
+        'provinces' => 2592000,
+        'municipalities' => 2592000,
+        'sectors' => 2592000,
+        'add_ons' => 86400,
+        // Keyed off a plan revision that only exists after a quote — per customer.
+        'rent_car_options' => 0,
+    ];
 
     public function __construct(
         protected AppInterface $app,
@@ -153,17 +169,28 @@ class UniversalSegurosProvider implements
     public function getCatalog(string $catalog, array $params = []): array
     {
         return match ($catalog) {
-            'vehicle_models' => $this->service->getVehicleModels(
+            'vehicle_models' => $this->vehicleModels(
                 (string) ($params['marca'] ?? ''),
                 (string) ($params['modelo'] ?? '')
             ),
-            'provinces' => $this->service->getProvincias(),
-            'municipalities' => $this->service->getMunicipios((string) ($params['provincia'] ?? '')),
-            'sectors' => $this->service->getSectores(
-                (string) ($params['provincia'] ?? ''),
-                (string) ($params['municipio'] ?? '')
+            'provinces' => $this->cached($catalog, [], fn (): array => $this->service->getProvincias()),
+            'municipalities' => $this->cached(
+                $catalog,
+                ['provincia' => (string) ($params['provincia'] ?? '')],
+                fn (): array => $this->service->getMunicipios((string) ($params['provincia'] ?? ''))
             ),
-            'add_ons' => $this->service->getAditamentos(),
+            'sectors' => $this->cached(
+                $catalog,
+                [
+                    'provincia' => (string) ($params['provincia'] ?? ''),
+                    'municipio' => (string) ($params['municipio'] ?? ''),
+                ],
+                fn (): array => $this->service->getSectores(
+                    (string) ($params['provincia'] ?? ''),
+                    (string) ($params['municipio'] ?? '')
+                )
+            ),
+            'add_ons' => $this->cached($catalog, [], fn (): array => $this->service->getAditamentos()),
             'rent_car_options' => $this->service->getRentCarOptions(
                 (string) ($params['codProd'] ?? ''),
                 (string) ($params['codPlan'] ?? ''),
@@ -179,6 +206,104 @@ class UniversalSegurosProvider implements
     public function availableCatalogs(): array
     {
         return ['vehicle_models', 'provinces', 'municipalities', 'sectors', 'add_ons', 'rent_car_options'];
+    }
+
+    public function products(): array
+    {
+        $granted = $this->grantedScopes();
+
+        return array_map(
+            fn (ProductEnum $product): InsuranceProduct => new InsuranceProduct(
+                code: $product->value,
+                name: $product->label(),
+                requiresInspection: $product->requiresInspection(),
+                isAvailable: in_array($product->emitScope(), $granted, true),
+                metadata: ['tipo' => $product->defaultTipo()],
+            ),
+            ProductEnum::cases()
+        );
+    }
+
+    /**
+     * Emission is scoped per product and Universal licenses subsets, so a line
+     * without its emit scope dies at emission — after the customer has paid.
+     *
+     * @return list<string>
+     */
+    protected function grantedScopes(): array
+    {
+        $scopes = trim((string) $this->company->get(ConfigurationEnum::SCOPES->value));
+
+        return preg_split('/\s+/', $scopes !== '' ? $scopes : ConfigurationEnum::defaultScopes()) ?: [];
+    }
+
+    /**
+     * `numeroPagina=-1` returns everything in one call, so it is cached whole and
+     * narrowed here — filtering upstream would cost a round trip per keystroke.
+     *
+     * @return array<array-key, mixed>
+     */
+    protected function vehicleModels(string $marca, string $modelo): array
+    {
+        $catalog = $this->cached('vehicle_models', [], fn (): array => $this->service->getVehicleModels());
+
+        if ($marca === '' && $modelo === '') {
+            return $catalog;
+        }
+
+        $brands = is_array($catalog['data'] ?? null) ? $catalog['data'] : $catalog;
+        $matched = [];
+
+        foreach ($brands as $brand) {
+            if (! is_array($brand)) {
+                continue;
+            }
+
+            if ($marca !== '' && ! $this->contains((string) ($brand['marca'] ?? ''), $marca)) {
+                continue;
+            }
+
+            if ($modelo !== '') {
+                $models = array_values(array_filter(
+                    is_array($brand['modelos'] ?? null) ? $brand['modelos'] : [],
+                    fn (mixed $m): bool => is_array($m) && $this->contains((string) ($m['modelo'] ?? ''), $modelo)
+                ));
+
+                if ($models === []) {
+                    continue;
+                }
+
+                $brand['modelos'] = $models;
+            }
+
+            $matched[] = $brand;
+        }
+
+        return isset($catalog['data']) ? ['data' => $matched] + $catalog : $matched;
+    }
+
+    protected function contains(string $haystack, string $needle): bool
+    {
+        return str_contains(mb_strtolower($haystack), mb_strtolower($needle));
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     * @param callable(): array<array-key, mixed> $fetch
+     *
+     * @return array<array-key, mixed>
+     */
+    protected function cached(string $catalog, array $params, callable $fetch): array
+    {
+        return CatalogCache::remember(
+            app: $this->app,
+            company: $this->company,
+            provider: self::NAME,
+            catalog: $catalog,
+            ttl: self::CATALOG_TTL[$catalog] ?? 0,
+            callback: $fetch(...),
+            params: $params,
+        );
     }
 
     protected function readPolicy(Order $order, string $quoteNumber, string $message): PolicyResult
@@ -204,8 +329,9 @@ class UniversalSegurosProvider implements
     }
 
     /**
-     * A-KM prices as primaFija + primaKm instead of a single prima, so the premium
-     * is the sum of whichever of the two came back.
+     * A-KM returns `prima: 0` alongside primaFija/primaKm, so presence of primaFija
+     * — not a falsy prima — tells the two shapes apart. primaKm is a rate per
+     * kilometer, never an addend: their sample is 1000 + 5.85 with totalCobro 1000.
      *
      * @param array<string, mixed> $response
      */
@@ -214,25 +340,18 @@ class UniversalSegurosProvider implements
         $quoteNumber = (string) ($response['numeroCotizacion'] ?? '');
         $terms = is_array($response['data']['terminos'] ?? null) ? $response['data']['terminos'] : [];
 
-        $premium = $this->toFloat($terms['prima'] ?? null)
-            ?? $this->sum($terms['primaFija'] ?? null, $terms['primaKm'] ?? null);
+        $fixedPremium = $this->toFloat($terms['primaFija'] ?? null);
 
         return new QuoteResult(
             success: $quoteNumber !== '',
             message: $quoteNumber !== '' ? 'Quote created' : 'Universal Seguros did not return a quote number',
             quoteNumber: $quoteNumber,
-            premium: $premium,
+            premium: $fixedPremium ?? $this->toFloat($terms['prima'] ?? null),
+            ratePerKm: $fixedPremium !== null ? $this->toFloat($terms['primaKm'] ?? null) : null,
             tax: $this->toFloat($terms['impuesto'] ?? null),
             total: $this->toFloat($terms['totalCobro'] ?? null),
             raw: $response,
         );
-    }
-
-    protected function sum(mixed $a, mixed $b): ?float
-    {
-        $values = array_filter([$this->toFloat($a), $this->toFloat($b)], fn (?float $v): bool => $v !== null);
-
-        return $values === [] ? null : array_sum($values);
     }
 
     protected function quoteNumber(Order $order): string

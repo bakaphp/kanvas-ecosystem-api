@@ -73,12 +73,23 @@ Enums/                          Environment, Configuration, Product, DocumentTra
 
 ## Setup (no custom mutation)
 
-Setup runs through the **generic** `createIntegrationCompany` mutation, which instantiates
+Setup runs through the **generic** `integrationCompany` mutation (the resolver method behind it
+is named `createIntegrationCompany` — don't send that as the operation name), which instantiates
 `UniversalSegurosHandler` from the seeded `integrations.handler` column and calls `setup()`.
 The `integrations` row (name `universal_seguros`, `apps_id=0`) is seeded by
 `database/migrations/Workflow/2026_06_29_120000_add_universal_seguros_integration.php`. Its `config`
-describes the setup fields: `environment`, `client_id`, `client_secret`, `scopes`.
-`IntegrationsEnum::UNIVERSAL_SEGUROS = 'universal_seguros'`.
+describes the setup fields: `environment`, `client_id`, `client_secret`, `scopes`,
+`insurer_companies_id`. `IntegrationsEnum::UNIVERSAL_SEGUROS = 'universal_seguros'`.
+
+`insurer_companies_id` is **Universal's own company in Kanvas** — the owner of the seeded
+catalog Products. Setup refuses without it rather than seeding them under the aliado by
+accident. On success `setup()` also stamps `InsuranceCustomFieldEnum::PROVIDER` on the aliado's
+company (without it every `insuranceQuote` would have to name the insurer explicitly) and
+dispatches `SyncInsuranceProductsJob`, which seeds the five products asynchronously.
+
+**There is no products endpoint.** `ProductEnum` *is* the catalog — §4.1 of their doc is a fixed
+table of five. `products()` returns them; `ProductEnum::label()` carries their commercial names.
+The customer-facing copy is authored on the seeded Kanvas Product, not in the enum.
 
 ## End-to-end flow (§5 of the spec)
 
@@ -91,18 +102,82 @@ layer's business — see the Insurance CLAUDE.md table.
 4. **Emitir** — `emit($order)` → emit + read-back, stamps the policy number, status `EMITTED`/`POLICY_ACTIVE`.
 5. **Sync** — `syncPolicy($order)`, driven by the generic `SyncInsurancePolicyActivity`, to follow pay+emit completed out-of-band.
 
+## Allowed values and cross-field rules (harvested from QA, not in their doc)
+
+Their doc names none of these; every list below came from provoking a `400` with a bogus value,
+because their validator answers with the full set. Do that again rather than guessing when you
+hit a new enum.
+
+| Field | Allowed values |
+|---|---|
+| `vehiculo.combustible` | `Gas`, `Gasolina / Diesel`, `Vehículo Electrico` |
+| `vehiculo.inspeccion.tipo` | `Pre-inspeccionado y Carga de Matrícula`, `Solicitar video inspección (Incluye Carga de Matrícula)`, `Carga de Conduce`, `Cargar matrícula` |
+| `terminos.seguroLey` | `Auto Exceso`, `Auto Exceso+`, `Plus`, `Base`, `No` |
+| `terminos.autoSustituto` | `Rent-a-Car`, `Uber`, `No` |
+| `terminos.fraccionamientoPago` | `CP`, `PU`, `M`, `T`, `C`, `A` |
+
+Cross-field rules they enforce and the doc omits:
+
+- `inspeccion.tipo: "Carga de Conduce"` **requires** `esCeroKm: true` — it is the brand-new-vehicle
+  path, where there is a bill of sale instead of a plate registration.
+- `esCeroKm: true` is only accepted when `anio` is the current year, the previous one or the next.
+
 ## Gotchas / open items
 
-- **QA chassis blocker (Universal's data, not our code):** the only seeded QA chassis
-  `1FMCU0GXXDUA25874` returns a clean `400 "El chasis no puede ser asegurado"`. **Any other VIN
-  returns `500`** (unhandled null in their registry lookup). `Client` surfaces a clear message;
-  treat a 500 on cotizar as "chassis not in registry" until Universal fixes it. End-to-end issuance
-  cannot be QA-tested until they seed an **insurable** chassis.
+- **"Campo no obligatorio" means OMIT the key, not send `null`.** Their deserialiser throws a
+  bare `500 "Ha ocurrido un error desconocido"` on at least one explicit null —
+  `terminos.ceroDeducible` — while the byte-identical body without that key returns a clean
+  `400`. Spatie Data serialises every unset optional as `null`, so `QuoteRequest::toArray()`
+  strips nulls recursively before the POST. Empty arrays are kept (`aditamentos: []` means
+  "none", and round-trips fine). Bisected against QA 2026-08-10; regression in
+  `QuoteRequestTest::testUnsetOptionalsAreOmittedRatherThanSentAsNull`.
+  **If you add a nullable field to any request DTO here, it inherits this protection — do not
+  bypass `toArray()`.**
+- **A `null` from the client is not the same as an omitted key, and used to crash us before the
+  request left.** Spatie passes a null straight into promoted properties like
+  `string $cupon = ''`, so PHP raises a TypeError and the FE sees a bare "Internal server
+  error". Every scalar-with-a-default across the nine request DTOs has that hazard, so
+  `QuoteRequest::make()` strips nulls from the **input** as well — symmetric with `toArray()`
+  stripping them from the output. Do not "fix" this by making one DTO nullable; the boundary is
+  the right place and new fields inherit it. Regression:
+  `testNullsFromTheClientFallBackToTheDefaultInsteadOfCrashing`.
+- **Their doc's "campo no obligatorio" is wrong for `terminos.fraccionamientoPago` and
+  `terminos.formaPago` — both are required in practice.** Omitting `fraccionamientoPago` returns
+  a clean `400` naming the allowed values (`CP, PU, M, T, C, A`); omitting `formaPago` returns a
+  bare `500`. Send both (`M` / `t/c` for individual policies). This is the second field after
+  `ceroDeducible` where their doc and their runtime disagree — trust the runtime.
+- **Always send `vehiculo.inspeccion`, including for A-PL.** Their doc says Seguro de Ley needs
+  no inspection, and `requiresInspection()` reflects that for *document upload* — but omitting
+  the block from the quote body returns `500`. With the block present the same request returns
+  a clean `400`.
+- **A bare `500` has two unrelated causes. Rule out ours before blaming theirs.**
+  1. *Ours:* a key we should have omitted (see the null rules above). Fixed at the boundary, but
+     any new hand-built payload can reintroduce it.
+  2. *Theirs:* an unknown VIN. Their registry lookup has an unhandled null, so **any chassis other
+     than `1FMCU0GXXDUA25874` returns `500`** — verified across four spellings, with the plate
+     making no difference. Only that one VIN is seeded in QA.
+
+  Their validation is otherwise good: bad enums come back as `400` with a field-keyed `errors`
+  map naming the allowed values. Diagnose by sending the known VIN — if the `500` becomes a
+  `400`, the problem was the VIN; if it stays a `500`, it is your payload.
+- **QA chassis blocker (genuinely theirs):** `1FMCU0GXXDUA25874` — the one VIN they know — returns
+  `400 "El chasis del vehículo no puede ser asegurado"`. So the only seeded chassis is
+  deliberately *not* insurable. End-to-end issuance cannot be QA-tested until Universal seeds an
+  insurable one. This is the only thing standing between us and a live quote.
+- **Anexo A's chassis reads `1FWCU…` in the PDF — that is an OCR artefact.** `FM` is Ford's real
+  WMI and the only prefix their registry accepts. Don't retype VINs out of the PDF images.
 - **Error shape:** Universal returns RFC7231 problem+json; on validation errors a field-keyed
   `errors` map tells you the allowed values. `Client::toValidationException()` surfaces it verbatim —
   read the message, it names the correct enum values (`ocupacion`, `tipoDocumento`, `telefono` format, …).
-- **A-PC (Por Si Chocas)** requires `vehiculo.sumaAsegurada`. **A-KM** primas come back as
-  `primaFija` + `primaKm` instead of `prima`.
+- **A-PC (Por Si Chocas)** requires `vehiculo.sumaAsegurada`.
+- **A-KM prices are not a sum, and `prima` is not the tell.** Their doc's own sample returns
+  `primaFija: 1000, primaKm: 5.85, prima: 0, totalCobro: 1000`. Two traps in one response:
+  reading `prima` first prices the product at **0** (it is present and falsy, so `??` never
+  falls through), and adding the two components prices it at **1005.85** — `primaKm` is a rate
+  *per kilometer driven*, not an amount. The premium is `primaFija`; the rate rides separately
+  on `QuoteResult::$ratePerKm` → `rate_per_km` in GraphQL → `insurance_rate_per_km` on the Order.
+  The presence of `primaFija`, not a falsy `prima`, is what distinguishes the two shapes.
+  Regression: `testPerKilometerProductPricesOffTheFixedPremiumNotTheZeroPrima`.
 - **DTO casing:** use `debidaDiligencia` (the A-KM Postman sample misspells it `debidadiligencia`).
 - **Emission is scoped per product.** `ConfigurationEnum::defaultScopes()` derives the scope list
   from `ProductEnum::emitScope()` so a new product can't ship without its emit scope. The old
@@ -116,7 +191,12 @@ layer's business — see the Insurance CLAUDE.md table.
 - `tests/Connectors/UniversalSeguros/QuoteRequestTest.php` — pure DTO-shape tests (green, no network).
 - `tests/Connectors/UniversalSeguros/ConfigurationScopesTest.php` — emit scopes cover every product.
 - `tests/Insurance/UniversalSegurosProviderTest.php` — the adapter against a mocked service:
-  response mapping, A-KM premium sum, document-type mapping, policy stamping.
+  response mapping, A-KM premium/rate split, catalog caching + local vehicle-model filtering,
+  the product list, document-type mapping, policy stamping. Uses the `array` cache store so
+  hit/miss counting doesn't need Redis.
+- `tests/Insurance/SyncInsuranceProductsActionTest.php` — the product seed against the DB: five
+  rows, the insurer's code on each, and a re-run leaving admin-edited copy alone. Needs
+  `$connectionsToTransact = [null, 'inventory']` or the rows survive the rollback.
 - Live auth/quote/reference tests should follow the AppKey-guarded pattern (see `tests/CLAUDE.md`)
   and only run when `TEST_UNIVERSAL_SEGUROS_*` creds are present.
 

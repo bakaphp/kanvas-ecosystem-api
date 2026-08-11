@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\UniversalSeguros\Handlers;
 
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Contracts\BaseIntegration;
 use Kanvas\Connectors\UniversalSeguros\Client;
 use Kanvas\Connectors\UniversalSeguros\Enums\ConfigurationEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\EnvironmentEnum;
+use Kanvas\Connectors\UniversalSeguros\Providers\UniversalSegurosProvider;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
+use Kanvas\Insurance\Jobs\SyncInsuranceProductsJob;
 use Override;
 use Throwable;
 
@@ -30,10 +34,16 @@ class UniversalSegurosHandler extends BaseIntegration
             throw new ValidationException('Universal Seguros environment must be one of: qa, prod');
         }
 
+        $insurerCompany = $this->resolveInsurerCompany();
+
         $this->company->set(ConfigurationEnum::CLIENT_ID->value, $clientId);
         $this->company->set(ConfigurationEnum::CLIENT_SECRET->value, $clientSecret);
         $this->company->set(ConfigurationEnum::ENVIRONMENT->value, $environment);
         $this->company->set(ConfigurationEnum::SCOPES->value, $scopes);
+        $this->company->set(InsuranceCustomFieldEnum::INSURER_COMPANY_ID->value, $insurerCompany->getId());
+
+        // Without a default, every insuranceQuote would have to name the provider.
+        $this->company->set(InsuranceCustomFieldEnum::PROVIDER->value, UniversalSegurosProvider::NAME);
 
         try {
             new Client($this->app, $this->company)->auth();
@@ -41,6 +51,34 @@ class UniversalSegurosHandler extends BaseIntegration
             throw new ValidationException('Universal Seguros authentication failed: ' . $e->getMessage());
         }
 
+        SyncInsuranceProductsJob::dispatch(
+            $this->app,
+            $this->company,
+            UniversalSegurosProvider::NAME
+        );
+
         return true;
+    }
+
+    /**
+     * Required, so a misconfigured setup can't seed the catalog under the aliado.
+     */
+    protected function resolveInsurerCompany(): Companies
+    {
+        $insurerCompanyId = (int) ($this->data['insurer_companies_id'] ?? 0);
+
+        if ($insurerCompanyId === 0) {
+            throw new ValidationException(
+                'Universal Seguros insurer_companies_id is required — the insurer company in Kanvas'
+            );
+        }
+
+        try {
+            return Companies::getById($insurerCompanyId);
+        } catch (Throwable) {
+            throw new ValidationException(
+                'Universal Seguros insurer_companies_id ' . $insurerCompanyId . ' is not a company in Kanvas'
+            );
+        }
     }
 }

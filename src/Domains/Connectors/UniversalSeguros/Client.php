@@ -41,7 +41,11 @@ class Client
         $this->scopes = (string) ($company->get(ConfigurationEnum::SCOPES->value) ?: ConfigurationEnum::defaultScopes());
 
         if (empty($this->clientId) || empty($this->clientSecret)) {
-            throw new ValidationException('Universal Seguros credentials are not configured for this company');
+            // Named because quoting reads credentials off the platform company, not
+            // the one the caller is acting as.
+            throw new ValidationException(
+                'Universal Seguros credentials are not configured for company ' . $company->getId()
+            );
         }
 
         $this->apiBaseUrl = $environment->apiBaseUrl();

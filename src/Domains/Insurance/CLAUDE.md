@@ -63,7 +63,7 @@ insuranceQuote(product: String!, input: Mixed!, provider: String): InsuranceQuot
   row to compare processors. It returns the insurer's quote reference; the Order is
   created only when the customer picks one.
 
-Setup stays on the generic `createIntegrationCompany` mutation.
+Setup stays on the generic `integrationCompany` mutation.
 
 ## Everything past "I'll take this one"
 
@@ -89,7 +89,32 @@ the client's quote payload, so a tampered payload can't set its own premium.
 
 Everything else is opt-in and checked with `instanceof` at the call site:
 `InspectionProviderInterface`, `PaymentLinkProviderInterface`,
-`PolicyProviderInterface`, `CatalogProviderInterface`.
+`PolicyProviderInterface`, `CatalogProviderInterface`,
+`ProductCatalogProviderInterface`.
+
+## Persist what we author, cache what they own
+
+Two different problems that look alike, and conflating them is how you end up
+maintaining a copy of someone else's database.
+
+**Products are persisted** — seeded as catalog `Products` under the insurer's own
+company at integration setup (`insurer_companies_id`, a required setup field). Not to
+save API calls: Universal has no products endpoint at all, its five codes are a fixed
+table in their doc. They live in Kanvas because the copy the customer reads is *ours*
+and someone edits it there. `SyncInsuranceProductsAction` is therefore a seed, not a
+sync — it only fills in what is missing, and never rewrites a row an admin has
+touched. The FE reads them through the normal `products` query; there is no
+`insuranceProducts`.
+
+**Reference data is cached** — vehicle models, address trees, add-ons. It is theirs,
+we only read it, and nothing joins against it. `CatalogCache` is the shared mechanism;
+the TTL per catalog is the adapter's call, because only it knows which of its
+endpoints are stable. Rent-a-car options hang off a plan revision that only exists
+after a quote, so they are per-customer and cached at TTL 0.
+
+**There is no plan level to model.** Universal's `codPlan`/`revPlan` come back *in the
+quote response* (§3.2 of their doc) — a plan can't be listed or chosen up front. The
+product is the unit the customer picks.
 
 ## Custom fields — hybrid on purpose
 

@@ -67,12 +67,75 @@ class QuoteRequestTest extends TestCase
         $this->assertSame('AKM', $payload['data']['tipo']);
     }
 
-    public function testClienteIsNullForExpressQuote(): void
+    /**
+     * Verified against QA: the identical body with `terminos.ceroDeducible: null`
+     * returns a bare 500, without the key a clean 400.
+     */
+    public function testUnsetOptionalsAreOmittedRatherThanSentAsNull(): void
     {
         $payload = QuoteRequest::make(ProductEnum::PARA_TU_AUTO, $this->expressInput())->toArray();
 
-        $this->assertNull($payload['data']['cliente']);
-        $this->assertNull($payload['data']['endosoCesion']);
+        $this->assertArrayNotHasKey('ceroDeducible', $payload['data']['terminos']);
+        $this->assertArrayNotHasKey('rentCar', $payload['data']['terminos']);
+        $this->assertArrayNotHasKey('sumaAsegurada', $payload['data']['vehiculo']);
+        $this->assertArrayNotHasKey('cliente', $payload['data']);
+        $this->assertArrayNotHasKey('endosoCesion', $payload['data']);
+        $this->assertArrayNotHasKey('requestId', $payload['data']);
+    }
+
+    /**
+     * Spatie hands the null straight to `string $cupon = ''`, so PHP TypeErrors
+     * before any of our code runs and the FE sees a bare "Internal server error".
+     */
+    public function testNullsFromTheClientFallBackToTheDefaultInsteadOfCrashing(): void
+    {
+        $input = $this->expressInput();
+        $input['terminos']['cupon'] = null;
+        $input['terminos']['fraccionamientoPago'] = null;
+        $input['vehiculo']['tipoGas'] = null;
+        $input['vehiculo']['tipoInstalacion'] = null;
+
+        $payload = QuoteRequest::make(ProductEnum::PARA_TU_AUTO, $input)->toArray();
+
+        $this->assertSame('', $payload['data']['terminos']['cupon']);
+        $this->assertSame('', $payload['data']['vehiculo']['tipoGas']);
+        $this->assertSame('', $payload['data']['vehiculo']['tipoInstalacion']);
+        $this->assertArrayNotHasKey('fraccionamientoPago', $payload['data']['terminos']);
+    }
+
+    public function testAWhollyNullNestedObjectIsTreatedAsAbsent(): void
+    {
+        $input = $this->expressInput();
+        $input['cliente'] = null;
+        $input['endosoCesion'] = null;
+
+        $payload = QuoteRequest::make(ProductEnum::PARA_TU_AUTO, $input)->toArray();
+
+        $this->assertArrayNotHasKey('cliente', $payload['data']);
+        $this->assertArrayNotHasKey('endosoCesion', $payload['data']);
+    }
+
+    /**
+     * An empty add-on list is a real answer ("none"), not an unset optional.
+     */
+    public function testEmptyArraysSurviveTheNullStripping(): void
+    {
+        $payload = QuoteRequest::make(ProductEnum::PARA_TU_AUTO, $this->expressInput())->toArray();
+
+        $this->assertSame([], $payload['data']['aditamentos']);
+    }
+
+    public function testValuesThatAreLegitimatelyFalsyAreKept(): void
+    {
+        $input = $this->expressInput();
+        $input['terminos']['ceroDeducible'] = false;
+        $input['vehiculo']['esCeroKm'] = false;
+
+        $payload = QuoteRequest::make(ProductEnum::PARA_TU_AUTO, $input)->toArray();
+
+        $this->assertFalse($payload['data']['terminos']['ceroDeducible']);
+        $this->assertFalse($payload['data']['vehiculo']['esCeroKm']);
+        $this->assertSame('', $payload['data']['terminos']['cupon']);
     }
 
     public function testSeguroDeLeyIsTheOnlyProductWithoutInspection(): void

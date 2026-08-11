@@ -15,6 +15,8 @@ type InsuranceQuoteResult {
     message: String!
     quote_number: String!
     premium: Float
+    "Usage-based products only: rate per kilometer driven, billed on top of the premium."
+    rate_per_km: Float
     tax: Float
     total: Float
     currency: String

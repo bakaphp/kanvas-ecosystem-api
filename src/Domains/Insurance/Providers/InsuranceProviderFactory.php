@@ -7,9 +7,11 @@ namespace Kanvas\Insurance\Providers;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use InvalidArgumentException;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Throwable;
 
 class InsuranceProviderFactory
 {
@@ -43,6 +45,46 @@ class InsuranceProviderFactory
         }
 
         return self::make($providerName, $order->app, $order->company);
+    }
+
+    /**
+     * The acting company is rarely the one holding the credentials: in the
+     * marketplace shape (.planning/movipass/features/04_multi_company_support) a
+     * client company browses, the insurer owns the products, and the platform holds
+     * the contract with the insurer. `forOrder` needs no such indirection — orders
+     * belong to the platform by design.
+     */
+    public static function forQuoting(
+        AppInterface $app,
+        CompanyInterface $actingCompany,
+        ?string $requested = null
+    ): InsuranceProviderInterface {
+        $company = self::credentialCompany($app, $actingCompany);
+
+        return self::make(self::resolveName($company, $requested), $app, $company);
+    }
+
+    /**
+     * The platform when the app declares one, otherwise whoever is acting — which
+     * keeps single-tenant apps working unchanged. `B2B_MAIN_COMPANY_ID` is the
+     * established key (`RoleBasedProductBuilder` scopes the marketplace by it);
+     * don't add an insurance-specific one.
+     */
+    public static function credentialCompany(AppInterface $app, CompanyInterface $actingCompany): CompanyInterface
+    {
+        $platformCompanyId = (int) ($app->get('B2B_MAIN_COMPANY_ID') ?? 0);
+
+        if ($platformCompanyId === 0 || $platformCompanyId === $actingCompany->getId()) {
+            return $actingCompany;
+        }
+
+        try {
+            return Companies::getById($platformCompanyId);
+        } catch (Throwable) {
+            throw new InvalidArgumentException(
+                'B2B_MAIN_COMPANY_ID points at company ' . $platformCompanyId . ', which does not exist.'
+            );
+        }
     }
 
     /**
