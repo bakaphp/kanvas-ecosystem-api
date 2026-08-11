@@ -20,6 +20,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ReadGoogleSheetTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\UpdateGoogleSheetCellTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\CreateSampleOrderTool;
@@ -83,6 +84,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new ReadGoogleSheetTool(),
             new AppendGoogleSheetRowsTool(),
             new UpdateGoogleSheetCellTool(),
+            new ClearGoogleSheetRangeTool(),
         ]));
     }
 
@@ -121,7 +123,8 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Read/check this Google Sheet" → read_google_sheet, given the URL the user shared. "Add these '
             . 'rows to the sheet" → write_google_sheet. "Mark that row as X in the sheet" → '
             . 'update_google_sheet_cell, only after confirming the exact cell with read_google_sheet first — '
-            . 'never guess a row/column.',
+            . 'never guess a row/column. "Clear/wipe that row/cell" → clear_google_sheet_range — this empties '
+            . 'the values but never removes the row itself.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }
