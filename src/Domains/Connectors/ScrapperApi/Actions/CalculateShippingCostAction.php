@@ -38,7 +38,7 @@ class CalculateShippingCostAction
         };
         $localTransfer = (float)($this->app->get(ShippingCostEnum::LOCAL_TRANSFER->value) ?? 0.00);
         $paymentFee = (float)($this->app->get(ShippingCostEnum::PAYMENT_FEE->value) ?? 0.029);
-        $serviceFee = (float)($this->app->get(ShippingCostEnum::SERVICE_FEE->value) ?? 1.90);
+        $serviceFee = (float)($this->app->get(ShippingCostEnum::SERVICE_FEE->value) ?? 1.00);
         $shippingMargin = (float)($this->app->get(ShippingCostEnum::SHIPPING_MARGIN->value) ?? 1.20);
 
         // Calculate
