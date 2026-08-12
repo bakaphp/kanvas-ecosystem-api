@@ -47,4 +47,3 @@ class ScheduledActionTimezoneResolver
         return $value === '' ? null : Carbon::parse($value, $timezone)->utc();
     }
 }
-
