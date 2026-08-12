@@ -17,9 +17,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEmployeeForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPositionAndDepartmentForTool;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -29,12 +31,13 @@ use Override;
  * not on the platform user. Only the fields passed are changed.
  */
 #[AgentTool(name: 'Update Employee', category: 'human_resources')]
-class UpdateEmployeeTool extends Tool
+class UpdateEmployeeTool extends Tool implements HasRunKey
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ResolvesEmployeeForTool;
     use ResolvesPositionAndDepartmentForTool;
+    use TrackByInputs;
 
     public function __construct()
     {

@@ -14,10 +14,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 class Client
 {
     private const string BASE_URL = 'https://slack.com/api/';
-
-    // Slack rejects a message whose text exceeds its limit with `msg_too_long`. It only renders
-    // ~4000 chars cleanly, so we split below that and send the overflow as follow-up messages.
-    private const int MAX_TEXT_LENGTH = 3900;
+    private const int MAX_TEXT_LENGTH = 3000;
 
     // Slack's file download 302-chains through a couple of hosts (workspace host → signed CDN); a
     // handful of hops is plenty, and the cap stops a redirect loop from hanging the worker.
@@ -87,14 +84,15 @@ class Client
     }
 
     /**
-     * Split text into Slack-sized chunks, preferring newline boundaries so mrkdwn formatting isn't
-     * cut mid-entity. A single line longer than the limit is hard-split as a last resort.
+     * Split text into Slack-sized chunks by BYTE length (Slack's `msg_too_long` is byte-counted),
+     * preferring newline boundaries so mrkdwn formatting isn't cut mid-entity. A single line longer
+     * than the limit is hard-split on UTF-8 character boundaries so no multibyte char is severed.
      *
      * @return list<string>
      */
     public static function splitText(string $text, int $limit = self::MAX_TEXT_LENGTH): array
     {
-        if (mb_strlen($text) <= $limit) {
+        if (strlen($text) <= $limit) {
             return [$text];
         }
 
@@ -102,12 +100,12 @@ class Client
         $current = '';
 
         foreach (explode("\n", $text) as $line) {
-            if (mb_strlen($line) > $limit) {
+            if (strlen($line) > $limit) {
                 if ($current !== '') {
                     $chunks[] = $current;
                     $current = '';
                 }
-                foreach (mb_str_split($line, max(1, $limit)) as $piece) {
+                foreach (self::hardSplitByBytes($line, $limit) as $piece) {
                     $chunks[] = $piece;
                 }
 
@@ -115,7 +113,7 @@ class Client
             }
 
             $candidate = $current === '' ? $line : $current . "\n" . $line;
-            if (mb_strlen($candidate) > $limit) {
+            if (strlen($candidate) > $limit) {
                 $chunks[] = $current;
                 $current = $line;
             } else {
@@ -128,6 +126,32 @@ class Client
         }
 
         return $chunks;
+    }
+
+    /**
+     * Hard-split one over-long line into <= $limit BYTE pieces without cutting a multibyte character:
+     * accumulate whole UTF-8 characters until the next one would breach the byte budget.
+     *
+     * @return list<string>
+     */
+    private static function hardSplitByBytes(string $line, int $limit): array
+    {
+        $pieces = [];
+        $current = '';
+
+        foreach (mb_str_split($line) as $char) {
+            if ($current !== '' && strlen($current) + strlen($char) > $limit) {
+                $pieces[] = $current;
+                $current = '';
+            }
+            $current .= $char;
+        }
+
+        if ($current !== '') {
+            $pieces[] = $current;
+        }
+
+        return $pieces;
     }
 
     public function userInfo(string $userId): array

@@ -30,6 +30,7 @@ use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\ToolCallMessage;
 use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Exceptions\ToolRunsExceededException;
 use NeuronAI\Tools\ToolInterface;
 use Throwable;
 
@@ -106,9 +107,6 @@ class RunNeuronChatAction
         } catch (Throwable $e) {
             report($e);
 
-            // Never leak exception class/message/SQL/hostnames to the channel — that's
-            // internal detail, logged below via `usage` (Sentry + KanvasConversationStore)
-            // for ops, not shown to the person on the other end of the chat.
             $fallback = $this->humanizedFallback($e);
 
             if (! $selfRecords) {
@@ -161,6 +159,11 @@ class RunNeuronChatAction
         if ($this->isDuplicateEntryError($e)) {
             return "It looks like that already exists — I didn't create a duplicate. Let me know if you'd "
                 . 'like me to look into it or handle it a different way.';
+        }
+
+        if ($e instanceof ToolRunsExceededException) {
+            return "I couldn't find a match after a few tries. Could you double-check the name or email "
+                . 'and confirm the person exists, then ask me again?';
         }
 
         return 'I ran into a hiccup processing that. Could you try rephrasing, '

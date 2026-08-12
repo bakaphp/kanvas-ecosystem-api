@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Actions\GetOrderStatsAction;
 use Kanvas\Souk\Orders\Enums\OrderStatsExcludeModeEnum;
@@ -14,11 +15,19 @@ use Kanvas\Souk\Orders\Models\OrderTypes;
 
 class OrderStatsExclusionTest extends OrderBase
 {
+    use DatabaseTransactions;
+
     /**
-     * Unique per run: the turnover assertions are absolute counts over a fixed June window, so any
-     * order another test (or an earlier run) left behind in that window would inflate them. Scoping
-     * every assertion to this run's own order type makes the numbers independent of the rest of the
-     * database.
+     * Turnover counts transition history app-wide, so seeded orders would otherwise
+     * accumulate across the test methods and inflate the counts.
+     */
+    protected $connectionsToTransact = ['commerce', 'inventory'];
+
+    /**
+     * Rolling back is not enough on a database that already holds orders from before it was
+     * wrapped: the assertions are absolute counts over a fixed June window, so any leftover in
+     * that window still inflates them. Scoping every assertion to this run's own order type makes
+     * the numbers independent of whatever else the database happens to contain.
      */
     protected string $orderTypeName;
 
@@ -26,15 +35,6 @@ class OrderStatsExclusionTest extends OrderBase
     private array $statusIds = [];
 
     private string $variantId;
-
-    /**
-     * Orders live on `commerce`, which the default wrapping leaves untouched — without this the
-     * seeded orders survive the test and pile up on every run.
-     */
-    protected function connectionsToTransact(): array
-    {
-        return [null, 'commerce'];
-    }
 
     public function setUp(): void
     {
