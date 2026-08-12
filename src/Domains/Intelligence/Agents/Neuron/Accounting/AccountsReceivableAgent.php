@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
@@ -93,6 +94,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new ListEmailsTool(),
             new ReadEmailDetailsTool(),
             new DownloadAttachmentTool(),
+            new ExtractInvoiceDataTool(),
         ]));
     }
 
@@ -137,9 +139,11 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'like "has:attachment is:unread". "What does this email say" / "does it have an invoice attached" '
             . '→ read_email_details with the message_id. "Pull that PDF out" / "save this attachment" → '
             . 'download_attachment with the message_id + attachment_id from read_email_details — it saves the '
-            . 'file to Kanvas and returns a filesystem_id/url. To get an emailed invoice into Acumatica: '
-            . 'download_attachment first, then pass its returned url straight into attach_invoice_file\'s '
-            . 'file_url — no need to re-download or re-host it anywhere.',
+            . 'file to Kanvas and returns a filesystem_id/url. The real vendor/total/dates are inside the PDF, '
+            . 'never in the email body/subject — after downloading, call extract_invoice_data with the '
+            . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet). '
+            . 'To get an emailed invoice into Acumatica: download_attachment first, then pass its returned url '
+            . 'straight into attach_invoice_file\'s file_url — no need to re-download or re-host it anywhere.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }
