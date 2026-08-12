@@ -10,9 +10,11 @@ use Kanvas\HumanResources\Employees\Models\Employee;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -21,9 +23,10 @@ use Override;
  * candidates to disambiguate rather than a single guess.
  */
 #[AgentTool(name: 'Find Employee', category: 'human_resources')]
-class FindEmployeeTool extends Tool
+class FindEmployeeTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

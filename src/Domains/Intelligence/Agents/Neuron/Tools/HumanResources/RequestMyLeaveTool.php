@@ -9,9 +9,11 @@ use Kanvas\HumanResources\Employees\Services\EmployeeIdentityResolver;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -20,10 +22,11 @@ use Override;
  * file on behalf of someone else. The request lands as PENDING for a manager to approve.
  */
 #[AgentTool(name: 'Request My Leave', category: 'human_resources')]
-class RequestMyLeaveTool extends Tool
+class RequestMyLeaveTool extends Tool implements HasRunKey
 {
     use HandlesLeaveForTool;
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

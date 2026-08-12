@@ -351,6 +351,39 @@ There is no approved path for a free-text external recipient.
 - Normalize manually in `__invoke`: `trim()` everything, treat empty string as absent, clamp numerics
   (`max(1, min($limit ?? 50, 200))`), re-validate required scalars for blank-after-trim.
 
+### Run budget — key per-item tools by inputs (`TrackByInputs`)
+
+NeuronAI caps every tool at `getMaxRuns()` (default 10) runs **per turn**, counted per *key*. The default
+key is the tool **name**, so *all* calls to one tool share a single budget — 11 distinct calls in a turn
+(an 11-row CSV import, an org chart, a batch of messages) throw `ToolRunsExceededException` and abort the
+whole turn. This is the recurring Sentry KANVAS-ECOSYSTEM-621.
+
+**Any tool the agent can call once-per-item over a list — every entity-scoped `find`/`get`/`create`/`update`/`send`
+that acts on a single record identified by its inputs — MUST key its budget by inputs:**
+
+```php
+use NeuronAI\Tools\HasRunKey;
+use NeuronAI\Tools\TrackByInputs;
+
+class FindEmployeeTool extends Tool implements HasRunKey
+{
+    use TrackByInputs;   // getRunKey() = name . ':' . sha1(json(inputs))
+    // ...
+}
+```
+
+Distinct arguments → distinct key → own budget (bulk over N distinct items works). Identical arguments →
+same key → a stuck loop is still capped at 10. No state, no config; it just swaps "count per tool name"
+for "count per (tool name + arguments)". Override `getRunKey()` to hash only the fields that matter
+(the trait's docblock shows `file_path:offset`) when hashing all inputs is too strict.
+
+**Skip it only for a tool that must keep a hard AGGREGATE ceiling per turn regardless of inputs** — an
+expensive/rate-limited external call, a destructive bulk op. There the per-name cap is a deliberate
+throttle: keep the default, or set an explicit low `getMaxRuns()` with a one-line reason. `List*`/`Search*`
+tools that return many rows in **one** call don't loop, so they don't need it.
+
+Reference/coverage: [`HumanResourcesAgentToolsTest::testBulkCreateToolsBudgetRunsPerInputsNotPerToolName`](../../../../tests/GraphQL/HumanResources/HumanResourcesAgentToolsTest.php).
+
 ## Don't break
 
 - **`AgentChatKernel` is load-bearing for 4 call sites** — `userChat` (GraphQL), channel responders (×6), `WakeAgentForPlanJob`, `AgentReceiverJob`. Any change to its constructor or `execute()` contract ripples through all of them. Test both `userChat` and at least one channel responder end-to-end after touching it.
