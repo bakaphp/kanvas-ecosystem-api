@@ -75,6 +75,20 @@ class HumanResourcesAgentToolsTest extends TestCase
         $this->assertContains($employee->getId(), array_column($result['employees'], 'employee_id'));
     }
 
+    public function testFindEmployeeReturnsStopNoteWhenNoMatch(): void
+    {
+        // Regression (Sentry KANVAS-ECOSYSTEM-621): a bare empty result made the model re-call the
+        // same query until it tripped NeuronAI's per-tool run cap. The empty result now carries an
+        // explicit "do not retry" note.
+        [$app, $company, $user] = $this->context();
+
+        $result = new FindEmployeeTool()->withContext($app, $company, $user)
+            ->__invoke('nobody-' . fake()->unique()->safeEmail());
+
+        $this->assertSame(0, $result['count']);
+        $this->assertStringContainsString('Do NOT call find_employee again', $result['note']);
+    }
+
     public function testLeaveBalanceAndRequestFlow(): void
     {
         $this->selfEmployee();
