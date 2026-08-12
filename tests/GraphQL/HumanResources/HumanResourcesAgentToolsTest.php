@@ -6,6 +6,7 @@ namespace Tests\GraphQL\HumanResources;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\HumanResources\Employees\Actions\CreateEmployeeAction;
 use Kanvas\HumanResources\Employees\DataTransferObject\Employee as EmployeeData;
 use Kanvas\HumanResources\Employees\Models\Employee;
@@ -15,7 +16,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\FindEmployeeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\GetEmployeeLeaveBalanceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\RequestLeaveTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\UpdateEmployeeTool;
+use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use NeuronAI\Tools\HasRunKey;
 use Tests\TestCase;
 
@@ -70,6 +73,20 @@ class HumanResourcesAgentToolsTest extends TestCase
 
         $this->assertGreaterThanOrEqual(1, $result['count']);
         $this->assertContains($employee->getId(), array_column($result['employees'], 'employee_id'));
+    }
+
+    public function testFindEmployeeReturnsStopNoteWhenNoMatch(): void
+    {
+        // Regression (Sentry KANVAS-ECOSYSTEM-621): a bare empty result made the model re-call the
+        // same query until it tripped NeuronAI's per-tool run cap. The empty result now carries an
+        // explicit "do not retry" note.
+        [$app, $company, $user] = $this->context();
+
+        $result = new FindEmployeeTool()->withContext($app, $company, $user)
+            ->__invoke('nobody-' . fake()->unique()->safeEmail());
+
+        $this->assertSame(0, $result['count']);
+        $this->assertStringContainsString('Do NOT call find_employee again', $result['note']);
     }
 
     public function testLeaveBalanceAndRequestFlow(): void
@@ -278,6 +295,17 @@ class HumanResourcesAgentToolsTest extends TestCase
         $keyOne = $employee->setInputs(['user_email' => 'a@x.com', 'position_title' => 'Dev'])->getRunKey();
         $keyTwo = $employee->setInputs(['user_email' => 'b@x.com', 'position_title' => 'Dev'])->getRunKey();
         $this->assertNotEquals($keyOne, $keyTwo, 'Distinct employees must not share a run budget.');
+
+        // find_employee is called once per CSV row during bulk onboarding — it must key by inputs too,
+        // or looking up 11+ DISTINCT people in one turn trips the per-tool-name cap.
+        $find = new FindEmployeeTool();
+        $this->assertInstanceOf(HasRunKey::class, $find);
+
+        $keyAlice = $find->setInputs(['query' => 'alice@x.com'])->getRunKey();
+        $keyBob = $find->setInputs(['query' => 'bob@x.com'])->getRunKey();
+        $keyAliceAgain = $find->setInputs(['query' => 'alice@x.com'])->getRunKey();
+        $this->assertNotEquals($keyAlice, $keyBob, 'Distinct lookups must not share a run budget.');
+        $this->assertEquals($keyAlice, $keyAliceAgain, 'Identical lookups collapse to one key so a loop is still capped.');
     }
 
     public function testCreateEmployeeToolOnboardsExistingUser(): void
@@ -298,5 +326,48 @@ class HumanResourcesAgentToolsTest extends TestCase
             ->__invoke($newUser->email, 'Designer', '2026-02-01');
 
         $this->assertFalse($again['created']);
+    }
+
+    public function testCreateEmployeeAddsExistingUserToAppWhenNotAMember(): void
+    {
+        // Regression (Sentry KANVAS-ECOSYSTEM-66D): onboarding a platform user who exists but isn't a
+        // member of THIS app threw "User not found in app" from getAppProfile(). The tool now adds them
+        // as a normal User first, so onboarding proceeds instead of 500-ing the whole turn.
+        [$app, $company, $adminUser] = $this->context();
+        $this->makePosition('Support Rep');
+
+        // A real platform account with no association to this app.
+        $outsider = Users::factory()->create();
+        $membershipQuery = fn () => UsersAssociatedApps::where('users_id', $outsider->getId())
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->exists();
+        $this->assertFalse($membershipQuery(), 'precondition: outsider is not in the app yet');
+
+        $result = new CreateEmployeeTool()->withContext($app, $company, $adminUser)
+            ->__invoke($outsider->email, 'Support Rep', '2026-02-01');
+
+        $this->assertTrue($result['created']);
+        $this->assertTrue($membershipQuery(), 'the tool added the outsider to the app');
+    }
+
+    public function testAdminCheckHonorsUserFullTableNameActor(): void
+    {
+        // Regression: connector paths pass Message::user(), which returns UserFullTableName (a Users
+        // subclass that only forces a fully-qualified table name). Its morph class must equal Users,
+        // or Bouncer queries assigned_roles.entity_type = UserFullTableName, finds no role, and a real
+        // Owner is denied "Only an administrator can perform this action" over Slack.
+        $employee = $this->selfEmployee();
+        [$app, $company, $adminUser] = $this->context();
+
+        // The morph identity is the whole fix — a distinct morph here is the bug.
+        $actor = UserFullTableName::find($adminUser->getId());
+        $this->assertSame(Users::class, $actor->getMorphClass());
+
+        $result = new UpdateEmployeeTool()->withContext($app, $company, Users::factory()->create())
+            ->forRequestingUser($actor)
+            ->__invoke(employee_id: $employee->getId(), description: 'ok');
+
+        $this->assertTrue($result['updated']);
     }
 }
