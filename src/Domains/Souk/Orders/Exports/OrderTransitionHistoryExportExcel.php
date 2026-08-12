@@ -21,6 +21,7 @@ use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Events\AfterSheet;
 use Maatwebsite\Excel\Events\BeforeSheet;
+use Override;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Color;
@@ -284,7 +285,8 @@ class OrderTransitionHistoryExportExcel implements FromQuery, WithMapping, WithD
         }
     }
 
-    public function styles(Worksheet $sheet)
+    #[Override]
+    public function styles(Worksheet $sheet): ?array
     {
         $lastColumn = $this->getExcelColumn((int) (count($this->data['headers']) - 1));
         $subtitleRow = ! empty($this->data['header_info']['subtitle']) ? 6 : 0;
