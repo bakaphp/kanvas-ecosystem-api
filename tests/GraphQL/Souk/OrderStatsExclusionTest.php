@@ -14,16 +14,33 @@ use Kanvas\Souk\Orders\Models\OrderTypes;
 
 class OrderStatsExclusionTest extends OrderBase
 {
-    protected string $orderTypeName = 'reservation';
+    /**
+     * Unique per run: the turnover assertions are absolute counts over a fixed June window, so any
+     * order another test (or an earlier run) left behind in that window would inflate them. Scoping
+     * every assertion to this run's own order type makes the numbers independent of the rest of the
+     * database.
+     */
+    protected string $orderTypeName;
 
     /** @var array<string, int> slug => order_status_id */
     private array $statusIds = [];
 
     private string $variantId;
 
+    /**
+     * Orders live on `commerce`, which the default wrapping leaves untouched — without this the
+     * seeded orders survive the test and pile up on every run.
+     */
+    protected function connectionsToTransact(): array
+    {
+        return [null, 'commerce'];
+    }
+
     public function setUp(): void
     {
         parent::setUp();
+
+        $this->orderTypeName = 'reservation-' . uniqid();
 
         $orderType = OrderTypes::firstOrCreate([
             'name' => $this->orderTypeName,
@@ -117,6 +134,7 @@ class OrderStatsExclusionTest extends OrderBase
             initialStates: ['in_transit'],
             finalStates: ['released_from_lot'],
             currentCountStates: ['in_transit'],
+            orderTypeNames: [$this->orderTypeName],
             excludeStates: $excludeStates,
             excludeMode: $mode,
         )->execute(
