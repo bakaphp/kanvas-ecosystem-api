@@ -7,6 +7,7 @@ namespace Tests\Event\Integration;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventType;
@@ -56,6 +57,10 @@ class TimeSlotStatsTest extends TestCase
     public function setUp(): void
     {
         parent::setUp();
+
+        // Booking a free tee time also fires the BOOKING_CREATED email, which needs the
+        // `booking_created` template seeded. Faking keeps these tests off that dependency.
+        Notification::fake();
 
         $this->apps = app(Apps::class);
         $this->user = Auth::user();
