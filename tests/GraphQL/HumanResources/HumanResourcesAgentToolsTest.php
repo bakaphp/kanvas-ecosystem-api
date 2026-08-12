@@ -6,6 +6,7 @@ namespace Tests\GraphQL\HumanResources;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppEnums;
 use Kanvas\HumanResources\Employees\Actions\CreateEmployeeAction;
 use Kanvas\HumanResources\Employees\DataTransferObject\Employee as EmployeeData;
 use Kanvas\HumanResources\Employees\Models\Employee;
@@ -17,6 +18,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\RequestLeaveTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\UpdateEmployeeTool;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use NeuronAI\Tools\HasRunKey;
 use Tests\TestCase;
 
@@ -299,6 +301,29 @@ class HumanResourcesAgentToolsTest extends TestCase
             ->__invoke($newUser->email, 'Designer', '2026-02-01');
 
         $this->assertFalse($again['created']);
+    }
+
+    public function testCreateEmployeeAddsExistingUserToAppWhenNotAMember(): void
+    {
+        // Regression (Sentry KANVAS-ECOSYSTEM-66D): onboarding a platform user who exists but isn't a
+        // member of THIS app threw "User not found in app" from getAppProfile(). The tool now adds them
+        // as a normal User first, so onboarding proceeds instead of 500-ing the whole turn.
+        [$app, $company, $adminUser] = $this->context();
+        $this->makePosition('Support Rep');
+
+        // A real platform account with no association to this app.
+        $outsider = Users::factory()->create();
+        $membershipQuery = fn () => UsersAssociatedApps::where('users_id', $outsider->getId())
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->exists();
+        $this->assertFalse($membershipQuery(), 'precondition: outsider is not in the app yet');
+
+        $result = new CreateEmployeeTool()->withContext($app, $company, $adminUser)
+            ->__invoke($outsider->email, 'Support Rep', '2026-02-01');
+
+        $this->assertTrue($result['created']);
+        $this->assertTrue($membershipQuery(), 'the tool added the outsider to the app');
     }
 
     public function testAdminCheckHonorsUserFullTableNameActor(): void
