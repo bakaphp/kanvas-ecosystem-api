@@ -9,9 +9,11 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -19,9 +21,10 @@ use Override;
  * assigned agent becomes the task's executor (Task.agent_id).
  */
 #[AgentTool(name: 'Assign Task', category: 'nervous_system')]
-class AssignNervousSystemTaskTool extends Tool
+class AssignNervousSystemTaskTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
     use ResolvesTaskForTool;
 
     public function __construct()

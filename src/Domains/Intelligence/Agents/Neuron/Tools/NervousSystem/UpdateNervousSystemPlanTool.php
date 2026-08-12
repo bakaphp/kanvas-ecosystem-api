@@ -9,9 +9,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Actions\UpdatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -20,9 +22,10 @@ use Override;
  * rolls the project's completion up.
  */
 #[AgentTool(name: 'Update Plan', category: 'nervous_system')]
-class UpdateNervousSystemPlanTool extends Tool
+class UpdateNervousSystemPlanTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
     use ResolvesPlanForTool;
 
     public function __construct()
