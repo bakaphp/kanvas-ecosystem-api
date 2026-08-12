@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Gmail\Actions;
 
 use Baka\Contracts\AppInterface;
 use Google\Service\Gmail as GmailService;
+use Google\Service\Gmail\MessagePart;
 use Kanvas\Connectors\Gmail\Support\GmailMessageParser;
 
 /** Fetches one message's headers, body, and attachment refs (attachment bytes are fetched separately via DownloadAttachmentAction). */
@@ -31,16 +32,16 @@ class ReadEmailDetailsAction extends AbstractGmailAction
     public function execute(): array
     {
         $message = $this->service()->users_messages->get('me', $this->messageId, ['format' => 'full']);
-        $payload = $message->getPayload();
-        $headers = $payload?->getHeaders() ?? [];
-        $body = $payload !== null ? GmailMessageParser::extractBody($payload) : ['plain' => null, 'html' => null];
+        $payload = $message->getPayload() ?? new MessagePart();
+        $headers = $payload->getHeaders() ?? [];
+        $body = GmailMessageParser::extractBody($payload);
 
         return [
             'from' => GmailMessageParser::findHeader($headers, 'From'),
             'date' => GmailMessageParser::findHeader($headers, 'Date'),
             'subject' => GmailMessageParser::findHeader($headers, 'Subject'),
             'body' => $body['plain'] ?? $body['html'] ?? '',
-            'attachments' => $payload !== null ? GmailMessageParser::extractAttachments($payload) : [],
+            'attachments' => GmailMessageParser::extractAttachments($payload),
         ];
     }
 }
