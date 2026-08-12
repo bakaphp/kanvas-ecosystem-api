@@ -34,8 +34,16 @@ class NoShowQueryTest extends TestCase
     protected Variants $variant;
 
     private string $noShowsQuery = '
-        query eventNoShows($from: Date, $to: Date) {
-            eventNoShows(from_date: $from, to_date: $to) {
+        query participantPasses($from: Mixed!, $to: Mixed!) {
+            participantPasses(
+                no_show: true
+                hasEventVersion: {
+                    AND: [
+                        { column: START_AT, operator: GTE, value: $from }
+                        { column: START_AT, operator: LTE, value: $to }
+                    ]
+                }
+            ) {
                 data {
                     id
                     used_date
@@ -224,6 +232,6 @@ class NoShowQueryTest extends TestCase
 
         $this->assertNull($response->json('errors'), json_encode($response->json('errors')));
 
-        return $response->json('data.eventNoShows.data');
+        return $response->json('data.participantPasses.data');
     }
 }

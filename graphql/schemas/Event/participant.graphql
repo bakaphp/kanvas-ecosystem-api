@@ -182,4 +182,35 @@ extend type Query @guard {
             model: "Kanvas\\Event\\Participants\\Models\\ParticipantPassMotive"
             defaultCount: 25
         )
+    participantPasses(
+        "Only passes of people who never checked in for something that already started."
+        no_show: Boolean @scope(name: "noShow")
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "event_id"
+                    "event_version_id"
+                    "participant_id"
+                    "used_date"
+                    "expiration_date"
+                    "scope"
+                    "format"
+                ]
+            )
+        hasEventVersion: _
+            @whereHasConditions(
+                relation: "eventVersion"
+                columns: ["start_at", "end_at", "event_id"]
+            )
+        orderBy: _
+            @orderBy(
+                columns: ["id", "used_date", "expiration_date", "created_at"]
+            )
+    ): [ParticipantPass!]!
+        @paginate(
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            model: "Kanvas\\Event\\Participants\\Models\\ParticipantPass"
+            defaultCount: 25
+        )
 }
