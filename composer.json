@@ -219,7 +219,8 @@
             "dont-discover": []
         },
         "google/apiclient-services": [
-            "Sheets"
+            "Sheets",
+            "Gmail"
         ]
     },
     "config": {
