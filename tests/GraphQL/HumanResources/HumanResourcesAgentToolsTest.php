@@ -295,6 +295,17 @@ class HumanResourcesAgentToolsTest extends TestCase
         $keyOne = $employee->setInputs(['user_email' => 'a@x.com', 'position_title' => 'Dev'])->getRunKey();
         $keyTwo = $employee->setInputs(['user_email' => 'b@x.com', 'position_title' => 'Dev'])->getRunKey();
         $this->assertNotEquals($keyOne, $keyTwo, 'Distinct employees must not share a run budget.');
+
+        // find_employee is called once per CSV row during bulk onboarding — it must key by inputs too,
+        // or looking up 11+ DISTINCT people in one turn trips the per-tool-name cap.
+        $find = new FindEmployeeTool();
+        $this->assertInstanceOf(HasRunKey::class, $find);
+
+        $keyAlice = $find->setInputs(['query' => 'alice@x.com'])->getRunKey();
+        $keyBob = $find->setInputs(['query' => 'bob@x.com'])->getRunKey();
+        $keyAliceAgain = $find->setInputs(['query' => 'alice@x.com'])->getRunKey();
+        $this->assertNotEquals($keyAlice, $keyBob, 'Distinct lookups must not share a run budget.');
+        $this->assertEquals($keyAlice, $keyAliceAgain, 'Identical lookups collapse to one key so a loop is still capped.');
     }
 
     public function testCreateEmployeeToolOnboardsExistingUser(): void
