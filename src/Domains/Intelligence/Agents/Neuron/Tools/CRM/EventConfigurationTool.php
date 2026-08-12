@@ -86,6 +86,16 @@ class EventConfigurationTool extends Tool
             ])
             ->all();
 
+        $defaults = [
+            'theme_id' => $this->defaultId($themes),
+            'theme_area_id' => $this->defaultId($themeAreas),
+            'status_id' => $this->defaultId($statuses),
+            'type_id' => $this->defaultId($types),
+            'class_id' => $this->defaultId($classes),
+            'category_id' => $this->defaultId($categories),
+        ];
+        $defaultsComplete = ! in_array(null, $defaults, true);
+
         return [
             'status' => 'success',
             'lead_id' => $lead_id,
@@ -96,6 +106,7 @@ class EventConfigurationTool extends Tool
                 'types' => $types,
                 'classes' => $classes,
                 'categories' => $categories,
+                'defaults' => $defaults,
             ],
             'complete' => $themes !== []
                 && $themeAreas !== []
@@ -103,8 +114,23 @@ class EventConfigurationTool extends Tool
                 && $types !== []
                 && $classes !== []
                 && $categories !== [],
-            'instruction' => 'Select one ID from every catalog. Prefer a category whose event_type_id and '
-                . 'event_class_id match the selected type_id and class_id.',
+            'defaults_complete' => $defaultsComplete,
+            'instruction' => $defaultsComplete
+                ? 'Pass every ID from event_configuration.defaults unchanged to create_calendar_event.'
+                : 'One or more defaults are missing. Select one ID from every catalog and ensure the category event_type_id '
+                    . 'and event_class_id match the selected type_id and class_id.',
         ];
+    }
+
+    /** @param array<int, array<string, mixed>> $items */
+    private function defaultId(array $items): ?int
+    {
+        foreach ($items as $item) {
+            if ($item['is_default'] === true) {
+                return (int) $item['id'];
+            }
+        }
+
+        return null;
     }
 }

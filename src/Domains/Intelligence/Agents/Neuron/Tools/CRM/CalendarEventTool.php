@@ -61,7 +61,7 @@ class CalendarEventTool extends Tool
             ),
             new ArrayProperty(
                 name: 'attendee_emails',
-                description: 'List of attendee emails for the event (stored on the event description for now).',
+                description: 'Additional attendee emails for the event. The lead email is added automatically.',
                 required: true,
                 items: new ToolProperty(
                     name: 'email',
@@ -156,6 +156,8 @@ class CalendarEventTool extends Tool
 
         $company = $lead->company;
         $owner = $lead->owner;
+
+        $attendee_emails = $this->resolveAttendeeEmails($lead, $attendee_emails);
 
         if ($owner === null) {
             return [
@@ -315,5 +317,21 @@ class CalendarEventTool extends Tool
                 'meeting_link' => $meeting_link,
             ],
         ];
+    }
+
+    /**
+     * Always invite the lead without relying on the agent to repeat contact data.
+     *
+     * @param array<int, mixed> $additionalEmails
+     * @return array<int, string>
+     */
+    protected function resolveAttendeeEmails(Lead $lead, array $additionalEmails): array
+    {
+        return collect([$lead->email, ...$additionalEmails])
+            ->filter(fn (mixed $email): bool => is_string($email) && filter_var(trim($email), FILTER_VALIDATE_EMAIL) !== false)
+            ->map(fn (string $email): string => strtolower(trim($email)))
+            ->unique()
+            ->values()
+            ->all();
     }
 }

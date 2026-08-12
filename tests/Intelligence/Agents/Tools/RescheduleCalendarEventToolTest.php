@@ -29,6 +29,8 @@ class RescheduleCalendarEventToolTest extends TestCase
     public function testCreateCalendarEventAcceptsExplicitCompanyConfiguration(): void
     {
         [, , $lead] = $this->bootstrap();
+        $lead->email = 'prospect@example.com';
+        $lead->saveQuietly();
         $configuration = new EventConfigurationTool()->__invoke($lead->getId());
         $catalogs = $configuration['event_configuration'];
         $category = $catalogs['categories'][0];
@@ -48,6 +50,10 @@ class RescheduleCalendarEventToolTest extends TestCase
         );
 
         $this->assertSame('success', $created['status'], json_encode($created));
+        $this->assertSame(
+            ['max@kanvas.dev', 'prospect@example.com'],
+            collect($created['event']['attendees'])->sort()->values()->all(),
+        );
     }
 
     public function testRescheduleMovesAppointmentAndFreesOldSlot(): void

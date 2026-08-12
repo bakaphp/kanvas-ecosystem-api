@@ -174,6 +174,13 @@ class ReceptionistToolsTest extends TestCase
         $this->assertNotEmpty($result['event_configuration']['types']);
         $this->assertNotEmpty($result['event_configuration']['classes']);
         $this->assertNotEmpty($result['event_configuration']['categories']);
+        $this->assertTrue($result['defaults_complete']);
+        $this->assertNotNull($result['event_configuration']['defaults']['theme_id']);
+        $this->assertNotNull($result['event_configuration']['defaults']['theme_area_id']);
+        $this->assertNotNull($result['event_configuration']['defaults']['status_id']);
+        $this->assertNotNull($result['event_configuration']['defaults']['type_id']);
+        $this->assertNotNull($result['event_configuration']['defaults']['class_id']);
+        $this->assertNotNull($result['event_configuration']['defaults']['category_id']);
 
         $category = $result['event_configuration']['categories'][0];
         $this->assertArrayHasKey('event_type_id', $category);
