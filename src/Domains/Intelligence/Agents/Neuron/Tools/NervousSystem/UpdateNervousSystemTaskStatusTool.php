@@ -9,9 +9,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
@@ -22,9 +24,10 @@ use Throwable;
  * events, broadcasts) so the agent's move is indistinguishable from a human/GraphQL move.
  */
 #[AgentTool(name: 'Update Task Status', category: 'nervous_system')]
-class UpdateNervousSystemTaskStatusTool extends Tool
+class UpdateNervousSystemTaskStatusTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
     use ResolvesTaskForTool;
 
     public function __construct()
