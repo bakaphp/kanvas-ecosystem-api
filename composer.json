@@ -23,7 +23,7 @@
         "doctrine/dbal": "^4.2",
         "durable-workflow/workflow": "^1.0.24",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
-        "google/apiclient": "^2.16",
+        "google/apiclient": "^2.19",
         "google/cloud-discoveryengine": "^1.1",
         "google/cloud-recommendations-ai": "^0.9.0",
         "guzzlehttp/guzzle": "^7.6",
