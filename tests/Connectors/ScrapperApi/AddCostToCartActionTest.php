@@ -9,7 +9,6 @@ use Illuminate\Session\ArraySessionHandler;
 use Illuminate\Session\Store;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\ScrapperApi\Actions\AddCostToCartAction;
-use Kanvas\Connectors\ScrapperApi\Actions\CalculateShippingCostAction;
 use Kanvas\Connectors\ScrapperApi\Enums\ShippingCostEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Mockery;
@@ -22,25 +21,6 @@ use Wearepixel\Cart\CartCondition;
 class AddCostToCartActionTest extends TestCase
 {
     use MockeryPHPUnitIntegration;
-
-    public function testUsesOneDollarPerPoundAsTheDefaultServiceFee(): void
-    {
-        $app = Mockery::mock(Apps::class)->makePartial();
-        $app->shouldReceive('get')->andReturnNull();
-
-        $variant = Mockery::mock(Variants::class)->makePartial();
-        $variant->shouldReceive('getAttributeByName')
-            ->once()
-            ->andReturn((object) ['value' => 453.59237]);
-        $variant->shouldReceive('getPriceInfoFromDefaultChannel')
-            ->once()
-            ->andReturn((object) ['price' => 50.0]);
-
-        $cost = new CalculateShippingCostAction($app, $variant, 2)->execute();
-
-        $this->assertSame(2.0, $cost['pounds']);
-        $this->assertSame(2.0, $cost['serviceFee']);
-    }
 
     public function testAggregatesShippingAndOfficialTaxesForACartOverTwoHundredDollars(): void
     {
@@ -105,11 +85,12 @@ class AddCostToCartActionTest extends TestCase
         $shipping = $cart->getCondition('Shipping');
         $attributes = $shipping->getAttributes();
 
-        $this->assertSame('+147.5', $shipping->getValue());
+        $this->assertSame('+82.84', $shipping->getValue());
         $this->assertSame(70.0, $attributes['Custom Tax']);
-        $this->assertSame(15.0, $attributes['Shipping Cost']);
-        $this->assertSame(6.0, $attributes['Service Fee']);
-        $this->assertSame(52.5, $attributes['Mark-Up / Comm Rev']);
+        $this->assertSame(2.5, $attributes['Shipping Cost']);
+        $this->assertSame(3.5, $attributes['Service Fee']);
+        $this->assertEqualsWithDelta(5.6, $attributes['Insurance Fee'], 0.000001);
+        $this->assertArrayNotHasKey('Mark-Up / Comm Rev', $attributes);
         $this->assertSame(0.0, $attributes['Tax Breakdown']['Total Tasa Aduanal']);
         $this->assertCount(2, $attributes['Custom Tax Details']);
     }
@@ -153,10 +134,11 @@ class AddCostToCartActionTest extends TestCase
         $shipping = $cart->getCondition('Shipping');
         $attributes = $shipping->getAttributes();
 
-        $this->assertSame('+45', $shipping->getValue());
+        $this->assertSame('+10.44', $shipping->getValue());
         $this->assertSame(0, $attributes['Custom Tax']);
         $this->assertSame([], $attributes['Custom Tax Details']);
-        $this->assertSame(30.0, $attributes['Mark-Up / Comm Rev']);
+        $this->assertSame(3.5, $attributes['Service Fee']);
+        $this->assertSame(3.2, $attributes['Insurance Fee']);
     }
 
     public function testIgnoresExistingShippingConditionWhenEvaluatingTaxThreshold(): void
@@ -207,18 +189,19 @@ class AddCostToCartActionTest extends TestCase
         $shipping = $cart->getCondition('Shipping');
         $attributes = $shipping->getAttributes();
 
-        $this->assertSame('+30', $shipping->getValue());
+        $this->assertSame('+7.24', $shipping->getValue());
         $this->assertSame(0, $attributes['Custom Tax']);
         $this->assertSame([], $attributes['Custom Tax Details']);
-        $this->assertSame(15.0, $attributes['Mark-Up / Comm Rev']);
+        $this->assertSame(3.5, $attributes['Service Fee']);
+        $this->assertSame(0.0, $attributes['Insurance Fee']);
     }
 
     private function enabledApp(): Apps
     {
         $app = Mockery::mock(Apps::class)->makePartial();
-        $app->shouldReceive('get')
-            ->with(ShippingCostEnum::LOCOMPRO_COST->value)
-            ->andReturn(true);
+        $app->shouldReceive('get')->andReturnUsing(
+            fn (string $key): mixed => $key === ShippingCostEnum::LOCOMPRO_COST->value ? true : null,
+        );
 
         return $app;
     }
