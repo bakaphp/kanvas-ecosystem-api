@@ -26,7 +26,7 @@ class CreateGoogleCalendarMeetingActionTest extends TestCase
             ],
         ]);
 
-        $action = new class(
+        $action = new class (
             company: $company,
             name: 'Finance Meeting',
             attendeeEmails: ['lead@example.com', 'owner@example.com', 'lead@example.com', 'invalid'],
@@ -43,6 +43,7 @@ class CreateGoogleCalendarMeetingActionTest extends TestCase
             protected function insertEvent(Calendar $service, string $calendarId, Event $event): Event
             {
                 $this->insertedEvent = $event;
+
                 return new Event([
                     'id' => 'google-event-123',
                     'summary' => $event->getSummary(),
