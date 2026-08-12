@@ -145,6 +145,47 @@ class CreateEngagementPageToolTest extends TestCase
         $this->assertSame(124, $result['engagement_id']);
     }
 
+    public function testAcceptsNullDataForActionsWithoutPayload(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+        $lead = Lead::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create();
+        $message = new Message(['message' => ['action_link' => 'https://short.example/credit-app']]);
+        $engagement = new Engagement(['uuid' => '019c166e-c115-7000-8000-000000000003']);
+        $engagement->id = 125;
+        $engagement->setRelation('message', $message);
+
+        $tool = new class ($agent, $engagement) extends CreateEngagementPageTool {
+            public ?EngagementData $receivedData = null;
+
+            public function __construct(Agent $agent, private readonly Engagement $engagementResult)
+            {
+                parent::__construct($agent);
+            }
+
+            protected function createEngagement(EngagementData $data): Engagement
+            {
+                $this->receivedData = $data;
+
+                return $this->engagementResult;
+            }
+        };
+        $tool->withContext($app, $company, $user);
+
+        $result = $tool->__invoke($lead->getId(), 'credit-app', null);
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame([], $tool->receivedData?->data);
+    }
+
     public function testReportsEngagementCreationFailureWithSafeContext(): void
     {
         $app = app(Apps::class);
