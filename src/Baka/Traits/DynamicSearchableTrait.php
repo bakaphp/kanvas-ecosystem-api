@@ -57,6 +57,20 @@ trait DynamicSearchableTrait
         return $this->resolvedEngineName() === 'algolia';
     }
 
+    /**
+     * Byte budget a record must fit in before the model's trimming cascade kicks in.
+     * Resolution order: per-app setting → scout config → 9500 (Algolia's 10k cap minus headroom).
+     */
+    public function algoliaRecordSizeLimit(): int
+    {
+        $app = $this->app ?? app(Apps::class);
+
+        $limit = (int) ($app->get('algolia_record_size_limit')
+            ?? config('scout.algolia.record_size_limit', 9500));
+
+        return $limit > 0 ? $limit : 9500;
+    }
+
     protected function resolvedEngineName(): string
     {
         try {
