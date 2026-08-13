@@ -83,7 +83,17 @@ class CreateGoogleCalendarMeetingAction
             $event->setId($this->externalEventId);
         }
 
-        $saved = $this->insertEvent($service, $calendarId, $event);
+        try {
+            $saved = $this->insertEvent($service, $calendarId, $event);
+        } catch (Throwable $exception) {
+            if (! $this->shouldRetryWithoutMeet($exception)) {
+                throw $exception;
+            }
+
+            $this->withMeetLink = false;
+            $event->setConferenceData(null);
+            $saved = $this->insertEvent($service, $calendarId, $event);
+        }
 
         return $this->formatResult($saved, $calendarId, $emails);
     }
@@ -200,6 +210,12 @@ class CreateGoogleCalendarMeetingAction
         } catch (Throwable $exception) {
             throw new RuntimeException('Google Calendar event creation failed: ' . $exception->getMessage(), 0, $exception);
         }
+    }
+
+    protected function shouldRetryWithoutMeet(Throwable $exception): bool
+    {
+        return $this->withMeetLink
+            && str_contains(strtolower($exception->getMessage()), 'invalid conference type');
     }
 
     protected function findEvent(Calendar $service, string $calendarId, string $eventId): Event
