@@ -38,7 +38,6 @@ enum ConfigurationEnum: string
     case AI_MODE = 'ai_mode';
     case AGENT_AI_MODE = 'agent_ai_mode';
     case AI_ENABLE = 'ai';
-    case PRIVATE_AND_LOCK_CONVERSATION_MESSAGES = 'private_and_lock_conversation_messages';
     case NOTIFICATION_CHANNELS = 'notification_enabled_channels';
     case FIRST_ENGAGEMENT_NOTIFICATION_CHANNELS = 'first_engagement_notification_channels';
     case ENGAGEMENT_NOTIFICATION_CHANNELS = 'engagement_notification_channels';
