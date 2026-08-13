@@ -10,6 +10,7 @@ use Kanvas\Connectors\Google\Actions\SyncEventToGoogleCalendarAction;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
@@ -30,6 +31,13 @@ class CreateGoogleCalendarEventActivity extends KanvasActivity implements Workfl
             return $this->failWorkflow(['status' => 'error', 'message' => 'Event does not belong to the workflow app.']);
         }
 
-        return new SyncEventToGoogleCalendarAction($event)->execute();
+        return $this->executeIntegration(
+            entity: $event,
+            app: $app,
+            integration: IntegrationsEnum::INTERNAL,
+            integrationOperation: static fn (Event $event): array => (new SyncEventToGoogleCalendarAction($event))->execute(),
+            additionalParams: $params,
+            company: $event->company,
+        );
     }
 }
