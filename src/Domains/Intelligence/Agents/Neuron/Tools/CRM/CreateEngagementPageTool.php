@@ -67,12 +67,14 @@ class CreateEngagementPageTool extends Tool
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param array<string, mixed>|null $data
      *
      * @return array<string, mixed>
      */
-    public function __invoke(int $lead_id, string $action, array $data = []): array
+    public function __invoke(int $lead_id, string $action, ?array $data = null): array
     {
+        $data ??= [];
+
         $action = trim($action);
         if ($action === '') {
             return [

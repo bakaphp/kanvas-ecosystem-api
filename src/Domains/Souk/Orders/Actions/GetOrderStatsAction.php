@@ -9,6 +9,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Enums\DateGroupByEnum;
+use Kanvas\Souk\Orders\Enums\OrderStatsExcludeModeEnum;
 use Kanvas\Souk\Orders\Helpers\DateGroupingHelper;
 use Kanvas\Souk\Orders\Helpers\DateHelper;
 use Kanvas\Souk\Orders\Models\Order;
@@ -29,6 +30,8 @@ class GetOrderStatsAction
         protected array $providerCompanyIds = [],
         protected array $providers = [],
         protected ?string $userEmail = null,
+        protected array $excludeStates = [],
+        protected OrderStatsExcludeModeEnum $excludeMode = OrderStatsExcludeModeEnum::CURRENT,
     ) {
         if ($this->productId) {
             $this->productVariantIds = DB::connection('inventory')
@@ -350,7 +353,10 @@ class GetOrderStatsAction
 
     private function getDailyTurnover($start, $end, string $timezone = 'UTC'): array
     {
+        $applyExclusion = $this->turnoverExclusionCallback($start, $end);
+
         $entries = OrderTransitionHistory::query()
+            ->when(! empty($this->excludeStates), $applyExclusion)
             ->selectRaw("COUNT(DISTINCT order_id) as count, DATE(CONVERT_TZ(changed_at, 'UTC', ?)) as date", [$timezone])
             ->whereBetween('changed_at', [$start, $end])
             ->groupBy('date')
@@ -385,6 +391,7 @@ class GetOrderStatsAction
             ->keyBy('date');
 
         $exits = OrderTransitionHistory::query()
+            ->when(! empty($this->excludeStates), $applyExclusion)
             ->selectRaw("COUNT(DISTINCT order_id) as count, DATE(CONVERT_TZ(changed_at, 'UTC', ?)) as date", [$timezone])
             ->whereBetween('changed_at', [$start, $end])
             ->groupBy('date')
@@ -453,6 +460,33 @@ class GetOrderStatsAction
             ],
             'data' => $byDates,
         ];
+    }
+
+    /**
+     * Build the exclusion clause applied to both entries and exits so an order in an excluded
+     * state (e.g. cancelled) counts as neither. CURRENT drops it whenever its current status is
+     * excluded; IN_RANGE only when it hit an excluded state inside the queried period.
+     */
+    private function turnoverExclusionCallback(Carbon $start, Carbon $end): callable
+    {
+        if ($this->excludeMode === OrderStatsExcludeModeEnum::CURRENT) {
+            return function ($query) {
+                $query->whereDoesntHave(
+                    'order',
+                    fn ($q) => $q->whereHas('orderStatus', fn ($sq) => $sq->whereIn('slug', $this->excludeStates))
+                );
+            };
+        }
+
+        $excludedOrderIds = OrderTransitionHistory::query()
+            ->where('apps_id', $this->app->id)
+            ->whereBetween('changed_at', [$start, $end])
+            ->whereHas('toStatus', fn ($q) => $q->whereIn('slug', $this->excludeStates))
+            ->distinct()
+            ->pluck('order_id')
+            ->all();
+
+        return fn ($query) => $query->whereNotIn('order_id', $excludedOrderIds);
     }
 
     private function getByProvider(Carbon $start, Carbon $end): array
