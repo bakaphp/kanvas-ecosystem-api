@@ -6,8 +6,8 @@ namespace Kanvas\Souk\Wallet\Actions;
 
 use Bavix\Wallet\Interfaces\Wallet as WalletInterface;
 use Bavix\Wallet\Models\Transaction;
-use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum;
@@ -106,7 +106,7 @@ abstract class AddFundsToWalletActionBase
      * 2. Order total if useOrderTotal is true
      * 3. Coin variant items (default)
      *
-     * @throws Exception
+     * @throws ValidationException
      */
     protected function calculateTotal(): float
     {
@@ -126,7 +126,7 @@ abstract class AddFundsToWalletActionBase
         }
 
         if ($total <= 0) {
-            throw new Exception('Total amount to deposit must be greater than zero.');
+            throw new ValidationException('This order has no funds to add to your wallet. Add a wallet product or a valid amount and try again.');
         }
 
         return $total;
@@ -162,7 +162,7 @@ abstract class AddFundsToWalletActionBase
      * Process transactions for all wallet types found in order items.
      *
      * @return Transaction[] Array of transactions keyed by wallet type
-     * @throws Exception
+     * @throws ValidationException
      */
     protected function processTransactionsByWalletType(): array
     {
@@ -183,7 +183,7 @@ abstract class AddFundsToWalletActionBase
         }
 
         if (empty($transactions)) {
-            throw new Exception('No valid wallet items found in order.');
+            throw new ValidationException('This order has no wallet products to add funds from.');
         }
 
         return $transactions;
@@ -192,7 +192,7 @@ abstract class AddFundsToWalletActionBase
     /**
      * Process the wallet transaction.
      *
-     * @throws Exception
+     * @throws ValidationException
      */
     protected function processTransaction(): Transaction
     {

@@ -28,7 +28,12 @@ trait ResolvesLeadForTool
     protected function resolveLeadOrError(int $leadId): Lead|array
     {
         try {
-            return Lead::getById($leadId);
+            // Scope to the tenant whenever the tool carries context (HasKanvasContext), so a
+            // hallucinated id resolves to nothing instead of another company's lead. Most tools
+            // using this trait have no context — they keep the unscoped lookup.
+            return isset($this->app, $this->company)
+                ? Lead::getByIdFromCompanyApp($leadId, $this->company, $this->app)
+                : Lead::getById($leadId);
         } catch (ModelNotFoundException) {
             return [
                 'status' => 'error',

@@ -11,15 +11,19 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
 #[AgentTool(name: 'Remember Knowledge', category: 'ecosystem')]
-class RememberKnowledgeTool extends Tool
+class RememberKnowledgeTool extends Tool implements HasRunKey
 {
+    use TrackByInputs;
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
