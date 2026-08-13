@@ -63,4 +63,57 @@ class CreateGoogleCalendarMeetingActionTest extends TestCase
         $this->assertNotNull($action->insertedEvent?->getConferenceData()?->getCreateRequest());
         $this->assertCount(2, $action->insertedEvent?->getAttendees() ?? []);
     }
+
+    public function testItRetriesWithoutMeetWhenTheCalendarRejectsTheConferenceType(): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $company->set(ConfigurationEnum::GOOGLE_CALENDAR_CONFIG->value, [
+            'calendar_id' => 'calendar@example.com',
+            'auth_profiles' => [
+                'service_account' => [
+                    'credentials_json' => ['type' => 'service_account'],
+                ],
+            ],
+        ]);
+
+        $action = new class (
+            company: $company,
+            name: 'Dealership Visit',
+            attendeeEmails: ['lead@example.com'],
+            startDateTime: Carbon::parse('2026-08-13 10:00', 'America/New_York'),
+            endDateTime: Carbon::parse('2026-08-13 10:30', 'America/New_York'),
+        ) extends CreateGoogleCalendarMeetingAction {
+            public int $attempts = 0;
+            public ?Event $insertedEvent = null;
+
+            protected function createCalendarService(array $config): Calendar
+            {
+                return new Calendar(new Client());
+            }
+
+            protected function insertEvent(Calendar $service, string $calendarId, Event $event): Event
+            {
+                $this->attempts++;
+                if ($this->attempts === 1) {
+                    throw new \RuntimeException('Google Calendar event creation failed: Invalid conference type value.');
+                }
+
+                $this->insertedEvent = $event;
+
+                return new Event([
+                    'id' => 'google-event-without-meet',
+                    'summary' => $event->getSummary(),
+                    'htmlLink' => 'https://calendar.google.com/event?id=without-meet',
+                ]);
+            }
+        };
+
+        $result = $action->execute();
+
+        $this->assertSame(2, $action->attempts);
+        $this->assertSame('google-event-without-meet', $result['id']);
+        $this->assertNull($result['meet_link']);
+        $this->assertNull($action->insertedEvent?->getConferenceData());
+        $this->assertSame(['lead@example.com'], $result['attendees']);
+    }
 }
