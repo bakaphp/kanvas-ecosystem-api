@@ -9,9 +9,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Actions\DeletePlanAction;
 use Kanvas\NervousSystem\Project\Models\Project;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -20,9 +22,10 @@ use Override;
  * Prefer status=done/cancelled via update_plan when the work actually happened or was decided against.
  */
 #[AgentTool(name: 'Delete Plan', category: 'nervous_system')]
-class DeleteNervousSystemPlanTool extends Tool
+class DeleteNervousSystemPlanTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
     use ResolvesPlanForTool;
 
     public function __construct()

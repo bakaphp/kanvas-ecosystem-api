@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Souk;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Actions\GetOrderStatsAction;
 use Kanvas\Souk\Orders\Enums\OrderStatsExcludeModeEnum;
@@ -14,6 +15,14 @@ use Kanvas\Souk\Orders\Models\OrderTypes;
 
 class OrderStatsExclusionTest extends OrderBase
 {
+    use DatabaseTransactions;
+
+    /**
+     * Turnover counts transition history app-wide, so seeded orders would otherwise
+     * accumulate across the test methods and inflate the counts.
+     */
+    protected $connectionsToTransact = ['commerce', 'inventory'];
+
     protected string $orderTypeName = 'reservation';
 
     /** @var array<string, int> slug => order_status_id */

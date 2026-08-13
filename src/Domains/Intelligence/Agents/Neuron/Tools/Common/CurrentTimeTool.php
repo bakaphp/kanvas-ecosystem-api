@@ -16,14 +16,14 @@ use Throwable;
 #[AgentTool(name: 'Current Time', category: 'ecosystem')]
 class CurrentTimeTool extends Tool
 {
-    public function __construct()
+    public function __construct(private readonly ?string $defaultTimezone = null)
     {
         parent::__construct(
             name: 'get_current_time',
             description: 'Get the current date and time. Use this to anchor any time-relative reasoning '
-                . '(e.g. interpreting "Sunday", "tomorrow", "yesterday" in the conversation history) '
-                . 'before deciding what to do. Pass an IANA timezone (e.g. "America/New_York") to get '
-                . 'time in a specific zone; defaults to UTC.',
+                . '("in 1 minute", "tomorrow at 3pm", "Sunday") before deciding what to do — the returned '
+                . 'time is already in the user\'s local timezone, so do your math in that same local time. '
+                . 'Pass an IANA timezone (e.g. "America/New_York") to override the zone.',
         );
     }
 
@@ -61,6 +61,9 @@ class CurrentTimeTool extends Tool
     private function resolveTimezone(?string $timezone): string
     {
         $trimmed = $timezone !== null ? trim($timezone) : '';
+        if ($trimmed === '') {
+            $trimmed = trim((string) $this->defaultTimezone);
+        }
         if ($trimmed === '') {
             return 'UTC';
         }

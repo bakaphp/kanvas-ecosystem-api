@@ -8,10 +8,12 @@ use Baka\Http\SafeUrlFetcher;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithDrawings;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Events\AfterSheet;
+use Override;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -19,7 +21,7 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Drawing;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use Throwable;
 
-class OrderPaymentsStatsExportExcel implements WithEvents, ShouldAutoSize, WithDrawings
+class OrderPaymentsStatsExportExcel implements FromArray, WithEvents, ShouldAutoSize, WithDrawings
 {
     private const DEFAULT_HEADER_BG = '5D8A66';
     private const HEADER_FG         = 'FFFFFF';
@@ -101,6 +103,16 @@ class OrderPaymentsStatsExportExcel implements WithEvents, ShouldAutoSize, WithD
     private function label(string $key): string
     {
         return self::LABELS[$this->language][$key] ?? self::LABELS['en'][$key] ?? $key;
+    }
+
+    /**
+     * The sheet content is drawn entirely in the AfterSheet event; this only
+     * satisfies the Export marker interface maatwebsite/excel requires.
+     */
+    #[Override]
+    public function array(): array
+    {
+        return [];
     }
 
     public function registerEvents(): array

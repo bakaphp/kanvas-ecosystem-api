@@ -12,6 +12,7 @@ use Kanvas\Event\Support\Setup;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CalendarEventTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CancelCalendarEventTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\EventConfigurationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\RescheduleCalendarEventTool;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
@@ -24,6 +25,36 @@ use Tests\TestCase;
 class RescheduleCalendarEventToolTest extends TestCase
 {
     use DatabaseTransactions;
+
+    public function testCreateCalendarEventAcceptsExplicitCompanyConfiguration(): void
+    {
+        [, , $lead] = $this->bootstrap();
+        $lead->email = 'prospect@example.com';
+        $lead->saveQuietly();
+        $configuration = new EventConfigurationTool()->__invoke($lead->getId());
+        $catalogs = $configuration['event_configuration'];
+        $category = $catalogs['categories'][0];
+
+        $created = new CalendarEventTool()->__invoke(
+            lead_id: $lead->getId(),
+            title: 'Configured Meeting ' . uniqid(),
+            attendee_emails: ['max@kanvas.dev'],
+            start_datetime: '2026-06-20 10:00',
+            end_datetime: '2026-06-20 10:30',
+            theme_id: $catalogs['themes'][0]['id'],
+            theme_area_id: $catalogs['theme_areas'][0]['id'],
+            status_id: $catalogs['statuses'][0]['id'],
+            type_id: $category['event_type_id'],
+            class_id: $category['event_class_id'],
+            category_id: $category['id'],
+        );
+
+        $this->assertSame('success', $created['status'], json_encode($created));
+        $this->assertSame(
+            ['max@kanvas.dev', 'prospect@example.com'],
+            collect($created['event']['attendees'])->sort()->values()->all(),
+        );
+    }
 
     public function testRescheduleMovesAppointmentAndFreesOldSlot(): void
     {

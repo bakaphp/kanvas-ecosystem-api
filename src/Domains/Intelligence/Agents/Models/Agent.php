@@ -21,7 +21,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
@@ -34,6 +33,7 @@ use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
@@ -83,7 +83,11 @@ class Agent extends BaseModel
     }
     use HasLightHouseCache;
 
-    protected $cascadeDeletes = ['deployments', 'swarmMemberships'];
+    protected $cascadeDeletes = [
+        'deployments',
+        'swarmMemberships',
+        'scheduledActions',
+    ];
 
     protected $fillable = [
         'uuid',
@@ -141,11 +145,6 @@ class Agent extends BaseModel
             'is_sub_agent' => 'boolean',
             'last_state_changed_at' => 'datetime',
         ];
-    }
-
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
     }
 
     public function type(): BelongsTo
@@ -241,6 +240,12 @@ class Agent extends BaseModel
         return $this->hasMany(AgentDailyCycle::class, 'agent_id', 'id')
             ->where('agent_daily_cycles.is_deleted', 0)
             ->orderBy('cycle_date', 'desc');
+    }
+
+    public function scheduledActions(): HasMany
+    {
+        return $this->hasMany(ScheduledAction::class, 'agent_id', 'id')
+            ->where('nervous_system_scheduled_actions.is_deleted', 0);
     }
 
     public function latestDailyCycle(): HasOne

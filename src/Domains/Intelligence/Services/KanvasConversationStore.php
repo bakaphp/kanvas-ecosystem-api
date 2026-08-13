@@ -268,6 +268,43 @@ class KanvasConversationStore implements ConversationStore
         );
     }
 
+    /**
+     * Append a single assistant message to the conversation of an existing session — for out-of-band
+     * writers (a background job firing a scheduled reminder) that have no `auth()` user and must NOT
+     * create a divergent conversation. Explicit tenant ids (the job's app/company), and the message is
+     * stamped with the conversation's own `user_id` so it lands in the exact thread the human is viewing.
+     * Returns null when there's no conversation for that session yet (the live chat hasn't created one).
+     */
+    public function appendAssistantMessageForSession(
+        int $appsId,
+        int $companiesId,
+        string $sessionId,
+        string $agentClass,
+        string $content,
+        ?int $agentId = null,
+    ): ?string {
+        $query = DB::connection('intelligence')->table('agent_conversations')
+            ->where('apps_id', $appsId)
+            ->where('companies_id', $companiesId)
+            ->where('title', $sessionId);
+
+        $conversation = ($agentId !== null ? $query->where('agent_id', $agentId) : $query)
+            ->orderByDesc('created_at')
+            ->first();
+
+        if ($conversation === null) {
+            return null;
+        }
+
+        return $this->insertMessage(
+            (string) $conversation->id,
+            (int) $conversation->user_id,
+            $agentClass,
+            'assistant',
+            $content,
+        );
+    }
+
     protected function findOrCreateConversationBySession(int $userId, string $sessionId, ?int $agentId = null): string
     {
         [$appsId, $companiesId] = $this->tenantIds();

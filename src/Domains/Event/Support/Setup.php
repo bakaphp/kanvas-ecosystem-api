@@ -53,7 +53,7 @@ class Setup
         ['name' => 'Webinar', 'setup' => 'full'],
         ['name' => 'Networking', 'setup' => 'full'],
         ['name' => 'Festival', 'setup' => 'full'],
-        ['name' => 'Appointment', 'setup' => 'standard'],
+        ['name' => 'Appointment', 'is_default' => 1, 'setup' => 'standard'],
     ];
 
     /** @var array<int, array<string, mixed>> */
@@ -126,12 +126,17 @@ class Setup
         }
 
         foreach ($this->filterBySetupType($this->eventTypes) as $type) {
-            EventType::firstOrCreate([
+            $eventType = EventType::firstOrCreate([
                 'name' => $type['name'],
                 'companies_id' => $this->company->getId(),
                 'apps_id' => $this->app->getId(),
                 'users_id' => $this->user->getId(),
             ]);
+
+            if (($type['is_default'] ?? 0) === 1 && ! $eventType->is_default) {
+                $eventType->is_default = 1;
+                $eventType->saveOrFail();
+            }
         }
 
         foreach ($this->filterBySetupType($this->eventStatuses) as $key => $status) {

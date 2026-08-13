@@ -57,13 +57,15 @@ class AddCostToCartAction
         }, $this->cart->getContent()->toArray());
 
         $fee = collect($fees);
-        $total = $fee->sum('total');
         $customTaxTotal = $fee->sum('customTax');
-
-        // The pricing strategy treats the per-pound service fee and the merchandise
-        // markup as separate charges. The markup applies to merchandise only.
-        $markUp = $cartSubtotal * 0.15;
-        $total += $markUp;
+        $shippingCost = (float) ($this->app->get(ShippingCostEnum::SHIPPING_HANDLING_FEE->value) ?? 2.50);
+        $airportFee = (float) ($this->app->get(ShippingCostEnum::AIRPORT_FEE->value) ?? 0.07);
+        $customsFee = (float) ($this->app->get(ShippingCostEnum::CUSTOM_SERVICE->value) ?? 0.15);
+        $fuelSurcharge = (float) ($this->app->get(ShippingCostEnum::FUEL->value) ?? 1.02);
+        $insurance = $cartSubtotal > 100 ? $cartSubtotal * 0.016 : 0.0;
+        $otherFees = $airportFee + $customsFee + $fuelSurcharge + $insurance;
+        $serviceFee = (float) ($this->app->get(ShippingCostEnum::SERVICE_FEE->value) ?? 3.50);
+        $total = $shippingCost + $otherFees + $serviceFee;
 
         // Collect detailed tax breakdown
         $customTaxDetails = $fee->where('customTaxInfo.customTax', '>', 0)
@@ -104,10 +106,10 @@ class AddCostToCartAction
             'target' => 'subtotal',
             'value' => '+' . ($total + $customTaxTotal),
             'attributes' => [
-                'Shipping Cost' => $fee->sum('shippingCost'),
-                'Other Fees' => $fee->sum('otherFee'),
-                'Service Fee' => $fee->sum('serviceFee'),
-                'Mark-Up / Comm Rev' => $markUp,
+                'Shipping Cost' => $shippingCost,
+                'Other Fees' => $otherFees,
+                'Service Fee' => $serviceFee,
+                'Insurance Fee' => $insurance,
                 'Pounds' => $fee->sum('pounds'),
                 'Last Mile' => 0,
                 'Custom Tax' => $customTaxTotal,
