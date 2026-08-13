@@ -220,7 +220,8 @@
         },
         "google/apiclient-services": [
             "Calendar",
-            "Sheets"
+            "Sheets",
+            "Gmail"
         ]
     },
     "config": {

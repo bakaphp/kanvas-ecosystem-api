@@ -35,9 +35,11 @@ under the key `google-sheets-credentials` (`ConfigurationEnum::GOOGLE_SHEETS_CRE
 
 ### Per-app configuration
 
-Store the downloaded JSON on the Kanvas app that will run the tool. There is no admin UI for
-this yet — use the existing `setAppSetting` GraphQL mutation (the same one used to configure
-Acumatica/Google Calendar), authenticated with that app's admin app key:
+Store the downloaded JSON on the Kanvas app that will run the tool. In production, use the same
+**Settings → Key Configurations** admin panel already used for Acumatica — add a new key named
+`google-sheets-credentials` with the entire downloaded JSON file's content as its value. That
+panel wraps the same `setAppSetting` GraphQL mutation shown below, which can also be called
+directly (authenticated with that app's admin app key):
 
 ```graphql
 mutation SetGoogleSheetsCredentials($input: ModuleConfigInput!) {
