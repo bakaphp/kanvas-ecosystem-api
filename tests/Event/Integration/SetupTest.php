@@ -44,6 +44,7 @@ final class SetupTest extends TestCase
 
         $this->assertEquals('Business', Theme::fromApp($app)->fromCompany($company)->first()->name);
         $this->assertEquals('Appointment', EventType::fromApp($app)->fromCompany($company)->first()->name);
+        $this->assertSame(1, (int) EventType::fromApp($app)->fromCompany($company)->first()->is_default);
         $this->assertEquals('Free', EventClass::fromApp($app)->fromCompany($company)->first()->name);
     }
 

@@ -1,0 +1,66 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Connectors\Google;
+
+use Carbon\Carbon;
+use Google\Client;
+use Google\Service\Calendar;
+use Google\Service\Calendar\Event;
+use Kanvas\Connectors\Google\Actions\CreateGoogleCalendarMeetingAction;
+use Kanvas\Connectors\Google\Enums\ConfigurationEnum;
+use Tests\TestCase;
+
+class CreateGoogleCalendarMeetingActionTest extends TestCase
+{
+    public function testItCreatesAnEventWithAttendeesAndConferenceDataUsingTheOfficialClient(): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $company->set(ConfigurationEnum::GOOGLE_CALENDAR_CONFIG->value, [
+            'calendar_id' => 'calendar@example.com',
+            'auth_profiles' => [
+                'service_account' => [
+                    'credentials_json' => ['type' => 'service_account'],
+                ],
+            ],
+        ]);
+
+        $action = new class (
+            company: $company,
+            name: 'Finance Meeting',
+            attendeeEmails: ['lead@example.com', 'owner@example.com', 'lead@example.com', 'invalid'],
+            startDateTime: Carbon::parse('2026-08-13 10:00', 'America/New_York'),
+            endDateTime: Carbon::parse('2026-08-13 10:30', 'America/New_York'),
+        ) extends CreateGoogleCalendarMeetingAction {
+            public ?Event $insertedEvent = null;
+
+            protected function createCalendarService(array $config): Calendar
+            {
+                return new Calendar(new Client());
+            }
+
+            protected function insertEvent(Calendar $service, string $calendarId, Event $event): Event
+            {
+                $this->insertedEvent = $event;
+
+                return new Event([
+                    'id' => 'google-event-123',
+                    'summary' => $event->getSummary(),
+                    'description' => $event->getDescription(),
+                    'hangoutLink' => 'https://meet.google.com/abc-defg-hij',
+                    'htmlLink' => 'https://calendar.google.com/event?id=123',
+                ]);
+            }
+        };
+
+        $result = $action->execute();
+
+        $this->assertSame('google-event-123', $result['id']);
+        $this->assertSame('calendar@example.com', $result['calendar_id']);
+        $this->assertSame(['lead@example.com', 'owner@example.com'], $result['attendees']);
+        $this->assertSame('https://meet.google.com/abc-defg-hij', $result['meet_link']);
+        $this->assertNotNull($action->insertedEvent?->getConferenceData()?->getCreateRequest());
+        $this->assertCount(2, $action->insertedEvent?->getAttendees() ?? []);
+    }
+}
