@@ -65,11 +65,8 @@ class CreateEngagementPageToolTest extends TestCase
         $result = $tool->__invoke(
             lead_id: $lead->getId(),
             action: 'view-vehicle',
-            data: [
-                'products' => [
-                    ['id' => 'vehicle-1', 'interested' => true],
-                ],
-            ],
+            product_id: ['019ff997-7dda-7386-8569-66b0308900ac'],
+            channel_id: 'f174baa4-1647-4722-8907-d2a39ef3af53',
         );
 
         $this->assertSame('success', $result['status']);
@@ -84,7 +81,14 @@ class CreateEngagementPageToolTest extends TestCase
         $this->assertSame('agent', $tool->receivedData?->via);
         $this->assertSame($agentUser->getId(), $tool->receivedData?->user->getId());
         $this->assertNotSame($requestingUser->getId(), $tool->receivedData?->user->getId());
-        $this->assertTrue($tool->receivedData?->data['products'][0]['interested']);
+        $this->assertSame(
+            ['019ff997-7dda-7386-8569-66b0308900ac'],
+            $tool->receivedData?->data['product_id'],
+        );
+        $this->assertSame(
+            'f174baa4-1647-4722-8907-d2a39ef3af53',
+            $tool->receivedData?->data['channel_id'],
+        );
     }
 
     public function testRejectsMissingActionAndUnknownTenantLead(): void
