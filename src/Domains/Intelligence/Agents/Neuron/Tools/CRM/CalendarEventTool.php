@@ -7,6 +7,12 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Carbon\Carbon;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventData;
+use Kanvas\Event\Events\Models\EventCategory;
+use Kanvas\Event\Events\Models\EventClass;
+use Kanvas\Event\Events\Models\EventStatus;
+use Kanvas\Event\Events\Models\EventType;
+use Kanvas\Event\Themes\Models\Theme;
+use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
@@ -28,6 +34,7 @@ class CalendarEventTool extends Tool
         parent::__construct(
             name: 'create_calendar_event',
             description: 'Create a NEW internal calendar event (appointment / demo) for the lead owner in the Kanvas Event domain. '
+                . 'Call get_event_configuration first and pass all six company-scoped configuration IDs returned by it. '
                 . 'Use this once the prospect has agreed on a specific date and time. '
                 . 'The event will appear in subsequent availability checks so the same slot cannot be double-booked. '
                 . 'IMPORTANT: if the lead ALREADY has an upcoming appointment (see get_lead_ref appointments.upcoming), '
@@ -54,7 +61,7 @@ class CalendarEventTool extends Tool
             ),
             new ArrayProperty(
                 name: 'attendee_emails',
-                description: 'List of attendee emails for the event (stored on the event description for now).',
+                description: 'Additional attendee emails for the event. The lead email is added automatically.',
                 required: true,
                 items: new ToolProperty(
                     name: 'email',
@@ -87,6 +94,42 @@ class CalendarEventTool extends Tool
                 description: 'Optional meeting URL (Zoom / Meet / etc.) to attach to the event.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'theme_id',
+                type: PropertyType::INTEGER,
+                description: 'Theme ID returned by get_event_configuration.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'theme_area_id',
+                type: PropertyType::INTEGER,
+                description: 'Theme area ID returned by get_event_configuration.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'status_id',
+                type: PropertyType::INTEGER,
+                description: 'Event status ID returned by get_event_configuration.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'type_id',
+                type: PropertyType::INTEGER,
+                description: 'Event type ID returned by get_event_configuration.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'class_id',
+                type: PropertyType::INTEGER,
+                description: 'Event class ID returned by get_event_configuration.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'category_id',
+                type: PropertyType::INTEGER,
+                description: 'Event category ID returned by get_event_configuration.',
+                required: true,
+            ),
         ];
     }
 
@@ -98,6 +141,12 @@ class CalendarEventTool extends Tool
         string $end_datetime,
         ?string $description = null,
         ?string $meeting_link = null,
+        ?int $theme_id = null,
+        ?int $theme_area_id = null,
+        ?int $status_id = null,
+        ?int $type_id = null,
+        ?int $class_id = null,
+        ?int $category_id = null,
     ): array {
         $result = $this->resolveLeadOrError($lead_id);
         if (is_array($result)) {
@@ -107,6 +156,8 @@ class CalendarEventTool extends Tool
 
         $company = $lead->company;
         $owner = $lead->owner;
+
+        $attendee_emails = $this->resolveAttendeeEmails($lead, $attendee_emails);
 
         if ($owner === null) {
             return [
@@ -141,6 +192,61 @@ class CalendarEventTool extends Tool
             ];
         }
 
+        $configurationIds = [
+            'theme_id' => $theme_id,
+            'theme_area_id' => $theme_area_id,
+            'status_id' => $status_id,
+            'type_id' => $type_id,
+            'class_id' => $class_id,
+            'category_id' => $category_id,
+        ];
+        $providedConfigurationIds = array_filter($configurationIds, static fn (?int $id): bool => $id !== null);
+
+        // Keep the legacy all-default path temporarily, but never allow a partially specified configuration.
+        if ($providedConfigurationIds !== [] && count($providedConfigurationIds) !== count($configurationIds)) {
+            return [
+                'status' => 'error',
+                'message' => 'Incomplete Event configuration. Call get_event_configuration and pass theme_id, '
+                    . 'theme_area_id, status_id, type_id, class_id, and category_id.',
+            ];
+        }
+
+        if ($providedConfigurationIds !== []) {
+            $models = [
+                'theme_id' => Theme::class,
+                'theme_area_id' => ThemeArea::class,
+                'status_id' => EventStatus::class,
+                'type_id' => EventType::class,
+                'class_id' => EventClass::class,
+                'category_id' => EventCategory::class,
+            ];
+
+            foreach ($models as $field => $modelClass) {
+                $exists = $modelClass::query()
+                    ->where('id', $configurationIds[$field])
+                    ->where('apps_id', $lead->apps_id)
+                    ->where('companies_id', $company->getId())
+                    ->where('is_deleted', 0)
+                    ->exists();
+
+                if (! $exists) {
+                    return [
+                        'status' => 'error',
+                        'message' => "Invalid {$field}. Use an ID returned by get_event_configuration for this lead.",
+                    ];
+                }
+            }
+
+            $category = EventCategory::getById((int) $category_id);
+            if ((int) $category->event_type_id !== $type_id || (int) $category->event_class_id !== $class_id) {
+                return [
+                    'status' => 'error',
+                    'message' => 'The selected category does not belong to the selected event type and class. '
+                        . 'Use the event_type_id and event_class_id returned with the category.',
+                ];
+            }
+        }
+
         $attendeeBlock = $attendee_emails === [] ? '' : "\nAttendees: " . implode(', ', $attendee_emails);
         $fullDescription = trim(($description ?? '') . $attendeeBlock);
 
@@ -153,6 +259,12 @@ class CalendarEventTool extends Tool
                     'name' => $title,
                     'description' => $fullDescription !== '' ? $fullDescription : null,
                     'meeting_link' => $meeting_link,
+                    'theme_id' => $theme_id,
+                    'theme_area_id' => $theme_area_id,
+                    'status_id' => $status_id,
+                    'type_id' => $type_id,
+                    'class_id' => $class_id,
+                    'category_id' => $category_id,
                     'dates' => [
                         [
                             'date' => $start->format('Y-m-d'),
@@ -205,5 +317,21 @@ class CalendarEventTool extends Tool
                 'meeting_link' => $meeting_link,
             ],
         ];
+    }
+
+    /**
+     * Always invite the lead without relying on the agent to repeat contact data.
+     *
+     * @param array<int, mixed> $additionalEmails
+     * @return array<int, string>
+     */
+    protected function resolveAttendeeEmails(Lead $lead, array $additionalEmails): array
+    {
+        return collect([$lead->email, ...$additionalEmails])
+            ->filter(fn (mixed $email): bool => is_string($email) && filter_var(trim($email), FILTER_VALIDATE_EMAIL) !== false)
+            ->map(fn (string $email): string => strtolower(trim($email)))
+            ->unique()
+            ->values()
+            ->all();
     }
 }

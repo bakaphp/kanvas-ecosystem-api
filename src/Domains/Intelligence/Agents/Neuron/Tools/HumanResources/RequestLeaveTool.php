@@ -9,9 +9,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEmployeeForTool;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -21,12 +23,13 @@ use Override;
  * a manager still approves it via decide_leave elsewhere.
  */
 #[AgentTool(name: 'Request Leave', category: 'human_resources')]
-class RequestLeaveTool extends Tool
+class RequestLeaveTool extends Tool implements HasRunKey
 {
     use GuardsAdminForTool;
     use HandlesLeaveForTool;
     use HasKanvasContext;
     use ResolvesEmployeeForTool;
+    use TrackByInputs;
 
     public function __construct()
     {

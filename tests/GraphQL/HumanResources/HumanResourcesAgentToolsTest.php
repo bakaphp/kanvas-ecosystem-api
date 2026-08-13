@@ -14,7 +14,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\CreateEmployeeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\CreatePositionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\FindEmployeeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\GetEmployeeLeaveBalanceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\GetMyLeaveBalanceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\RequestLeaveTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\RequestMyLeaveTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\UpdateEmployeeTool;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
@@ -306,6 +308,35 @@ class HumanResourcesAgentToolsTest extends TestCase
         $keyAliceAgain = $find->setInputs(['query' => 'alice@x.com'])->getRunKey();
         $this->assertNotEquals($keyAlice, $keyBob, 'Distinct lookups must not share a run budget.');
         $this->assertEquals($keyAlice, $keyAliceAgain, 'Identical lookups collapse to one key so a loop is still capped.');
+    }
+
+    /**
+     * HR staff drive these tools per-row over a CSV, so EVERY HR tool the agent can call once-per-person
+     * must key its run budget by inputs — otherwise the 11th distinct call in a turn trips the per-tool
+     * cap (Sentry KANVAS-ECOSYSTEM-621, seen on update_employee mid-CSV).
+     */
+    public function testEveryHrToolKeysItsRunBudgetByInputs(): void
+    {
+        $tools = [
+            new FindEmployeeTool(),
+            new CreatePositionTool(),
+            new CreateEmployeeTool(),
+            new UpdateEmployeeTool(),
+            new GetEmployeeLeaveBalanceTool(),
+            new RequestLeaveTool(),
+            new GetMyLeaveBalanceTool(),
+            new RequestMyLeaveTool(),
+        ];
+
+        foreach ($tools as $tool) {
+            $this->assertInstanceOf(HasRunKey::class, $tool, $tool::class . ' must key runs by inputs.');
+
+            $keyA = $tool->setInputs(['x' => 'a'])->getRunKey();
+            $keyB = $tool->setInputs(['x' => 'b'])->getRunKey();
+            $keyARepeat = $tool->setInputs(['x' => 'a'])->getRunKey();
+            $this->assertNotEquals($keyA, $keyB, $tool::class . ': distinct inputs need distinct budgets.');
+            $this->assertEquals($keyA, $keyARepeat, $tool::class . ': identical inputs must still collapse to cap loops.');
+        }
     }
 
     public function testCreateEmployeeToolOnboardsExistingUser(): void

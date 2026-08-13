@@ -8,8 +8,10 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Models\EventType;
+use Kanvas\Event\Support\Setup;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\BookingOptionsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\EventConfigurationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FaqLookupTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\StopContactTool;
@@ -153,6 +155,36 @@ class ReceptionistToolsTest extends TestCase
         $this->assertNotContains('OtherCompanyOnlyService', $result['service_types']);
         $this->assertSame(30, $result['default_duration_minutes']);
         $this->assertNotNull($result['assigned_owner']);
+    }
+
+    public function testEventConfigurationReturnsAllCompanyScopedCatalogs(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $lead = $this->makeLead();
+        new Setup($app, auth()->user(), $company)->run();
+
+        $result = new EventConfigurationTool()->__invoke(lead_id: $lead->getId());
+
+        $this->assertSame('success', $result['status']);
+        $this->assertTrue($result['complete']);
+        $this->assertNotEmpty($result['event_configuration']['themes']);
+        $this->assertNotEmpty($result['event_configuration']['theme_areas']);
+        $this->assertNotEmpty($result['event_configuration']['statuses']);
+        $this->assertNotEmpty($result['event_configuration']['types']);
+        $this->assertNotEmpty($result['event_configuration']['classes']);
+        $this->assertNotEmpty($result['event_configuration']['categories']);
+        $this->assertTrue($result['defaults_complete']);
+        $this->assertNotNull($result['event_configuration']['defaults']['theme_id']);
+        $this->assertNotNull($result['event_configuration']['defaults']['theme_area_id']);
+        $this->assertNotNull($result['event_configuration']['defaults']['status_id']);
+        $this->assertNotNull($result['event_configuration']['defaults']['type_id']);
+        $this->assertNotNull($result['event_configuration']['defaults']['class_id']);
+        $this->assertNotNull($result['event_configuration']['defaults']['category_id']);
+
+        $category = $result['event_configuration']['categories'][0];
+        $this->assertArrayHasKey('event_type_id', $category);
+        $this->assertArrayHasKey('event_class_id', $category);
     }
 
     public function testUpdateLeadToolUpdatesPeopleContact(): void

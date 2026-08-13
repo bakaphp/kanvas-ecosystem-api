@@ -17,6 +17,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 {
     private const string WORKING = ':hourglass_flowing_sand: working on it…';
     private const string FAILED = ':warning: Something went wrong on my side. Try again.';
+    private const string REPLY_UNDELIVERABLE = ':white_check_mark: Done — but my reply was too long to post here.';
 
     protected string $messageTypeVerb = 'slack';
     protected string $communicationChannel = 'slack';
@@ -71,12 +72,25 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         );
 
         if (! $reply->is_locked) {
-            $client->updateMessageWithOverflow(
-                $slackChannelId,
-                $placeholderTs,
-                SlackMarkdownService::toMrkdwn($responseText),
-                $threadTs !== '' ? $threadTs : null,
-            );
+            try {
+                $client->updateMessageWithOverflow(
+                    $slackChannelId,
+                    $placeholderTs,
+                    SlackMarkdownService::toMrkdwn($responseText),
+                    $threadTs !== '' ? $threadTs : null,
+                );
+            } catch (Throwable $e) {
+                report($e);
+
+                try {
+                    $client->updateMessage(
+                        $slackChannelId,
+                        $placeholderTs,
+                        self::REPLY_UNDELIVERABLE
+                    );
+                } catch (Throwable) {
+                }
+            }
         }
 
         return [

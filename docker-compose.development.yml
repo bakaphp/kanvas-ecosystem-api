@@ -169,6 +169,15 @@ services:
       - "php artisan config:cache && php artisan queue:work
         --queue=nervous-system-project --tries=3 --timeout=3750"
 
+  scheduled-actions-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work
+        --queue=scheduled-actions --tries=3 --timeout=3750"
+
   scribe-aging-queue:
     <<: *common-queue-settings
     # REMOVED container_name because replicas > 1
