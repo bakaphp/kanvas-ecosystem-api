@@ -34,6 +34,10 @@ class TimeSlotBookingMutation
             ->fromCompany($company)
             ->findOrFail($input['time_slot_id']);
 
+        if ($timeSlot->hasStarted()) {
+            throw new ValidationException('This time slot has already started and can no longer be booked. Slot start: ' . $timeSlot->start_at->toDateTimeString());
+        }
+
         // Validate capacity before booking
         $participantCount = count($input['participants'] ?? []);
         if (! $timeSlot->hasAvailableCapacity($participantCount)) {
@@ -112,6 +116,10 @@ class TimeSlotBookingMutation
         $newTimeSlot = TimeSlots::fromApp($app)
             ->fromCompany($company)
             ->findOrFail($input['new_time_slot_id']);
+
+        if ($newTimeSlot->hasStarted()) {
+            throw new ValidationException('This time slot has already started and can no longer be booked. Slot start: ' . $newTimeSlot->start_at->toDateTimeString());
+        }
 
         // Validate capacity for the new time slot
         $participantCount = count($input['participants'] ?? $eventVersion->participants ?? []);

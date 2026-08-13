@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
@@ -62,6 +63,20 @@ class TimeSlots extends BaseModel
     public function isStandalone(): bool
     {
         return $this->schedule_rules_id === null;
+    }
+
+    /**
+     * A slot stops being bookable the moment it starts. Booking a started slot used to be
+     * allowed and only blew up later in CreatePassAction — after the customer had paid.
+     */
+    public function hasStarted(): bool
+    {
+        return $this->start_at !== null && $this->start_at->isPast();
+    }
+
+    public function scopeUpcoming(Builder $query): Builder
+    {
+        return $query->where('start_at', '>', now());
     }
 
     /**
