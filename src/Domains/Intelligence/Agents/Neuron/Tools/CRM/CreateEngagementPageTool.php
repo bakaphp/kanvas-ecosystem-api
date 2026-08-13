@@ -32,9 +32,10 @@ class CreateEngagementPageTool extends Tool
     {
         parent::__construct(
             name: 'create_engagement_page',
-            description: 'Create one tracked Action Engine page for a lead and return its action URL. '
+            description: 'Create one tracked Action Engine page and its internal message for a lead, then return its action URL. '
                 . 'Use an action slug such as view-vehicle, get-docs, credit-app or add-trade. '
-                . 'This tool does not contact the customer; pass the returned action_link to send_sms or send_email.',
+                . 'For view-vehicle, pass the selected vehicle UUIDs in product_id. '
+                . 'This tool does not contact the customer; pass the returned action_link to send_sms or send_email only when instructed.',
         );
     }
 
@@ -60,7 +61,24 @@ class CreateEngagementPageTool extends Tool
             new ToolProperty(
                 name: 'data',
                 type: PropertyType::OBJECT,
-                description: 'Action-specific page payload. For view-vehicle, provide a products array and mark the selected vehicle with interested=true.',
+                description: 'Additional action-specific page payload. Do not use this field for vehicle or channel IDs.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'product_id',
+                type: PropertyType::ARRAY,
+                description: 'Selected vehicle variant UUIDs. Use this for view-vehicle so the generated message follows the Share Product format.',
+                required: false,
+                items: new ToolProperty(
+                    name: 'vehicle_uuid',
+                    type: PropertyType::STRING,
+                    description: 'A selected vehicle variant UUID.',
+                ),
+            ),
+            new ToolProperty(
+                name: 'channel_id',
+                type: PropertyType::STRING,
+                description: 'Optional engagement channel UUID to preserve in the generated message payload.',
                 required: false,
             ),
         ];
@@ -71,7 +89,13 @@ class CreateEngagementPageTool extends Tool
      *
      * @return array<string, mixed>
      */
-    public function __invoke(int $lead_id, string $action, array $data = []): array
+    public function __invoke(
+        int $lead_id,
+        string $action,
+        array $data = [],
+        array $product_id = [],
+        ?string $channel_id = null,
+    ): array
     {
         $action = trim($action);
         if ($action === '') {
@@ -98,6 +122,8 @@ class CreateEngagementPageTool extends Tool
                     'message' => 'The agent must have an acting user configured to create an engagement page.',
                 ];
             }
+
+            $data = $this->normalizeActionData($action, $data, $product_id, $channel_id);
 
             $engagement = $this->createEngagement(new EngagementData(
                 app: $this->app,
@@ -144,6 +170,41 @@ class CreateEngagementPageTool extends Tool
             'action_link' => $actionLink,
             'delivery' => 'not_sent',
         ];
+    }
+
+    /**
+     * Preserve the historical Action Engine message shape used by Share Product.
+     *
+     * @param array<string, mixed> $data
+     * @param array<int, string> $productIds
+     *
+     * @return array<string, mixed>
+     */
+    protected function normalizeActionData(string $action, array $data, array $productIds, ?string $channelId): array
+    {
+        if ($action !== 'view-vehicle') {
+            return $data;
+        }
+
+        if ($productIds === [] && isset($data['products']) && is_array($data['products'])) {
+            $productIds = array_values(array_filter(array_map(
+                static fn (mixed $product): ?string => is_array($product) && isset($product['id']) && is_string($product['id'])
+                    ? $product['id']
+                    : null,
+                $data['products'],
+            )));
+            unset($data['products']);
+        }
+
+        if ($productIds !== []) {
+            $data['product_id'] = array_values($productIds);
+        }
+
+        if (is_string($channelId) && trim($channelId) !== '') {
+            $data['channel_id'] = trim($channelId);
+        }
+
+        return $data;
     }
 
     protected function createEngagement(EngagementData $data): Engagement

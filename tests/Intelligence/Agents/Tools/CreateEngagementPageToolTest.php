@@ -65,11 +65,8 @@ class CreateEngagementPageToolTest extends TestCase
         $result = $tool->__invoke(
             lead_id: $lead->getId(),
             action: 'view-vehicle',
-            data: [
-                'products' => [
-                    ['id' => 'vehicle-1', 'interested' => true],
-                ],
-            ],
+            product_id: ['019ff997-7dda-7386-8569-66b0308900ac'],
+            channel_id: 'f174baa4-1647-4722-8907-d2a39ef3af53',
         );
 
         $this->assertSame('success', $result['status']);
@@ -84,7 +81,57 @@ class CreateEngagementPageToolTest extends TestCase
         $this->assertSame('agent', $tool->receivedData?->via);
         $this->assertSame($agentUser->getId(), $tool->receivedData?->user->getId());
         $this->assertNotSame($requestingUser->getId(), $tool->receivedData?->user->getId());
-        $this->assertTrue($tool->receivedData?->data['products'][0]['interested']);
+        $this->assertSame(
+            ['019ff997-7dda-7386-8569-66b0308900ac'],
+            $tool->receivedData?->data['product_id'],
+        );
+        $this->assertSame(
+            'f174baa4-1647-4722-8907-d2a39ef3af53',
+            $tool->receivedData?->data['channel_id'],
+        );
+    }
+
+    public function testNormalizesLegacyVehicleProductsIntoHistoricalMessageData(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+        $lead = Lead::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create();
+        $message = new Message(['message' => ['action_link' => 'https://short.example/vehicle-page']]);
+        $engagement = new Engagement(['uuid' => '019c166e-c115-7000-8000-000000000003']);
+        $engagement->setRelation('message', $message);
+
+        $tool = new class ($agent, $engagement) extends CreateEngagementPageTool {
+            public ?EngagementData $receivedData = null;
+
+            public function __construct(Agent $agent, private readonly Engagement $engagementResult)
+            {
+                parent::__construct($agent);
+            }
+
+            protected function createEngagement(EngagementData $data): Engagement
+            {
+                $this->receivedData = $data;
+
+                return $this->engagementResult;
+            }
+        };
+        $tool->withContext($app, $company, $user);
+
+        $result = $tool->__invoke($lead->getId(), 'view-vehicle', [
+            'products' => [['id' => 'vehicle-1', 'interested' => true]],
+        ]);
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame(['vehicle-1'], $tool->receivedData?->data['product_id']);
+        $this->assertArrayNotHasKey('products', $tool->receivedData?->data ?? []);
     }
 
     public function testRejectsMissingActionAndUnknownTenantLead(): void
