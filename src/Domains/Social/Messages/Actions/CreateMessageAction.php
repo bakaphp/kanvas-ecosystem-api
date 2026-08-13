@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Channels\Models\Channel as ModelsChannel;
@@ -36,6 +37,12 @@ class CreateMessageAction
     public function execute(): Message
     {
         return DB::connection('social')->transaction(function () {
+            $privateAndLocked = in_array($this->messageInput->type->verb, ['agent-message', 'message'], true)
+                && filter_var(
+                    $this->messageInput->app->get(IntelligenceConfigurationEnum::PRIVATE_AND_LOCK_CONVERSATION_MESSAGES->value),
+                    FILTER_VALIDATE_BOOL,
+                );
+
             $data = [
                 'apps_id' => $this->messageInput->app->getId(),
                 'parent_id' => $this->messageInput->parent_id,
@@ -51,9 +58,9 @@ class CreateMessageAction
                 'total_saved' => $this->messageInput->total_saved,
                 'total_shared' => $this->messageInput->total_shared,
                 'ip_address' => $this->messageInput->ip_address,
-                'is_public' => $this->messageInput->is_public,
+                'is_public' => $privateAndLocked ? 0 : $this->messageInput->is_public,
                 'slug' => $this->messageInput->slug,
-                'is_locked' => $this->messageInput->is_locked,
+                'is_locked' => $privateAndLocked ? 1 : $this->messageInput->is_locked,
             ];
 
             $validator = Validator::make($data, [
