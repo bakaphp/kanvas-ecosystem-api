@@ -92,6 +92,51 @@ class ParticipantMapperTest extends TestCase
         $this->assertSame([], $mapped['contacts']);
     }
 
+    public function testResolvesNivelAndAreaThroughTheirLookupCatalogs(): void
+    {
+        $row = $this->participantRow([
+            'participants_levels_id' => 120151,
+            'themes_areas_id' => 8,
+            'departments_id' => 3,
+        ]);
+
+        $mapped = ParticipantMapper::fromIntras($row, [], $this->lookupNames());
+
+        $this->assertSame('Gerencia media', $mapped['custom_fields']['nivel']);
+        $this->assertSame('Recursos Humanos', $mapped['custom_fields']['area']);
+        $this->assertSame('Capital Humano', $mapped['custom_fields']['department']);
+    }
+
+    public function testSkipsProfileFieldWhenTheLookupRowIsMissingOrUnnamed(): void
+    {
+        $row = $this->participantRow([
+            'participants_levels_id' => 999999,
+            'themes_areas_id' => 8,
+        ]);
+
+        $mapped = ParticipantMapper::fromIntras($row, [], $this->lookupNames());
+
+        $this->assertArrayNotHasKey('nivel', $mapped['custom_fields']);
+        $this->assertSame('Recursos Humanos', $mapped['custom_fields']['area']);
+    }
+
+    public function testStoresNoProfileFieldsWhenTheParticipantHasNoLookupIds(): void
+    {
+        $mapped = ParticipantMapper::fromIntras($this->participantRow(), [], $this->lookupNames());
+
+        $this->assertArrayNotHasKey('nivel', $mapped['custom_fields']);
+        $this->assertArrayNotHasKey('area', $mapped['custom_fields']);
+        $this->assertArrayNotHasKey('department', $mapped['custom_fields']);
+    }
+
+    public function testLookupTablesCoversEveryProfileForeignKey(): void
+    {
+        $this->assertSame(
+            ['participants_levels', 'themes_areas', 'departments'],
+            ParticipantMapper::lookupTables()
+        );
+    }
+
     public function testContactFieldNamesExposesEverythingWeBulkLoad(): void
     {
         $names = ParticipantMapper::contactFieldNames();
@@ -99,6 +144,18 @@ class ParticipantMapperTest extends TestCase
         foreach (['email_oficina', 'email_personal', 'celular_1', 'telefono_oficina_1', 'telefono_casa', 'ext_1'] as $expected) {
             $this->assertContains($expected, $names);
         }
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    private function lookupNames(): array
+    {
+        return [
+            'participants_levels' => [120151 => 'Gerencia media'],
+            'themes_areas' => [8 => 'Recursos Humanos'],
+            'departments' => [3 => 'Capital Humano'],
+        ];
     }
 
     private function participantRow(array $overrides = []): stdClass
@@ -110,6 +167,9 @@ class ParticipantMapperTest extends TestCase
             'identification' => null,
             'is_prospect' => 0,
             'classification' => null,
+            'participants_levels_id' => null,
+            'themes_areas_id' => null,
+            'departments_id' => null,
         ];
 
         $row = new stdClass();

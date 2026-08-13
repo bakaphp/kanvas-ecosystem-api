@@ -11,7 +11,6 @@ return new class () extends Migration {
         Schema::table('event_types', function (Blueprint $table): void {
             $table->tinyInteger('is_default')->default(0)->index()->after('name');
         });
-
         $scopes = DB::connection('event')
             ->table('event_types')
             ->where('is_deleted', 0)

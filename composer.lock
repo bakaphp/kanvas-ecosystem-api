@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "92fb4b5777bbcf961fc899dd582b6892",
+    "content-hash": "dc4947c3ede0d062148e99ac7f55aefd",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -384,16 +384,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.392.0",
+            "version": "3.392.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "c6bb281dfbfd4c8c2d0bd2c3b95242af41bb1b4c"
+                "reference": "a49869bffa584611d22742708e69c632e1c18beb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c6bb281dfbfd4c8c2d0bd2c3b95242af41bb1b4c",
-                "reference": "c6bb281dfbfd4c8c2d0bd2c3b95242af41bb1b4c",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/a49869bffa584611d22742708e69c632e1c18beb",
+                "reference": "a49869bffa584611d22742708e69c632e1c18beb",
                 "shasum": ""
             },
             "require": {
@@ -475,9 +475,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.392.0"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.392.1"
             },
-            "time": "2026-08-11T18:12:10+00:00"
+            "time": "2026-08-12T18:06:57+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -11813,22 +11813,22 @@
         },
         {
             "name": "spatie/laravel-activitylog",
-            "version": "5.0.0",
+            "version": "5.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-activitylog.git",
-                "reference": "0e00fe74fd071cc572a045459f6d4c9de33130bd"
+                "reference": "97c9f7e82033b18dc9db25de276f9b71e01449ea"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-activitylog/zipball/0e00fe74fd071cc572a045459f6d4c9de33130bd",
-                "reference": "0e00fe74fd071cc572a045459f6d4c9de33130bd",
+                "url": "https://api.github.com/repos/spatie/laravel-activitylog/zipball/97c9f7e82033b18dc9db25de276f9b71e01449ea",
+                "reference": "97c9f7e82033b18dc9db25de276f9b71e01449ea",
                 "shasum": ""
             },
             "require": {
-                "illuminate/config": "^12.0 || ^13.0",
-                "illuminate/database": "^12.0 || ^13.0",
-                "illuminate/support": "^12.0 || ^13.0",
+                "illuminate/config": "^13.0",
+                "illuminate/database": "^13.0",
+                "illuminate/support": "^13.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.6.3"
             },
@@ -11836,8 +11836,8 @@
                 "ext-json": "*",
                 "larastan/larastan": "^3.0",
                 "laravel/pint": "^1.29",
-                "orchestra/testbench": "^10.0 || ^11.0",
-                "pestphp/pest": "^4.0"
+                "orchestra/testbench": "^11.0",
+                "pestphp/pest": "^5.0"
             },
             "type": "library",
             "extra": {
@@ -11880,7 +11880,7 @@
                 }
             ],
             "description": "A very simple activity logger to monitor the users of your website or application",
-            "homepage": "https://github.com/spatie/activitylog",
+            "homepage": "https://github.com/spatie/laravel-activitylog",
             "keywords": [
                 "activity",
                 "laravel",
@@ -11890,7 +11890,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-activitylog/issues",
-                "source": "https://github.com/spatie/laravel-activitylog/tree/5.0.0"
+                "source": "https://github.com/spatie/laravel-activitylog/tree/5.1.0"
             },
             "funding": [
                 {
@@ -11902,7 +11902,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-03-25T10:04:54+00:00"
+            "time": "2026-08-12T12:07:38+00:00"
         },
         {
             "name": "spatie/laravel-data",
@@ -20521,5 +20521,5 @@
         "php": "^8.5"
     },
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }
