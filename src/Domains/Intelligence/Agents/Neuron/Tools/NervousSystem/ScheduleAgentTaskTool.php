@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\CreatesScheduledActionFromTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesConversationHuman;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Scheduling\DataTransferObject\ScheduledAction as ScheduledActionData;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionTypeEnum;
@@ -31,6 +32,7 @@ class ScheduleAgentTaskTool extends Tool implements HasRunKey
 {
     use CreatesScheduledActionFromTool;
     use HasKanvasContext;
+    use ResolvesConversationHuman;
     use TrackByInputs;
 
     public function __construct(
@@ -125,7 +127,8 @@ class ScheduleAgentTaskTool extends Tool implements HasRunKey
             new ScheduledActionData(
                 app: $this->app,
                 company: $this->company,
-                user: $this->user,
+                // "for me" = the human in the conversation, not the agent's own context user.
+                user: $this->conversationHuman($this->session) ?? $this->user,
                 type: ScheduledActionTypeEnum::AGENT_TASK,
                 timezone: $timezone,
                 runAt: $runAt,
@@ -143,6 +146,12 @@ class ScheduleAgentTaskTool extends Tool implements HasRunKey
         if (is_array($action)) {
             return $action;
         }
+
+        $this->postScheduleReceipt(
+            $this->agent,
+            $this->session,
+            $action
+        );
 
         return [
             'status' => 'success',

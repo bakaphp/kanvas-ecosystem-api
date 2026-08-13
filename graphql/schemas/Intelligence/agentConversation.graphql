@@ -22,6 +22,8 @@ type AgentConversationMessage {
     "Source-tag string. In-Kanvas-runtime: a Laravel\\Ai\\Agent class name. Hermes-runtime: the Kanvas Agent's UUID."
     agent: String!
     role: String!
+    "Whether the message is shown in the chat UI. An internally-injected turn (e.g. a scheduled agent-task wake instruction) is is_public=false so the frontend hides it."
+    is_public: Boolean!
     content: String
     attachments: Mixed
     tool_calls: Mixed

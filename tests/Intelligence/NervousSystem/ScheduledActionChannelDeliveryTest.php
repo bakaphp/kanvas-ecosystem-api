@@ -6,11 +6,14 @@ namespace Tests\Intelligence\NervousSystem;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionDto;
@@ -23,6 +26,8 @@ use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Chat\Messages\AssistantMessage;
+use NeuronAI\Chat\Messages\UserMessage;
 use Tests\TestCase;
 
 class ScheduledActionChannelDeliveryTest extends TestCase
@@ -190,5 +195,39 @@ class ScheduledActionChannelDeliveryTest extends TestCase
         new RunScheduledAgentActionJob($app, $company, $action)->handle();
 
         Notification::assertSentTo($user, ScheduledReminderNotification::class);
+    }
+
+    public function testInjectedWakeTurnIsPersistedAsNonPublicAndTheReplyStaysVisible(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+        $sessionUuid = Str::uuid()->toString();
+
+        // privateUserTurn: true is how the kernel configures the handler for an injected wake — the user
+        // turn lands as is_public=0 (the frontend hides it), the agent's reply stays visible.
+        $history = new KanvasMessageHistory(
+            app: $app,
+            company: $company,
+            user: $user,
+            agentClass: 'Stub\\Agent',
+            sessionId: $sessionUuid,
+            agent: $agent,
+            privateUserTurn: true,
+        );
+
+        $history->addMessage(new UserMessage('Check the support queue and follow up with anyone waiting'));
+        $history->addMessage(new AssistantMessage('Followed up with 2 leads.'));
+
+        $conversationId = $history->getConversationId();
+
+        $wakeRow = DB::connection('intelligence')->table('agent_conversation_messages')
+            ->where('conversation_id', $conversationId)->where('role', 'user')->first();
+        $this->assertNotNull($wakeRow);
+        $this->assertSame(0, (int) $wakeRow->is_public, 'The injected wake turn must be is_public=0 so the UI hides it.');
+
+        $replyRow = DB::connection('intelligence')->table('agent_conversation_messages')
+            ->where('conversation_id', $conversationId)->where('role', 'assistant')->first();
+        $this->assertNotNull($replyRow);
+        $this->assertSame(1, (int) $replyRow->is_public, 'A normal turn stays visible.');
     }
 }

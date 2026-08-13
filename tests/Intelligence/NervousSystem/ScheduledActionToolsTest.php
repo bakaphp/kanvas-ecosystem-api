@@ -7,9 +7,12 @@ namespace Tests\Intelligence\NervousSystem;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
@@ -90,6 +93,28 @@ class ScheduledActionToolsTest extends TestCase
         $this->assertSame(ScheduledActionStatusEnum::PENDING->value, $row->status);
         $this->assertSame($user->getId(), $row->users_id);
         $this->assertSame($agent->getId(), $row->agent_id);
+    }
+
+    public function testReminderDefaultsToTheConversationHumanNotTheAgentUser(): void
+    {
+        [$app, $company, $agentContextUser] = $this->context();
+        $agent = $this->makeAgent($app, $company, $agentContextUser);
+
+        // The human the agent is talking to — the session subject — is a DIFFERENT user than the agent's
+        // own context user. "Remind me" must resolve to this human, not the agent.
+        $human = Users::factory()->create();
+        $session = new Session();
+        $session->entity_namespace = Users::class;
+        $session->entity_id = $human->getId();
+        $session->uuid = Str::uuid()->toString();
+
+        $result = new ScheduleReminderTool($agent, $session)
+            ->withContext($app, $company, $agentContextUser)('Ping the human', $this->futureLocal());
+
+        $this->assertSame('success', $result['status']);
+        $row = ScheduledAction::query()->where('id', $result['scheduled_action_id'])->firstOrFail();
+        $this->assertSame($human->getId(), $row->users_id, 'recipient must be the conversation human');
+        $this->assertNotSame($agentContextUser->getId(), $row->users_id);
     }
 
     public function testScheduleReminderToolCreatesRecurringRow(): void
@@ -185,5 +210,71 @@ class ScheduledActionToolsTest extends TestCase
         // An unknown id is a structured error, never a thrown exception into the chat.
         $missing = new CancelScheduledActionTool()->withContext($app, $company, $user)(999999999);
         $this->assertSame('error', $missing['status']);
+    }
+
+    public function testListAndCancelResolveTheConversationHumanNotTheAgentUser(): void
+    {
+        [$app, $company, $agentContextUser] = $this->context();
+        $agent = $this->makeAgent($app, $company, $agentContextUser);
+
+        $human = Users::factory()->create();
+        $session = new Session();
+        $session->entity_namespace = Users::class;
+        $session->entity_id = $human->getId();
+        $session->uuid = Str::uuid()->toString();
+
+        // Scheduled for the human (session subject), not the agent's context user.
+        $created = new ScheduleReminderTool($agent, $session)
+            ->withContext($app, $company, $agentContextUser)('Review the report', $this->futureLocal());
+        $id = $created['scheduled_action_id'];
+
+        // list WITH the session resolves the human → sees it.
+        $withSession = new ListScheduledActionsTool($session)->withContext($app, $company, $agentContextUser)();
+        $this->assertContains($id, array_column($withSession['actions'], 'id'));
+
+        // list WITHOUT the session falls back to the agent's context user → does NOT see the human's action.
+        $noSession = new ListScheduledActionsTool()->withContext($app, $company, $agentContextUser)();
+        $this->assertNotContains($id, array_column($noSession['actions'], 'id'));
+
+        // cancel WITH the session can reach the human's action.
+        $cancel = new CancelScheduledActionTool($session)->withContext($app, $company, $agentContextUser)($id);
+        $this->assertSame('success', $cancel['status']);
+    }
+
+    public function testSchedulePostsADeterministicReceiptIntoTheConversation(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $session = new Session();
+        $session->entity_namespace = Users::class;
+        $session->entity_id = $user->getId();
+        $session->uuid = Str::uuid()->toString();
+
+        // The live chat's conversation for this session — the receipt must land here, not spawn a new one.
+        $conversationId = Str::uuid7()->toString();
+        DB::connection('intelligence')->table('agent_conversations')->insert([
+            'id' => $conversationId,
+            'user_id' => $user->getId(),
+            'agent_id' => $agent->getId(),
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'title' => $session->uuid,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $result = new ScheduleReminderTool($agent, $session)
+            ->withContext($app, $company, $user)('Ping', $this->futureLocal());
+        $id = $result['scheduled_action_id'];
+
+        // A system receipt carrying the REAL id was written to the conversation — ground truth, not prose.
+        $receipt = DB::connection('intelligence')->table('agent_conversation_messages')
+            ->where('conversation_id', $conversationId)
+            ->where('role', 'assistant')
+            ->where('content', 'like', '%#' . $id . ', fires%')
+            ->first();
+
+        $this->assertNotNull($receipt, 'A deterministic receipt with the real id must be posted to the conversation.');
     }
 }

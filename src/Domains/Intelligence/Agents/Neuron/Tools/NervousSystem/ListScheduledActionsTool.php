@@ -7,6 +7,8 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesConversationHuman;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -21,8 +23,9 @@ use Override;
 class ListScheduledActionsTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesConversationHuman;
 
-    public function __construct()
+    public function __construct(private readonly ?Session $session = null)
     {
         parent::__construct(
             name: 'list_scheduled_actions',
@@ -54,10 +57,14 @@ class ListScheduledActionsTool extends Tool
     {
         $limit = max(1, min($limit ?? 25, 100));
 
+        // The owner is the human in the conversation (matching how the schedule_* tools set it), not the
+        // agent's own context user — otherwise the agent lists its own actions, never the human's.
+        $owner = $this->conversationHuman($this->session) ?? $this->user;
+
         $rows = ScheduledAction::query()
             ->fromApp($this->app)
             ->fromCompany($this->company)
-            ->forUser($this->user->getId())
+            ->forUser($owner->getId())
             ->pending()
             ->orderBy('run_at')
             ->limit($limit)

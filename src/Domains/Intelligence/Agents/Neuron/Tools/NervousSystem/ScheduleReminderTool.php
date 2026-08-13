@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\CreatesScheduledActionFromTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesConversationHuman;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Scheduling\DataTransferObject\ScheduledAction as ScheduledActionData;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionTypeEnum;
@@ -35,6 +36,7 @@ class ScheduleReminderTool extends Tool implements HasRunKey
 {
     use CreatesScheduledActionFromTool;
     use HasKanvasContext;
+    use ResolvesConversationHuman;
     use TrackByInputs;
 
     public function __construct(
@@ -157,6 +159,8 @@ class ScheduleReminderTool extends Tool implements HasRunKey
             return $action;
         }
 
+        $this->postScheduleReceipt($this->agent, $this->session, $action);
+
         return [
             'status' => 'success',
             'scheduled_action_id' => $action->getId(),
@@ -175,7 +179,10 @@ class ScheduleReminderTool extends Tool implements HasRunKey
     {
         $recipientEmail = trim((string) $recipientEmail);
         if ($recipientEmail === '') {
-            return $this->user;
+            // "Remind me" = the human in the conversation, not $this->user — on an in-app agent surface
+            // $this->user is the agent's own user, so defaulting to it schedules the reminder for the
+            // agent itself. Fall back to $this->user only when there's no human subject.
+            return $this->conversationHuman($this->session) ?? $this->user;
         }
 
         try {

@@ -78,6 +78,7 @@ class RunScheduledAgentActionJob implements ShouldQueue
                 text: $message,
                 author: $this->action->agent?->user ?? $this->action->recipient,
                 agent: $this->action->agent,
+                sessionUuid: $this->action->session_uuid,
             )->execute();
         }
 
@@ -106,6 +107,7 @@ class RunScheduledAgentActionJob implements ShouldQueue
 
         // sourceChannel MUST be passed when the session has one — otherwise the kernel activates
         // setThreadId and the agent loses its cross-session history on this cron-spawned wake.
+        // privateUserTurn: the wake instruction is a USER turn only to drive the agent — no one typed it.
         $response = new AgentChatKernel(
             agent: $agent,
             session: $session,
@@ -113,6 +115,7 @@ class RunScheduledAgentActionJob implements ShouldQueue
             user: $this->action->recipient ?? $agent->user,
             sourceChannel: $session->channel,
             persistConversation: false,
+            privateUserTurn: true,
         )->execute();
 
         // Post what the agent did back into the conversation so the user sees the outcome.

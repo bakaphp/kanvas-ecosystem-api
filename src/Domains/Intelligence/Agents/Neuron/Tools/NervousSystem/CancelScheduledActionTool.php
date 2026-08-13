@@ -6,6 +6,8 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesConversationHuman;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Scheduling\Actions\CancelScheduledActionAction;
 use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
 use NeuronAI\Tools\HasRunKey;
@@ -24,9 +26,10 @@ use Override;
 class CancelScheduledActionTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use ResolvesConversationHuman;
     use TrackByInputs;
 
-    public function __construct()
+    public function __construct(private readonly ?Session $session = null)
     {
         parent::__construct(
             name: 'cancel_scheduled_action',
@@ -56,12 +59,14 @@ class CancelScheduledActionTool extends Tool implements HasRunKey
      */
     public function __invoke(int $scheduled_action_id): array
     {
+        $owner = $this->conversationHuman($this->session) ?? $this->user;
+
         /** @var ScheduledAction|null $action */
         $action = ScheduledAction::query()
             ->where('id', $scheduled_action_id)
             ->fromApp($this->app)
             ->fromCompany($this->company)
-            ->forUser($this->user->getId())
+            ->forUser($owner->getId())
             ->where('is_deleted', 0)
             ->first();
 

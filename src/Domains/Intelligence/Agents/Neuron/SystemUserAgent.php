@@ -99,6 +99,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
             agent: $this->agent,
             turnMedia: $this->turnMedia,
             model: $this->resolvedModelName(),
+            privateUserTurn: $this->privateUserTurn,
         );
     }
 
@@ -208,8 +209,8 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
         $contextUser = $this->user ?? $agent->user;
         $core[] = new ScheduleReminderTool($agent, $this->session)->withContext($app, $company, $contextUser);
         $core[] = new ScheduleAgentTaskTool($agent, $this->session)->withContext($app, $company, $contextUser);
-        $core[] = new ListScheduledActionsTool()->withContext($app, $company, $contextUser);
-        $core[] = new CancelScheduledActionTool()->withContext($app, $company, $contextUser);
+        $core[] = new ListScheduledActionsTool($this->session)->withContext($app, $company, $contextUser);
+        $core[] = new CancelScheduledActionTool($this->session)->withContext($app, $company, $contextUser);
 
         if ((string) ($agent->get(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value) ?? '') !== '') {
             $core[] = new SendSlackDirectMessageTool($agent);

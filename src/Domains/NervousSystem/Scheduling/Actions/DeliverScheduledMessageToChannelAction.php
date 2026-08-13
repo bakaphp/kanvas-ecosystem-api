@@ -9,12 +9,15 @@ use Kanvas\Connectors\Slack\Client as SlackClient;
 use Kanvas\Connectors\Twilio\Client as TwilioClient;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Connectors\WaSender\Services\MessageService as WaSenderMessageService;
+use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\PostChannelMessageAction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
+use Nuwave\Lighthouse\Execution\Utils\Subscription;
 use Throwable;
 
 /**
@@ -38,6 +41,7 @@ class DeliverScheduledMessageToChannelAction
         private readonly string $text,
         private readonly Users $author,
         private readonly ?Agent $agent = null,
+        private readonly ?string $sessionUuid = null,
         private readonly string $verb = 'scheduled-reminder',
     ) {
     }
@@ -56,12 +60,72 @@ class DeliverScheduledMessageToChannelAction
             runWorkflow: false,
         )->execute();
 
+        $this->writeToConversation();
+        $this->broadcastToChat();
+
         try {
             return $this->pushNative();
         } catch (Throwable $e) {
             report($e);
 
             return false;
+        }
+    }
+
+    /**
+     * The in-app chat renders from `agent_conversations`, not the Social feed — so mirror the message
+     * there too (the same store `logTurn` writes to), as an assistant message on the session's existing
+     * conversation. Best-effort; no-op without an agent/session or when the live chat hasn't created a
+     * conversation for that session yet.
+     */
+    private function writeToConversation(): void
+    {
+        if ($this->agent === null || $this->sessionUuid === null || $this->sessionUuid === '') {
+            return;
+        }
+
+        try {
+            new KanvasConversationStore()->appendAssistantMessageForSession(
+                appsId: $this->channel->apps_id,
+                companiesId: $this->channel->companies_id,
+                sessionId: $this->sessionUuid,
+                agentClass: $this->agent->type?->handler ?? $this->agent::class,
+                content: $this->text,
+                agentId: $this->agent->getId(),
+            );
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * Push the message into the live in-app chat the same way a normal agent turn does (the
+     * `agentChatResponse` subscription), so it appears without a refresh. Best-effort — a broadcast
+     * outage must never fail the delivery. No-op without an agent/session, where nothing is listening.
+     */
+    private function broadcastToChat(): void
+    {
+        if ($this->agent === null || $this->sessionUuid === null || $this->sessionUuid === '') {
+            return;
+        }
+
+        try {
+            AgentChatResponseEvent::dispatch(
+                $this->agent,
+                $this->sessionUuid,
+                '',
+                $this->text
+            );
+
+            Subscription::broadcast('agentChatResponse', [
+                'agent_id' => $this->agent->getId(),
+                'agent_name' => $this->agent->name,
+                'session_id' => $this->sessionUuid,
+                'message' => '',
+                'response' => $this->text,
+            ]);
+        } catch (Throwable $e) {
+            report($e);
         }
     }
 
