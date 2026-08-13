@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
@@ -19,6 +20,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyApPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReadEmailDetailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\CreateGoogleSheetTabTool;
@@ -74,6 +78,10 @@ class AccountsPayableAgent extends SystemUserAgent
             new UpdateGoogleSheetCellTool(),
             new ClearGoogleSheetRangeTool(),
             new CreateGoogleSheetTabTool(),
+            new ListEmailsTool(),
+            new ReadEmailDetailsTool(),
+            new DownloadAttachmentTool(),
+            new ExtractInvoiceDataTool(),
         ]));
     }
 
@@ -107,6 +115,15 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'update_google_sheet_cell, only after confirming the exact cell with read_google_sheet first — '
             . 'never guess a row/column. "Clear/wipe that row/cell" → clear_google_sheet_range — this empties '
             . 'the values but never removes the row itself. "Create a new tab called X" → create_google_sheet_tab.',
+            '- "Check for new invoice emails" / "any unread bills in the inbox" → list_emails with a query like '
+            . '"has:attachment is:unread". "What does this email say" / "does it have an invoice attached" → '
+            . 'read_email_details with the message_id. "Pull that PDF out" / "save this attachment" → '
+            . 'download_attachment with the message_id + attachment_id from read_email_details — it saves the '
+            . 'file to Kanvas and returns a filesystem_id/url. The real vendor/total/dates are inside the PDF, '
+            . 'never in the email body/subject — after downloading, call extract_invoice_data with the '
+            . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet). '
+            . 'To get an emailed invoice into Acumatica: download_attachment first, then pass its returned url '
+            . 'straight into attach_bill_file\'s file_url — no need to re-download or re-host it anywhere.',
         ]);
     }
 }
