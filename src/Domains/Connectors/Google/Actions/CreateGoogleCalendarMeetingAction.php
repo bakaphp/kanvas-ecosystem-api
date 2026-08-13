@@ -142,7 +142,7 @@ class CreateGoogleCalendarMeetingAction
     {
         $client = new Client();
         $client->setApplicationName((string) ($config['application_name'] ?? 'Kanvas Calendar'));
-        $client->setScopes([Calendar::CALENDAR_EVENTS]);
+        $client->setScopes([Calendar::CALENDAR]);
         $client->setAccessType('offline');
 
         $profile = (string) ($config['default_auth_profile'] ?? 'service_account');
