@@ -36,7 +36,7 @@ class GoogleSheetsToolsTest extends TestCase
 
         $result = new AppendGoogleSheetRowsTool()
             ->withContext($app, $company, static::$cachedUser)
-            ->__invoke(sheet_url_or_id: 'not-a-sheet-url', range: 'Sheet1!A1', values: [['1']]);
+            ->__invoke(sheet_url_or_id: 'not-a-sheet-url', range: 'Sheet1!A1', values: '[["1"]]');
 
         $this->assertFalse($result['success']);
         $this->assertSame('invalid_sheet_reference', $result['reason']);
@@ -51,7 +51,23 @@ class GoogleSheetsToolsTest extends TestCase
             ->__invoke(
                 sheet_url_or_id: 'https://docs.google.com/spreadsheets/d/1A_B_C_D_12345/edit',
                 range: 'Sheet1!A1',
-                values: [],
+                values: '[]',
+            );
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('values_required', $result['reason']);
+    }
+
+    public function test_write_google_sheet_rejects_a_non_json_values_string(): void
+    {
+        [$app, $company] = $this->context();
+
+        $result = new AppendGoogleSheetRowsTool()
+            ->withContext($app, $company, static::$cachedUser)
+            ->__invoke(
+                sheet_url_or_id: 'https://docs.google.com/spreadsheets/d/1A_B_C_D_12345/edit',
+                range: 'Sheet1!A1',
+                values: 'not json',
             );
 
         $this->assertFalse($result['success']);
