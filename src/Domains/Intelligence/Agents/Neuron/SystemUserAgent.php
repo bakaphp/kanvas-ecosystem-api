@@ -19,6 +19,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadEntityContextTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadMyLedgerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadUserActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendEmailToUserTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendPushNotificationToUserTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendSlackDirectMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\WhoIsUserTool;
 use Kanvas\Intelligence\Agents\Services\EntityContextBriefService;
@@ -205,6 +206,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
         }
 
         $core[] = new SendEmailToUserTool($agent);
+        $core[] = new SendPushNotificationToUserTool($agent);
 
         $contextUser = $this->user ?? $agent->user;
         $core[] = new ScheduleReminderTool($agent, $this->session)->withContext($app, $company, $contextUser);
