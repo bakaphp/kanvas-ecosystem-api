@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\ReceptionistAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CalendarEventTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\EventConfigurationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FaqLookupTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\StopContactTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdateLeadTool;
@@ -91,6 +92,7 @@ class ReceptionistAgentPersonaTest extends TestCase
         $this->assertContains(UpdateLeadTool::class, $toolClasses);
         $this->assertContains(StopContactTool::class, $toolClasses);
         $this->assertContains(CalendarEventTool::class, $toolClasses);
+        $this->assertContains(EventConfigurationTool::class, $toolClasses);
         $this->assertNotContains(InventorySearchTool::class, $toolClasses);
     }
 }

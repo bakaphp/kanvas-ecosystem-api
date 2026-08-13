@@ -21,6 +21,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompletionStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ContactCheckerTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\EventConfigurationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FaqLookupTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadIntentTool;
@@ -64,7 +65,7 @@ class ReceptionistAgent extends BaseRagAgent implements ConversesWithCustomer
     private const LOCAL_STEPS = "Greet the person warmly and briefly.\n"
         . 'For any question about hours, pricing, location, services, policies or anything about the business, call get_company_faqs FIRST and answer from what it returns; use get_company_work_hours for open/closed status and get_company_information for contact details.'
         . "\nAsk only the qualifying questions you need to tell whether this person is a fit for the business, and save what you learn with update_lead (contact details, budget, service needed, urgency, timeline, disposition)."
-        . "\nWhen the prospect shows real intent (wants to book, get a quote, schedule, or speak with someone), call create_lead using details gathered from the conversation, then use get_booking_options + get_user_availability + create_calendar_event to book the appointment in the SAME turn."
+        . "\nWhen the prospect shows real intent (wants to book, get a quote, schedule, or speak with someone), call create_lead using details gathered from the conversation, then use get_booking_options + get_event_configuration + get_user_availability + create_calendar_event to book the appointment in the SAME turn. Pass all six Event configuration IDs returned by get_event_configuration unchanged; never invent them."
         . "\nIf the prospect asks to leave a message for someone, use take_message. If they ask to stop being contacted / unsubscribe, use stop_contact."
         . "\nIf you cannot help, the request is out of scope, or they ask for a person, use hand_off.";
 
@@ -186,6 +187,7 @@ class ReceptionistAgent extends BaseRagAgent implements ConversesWithCustomer
             new CancelCalendarEventTool(),
             new UserAvailabilityTool(),
             new BookingOptionsTool(),
+            new EventConfigurationTool(),
             new HandOffTool(),
             new LeadIntentTool(),
             new LeadRefTool(),

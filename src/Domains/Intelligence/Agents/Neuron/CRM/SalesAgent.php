@@ -20,6 +20,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompletionStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ContactCheckerTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\EventConfigurationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadIntentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
@@ -149,6 +150,7 @@ class SalesAgent extends BaseRagAgent implements ConversesWithCustomer
             new RescheduleCalendarEventTool(),
             new CancelCalendarEventTool(),
             new UserAvailabilityTool(),
+            new EventConfigurationTool(),
             new HandOffTool(),
             new LeadIntentTool(),
             new LeadRefTool(),
