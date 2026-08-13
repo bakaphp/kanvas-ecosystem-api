@@ -132,12 +132,17 @@ class VoiceAgentSpecService
      */
     private function telephony(): array
     {
+        // Load the owning company defensively — find() returns null instead of
+        // throwing on a missing/invalid companies_id, so a telephony problem can
+        // never 503 the whole spec fetch. Prefer the configured Twilio
+        // from-number setting; fall back to the company's `phone` column.
         $company = $this->agent->companies_id > 0
-            ? Companies::getById($this->agent->companies_id)
+            ? Companies::find($this->agent->companies_id)
             : null;
 
         return [
-            'from_number' => $company?->get(TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value),
+            'from_number' => $company?->get(TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value)
+                ?? $company?->phone,
         ];
     }
 
