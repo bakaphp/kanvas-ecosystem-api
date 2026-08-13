@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "abda95dbd6ef2dd0a60cc92861be7770",
+    "content-hash": "f910b00754a4a29ab398ccdd4c7afffd",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -2483,16 +2483,16 @@
         },
         {
             "name": "google/cloud-recommendations-ai",
-            "version": "v0.9.3",
+            "version": "v0.10.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-recommendations-ai.git",
-                "reference": "fc6c375d3e8f7f56fb820639fc12c0f515c9194b"
+                "reference": "ef64b03578f5788e8a534ba2d0e65b9b17b10e92"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-recommendations-ai/zipball/fc6c375d3e8f7f56fb820639fc12c0f515c9194b",
-                "reference": "fc6c375d3e8f7f56fb820639fc12c0f515c9194b",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-recommendations-ai/zipball/ef64b03578f5788e8a534ba2d0e65b9b17b10e92",
+                "reference": "ef64b03578f5788e8a534ba2d0e65b9b17b10e92",
                 "shasum": ""
             },
             "require": {
@@ -2527,9 +2527,9 @@
             ],
             "description": "Google Cloud Recommendation Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-recommendations-ai/tree/v0.9.3"
+                "source": "https://github.com/googleapis/google-cloud-php-recommendations-ai/tree/v0.10.0"
             },
-            "time": "2026-03-17T23:07:39+00:00"
+            "time": "2026-08-10T16:39:50+00:00"
         },
         {
             "name": "google/cloud-storage",
