@@ -21,12 +21,6 @@ use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
-/**
- * Lets an agent schedule FUTURE WORK for itself — at fire time it is woken with the stored instruction
- * and acts with its full toolset (send an email, check a record and follow up, etc.). Use this instead
- * of schedule_reminder when the future action is "go do something", not just "tell someone something".
- * One-off or recurring; recurring agent tasks run at most every 15 minutes.
- */
 #[AgentTool(name: 'Schedule Agent Task', category: 'nervous_system')]
 class ScheduleAgentTaskTool extends Tool implements HasRunKey
 {
