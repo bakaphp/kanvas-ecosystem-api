@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Kanvas\Activities\Contracts\ActivityLogInterface;
 use Kanvas\Activities\Models\Activity;
@@ -565,7 +566,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'url' => $files->url,
                     'size' => $files->size,
                     'field_name' => $files->field_name,
-                    'attributes' => $files->attributes,
                 ];
             }),
             'company' => [
@@ -647,20 +647,28 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             return $product;
         }
 
-        $product['custom_fields'] = [];
-        if (Arr::sizeInBytes($product) <= $limit) {
-            return $product;
-        }
-
-        unset($product['translations']);
-        if (Arr::sizeInBytes($product) <= $limit) {
-            return $product;
-        }
-
-        // Warehouse breakdown is internal stock detail, never shown in search.
+        // Warehouse breakdown is internal stock detail, never shown in search — losing it costs
+        // nothing, so it goes before anything a human would notice.
         $product['variants'] = $this->stripFromVariants($product['variants'], ['warehouses']);
         if (Arr::sizeInBytes($product) <= $limit) {
             return $product;
+        }
+
+        // Shorten the long values in the heavy text buckets, cheapest bucket first. Every key
+        // survives — `attributes` in particular is only ever truncated, never dropped, because the
+        // Algolia facets are built on `attributes.*.quick_spec` and would break if keys vanished.
+        // Short values (a `color`, a `gpu` spec) are already under the threshold and untouched.
+        foreach (['custom_fields', 'translations', 'attributes'] as $bucket) {
+            foreach ([500, 200, 100] as $maxLength) {
+                if (! is_array($product[$bucket] ?? null)) {
+                    continue 2;
+                }
+
+                $product[$bucket] = Arr::truncateStrings($product[$bucket], $maxLength);
+                if (Arr::sizeInBytes($product) <= $limit) {
+                    return $product;
+                }
+            }
         }
 
         $product['description'] = Str::limit((string) ($product['description'] ?? ''), 500, '');
@@ -669,14 +677,92 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             return $product;
         }
 
-        // Last resort before dropping whole variants: give up variant images.
+        // Still over after truncating: shed whole entries, heaviest first, only as many as it takes.
+        // `attributes` is excluded on purpose (see above) — only these two lose keys.
+        foreach (['custom_fields', 'translations'] as $bucket) {
+            $product = $this->dropHeaviestEntries($product, $bucket, $limit);
+            if (Arr::sizeInBytes($product) <= $limit) {
+                return $product;
+            }
+        }
+
         $product['variants'] = $this->stripFromVariants($product['variants'], ['files']);
         if (Arr::sizeInBytes($product) <= $limit) {
             return $product;
         }
 
+        // Reduce variants to the fields a storefront actually renders before dropping any of them:
+        // partial variant data beats none.
+        $product['variants'] = $this->stripFromVariants(
+            $product['variants'],
+            [
+                'objectID',
+                'products_id',
+                'company',
+                'description',
+                'short_description',
+                'ean',
+                'barcode',
+                'apps_id',
+                'rating',
+            ]
+        );
+        if (Arr::sizeInBytes($product) <= $limit) {
+            return $product;
+        }
+
+        // Extra product images are pure weight once the record is this tight; keep the first.
+        if (count($product['files'] ?? []) > 1) {
+            $product['files'] = array_slice((array) $product['files'], 0, 1);
+            if (Arr::sizeInBytes($product) <= $limit) {
+                return $product;
+            }
+        }
+
+        $droppedVariants = 0;
         while (! empty($product['variants']) && Arr::sizeInBytes($product) > $limit) {
             array_pop($product['variants']);
+            $droppedVariants++;
+        }
+
+        if ($droppedVariants > 0) {
+            // Silent variant loss is how an entire tenant ended up indexed with `variants: []`.
+            Log::warning('Algolia record over budget, dropped variants to fit', [
+                'product_id' => $this->id,
+                'apps_id' => $this->apps_id,
+                'companies_id' => $this->companies_id,
+                'dropped_variants' => $droppedVariants,
+                'remaining_variants' => count($product['variants']),
+                'limit' => $limit,
+                'size_without_variants' => Arr::sizeInBytes(Arr::except($product, ['variants'])),
+            ]);
+        }
+
+        return $product;
+    }
+
+    /**
+     * Shed entries from one field, heaviest first, and stop as soon as the record fits.
+     * Wiping the field wholesale would take the cheap entries down with the expensive one.
+     */
+    protected function dropHeaviestEntries(array $product, string $key, int $limit): array
+    {
+        if (! is_array($product[$key] ?? null)) {
+            return $product;
+        }
+
+        $entries = $product[$key];
+        $isList = array_is_list($entries);
+
+        while (! empty($entries) && Arr::sizeInBytes($product) > $limit) {
+            $heaviest = collect($entries)
+                ->map(fn ($value, $entryKey) => Arr::sizeInBytes([$entryKey => $value]))
+                ->sortDesc()
+                ->keys()
+                ->first();
+
+            unset($entries[$heaviest]);
+            $product[$key] = $isList ? array_values($entries) : $entries;
         }
 
         return $product;
