@@ -11,6 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\NervousSystem\Scheduling\Actions\CancelScheduledActionAction;
 use Kanvas\NervousSystem\Scheduling\Actions\CreateScheduledActionAction;
 use Kanvas\NervousSystem\Scheduling\DataTransferObject\ScheduledAction as ScheduledActionData;
@@ -18,6 +19,7 @@ use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionStatusEnum;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionTypeEnum;
 use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
 use Kanvas\NervousSystem\Scheduling\Services\ScheduledActionTimezoneResolver;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
@@ -211,6 +213,33 @@ class ScheduledActionTest extends TestCase
         // Second cancel is a no-op — status stays cancelled.
         $again = new CancelScheduledActionAction($cancelled)->execute();
         $this->assertSame(ScheduledActionStatusEnum::CANCELLED->value, $again->status);
+    }
+
+    public function testCreatePersistsChannelDerivedSessionUuidWithoutTruncation(): void
+    {
+        [$app, $company, $user] = $this->context();
+
+        $channel = new Channel();
+        $channel->slug = SessionChannelService::createChannelSlug('slack', 'T0BC3HTQYAC-D0BKMC6TKAT');
+        $sessionUuid = SessionChannelService::buildChannelSessionUuid($channel, $app, $company);
+
+        $this->assertGreaterThan(36, strlen($sessionUuid));
+
+        $action = new CreateScheduledActionAction(
+            new ScheduledActionData(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: ScheduledActionTypeEnum::AGENT_TASK,
+                timezone: 'UTC',
+                runAt: Carbon::now()->addHour(),
+                instruction: 'Send a DM on Slack',
+                channel: $channel->slug,
+                sessionUuid: $sessionUuid,
+            ),
+        )->execute();
+
+        $this->assertSame($sessionUuid, $action->fresh()->session_uuid);
     }
 
     public function testDeletingAgentCascadeSoftDeletesPendingScheduledActions(): void
