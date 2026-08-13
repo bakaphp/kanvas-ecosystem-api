@@ -36,7 +36,7 @@ class OrderStatsQuery
         $timezone = $input['timezone'] ?? 'UTC';
         $baseDate = $input['baseDate'] ?? null;
         $groupBy = strtolower($input['groupBy'] ?? 'DAY');
-        $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
+        $providerCompanyIds = $this->resolveProviderCompanyIds($app, $input);
         $providers = $input['providers'] ?? [];
         $userEmail = $input['user_email'] ?? null;
         $excludeStates = $input['excludeStates'] ?? [];
@@ -85,7 +85,7 @@ class OrderStatsQuery
         $baseDate = $input['baseDate'] ?? null;
         $groupPeriods    = $input['groupPeriods'] ?? null;
         $periodBreakdown = $input['periodBreakdown'] ?? 'MONTH';
-        $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
+        $providerCompanyIds = $this->resolveProviderCompanyIds($app, $input);
         $userEmail = $input['user_email'] ?? null;
         $metadataFilter = $input['metadata'] ?? null;
         $reference = $input['reference'] ?? null;
@@ -122,7 +122,7 @@ class OrderStatsQuery
         $app = app(Apps::class);
         $input = $request['input'];
 
-        $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
+        $providerCompanyIds = $this->resolveProviderCompanyIds($app, $input);
 
         $company = isset($input['company_id'])
             ? Companies::getByIdFromCompanyApp((int) $input['company_id'], $user->getCurrentCompany(), $app)
@@ -157,9 +157,41 @@ class OrderStatsQuery
             fieldMapper: isset($input['fieldMapper']) ? (array) $input['fieldMapper'] : null,
             language: $input['language'] ?? 'en',
             userEmail: $input['user_email'] ?? null,
-            providerCompanyIds: array_map('intval', $input['provider_company_id'] ?? []),
+            providerCompanyIds: $this->resolveProviderCompanyIds($app, $input),
             metadata: $args['metadata'] ?? [],
             includeSummary: $input['includeSummary'] ?? true,
         )->execute();
+    }
+
+    /**
+     * `provider_company_id` is the only dimension that separates one provider's orders from
+     * another's — orders live in the platform's main company and the provider is reached through
+     * the `order_providers` pivot. Left as a plain client-supplied filter, a provider that simply
+     * omits it reads the whole app's revenue, so it is derived from the caller instead.
+     *
+     * Apps without `B2B_MAIN_COMPANY_ID` are not running the provider model at all; their orders
+     * belong to the company that placed them and this scoping would filter everything out.
+     *
+     * @return array<int, int>
+     */
+    private function resolveProviderCompanyIds(Apps $app, array $input): array
+    {
+        $requested = array_map('intval', $input['provider_company_id'] ?? []);
+
+        $mainCompanyId = $app->get('B2B_MAIN_COMPANY_ID');
+
+        if ($mainCompanyId === null) {
+            return $requested;
+        }
+
+        /** @var Users $user */
+        $user = auth()->user();
+        $currentCompanyId = (int) $user->getCurrentCompany()->getId();
+
+        if ($user->isAppOwner() || $currentCompanyId === (int) $mainCompanyId) {
+            return $requested;
+        }
+
+        return [$currentCompanyId];
     }
 }

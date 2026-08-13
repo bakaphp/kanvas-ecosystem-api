@@ -23,7 +23,13 @@ class OrderStatsExclusionTest extends OrderBase
      */
     protected $connectionsToTransact = ['commerce', 'inventory'];
 
-    protected string $orderTypeName = 'reservation';
+    /**
+     * Rolling back is not enough on a database that already holds orders from before it was
+     * wrapped: the assertions are absolute counts over a fixed June window, so any leftover in
+     * that window still inflates them. Scoping every assertion to this run's own order type makes
+     * the numbers independent of whatever else the database happens to contain.
+     */
+    protected string $orderTypeName;
 
     /** @var array<string, int> slug => order_status_id */
     private array $statusIds = [];
@@ -33,6 +39,8 @@ class OrderStatsExclusionTest extends OrderBase
     public function setUp(): void
     {
         parent::setUp();
+
+        $this->orderTypeName = 'reservation-' . uniqid();
 
         $orderType = OrderTypes::firstOrCreate([
             'name' => $this->orderTypeName,
@@ -126,6 +134,7 @@ class OrderStatsExclusionTest extends OrderBase
             initialStates: ['in_transit'],
             finalStates: ['released_from_lot'],
             currentCountStates: ['in_transit'],
+            orderTypeNames: [$this->orderTypeName],
             excludeStates: $excludeStates,
             excludeMode: $mode,
         )->execute(

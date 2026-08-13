@@ -25,4 +25,13 @@ trait HasKanvasContext
 
         return $this;
     }
+
+    /**
+     * The acting user when one is set. Registry-resolved tools only get withContext() when all three
+     * dependencies were available, so a tool that writes attributed records needs the null path.
+     */
+    protected function contextUser(): ?Users
+    {
+        return isset($this->user) ? $this->user : null;
+    }
 }

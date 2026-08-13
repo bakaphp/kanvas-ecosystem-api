@@ -1,0 +1,36 @@
+type TimeSlotOccupancyBucket {
+    label: String!
+    capacity: Int!
+    booked: Int!
+    occupancy_percentage: Float!
+    slots_count: Int!
+}
+
+type TimeSlotStats {
+    period_start: String!
+    period_end: String!
+    capacity: Int!
+    booked: Int!
+    occupancy_percentage: Float!
+    slots_count: Int!
+    byHour: [TimeSlotOccupancyBucket!]!
+    byDay: [TimeSlotOccupancyBucket!]!
+    peak: TimeSlotOccupancyBucket
+    lowest: TimeSlotOccupancyBucket
+}
+
+input TimeSlotStatsInput {
+    startDate: String!
+    endDate: String!
+    timezone: String
+    resources_id: ID
+    "Full morph class, e.g. Kanvas\\Inventory\\Variants\\Models\\Variants"
+    resources_type: String
+}
+
+extend type Query @guard {
+    timeSlotStats(input: TimeSlotStatsInput!): TimeSlotStats!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Stats\\TimeSlotStatsQuery"
+        )
+}

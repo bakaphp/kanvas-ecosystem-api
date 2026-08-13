@@ -11,6 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\NervousSystem\Scheduling\Actions\CancelScheduledActionAction;
 use Kanvas\NervousSystem\Scheduling\Actions\CreateScheduledActionAction;
 use Kanvas\NervousSystem\Scheduling\DataTransferObject\ScheduledAction as ScheduledActionData;
@@ -18,6 +19,7 @@ use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionStatusEnum;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionTypeEnum;
 use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
 use Kanvas\NervousSystem\Scheduling\Services\ScheduledActionTimezoneResolver;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
@@ -211,6 +213,38 @@ class ScheduledActionTest extends TestCase
         // Second cancel is a no-op — status stays cancelled.
         $again = new CancelScheduledActionAction($cancelled)->execute();
         $this->assertSame(ScheduledActionStatusEnum::CANCELLED->value, $again->status);
+    }
+
+    public function testCreatePersistsChannelDerivedSessionUuidWithoutTruncation(): void
+    {
+        [$app, $company, $user] = $this->context();
+
+        // Email is the longest real channel slug shape — the Slack one only clears the old char(36)
+        // ceiling on double-digit tenant ids, which would make this assertion depend on seed data.
+        $channel = new Channel();
+        $channel->slug = SessionChannelService::createChannelSlug('email', 'first.last+scheduling@some-long-company-domain.com');
+        $sessionUuid = SessionChannelService::buildChannelSessionUuid($channel, $app, $company);
+
+        $this->assertGreaterThan(64, strlen($channel->slug));
+        $this->assertGreaterThan(36, strlen($sessionUuid));
+
+        $action = new CreateScheduledActionAction(
+            new ScheduledActionData(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: ScheduledActionTypeEnum::AGENT_TASK,
+                timezone: 'UTC',
+                runAt: Carbon::now()->addHour(),
+                instruction: 'Email the client the quote',
+                channel: $channel->slug,
+                sessionUuid: $sessionUuid,
+            ),
+        )->execute();
+
+        $stored = $action->fresh();
+        $this->assertSame($sessionUuid, $stored->session_uuid);
+        $this->assertSame($channel->slug, $stored->channel);
     }
 
     public function testDeletingAgentCascadeSoftDeletesPendingScheduledActions(): void

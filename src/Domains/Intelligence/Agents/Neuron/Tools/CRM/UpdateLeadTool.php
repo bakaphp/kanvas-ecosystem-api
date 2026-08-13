@@ -4,18 +4,24 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
+use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Update Lead', category: 'crm')]
-class UpdateLeadTool extends Tool
+class UpdateLeadTool extends Tool implements HasRunKey
 {
+    use HasKanvasContext;
     use ResolvesLeadForTool;
+    use TrackByInputs;
 
     /**
      * Qualification answers persisted as lead custom fields (only when the LLM supplies them).
@@ -40,7 +46,9 @@ class UpdateLeadTool extends Tool
                 . 'urgency, timeline, address) plus your disposition of the lead. '
                 . 'Use this AFTER the prospect shares details or answers your qualifying questions. '
                 . 'Only pass the fields the prospect actually gave you — omit the rest. '
-                . 'Set disposition to "qualified", "unqualified", or "spam" once you can tell. '
+                . 'Set disposition to "qualified", "unqualified", or "spam" once you can tell. Disposition is your '
+                . 'qualification judgment, NOT the lead\'s status — it does not close a lead and does not change '
+                . 'what the lead UI shows. To close, reopen, or otherwise change a lead\'s status, use set_lead_status. '
                 . 'Set advance_stage=true to move the lead to the next pipeline stage when it is genuinely progressing.',
         );
     }
@@ -112,7 +120,8 @@ class UpdateLeadTool extends Tool
             new ToolProperty(
                 name: 'notes',
                 type: PropertyType::STRING,
-                description: 'Any other qualification context worth saving on the lead for the owner.',
+                description: 'Any other qualification context worth saving on the lead for the owner. '
+                    . 'Recorded as a note on the lead\'s activity thread.',
                 required: false,
             ),
             new ToolProperty(
@@ -179,7 +188,7 @@ class UpdateLeadTool extends Tool
         }
 
         if ($notes !== null && trim($notes) !== '') {
-            $lead->set('receptionist_notes', trim($notes));
+            $this->recordNote($lead, trim($notes), 'qualification-note');
             $updated[] = 'notes';
         }
 
@@ -193,6 +202,9 @@ class UpdateLeadTool extends Tool
                 ];
             }
             $lead->set('lead_disposition', $normalized);
+            // The custom field alone is invisible in the CRM UI, so mirror it onto the activity
+            // thread — otherwise the tool reports success on a change nobody can see.
+            $this->recordNote($lead, 'Lead qualified as "' . $normalized . '" by the agent.', 'disposition');
             $updated[] = 'disposition';
         }
 
@@ -221,6 +233,11 @@ class UpdateLeadTool extends Tool
             'stage_advanced' => $stageAdvanced,
             'current_pipeline_stage' => $lead->getCurrentPipelineStage()?->name,
         ];
+    }
+
+    private function recordNote(Lead $lead, string $body, string $tag): void
+    {
+        new RecordLeadNoteAction($lead)->execute($body, $tag, $this->contextUser());
     }
 
     /**
