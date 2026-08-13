@@ -219,10 +219,13 @@ class ScheduledActionTest extends TestCase
     {
         [$app, $company, $user] = $this->context();
 
+        // Email is the longest real channel slug shape — the Slack one only clears the old char(36)
+        // ceiling on double-digit tenant ids, which would make this assertion depend on seed data.
         $channel = new Channel();
-        $channel->slug = SessionChannelService::createChannelSlug('slack', 'T0BC3HTQYAC-D0BKMC6TKAT');
+        $channel->slug = SessionChannelService::createChannelSlug('email', 'first.last+scheduling@some-long-company-domain.com');
         $sessionUuid = SessionChannelService::buildChannelSessionUuid($channel, $app, $company);
 
+        $this->assertGreaterThan(64, strlen($channel->slug));
         $this->assertGreaterThan(36, strlen($sessionUuid));
 
         $action = new CreateScheduledActionAction(
@@ -233,13 +236,15 @@ class ScheduledActionTest extends TestCase
                 type: ScheduledActionTypeEnum::AGENT_TASK,
                 timezone: 'UTC',
                 runAt: Carbon::now()->addHour(),
-                instruction: 'Send a DM on Slack',
+                instruction: 'Email the client the quote',
                 channel: $channel->slug,
                 sessionUuid: $sessionUuid,
             ),
         )->execute();
 
-        $this->assertSame($sessionUuid, $action->fresh()->session_uuid);
+        $stored = $action->fresh();
+        $this->assertSame($sessionUuid, $stored->session_uuid);
+        $this->assertSame($channel->slug, $stored->channel);
     }
 
     public function testDeletingAgentCascadeSoftDeletesPendingScheduledActions(): void
