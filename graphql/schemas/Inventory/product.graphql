@@ -105,8 +105,14 @@ input ProductAttributesInput {
     value: Mixed
 }
 
+"""
+Filter products by an attribute value, matching both the bare-scalar and the
+translated ({"en": ...}) encodings of products_attributes.value.
+Provide attribute_id or slug (or both).
+"""
 input ProductAttributeFilterInput {
-    slug: String!
+    attribute_id: ID
+    slug: String
     value: Mixed
 }
 
@@ -233,6 +239,7 @@ extend type Query @guard {
     products(
         search: String @search
         variantAttributeValue: String
+        attributeValues: [ProductAttributeFilterInput!]
         withAttributeSlug: String
         variantAttributeOrderBy: ProductAttributeOrderBy
         attributeOrderBy: ProductAttributeOrderBy
@@ -278,6 +285,7 @@ extend type Query @guard {
                 relation: "channels"
                 columns: ["id", "name", "uuid"]
             )
+        "Broken: Lighthouse qualifies these onto products_attributes, which has none of them. Kept for legacy compatibility — use attributeValues instead."
         hasAttributes: _
             @whereHasConditions(
                 relation: "attributes"

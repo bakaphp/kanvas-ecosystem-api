@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
@@ -29,27 +30,36 @@ class PrivatizeConversationMessageActivity extends KanvasActivity implements Wor
             ];
         }
 
-        $verb = $entity->messageType?->verb;
-        if (! in_array($verb, self::SUPPORTED_VERBS, true)) {
-            return [
-                'message' => 'Message type is not a supported conversation message, skipping',
-                'message_id' => $entity->getId(),
-                'verb' => $verb,
-                'result' => false,
-            ];
-        }
+        return $this->executeIntegration(
+            entity: $entity,
+            app: $app,
+            integration: IntegrationsEnum::INTERNAL,
+            integrationOperation: static function (Message $message): array {
+                $verb = $message->messageType?->verb;
+                if (! in_array($verb, self::SUPPORTED_VERBS, true)) {
+                    return [
+                        'message' => 'Message type is not a supported conversation message, skipping',
+                        'message_id' => $message->getId(),
+                        'verb' => $verb,
+                        'result' => false,
+                    ];
+                }
 
-        $entity->is_public = 0;
-        $entity->is_locked = 1;
-        $entity->saveQuietly();
+                $message->is_public = 0;
+                $message->is_locked = 1;
+                $message->saveQuietly();
 
-        return [
-            'message' => 'Conversation message set to private and locked',
-            'message_id' => $entity->getId(),
-            'verb' => $verb,
-            'is_public' => false,
-            'is_locked' => true,
-            'result' => true,
-        ];
+                return [
+                    'message' => 'Conversation message set to private and locked',
+                    'message_id' => $message->getId(),
+                    'verb' => $verb,
+                    'is_public' => false,
+                    'is_locked' => true,
+                    'result' => true,
+                ];
+            },
+            additionalParams: $params,
+            company: $entity->company,
+        );
     }
 }
