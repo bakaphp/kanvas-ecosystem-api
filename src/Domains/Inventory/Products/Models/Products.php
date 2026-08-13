@@ -270,6 +270,51 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         );
     }
 
+    /**
+     * Attribute values live in two encodings in the same column: a bare scalar written by
+     * AddAttributeAction, and a spatie translation map ({"en":0}) written by the
+     * updateProductAttributeTranslation mutation. Normalize both to the plain value before comparing.
+     *
+     * The CASE/COALESCE shape matters: JSON_VALID('0') is TRUE for bare numeric scalars, so a plain
+     * IF(JSON_VALID(...)) would extract NULL and silently drop every raw numeric row.
+     */
+    private static function normalizedAttributeValue(string $column): string
+    {
+        return "COALESCE(CASE WHEN JSON_VALID({$column}) THEN JSON_UNQUOTE(JSON_EXTRACT({$column}, '$.en')) END, {$column})";
+    }
+
+    public function scopeFilterByAttributeValue(
+        Builder $query,
+        ?string $value = null,
+        ?int $attributesId = null,
+        ?string $slug = null
+    ): Builder {
+        return $query->whereHas(
+            'attributeValues',
+            function (Builder $attributeValue) use ($value, $attributesId, $slug): void {
+                $attributeValue->where('products_attributes.is_deleted', 0);
+
+                if ($value !== null) {
+                    $attributeValue->whereRaw(
+                        self::normalizedAttributeValue('products_attributes.value') . ' = ?',
+                        [$value]
+                    );
+                }
+
+                if ($attributesId !== null) {
+                    $attributeValue->where('products_attributes.attributes_id', $attributesId);
+                }
+
+                if ($slug !== null) {
+                    $attributeValue->whereHas(
+                        'attribute',
+                        fn (Builder $attribute) => $attribute->where('attributes.slug', $slug)
+                    );
+                }
+            }
+        );
+    }
+
     public function scopeFilterByVariantAttributeValue(Builder $query, string $value): Builder
     {
         return $query->where('products.is_deleted', 0)
@@ -278,13 +323,8 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     ->whereHas('attributes', function (Builder $query) use ($value) {
                         $query->where(function ($subQuery) use ($value) {
                             $subQuery
-                                // If value is JSON, extract and compare
                                 ->whereRaw(
-                                    "IF(
-                                        JSON_VALID(products_variants_attributes.value),
-                                        JSON_UNQUOTE(JSON_EXTRACT(products_variants_attributes.value, '$.en')),
-                                        products_variants_attributes.value
-                                    ) LIKE ?",
+                                    self::normalizedAttributeValue('products_variants_attributes.value') . ' LIKE ?',
                                     ['%' . $value . '%']
                                 )
                                 ->where('products_variants_attributes.is_deleted', 0);
@@ -601,7 +641,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
     protected function fitWithinAlgoliaRecordLimit(array $product): array
     {
-        $limit = 9500; // headroom under Algolia's 10,000-byte hard limit
+        $limit = $this->algoliaRecordSizeLimit();
 
         if (Arr::sizeInBytes($product) <= $limit) {
             return $product;

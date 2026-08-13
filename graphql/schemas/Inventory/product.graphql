@@ -285,6 +285,7 @@ extend type Query @guard {
                 relation: "channels"
                 columns: ["id", "name", "uuid"]
             )
+        "Broken: Lighthouse qualifies these onto products_attributes, which has none of them. Kept for legacy compatibility — use attributeValues instead."
         hasAttributes: _
             @whereHasConditions(
                 relation: "attributes"

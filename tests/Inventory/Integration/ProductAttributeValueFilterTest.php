@@ -136,6 +136,34 @@ final class ProductAttributeValueFilterTest extends TestCase
         $this->assertContains((string) $product->getId(), $ids);
     }
 
+    public function testAttributeValuesFiltersOnExistenceWithoutAValue(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        new Setup($app, $user, $company)->run();
+
+        $attributeName = 'haswarranty_' . uniqid();
+
+        $withAttribute = $this->createProduct($app, $company, $user);
+        $withAttribute->addAttribute($attributeName, 'yes');
+
+        $withoutAttribute = $this->createProduct($app, $company, $user);
+
+        $slug = $withAttribute->getAttributeByName($attributeName)->slug;
+
+        $matched = Products::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->filterByAttributeValue(slug: $slug)
+            ->pluck('products.id')
+            ->all();
+
+        $this->assertContains($withAttribute->getId(), $matched);
+        $this->assertNotContains($withoutAttribute->getId(), $matched);
+    }
+
     /**
      * Read the column straight off the connection — going through the model would return the
      * value already decoded by the translatable accessor, hiding the encoding under test.

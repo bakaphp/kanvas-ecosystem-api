@@ -526,7 +526,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
      */
     protected function fitWithinAlgoliaRecordLimit(array $variant): array
     {
-        $limit = 9500; // headroom under Algolia's 10,000-byte hard limit
+        $limit = $this->algoliaRecordSizeLimit();
 
         if (Arr::sizeInBytes($variant) <= $limit) {
             return $variant;

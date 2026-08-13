@@ -110,6 +110,17 @@ class ProductAlgoliaRecordSizeTest extends TestCase
         $this->assertNotEmpty($trimmed['variants'][0]['files']);
     }
 
+    public function testRecordSizeLimitIsConfigurable(): void
+    {
+        $original = $this->oversizedProduct();
+
+        config(['scout.algolia.record_size_limit' => 500000]);
+        $this->assertSame($original, $this->trim($original), 'A raised budget must leave the record untouched.');
+
+        config(['scout.algolia.record_size_limit' => 9500]);
+        $this->assertNotSame($original, $this->trim($original));
+    }
+
     public function testSmallRecordIsLeftUntouched(): void
     {
         $small = [
