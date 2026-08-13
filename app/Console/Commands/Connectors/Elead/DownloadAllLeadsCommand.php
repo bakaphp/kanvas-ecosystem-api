@@ -149,7 +149,7 @@ class DownloadAllLeadsCommand extends Command
                                         $newLead->set(ConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, $agentNotificationChannel);
                                     }
 
-                                    $newLead->enableWorkflow();
+                                    $newLead->enableWorkflows();
                                     $newLead->fireWorkflow(
                                         WorkflowEnum::CREATED->value,
                                         true,
