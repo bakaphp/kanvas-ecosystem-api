@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
@@ -39,17 +40,26 @@ class PrivatizeConversationMessageActivity extends KanvasActivity implements Wor
             ];
         }
 
-        $entity->is_public = 0;
-        $entity->is_locked = 1;
-        $entity->saveQuietly();
+        return $this->executeIntegration(
+            entity: $entity,
+            app: $app,
+            integration: IntegrationsEnum::INTERNAL,
+            integrationOperation: function (Message $message): array {
+                $message->is_public = 0;
+                $message->is_locked = 1;
+                $message->saveQuietly();
 
-        return [
-            'message' => 'Conversation message set to private and locked',
-            'message_id' => $entity->getId(),
-            'verb' => $verb,
-            'is_public' => false,
-            'is_locked' => true,
-            'result' => true,
-        ];
+                return [
+                    'message' => 'Conversation message set to private and locked',
+                    'message_id' => $message->getId(),
+                    'verb' => $message->messageType?->verb,
+                    'is_public' => false,
+                    'is_locked' => true,
+                    'result' => true,
+                ];
+            },
+            additionalParams: $params,
+            company: $entity->company,
+        );
     }
 }
