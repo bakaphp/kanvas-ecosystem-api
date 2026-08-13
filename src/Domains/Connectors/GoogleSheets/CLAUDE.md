@@ -8,7 +8,7 @@ shares a link to — e.g. an invoice tracking list a team keeps outside Kanvas.
 | Tool | Purpose |
 |---|---|
 | `read_google_sheet(sheet_url_or_id, range?)` | Reads rows/columns. `range` defaults to `A:Z` on the first sheet. |
-| `write_google_sheet(sheet_url_or_id, range, values)` | Appends one or more new rows after the last row of data — never overwrites. |
+| `write_google_sheet(sheet_url_or_id, range, values)` | Appends one or more new rows after the last row of data — never overwrites. `values` is a JSON-encoded string (e.g. `'[["1498","Vendor",250.00,"Pending"]]'`), not a native array — see note below. |
 | `update_google_sheet_cell(sheet_url_or_id, range, value)` | Overwrites a specific cell in place, e.g. flipping a status column to "Approved". |
 | `clear_google_sheet_range(sheet_url_or_id, range)` | Wipes the values in a cell/row/range without deleting the row itself — the safe alternative to a structural delete. |
 | `create_google_sheet_tab(sheet_url_or_id, title)` | Adds a brand-new sheet/tab to the document, without touching any existing tab. |
@@ -17,6 +17,15 @@ All five accept either a full Sheets URL or a bare spreadsheet id — the id is 
 regex (`SpreadsheetUrlParser::extractId()`), never asked of the LLM directly. `write_google_sheet`
 and `update_google_sheet_cell` also accept live formulas (e.g. `"=SUM(C2:C10)"`) as cell values —
 `valueInputOption: USER_ENTERED` interprets them exactly as if typed by hand.
+
+**Why `values` is a JSON string, not `PropertyType::ARRAY`:** NeuronAI's `ToolProperty::getJsonSchema()`
+never emits an `items` sub-schema for array-type parameters. Gemini's function-calling schema
+validation requires `items` on any `array`-typed parameter and rejects the whole request with a
+`400 GenerateContentRequest.tools[...].parameters...` error otherwise — and since Gemini validates
+every tool in the array together, one bad array-typed property breaks every tool call on that
+agent, not just this one. `write_google_sheet` sidesteps it by declaring `values` as `STRING` and
+`json_decode()`-ing it in `__invoke()`. Do the same for any future tool parameter that would
+naturally be an array/object, until NeuronAI adds `items`/`properties` sub-schema support.
 
 ## Configuration
 

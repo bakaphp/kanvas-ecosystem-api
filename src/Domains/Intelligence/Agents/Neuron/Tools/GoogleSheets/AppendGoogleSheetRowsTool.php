@@ -54,22 +54,21 @@ class AppendGoogleSheetRowsTool extends Tool
             ),
             new ToolProperty(
                 name: 'values',
-                type: PropertyType::ARRAY,
-                description: 'Array of rows to append, each row itself an array of cell values in column order, '
-                    . 'e.g. [["1498", "Windwalk Games Corp", 250.00, "Pending"]]. At least one row is required. '
-                    . 'A cell value starting with "=" is entered as a live formula (e.g. "=SUM(C2:C10)"), exactly '
-                    . 'as if typed into the sheet by hand — not stored as plain text.',
+                type: PropertyType::STRING,
+                description: 'A JSON-encoded array of rows to append, each row itself an array of cell values in '
+                    . 'column order, e.g. \'[["1498", "Windwalk Games Corp", 250.00, "Pending"]]\'. Encode it as a '
+                    . 'JSON string, not a native array — this tool decodes it internally. At least one row is '
+                    . 'required. A cell value starting with "=" is entered as a live formula (e.g. "=SUM(C2:C10)"), '
+                    . 'exactly as if typed into the sheet by hand — not stored as plain text.',
                 required: true,
             ),
         ];
     }
 
     /**
-     * @param array<int, array<int, mixed>> $values
-     *
      * @return array<string, mixed>
      */
-    public function __invoke(string $sheet_url_or_id, string $range, array $values): array
+    public function __invoke(string $sheet_url_or_id, string $range, string $values): array
     {
         $spreadsheetId = $this->resolveSpreadsheetId($sheet_url_or_id);
 
@@ -77,16 +76,19 @@ class AppendGoogleSheetRowsTool extends Tool
             return ['success' => false, ...$spreadsheetId];
         }
 
-        if ($values === []) {
+        $decodedValues = json_decode($values, true);
+
+        if (! is_array($decodedValues) || $decodedValues === []) {
             return [
                 'success' => false,
                 'reason' => 'values_required',
-                'message' => 'At least one row (an array of cell values) is required.',
+                'message' => 'values must be a JSON-encoded array with at least one row, e.g. '
+                    . '\'[["1498", "Windwalk Games Corp", 250.00, "Pending"]]\'.',
             ];
         }
 
         try {
-            $result = new AppendSheetRowsAction($this->app, $spreadsheetId, $range, $values)->execute();
+            $result = new AppendSheetRowsAction($this->app, $spreadsheetId, $range, $decodedValues)->execute();
         } catch (Throwable $e) {
             return [
                 'success' => false,
