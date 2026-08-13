@@ -14,6 +14,14 @@ use Tests\TestCase;
 
 class CreateGoogleCalendarMeetingActionTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Google Calendar integration tests are skipped in CI');
+        }
+    }
+
     public function testItCreatesAnEventWithAttendeesAndConferenceDataUsingTheOfficialClient(): void
     {
         $company = auth()->user()->getCurrentCompany();
