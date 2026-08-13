@@ -122,8 +122,7 @@ class EventLookupMutation
         $model->users_id = $user->getId();
         $model->name = $input['name'];
 
-        if (array_key_exists('is_default', $input)
-            && $model->getConnection()->getSchemaBuilder()->hasColumn($model->getTable(), 'is_default')) {
+        if (array_key_exists('is_default', $input)) {
             $model->is_default = (int) (bool) $input['is_default'];
         }
 

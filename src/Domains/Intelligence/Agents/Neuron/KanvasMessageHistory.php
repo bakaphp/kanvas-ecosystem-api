@@ -46,6 +46,7 @@ class KanvasMessageHistory extends AbstractChatHistory
         private readonly ?Agent $agent = null,
         private readonly array $turnMedia = [],
         private readonly ?string $model = null,
+        private readonly bool $privateUserTurn = false,
     ) {
         parent::__construct($contextWindow);
 
@@ -197,6 +198,10 @@ class KanvasMessageHistory extends AbstractChatHistory
             $usage['model'] = $this->model;
         }
 
+        // A private turn (e.g. an injected agent-task wake instruction) is persisted is_public=0 so the
+        // chat UI hides it. Only the user turn is hidden — the agent's own reply stays visible.
+        $isPublic = $this->privateUserTurn && $role === MessageRole::USER->value ? 0 : 1;
+
         $meta = $message->jsonSerialize();
         unset($meta['role'], $meta['content'], $meta['usage'], $meta['tools']);
 
@@ -217,6 +222,7 @@ class KanvasMessageHistory extends AbstractChatHistory
             'user_id' => $this->user->getId(),
             'agent' => $this->agentClass,
             'role' => $role,
+            'is_public' => $isPublic,
             'content' => $content,
             'attachments' => json_encode($attachments),
             'tool_calls' => json_encode($toolCalls),

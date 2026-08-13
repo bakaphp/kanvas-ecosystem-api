@@ -9,14 +9,14 @@ use Illuminate\Support\Facades\Schema;
 return new class () extends Migration {
     public function up(): void
     {
-        Schema::connection('event')->table('participant_types', function (Blueprint $table) {
+        Schema::connection('event')->table('participant_types', function (Blueprint $table): void {
             $table->tinyInteger('is_default')->default(0)->index()->after('name');
         });
     }
 
     public function down(): void
     {
-        Schema::connection('event')->table('participant_types', function (Blueprint $table) {
+        Schema::connection('event')->table('participant_types', function (Blueprint $table): void {
             $table->dropColumn('is_default');
         });
     }

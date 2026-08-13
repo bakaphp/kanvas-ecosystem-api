@@ -40,6 +40,7 @@ class KanvasGenericNeuronAgent extends BaseKanvasAgent
             agent: $this->agent,
             turnMedia: $this->turnMedia,
             model: $this->resolvedModelName(),
+            privateUserTurn: $this->privateUserTurn,
         );
     }
 

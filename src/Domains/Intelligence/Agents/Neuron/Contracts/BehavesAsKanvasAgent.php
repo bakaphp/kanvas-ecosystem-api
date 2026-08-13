@@ -30,6 +30,9 @@ interface BehavesAsKanvasAgent extends ProvidesToolDependencies
     /** @param list<string> $media */
     public function setTurnMedia(array $media): void;
 
+    /** Flag the current turn's user message private (persisted is_public=0) so the UI hides it. */
+    public function setPrivateUserTurn(bool $private): void;
+
     public function persistsTurnsToConversationStore(): bool;
 
     public function captionProvider(): AIProviderInterface;
