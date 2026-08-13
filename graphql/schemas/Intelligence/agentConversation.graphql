@@ -1,10 +1,8 @@
-"A conversation record. Surfaces both in-Kanvas-runtime conversations (written by KanvasConversationStore) and Hermes-runtime conversations (written by the agentRuntimeCollectSessionTranscripts mutation). Existing in-Kanvas rows carry agent=null; Hermes rows always link to their owning Agent."
 type AgentConversation {
     id: ID!
     agent: AgentAi @belongsTo(relation: "agent")
     user: User @belongsTo(relation: "user")
     title: String!
-    "Free-form runtime-specific session metadata. For Hermes: model, system_prompt, source, parent_session_id, costs, handoff_state, watermark."
     meta: Mixed
     messages(
         where: _ @whereConditions(columns: ["created_at"])
@@ -19,17 +17,14 @@ type AgentConversationMessage {
     id: ID!
     conversation: AgentConversation! @belongsTo(relation: "conversation")
     user: User @belongsTo(relation: "user")
-    "Source-tag string. In-Kanvas-runtime: a Laravel\\Ai\\Agent class name. Hermes-runtime: the Kanvas Agent's UUID."
     agent: String!
     role: String!
-    "Whether the message is shown in the chat UI. An internally-injected turn (e.g. a scheduled agent-task wake instruction) is is_public=false so the frontend hides it."
     is_public: Boolean!
     content: String
     attachments: Mixed
     tool_calls: Mixed
     tool_results: Mixed
     usage: Mixed
-    "Runtime-specific per-message fields: tool_call_id, tool_name, finish_reason, token_count, reasoning_*, codex_*, occurred_at, runtime_source_reader."
     meta: Mixed
     created_at: DateTime!
     updated_at: DateTime!
