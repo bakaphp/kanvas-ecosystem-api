@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
@@ -17,9 +18,12 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTo
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleReminderTool;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionStatusEnum;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionTypeEnum;
 use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
@@ -27,7 +31,7 @@ class ScheduledActionToolsTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'intelligence'];
+    protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'crm'];
 
     /**
      * @return array{0: Apps, 1: Companies, 2: Users}
@@ -93,6 +97,43 @@ class ScheduledActionToolsTest extends TestCase
         $this->assertSame(ScheduledActionStatusEnum::PENDING->value, $row->status);
         $this->assertSame($user->getId(), $row->users_id);
         $this->assertSame($agent->getId(), $row->agent_id);
+    }
+
+    public function testReminderStampsTheChannelSessionAndSourceRecordItWasScheduledFrom(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create();
+        $channel = new CreateChannelAction(
+            new ChannelDto(
+                apps: $app,
+                companies: $company,
+                users: $user,
+                entity_id: (int) $lead->getKey(),
+                entity_namespace: Lead::class,
+                name: 'Scheduling source test',
+                slug: 'sched-source-' . uniqid(),
+            ),
+        )->execute();
+
+        $session = new Session();
+        $session->entity_namespace = Lead::class;
+        $session->entity_id = $lead->getId();
+        $session->uuid = SessionChannelService::buildChannelSessionUuid($channel, $app, $company);
+        $session->channel_id = $channel->getId();
+
+        $result = new ScheduleReminderTool($agent, $session)
+            ->withContext($app, $company, $user)('Call Marlene back', $this->futureLocal());
+
+        $this->assertSame('success', $result['status']);
+        $row = ScheduledAction::query()->where('id', $result['scheduled_action_id'])->firstOrFail();
+
+        // Without these the fire-time job has no channel to deliver into and no record to point back at.
+        $this->assertSame($session->uuid, $row->session_uuid);
+        $this->assertSame($channel->slug, $row->channel);
+        $this->assertSame(Lead::class, $row->source_entity_type);
+        $this->assertSame((string) $lead->getId(), $row->source_entity_id);
     }
 
     public function testReminderDefaultsToTheConversationHumanNotTheAgentUser(): void

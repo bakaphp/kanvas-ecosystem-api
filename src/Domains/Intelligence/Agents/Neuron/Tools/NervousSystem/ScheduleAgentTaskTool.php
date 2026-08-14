@@ -130,6 +130,8 @@ class ScheduleAgentTaskTool extends Tool implements HasRunKey
                 instruction: $instruction,
                 channel: $this->session?->channel?->slug,
                 sessionUuid: $this->session?->uuid,
+                sourceEntityType: $this->session?->entity_namespace,
+                sourceEntityId: $this->session?->entity_id !== null ? (string) $this->session->entity_id : null,
                 recurrenceCron: $this->normalizeCron($recurrence_cron),
                 recurrenceEndsAt: $repeatUntil,
                 maxOccurrences: $max_occurrences,

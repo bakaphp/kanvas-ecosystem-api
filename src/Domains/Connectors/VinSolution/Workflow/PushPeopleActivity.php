@@ -49,7 +49,7 @@ class PushPeopleActivity extends KanvasActivity
                         ]);
                     }
 
-                    if (! ContactRejectionService::isDataRejection($e)) {
+                    if (! ContactRejectionService::isRecordRejection($e)) {
                         throw $e;
                     }
 

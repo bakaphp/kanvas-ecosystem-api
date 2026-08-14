@@ -45,7 +45,7 @@ class PushCoBuyerActivity extends KanvasActivity
                 try {
                     $vinLead = $pushLead->execute();
                 } catch (ClientException $e) {
-                    if (! ContactRejectionService::isDataRejection($e)) {
+                    if (! ContactRejectionService::isRecordRejection($e)) {
                         throw $e;
                     }
 

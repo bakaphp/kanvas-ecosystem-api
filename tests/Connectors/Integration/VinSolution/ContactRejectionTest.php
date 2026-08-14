@@ -82,18 +82,52 @@ final class ContactRejectionTest extends TestCase
         $this->assertSame(0, $note->is_public, 'internal sync failure — the customer must never see it');
     }
 
-    public function testOnlyA400CountsAsADataRejection(): void
+    public function testUnauthorizedContactIsRecordedAsANoteInsteadOfThrowing(): void
     {
-        $this->assertTrue(ContactRejectionService::isDataRejection($this->vinSolutionRejection()));
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create();
+
+        $reason = ContactRejectionService::recordForLead($lead, $this->unauthorizedContact());
+
+        $this->assertSame('User not authorized for Customer', $reason);
+
+        $note = $lead->systemNotes?->messages()->latest('messages.id')->first();
+        $this->assertNotNull($note);
+        $this->assertStringContainsString('did not authorize access', $note->message['content']);
+        $this->assertSame(0, $note->is_public);
+    }
+
+    public function testDataRejectionsAndUnauthorizedContactsAreTheOnlySwallowedErrors(): void
+    {
+        $this->assertTrue(ContactRejectionService::isRecordRejection($this->vinSolutionRejection()));
+        $this->assertTrue(ContactRejectionService::isRecordRejection($this->unauthorizedContact()));
+
         $this->assertFalse(
-            ContactRejectionService::isDataRejection($this->vinSolutionRejection(status: 401)),
-            'auth/rate-limit failures are system faults and must still surface'
+            ContactRejectionService::isRecordRejection(
+                $this->vinSolutionRejection(status: 401, body: 'Invalid or expired access token')
+            ),
+            'a real credential failure is a system fault and must still surface'
+        );
+        $this->assertFalse(
+            ContactRejectionService::isRecordRejection($this->vinSolutionRejection(status: 429)),
+            'rate limiting must still surface'
         );
     }
 
-    private function vinSolutionRejection(int $status = 400): ClientException
+    private function unauthorizedContact(): ClientException
     {
-        $body = json_encode([
+        return new ClientException(
+            'Client error',
+            new Request('GET', '/gateway/v1/contact/1438916379?dealerId=15595&userId=1330641'),
+            new Response(401, [], '"User not authorized for Customer"')
+        );
+    }
+
+    private function vinSolutionRejection(int $status = 400, ?string $body = null): ClientException
+    {
+        $body ??= json_encode([
             'ClassName' => 'System.ArgumentException',
             'Message' => 'jaimefrc85@hotmail.com is not valid.  Email message rejected by the verifier.',
         ]);

@@ -206,7 +206,10 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
 
         $core[] = new SendEmailToUserTool($agent);
 
-        $contextUser = $this->user ?? $agent->user;
+        // The schedule tools key on the human, not the agent: "remind me" must land on the person
+        // who asked. On an @mention surface $this->user IS the agent's own user, so an explicit
+        // conversation human (set by the caller) wins over it.
+        $contextUser = $this->conversationHuman ?? $this->user ?? $agent->user;
         $core[] = new ScheduleReminderTool($agent, $this->session)->withContext($app, $company, $contextUser);
         $core[] = new ScheduleAgentTaskTool($agent, $this->session)->withContext($app, $company, $contextUser);
         $core[] = new ListScheduledActionsTool($this->session)->withContext($app, $company, $contextUser);

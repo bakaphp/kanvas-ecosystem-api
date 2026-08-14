@@ -8,12 +8,72 @@ use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Social\Tags\Models\TagEntity;
 use Kanvas\SystemModules\Models\SystemModules;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 class TagsTest extends TestCase
 {
+    /**
+     * A tag whose users_id points at a user row that no longer exists used to take down the whole
+     * tags query with `Cannot return null for non-nullable field "Tag.user"` (Sentry KANVAS-ECOSYSTEM-5GS).
+     */
+    public function testTagsQueryWithOrphanUserDoesNotBreakTheQuery(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $tag = new Tag();
+        $tag->apps_id = $app->getId();
+        $tag->companies_id = $user->getCurrentCompany()->getId();
+        $tag->users_id = Users::max('id') + 100000;
+        $tag->name = 'orphan-user-tag-' . fake()->unique()->uuid();
+        $tag->weight = 0;
+        $tag->save();
+
+        try {
+            $this->graphQL(/** @lang GRAPHQL */
+                '
+                query tags($where: QueryTagsWhereWhereConditions) {
+                    tags(where: $where) {
+                        data {
+                            id
+                            name
+                            user {
+                                id
+                            }
+                        }
+                    }
+                }
+            ',
+                [
+                    'where' => [
+                        'value' => $tag->getId(),
+                        'column' => 'ID',
+                        'operator' => 'EQ',
+                    ],
+                ]
+            )->assertSuccessful()
+                ->assertJson([
+                    'data' => [
+                        'tags' => [
+                            'data' => [
+                                [
+                                    'id' => (string) $tag->getId(),
+                                    'name' => $tag->name,
+                                    'user' => null,
+                                ],
+                            ],
+                        ],
+                    ],
+                ]);
+        } finally {
+            $tag->forceDelete();
+        }
+    }
+
     public function testCreateTag()
     {
         $input = [

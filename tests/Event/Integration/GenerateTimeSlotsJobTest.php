@@ -13,6 +13,7 @@ use Kanvas\Event\Events\Models\ScheduleRules;
 use Kanvas\Event\Events\Models\TimeSlots;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
@@ -515,5 +516,70 @@ class GenerateTimeSlotsJobTest extends TestCase
             $duration = $slot->start_at->diffInMinutes($slot->end_at);
             $this->assertEquals(120, $duration);
         }
+    }
+
+    public function testGenerateTimeSlotsSkipsRuleWhoseResourceWasDeleted(): void
+    {
+        $startDate = Carbon::now()->addDay()->setTime(9, 0, 0);
+        $endDate = $startDate->copy()->addDays(7);
+
+        $scheduleRule = ScheduleRules::create([
+            'apps_id' => $this->apps->getId(),
+            'companies_id' => $this->company->getId(),
+            'resources_id' => $this->variantId,
+            'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
+            'start_at' => $startDate,
+            'end_at' => $endDate,
+            'rrule' => 'RRULE:FREQ=DAILY',
+            'slot_duration_min' => 60,
+            'lead_time_min' => 0,
+            'cutoff_time_min' => 0,
+            'capacity_override' => 5,
+        ]);
+
+        // Bypass the model: VariantObserver refuses to delete a product's last variant,
+        // but the row can still end up flagged deleted (product deletion, direct cleanup).
+        Variants::where('id', $this->variantId)->update(['is_deleted' => 1]);
+
+        new GenerateTimeSlots(
+            $this->variantId,
+            $scheduleRule->id,
+            $startDate,
+            $endDate
+        )->handle();
+
+        $this->assertSame(0, TimeSlots::where('schedule_rules_id', $scheduleRule->id)->count());
+    }
+
+    public function testGenerateTimeSlotsSkipsDeletedRule(): void
+    {
+        $startDate = Carbon::now()->addDay()->setTime(9, 0, 0);
+        $endDate = $startDate->copy()->addDays(7);
+
+        $scheduleRule = ScheduleRules::create([
+            'apps_id' => $this->apps->getId(),
+            'companies_id' => $this->company->getId(),
+            'resources_id' => $this->variantId,
+            'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
+            'start_at' => $startDate,
+            'end_at' => $endDate,
+            'rrule' => 'RRULE:FREQ=DAILY',
+            'slot_duration_min' => 60,
+            'lead_time_min' => 0,
+            'cutoff_time_min' => 0,
+            'capacity_override' => 5,
+        ]);
+
+        $scheduleRule->is_deleted = 1;
+        $scheduleRule->saveOrFail();
+
+        new GenerateTimeSlots(
+            $this->variantId,
+            $scheduleRule->id,
+            $startDate,
+            $endDate
+        )->handle();
+
+        $this->assertSame(0, TimeSlots::where('schedule_rules_id', $scheduleRule->id)->count());
     }
 }
