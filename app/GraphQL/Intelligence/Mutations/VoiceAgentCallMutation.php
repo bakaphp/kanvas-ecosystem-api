@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Intelligence\Mutations;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Intelligence\Agents\Actions\PlaceVoiceTestCallAction;
+use Kanvas\Intelligence\Agents\Actions\Voice\PlaceVoiceTestCallAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 
 /**

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Actions;
+namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
