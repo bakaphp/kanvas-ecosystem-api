@@ -79,6 +79,7 @@ final class ContactRejectionTest extends TestCase
         $this->assertNotNull($note, 'the rejection has to land where the dealer can see it');
         $this->assertStringContainsString('jaimefrc85@hotmail.com is not valid', $note->message['content']);
         $this->assertTrue($note->tags()->where('name', 'crm-sync-rejected')->exists());
+        $this->assertSame(0, $note->is_public, 'internal sync failure — the customer must never see it');
     }
 
     public function testOnlyA400CountsAsADataRejection(): void

@@ -69,9 +69,10 @@ class ContactRejectionService
 
         if ($lead !== null) {
             new RecordLeadNoteAction($lead)->execute(
-                'VinSolutions rejected this customer\'s contact information: ' . $reason
-                . ' Fix the contact data on the record and the next sync will push it again.',
-                'crm-sync-rejected'
+                body: 'VinSolutions rejected this customer\'s contact information: ' . $reason
+                    . ' Fix the contact data on the record and the next sync will push it again.',
+                tag: 'crm-sync-rejected',
+                isPublic: false,
             );
         }
 
