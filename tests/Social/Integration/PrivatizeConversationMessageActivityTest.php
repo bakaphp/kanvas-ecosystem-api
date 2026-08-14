@@ -5,14 +5,35 @@ declare(strict_types=1);
 namespace Tests\Social\Integration;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Internal\Handlers\InternalHandler;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Workflows\Activities\PrivatizeConversationMessageActivity;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\TestCase;
 
 class PrivatizeConversationMessageActivityTest extends TestCase
 {
+    use HasIntegrationCompany;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // The activity runs through executeIntegration, which bails with an error envelope
+        // (no `result` key) unless the company has the internal integration wired.
+        $user = auth()->user();
+        $this->setIntegration(
+            app(Apps::class),
+            IntegrationsEnum::INTERNAL,
+            InternalHandler::class,
+            $user->getCurrentCompany(),
+            $user
+        );
+    }
+
     public function testItMakesMessageAndAgentMessagePrivateAndLocked(): void
     {
         $app = app(Apps::class);
