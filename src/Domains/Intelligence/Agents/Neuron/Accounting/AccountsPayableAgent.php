@@ -22,6 +22,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReadEmailDetailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
@@ -82,6 +83,7 @@ class AccountsPayableAgent extends SystemUserAgent
             new ReadEmailDetailsTool(),
             new DownloadAttachmentTool(),
             new ExtractInvoiceDataTool(),
+            new MarkEmailAsReadTool(),
         ]));
     }
 
@@ -129,7 +131,11 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'standard step — do not wait to be asked. Call write_google_sheet with range "Invoices!A1" and a '
             . 'row of [invoice_number, vendor_name, total, "Pending"] (omit sheet_url_or_id to use the default '
             . 'sheet), then after the bill is created and pushed, call update_google_sheet_cell to flip that '
-            . 'row\'s status column to "Approved". Do this even when the user only asked you to create the bill.',
+            . 'row\'s status column to "Approved". Do this even when the user only asked you to create the bill. '
+            . 'Only after ALL of that succeeds (sheet logged, bill created and pushed), call '
+            . 'mark_email_as_read on the message_id — this is what stops the same invoice from showing up again '
+            . 'next time you search "has:attachment is:unread". Never mark it read before every step succeeds, '
+            . 'so a failed run can still be found and retried.',
         ]);
     }
 }
