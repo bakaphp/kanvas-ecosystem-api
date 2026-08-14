@@ -12,9 +12,11 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPositionAndDepartmentForTool;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -23,11 +25,12 @@ use Override;
  * existing position when a title already exists rather than duplicating it.
  */
 #[AgentTool(name: 'Create Position', category: 'human_resources')]
-class CreatePositionTool extends Tool
+class CreatePositionTool extends Tool implements HasRunKey
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ResolvesPositionAndDepartmentForTool;
+    use TrackByInputs;
 
     public function __construct()
     {

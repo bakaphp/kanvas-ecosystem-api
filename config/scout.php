@@ -124,6 +124,12 @@ return [
         'secret' => env('ALGOLIA_SECRET', ''),
         'settings_path' => env('ALGOLIA_SETTINGS_PATH'),
         'use_deprecated_delete_by' => false,
+
+        // Byte budget a single record must fit in before we start trimming it. Algolia rejects the
+        // whole batch when any record is over the plan's hard cap: 10,000 bytes on Build/Grow,
+        // 100,000 on Premium. Keep ~5% headroom under whichever cap the plan gives you.
+        // Per-app override: the `algolia_record_size_limit` app setting.
+        'record_size_limit' => (int) env('ALGOLIA_RECORD_SIZE_LIMIT', 9500),
     ],
 
     'typesense' => [

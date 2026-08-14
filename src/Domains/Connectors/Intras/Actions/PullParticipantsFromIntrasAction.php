@@ -22,6 +22,7 @@ use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Models\PeopleType;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
+use Throwable;
 
 class PullParticipantsFromIntrasAction
 {
@@ -85,15 +86,17 @@ class PullParticipantsFromIntrasAction
         // that's ~26k SQL queries collapsed into 1.
         $this->preloadOrganizationMap();
 
+        $lookupNames = self::loadLookupNames($client);
+
         $count = 0;
 
-        $query->orderBy('p.id')->chunk(500, function ($rows) use ($client, &$count, $participantType, $keyContactType) {
+        $query->orderBy('p.id')->chunk(500, function ($rows) use ($client, &$count, $participantType, $keyContactType, $lookupNames) {
             $participantIds = array_map(fn ($r) => (int) $r->id, $rows->all());
             $contactMap = self::loadParticipantContacts($client, $participantIds);
 
             foreach ($rows as $row) {
                 $contactRows = $contactMap[(int) $row->id] ?? [];
-                $mapped = ParticipantMapper::fromIntras($row, $contactRows);
+                $mapped = ParticipantMapper::fromIntras($row, $contactRows, $lookupNames);
 
                 /** @var People $people */
                 $people = People::firstOrCreate([
@@ -132,6 +135,33 @@ class PullParticipantsFromIntrasAction
         });
 
         return $count;
+    }
+
+    /**
+     * Resolve every lookup table behind a participant profile FK to [id => name].
+     * They're all small catalogs, so one query each up front beats a join per chunk.
+     *
+     * A table can be missing on an agency's install — the catalogs were added to
+     * SIPGO over time — so a failed read drops that field rather than the import.
+     *
+     * @return array<string, array<int, string>> lookup table => [id => name]
+     */
+    public static function loadLookupNames(Client $client): array
+    {
+        $names = [];
+
+        foreach (ParticipantMapper::lookupTables() as $table) {
+            try {
+                $names[$table] = $client->table($table)
+                    ->pluck('name', 'id')
+                    ->map(fn ($name) => trim((string) $name))
+                    ->all();
+            } catch (Throwable) {
+                $names[$table] = [];
+            }
+        }
+
+        return $names;
     }
 
     /**

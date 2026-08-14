@@ -33,8 +33,17 @@ trait HasKanvasAgentBehavior
     protected ?Session $session = null;
     protected ?Lead $currentLead = null;
 
+    /**
+     * The human this turn is answering, when it can't be read off the session entity — an @mention
+     * conversation runs with `$user` set to the agent's OWN user and a session whose entity is the
+     * record (a Lead), so "remind me" would otherwise resolve to the agent itself.
+     */
+    protected ?Users $conversationHuman = null;
+
     /** @var list<string> Attachment URLs/paths (image/audio/PDF) on the current turn's user prompt. */
     protected array $turnMedia = [];
+
+    protected bool $privateUserTurn = false;
 
     public function setConfiguration(
         Agent $agent,
@@ -71,6 +80,11 @@ trait HasKanvasAgentBehavior
         $this->session = $session;
     }
 
+    public function setConversationHuman(?Users $user): void
+    {
+        $this->conversationHuman = $user;
+    }
+
     /**
      * Whether this agent's chatHistory already writes each turn to the agent_conversation_messages
      * store. When true, RunNeuronChatAction skips its own logTurn to avoid a duplicate conversation.
@@ -95,6 +109,11 @@ trait HasKanvasAgentBehavior
     public function setTurnMedia(array $media): void
     {
         $this->turnMedia = array_values($media);
+    }
+
+    public function setPrivateUserTurn(bool $private): void
+    {
+        $this->privateUserTurn = $private;
     }
 
     /**
@@ -171,8 +190,23 @@ trait HasKanvasAgentBehavior
     protected function universalTools(): array
     {
         return [
-            new CurrentTimeTool(),
+            new CurrentTimeTool($this->resolveTenantTimezone()),
         ];
+    }
+
+    /**
+     * The agent's local timezone for time-relative reasoning: company timezone, then user timezone, then
+     * UTC. Each is validated as a real IANA zone so a blank/garbage tenant value falls through.
+     */
+    private function resolveTenantTimezone(): ?string
+    {
+        foreach ([$this->company?->timezone, $this->user?->timezone] as $candidate) {
+            if (is_string($candidate) && $candidate !== '' && in_array($candidate, timezone_identifiers_list(), true)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     /**

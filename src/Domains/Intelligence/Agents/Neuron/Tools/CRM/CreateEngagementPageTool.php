@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
@@ -13,6 +14,8 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Variants\Models\Variants;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -60,19 +63,24 @@ class CreateEngagementPageTool extends Tool
             new ToolProperty(
                 name: 'data',
                 type: PropertyType::OBJECT,
-                description: 'Action-specific page payload. For view-vehicle, provide a products array and mark the selected vehicle with interested=true.',
+                description: 'Action-specific page payload. Credit-app and actions without fields may omit data. '
+                    . 'For view-vehicle, provide product_id as an array of real variant numeric IDs or UUIDs. '
+                    . 'You may provide channel_id as an inventory channel numeric ID or UUID; when omitted, the '
+                    . 'tool resolves the default published inventory channel shared by the variants. Never invent IDs.',
                 required: false,
             ),
         ];
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param array<string, mixed>|null $data
      *
      * @return array<string, mixed>
      */
-    public function __invoke(int $lead_id, string $action, array $data = []): array
+    public function __invoke(int $lead_id, string $action, ?array $data = null): array
     {
+        $data ??= [];
+
         $action = trim($action);
         if ($action === '') {
             return [
@@ -99,6 +107,8 @@ class CreateEngagementPageTool extends Tool
                 ];
             }
 
+            $data = $this->normalizeActionData($action, $data);
+
             $engagement = $this->createEngagement(new EngagementData(
                 app: $this->app,
                 company: $this->company,
@@ -112,6 +122,11 @@ class CreateEngagementPageTool extends Tool
                 via: 'agent',
                 data: $data,
             ));
+        } catch (InvalidArgumentException $e) {
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ];
         } catch (Throwable $e) {
             $this->reportException($e, $lead_id, $action);
 
@@ -149,6 +164,112 @@ class CreateEngagementPageTool extends Tool
     protected function createEngagement(EngagementData $data): Engagement
     {
         return new CreateEngagementAction($data)->execute();
+    }
+
+    /**
+     * Normalize action-specific input to the same payload produced by the frontend.
+     *
+     * @param array<string, mixed> $data
+     *
+     * @return array<string, mixed>
+     */
+    protected function normalizeActionData(string $action, array $data): array
+    {
+        if ($action !== 'view-vehicle') {
+            return $data;
+        }
+
+        $productIds = $data['product_id'] ?? null;
+        if (! is_array($productIds) || $productIds === []) {
+            throw new InvalidArgumentException(
+                'View vehicle requires data.product_id with at least one real variant numeric ID or UUID.',
+            );
+        }
+
+        $variants = collect($productIds)->map(function (mixed $productId): Variants {
+            if (! is_int($productId) && ! is_string($productId)) {
+                throw new InvalidArgumentException('Every view-vehicle product_id must be a variant numeric ID or UUID.');
+            }
+
+            $identifier = trim((string) $productId);
+            $variant = Variants::query()
+                ->fromApp($this->app)
+                ->fromCompany($this->company)
+                ->notDeleted()
+                ->where(
+                    fn ($query) => ctype_digit($identifier)
+                        ? $query->whereKey((int) $identifier)
+                        : $query->where('uuid', $identifier)
+                )
+                ->first();
+
+            if (! $variant instanceof Variants) {
+                throw new InvalidArgumentException("Variant {$identifier} was not found in the current app and company.");
+            }
+
+            return $variant;
+        })->unique(fn (Variants $variant): int => $variant->getId())->values();
+
+        $channel = $this->resolveInventoryChannel($data['channel_id'] ?? null, $variants->first());
+
+        foreach ($variants as $variant) {
+            $hasPublishedChannel = $variant->variantChannels()
+                ->where('channels_id', $channel->getId())
+                ->where('is_published', true)
+                ->exists();
+
+            if (! $hasPublishedChannel) {
+                throw new InvalidArgumentException(
+                    "Variant {$variant->getId()} is not available in inventory channel {$channel->uuid}.",
+                );
+            }
+        }
+
+        unset($data['products']);
+        $data['product_id'] = $variants
+            ->map(fn (Variants $variant): string => (string) $variant->uuid)
+            ->all();
+        $data['channel_id'] = (string) $channel->uuid;
+
+        return $data;
+    }
+
+    protected function resolveInventoryChannel(mixed $channelId, Variants $variant): Channels
+    {
+        if ($channelId === null || trim((string) $channelId) === '') {
+            try {
+                return $variant->getPriceInfoFromDefaultChannel();
+            } catch (Throwable) {
+                throw new InvalidArgumentException(
+                    'No default published inventory channel is available for the selected view-vehicle variant.',
+                );
+            }
+        }
+
+        if (! is_int($channelId) && ! is_string($channelId)) {
+            throw new InvalidArgumentException('The view-vehicle channel_id must be an inventory channel numeric ID or UUID.');
+        }
+
+        $identifier = trim((string) $channelId);
+        $channel = Channels::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
+            ->where('is_published', true)
+            ->where(
+                fn ($query) => ctype_digit($identifier)
+                    ? $query->whereKey((int) $identifier)
+                    : $query->where('uuid', $identifier)
+            )
+            ->first();
+
+        if (! $channel instanceof Channels) {
+            throw new InvalidArgumentException(
+                "Inventory channel {$identifier} was not found or is not published in the current app and company.",
+            );
+        }
+
+        return $channel;
     }
 
     protected function reportException(Throwable $exception, int $leadId, string $action): void

@@ -24,7 +24,7 @@ class TakeDealMessageToolTest extends TestCase
         $created = new CreateDealTool($app, $company, $user)
             ->__invoke(title: 'Deal ' . uniqid());
 
-        $result = new TakeDealMessageTool()->__invoke(
+        $result = $this->withTenant(new TakeDealMessageTool())->__invoke(
             deal_id: (int) $created['deal_id'],
             message: 'Please call me back about the quote',
             for_whom: 'John',
@@ -48,15 +48,32 @@ class TakeDealMessageToolTest extends TestCase
         $created = new CreateDealTool($app, $company, $user)
             ->__invoke(title: 'Deal ' . uniqid());
 
-        $result = new TakeDealMessageTool()->__invoke(deal_id: (int) $created['deal_id'], message: '   ');
+        $result = $this->withTenant(new TakeDealMessageTool())->__invoke(deal_id: (int) $created['deal_id'], message: '   ');
 
         $this->assertSame('error', $result['status']);
     }
 
     public function testHallucinatedDealIdReturnsError(): void
     {
-        $result = new TakeDealMessageTool()->__invoke(deal_id: 999999999, message: 'hi');
+        $result = $this->withTenant(new TakeDealMessageTool())->__invoke(deal_id: 999999999, message: 'hi');
 
         $this->assertSame('error', $result['status']);
+    }
+
+    /**
+     * Deal tools resolve their deal against the tenant on their context, so a bare instance
+     * (no withContext) intentionally resolves nothing — mirror what the agent wiring does.
+     *
+     * @template T of object
+     *
+     * @param T $tool
+     *
+     * @return T
+     */
+    private function withTenant(object $tool): object
+    {
+        $user = auth()->user();
+
+        return $tool->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
     }
 }

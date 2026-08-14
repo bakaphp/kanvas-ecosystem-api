@@ -20,6 +20,7 @@ use App\Console\Commands\NervousSystem\Plans\DetectStalledPlanTasksCommand;
 use App\Console\Commands\NervousSystem\Plans\NudgeInactivePlansCommand;
 use App\Console\Commands\NervousSystem\Plans\ProjectHeartbeatCommand;
 use App\Console\Commands\NervousSystem\Plans\SyncKanbanDeploymentsCommand;
+use App\Console\Commands\NervousSystem\Scheduling\SweepScheduledActionsCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Kanvas\NervousSystem\Dashboard\Jobs\RollupDailyDashboardMetricsJob;
 use Kanvas\NervousSystem\Pulse\Jobs\RollupDailyPulseMetricsJob;
@@ -81,6 +82,12 @@ final class NervousSystemSchedule
             ->withoutOverlapping();
         $schedule->command(ExpireCapabilitiesCommand::class)
             ->hourly()
+            ->withoutOverlapping();
+
+        // Scheduled agent actions (reminders / agent tasks) — the every-minute sweep claims the due
+        // batch and dispatches a fire-job per row. Pure dispatcher; ±1 min fire precision.
+        $schedule->command(SweepScheduledActionsCommand::class)
+            ->everyMinute()
             ->withoutOverlapping();
 
         // Inactive-plan nudge — once a day, ping owners of open plans that have gone silent past the

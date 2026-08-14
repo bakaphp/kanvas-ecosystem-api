@@ -24,13 +24,13 @@ class SendSmsToolTest extends TestCase
         ]);
 
         $delivery = [];
-        $tool = new SendSmsTool(
+        $tool = $this->withTenant(new SendSmsTool(
             function (Lead $sentLead, string $message, string $to) use (&$delivery): array {
                 $delivery = compact('sentLead', 'message', 'to');
 
                 return ['sid' => 'SM_TEST'];
             },
-        );
+        ));
 
         $result = $tool->__invoke(
             lead_id: $lead->getId(),
@@ -55,13 +55,13 @@ class SendSmsToolTest extends TestCase
         ]);
 
         $called = false;
-        $tool = new SendSmsTool(
+        $tool = $this->withTenant(new SendSmsTool(
             function () use (&$called): array {
                 $called = true;
 
                 return [];
             },
-        );
+        ));
 
         $result = $tool->__invoke($lead->getId(), 'Do not send');
 
@@ -80,7 +80,7 @@ class SendSmsToolTest extends TestCase
         ]);
         $lead->set('do_not_contact', 1);
 
-        $result = new SendSmsTool(fn (): array => [])
+        $result = $this->withTenant(new SendSmsTool(fn (): array => []))
             ->__invoke($lead->getId(), 'Do not send');
 
         $this->assertSame('error', $result['status']);
@@ -88,7 +88,7 @@ class SendSmsToolTest extends TestCase
 
     public function testRejectsEmptyMessages(): void
     {
-        $empty = new SendSmsTool(fn (): array => [])
+        $empty = $this->withTenant(new SendSmsTool(fn (): array => []))
             ->__invoke(1, '   ');
 
         $this->assertSame('error', $empty['status']);
@@ -109,5 +109,22 @@ class SendSmsToolTest extends TestCase
             ->delete();
 
         return $lead;
+    }
+
+    /**
+     * Lead tools resolve their lead against the tenant on their context, so a bare instance
+     * (no withContext) intentionally resolves nothing — mirror what the agent wiring does.
+     *
+     * @template T of object
+     *
+     * @param T $tool
+     *
+     * @return T
+     */
+    private function withTenant(object $tool): object
+    {
+        $user = auth()->user();
+
+        return $tool->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
     }
 }

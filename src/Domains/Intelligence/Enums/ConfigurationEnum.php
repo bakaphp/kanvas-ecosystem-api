@@ -17,6 +17,10 @@ enum ConfigurationEnum: string
     case OPEN_AI_EMBEDDINGS_MODEL = 'kanvas-intelligence-openai-embeddings-model';
     case PINECONE_API_KEY = 'kanvas-intelligence-pinecone-api-key';
     case PINECONE_INDEX_URL = 'kanvas-intelligence-pinecone-index-url';
+    // External voice runtime (Pipecat / Cloud Run): base URL + the runtime's
+    // RUNTIME_API_TOKEN, used to trigger outbound/test calls via POST /outbound.
+    case VOICE_RUNTIME_URL = 'kanvas-intelligence-voice-runtime-url';
+    case VOICE_RUNTIME_API_TOKEN = 'kanvas-intelligence-voice-runtime-api-token';
     case ADK_BASE_URL = 'google_orchestrator_base_url';
     case ADK_API_KEY = 'google_orchestrator_api_key';
     case ADK_APP_NAME = 'google_orchestrator_app_name';

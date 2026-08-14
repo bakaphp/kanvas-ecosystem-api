@@ -38,7 +38,6 @@ class CalculateShippingCostAction
         };
         $localTransfer = (float)($this->app->get(ShippingCostEnum::LOCAL_TRANSFER->value) ?? 0.00);
         $paymentFee = (float)($this->app->get(ShippingCostEnum::PAYMENT_FEE->value) ?? 0.029);
-        $serviceFee = (float)($this->app->get(ShippingCostEnum::SERVICE_FEE->value) ?? 1.00);
         $shippingMargin = (float)($this->app->get(ShippingCostEnum::SHIPPING_MARGIN->value) ?? 1.20);
 
         // Calculate
@@ -50,14 +49,12 @@ class CalculateShippingCostAction
 
         $shippingCost = $courierCostWeight * $shippingMargin;
         $otherFee = $costFuel + $customServiceCost + $airportFeeCost + $insuranceCost;
-        $serviceFeeCost = $pounds * $serviceFee;
-        $totalLoCompro = $shippingCost + $otherFee + $serviceFeeCost;
+        $totalLoCompro = $shippingCost + $otherFee;
         $paymentFeeCost = (($linePrice + $totalLoCompro) * $paymentFee) + 3;
 
         return [
             'shippingCost' => $shippingCost,
             'otherFee' => $otherFee,
-            'serviceFee' => $serviceFeeCost,
             'total' => $totalLoCompro,
             'pounds' => $pounds,
             // Freight and insurance are exposed separately because they are the two

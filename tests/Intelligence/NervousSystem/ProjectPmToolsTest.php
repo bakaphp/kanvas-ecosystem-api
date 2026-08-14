@@ -33,12 +33,14 @@ use Kanvas\NervousSystem\Project\Actions\AddProjectMemberAction;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Enums\ProjectMemberRoleEnum;
+use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use Kanvas\NervousSystem\Project\Jobs\WakeWorkerForPlanJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use ReflectionMethod;
+use Tests\Stubs\Intelligence\CapturingProjectManagerAgentStub;
 use Tests\TestCase;
 
 class ProjectPmToolsTest extends TestCase
@@ -80,6 +82,13 @@ class ProjectPmToolsTest extends TestCase
                 $company,
                 ['title' => 'PM tools project', 'agent_id' => $this->makeAgent($app, $company, $user)->id],
             ),
+        )->execute();
+    }
+
+    private function projectFor(Agent $agent, Apps $app, Companies $company, Users $user, string $title): Project
+    {
+        return new CreateProjectAction(
+            ProjectData::from($app, $user, $company, ['title' => $title, 'agent_id' => $agent->id]),
         )->execute();
     }
 
@@ -476,6 +485,79 @@ class ProjectPmToolsTest extends TestCase
         $this->assertStringContainsString('Grounding project', $instructions);
         $this->assertStringContainsString((string) $project->getId(), $instructions);
         $this->assertStringContainsString('NEVER invent', $instructions);
+    }
+
+    public function testInstructionsGroundOnTheProjectInScopeWhenThePmOwnsSeveral(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+        $this->projectFor($agent, $app, $company, $user, 'First board');
+        $second = $this->projectFor($agent, $app, $company, $user, 'Second board');
+
+        $pm = new ProjectManagerAgent();
+        $pm->setConfiguration($agent, $second, null, $user);
+
+        $instructions = $pm->instructions();
+
+        $this->assertStringContainsString('CURRENT PROJECT', $instructions);
+        $this->assertStringContainsString('Second board', $instructions);
+        $this->assertStringNotContainsString('First board', $instructions);
+    }
+
+    public function testInstructionsAskWhichProjectWhenSeveralAreOwnedAndNoneIsInScope(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+        $first = $this->projectFor($agent, $app, $company, $user, 'Ambiguous board A');
+        $second = $this->projectFor($agent, $app, $company, $user, 'Ambiguous board B');
+
+        $pm = new ProjectManagerAgent();
+        $pm->setConfiguration($agent, null, null, $user);
+
+        $instructions = $pm->instructions();
+
+        $this->assertStringContainsString('YOU MANAGE SEVERAL PROJECTS', $instructions);
+        $this->assertStringContainsString('project_id ' . $first->getId(), $instructions);
+        $this->assertStringContainsString('project_id ' . $second->getId(), $instructions);
+        // No single project may be grounded as authoritative — that's what used to pick one at random.
+        $this->assertStringNotContainsString('CURRENT PROJECT (authoritative', $instructions);
+    }
+
+    public function testWakeGroundsThePmInTheWokenProjectNotAnArbitraryOne(): void
+    {
+        [$app, $company, $user] = $this->context();
+
+        $agentType = AgentType::factory()
+            ->withAppId($app->getId())
+            ->create([
+                'provider' => 'neuron',
+                'handler' => CapturingProjectManagerAgentStub::class,
+            ]);
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create([
+                'agent_type_id' => $agentType->getId(),
+                'user_id' => $user->getId(),
+                'is_active' => true,
+            ]);
+
+        $this->projectFor($agent, $app, $company, $user, 'Wake board A');
+        $second = $this->projectFor($agent, $app, $company, $user, 'Wake board B');
+
+        CapturingProjectManagerAgentStub::$lastInstructions = '';
+
+        new WakeAgentForProjectJob(
+            $second,
+            WakeAgentForProjectJob::REASON_INGEST,
+            'Client wants dark mode by Friday.',
+        )->handle();
+
+        $captured = CapturingProjectManagerAgentStub::$lastInstructions;
+
+        $this->assertStringContainsString('Wake board B', $captured);
+        $this->assertStringNotContainsString('Wake board A', $captured);
     }
 
     public function testInstructionsRefuseToInventAProjectWhenNoneIsBound(): void

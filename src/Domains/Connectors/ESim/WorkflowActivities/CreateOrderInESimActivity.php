@@ -19,6 +19,7 @@ use Kanvas\Connectors\Stripe\Services\StripeCustomerService;
 use Kanvas\Connectors\VentaMobile\Actions\CreateEsimOrderAction as ActionsCreateEsimOrderAction;
 use Kanvas\Connectors\WooCommerce\Services\WooCommerceOrderService;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -151,6 +152,16 @@ class CreateOrderInESimActivity extends KanvasActivity
                                 $createOrder = new OrderService($order, $variant);
                                 $response = $createOrder->createOrder();
                             }
+                        } catch (ValidationException $e) {
+                            // Expected provider/business failure (no stock, bad CMLink response, parent order
+                            // missing): flag it on the activity, don't flood Sentry.
+                            $responses[] = [
+                                'status' => 'error',
+                                'message' => 'Error creating order in eSim',
+                                'response' => $e->getMessage(),
+                            ];
+
+                            continue;
                         } catch (Throwable $e) {
                             report($e);
                             $responses[] = [

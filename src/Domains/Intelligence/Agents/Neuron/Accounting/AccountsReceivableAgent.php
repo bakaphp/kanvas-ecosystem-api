@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
@@ -19,6 +20,15 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidArInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReadEmailDetailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\CreateGoogleSheetTabTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ReadGoogleSheetTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\UpdateGoogleSheetCellTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\CreateSampleOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindProductTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindSalesOrderTool;
@@ -77,6 +87,16 @@ class AccountsReceivableAgent extends SystemUserAgent
             new CreateArCreditMemoTool(),
             new AddInvoiceNoteTool(),
             new AttachInvoiceFileTool(),
+            new ReadGoogleSheetTool(),
+            new AppendGoogleSheetRowsTool(),
+            new UpdateGoogleSheetCellTool(),
+            new ClearGoogleSheetRangeTool(),
+            new CreateGoogleSheetTabTool(),
+            new ListEmailsTool(),
+            new ReadEmailDetailsTool(),
+            new DownloadAttachmentTool(),
+            new ExtractInvoiceDataTool(),
+            new MarkEmailAsReadTool(),
         ]));
     }
 
@@ -112,6 +132,30 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'amount each.',
             '- "Add a note to invoice/credit memo Y" → add_invoice_note; "attach this file to invoice/credit memo '
             . 'Y" → attach_invoice_file. Both require the document to already be pushed to Acumatica.',
+            '- "Read/check this Google Sheet" → read_google_sheet, given the URL the user shared. "Add these '
+            . 'rows to the sheet" → write_google_sheet. "Mark that row as X in the sheet" → '
+            . 'update_google_sheet_cell, only after confirming the exact cell with read_google_sheet first — '
+            . 'never guess a row/column. "Clear/wipe that row/cell" → clear_google_sheet_range — this empties '
+            . 'the values but never removes the row itself. "Create a new tab called X" → create_google_sheet_tab.',
+            '- "Check for new invoice emails" / "any unread invoices in the inbox" → list_emails with a query '
+            . 'like "has:attachment is:unread". "What does this email say" / "does it have an invoice attached" '
+            . '→ read_email_details with the message_id. "Pull that PDF out" / "save this attachment" → '
+            . 'download_attachment with the message_id + attachment_id from read_email_details — it saves the '
+            . 'file to Kanvas and returns a filesystem_id/url. The real vendor/total/dates are inside the PDF, '
+            . 'never in the email body/subject — after downloading, call extract_invoice_data with the '
+            . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet). '
+            . 'To get an emailed invoice into Acumatica: download_attachment first, then pass its returned url '
+            . 'straight into attach_invoice_file\'s file_url — no need to re-download or re-host it anywhere.',
+            '- Whenever you process an invoice email end-to-end (found via list_emails, read, downloaded, and '
+            . 'extracted with extract_invoice_data), ALWAYS log it in the default invoice-tracking sheet as a '
+            . 'standard step — do not wait to be asked. Call write_google_sheet with range "Invoices!A1" and a '
+            . 'row of [invoice_number, vendor_name, total, "Pending"] (omit sheet_url_or_id to use the default '
+            . 'sheet), then after the invoice is created and pushed, call update_google_sheet_cell to flip that '
+            . 'row\'s status column to "Approved". Do this even when the user only asked you to create the invoice. '
+            . 'Only after ALL of that succeeds (sheet logged, invoice created and pushed), call '
+            . 'mark_email_as_read on the message_id — this is what stops the same invoice from showing up again '
+            . 'next time you search "has:attachment is:unread". Never mark it read before every step succeeds, '
+            . 'so a failed run can still be found and retried.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }

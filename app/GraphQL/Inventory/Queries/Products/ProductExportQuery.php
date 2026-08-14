@@ -85,19 +85,10 @@ class ProductExportQuery
 
         if (isset($args['hasAttributeValues']) && is_array($args['hasAttributeValues'])) {
             foreach ($args['hasAttributeValues'] as $filter) {
-                $query->whereHas(
-                    'attributeValues',
-                    function (Builder $q) use ($filter): void {
-                        if (! empty($filter['slug'])) {
-                            $q->whereHas(
-                                'attribute',
-                                fn (Builder $a) => $a->where('slug', $filter['slug'])
-                            );
-                        }
-                        if (isset($filter['value'])) {
-                            $q->where('value', $filter['value']);
-                        }
-                    }
+                $query->filterByAttributeValue(
+                    value: isset($filter['value']) ? (string) $filter['value'] : null,
+                    attributesId: isset($filter['attribute_id']) ? (int) $filter['attribute_id'] : null,
+                    slug: $filter['slug'] ?? null,
                 );
             }
         }

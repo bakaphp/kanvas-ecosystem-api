@@ -18,6 +18,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\History\ChannelMessageHistory;
 use Kanvas\Intelligence\Notifications\AgentRepliedToMentionNotification;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
@@ -222,6 +223,43 @@ class RespondToMentionJobTest extends TestCase
             'The reply must inherit the channel\'s lead so the agent replies with lead context',
         );
         $this->assertSame($lead->getId(), $reply->entity()?->getId());
+    }
+
+    public function testMentionGivesTheAgentTheChannelSessionAndTheMentioningHuman(): void
+    {
+        // Regression: the @mention path ran session-less, so a reminder the agent scheduled from a
+        // comment stored no channel/session (nothing to deliver back into) and defaulted its recipient
+        // to the agent's OWN user — the reminder fired into the void.
+        CapturingSystemUserAgentStub::$lastSession = null;
+        CapturingSystemUserAgentStub::$lastConversationHuman = null;
+
+        $app = app(Apps::class);
+        $human = auth()->user();
+        $company = $human->getCurrentCompany();
+
+        $agentUser = $this->makeAgentUser('ReminderBot');
+        $agent = $this->makeCapturingAgent($agentUser);
+
+        $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create();
+        $channel = $this->makeChannel($human, $lead);
+        $mention = $this->makeMessage($human, '@ReminderBot remind me to call her next week');
+        $channel->addMessage($mention, $human);
+
+        new RespondToMentionJob($agent, $mention)->handle();
+
+        $session = CapturingSystemUserAgentStub::$lastSession;
+        $this->assertNotNull($session, 'The mention turn must carry a session so scheduled work can come back here');
+        $this->assertSame($channel->getId(), (int) $session->channel_id);
+        $this->assertSame(
+            SessionChannelService::buildChannelSessionUuid($channel, $app, $company),
+            $session->uuid,
+            'The session must reuse the canonical channel key so chat and mention share one conversation',
+        );
+        $this->assertSame(
+            $human->getId(),
+            CapturingSystemUserAgentStub::$lastConversationHuman?->getId(),
+            '"remind me" must resolve to the person who mentioned the agent, not the agent itself',
+        );
     }
 
     public function testTheReplyIsRecordedInTheLedgerForCrossEntityMemory(): void

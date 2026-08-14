@@ -11,6 +11,10 @@ use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Neuron\History\ChannelMessageHistory;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleReminderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadEntityContextTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadMyLedgerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadUserActivityTool;
@@ -95,6 +99,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
             agent: $this->agent,
             turnMedia: $this->turnMedia,
             model: $this->resolvedModelName(),
+            privateUserTurn: $this->privateUserTurn,
         );
     }
 
@@ -200,6 +205,15 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
         }
 
         $core[] = new SendEmailToUserTool($agent);
+
+        // The schedule tools key on the human, not the agent: "remind me" must land on the person
+        // who asked. On an @mention surface $this->user IS the agent's own user, so an explicit
+        // conversation human (set by the caller) wins over it.
+        $contextUser = $this->conversationHuman ?? $this->user ?? $agent->user;
+        $core[] = new ScheduleReminderTool($agent, $this->session)->withContext($app, $company, $contextUser);
+        $core[] = new ScheduleAgentTaskTool($agent, $this->session)->withContext($app, $company, $contextUser);
+        $core[] = new ListScheduledActionsTool($this->session)->withContext($app, $company, $contextUser);
+        $core[] = new CancelScheduledActionTool($this->session)->withContext($app, $company, $contextUser);
 
         if ((string) ($agent->get(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value) ?? '') !== '') {
             $core[] = new SendSlackDirectMessageTool($agent);

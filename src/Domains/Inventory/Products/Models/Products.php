@@ -22,6 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Kanvas\Activities\Contracts\ActivityLogInterface;
 use Kanvas\Activities\Models\Activity;
@@ -270,6 +271,51 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         );
     }
 
+    /**
+     * Attribute values live in two encodings in the same column: a bare scalar written by
+     * AddAttributeAction, and a spatie translation map ({"en":0}) written by the
+     * updateProductAttributeTranslation mutation. Normalize both to the plain value before comparing.
+     *
+     * The CASE/COALESCE shape matters: JSON_VALID('0') is TRUE for bare numeric scalars, so a plain
+     * IF(JSON_VALID(...)) would extract NULL and silently drop every raw numeric row.
+     */
+    private static function normalizedAttributeValue(string $column): string
+    {
+        return "COALESCE(CASE WHEN JSON_VALID({$column}) THEN JSON_UNQUOTE(JSON_EXTRACT({$column}, '$.en')) END, {$column})";
+    }
+
+    public function scopeFilterByAttributeValue(
+        Builder $query,
+        ?string $value = null,
+        ?int $attributesId = null,
+        ?string $slug = null
+    ): Builder {
+        return $query->whereHas(
+            'attributeValues',
+            function (Builder $attributeValue) use ($value, $attributesId, $slug): void {
+                $attributeValue->where('products_attributes.is_deleted', 0);
+
+                if ($value !== null) {
+                    $attributeValue->whereRaw(
+                        self::normalizedAttributeValue('products_attributes.value') . ' = ?',
+                        [$value]
+                    );
+                }
+
+                if ($attributesId !== null) {
+                    $attributeValue->where('products_attributes.attributes_id', $attributesId);
+                }
+
+                if ($slug !== null) {
+                    $attributeValue->whereHas(
+                        'attribute',
+                        fn (Builder $attribute) => $attribute->where('attributes.slug', $slug)
+                    );
+                }
+            }
+        );
+    }
+
     public function scopeFilterByVariantAttributeValue(Builder $query, string $value): Builder
     {
         return $query->where('products.is_deleted', 0)
@@ -278,13 +324,8 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     ->whereHas('attributes', function (Builder $query) use ($value) {
                         $query->where(function ($subQuery) use ($value) {
                             $subQuery
-                                // If value is JSON, extract and compare
                                 ->whereRaw(
-                                    "IF(
-                                        JSON_VALID(products_variants_attributes.value),
-                                        JSON_UNQUOTE(JSON_EXTRACT(products_variants_attributes.value, '$.en')),
-                                        products_variants_attributes.value
-                                    ) LIKE ?",
+                                    self::normalizedAttributeValue('products_variants_attributes.value') . ' LIKE ?',
                                     ['%' . $value . '%']
                                 )
                                 ->where('products_variants_attributes.is_deleted', 0);
@@ -525,7 +566,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'url' => $files->url,
                     'size' => $files->size,
                     'field_name' => $files->field_name,
-                    'attributes' => $files->attributes,
                 ];
             }),
             'company' => [
@@ -601,26 +641,32 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
     protected function fitWithinAlgoliaRecordLimit(array $product): array
     {
-        $limit = 9500; // headroom under Algolia's 10,000-byte hard limit
+        $limit = $this->algoliaRecordSizeLimit();
 
         if (Arr::sizeInBytes($product) <= $limit) {
             return $product;
         }
 
-        $product['custom_fields'] = [];
-        if (Arr::sizeInBytes($product) <= $limit) {
-            return $product;
-        }
-
-        unset($product['translations']);
-        if (Arr::sizeInBytes($product) <= $limit) {
-            return $product;
-        }
-
-        // Warehouse breakdown is internal stock detail, never shown in search.
         $product['variants'] = $this->stripFromVariants($product['variants'], ['warehouses']);
         if (Arr::sizeInBytes($product) <= $limit) {
             return $product;
+        }
+
+        // Shorten the long values in the heavy text buckets, cheapest bucket first. Every key
+        // survives — `attributes` in particular is only ever truncated, never dropped, because the
+        // Algolia facets are built on `attributes.*.quick_spec` and would break if keys vanished.
+        // Short values (a `color`, a `gpu` spec) are already under the threshold and untouched.
+        foreach (['custom_fields', 'translations', 'attributes'] as $bucket) {
+            foreach ([500, 200, 100] as $maxLength) {
+                if (! is_array($product[$bucket] ?? null)) {
+                    continue 2;
+                }
+
+                $product[$bucket] = Arr::truncateStrings($product[$bucket], $maxLength);
+                if (Arr::sizeInBytes($product) <= $limit) {
+                    return $product;
+                }
+            }
         }
 
         $product['description'] = Str::limit((string) ($product['description'] ?? ''), 500, '');
@@ -629,14 +675,92 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             return $product;
         }
 
-        // Last resort before dropping whole variants: give up variant images.
+        // Still over after truncating: shed whole entries, heaviest first, only as many as it takes.
+        // `attributes` is excluded on purpose (see above) — only these two lose keys.
+        foreach (['custom_fields', 'translations'] as $bucket) {
+            $product = $this->dropHeaviestEntries($product, $bucket, $limit);
+            if (Arr::sizeInBytes($product) <= $limit) {
+                return $product;
+            }
+        }
+
         $product['variants'] = $this->stripFromVariants($product['variants'], ['files']);
         if (Arr::sizeInBytes($product) <= $limit) {
             return $product;
         }
 
+        // Reduce variants to the fields a storefront actually renders before dropping any of them:
+        // partial variant data beats none.
+        $product['variants'] = $this->stripFromVariants(
+            $product['variants'],
+            [
+                'objectID',
+                'products_id',
+                'company',
+                'description',
+                'short_description',
+                'ean',
+                'barcode',
+                'apps_id',
+                'rating',
+            ]
+        );
+        if (Arr::sizeInBytes($product) <= $limit) {
+            return $product;
+        }
+
+        // Extra product images are pure weight once the record is this tight; keep the first.
+        if (count($product['files'] ?? []) > 1) {
+            $product['files'] = array_slice((array) $product['files'], 0, 1);
+            if (Arr::sizeInBytes($product) <= $limit) {
+                return $product;
+            }
+        }
+
+        $droppedVariants = 0;
         while (! empty($product['variants']) && Arr::sizeInBytes($product) > $limit) {
             array_pop($product['variants']);
+            $droppedVariants++;
+        }
+
+        if ($droppedVariants > 0) {
+            // Silent variant loss is how an entire tenant ended up indexed with `variants: []`.
+            Log::warning('Algolia record over budget, dropped variants to fit', [
+                'product_id' => $this->id,
+                'apps_id' => $this->apps_id,
+                'companies_id' => $this->companies_id,
+                'dropped_variants' => $droppedVariants,
+                'remaining_variants' => count($product['variants']),
+                'limit' => $limit,
+                'size_without_variants' => Arr::sizeInBytes(Arr::except($product, ['variants'])),
+            ]);
+        }
+
+        return $product;
+    }
+
+    /**
+     * Shed entries from one field, heaviest first, and stop as soon as the record fits.
+     * Wiping the field wholesale would take the cheap entries down with the expensive one.
+     */
+    protected function dropHeaviestEntries(array $product, string $key, int $limit): array
+    {
+        if (! is_array($product[$key] ?? null)) {
+            return $product;
+        }
+
+        $entries = $product[$key];
+        $isList = array_is_list($entries);
+
+        while (! empty($entries) && Arr::sizeInBytes($product) > $limit) {
+            $heaviest = collect($entries)
+                ->map(fn ($value, $entryKey) => Arr::sizeInBytes([$entryKey => $value]))
+                ->sortDesc()
+                ->keys()
+                ->first();
+
+            unset($entries[$heaviest]);
+            $product[$key] = $isList ? array_values($entries) : $entries;
         }
 
         return $product;

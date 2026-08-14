@@ -5,12 +5,20 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
 
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 
 /**
  * Look up a Lead by id from a tool's __invoke and return either the Lead OR a
  * structured error array the LLM can act on. Prevents the LLM's hallucinated
  * lead_ids from crashing the chat with an unhandled ModelNotFoundException.
+ *
+ * Pulls in HasKanvasContext because lead_id is an LLM-supplied — therefore
+ * prompt-injectable — integer. Resolving it by id alone matches any lead on the
+ * platform, so a prospect chatting with a customer-facing agent could read another
+ * company's prospect PII, or make the agent email/SMS/hand-off against their lead.
+ * Tenant context is a hard dependency here: a tool wired without it resolves
+ * nothing rather than crossing the boundary.
  *
  * Pattern:
  *
@@ -22,22 +30,44 @@ use Kanvas\Guild\Leads\Models\Lead;
  */
 trait ResolvesLeadForTool
 {
+    use HasKanvasContext;
+
     /**
      * @return Lead|array{status: string, message: string}
      */
     protected function resolveLeadOrError(int $leadId): Lead|array
     {
-        try {
-            return Lead::getById($leadId);
-        } catch (ModelNotFoundException) {
-            return [
-                'status' => 'error',
-                'message' => "Lead {$leadId} does not exist. You invented this lead_id — never do that. "
-                    . 'DO NOT ask the prospect for their lead_id (they do not have one and do not know what that means). '
-                    . 'Instead, immediately call create_lead yourself with whatever prospect details you have gathered '
-                    . 'in the conversation (name, company, email or phone, what they said). create_lead will return a '
-                    . 'real lead_id — then retry this tool with that lead_id, in the SAME turn.',
-            ];
+        if (! isset($this->company)) {
+            report(new ValidationException(
+                static::class . ' tried to resolve a lead with no tenant context. '
+                . 'Register the tool through mergeRegisteredTools()/addToolContext(), or call '
+                . 'withContext($app, $company, $user) on it.'
+            ));
+
+            return $this->leadNotResolvedError($leadId);
         }
+
+        try {
+            return isset($this->app)
+                ? Lead::getByIdFromCompanyApp($leadId, $this->company, $this->app)
+                : Lead::getByIdFromCompany($leadId, $this->company);
+        } catch (ModelNotFoundException) {
+            return $this->leadNotResolvedError($leadId);
+        }
+    }
+
+    /**
+     * @return array{status: string, message: string}
+     */
+    private function leadNotResolvedError(int $leadId): array
+    {
+        return [
+            'status' => 'error',
+            'message' => "Lead {$leadId} does not exist. You invented this lead_id — never do that. "
+                . 'DO NOT ask the prospect for their lead_id (they do not have one and do not know what that means). '
+                . 'Instead, immediately call create_lead yourself with whatever prospect details you have gathered '
+                . 'in the conversation (name, company, email or phone, what they said). create_lead will return a '
+                . 'real lead_id — then retry this tool with that lead_id, in the SAME turn.',
+        ];
     }
 }

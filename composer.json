@@ -23,9 +23,10 @@
         "doctrine/dbal": "^4.2",
         "durable-workflow/workflow": "^1.0.24",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
-        "google/apiclient": "^2.16",
+        "google/apiclient": "^2.19",
+        "google/apiclient-services": "^0.454",
         "google/cloud-discoveryengine": "^1.1",
-        "google/cloud-recommendations-ai": "^0.9.0",
+        "google/cloud-recommendations-ai": "^0.10.0",
         "guzzlehttp/guzzle": "^7.6",
         "http-interop/http-factory-guzzle": "^1.0",
         "imdhemy/laravel-purchases": "^1.14",
@@ -72,7 +73,6 @@
         "smalot/pdfparser": "^2.12",
         "spatie/laravel-activitylog": "^5.0",
         "spatie/laravel-data": "^4.5",
-        "spatie/laravel-google-calendar": "^3.8",
         "spatie/laravel-google-cloud-storage": "^2.3",
         "spatie/laravel-health": "^1.27",
         "spatie/laravel-image-optimizer": "^1.8.2",
@@ -129,6 +129,7 @@
             "Kanvas\\Analytics\\": "src/Domains/Analytics",
             "Kanvas\\NervousSystem\\": "src/Domains/NervousSystem",
             "Kanvas\\HumanResources\\": "src/Domains/HumanResources",
+            "Kanvas\\Insurance\\": "src/Domains/Insurance",
             "Database\\Factories\\": "database/factories/",
             "Database\\Seeders\\": "database/seeders/"
         }
@@ -219,7 +220,9 @@
             "dont-discover": []
         },
         "google/apiclient-services": [
-            "Sheets"
+            "Calendar",
+            "Sheets",
+            "Gmail"
         ]
     },
     "config": {

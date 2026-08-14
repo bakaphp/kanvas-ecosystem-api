@@ -18,7 +18,7 @@ use Override;
  * Contrast with HumanResourcesAgent, which is the HR-department console (manage anyone, admin-gated).
  */
 #[AgentTypeDefinition(
-    name: 'Employee Assistant Agent',
+    name: 'HR Employee Assistant Agent',
     description: 'Employee-facing self-service — tells an employee their own leave balance and files their own '
         . 'time-off requests. Acts only on the caller\'s own record; not for managing other employees.',
     provider: 'neuron',

@@ -11,9 +11,11 @@ use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Models\Project;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -22,9 +24,10 @@ use Override;
  * project's open-work rollup; the project's completion is recomputed.
  */
 #[AgentTool(name: 'Create Plan', category: 'nervous_system')]
-class CreateNervousSystemPlanTool extends Tool
+class CreateNervousSystemPlanTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

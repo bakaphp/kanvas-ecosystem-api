@@ -18,7 +18,7 @@ use Throwable;
 
 class CreateEngagementPageToolTest extends TestCase
 {
-    public function testCreatesEngagementPageAndReturnsUnsentActionLink(): void
+    public function testCreatesGenericEngagementPageAndReturnsUnsentActionLink(): void
     {
         $app = app(Apps::class);
         $requestingUser = auth()->user();
@@ -64,11 +64,9 @@ class CreateEngagementPageToolTest extends TestCase
 
         $result = $tool->__invoke(
             lead_id: $lead->getId(),
-            action: 'view-vehicle',
+            action: 'credit-app',
             data: [
-                'products' => [
-                    ['id' => 'vehicle-1', 'interested' => true],
-                ],
+                'campaign' => 'finance-follow-up',
             ],
         );
 
@@ -78,13 +76,13 @@ class CreateEngagementPageToolTest extends TestCase
         $this->assertSame(123, $result['engagement_id']);
         $this->assertSame(456, $result['message_id']);
         $this->assertSame($lead->getId(), $tool->receivedData?->lead->getId());
-        $this->assertSame('view-vehicle', $tool->receivedData?->action);
+        $this->assertSame('credit-app', $tool->receivedData?->action);
         $this->assertSame(ActionStatusEnum::SENT, $tool->receivedData?->status);
         $this->assertSame('agent', $tool->receivedData?->source);
         $this->assertSame('agent', $tool->receivedData?->via);
         $this->assertSame($agentUser->getId(), $tool->receivedData?->user->getId());
         $this->assertNotSame($requestingUser->getId(), $tool->receivedData?->user->getId());
-        $this->assertTrue($tool->receivedData?->data['products'][0]['interested']);
+        $this->assertSame('finance-follow-up', $tool->receivedData?->data['campaign']);
     }
 
     public function testRejectsMissingActionAndUnknownTenantLead(): void
@@ -139,10 +137,97 @@ class CreateEngagementPageToolTest extends TestCase
         };
         $tool->withContext($app, $company, $user);
 
-        $result = $tool->__invoke($lead->getId(), 'view-vehicle');
+        $result = $tool->__invoke($lead->getId(), 'credit-app');
 
         $this->assertSame('error', $result['status']);
         $this->assertSame(124, $result['engagement_id']);
+    }
+
+    public function testAcceptsNullDataForActionsWithoutPayload(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+        $lead = Lead::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create();
+        $message = new Message(['message' => ['action_link' => 'https://short.example/credit-app']]);
+        $engagement = new Engagement(['uuid' => '019c166e-c115-7000-8000-000000000003']);
+        $engagement->id = 125;
+        $engagement->setRelation('message', $message);
+
+        $tool = new class ($agent, $engagement) extends CreateEngagementPageTool {
+            public ?EngagementData $receivedData = null;
+
+            public function __construct(Agent $agent, private readonly Engagement $engagementResult)
+            {
+                parent::__construct($agent);
+            }
+
+            protected function createEngagement(EngagementData $data): Engagement
+            {
+                $this->receivedData = $data;
+
+                return $this->engagementResult;
+            }
+        };
+        $tool->withContext($app, $company, $user);
+
+        $result = $tool->__invoke($lead->getId(), 'credit-app', null);
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame([], $tool->receivedData?->data);
+    }
+
+    public function testViewVehicleRequiresProductIds(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+        $lead = Lead::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create();
+        $tool = new CreateEngagementPageTool($agent);
+        $tool->withContext($app, $company, $user);
+
+        $result = $tool->__invoke($lead->getId(), 'view-vehicle', []);
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('data.product_id', $result['message']);
+    }
+
+    public function testViewVehicleRejectsUnknownTenantVariant(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+        $lead = Lead::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create();
+        $tool = new CreateEngagementPageTool($agent);
+        $tool->withContext($app, $company, $user);
+
+        $result = $tool->__invoke($lead->getId(), 'view-vehicle', [
+            'product_id' => [PHP_INT_MAX],
+        ]);
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('was not found', $result['message']);
     }
 
     public function testReportsEngagementCreationFailureWithSafeContext(): void
@@ -184,11 +269,11 @@ class CreateEngagementPageToolTest extends TestCase
         };
         $tool->withContext($app, $company, $user);
 
-        $result = $tool->__invoke($lead->getId(), 'view-vehicle');
+        $result = $tool->__invoke($lead->getId(), 'credit-app');
 
         $this->assertSame('error', $result['status']);
         $this->assertSame($exception, $tool->reportedException);
         $this->assertSame($lead->getId(), $tool->reportedLeadId);
-        $this->assertSame('view-vehicle', $tool->reportedAction);
+        $this->assertSame('credit-app', $tool->reportedAction);
     }
 }

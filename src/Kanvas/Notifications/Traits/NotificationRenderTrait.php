@@ -7,6 +7,7 @@ namespace Kanvas\Notifications\Traits;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Support\Facades\Blade;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Models\NotificationTypes;
 use Kanvas\Notifications\Support\PushTemplateParser;
@@ -121,11 +122,14 @@ trait NotificationRenderTrait
 
     protected function getPushTemplate(): string
     {
-        $templateName = $this->pushTemplateName
+        return $this->renderTemplate($this->resolvePushTemplateName());
+    }
+
+    private function resolvePushTemplateName(): string
+    {
+        return $this->pushTemplateName
             ?? $this->templateName
             ?? $this->getType()->getPushTemplateName();
-
-        return $this->renderTemplate($templateName);
     }
 
     /**
@@ -153,7 +157,13 @@ trait NotificationRenderTrait
             return $strict;
         }
 
-        report('Push template rendered to invalid JSON, recovered via lenient parser: ' . json_encode($rendered));
+        Log::warning('Push template rendered to invalid JSON, recovered via lenient parser', [
+            'notification' => static::class,
+            'template' => $this->resolvePushTemplateName(),
+            'apps_id' => $this->app->getId(),
+            'companies_id' => $this->company?->getId(),
+            'rendered' => Str::limit($rendered, 500),
+        ]);
 
         return PushTemplateParser::parseLenient($rendered);
     }

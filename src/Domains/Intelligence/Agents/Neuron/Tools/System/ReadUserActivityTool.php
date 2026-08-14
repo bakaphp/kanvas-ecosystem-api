@@ -11,9 +11,11 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -22,8 +24,10 @@ use Override;
  * record you're both looking at, not surveil their whole activity across the company.
  */
 #[AgentTool(name: 'Read User Activity', category: 'ecosystem')]
-class ReadUserActivityTool extends Tool
+class ReadUserActivityTool extends Tool implements HasRunKey
 {
+    use TrackByInputs;
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
