@@ -62,10 +62,10 @@ class ContactRejectionService
 
     private static function record(?Lead $lead, string $reason, array $context): string
     {
-        Log::warning(
-            'VinSolutions rejected the contact data we pushed',
-            $context + ['reason' => $reason]
-        );
+        /*   Log::warning(
+              'VinSolutions rejected the contact data we pushed',
+              $context + ['reason' => $reason]
+          ); */
 
         if ($lead !== null) {
             new RecordLeadNoteAction($lead)->execute(
