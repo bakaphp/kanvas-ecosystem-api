@@ -37,7 +37,7 @@ class CreateProductTypeAction
 
         return ProductsTypes::firstOrCreate([
             'companies_id' => $this->data->company->getId(),
-            'slug' => $this->dto->slug ?? Str::slug($this->data->name),
+            'slug' => $this->data->slug ?? Str::slug($this->data->name),
             'apps_id' => app(Apps::class)->getId(),
         ], [
             'name' => $this->data->name,
