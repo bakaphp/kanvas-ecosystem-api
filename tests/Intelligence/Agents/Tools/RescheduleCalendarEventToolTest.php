@@ -31,11 +31,11 @@ class RescheduleCalendarEventToolTest extends TestCase
         [, , $lead] = $this->bootstrap();
         $lead->email = 'prospect@example.com';
         $lead->saveQuietly();
-        $configuration = new EventConfigurationTool()->__invoke($lead->getId());
+        $configuration = $this->withTenant(new EventConfigurationTool())->__invoke($lead->getId());
         $catalogs = $configuration['event_configuration'];
         $category = $catalogs['categories'][0];
 
-        $created = new CalendarEventTool()->__invoke(
+        $created = $this->withTenant(new CalendarEventTool())->__invoke(
             lead_id: $lead->getId(),
             title: 'Configured Meeting ' . uniqid(),
             attendee_emails: ['max@kanvas.dev'],
@@ -60,7 +60,7 @@ class RescheduleCalendarEventToolTest extends TestCase
     {
         [$app, $company, $lead] = $this->bootstrap();
 
-        $created = new CalendarEventTool()->__invoke(
+        $created = $this->withTenant(new CalendarEventTool())->__invoke(
             lead_id: $lead->getId(),
             title: 'Intro Meeting ' . uniqid(),
             attendee_emails: ['max@kanvas.dev'],
@@ -70,7 +70,7 @@ class RescheduleCalendarEventToolTest extends TestCase
         $this->assertSame('success', $created['status'], json_encode($created));
         $eventUuid = $created['event']['uuid'];
 
-        $rescheduled = new RescheduleCalendarEventTool()->__invoke(
+        $rescheduled = $this->withTenant(new RescheduleCalendarEventTool())->__invoke(
             lead_id: $lead->getId(),
             event_uuid: $eventUuid,
             start_datetime: '2026-06-21 14:00',
@@ -97,7 +97,7 @@ class RescheduleCalendarEventToolTest extends TestCase
     {
         [$app, $company, $lead] = $this->bootstrap();
 
-        $created = new CalendarEventTool()->__invoke(
+        $created = $this->withTenant(new CalendarEventTool())->__invoke(
             lead_id: $lead->getId(),
             title: 'Intro Meeting ' . uniqid(),
             attendee_emails: ['max@kanvas.dev'],
@@ -106,7 +106,7 @@ class RescheduleCalendarEventToolTest extends TestCase
         );
         $this->assertSame('success', $created['status'], json_encode($created));
 
-        $cancelled = new CancelCalendarEventTool()->__invoke(
+        $cancelled = $this->withTenant(new CancelCalendarEventTool())->__invoke(
             lead_id: $lead->getId(),
             event_uuid: $created['event']['uuid'],
         );
@@ -143,5 +143,22 @@ class RescheduleCalendarEventToolTest extends TestCase
             ->create(['leads_owner_id' => $owner->getId()]);
 
         return [$app, $company, $lead];
+    }
+
+    /**
+     * Lead tools resolve their lead against the tenant on their context, so a bare instance
+     * (no withContext) intentionally resolves nothing — mirror what the agent wiring does.
+     *
+     * @template T of object
+     *
+     * @param T $tool
+     *
+     * @return T
+     */
+    private function withTenant(object $tool): object
+    {
+        $user = auth()->user();
+
+        return $tool->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
     }
 }

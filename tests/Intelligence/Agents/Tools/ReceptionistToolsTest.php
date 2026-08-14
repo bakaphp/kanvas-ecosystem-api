@@ -37,11 +37,28 @@ class ReceptionistToolsTest extends TestCase
             ->create();
     }
 
+    /**
+     * Lead tools resolve their lead against the tenant on their context, so a bare instance
+     * (no withContext) intentionally resolves nothing — mirror what the agent wiring does.
+     *
+     * @template T of object
+     *
+     * @param T $tool
+     *
+     * @return T
+     */
+    private function withTenant(object $tool): object
+    {
+        $user = auth()->user();
+
+        return $tool->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
+    }
+
     public function testUpdateLeadToolPersistsQualificationAnswers(): void
     {
         $lead = $this->makeLead();
 
-        $result = new UpdateLeadTool()->__invoke(
+        $result = $this->withTenant(new UpdateLeadTool())->__invoke(
             lead_id: $lead->getId(),
             budget: 'around $500',
             service_needed: 'AC repair',
@@ -64,7 +81,7 @@ class ReceptionistToolsTest extends TestCase
     {
         $lead = $this->makeLead();
 
-        $result = new UpdateLeadTool()->__invoke(
+        $result = $this->withTenant(new UpdateLeadTool())->__invoke(
             lead_id: $lead->getId(),
             disposition: 'maybe',
         );
@@ -76,14 +93,14 @@ class ReceptionistToolsTest extends TestCase
     {
         $lead = $this->makeLead();
 
-        $result = new UpdateLeadTool()->__invoke(lead_id: $lead->getId());
+        $result = $this->withTenant(new UpdateLeadTool())->__invoke(lead_id: $lead->getId());
 
         $this->assertSame('noop', $result['status']);
     }
 
     public function testUpdateLeadToolErrorsOnHallucinatedLead(): void
     {
-        $result = new UpdateLeadTool()->__invoke(lead_id: 999999999, budget: 'x');
+        $result = $this->withTenant(new UpdateLeadTool())->__invoke(lead_id: 999999999, budget: 'x');
 
         $this->assertSame('error', $result['status']);
     }
@@ -93,7 +110,7 @@ class ReceptionistToolsTest extends TestCase
         Notification::fake();
         $lead = $this->makeLead();
 
-        $result = new HandOffTool()->__invoke(
+        $result = $this->withTenant(new HandOffTool())->__invoke(
             lead_id: $lead->getId(),
             handoff_type: 'human',
             conversation_summary: 'Customer requested a person.',
@@ -110,7 +127,7 @@ class ReceptionistToolsTest extends TestCase
     {
         $lead = $this->makeLead();
 
-        $result = new HandOffTool()->__invoke(
+        $result = $this->withTenant(new HandOffTool())->__invoke(
             lead_id: $lead->getId(),
             handoff_type: 'unsupported',
         );
@@ -148,7 +165,7 @@ class ReceptionistToolsTest extends TestCase
             'is_deleted' => 0,
         ]);
 
-        $result = new BookingOptionsTool()->__invoke(lead_id: $lead->getId());
+        $result = $this->withTenant(new BookingOptionsTool())->__invoke(lead_id: $lead->getId());
 
         $this->assertSame('success', $result['status']);
         $this->assertContains('Consultation', $result['service_types']);
@@ -164,7 +181,7 @@ class ReceptionistToolsTest extends TestCase
         $lead = $this->makeLead();
         new Setup($app, auth()->user(), $company)->run();
 
-        $result = new EventConfigurationTool()->__invoke(lead_id: $lead->getId());
+        $result = $this->withTenant(new EventConfigurationTool())->__invoke(lead_id: $lead->getId());
 
         $this->assertSame('success', $result['status']);
         $this->assertTrue($result['complete']);
@@ -191,7 +208,7 @@ class ReceptionistToolsTest extends TestCase
     {
         $lead = $this->makeLead();
 
-        $result = new UpdateLeadTool()->__invoke(
+        $result = $this->withTenant(new UpdateLeadTool())->__invoke(
             lead_id: $lead->getId(),
             firstname: 'Maria',
             lastname: 'Gomez',
@@ -217,7 +234,7 @@ class ReceptionistToolsTest extends TestCase
         Notification::fake();
         $lead = $this->makeLead();
 
-        $result = new TakeMessageTool()->__invoke(
+        $result = $this->withTenant(new TakeMessageTool())->__invoke(
             lead_id: $lead->getId(),
             message: 'Please call me back this afternoon',
             for_whom: 'John',
@@ -235,7 +252,7 @@ class ReceptionistToolsTest extends TestCase
     {
         $lead = $this->makeLead();
 
-        $result = new TakeMessageTool()->__invoke(lead_id: $lead->getId(), message: '   ');
+        $result = $this->withTenant(new TakeMessageTool())->__invoke(lead_id: $lead->getId(), message: '   ');
 
         $this->assertSame('error', $result['status']);
     }
@@ -247,7 +264,7 @@ class ReceptionistToolsTest extends TestCase
         $lead->people->addEmail('optout@example.com');
         $lead->people->addCellPhone('+18095559999');
 
-        $result = new StopContactTool()->__invoke(lead_id: $lead->getId(), reason: 'stop texting me');
+        $result = $this->withTenant(new StopContactTool())->__invoke(lead_id: $lead->getId(), reason: 'stop texting me');
 
         $this->assertSame('success', $result['status']);
         $this->assertTrue($result['ai_disabled']);

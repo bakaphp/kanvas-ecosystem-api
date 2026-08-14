@@ -45,13 +45,20 @@ class SendEmailToolTest extends TestCase
         return $lead;
     }
 
+    private function tool(): SendEmailTool
+    {
+        $user = auth()->user();
+
+        return new SendEmailTool()->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
+    }
+
     public function testSendEmailSendsToTheAddressOnFileAndLogsTheLead(): void
     {
         Notification::fake();
         $lead = $this->makeLead();
         $lead->people->addEmail('prospect@example.com');
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the **quote** you asked for.',
@@ -83,7 +90,7 @@ class SendEmailToolTest extends TestCase
         Notification::fake();
         $lead = $this->makeLead();
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -100,7 +107,7 @@ class SendEmailToolTest extends TestCase
         $lead->people->addEmail('optout@example.com');
         $lead->people->contacts()->where('value', 'optout@example.com')->update(['is_opt_out' => 1]);
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -116,7 +123,7 @@ class SendEmailToolTest extends TestCase
         $lead = $this->makeLead();
         $lead->people->addEmail('prospect@example.com');
 
-        new SendEmailTool()->__invoke(
+        $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -132,7 +139,7 @@ class SendEmailToolTest extends TestCase
         $lead->people->addEmail('prospect@example.com');
         $lead->set('title_email_follow_up', 'Your inquiry about the Civic');
 
-        new SendEmailTool()->__invoke(
+        $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -157,7 +164,7 @@ class SendEmailToolTest extends TestCase
             'weight' => 0,
         ]);
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -173,7 +180,7 @@ class SendEmailToolTest extends TestCase
         $lead = $this->makeLead();
         $lead->people->addEmail('dead@example.com')->markBounce(permanent: true);
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -190,7 +197,7 @@ class SendEmailToolTest extends TestCase
         $lead = $this->makeLead();
         $lead->people->addEmail('flaky@example.com')->markBounce(permanent: false);
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -207,7 +214,7 @@ class SendEmailToolTest extends TestCase
         $lead->people->addEmail('prospect@example.com');
         $lead->set('do_not_contact', 1);
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -223,7 +230,7 @@ class SendEmailToolTest extends TestCase
         $lead = $this->makeLead();
         $lead->people->addEmail('prospect@example.com');
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: '   ',
             body: 'Here is the quote.',
@@ -237,7 +244,7 @@ class SendEmailToolTest extends TestCase
     {
         Notification::fake();
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: 999999999,
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -254,7 +261,7 @@ class SendEmailToolTest extends TestCase
         $lead->people->addEmail('prospect@example.com');
         $lead->people->addEmail('spouse@example.com');
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -300,7 +307,7 @@ class SendEmailToolTest extends TestCase
         $lead->organization_id = $org->getId();
         $lead->saveOrFail();
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Policy update',
             body: 'Here is the update.',
@@ -318,7 +325,7 @@ class SendEmailToolTest extends TestCase
         $lead = $this->makeLead();
         $lead->people->addEmail('prospect@example.com');
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -341,7 +348,7 @@ class SendEmailToolTest extends TestCase
         $lead = $this->makeLead();
         $lead->people->addEmail('prospect@example.com');
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',

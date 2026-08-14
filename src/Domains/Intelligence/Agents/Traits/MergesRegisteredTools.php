@@ -54,6 +54,12 @@ trait MergesRegisteredTools
         ?Agent $agent,
         CapabilityFrameworkEnum $framework,
     ): array {
+        // A hardcoded baseline tool is constructed by the subclass, so it never passed through
+        // defaultRegisteredToolResolver() and would otherwise run with uninitialized tenant context —
+        // which for a HasKanvasContext tool means an unscoped query. Fill it here so a tool is
+        // tenant-bound whether the subclass hardcoded it or the registry resolved it.
+        $baseline = array_map(fn (object $tool): object => $this->fillKanvasContext($tool), $baseline);
+
         if ($agent === null) {
             return array_values($baseline);
         }

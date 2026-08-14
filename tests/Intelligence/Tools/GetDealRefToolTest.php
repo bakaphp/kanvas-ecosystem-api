@@ -27,7 +27,7 @@ class GetDealRefToolTest extends TestCase
         $created = new CreateDealTool($app, $company, $user)
             ->__invoke(title: $title, description: 'annual plan', people_id: $people->getId());
 
-        $result = new GetDealRefTool()->__invoke(deal_id: (int) $created['deal_id']);
+        $result = $this->withTenant(new GetDealRefTool())->__invoke(deal_id: (int) $created['deal_id']);
 
         $this->assertSame((int) $created['deal_id'], $result['deal_id']);
         $this->assertSame($title, $result['title']);
@@ -36,8 +36,25 @@ class GetDealRefToolTest extends TestCase
 
     public function testHallucinatedDealIdReturnsError(): void
     {
-        $result = new GetDealRefTool()->__invoke(deal_id: 999999999);
+        $result = $this->withTenant(new GetDealRefTool())->__invoke(deal_id: 999999999);
 
         $this->assertSame('error', $result['status']);
+    }
+
+    /**
+     * Deal tools resolve their deal against the tenant on their context, so a bare instance
+     * (no withContext) intentionally resolves nothing — mirror what the agent wiring does.
+     *
+     * @template T of object
+     *
+     * @param T $tool
+     *
+     * @return T
+     */
+    private function withTenant(object $tool): object
+    {
+        $user = auth()->user();
+
+        return $tool->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
     }
 }
