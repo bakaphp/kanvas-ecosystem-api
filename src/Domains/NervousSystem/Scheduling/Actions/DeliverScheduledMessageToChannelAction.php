@@ -15,7 +15,6 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\PostChannelMessageAction;
-use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 use Throwable;
@@ -42,6 +41,10 @@ class DeliverScheduledMessageToChannelAction
         private readonly Users $author,
         private readonly ?Agent $agent = null,
         private readonly ?string $sessionUuid = null,
+        // The session's canal_id — the connector's exact-case destination address (Slack
+        // `slack:{team}:{channel}:{thread}`, WhatsApp `{phone}@s.whatsapp.net`). Set by every connector
+        // webhook when the session is created; the channel slug can't be used (it's lowercased).
+        private readonly ?string $canalId = null,
         private readonly string $verb = 'scheduled-reminder',
     ) {
     }
@@ -154,13 +157,10 @@ class DeliverScheduledMessageToChannelAction
             return false;
         }
 
-        $latest = $this->latestMessage();
-        $slackChannelId = (string) ($latest?->message['slack_channel'] ?? '');
+        [$slackChannelId, $threadTs] = $this->slackTargetFromCanalId();
         if ($slackChannelId === '') {
             return false;
         }
-
-        $threadTs = (string) ($latest?->message['slack_thread_ts'] ?? '');
 
         SlackClient::getInstanceByAgent($this->agent)
             ->postMessage($slackChannelId, $this->text, $threadTs !== '' ? $threadTs : null);
@@ -168,15 +168,29 @@ class DeliverScheduledMessageToChannelAction
         return true;
     }
 
+    /**
+     * @return array{0: string, 1: string} [slackChannelId, threadTs] parsed from the session canal_id
+     *                                      `slack:{team}:{channel}:{thread_ts}` (ids are case-sensitive,
+     *                                      so we take them verbatim — never from the lowercased slug)
+     */
+    private function slackTargetFromCanalId(): array
+    {
+        if ($this->canalId === null || ! str_starts_with($this->canalId, 'slack:')) {
+            return ['', ''];
+        }
+
+        $parts = explode(':', $this->canalId);
+
+        return [$parts[2] ?? '', $parts[3] ?? ''];
+    }
+
     private function pushWhatsApp(): bool
     {
-        $latest = $this->latestMessage();
-        $chatJid = (string) ($latest?->message['chat_jid'] ?? '');
-        if ($chatJid === '') {
+        if ($this->canalId === null || ! str_contains($this->canalId, '@s.whatsapp.net')) {
             return false;
         }
 
-        $to = str_replace('@s.whatsapp.net', '', $chatJid);
+        $to = str_replace('@s.whatsapp.net', '', $this->canalId);
 
         new WaSenderMessageService($this->channel->app, $this->channel->company)
             ->sendTextMessage($to, $this->text);
@@ -206,13 +220,5 @@ class DeliverScheduledMessageToChannelAction
             ->create($to, ['from' => $from, 'body' => $this->text]);
 
         return true;
-    }
-
-    private function latestMessage(): ?Message
-    {
-        /** @var Message|null $message */
-        $message = $this->channel->messages()->orderByDesc('messages.id')->first();
-
-        return $message;
     }
 }
