@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions;
 
 use Illuminate\Support\Str;
+use Kanvas\Connectors\Mailgun\Jobs\ProvisionAgentMailboxJob;
+use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentModel;
 use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
@@ -63,6 +65,13 @@ class CreateAgentAction
             $agent->selectedTools()->sync(
                 $this->agent->agentType->tools()->pluck('id')->all()
             );
+        }
+
+        // An internal teammate is born with its own email address, the way a new hire is. Gated
+        // inside the service: customer-facing personas and sub-agents get none, and a company
+        // without a Mailgun domain is skipped rather than failed.
+        if ($agent->wasRecentlyCreated && new AgentMailboxService()->shouldAutoProvision($agent)) {
+            ProvisionAgentMailboxJob::dispatch($agent);
         }
 
         return $agent;

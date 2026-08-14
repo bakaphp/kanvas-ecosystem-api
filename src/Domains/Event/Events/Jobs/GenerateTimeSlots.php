@@ -6,6 +6,7 @@ namespace Kanvas\Event\Events\Jobs;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Carbon;
 use Kanvas\Event\Events\Enums\ConfigurationEnum;
@@ -60,9 +61,25 @@ class GenerateTimeSlots implements ShouldQueue
 
     public function handle()
     {
-        $rule       = ScheduleRules::findOrFail($this->ruleId);
-        $resource   = $rule->resource;
-        $tz         = ResourceTimezoneService::resolve($resource);
+        // The rule or its resource can disappear between dispatch and run — the daily top-up
+        // command queues every active rule, and deleting a variant leaves the rule orphaned.
+        // Nothing to generate in either case; it's not a fault worth failing the job over.
+        $rule = ScheduleRules::query()
+            ->notDeleted()
+            ->where('id', $this->ruleId)
+            ->first();
+
+        if ($rule === null) {
+            return;
+        }
+
+        $resource = $rule->resource;
+
+        if ($resource === null) {
+            return;
+        }
+
+        $tz = ResourceTimezoneService::resolve($resource);
 
         $rrule = RRule::createFromRfcString($rule->rrule, $rule->start_at->setTimezone($tz));
         if ($rule->end_at) {
@@ -93,7 +110,7 @@ class GenerateTimeSlots implements ShouldQueue
 
     protected function generateSlotsForDayWithRRule(
         ScheduleRules $rule,
-        $resource,
+        Model $resource,
         Carbon $dayOccurrence,
         string $tz
     ): void {
@@ -138,7 +155,7 @@ class GenerateTimeSlots implements ShouldQueue
 
     protected function createTimeSlot(
         ScheduleRules $rule,
-        $resource,
+        Model $resource,
         Carbon $localStart,
         Carbon $localEnd,
         string $tz
@@ -158,21 +175,21 @@ class GenerateTimeSlots implements ShouldQueue
         $price = $this->resolvePrice($resource);
 
         TimeSlots::upsert([[
-          'resources_id'        => $resource->id,
-          'resources_type'      => $resource->getMorphClass(),
-          'schedule_rules_id'   => $rule->id,
-          'start_at'            => $localStart->clone()->setTimezone('UTC'),
-          'apps_id'             => $rule->apps_id,
-          'companies_id'        => $rule->companies_id,
-          'end_at'              => $localEnd->clone()->setTimezone('UTC'),
-          'capacity'            => $capacity,
-          'initial_capacity'    => $capacity,
-          'price_snapshot'      => $price,
-          'currency'            => 'USD',
-          'updated_at'          => now(),
-          'created_at'          => now(),
+          'resources_id' => $resource->id,
+          'resources_type' => $resource->getMorphClass(),
+          'schedule_rules_id' => $rule->id,
+          'start_at' => $localStart->clone()->setTimezone('UTC'),
+          'apps_id' => $rule->apps_id,
+          'companies_id' => $rule->companies_id,
+          'end_at' => $localEnd->clone()->setTimezone('UTC'),
+          'capacity' => $capacity,
+          'initial_capacity' => $capacity,
+          'price_snapshot' => $price,
+          'currency' => 'USD',
+          'updated_at' => now(),
+          'created_at' => now(),
         ]], uniqueBy: ['resources_id', 'resources_type', 'start_at'], update: [
-          'schedule_rules_id','end_at','initial_capacity','price_snapshot','currency','updated_at'
+          'schedule_rules_id','end_at','initial_capacity','price_snapshot','currency','updated_at',
         ]);
     }
 
@@ -182,7 +199,7 @@ class GenerateTimeSlots implements ShouldQueue
      * generation run. A 0 channel price means the same thing in practice: the price was only ever
      * set on the warehouse, which is what the UI shows as the variant's price.
      */
-    protected function resolvePrice(mixed $resource): ?float
+    protected function resolvePrice(Model $resource): ?float
     {
         if (! $resource instanceof Variants) {
             return null;
@@ -206,7 +223,8 @@ class GenerateTimeSlots implements ShouldQueue
     protected function isBlackedOut(int $resourceId, Carbon $start, Carbon $end, string $tz): bool
     {
         $startUtc = $start->clone()->tz('UTC');
-        $endUtc   = $end->clone()->tz('UTC');
+        $endUtc = $end->clone()->tz('UTC');
+
         return ScheduleException::where('resources_id', $resourceId)
           ->where('kind', 'blackout')
           ->where('window_start', '<', $endUtc)

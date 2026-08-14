@@ -99,7 +99,8 @@ class GenerateLeadLinkedFieldActivity extends KanvasActivity
         }
 
         $client = new GuzzleClient([
-            'timeout' => 30,
+            'timeout' => 90,
+            'connect_timeout' => 10,
             'headers' => [
                 'Accept' => 'application/json',
                 'Content-Type' => 'application/json',
