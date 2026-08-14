@@ -46,6 +46,16 @@ class AgentChannelResponderActivity extends KanvasActivity
                     ];
                 }
 
+                // Rules wired to fan every inbound message reach this activity with SMS/WhatsApp
+                // payloads, which have a phone in chat_jid and no sender address. Bail before the
+                // session + LLM spend; the email responder has no recipient to reply to.
+                if (trim((string) ($message->message['from_email'] ?? '')) === '') {
+                    return $this->failWorkflow([
+                        'message' => 'Inbound message has no from_email, not an email message',
+                        'entity' => null,
+                    ]);
+                }
+
                 $chatJid = $message->message['chat_jid'] ?? null;
                 $lead = $message->entity();
                 $message->addTag('engagement');

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Mailgun\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
@@ -156,6 +157,49 @@ class AgentChannelResponderEndToEndTest extends TestCase
             'Original Outreach Subject',
             (string) Lead::getById($lead->getId(), $app)->get('title_email_follow_up'),
         );
+    }
+
+    // Regression (Sentry KANVAS-ECOSYSTEM-5W0): a rule fanning every inbound message at the
+    // Mailgun activity delivered Twilio SMS payloads here — no from_email, so the responder
+    // crashed on the undefined key. It must skip, and persist nothing.
+    public function testInboundWithoutFromEmailIsSkippedInsteadOfCrashing(): void
+    {
+        Notification::fake();
+
+        ['app' => $app, 'company' => $company, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
+            $this->seedInboundEmailScenario();
+
+        $inbound->message = [
+            'content' => '11am',
+            'from_me' => false,
+            'from_ia' => false,
+            'chat_jid' => '+16503859777',
+        ];
+        $inbound->saveOrFail();
+
+        $lastMessageId = (int) $inbound->getId();
+        $skipped = null;
+
+        try {
+            new AgentChannelResponderAction($channel, $inbound->fresh(), $agent, $session)->execute([]);
+        } catch (AgentReplySkippedException $e) {
+            $skipped = $e;
+        }
+
+        $this->assertNotNull($skipped, 'A non-email inbound must be skipped, not crash on from_email');
+
+        $outbound = Message::query()
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->where('id', '>', $lastMessageId)
+            ->whereJsonContains('message->from_ia', true)
+            ->whereHas(
+                'channels',
+                fn ($q) => $q->where('channels.id', $channel->getId()),
+            )
+            ->exists();
+
+        $this->assertFalse($outbound, 'No agent reply should be persisted for a non-email inbound');
     }
 
     /**
