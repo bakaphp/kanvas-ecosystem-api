@@ -18,6 +18,7 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionDto;
 use Kanvas\NervousSystem\Scheduling\Actions\CreateScheduledActionAction;
+use Kanvas\NervousSystem\Scheduling\Actions\DeliverScheduledMessageToChannelAction;
 use Kanvas\NervousSystem\Scheduling\DataTransferObject\ScheduledAction as ScheduledActionData;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionTypeEnum;
 use Kanvas\NervousSystem\Scheduling\Jobs\RunScheduledAgentActionJob;
@@ -28,6 +29,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\UserMessage;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class ScheduledActionChannelDeliveryTest extends TestCase
@@ -229,5 +231,27 @@ class ScheduledActionChannelDeliveryTest extends TestCase
             ->where('conversation_id', $conversationId)->where('role', 'assistant')->first();
         $this->assertNotNull($replyRow);
         $this->assertSame(1, (int) $replyRow->is_public, 'A normal turn stays visible.');
+    }
+
+    public function testSlackTargetIsParsedFromSessionCanalIdInExactCase(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+        $channel = $this->makeChannel($app, $company, $user);
+
+        // The session's canal_id carries the connector destination in ORIGINAL case; the channel slug is
+        // lowercased and would 404 against the Slack API. `slack:{team}:{channel}:{thread_ts}`.
+        $action = new DeliverScheduledMessageToChannelAction(
+            channel: $channel,
+            text: 'ping',
+            author: $user,
+            agent: $agent,
+            canalId: 'slack:T0BC3HTQYAC:D0BKWG1JJ2X:1699999999.001',
+        );
+
+        [$slackChannelId, $threadTs] = new ReflectionMethod($action, 'slackTargetFromCanalId')->invoke($action);
+
+        $this->assertSame('D0BKWG1JJ2X', $slackChannelId);
+        $this->assertSame('1699999999.001', $threadTs);
     }
 }
