@@ -9,9 +9,11 @@ use Kanvas\Guild\Organizations\Services\OrganizationNameNormalizerService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -20,9 +22,10 @@ use Override;
  * uses this to PROPOSE the cash application; a human confirms before anything posts. Read-only.
  */
 #[AgentTool(name: 'Match Invoices For Payment', category: 'accounting')]
-class MatchInvoicesForPaymentTool extends Tool
+class MatchInvoicesForPaymentTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     private const OPEN_EXCLUDED = ['draft', 'paid', 'voided'];
 

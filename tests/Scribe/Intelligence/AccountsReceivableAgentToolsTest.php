@@ -22,6 +22,7 @@ use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
+use NeuronAI\Tools\HasRunKey;
 use Tests\Scribe\ScribeTestCase;
 
 class AccountsReceivableAgentToolsTest extends ScribeTestCase
@@ -318,5 +319,48 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $this->assertFalse($result['file_attached']);
         $this->assertSame('invoice_not_found', $result['reason']);
+    }
+
+    public function test_find_customer_returns_a_dead_end_message_when_nothing_matches(): void
+    {
+        // A bare count=0 reads as "try again" to the model, which is how the same name got re-queried
+        // until the run budget tripped (Sentry KANVAS-ECOSYSTEM-64Q).
+        $result = new FindCustomerTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(name: 'Nonexistent Customer ' . uniqid());
+
+        $this->assertSame(0, (int) $result['count']);
+        $this->assertArrayHasKey('message', $result);
+        $this->assertStringContainsString('Retrying the same name will not help', $result['message']);
+    }
+
+    /**
+     * AR staff drive these per-record tools once per row over a spreadsheet/remittance, so each must key
+     * its run budget by inputs — otherwise the 11th DISTINCT call in a turn trips NeuronAI's per-tool-name
+     * cap and aborts the whole turn (Sentry KANVAS-ECOSYSTEM-64Q, seen on find_customer mid-Excel).
+     */
+    public function test_ar_per_record_tools_key_their_run_budget_by_inputs(): void
+    {
+        $tools = [
+            new FindCustomerTool(),
+            new FindInvoiceTool(),
+            new MatchInvoicesForPaymentTool(),
+        ];
+
+        foreach ($tools as $tool) {
+            $this->assertInstanceOf(HasRunKey::class, $tool, $tool->getName() . ' must key its run budget by inputs.');
+
+            $tool->setInputs(['name' => 'Industrias San Miguel', 'customer' => 'Industrias San Miguel', 'invoice_number' => 'INV-1']);
+            $keyOne = $tool->getRunKey();
+
+            $tool->setInputs(['name' => 'Acme Corporation', 'customer' => 'Acme Corporation', 'invoice_number' => 'INV-2']);
+            $keyTwo = $tool->getRunKey();
+
+            $tool->setInputs(['name' => 'Industrias San Miguel', 'customer' => 'Industrias San Miguel', 'invoice_number' => 'INV-1']);
+            $keyOneAgain = $tool->getRunKey();
+
+            $this->assertNotEquals($keyOne, $keyTwo, $tool->getName() . ': distinct records must not share a run budget.');
+            $this->assertEquals($keyOneAgain, $keyOne, $tool->getName() . ': identical calls must collapse so a loop is still capped.');
+        }
     }
 }
