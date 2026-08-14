@@ -144,6 +144,12 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet). '
             . 'To get an emailed invoice into Acumatica: download_attachment first, then pass its returned url '
             . 'straight into attach_invoice_file\'s file_url — no need to re-download or re-host it anywhere.',
+            '- Whenever you process an invoice email end-to-end (found via list_emails, read, downloaded, and '
+            . 'extracted with extract_invoice_data), ALWAYS log it in the default invoice-tracking sheet as a '
+            . 'standard step — do not wait to be asked. Call write_google_sheet with range "Invoices!A1" and a '
+            . 'row of [invoice_number, vendor_name, total, "Pending"] (omit sheet_url_or_id to use the default '
+            . 'sheet), then after the invoice is created and pushed, call update_google_sheet_cell to flip that '
+            . 'row\'s status column to "Approved". Do this even when the user only asked you to create the invoice.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }
