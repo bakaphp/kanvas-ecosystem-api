@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesDealForTool;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use NeuronAI\Tools\PropertyType;
@@ -19,6 +20,7 @@ use Throwable;
 #[AgentTool(name: 'Delete Deal', category: 'crm')]
 class DeleteDealTool extends Tool
 {
+    use HasKanvasContext;
     use ResolvesDealForTool;
 
     public function __construct()

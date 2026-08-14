@@ -22,7 +22,7 @@ class DeleteDealToolTest extends TestCase
             ->__invoke(title: 'Deal ' . uniqid());
         $dealId = (int) $created['deal_id'];
 
-        $result = new DeleteDealTool()->__invoke(deal_id: $dealId);
+        $result = $this->withTenant(new DeleteDealTool())->__invoke(deal_id: $dealId);
 
         $this->assertSame('success', $result['status']);
 
@@ -32,8 +32,25 @@ class DeleteDealToolTest extends TestCase
 
     public function testHallucinatedDealIdReturnsError(): void
     {
-        $result = new DeleteDealTool()->__invoke(deal_id: 999999999);
+        $result = $this->withTenant(new DeleteDealTool())->__invoke(deal_id: 999999999);
 
         $this->assertSame('error', $result['status']);
+    }
+
+    /**
+     * Deal tools resolve their deal against the tenant on their context, so a bare instance
+     * (no withContext) intentionally resolves nothing — mirror what the agent wiring does.
+     *
+     * @template T of object
+     *
+     * @param T $tool
+     *
+     * @return T
+     */
+    private function withTenant(object $tool): object
+    {
+        $user = auth()->user();
+
+        return $tool->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
     }
 }

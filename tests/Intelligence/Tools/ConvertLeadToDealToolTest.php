@@ -26,11 +26,28 @@ class ConvertLeadToDealToolTest extends TestCase
             ->create(['title' => 'Lead ' . uniqid()]);
     }
 
+    /**
+     * Lead tools resolve their lead against the tenant on their context, so a bare instance
+     * (no withContext) intentionally resolves nothing — mirror what the agent wiring does.
+     *
+     * @template T of object
+     *
+     * @param T $tool
+     *
+     * @return T
+     */
+    private function withTenant(object $tool): object
+    {
+        $user = auth()->user();
+
+        return $tool->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
+    }
+
     public function testConvertsLeadToDealAndLinksBack(): void
     {
         $lead = $this->makeLead();
 
-        $result = new ConvertLeadToDealTool()->__invoke(lead_id: $lead->getId());
+        $result = $this->withTenant(new ConvertLeadToDealTool())->__invoke(lead_id: $lead->getId());
 
         $this->assertSame('success', $result['status']);
 
@@ -54,8 +71,8 @@ class ConvertLeadToDealToolTest extends TestCase
     {
         $lead = $this->makeLead();
 
-        $first = new ConvertLeadToDealTool()->__invoke(lead_id: $lead->getId());
-        $second = new ConvertLeadToDealTool()->__invoke(lead_id: $lead->getId());
+        $first = $this->withTenant(new ConvertLeadToDealTool())->__invoke(lead_id: $lead->getId());
+        $second = $this->withTenant(new ConvertLeadToDealTool())->__invoke(lead_id: $lead->getId());
 
         $this->assertSame('noop', $second['status']);
         $this->assertSame((int) $first['deal_id'], (int) $second['deal_id']);
@@ -63,7 +80,7 @@ class ConvertLeadToDealToolTest extends TestCase
 
     public function testHallucinatedLeadIdReturnsError(): void
     {
-        $result = new ConvertLeadToDealTool()->__invoke(lead_id: 999999999);
+        $result = $this->withTenant(new ConvertLeadToDealTool())->__invoke(lead_id: 999999999);
 
         $this->assertSame('error', $result['status']);
     }

@@ -24,12 +24,15 @@ abstract class RecordEntityNoteAction
     /**
      * @param  Users|null  $actingUser  Attribution. Null → AI agent user (agent-authored); pass a human for manager records.
      * @param  bool  $fromIa  AI-authored. Pair null actingUser + true for AI, or a human + false for manager records.
+     * @param  bool  $isPublic  Visibility. Pass false for a note the end user must never see — an internal
+     *                          failure, a sync error, anything only the team should read.
      */
     public function execute(
         string $body,
         string $tag = 'note',
         ?Users $actingUser = null,
-        bool $fromIa = true
+        bool $fromIa = true,
+        bool $isPublic = true
     ): ?Message {
         try {
             $entity = $this->entity();
@@ -59,7 +62,7 @@ abstract class RecordEntityNoteAction
                 user: $user,
                 type: $messageType,
                 message: $messagePayload->toArray(),
-                is_public: 0,
+                is_public: (int) $isPublic,
             );
 
             $note = new CreateSocialMessageAction(

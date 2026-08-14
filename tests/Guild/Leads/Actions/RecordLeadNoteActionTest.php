@@ -16,7 +16,7 @@ class RecordLeadNoteActionTest extends TestCase
 
     protected array $connectionsToTransact = ['mysql', 'crm', 'intelligence', 'social'];
 
-    public function testRecordsPrivateNoteOnLeadNotesChannel(): void
+    public function testRecordsNoteOnLeadNotesChannel(): void
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -27,7 +27,7 @@ class RecordLeadNoteActionTest extends TestCase
         $note = new RecordLeadNoteAction($lead)->execute('Prospect opted out', 'opt-out');
 
         $this->assertNotNull($note);
-        $this->assertSame(0, $note->is_public);
+        $this->assertSame(1, $note->is_public);
         $this->assertSame('Prospect opted out', $note->message['content'] ?? null);
         $this->assertTrue((bool) ($note->message['from_ia'] ?? false));
         $this->assertTrue($note->tags()->where('name', 'opt-out')->exists());
@@ -37,6 +37,24 @@ class RecordLeadNoteActionTest extends TestCase
         $this->assertTrue(
             $channel->messages()->where('messages.id', $note->getId())->exists()
         );
+    }
+
+    public function testNoteCanBeRecordedAsPrivate(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $lead = Lead::factory()->withAppAndCompany($app->getId(), $company->getId())->create();
+
+        $note = new RecordLeadNoteAction($lead)->execute(
+            body: 'Internal only — CRM sync failed',
+            tag: 'note',
+            isPublic: false,
+        );
+
+        $this->assertNotNull($note);
+        $this->assertSame(0, $note->is_public);
     }
 
     public function testTagDefaultsToNote(): void

@@ -297,11 +297,27 @@ if (is_array($result)) { return $result; }   // hallucinated id → structured e
 $lead = $result;
 ```
 
-Available (all in `Neuron/Tools/Traits/`): `ResolvesLeadForTool`, `ResolvesMessageForTool`,
-`ResolvesOrganizationForTool`, `ResolvesEmployeeForTool`, `ResolvesPlanForTool`, `ResolvesTaskForTool`,
-`ResolvesPositionAndDepartmentForTool`, plus `FindsTenantRecordForTool` (generic model+column lookup).
+Available (all in `Neuron/Tools/Traits/`): `ResolvesLeadForTool`, `ResolvesDealForTool`,
+`ResolvesMessageForTool`, `ResolvesOrganizationForTool`, `ResolvesEmployeeForTool`, `ResolvesPlanForTool`,
+`ResolvesTaskForTool`, `ResolvesPositionAndDepartmentForTool`, plus `FindsTenantRecordForTool` (generic
+model+column lookup).
 **When you add a tool that operates on a new entity type, add a `Resolves{Entity}ForTool` trait rather than
 resolving inline** — that's how the idiom stays uniform.
+
+**Every resolve trait MUST scope by the tool's tenant, and MUST fail closed when it has none.** A bare
+`Model::getById($id)` matches any row on the platform, so an LLM-supplied (prompt-injectable) id becomes
+a cross-tenant read — another company's prospect PII returned into a customer chat — or, on a write/send/
+delete tool, an action against their record. Resolve via `getByIdFromCompanyApp()` and, when tenant
+context is missing, `report()` + return the same structured error rather than falling back to an unscoped
+lookup. `ResolvesLeadForTool` pulls in `HasKanvasContext` itself so every host tool is context-bearing;
+`ResolvesDealForTool` reads context the host declares (some deal tools promote their own `$app`/`$company`,
+and a trait re-declaring them fatals on property composition). Regression coverage:
+[`tests/Intelligence/Tools/LeadToolTenantScopingTest.php`](../../../../tests/Intelligence/Tools/LeadToolTenantScopingTest.php).
+
+Context reaches those tools through [`MergesRegisteredTools`](../Traits/MergesRegisteredTools.php), which
+runs `fillKanvasContext()` over BOTH the registry-resolved tools and the subclass's hardcoded baseline —
+so `new LeadRefTool()` in `SalesAgent::tools()` is tenant-bound without per-line `withContext()` wiring.
+A tool constructed outside that path (a test, a one-off script) must call `withContext()` itself.
 
 ### Tenant scoping inside tools
 
