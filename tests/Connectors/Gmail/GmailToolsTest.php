@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Gmail\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReadEmailDetailsTool;
 use Tests\TestCase;
 
@@ -79,6 +80,18 @@ class GmailToolsTest extends TestCase
 
         $this->assertFalse($result['success']);
         $this->assertSame('download_failed', $result['reason']);
+    }
+
+    public function test_mark_email_as_read_surfaces_a_humanized_error_when_gmail_is_not_configured(): void
+    {
+        [$app, $company] = $this->context();
+
+        $result = new MarkEmailAsReadTool()
+            ->withContext($app, $company, static::$cachedUser)
+            ->__invoke(message_id: 'MSG_1');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('mark_read_failed', $result['reason']);
     }
 
     /**

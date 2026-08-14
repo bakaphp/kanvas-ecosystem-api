@@ -121,3 +121,41 @@ existing, accepted pattern here, not something specific to this connector. Treat
 file itself with the same care as any other production secret: don't commit it, don't paste it
 into chat/logs outside the one-time setup, and use a dedicated production service account (never
 reuse a personal/dev one).
+
+## Full invoice-processing flow (Gmail → Sheet → Acumatica)
+
+This connector is one leg of a 3-connector pipeline (see also `src/Domains/Connectors/Gmail/CLAUDE.md`
+and the Acumatica connector). End to end, when Apex/Arc process an emailed invoice, the agent:
+
+1. `list_emails` (Gmail) — finds unread invoice emails.
+2. `read_email_details` (Gmail) — reads the body + attachment list.
+3. `download_attachment` (Gmail) — saves the PDF to Kanvas, returns `filesystem_id`/`url`.
+4. `extract_invoice_data` (Accounting) — reads the PDF with AI, gets the real vendor/total/dates.
+   The email body/subject is never the source of truth for these — always read the PDF.
+5. `write_google_sheet` (this connector) — logs the invoice as a new row (no `sheet_url_or_id`
+   needed — falls back to the default sheet), automatically, without being asked.
+6. `create_ap_bill` / `create_ar_invoice` (Acumatica) — creates + pushes the bill/invoice, using
+   the real amount from step 4, not anything guessed from the email text.
+7. `attach_bill_file` / `attach_invoice_file` (Acumatica) — attaches the file using the `url`
+   from step 3, no re-download needed.
+8. `update_google_sheet_cell` (this connector) — flips the sheet row's status to "Approved".
+9. `mark_email_as_read` (Gmail) — removes the message's `UNREAD` label, only now that every prior
+   step succeeded, so the same invoice doesn't get reprocessed on the next `has:attachment
+   is:unread` search. Never mark it read before this point — a failed run must still be findable.
+
+### Setup checklist — every key that must exist before this flow works
+
+| # | Key | Where it's set | Connector |
+|---|---|---|---|
+| 1 | `gmail-client-id` | Settings → Key Configurations | Gmail |
+| 2 | `gmail-client-secret` | Settings → Key Configurations | Gmail |
+| 3 | `gmail-refresh-token` | Settings → Key Configurations | Gmail |
+| 4 | `google-sheets-credentials` | Settings → Key Configurations | GoogleSheets |
+| 5 | `google-sheets-default-invoice-tracker` | Settings → Key Configurations | GoogleSheets |
+| 6 | Sheet shared as Editor with the service account's `client_email` | Google Sheets UI, per-sheet | GoogleSheets |
+| 7 | Acumatica credentials (see that connector's own docs) | Settings → Key Configurations | Acumatica |
+
+Steps 1–3 come from the OAuth Playground flow in `Gmail/CLAUDE.md`. Steps 4–6 come from the
+service-account flow above. Missing any of 1–6 breaks the flow at that specific step — the tool's
+error `reason` (`no_sheet_configured`, an authentication error from `Client::getInstance()`, etc.)
+tells you which one.
