@@ -154,13 +154,13 @@ class DeliverScheduledMessageToChannelAction
             return false;
         }
 
-        $latest = $this->latestMessage();
-        $slackChannelId = (string) ($latest?->message['slack_channel'] ?? '');
+        $source = $this->latestMessageWith('slack_channel');
+        $slackChannelId = (string) ($source?->message['slack_channel'] ?? '');
         if ($slackChannelId === '') {
             return false;
         }
 
-        $threadTs = (string) ($latest?->message['slack_thread_ts'] ?? '');
+        $threadTs = (string) ($source?->message['slack_thread_ts'] ?? '');
 
         SlackClient::getInstanceByAgent($this->agent)
             ->postMessage($slackChannelId, $this->text, $threadTs !== '' ? $threadTs : null);
@@ -170,8 +170,8 @@ class DeliverScheduledMessageToChannelAction
 
     private function pushWhatsApp(): bool
     {
-        $latest = $this->latestMessage();
-        $chatJid = (string) ($latest?->message['chat_jid'] ?? '');
+        $source = $this->latestMessageWith('chat_jid');
+        $chatJid = (string) ($source?->message['chat_jid'] ?? '');
         if ($chatJid === '') {
             return false;
         }
@@ -208,10 +208,18 @@ class DeliverScheduledMessageToChannelAction
         return true;
     }
 
-    private function latestMessage(): ?Message
+    /**
+     * The most recent channel message that actually carries the connector key (e.g. `slack_channel`,
+     * `chat_jid`). We must NOT use the plain latest row: execute() posts our own feed message first, and
+     * that reminder row has no connector metadata — reading it would make every native push no-op.
+     */
+    private function latestMessageWith(string $key): ?Message
     {
         /** @var Message|null $message */
-        $message = $this->channel->messages()->orderByDesc('messages.id')->first();
+        $message = $this->channel->messages()
+            ->whereNotNull("messages.message->{$key}")
+            ->orderByDesc('messages.id')
+            ->first();
 
         return $message;
     }

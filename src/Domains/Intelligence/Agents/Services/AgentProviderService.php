@@ -170,7 +170,7 @@ class AgentProviderService
         return (string) ($source['model']
             ?? $app->get(ConfigurationEnum::AI_PROVIDER_MODEL->value)
             ?? $app->get(ConfigurationEnum::GEMINI_MODEL->value)
-            ?? 'gemini-3.6-flash');
+            ?? 'gemini-3.7-flash');
     }
 
     /**

@@ -18,6 +18,7 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionDto;
 use Kanvas\NervousSystem\Scheduling\Actions\CreateScheduledActionAction;
+use Kanvas\NervousSystem\Scheduling\Actions\DeliverScheduledMessageToChannelAction;
 use Kanvas\NervousSystem\Scheduling\DataTransferObject\ScheduledAction as ScheduledActionData;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionTypeEnum;
 use Kanvas\NervousSystem\Scheduling\Jobs\RunScheduledAgentActionJob;
@@ -25,9 +26,11 @@ use Kanvas\NervousSystem\Scheduling\Notifications\ScheduledReminderNotification;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Actions\PostChannelMessageAction;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Messages\AssistantMessage;
 use NeuronAI\Chat\Messages\UserMessage;
+use ReflectionMethod;
 use Tests\TestCase;
 
 class ScheduledActionChannelDeliveryTest extends TestCase
@@ -229,5 +232,45 @@ class ScheduledActionChannelDeliveryTest extends TestCase
             ->where('conversation_id', $conversationId)->where('role', 'assistant')->first();
         $this->assertNotNull($replyRow);
         $this->assertSame(1, (int) $replyRow->is_public, 'A normal turn stays visible.');
+    }
+
+    public function testNativeSlackPushReadsConnectorMetadataFromTheInboundMessageNotOurOwnFeedPost(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+        $channel = $this->makeChannel($app, $company, $user);
+
+        // The real inbound Slack message carries the connector metadata (slack_channel / thread ts).
+        new PostChannelMessageAction(
+            channel: $channel,
+            author: $user,
+            verb: 'slack-inbound',
+            content: 'hey agent',
+            extraPayload: ['slack_channel' => 'C0INBOUND', 'slack_thread_ts' => '123.45'],
+            runWorkflow: false,
+        )->execute();
+
+        // A LATER feed post with NO connector metadata — exactly what execute() writes before pushing.
+        // The old code read this row and found no slack_channel, so the Slack DM never went out.
+        new PostChannelMessageAction(
+            channel: $channel,
+            author: $user,
+            verb: 'scheduled-reminder',
+            content: 'your reminder',
+            extraPayload: ['from_ia' => true],
+            runWorkflow: false,
+        )->execute();
+
+        $action = new DeliverScheduledMessageToChannelAction(
+            channel: $channel,
+            text: 'ping',
+            author: $user,
+            agent: $agent,
+        );
+
+        $found = new ReflectionMethod($action, 'latestMessageWith')->invoke($action, 'slack_channel');
+
+        $this->assertNotNull($found, 'A message carrying slack_channel must still be found after a later feed post.');
+        $this->assertSame('C0INBOUND', $found->message['slack_channel']);
     }
 }
