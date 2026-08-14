@@ -45,4 +45,8 @@ enum ConfigurationEnum: string
     case NOTIFICATION_CHANNELS = 'notification_enabled_channels';
     case FIRST_ENGAGEMENT_NOTIFICATION_CHANNELS = 'first_engagement_notification_channels';
     case ENGAGEMENT_NOTIFICATION_CHANNELS = 'engagement_notification_channels';
+    // When truthy on an app, that app's key may resolve voice agents across
+    // apps (voiceAgentSpec by uuid, ignoring apps_id). Enable ONLY on the
+    // trusted voice-runtime app; every other app-key stays app-scoped.
+    case VOICE_RUNTIME_CROSS_APP = 'kanvas-intelligence-voice-runtime-cross-app';
 }
