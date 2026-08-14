@@ -132,16 +132,23 @@ and the Acumatica connector). End to end, when Apex/Arc process an emailed invoi
 3. `download_attachment` (Gmail) — saves the PDF to Kanvas, returns `filesystem_id`/`url`.
 4. `extract_invoice_data` (Accounting) — reads the PDF with AI, gets the real vendor/total/dates.
    The email body/subject is never the source of truth for these — always read the PDF.
-5. `write_google_sheet` (this connector) — logs the invoice as a new row (no `sheet_url_or_id`
-   needed — falls back to the default sheet), automatically, without being asked.
-6. `create_ap_bill` / `create_ar_invoice` (Acumatica) — creates + pushes the bill/invoice, using
-   the real amount from step 4, not anything guessed from the email text.
-7. `attach_bill_file` / `attach_invoice_file` (Acumatica) — attaches the file using the `url`
+5. `create_ap_bill` / `create_ar_invoice` (Acumatica) — creates + pushes the bill/invoice using the
+   real data from step 4, giving back the **Kanvas bill/invoice id** and the Acumatica ref.
+6. `attach_bill_file` / `attach_invoice_file` (Acumatica) — attaches the file using the `url`
    from step 3, no re-download needed.
+7. `write_google_sheet` (this connector) — logs the invoice as a new row (no `sheet_url_or_id`
+   needed — falls back to the default sheet), automatically, without being asked. **The "ID
+   invoice" column holds the Kanvas bill/invoice id from step 5** (not the vendor/customer's own
+   invoice number) — this only works because the bill/invoice is created *before* this step, not
+   after.
 8. `update_google_sheet_cell` (this connector) — flips the sheet row's status to "Approved".
 9. `mark_email_as_read` (Gmail) — removes the message's `UNREAD` label, only now that every prior
    step succeeded, so the same invoice doesn't get reprocessed on the next `has:attachment
    is:unread` search. Never mark it read before this point — a failed run must still be findable.
+
+The agent's final reply must always give the complete breakdown (Kanvas id, Acumatica ref, vendor,
+invoice number, amount, GL account, subaccount, memo, status, attached file) — the user looks this
+up in Acumatica/Kanvas afterward and needs every field, not a short summary.
 
 ### Setup checklist — every key that must exist before this flow works
 
