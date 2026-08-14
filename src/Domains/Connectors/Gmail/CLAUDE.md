@@ -12,6 +12,7 @@ total, dates) from that PDF so it can be tracked in a sheet and pushed to Acumat
 | `read_email_details(message_id)` | Returns From, Date, Subject, body text, and the attachment list (filename + attachment_id) for one message. |
 | `download_attachment(message_id, attachment_id, filename)` | Downloads one attachment and stores it as a real Kanvas Filesystem entry — returns `filesystem_id`/`url`, the same way any other uploaded document is referenced. |
 | `extract_invoice_data(filesystem_id, from_email?, subject?)` (in `Tools/Accounting/`) | Reads a downloaded PDF with Kanvas's existing AI PDF classifier and returns vendor/total/currency/dates/line items. The real invoice numbers live in the PDF, never in the email body/subject — always use this before writing an amount anywhere. |
+| `mark_email_as_read(message_id)` | Removes the `UNREAD` label so the message stops matching a future `has:attachment is:unread` search. Call only after the invoice is fully logged/pushed — never before, so a failed run can still be found and retried. |
 
 ## Configuration
 
@@ -19,6 +20,16 @@ Unlike GoogleSheets (a service account), Gmail does **not** work well with servi
 personal/shared mailbox unless you control a Google Workspace domain with delegated authority.
 The supported approach here is **OAuth 2.0 with a refresh token** — a one-time manual
 authorization that then lets the agent obtain fresh access tokens indefinitely.
+
+**Scope required: `gmail.modify`, not `gmail.readonly`.** `mark_email_as_read` writes to the
+mailbox (removes a label), so the OAuth scope requested during authorization must be
+`https://www.googleapis.com/auth/gmail.modify` (a superset of readonly — covers everything this
+connector does). **A refresh token is permanently scoped to whatever was consented to when it was
+created** — calling `addScope()` in `Client.php` does not retroactively widen an existing token's
+permissions. If your refresh token was generated before `mark_email_as_read` existed (i.e. with
+only the `gmail.readonly` scope), `mark_email_as_read` will fail with an insufficient-scope error
+and you must redo step 4 below with the `gmail.modify` scope checked instead of `gmail.readonly`,
+then replace the stored `gmail-refresh-token` with the new one.
 
 Config keys (stored per Kanvas app via the standard custom-fields mechanism):
 
@@ -63,7 +74,8 @@ search **"Gmail API"** at the top of [console.cloud.google.com](https://console.
 2. Click the ⚙️ gear (top right) → check **"Use your own OAuth credentials"** → paste the Client
    ID and Client Secret from step 3.
 3. In the left panel, find **Gmail API v1** and check the
-   `https://www.googleapis.com/auth/gmail.readonly` scope.
+   `https://www.googleapis.com/auth/gmail.modify` scope (not `gmail.readonly` — this connector
+   also marks messages as read, which needs write access to the mailbox).
    - **Don't leave text in the API search box after selecting the scope** — leftover search text
      (e.g. from typing "gmail" to find the API) gets sent as a literal extra scope and the
      authorization fails with `Error 400: invalid_scope`. Clear the search box before authorizing.
@@ -105,8 +117,9 @@ $app->set(\Kanvas\Connectors\Gmail\Enums\ConfigurationEnum::REFRESH_TOKEN->value
 ## Security note
 
 A Gmail refresh token is a durable, full-mailbox credential — more sensitive than a
-service-account JSON scoped to explicitly-shared sheets, since it grants read access to
-*everything* in that inbox for as long as it stays valid. It's stored in plaintext in the
-`apps_settings` table, same as every other connector's credentials here — treat it accordingly:
+service-account JSON scoped to explicitly-shared sheets, since with the `gmail.modify` scope it
+grants both read access to *everything* in that inbox and the ability to change message state
+(labels), for as long as it stays valid. It's stored in plaintext in the `apps_settings` table,
+same as every other connector's credentials here — treat it accordingly:
 never commit it, never paste it into chat/logs outside the one-time setup, and use a dedicated
 mailbox/service account for production rather than a personal inbox.
