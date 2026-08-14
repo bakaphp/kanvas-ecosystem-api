@@ -15,6 +15,7 @@ use Google\Service\Gmail\Resource\UsersMessagesAttachments;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Gmail\Actions\DownloadAttachmentAction;
 use Kanvas\Connectors\Gmail\Actions\ListEmailsAction;
+use Kanvas\Connectors\Gmail\Actions\MarkEmailAsReadAction;
 use Kanvas\Connectors\Gmail\Actions\ReadEmailDetailsAction;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
@@ -141,5 +142,25 @@ class GmailActionsTest extends TestCase
         $this->assertSame('invoice-4521.pdf', $result['filename']);
         $this->assertSame('https://cdn.example.com/invoice-4521.pdf', $result['url']);
         $this->assertSame(23, $result['size']);
+    }
+
+    public function test_mark_email_as_read_removes_the_unread_label(): void
+    {
+        $messagesResource = Mockery::mock(UsersMessages::class);
+        $messagesResource->shouldReceive('modify')
+            ->once()
+            ->with(
+                'me',
+                'MSG_1',
+                Mockery::on(fn ($body) => $body->getRemoveLabelIds() === ['UNREAD']),
+            )
+            ->andReturn(new Message(['id' => 'MSG_1']));
+
+        $service = Mockery::mock(GmailService::class);
+        $service->users_messages = $messagesResource;
+
+        $result = new MarkEmailAsReadAction(app(Apps::class), 'MSG_1', $service)->execute();
+
+        $this->assertSame('MSG_1', $result['message_id']);
     }
 }

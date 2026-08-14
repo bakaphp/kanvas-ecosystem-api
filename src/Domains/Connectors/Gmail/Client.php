@@ -31,7 +31,7 @@ class Client
             $googleClient = new GoogleApiClient();
             $googleClient->setClientId((string) $clientId);
             $googleClient->setClientSecret((string) $clientSecret);
-            $googleClient->addScope(GmailService::GMAIL_READONLY);
+            $googleClient->addScope(GmailService::GMAIL_MODIFY);
             $googleClient->fetchAccessTokenWithRefreshToken((string) $refreshToken);
 
             return new GmailService($googleClient);

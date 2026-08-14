@@ -41,8 +41,9 @@ class AppendGoogleSheetRowsTool extends Tool
             new ToolProperty(
                 name: 'sheet_url_or_id',
                 type: PropertyType::STRING,
-                description: 'The full Google Sheets URL the user shared, or a bare spreadsheet id. Always required.',
-                required: true,
+                description: 'The full Google Sheets URL the user shared, or a bare spreadsheet id. Omit to use '
+                    . 'this app\'s default invoice-tracking sheet.',
+                required: false,
             ),
             new ToolProperty(
                 name: 'range',
@@ -68,7 +69,7 @@ class AppendGoogleSheetRowsTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $sheet_url_or_id, string $range, string $values): array
+    public function __invoke(string $range, string $values, ?string $sheet_url_or_id = null): array
     {
         $spreadsheetId = $this->resolveSpreadsheetId($sheet_url_or_id);
 

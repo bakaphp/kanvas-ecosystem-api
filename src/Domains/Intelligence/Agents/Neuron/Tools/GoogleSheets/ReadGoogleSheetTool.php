@@ -42,8 +42,8 @@ class ReadGoogleSheetTool extends Tool
                 type: PropertyType::STRING,
                 description: 'The full Google Sheets URL the user shared (e.g. '
                     . '"https://docs.google.com/spreadsheets/d/1A_B_C_D_12345/edit#gid=0"), or a bare '
-                    . 'spreadsheet id. Always required.',
-                required: true,
+                    . 'spreadsheet id. Omit to use this app\'s default invoice-tracking sheet.',
+                required: false,
             ),
             new ToolProperty(
                 name: 'range',
@@ -58,7 +58,7 @@ class ReadGoogleSheetTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $sheet_url_or_id, ?string $range = null): array
+    public function __invoke(?string $sheet_url_or_id = null, ?string $range = null): array
     {
         $spreadsheetId = $this->resolveSpreadsheetId($sheet_url_or_id);
 

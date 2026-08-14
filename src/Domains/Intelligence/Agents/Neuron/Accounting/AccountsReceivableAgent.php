@@ -22,6 +22,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReadEmailDetailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
@@ -95,6 +96,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new ReadEmailDetailsTool(),
             new DownloadAttachmentTool(),
             new ExtractInvoiceDataTool(),
+            new MarkEmailAsReadTool(),
         ]));
     }
 
@@ -144,6 +146,16 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet). '
             . 'To get an emailed invoice into Acumatica: download_attachment first, then pass its returned url '
             . 'straight into attach_invoice_file\'s file_url — no need to re-download or re-host it anywhere.',
+            '- Whenever you process an invoice email end-to-end (found via list_emails, read, downloaded, and '
+            . 'extracted with extract_invoice_data), ALWAYS log it in the default invoice-tracking sheet as a '
+            . 'standard step — do not wait to be asked. Call write_google_sheet with range "Invoices!A1" and a '
+            . 'row of [invoice_number, vendor_name, total, "Pending"] (omit sheet_url_or_id to use the default '
+            . 'sheet), then after the invoice is created and pushed, call update_google_sheet_cell to flip that '
+            . 'row\'s status column to "Approved". Do this even when the user only asked you to create the invoice. '
+            . 'Only after ALL of that succeeds (sheet logged, invoice created and pushed), call '
+            . 'mark_email_as_read on the message_id — this is what stops the same invoice from showing up again '
+            . 'next time you search "has:attachment is:unread". Never mark it read before every step succeeds, '
+            . 'so a failed run can still be found and retried.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }
