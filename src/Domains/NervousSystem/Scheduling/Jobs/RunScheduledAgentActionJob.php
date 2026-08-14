@@ -24,7 +24,6 @@ use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionStatusEnum;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionTypeEnum;
 use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
 use Kanvas\NervousSystem\Scheduling\Notifications\ScheduledReminderNotification;
-use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -67,7 +66,8 @@ class RunScheduledAgentActionJob implements ShouldQueue
     private function deliverReminder(): void
     {
         $message = (string) ($this->action->payload['message'] ?? '');
-        $channel = $this->resolveChannel();
+        $session = $this->resolveSessionByUuid();
+        $channel = $session?->channel;
 
         // Deliver into the channel when there is one; if nothing went out natively (no channel, or one we
         // can't push to) fall back to the notification so the recipient is still reached.
@@ -79,6 +79,7 @@ class RunScheduledAgentActionJob implements ShouldQueue
                 author: $this->action->agent?->user ?? $this->action->recipient,
                 agent: $this->action->agent,
                 sessionUuid: $this->action->session_uuid,
+                canalId: $session?->canal_id,
             )->execute();
         }
 
@@ -125,6 +126,8 @@ class RunScheduledAgentActionJob implements ShouldQueue
                 text: $response,
                 author: $agent->user,
                 agent: $agent,
+                sessionUuid: $session->uuid,
+                canalId: $session->canal_id,
                 verb: 'scheduled-agent-reply',
             )->execute();
         }
@@ -135,7 +138,7 @@ class RunScheduledAgentActionJob implements ShouldQueue
         ]);
     }
 
-    private function resolveChannel(): ?Channel
+    private function resolveSessionByUuid(): ?Session
     {
         if ($this->action->session_uuid === null) {
             return null;
@@ -144,7 +147,7 @@ class RunScheduledAgentActionJob implements ShouldQueue
         /** @var Session|null $session */
         $session = Session::query()->where('uuid', $this->action->session_uuid)->first();
 
-        return $session?->channel;
+        return $session;
     }
 
     private function resolveSession(Agent $agent): Session
