@@ -61,6 +61,33 @@ class MailgunPayloadService
         return $this->header('Message-Id');
     }
 
+    /**
+     * Multipart field names of inline attachments — `content-id-map` maps each content-id referenced
+     * in the body to its field name (e.g. `attachment-1`). These are the signature logos and embedded
+     * images of the mail itself, not things the sender attached: treating them as attachments buries
+     * a real PDF under three corporate logos on every reply.
+     *
+     * @return array<int, string>
+     */
+    public function inlineAttachmentFields(): array
+    {
+        $map = $this->payload['content-id-map'] ?? null;
+
+        if (is_string($map)) {
+            $decoded = json_decode($map, true);
+            $map = is_array($decoded) ? $decoded : [];
+        }
+
+        if (! is_array($map)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $map,
+            fn (mixed $field): bool => is_string($field) && $field !== ''
+        ));
+    }
+
     public function inReplyTo(): string
     {
         return $this->header('In-Reply-To');

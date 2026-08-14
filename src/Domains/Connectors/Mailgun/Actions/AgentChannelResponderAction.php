@@ -46,6 +46,9 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         $channelId = $this->hijackMessagePhone($this->message->message['from_email']);
 
+        // Attachments are persisted to the message at ingest, deliberately NOT fed to the model
+        // here: an inbound email is a stored artifact, and pushing every PDF/image through the LLM
+        // on arrival is a token bill nobody asked for. The caption backfill still runs.
         $responseContent = new AgentChatKernel(
             agent: $this->agent,
             session: $this->session,

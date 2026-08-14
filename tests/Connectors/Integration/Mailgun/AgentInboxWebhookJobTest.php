@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Mailgun;
 
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
@@ -30,6 +31,7 @@ use Tests\TestCase;
 final class AgentInboxWebhookJobTest extends TestCase
 {
     private const string DOMAIN = 'agents.kanvas.test';
+    private const string SIGNING_KEY = 'signing-key-test';
 
     private Apps $kanvasApp;
     private Companies $company;
@@ -47,6 +49,7 @@ final class AgentInboxWebhookJobTest extends TestCase
         $this->company = $this->user->getCurrentCompany();
 
         $this->kanvasApp->set(ConfigurationEnum::API_KEY->value, 'key-test');
+        $this->kanvasApp->set(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value, self::SIGNING_KEY);
         $this->company->set(ConfigurationEnum::DOMAIN->value, self::DOMAIN);
         $this->company->set(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value, $this->user->getId());
         // Company settings survive a rollback: a leaked APPROVAL from another suite would lock the
@@ -87,6 +90,7 @@ final class AgentInboxWebhookJobTest extends TestCase
                 'configuration' => [
                     ReceiverConfigurationEnum::AGENT_ID->value => $this->agent->getId(),
                     ReceiverConfigurationEnum::MAILBOX_ADDRESS->value => $this->mailbox,
+                    ReceiverConfigurationEnum::CAPTURE_FILES->value => true,
                 ],
             ]);
     }
@@ -100,6 +104,7 @@ final class AgentInboxWebhookJobTest extends TestCase
     {
         $this->company->del(ConfigurationEnum::DOMAIN->value);
         $this->kanvasApp->del(ConfigurationEnum::API_KEY->value);
+        $this->kanvasApp->del(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value);
 
         parent::tearDown();
     }
@@ -151,6 +156,42 @@ final class AgentInboxWebhookJobTest extends TestCase
         Http::assertSent(fn ($request): bool => str_contains($request->url(), '/messages')
             && str_contains((string) $request->body(), 'h:In-Reply-To')
             && str_contains((string) $request->body(), $messageId));
+    }
+
+    public function testAnAttachedFileLandsOnTheMessageAndSkipsTheSignatureLogo(): void
+    {
+        $this->fakeMailgun();
+
+        $this->deliver(
+            [
+                'sender' => $this->user->email,
+                'subject' => 'The signed contract',
+                'stripped-text' => 'Here is the contract, can you summarize it?',
+                // Mailgun maps each content-id referenced in the body to its multipart field.
+                'content-id-map' => json_encode(['<logo@corp>' => 'attachment-2']),
+            ],
+            [
+                'attachment-1' => UploadedFile::fake()->create('contract.pdf', 12, 'application/pdf'),
+                'attachment-2' => UploadedFile::fake()->image('signature-logo.png'),
+            ],
+        );
+
+        $message = Message::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->whereJsonContains('message->from_email', $this->user->email)
+            ->latest('id')
+            ->first();
+
+        $names = $message->files->pluck('name')->all();
+
+        $this->assertContains('contract.pdf', $names);
+        // The sender's email signature is not an attachment — treating it as one buries the real
+        // file under corporate logos on every single reply.
+        $this->assertNotContains('signature-logo.png', $names);
+
+        // Stored as a document, not an image — what any later reader (caption backfill, a tool, the
+        // UI) keys off to decide how to open it.
+        $this->assertNotEmpty($message->attachmentUrls()['documents']);
     }
 
     public function testAStrangerIsTurnedAwayWhenTheMailboxIsRestricted(): void
@@ -235,12 +276,24 @@ final class AgentInboxWebhookJobTest extends TestCase
      *
      * @return array<string, mixed>
      */
-    private function deliver(array $payload): array
+    private function deliver(array $payload, array $files = []): array
     {
+        // Signed like Mailgun signs it: ProcessWebhookAttemptAction only persists the uploaded
+        // attachments when the request authenticates, so an unsigned delivery silently drops files.
+        $timestamp = (string) time();
+        $token = 'tok-' . Str::random(10);
+        $payload += [
+            'timestamp' => $timestamp,
+            'token' => $token,
+            'signature' => hash_hmac('sha256', $timestamp . $token, self::SIGNING_KEY),
+        ];
+
         $request = Request::create(
             'https://localhost/v1/receiver/' . $this->receiver->uuid,
             'POST',
-            $payload
+            $payload,
+            [],
+            $files
         );
 
         $webhookRequest = new ProcessWebhookAttemptAction($this->receiver, $request)->execute();

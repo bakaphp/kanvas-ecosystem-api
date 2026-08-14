@@ -88,9 +88,14 @@ class CreateMessageFromAgentInboxAction
 
         $channel->addMessage($message);
         $message->addTag('engagement');
-        $channel->addCategory('ai-agent', $app, $receiver->user, $company);
+        $channel->addCategory(
+            'ai-agent',
+            $app,
+            $receiver->user,
+            $company
+        );
 
-        $this->attachCapturedFiles($message);
+        $this->attachCapturedFiles($message, $payload);
 
         return $message;
     }
@@ -124,14 +129,16 @@ class CreateMessageFromAgentInboxAction
      * receiver sets capture_files) — the multipart request is gone by the time this job runs, so
      * this is the only chance to hang them off the message for the kernel to read.
      */
-    private function attachCapturedFiles(Message $message): void
+    private function attachCapturedFiles(Message $message, MailgunPayloadService $payload): void
     {
-        $payload = $this->webhookRequest->payload;
-        $files = is_array($payload) ? ($payload['uploaded_files'] ?? null) : null;
+        $rawPayload = $this->webhookRequest->payload;
+        $files = is_array($rawPayload) ? ($rawPayload['uploaded_files'] ?? null) : null;
 
         if (! is_array($files)) {
             return;
         }
+
+        $inlineFields = $payload->inlineAttachmentFields();
 
         foreach ($files as $file) {
             $filesystemId = is_array($file) ? (int) ($file['filesystem_id'] ?? 0) : 0;
@@ -140,9 +147,18 @@ class CreateMessageFromAgentInboxAction
                 continue;
             }
 
+            $field = is_string($file['field'] ?? null) ? $file['field'] : '';
+
+            if ($field !== '' && in_array($field, $inlineFields, true)) {
+                continue;
+            }
+
             try {
                 $filesystem = Filesystem::getById($filesystemId, $message->app);
-                $message->addFile($filesystem, (string) ($file['name'] ?? $filesystem->name));
+                $message->addFile(
+                    $filesystem,
+                    (string) ($file['name'] ?? $filesystem->name)
+                );
             } catch (Throwable $e) {
                 report($e);
             }
