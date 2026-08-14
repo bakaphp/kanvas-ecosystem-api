@@ -51,7 +51,7 @@ final class SystemUserAgentSlackDmToolTest extends TestCase
         $handler->setConfiguration($this->makeAgent(), user: auth()->user());
 
         // Push goes through Kanvas notifications (OneSignal/Expo), no connector needed — baseline tool.
-        $this->assertContains('send_push_notification_to_user', $this->toolNames($handler->getTools()));
+        $this->assertContains('send_push_notification', $this->toolNames($handler->getTools()));
     }
 
     private function makeAgent(): Agent
