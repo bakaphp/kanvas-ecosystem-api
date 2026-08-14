@@ -12,10 +12,12 @@ use Kanvas\Event\Reports\Repositories\ParticipantConcentrationRepository;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use NeuronAI\Tools\ArrayProperty;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\ToolPropertyInterface;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
@@ -25,9 +27,10 @@ use Throwable;
  * dashboard uses. Company-scoped (the version is resolved tenant-scoped first).
  */
 #[AgentTool(name: 'Get Event Report', category: 'events')]
-class GetEventReportTool extends Tool
+class GetEventReportTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     private const array REPORTS = [
         'inscriptions_vs_objective',

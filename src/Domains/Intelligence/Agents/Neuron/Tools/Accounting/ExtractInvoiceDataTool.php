@@ -9,17 +9,20 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\PdfIngest\Contracts\PdfClassifierServiceInterface;
 use Kanvas\Scribe\PdfIngest\Services\GeminiPdfClassifierService;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
 /** Reads a PDF already saved in Kanvas (e.g. via download_attachment) and extracts vendor/total/dates/line items with AI — the real invoice numbers don't live in an email body. */
 #[AgentTool(name: 'Extract Invoice Data', category: 'accounting')]
-class ExtractInvoiceDataTool extends Tool
+class ExtractInvoiceDataTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

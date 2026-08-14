@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Microsoft\Actions;
 use Kanvas\Connectors\Microsoft\Client as MicrosoftClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Social\Messages\Models\Message;
@@ -78,7 +79,13 @@ class MicrosoftAgentChannelResponderAction extends BaseAgentChannelReplyAction
 
     private function resolveRecipient(): string
     {
-        return $this->hijackMessagePhone($this->message->message['from_email']);
+        $fromEmail = trim((string) ($this->message->message['from_email'] ?? ''));
+
+        if ($fromEmail === '') {
+            throw new AgentReplySkippedException('Inbound message has no from_email, not an email message');
+        }
+
+        return $this->hijackMessagePhone($fromEmail);
     }
 
     /**

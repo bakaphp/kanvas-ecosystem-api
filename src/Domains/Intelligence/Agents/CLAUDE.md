@@ -372,7 +372,8 @@ There is no approved path for a free-text external recipient.
 NeuronAI caps every tool at `getMaxRuns()` (default 10) runs **per turn**, counted per *key*. The default
 key is the tool **name**, so *all* calls to one tool share a single budget — 11 distinct calls in a turn
 (an 11-row CSV import, an org chart, a batch of messages) throw `ToolRunsExceededException` and abort the
-whole turn. This is the recurring Sentry KANVAS-ECOSYSTEM-621.
+whole turn. This is the recurring Sentry KANVAS-ECOSYSTEM-621 / KANVAS-ECOSYSTEM-64Q — it is **not** an HR
+problem, 64Q was `find_customer` resolving names row-by-row out of a user's Excel.
 
 **Any tool the agent can call once-per-item over a list — every entity-scoped `find`/`get`/`create`/`update`/`send`
 that acts on a single record identified by its inputs — MUST key its budget by inputs:**
@@ -398,7 +399,15 @@ expensive/rate-limited external call, a destructive bulk op. There the per-name 
 throttle: keep the default, or set an explicit low `getMaxRuns()` with a one-line reason. `List*`/`Search*`
 tools that return many rows in **one** call don't loop, so they don't need it.
 
-Reference/coverage: [`HumanResourcesAgentToolsTest::testBulkCreateToolsBudgetRunsPerInputsNotPerToolName`](../../../../tests/GraphQL/HumanResources/HumanResourcesAgentToolsTest.php).
+A `find_*` tool that returns an empty result set should also say the retry is pointless (`message` on
+`count: 0`, see `find_customer` / `find_vendor`). A bare `count: 0` reads as "try again" and the model
+re-calls with the same arguments until the budget trips — same crash, different cause.
+
+Reference/coverage: [`HumanResourcesAgentToolsTest::testBulkCreateToolsBudgetRunsPerInputsNotPerToolName`](../../../../tests/GraphQL/HumanResources/HumanResourcesAgentToolsTest.php),
+plus the per-domain equivalents in [`AccountsReceivableAgentToolsTest`](../../../../tests/Scribe/Intelligence/AccountsReceivableAgentToolsTest.php),
+[`AccountsPayableAgentToolsTest`](../../../../tests/Scribe/Intelligence/AccountsPayableAgentToolsTest.php),
+[`EventToolsTest`](../../../../tests/Intelligence/Agents/Tools/EventToolsTest.php) and
+[`FindProductToolTest`](../../../../tests/Souk/Orders/FindProductToolTest.php).
 
 ## Don't break
 

@@ -199,7 +199,10 @@ class PortalPaymentProcessor
                 return $this->requestUserValidation($payment, $enrollmentData, $referenceId);
             }
         } catch (EchoPayException $e) {
-            report($e);
+            if ($this->isEchoPayGatewayFailure($e)) {
+                report($e);
+            }
+
             $errorMessage = $e->getMessage();
             $userMessage = $e->getUserMessage();
 
@@ -288,7 +291,10 @@ class PortalPaymentProcessor
                 return $this->requestUserValidation($payment, $validatedData);
             }
         } catch (EchoPayException $e) {
-            report($e);
+            if ($this->isEchoPayGatewayFailure($e)) {
+                report($e);
+            }
+
             $errorMessage = $e->getMessage();
             $userMessage = $e->getUserMessage();
 
@@ -653,7 +659,9 @@ class PortalPaymentProcessor
                 'data' => ['backup_capture' => true],
             ];
         } catch (EchoPayException $e) {
-            report($e);
+            if ($this->isEchoPayGatewayFailure($e)) {
+                report($e);
+            }
 
             $payment->addLog('payment_error', [
                 'error_type' => 'EchoPayException',
@@ -665,7 +673,7 @@ class PortalPaymentProcessor
 
             return [
                 'status' => 'error',
-                'message' => $e->getMessage(),
+                'message' => $e->getUserMessage(),
                 'data' => $e->getErrorBody(),
             ];
         } catch (Throwable $e) {
@@ -724,7 +732,9 @@ class PortalPaymentProcessor
                 'data' => $reversePayment,
             ];
         } catch (EchoPayException $e) {
-            report($e);
+            if ($this->isEchoPayGatewayFailure($e)) {
+                report($e);
+            }
 
             $payment->addLog('payment_error', [
                 'error_type' => 'EchoPayException',
@@ -738,7 +748,7 @@ class PortalPaymentProcessor
 
             return [
                 'status' => 'error',
-                'message' => $e->getMessage(),
+                'message' => $e->getUserMessage(),
                 'data' => $e->getErrorBody(),
             ];
         } catch (Throwable $e) {
@@ -784,6 +794,10 @@ class PortalPaymentProcessor
 
             return $enrollmentResult;
         } catch (EchoPayException $e) {
+            if ($this->isEchoPayGatewayFailure($e)) {
+                report($e);
+            }
+
             $userMessage = $e->getUserMessage();
 
             $order->updateQuietly([

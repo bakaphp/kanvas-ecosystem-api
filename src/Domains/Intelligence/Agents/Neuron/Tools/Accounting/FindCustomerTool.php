@@ -9,9 +9,11 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\OrganizationNameNormalizerService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -21,9 +23,10 @@ use Override;
  * returns candidates to disambiguate rather than a single guess.
  */
 #[AgentTool(name: 'Find Customer', category: 'accounting')]
-class FindCustomerTool extends Tool
+class FindCustomerTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {
@@ -77,7 +80,7 @@ class FindCustomerTool extends Tool
             ->limit($limit)
             ->get();
 
-        return [
+        $result = [
             'query' => $name,
             'normalized' => $term,
             'count' => $matches->count(),
@@ -87,5 +90,14 @@ class FindCustomerTool extends Tool
                 'acumatica_customer_code' => (string) $org->get(CustomFieldEnum::CUSTOMER_ID->value, '') ?: null,
             ])->all(),
         ];
+
+        if ($matches->isEmpty()) {
+            // Without an explicit dead-end the model re-calls with the same name until the run budget
+            // trips and the whole turn aborts (Sentry KANVAS-ECOSYSTEM-64Q).
+            $result['message'] = 'No customer matched that name. Retrying the same name will not help — try a '
+                . 'shorter distinctive fragment, or tell the user it is not in the synced data.';
+        }
+
+        return $result;
     }
 }
