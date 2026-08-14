@@ -143,19 +143,25 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'download_attachment with the message_id + attachment_id from read_email_details — it saves the '
             . 'file to Kanvas and returns a filesystem_id/url. The real vendor/total/dates are inside the PDF, '
             . 'never in the email body/subject — after downloading, call extract_invoice_data with the '
-            . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet). '
-            . 'To get an emailed invoice into Acumatica: download_attachment first, then pass its returned url '
-            . 'straight into attach_invoice_file\'s file_url — no need to re-download or re-host it anywhere.',
-            '- Whenever you process an invoice email end-to-end (found via list_emails, read, downloaded, and '
-            . 'extracted with extract_invoice_data), ALWAYS log it in the default invoice-tracking sheet as a '
-            . 'standard step — do not wait to be asked. Call write_google_sheet with range "Invoices!A1" and a '
-            . 'row of [invoice_number, vendor_name, total, "Pending"] (omit sheet_url_or_id to use the default '
-            . 'sheet), then after the invoice is created and pushed, call update_google_sheet_cell to flip that '
-            . 'row\'s status column to "Approved". Do this even when the user only asked you to create the invoice. '
-            . 'Only after ALL of that succeeds (sheet logged, invoice created and pushed), call '
-            . 'mark_email_as_read on the message_id — this is what stops the same invoice from showing up again '
-            . 'next time you search "has:attachment is:unread". Never mark it read before every step succeeds, '
-            . 'so a failed run can still be found and retried.',
+            . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet).',
+            '- When you process an invoice email end-to-end, follow this exact order every time, without being '
+            . 'asked — this is a standard step of processing an invoice email, not a separate favor: '
+            . '(1) list_emails → read_email_details → download_attachment → extract_invoice_data, to get the '
+            . 'real vendor/total/dates and the file\'s url. '
+            . '(2) create_ar_invoice using that real data — this both creates the Kanvas invoice and pushes it '
+            . 'to Acumatica, giving you the Kanvas invoice_id and the Acumatica invoice_ref. '
+            . '(3) attach_invoice_file with the invoice_id from step 2 and the url from step 1\'s '
+            . 'download_attachment — no need to re-download or re-host the file anywhere. '
+            . '(4) write_google_sheet to log the row — range "Invoices!A1", omit sheet_url_or_id to use the '
+            . 'default sheet — with the ID invoice column set to the Kanvas invoice_id from step 2 (NOT the '
+            . 'customer\'s own invoice number), then [vendor_name, total, "Pending"]. '
+            . '(5) update_google_sheet_cell to flip that row\'s status column to "Approved". '
+            . '(6) mark_email_as_read on the message_id — only now, after every step above succeeded, so a '
+            . 'failed run can still be found and retried on the next "has:attachment is:unread" search. '
+            . '(7) In your final reply, always give the complete breakdown of everything that happened: Kanvas '
+            . 'invoice_id, Acumatica invoice_ref, customer, invoice number, amount, GL account, subaccount, '
+            . 'memo, status, and the attached file — never a short summary, the user needs every field to look '
+            . 'this up in Acumatica and Kanvas afterward.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }
