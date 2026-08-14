@@ -33,6 +33,13 @@ trait HasKanvasAgentBehavior
     protected ?Session $session = null;
     protected ?Lead $currentLead = null;
 
+    /**
+     * The human this turn is answering, when it can't be read off the session entity — an @mention
+     * conversation runs with `$user` set to the agent's OWN user and a session whose entity is the
+     * record (a Lead), so "remind me" would otherwise resolve to the agent itself.
+     */
+    protected ?Users $conversationHuman = null;
+
     /** @var list<string> Attachment URLs/paths (image/audio/PDF) on the current turn's user prompt. */
     protected array $turnMedia = [];
 
@@ -71,6 +78,11 @@ trait HasKanvasAgentBehavior
     public function setSession(?Session $session): void
     {
         $this->session = $session;
+    }
+
+    public function setConversationHuman(?Users $user): void
+    {
+        $this->conversationHuman = $user;
     }
 
     /**

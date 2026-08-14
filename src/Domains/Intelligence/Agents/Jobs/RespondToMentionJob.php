@@ -19,6 +19,10 @@ use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Notifications\AgentRepliedToMentionNotification;
+use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
+use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionData;
+use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
@@ -90,6 +94,12 @@ final class RespondToMentionJob implements ShouldQueue
         );
         $handler->setMentionChannel($channel);
 
+        // Tools that outlive the turn (schedule_reminder, schedule_agent_task) need the channel so
+        // what they create can be delivered back HERE later, and the mentioning human so "remind me"
+        // means the person who asked — not the agent's own user, which is what `user:` above is.
+        $handler->setSession($this->resolveChannelSession($channel, $app, $company, $subjectEntity ?? $agentUser));
+        $handler->setConversationHuman(Users::getById($this->mentionMessage->users_id));
+
         $mentionText = $this->mentionMessage->contentText();
 
         // RunNeuronChatAction sniffs each URL's bytes and rides image/audio/PDF/text natively, so the
@@ -97,6 +107,9 @@ final class RespondToMentionJob implements ShouldQueue
         // user attached to the @mention is dropped and the agent answers "I can't read the file."
         ['images' => $images, 'documents' => $documents] = $this->mentionMessage->attachmentUrls();
 
+        // session stays null HERE on purpose: the handler has it (above) for its tools, but handing it
+        // to the chat action would also run its lead-channel message backfill, which would sweep this
+        // channel's internal comments into the lead's message rollup.
         $reply = new RunNeuronChatAction(
             agent: $this->agent,
             session: null,
@@ -145,6 +158,47 @@ final class RespondToMentionJob implements ShouldQueue
             runWorkflow: true,
             entity: $subjectEntity,
         )->execute();
+    }
+
+    /**
+     * The Session for this channel, reusing the one the in-app chat / connectors already key on
+     * (`buildChannelSessionUuid`) so a reminder scheduled from a mention and one scheduled from the
+     * chat land on the same conversation. Created on first mention; content is left to the marker
+     * below rather than CreateContentSessionAction, whose entity `match` only covers
+     * Lead/People/Users/Channel and would fatal on any other record a channel can hang off.
+     */
+    private function resolveChannelSession(
+        Channel $channel,
+        Apps $app,
+        Companies $company,
+        Model $entity,
+    ): ?Session {
+        try {
+            $existing = Session::query()
+                ->where('uuid', SessionChannelService::buildChannelSessionUuid($channel, $app, $company))
+                ->first();
+
+            if ($existing !== null) {
+                return $existing;
+            }
+
+            return new CreateSessionAction(
+                new SessionData(
+                    app: $app,
+                    company: $company,
+                    agent: $this->agent,
+                    entity_namespace: $entity::class,
+                    entity_id: (string) $entity->getKey(),
+                    user: [],
+                    channel: $channel,
+                    content: ['source' => 'agent-mention'],
+                ),
+            )->execute();
+        } catch (Throwable $e) {
+            report($e);
+
+            return null;
+        }
     }
 
     /**

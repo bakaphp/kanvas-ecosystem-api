@@ -68,8 +68,12 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         // Freeze the inbound subject on the outbound so SendAgentEmailAction can thread the reply
         // (title_email_follow_up first, this as fallback) whether it ships now or after approval.
+        // The inbound Message-Id rides along for the same reason: a mailbox send turns it into
+        // In-Reply-To/References, and by approval time the inbound message is no longer in hand.
         $messageResponse->addMessage([
             'subject' => $this->message->message['subject'] ?? null,
+            'email_message_id' => $this->message->message['email_message_id'] ?? null,
+            'email_references' => $this->message->message['email_references'] ?? null,
         ]);
 
         if (! $messageResponse->is_locked) {

@@ -1,0 +1,40 @@
+enum AgentMailboxAccess {
+    "Only teammates and people already in the CRM get an answer."
+    RESTRICTED @enum(value: "restricted")
+    "Anyone can write; unknown senders are captured as new contacts."
+    OPEN @enum(value: "open")
+}
+
+type AgentMailbox {
+    "The agent's own address, derived from its slug on the company's Mailgun domain."
+    address: String!
+    access: AgentMailboxAccess!
+    "Mailgun route id forwarding that address into the agent's receiver."
+    route_id: String!
+    "Where Mailgun forwards the mail. Stable across disconnect/reconnect."
+    receiver_url: String!
+    "False when the agent's user already had a different contact_email, which we won't overwrite."
+    contact_email_set: Boolean!
+}
+
+extend type Query @guard {
+    "The agent's mailbox, or null when it doesn't have one. Use it to render the tile on load."
+    agentMailbox(agent_id: ID!): AgentMailbox
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Mailgun\\MailgunAgentMailboxResolver@mailbox"
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    "Give the agent its own email address: creates its receiver and the Mailgun route forwarding into it. Idempotent."
+    provisionAgentMailbox(agent_id: ID!, access: AgentMailboxAccess): AgentMailbox!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Mailgun\\MailgunAgentMailboxResolver@provision"
+        )
+
+    "Take the agent off email: deletes the Mailgun route and clears the address. Keeps the receiver URL."
+    disconnectAgentMailbox(agent_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Mailgun\\MailgunAgentMailboxResolver@disconnect"
+        )
+}
