@@ -9,6 +9,7 @@ use GuzzleHttp\Exception\ServerException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Actions\PushPeopleAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
+use Kanvas\Connectors\VinSolution\Services\ContactRejectionService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -17,8 +18,6 @@ use Kanvas\Workflow\KanvasActivity;
 #[WorkflowAction]
 class PushPeopleActivity extends KanvasActivity
 {
-    public $tries = 3;
-
     public function execute(People $people, Apps $app, array $params): array
     {
         $company = $people->company;
@@ -42,12 +41,21 @@ class PushPeopleActivity extends KanvasActivity
 
                     $results = $pushPeopleAction->execute();
                 } catch (ClientException $e) {
-                    if ($e->getResponse()?->getStatusCode() !== 404) {
+                    if ($e->getResponse()?->getStatusCode() === 404) {
+                        return $this->failWorkflow([
+                            'error' => 'VinSolution assigned user not found',
+                            'people_id' => $people->getId(),
+                            'company_id' => $people->companies_id,
+                        ]);
+                    }
+
+                    if (! ContactRejectionService::isDataRejection($e)) {
                         throw $e;
                     }
 
                     return $this->failWorkflow([
-                        'error' => 'VinSolution assigned user not found',
+                        'error' => 'VinSolution rejected the contact information',
+                        'reason' => ContactRejectionService::recordForPeople($people, $e),
                         'people_id' => $people->getId(),
                         'company_id' => $people->companies_id,
                     ]);

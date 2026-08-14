@@ -114,47 +114,47 @@ class Contact
     {
         $client = new Client($dealer->id, $user->id);
 
-        $data = [];
-        $data['DealerId'] = $dealer->id;
-        $data['UserId'] = $user->id;
+        $data = $this->buildUpdatePayload($dealer->id, $user->id);
 
-        // Initialize a new array for cleaned information
+        $client->put('/gateway/v1/contact/' . $this->id, json_encode($data));
+
+        $data['ContactId'] = $this->id;
+
+        return new self($data);
+    }
+
+    public function buildUpdatePayload(int $dealerId, int $userId): array
+    {
+        $data = [];
+        $data['DealerId'] = $dealerId;
+        $data['UserId'] = $userId;
+
         $cleanedInformation = $this->information;
 
-        //clean information of emails
-        if (! empty($this->emails)) {
-            $cleanedEmails = [];
-            foreach ($this->emails as $key => $value) {
-                if (isset($this->information['Emails'][$key]['EmailAddress']) &&
-                    $this->information['Emails'][$key]['EmailAddress'] !== $this->emails[$key]['EmailAddress']) {
-                    $cleanedEmails[$key] = $this->emails[$key];
-                }
-            }
-
-            if (! empty($cleanedEmails)) {
-                $cleanedInformation['Emails'] = $cleanedEmails;
-            } else {
-                // Remove the emails key completely instead of unsetting
-                $cleanedInformation = array_diff_key($cleanedInformation, ['Emails' => []]);
-            }
+        // Only the entries that actually changed travel; anything else VinSolutions already has.
+        // When nothing changed we drop the key instead of echoing back what VinSolutions gave us —
+        // its own stored values may include an address/number its verifier now rejects, and sending
+        // those back 400s the PUT on every retry forever.
+        $cleanedEmails = $this->changedEntries(
+            $this->emails,
+            $this->information['Emails'] ?? [],
+            'EmailAddress'
+        );
+        if (! empty($cleanedEmails)) {
+            $cleanedInformation['Emails'] = $cleanedEmails;
+        } else {
+            unset($cleanedInformation['Emails']);
         }
 
-        //clean information of phone
-        if (! empty($this->phones)) {
-            $cleanedPhones = [];
-            foreach ($this->phones as $key => $value) {
-                if (isset($this->information['Phones'][$key]['Number']) &&
-                    $this->information['Phones'][$key]['Number'] !== $this->phones[$key]['Number']) {
-                    $cleanedPhones[$key] = $this->phones[$key];
-                }
-            }
-
-            if (! empty($cleanedPhones)) {
-                $cleanedInformation['Phones'] = $cleanedPhones;
-            } else {
-                // Remove the phones key completely instead of unsetting
-                $cleanedInformation = array_diff_key($cleanedInformation, ['Phones' => []]);
-            }
+        $cleanedPhones = $this->changedEntries(
+            $this->phones,
+            $this->information['Phones'] ?? [],
+            'Number'
+        );
+        if (! empty($cleanedPhones)) {
+            $cleanedInformation['Phones'] = $cleanedPhones;
+        } else {
+            unset($cleanedInformation['Phones']);
         }
 
         $data['ContactInformation'] = $cleanedInformation;
@@ -194,10 +194,20 @@ class Contact
             }
         }
 
-        $response = $client->put('/gateway/v1/contact/' . $this->id, json_encode($data));
+        return $data;
+    }
 
-        $data['ContactId'] = $this->id;
+    private function changedEntries(array $submitted, array $current, string $field): array
+    {
+        $changed = [];
 
-        return new self($data);
+        foreach ($submitted as $key => $entry) {
+            if (isset($entry[$field], $current[$key][$field])
+                && $current[$key][$field] !== $entry[$field]) {
+                $changed[$key] = $entry;
+            }
+        }
+
+        return $changed;
     }
 }

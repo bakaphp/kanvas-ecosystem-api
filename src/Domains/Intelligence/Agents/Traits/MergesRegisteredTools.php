@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
@@ -54,6 +55,12 @@ trait MergesRegisteredTools
         ?Agent $agent,
         CapabilityFrameworkEnum $framework,
     ): array {
+        // A hardcoded baseline tool is constructed by the subclass, so it never passed through
+        // defaultRegisteredToolResolver() and would otherwise run with uninitialized tenant context —
+        // which for a HasKanvasContext tool means an unscoped query. Fill it here so a tool is
+        // tenant-bound whether the subclass hardcoded it or the registry resolved it.
+        $baseline = array_map(fn (object $tool): object => $this->fillKanvasContext($tool), $baseline);
+
         if ($agent === null) {
             return array_values($baseline);
         }
@@ -155,6 +162,17 @@ trait MergesRegisteredTools
             if ($app instanceof Apps && $company instanceof Companies && $user instanceof Users) {
                 $tool->withContext($app, $company, $user);
             }
+        }
+
+        // An admin-guarded tool authorizes on the HUMAN in the conversation, which is never a
+        // toolDependencyCandidate — those carry actingUser(), i.e. the agent's own (usually admin)
+        // user. Hand it $this->user explicitly, the same wiring the hardcoded baselines do with
+        // ->forRequestingUser($this->user).
+        if (in_array(GuardsAdminForTool::class, $uses, true)
+            && property_exists($this, 'user')
+            && $this->user instanceof Users
+        ) {
+            $tool->forRequestingUser($this->user);
         }
 
         // The record in scope can't come from toolDependencyCandidates() by type (Apps/Companies/Users

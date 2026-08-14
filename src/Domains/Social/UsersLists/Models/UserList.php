@@ -66,10 +66,12 @@ class UserList extends BaseModel
      */
     public function toSearchableArray(): array
     {
-        $array = $this->toArray();
+        // attributesToArray() instead of toArray() so eager-loaded relations (app carries the
+        // app `key`) never reach the index. Typesense also rejects a non-string document `id`.
+        $array = $this->attributesToArray();
         $array['items'] = $this->items->toArray();
-
-        // Customize the data array...
+        $array['objectID'] = (string) $this->id;
+        $array['id'] = (string) $this->id;
 
         return $array;
     }

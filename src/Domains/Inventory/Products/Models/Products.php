@@ -647,8 +647,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             return $product;
         }
 
-        // Warehouse breakdown is internal stock detail, never shown in search — losing it costs
-        // nothing, so it goes before anything a human would notice.
         $product['variants'] = $this->stripFromVariants($product['variants'], ['warehouses']);
         if (Arr::sizeInBytes($product) <= $limit) {
             return $product;

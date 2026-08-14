@@ -90,6 +90,27 @@ trait DynamicSearchableTrait
         return $modelSpecificEngine ?? $defaultEngine ?? 'null';
     }
 
+    /**
+     * Fallback Typesense collection schema for models that don't declare their own.
+     *
+     * Scout hands this straight to Typesense's create-collection call. With neither this method
+     * nor a `scout.typesense.model-settings.*.collection-schema` entry, Scout sends `[]` and
+     * Typesense rejects it with "Parameter `fields` is required", killing the indexing job
+     */
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => '.*',
+                    'type' => 'auto',
+                ],
+            ],
+            'enable_nested_fields' => true,
+        ];
+    }
+
     public function getRelations(?string $modelClass = null): array
     {
         return func_num_args() > 0 ? [] : $this->relations;

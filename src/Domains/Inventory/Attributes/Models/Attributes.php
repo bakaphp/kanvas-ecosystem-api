@@ -143,6 +143,68 @@ class Attributes extends BaseModel
         return config('scout.prefix') . ($customIndex ?? 'attribute_index');
     }
 
+    /**
+     * Columns only — `toArray()` would also dump the eager-loaded `app` / `company` relations the
+     * indexing job hydrates, which puts the app's `key` secret in the search index. Typesense also
+     * requires the document `id` to be a string, so the raw int id fails the import.
+     */
+    public function toSearchableArray(): array
+    {
+        return array_merge($this->attributesToArray(), [
+            'objectID' => (string) $this->getId(),
+            'id' => (string) $this->getId(),
+            // Read through the accessor: attributesToArray() returns the raw translations column.
+            'name' => (string) $this->name,
+            'apps_id' => (int) $this->apps_id,
+            'companies_id' => (int) $this->companies_id,
+        ]);
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'uuid',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'slug',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => '.*',
+                    'type' => 'auto',
+                ],
+            ],
+            'enable_nested_fields' => true,
+        ];
+    }
+
     public function isPublished(): bool
     {
         if (isset($this->app) && $this->app->get('allow_unpublished_attributes')) {
@@ -167,6 +229,10 @@ class Attributes extends BaseModel
             $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
         } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options(['query_by' => 'name,slug']);
         }
 
         return $query;

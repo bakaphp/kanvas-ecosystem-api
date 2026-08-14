@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdAction;
 use Kanvas\Connectors\VinSolution\Actions\PushLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
+use Kanvas\Connectors\VinSolution\Services\ContactRejectionService;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -39,7 +41,22 @@ class PushCoBuyerActivity extends KanvasActivity
             integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($people, $lead) {
                 $lead->reCacheCustomFields();
                 $pushLead = new PushLeadAction($lead);
-                $vinLead = $pushLead->execute();
+
+                try {
+                    $vinLead = $pushLead->execute();
+                } catch (ClientException $e) {
+                    if (! ContactRejectionService::isDataRejection($e)) {
+                        throw $e;
+                    }
+
+                    return $this->failWorkflow([
+                        'error' => 'VinSolution rejected the co-buyer contact information',
+                        'reason' => ContactRejectionService::recordForLead($lead, $e),
+                        'lead_id' => $lead->getId(),
+                        'people_id' => $people->getId(),
+                        'company_id' => $lead->companies_id,
+                    ]);
+                }
 
                 $idVerification = null;
                 if ($people->get('intellicheckResponse')) {
