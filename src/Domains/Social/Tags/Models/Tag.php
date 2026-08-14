@@ -96,13 +96,17 @@ class Tag extends BaseModel
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
         }
 
+        if ($query->model->isTypesense()) {
+            $query->options(['query_by' => 'name,slug,description']);
+        }
+
         return $query;
     }
 
     public function toSearchableArray(): array
     {
         return [
-            'objectID' => $this->id,
+            'objectID' => (string) $this->id,
             'id' => (string) $this->id,
             'name' => $this->name,
             'company' => [
@@ -116,10 +120,85 @@ class Tag extends BaseModel
             'slug' => $this->slug,
             'description' => $this->description,
             'apps_id' => $this->apps_id,
+            'companies_id' => $this->companies_id,
             'weight' => $this->weight,
             'status' => $this->status,
             'is_featured' => $this->is_feature,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'slug',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'description',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'company',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'user',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'weight',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'status',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'is_featured',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+            ],
+            'enable_nested_fields' => true,
         ];
     }
 }
