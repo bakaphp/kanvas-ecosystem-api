@@ -45,6 +45,15 @@ final class SystemUserAgentSlackDmToolTest extends TestCase
         $this->assertContains('send_email_to_user', $this->toolNames($handler->getTools()));
     }
 
+    public function testEverySystemAgentGetsThePushNotificationToolByDefault(): void
+    {
+        $handler = new SystemUserAgent();
+        $handler->setConfiguration($this->makeAgent(), user: auth()->user());
+
+        // Push goes through Kanvas notifications (OneSignal/Expo), no connector needed — baseline tool.
+        $this->assertContains('send_push_notification_to_user', $this->toolNames($handler->getTools()));
+    }
+
     private function makeAgent(): Agent
     {
         $app = app(Apps::class);
