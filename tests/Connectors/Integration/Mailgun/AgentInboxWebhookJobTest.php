@@ -15,6 +15,7 @@ use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mailgun\Enums\MailboxAccessEnum;
 use Kanvas\Connectors\Mailgun\Enums\ReceiverConfigurationEnum;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentInboxWebhookJob;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
@@ -31,7 +32,6 @@ use Tests\TestCase;
 final class AgentInboxWebhookJobTest extends TestCase
 {
     private const string DOMAIN = 'agents.kanvas.test';
-    private const string SIGNING_KEY = 'signing-key-test';
 
     private Apps $kanvasApp;
     private Companies $company;
@@ -48,8 +48,6 @@ final class AgentInboxWebhookJobTest extends TestCase
         $this->user = auth()->user();
         $this->company = $this->user->getCurrentCompany();
 
-        $this->kanvasApp->set(ConfigurationEnum::API_KEY->value, 'key-test');
-        $this->kanvasApp->set(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value, self::SIGNING_KEY);
         $this->company->set(ConfigurationEnum::DOMAIN->value, self::DOMAIN);
         $this->company->set(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value, $this->user->getId());
         // Company settings survive a rollback: a leaked APPROVAL from another suite would lock the
@@ -93,20 +91,6 @@ final class AgentInboxWebhookJobTest extends TestCase
                     ReceiverConfigurationEnum::CAPTURE_FILES->value => true,
                 ],
             ]);
-    }
-
-    /**
-     * App/company config outlives the rollback, and a configured Mailgun is what makes
-     * CreateAgentAction auto-provision — leaving it set would have unrelated suites dispatching
-     * mailbox jobs for every agent they create.
-     */
-    protected function tearDown(): void
-    {
-        $this->company->del(ConfigurationEnum::DOMAIN->value);
-        $this->kanvasApp->del(ConfigurationEnum::API_KEY->value);
-        $this->kanvasApp->del(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value);
-
-        parent::tearDown();
     }
 
     public function testATeammateEmailIsAnsweredFromTheAgentsOwnAddress(): void
@@ -162,19 +146,28 @@ final class AgentInboxWebhookJobTest extends TestCase
     {
         $this->fakeMailgun();
 
-        $this->deliver(
-            [
-                'sender' => $this->user->email,
-                'subject' => 'The signed contract',
-                'stripped-text' => 'Here is the contract, can you summarize it?',
-                // Mailgun maps each content-id referenced in the body to its multipart field.
-                'content-id-map' => json_encode(['<logo@corp>' => 'attachment-2']),
+        // The uploads are injected as ProcessWebhookAttemptAction would have left them. Driving the
+        // real capture would need a Mailgun signature, and the signing key lives on the shared
+        // app/company that sibling test classes rewrite from other paratest processes.
+        $this->deliver([
+            'sender' => $this->user->email,
+            'subject' => 'The signed contract',
+            'stripped-text' => 'Here is the contract, can you summarize it?',
+            // Mailgun maps each content-id referenced in the body to its multipart field.
+            'content-id-map' => json_encode(['<logo@corp>' => 'attachment-2']),
+            'uploaded_files' => [
+                [
+                    'filesystem_id' => $this->uploadFile(UploadedFile::fake()->create('contract.pdf', 12, 'application/pdf')),
+                    'name' => 'contract.pdf',
+                    'field' => 'attachment-1',
+                ],
+                [
+                    'filesystem_id' => $this->uploadFile(UploadedFile::fake()->image('signature-logo.png')),
+                    'name' => 'signature-logo.png',
+                    'field' => 'attachment-2',
+                ],
             ],
-            [
-                'attachment-1' => UploadedFile::fake()->create('contract.pdf', 12, 'application/pdf'),
-                'attachment-2' => UploadedFile::fake()->image('signature-logo.png'),
-            ],
-        );
+        ]);
 
         $message = Message::query()
             ->where('apps_id', $this->kanvasApp->getId())
@@ -276,24 +269,17 @@ final class AgentInboxWebhookJobTest extends TestCase
      *
      * @return array<string, mixed>
      */
-    private function deliver(array $payload, array $files = []): array
+    private function deliver(array $payload): array
     {
-        // Signed like Mailgun signs it: ProcessWebhookAttemptAction only persists the uploaded
-        // attachments when the request authenticates, so an unsigned delivery silently drops files.
-        $timestamp = (string) time();
-        $token = 'tok-' . Str::random(10);
-        $payload += [
-            'timestamp' => $timestamp,
-            'token' => $token,
-            'signature' => hash_hmac('sha256', $timestamp . $token, self::SIGNING_KEY),
-        ];
+        // Set here rather than in setUp: MailgunHandlerTest deletes this key from the shared app in
+        // its own tearDown, and paratest runs the two classes concurrently. Writing it immediately
+        // before the send leaves no window worth racing.
+        $this->kanvasApp->set(ConfigurationEnum::API_KEY->value, 'key-test');
 
         $request = Request::create(
             'https://localhost/v1/receiver/' . $this->receiver->uuid,
             'POST',
-            $payload,
-            [],
-            $files
+            $payload
         );
 
         $webhookRequest = new ProcessWebhookAttemptAction($this->receiver, $request)->execute();
@@ -306,6 +292,13 @@ final class AgentInboxWebhookJobTest extends TestCase
         }
 
         return $result;
+    }
+
+    private function uploadFile(UploadedFile $file): int
+    {
+        return new FilesystemServices($this->kanvasApp, $this->company)
+            ->upload($file, $this->user)
+            ->getId();
     }
 
     private function fakeMailgun(): void

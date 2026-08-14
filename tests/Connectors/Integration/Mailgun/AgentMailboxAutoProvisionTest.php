@@ -40,9 +40,11 @@ final class AgentMailboxAutoProvisionTest extends TestCase
     {
         parent::setUp();
 
-        $this->kanvasApp = app(Apps::class);
         $this->user = auth()->user();
         $this->company = $this->user->getCurrentCompany();
+        // Own app row: paratest runs test classes concurrently against one database, and the shared
+        // app's Mailgun settings are written and deleted by sibling classes mid-test.
+        $this->kanvasApp = $this->dedicatedApp();
 
         $this->configureMailgun();
 
@@ -52,11 +54,23 @@ final class AgentMailboxAutoProvisionTest extends TestCase
         );
     }
 
-    protected function tearDown(): void
+    private function dedicatedApp(): Apps
     {
-        $this->clearMailgunConfig();
+        $uniqueId = uniqid('mailgunauto', true);
 
-        parent::tearDown();
+        $app = new Apps();
+        $app->name = 'Mailgun Auto Provision Test ' . $uniqueId;
+        $app->url = 'https://' . $uniqueId . '.example.com';
+        $app->domain = $uniqueId . '.example.com';
+        $app->description = 'Agent mailbox auto-provision test app';
+        $app->is_actived = 1;
+        $app->ecosystem_auth = 0;
+        $app->payments_active = 0;
+        $app->is_public = 0;
+        $app->domain_based = 0;
+        $app->saveOrFail();
+
+        return $app;
     }
 
     public function testAnInternalAgentQualifiesForAMailbox(): void
@@ -85,8 +99,8 @@ final class AgentMailboxAutoProvisionTest extends TestCase
 
     public function testACompanyWithoutTheMailgunSetupDoesNot(): void
     {
-        $agent = $this->agent(SalesManagerAgent::class);
-        $this->clearMailgunConfig();
+        $agent = $this->agent(SalesManagerAgent::class, company: Companies::factory()->create());
+        $this->kanvasApp->del(ConfigurationEnum::DOMAIN->value);
 
         // Skipped, not failed: the company can still provision by hand once it has a domain.
         $this->assertFalse(new AgentMailboxService()->shouldAutoProvision($agent));
@@ -145,7 +159,7 @@ final class AgentMailboxAutoProvisionTest extends TestCase
         Http::assertNothingSent();
     }
 
-    private function agent(string $handler, bool $isSubAgent = false): Agent
+    private function agent(string $handler, bool $isSubAgent = false, ?Companies $company = null): Agent
     {
         $agentType = AgentType::factory()
             ->withAppId($this->kanvasApp->getId())
@@ -156,7 +170,7 @@ final class AgentMailboxAutoProvisionTest extends TestCase
 
         return Agent::factory()
             ->withAppId($this->kanvasApp->getId())
-            ->withCompanyId($this->company->getId())
+            ->withCompanyId(($company ?? $this->company)->getId())
             ->create([
                 'name' => 'Sofia' . Str::random(8),
                 'user_id' => $this->user->getId(),
@@ -168,15 +182,8 @@ final class AgentMailboxAutoProvisionTest extends TestCase
     private function configureMailgun(): void
     {
         $this->kanvasApp->set(ConfigurationEnum::API_KEY->value, 'key-test');
-        $this->company->set(ConfigurationEnum::DOMAIN->value, self::DOMAIN);
-        $this->company->set(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value, 'signing-key-test');
-    }
-
-    private function clearMailgunConfig(): void
-    {
-        $this->kanvasApp->del(ConfigurationEnum::API_KEY->value);
-        $this->company->del(ConfigurationEnum::DOMAIN->value);
-        $this->company->del(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value);
+        $this->kanvasApp->set(ConfigurationEnum::DOMAIN->value, self::DOMAIN);
+        $this->kanvasApp->set(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value, 'signing-key-test');
     }
 
     private function fakeMailgun(): void
