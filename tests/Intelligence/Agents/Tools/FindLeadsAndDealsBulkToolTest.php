@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Tools;
 
+use Baka\Search\Contracts\NameSearchInterface;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -159,6 +161,95 @@ final class FindLeadsAndDealsBulkToolTest extends TestCase
 
         $this->assertSame(0, $result['searched']);
         $this->assertArrayHasKey('error', $result);
+    }
+
+    /** Scoring reads title and contact name as one string, so the candidate query must too. */
+    public function test_leads_match_when_one_token_is_in_the_title_and_the_other_in_the_contact(): void
+    {
+        $people = People::factory()
+            ->withAppId($this->currentApp->getId())
+            ->withCompanyId($this->currentCompany->getId())
+            ->create(['firstname' => 'Crossaaa' . $this->tag, 'lastname' => 'Zzzother' . $this->tag]);
+
+        $lead = Lead::factory()
+            ->withAppId($this->currentApp->getId())
+            ->withCompanyId($this->currentCompany->getId())
+            ->create([
+                'people_id' => $people->getId(),
+                'title' => 'Crossbbb' . $this->tag . ' Renewal',
+            ]);
+
+        $result = $this->leadTool()->__invoke(
+            names: sprintf('Crossaaa%1$s Crossbbb%1$s', $this->tag),
+        );
+
+        $this->assertTrue($result['results'][0]['found']);
+        $this->assertSame($lead->getId(), $result['results'][0]['matches'][0]['lead_id']);
+    }
+
+    public function test_leads_survive_a_common_surname_flooding_the_candidate_set(): void
+    {
+        // Fillers first so they hold the lower ids — a prefilter that admits every one-token match
+        // hands the capped, unordered query nothing but fillers and the real lead reads "not found".
+        for ($i = 0; $i < 10; $i++) {
+            $this->makeLead('Filler' . $i . $this->tag, 'Floodsur' . $this->tag);
+        }
+        $target = $this->makeLead('Rarefirst' . $this->tag, 'Floodsur' . $this->tag);
+
+        $tool = new class () extends FindLeadsBulkTool {
+            protected const int BULK_MAX_CANDIDATE_ROWS = 5;
+        };
+
+        $result = $tool->withContext($this->currentApp, $this->currentCompany, $this->actingUser)
+            ->__invoke(names: sprintf('Rarefirst%1$s Floodsur%1$s', $this->tag));
+
+        $this->assertTrue($result['results'][0]['found']);
+        $this->assertSame($target->getId(), $result['results'][0]['matches'][0]['lead_id']);
+    }
+
+    /** The engine returns ids from a remote index; hydration is what stops a foreign one leaking. */
+    public function test_engine_path_drops_ids_belonging_to_another_company(): void
+    {
+        $otherCompany = Companies::factory()->create();
+        $people = People::factory()
+            ->withAppId($this->currentApp->getId())
+            ->withCompanyId($otherCompany->getId())
+            ->create(['firstname' => 'Enginefor' . $this->tag, 'lastname' => 'Eign' . $this->tag]);
+
+        $foreign = Lead::factory()
+            ->withAppId($this->currentApp->getId())
+            ->withCompanyId($otherCompany->getId())
+            ->create(['people_id' => $people->getId(), 'title' => 'Enginefor' . $this->tag]);
+
+        $tool = new class () extends FindLeadsBulkTool {
+            public ?int $returnId = null;
+
+            protected function nameSearch(Model $model): ?NameSearchInterface
+            {
+                return new class ($this->returnId) implements NameSearchInterface {
+                    public function __construct(private readonly ?int $id)
+                    {
+                    }
+
+                    public function idsFor(
+                        Model $model,
+                        Apps $app,
+                        Companies $company,
+                        string $queryBy,
+                        array $terms,
+                        int $perTerm,
+                    ): array {
+                        return [(string) $this->id];
+                    }
+                };
+            }
+        };
+        $tool->returnId = $foreign->getId();
+
+        $result = $tool->withContext($this->currentApp, $this->currentCompany, $this->actingUser)
+            ->__invoke(names: sprintf('Enginefor%1$s Eign%1$s', $this->tag));
+
+        $this->assertFalse($result['results'][0]['found']);
     }
 
     private function leadTool(): FindLeadsBulkTool

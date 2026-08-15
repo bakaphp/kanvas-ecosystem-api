@@ -826,7 +826,7 @@ class People extends BaseModel
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name,description,translations,firstname,lastname,email,phone', // Use just 'message' instead of 'message.name'
+                'query_by' => 'name,firstname,lastname,email,phone',
             ]);
         }
 

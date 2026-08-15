@@ -106,7 +106,6 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     public $translatable = ['name','description','short_description','html_description'];
 
     protected $table = 'products_variants';
-    protected $touches = ['attributes'];
     protected $fillable = [
         'users_id',
         'products_id',
@@ -383,46 +382,74 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
      */
     public function addAttributes(UserInterface $user, array $attributes): void
     {
+        /**
+         * Resolve every attribute first and write in ascending attribute id, so concurrent
+         * importers take the locks on the shared `attributes` rows in the same order and
+         * can't deadlock against each other.
+         */
+        $resolvedAttributes = [];
+
         foreach ($attributes as $attribute) {
-            if (! isset($attribute['value']) || $attribute['name'] === null) {
+            if (! isset($attribute['value']) || ($attribute['name'] ?? null) === null) {
                 continue;
             }
 
-            if (isset($attribute['id'])) {
-                $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
-            } elseif (! empty($attribute['name'])) {
-                $attributesDto = AttributesDto::from([
-                    'app' => app(Apps::class),
-                    'user' => $user,
-                    'company' => $this->company,
-                    'name' => $attribute['name'],
-                    'value' => $attribute['value'],
-                    'isVisible' => true,
-                    'isSearchable' => true,
-                    'isFiltrable' => true,
-                    'slug' => Str::slug($attribute['name']),
-                ]);
-                $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
+            $attributeModel = $this->resolveAttribute($user, $attribute);
+
+            if ($attributeModel === null) {
+                continue;
             }
 
-            if ($attributeModel) {
-                (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+            $resolvedAttributes[$attributeModel->getId()] = [
+                'model' => $attributeModel,
+                'value' => $attribute['value'],
+            ];
+        }
 
-                if ($this->product?->productsType) {
-                    ProductTypeService::addAttributes(
-                        $this->product->productsType,
-                        $this->user,
+        ksort($resolvedAttributes);
+
+        foreach ($resolvedAttributes as $resolvedAttribute) {
+            new AddAttributeAction($this, $resolvedAttribute['model'], $resolvedAttribute['value'])->execute();
+
+            if ($this->product?->productsType) {
+                ProductTypeService::addAttributes(
+                    $this->product->productsType,
+                    $this->user,
+                    [
                         [
-                            [
-                                'id' => $attributeModel->getId(),
-                                'value' => $attribute['value'],
-                            ],
+                            'id' => $resolvedAttribute['model']->getId(),
+                            'value' => $resolvedAttribute['value'],
                         ],
-                        toVariant: true
-                    );
-                }
+                    ],
+                    toVariant: true
+                );
             }
         }
+    }
+
+    private function resolveAttribute(UserInterface $user, array $attribute): ?Attributes
+    {
+        if (isset($attribute['id'])) {
+            return Attributes::getById((int) $attribute['id'], $this->app);
+        }
+
+        if (empty($attribute['name'])) {
+            return null;
+        }
+
+        $attributesDto = AttributesDto::from([
+            'app' => app(Apps::class),
+            'user' => $user,
+            'company' => $this->company,
+            'name' => $attribute['name'],
+            'value' => $attribute['value'],
+            'isVisible' => true,
+            'isSearchable' => true,
+            'isFiltrable' => true,
+            'slug' => Str::slug($attribute['name']),
+        ]);
+
+        return new CreateAttribute($attributesDto, $user)->execute();
     }
 
     public function addAttribute(string $name, mixed $value): void

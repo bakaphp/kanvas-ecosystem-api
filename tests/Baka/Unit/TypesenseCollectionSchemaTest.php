@@ -65,6 +65,56 @@ final class TypesenseCollectionSchemaTest extends TestCase
         $this->assertSame([], $failures, implode(PHP_EOL, $failures));
     }
 
+    /**
+     * Typesense 400s with "Could not find a field named `x` in the schema" when query_by names a
+     * field the collection doesn't have, and rejects any query_by target that isn't string-typed —
+     * so a stale query_by silently kills search for every tenant on Typesense while Algolia (which
+     * ignores query_by entirely) keeps working, hiding the break.
+     */
+    public function testEveryQueryByFieldExistsInTheCollectionSchemaAsAString(): void
+    {
+        $failures = [];
+
+        foreach ($this->searchableModels() as $class) {
+            $model = new $class();
+            $model->setRelation('app', app(Apps::class));
+
+            // Models that centralise the list expose it as a method; the rest still inline it in search().
+            if (method_exists($model, 'searchQueryBy')) {
+                $matches = [1 => [$model->searchQueryBy()]];
+            } else {
+                $contents = file_get_contents(new ReflectionClass($class)->getFileName());
+
+                if (! preg_match_all("/'query_by'\s*=>\s*'([^']+)'/", $contents, $matches)) {
+                    continue;
+                }
+            }
+
+            $fields = [];
+            foreach ($model->typesenseCollectionSchema()['fields'] ?? [] as $field) {
+                $fields[$field['name']] = $field['type'];
+            }
+
+            if (isset($fields['.*'])) {
+                continue; // auto-schema matches anything
+            }
+
+            foreach ($matches[1] as $queryBy) {
+                foreach (array_map('trim', explode(',', $queryBy)) as $name) {
+                    $type = $fields[$name] ?? null;
+
+                    if ($type === null) {
+                        $failures[] = $class . " query_by names '{$name}', absent from typesenseCollectionSchema()";
+                    } elseif (! in_array($type, ['string', 'string[]'], true)) {
+                        $failures[] = $class . " query_by names '{$name}' typed {$type}; must be string or string[]";
+                    }
+                }
+            }
+        }
+
+        $this->assertSame([], $failures, implode(PHP_EOL, $failures));
+    }
+
     public function testModelWithoutAnExplicitSchemaFallsBackToAutoFields(): void
     {
         $model = new class () extends Model {
