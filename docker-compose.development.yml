@@ -152,6 +152,24 @@ services:
       - "php artisan config:cache && php artisan queue:work --queue=agent-runtime
         --tries=3 --timeout=3750"
 
+  agent-chat-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=agent-chat
+        --tries=1 --timeout=3750"
+
+  broadcasts-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=broadcasts
+        --tries=3 --timeout=60"
+
   ledger-queue:
     <<: *common-queue-settings
     # REMOVED container_name because replicas > 1
