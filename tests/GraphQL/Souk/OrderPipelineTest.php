@@ -7,8 +7,10 @@ namespace Tests\GraphQL\Souk;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
+use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Orders\Repositories\OrderRepository;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 
 class OrderPipelineTest extends OrderBase
 {
@@ -233,6 +235,74 @@ class OrderPipelineTest extends OrderBase
         $this->expectException(\Exception::class);
         $this->expectExceptionMessage('Order is already in final state');
         $order->orderType->nextStatus($order);
+    }
+
+    public function testTransitionToPaidWritesPaymentStatusAndSnapshotsAmounts(): void
+    {
+        $productResponse = $this->createProduct(attributes: [
+            ['name' => 'slots', 'value' => 100],
+        ])->json()['data']['createProduct'];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']],
+            attributes: [['name' => 'timezone', 'value' => 'America/New_York']],
+        )->json()['data']['createVariant'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']],
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100,
+        );
+
+        $order = $this->createOrderFromCart(
+            variantId: $variantResponse['id'],
+            quantity: 1,
+            metadata: ['data' => []],
+            orderType: $this->orderTypeName,
+        );
+
+        $this->assertNotEquals(PaymentStatusEnum::PAID->value, $order->payment_status);
+
+        $totalAtPayment = (float) $order->total_net_amount;
+
+        // The deposit upload sends exactly this — no markAsPaid() anywhere in the path.
+        $this->graphQL('
+            mutation transitionOrderStatus($input: TransitionOrderStatusInput!) {
+                transitionOrderStatus(input: $input) { message }
+            }
+        ', ['input' => ['order_id' => $order->id, 'status_slug' => 'paid']], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $this->apps->key,
+        ]);
+
+        $order->refresh();
+
+        $this->assertEquals(PaymentStatusEnum::PAID->value, $order->payment_status);
+
+        $transition = OrderTransitionHistory::where('order_id', $order->id)
+            ->whereHas('toStatus', fn ($query) => $query->where('slug', 'paid'))
+            ->firstOrFail();
+
+        $this->assertEquals($totalAtPayment, (float) $transition->total_net_amount);
+        $this->assertNotEmpty($transition->items_snapshot);
+        $this->assertEquals(
+            (int) $variantResponse['id'],
+            (int) $transition->items_snapshot[0]['variant_id'],
+        );
+
+        // The snapshot must survive later edits to the order — that is its whole point.
+        $order->items()->first()->update(['quantity' => 5]);
+        $order->calculateTotal();
+
+        $this->assertEquals($totalAtPayment, (float) $transition->fresh()->total_net_amount);
+        $this->assertNotEquals($totalAtPayment, (float) $order->fresh()->total_net_amount);
     }
 
     public function testOrderPipelineGraphQLQuery(): void

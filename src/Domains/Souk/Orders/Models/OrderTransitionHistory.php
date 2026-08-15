@@ -25,6 +25,10 @@ class OrderTransitionHistory extends BaseModel
         'order_id',
         'from_status_id',
         'to_status_id',
+        'total_gross_amount',
+        'discount_amount',
+        'total_net_amount',
+        'items_snapshot',
         'description',
         'metadata',
         'is_current',
@@ -40,6 +44,10 @@ class OrderTransitionHistory extends BaseModel
         'changed_at' => 'datetime',
         'ended_at' => 'datetime',
         'metadata' => Json::class,
+        'items_snapshot' => Json::class,
+        'total_gross_amount' => 'float',
+        'discount_amount' => 'float',
+        'total_net_amount' => 'float',
         'is_current' => 'boolean',
     ];
 
