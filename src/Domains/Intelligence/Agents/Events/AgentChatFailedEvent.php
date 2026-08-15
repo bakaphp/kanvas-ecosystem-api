@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Events;
 
-use Baka\Traits\LimitsBroadcastPayload;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -12,23 +11,21 @@ use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Intelligence\Agents\Helpers\AgentChatBroadcastChannel;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Social\Messages\Models\Message;
 use Override;
 
-class AgentChatResponseEvent implements ShouldBroadcastNow
+/**
+ * A queued turn that died writes no message, so this is the only signal the chat is over —
+ * without it the client spins forever. Carries no exception text; that is not client-facing.
+ */
+class AgentChatFailedEvent implements ShouldBroadcastNow
 {
-    use SerializesModels;
     use Dispatchable;
     use InteractsWithSockets;
-    use LimitsBroadcastPayload;
+    use SerializesModels;
 
-    /** @param Message|null $replyMessage Null on the connector path, which persists after the kernel returns. */
     public function __construct(
         protected Agent $agent,
         protected string $sessionId,
-        protected string $message,
-        protected string $response,
-        protected ?Message $replyMessage = null,
     ) {
     }
 
@@ -38,9 +35,7 @@ class AgentChatResponseEvent implements ShouldBroadcastNow
     }
 
     /**
-     * `message_id` stays outside the capped set so it is always present: limitBroadcastPayloadSet
-     * NULLS `response` (it does not truncate) once the payload passes Pusher's ~10KB ceiling, which
-     * any table-shaped answer does. Clients render `response` if present, else fetch by `message_id`.
+     * @return array<string, mixed>
      */
     public function broadcastWith(): array
     {
@@ -48,11 +43,6 @@ class AgentChatResponseEvent implements ShouldBroadcastNow
             'agent_id' => $this->agent->getId(),
             'agent_name' => $this->agent->name,
             'session_id' => $this->sessionId,
-            'message_id' => $this->replyMessage?->getId(),
-            ...$this->limitBroadcastPayloadSet([
-                'message' => $this->message,
-                'response' => $this->response,
-            ]),
         ];
     }
 
@@ -64,6 +54,6 @@ class AgentChatResponseEvent implements ShouldBroadcastNow
 
     public function broadcastAs(): string
     {
-        return AgentChatBroadcastChannel::RESPONSE_EVENT;
+        return AgentChatBroadcastChannel::FAILED_EVENT;
     }
 }

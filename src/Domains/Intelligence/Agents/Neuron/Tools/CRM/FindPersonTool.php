@@ -32,10 +32,12 @@ class FindPersonTool extends Tool implements HasRunKey
     {
         parent::__construct(
             name: 'find_person',
-            description: 'Search the people/contacts directory by (partial) name, email, or phone. Use whenever you '
-                . 'need to locate a person and do not have their person_id — "find John", "who has this email", '
-                . '"look up the contact for +1809...". Returns person_id, name, email, phone and organization for each '
-                . 'match. Use get_person for the full profile of one match.',
+            description: 'Search the people/contacts directory for ONE person by (partial) name, email, or phone. Use '
+                . 'whenever you need to locate a single person and do not have their person_id — "find John", "who has '
+                . 'this email", "look up the contact for +1809...". Returns person_id, name, email, phone and '
+                . 'organization for each match. Use get_person for the full profile of one match. '
+                . 'For MORE THAN ONE name — a spreadsheet column, a CSV, any list — use find_people_bulk instead and '
+                . 'pass every name in a single call; do not call this tool once per row.',
         );
     }
 

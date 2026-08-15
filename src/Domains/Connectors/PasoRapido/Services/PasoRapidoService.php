@@ -34,8 +34,6 @@ class PasoRapidoService
     private const int MINUTE_WINDOW_SECONDS = 60;
     private const int DAILY_WINDOW_SECONDS = 86400;
     private const int RECENT_TAGS_TTL_SECONDS = 600;
-    private const int VERIFY_ERROR_REPORT_THRESHOLD = 10;
-    private const int VERIFY_ERROR_REPORT_WINDOW_SECONDS = 300;
     public const int VERIFY_ERROR_BLOCK_THRESHOLD = 20;
     private const int VERIFY_ERROR_BLOCK_WINDOW_SECONDS = 300;
     private const int VERIFY_ERROR_BLOCK_TTL_SECONDS = 3600;
@@ -215,23 +213,20 @@ class PasoRapidoService
 
         $clientIp = IPInfo::getClientIp();
 
-        $this->registerFailedLookup($statusCode, $clientIp, $context);
+        $this->registerFailedLookup(
+            $statusCode,
+            $clientIp,
+            $context
+        );
 
-        $rateLimitKey = "paso-rapido-verify-error:{$this->app->getId()}:{$statusCode}";
-
-        if (RateLimiter::tooManyAttempts($rateLimitKey, self::VERIFY_ERROR_REPORT_THRESHOLD)) {
-            Log::warning('PasoRapido tag verification failed', [
-                'status' => $statusCode,
-                'message' => $apiMessage,
-                'tag' => $tag,
-                'ip' => $clientIp,
-                'user_id' => auth()->id() ?? 0,
-                'context' => $context,
-            ]);
-        } else {
-            RateLimiter::hit($rateLimitKey, self::VERIFY_ERROR_REPORT_WINDOW_SECONDS);
-            report($e);
-        }
+        Log::warning('PasoRapido tag verification failed', [
+            'status' => $statusCode,
+            'message' => $apiMessage,
+            'tag' => $tag,
+            'ip' => $clientIp,
+            'user_id' => auth()->id() ?? 0,
+            'context' => $context,
+        ]);
 
         throw new ValidationException($apiMessage ?: 'Unable to verify the tag at this time. Please try again later.');
     }

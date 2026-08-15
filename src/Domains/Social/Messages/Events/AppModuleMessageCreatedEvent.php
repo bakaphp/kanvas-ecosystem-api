@@ -18,6 +18,9 @@ class AppModuleMessageCreatedEvent implements ShouldBroadcast
     use Dispatchable;
     use InteractsWithSockets;
 
+    /** Latency is user-visible here — see ChannelMessageCreatedEvent for why this queue exists. */
+    public string $broadcastQueue = 'broadcasts';
+
     public function __construct(
         public AppModuleMessage $appModuleMessage,
     ) {

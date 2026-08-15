@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Queries\Payments;
 
+use Baka\Exceptions\LightHouseCustomException;
 use Exception;
 use GraphQL\Type\Definition\ResolveInfo;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
@@ -16,6 +18,7 @@ use Kanvas\Connectors\PasoRapido\Services\PasoRapidoService;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Souk\Wallet\Transaction;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 class WalletManagementQuery
 {
@@ -183,8 +186,6 @@ class WalletManagementQuery
                 'data' => $customer->toArray(),
             ];
         } catch (RequestException $e) {
-            report($e);
-
             if ($e->hasResponse()) {
                 $response = $e->getResponse();
                 $body = json_decode((string) $response->getBody());
@@ -193,8 +194,26 @@ class WalletManagementQuery
                 $errorMessage = $e->getMessage();
             }
 
+            Log::warning('PasoRapido balance lookup failed', [
+                'tag' => $tag,
+                'status' => $e->hasResponse() ? $e->getResponse()->getStatusCode() : null,
+                'message' => $errorMessage,
+                'user_id' => auth()->id() ?? 0,
+            ]);
+
             return [
                 'message' => $errorMessage,
+                'data' => null,
+            ];
+        } catch (LightHouseCustomException | TooManyRequestsHttpException $e) {
+            Log::warning('PasoRapido balance lookup rejected', [
+                'tag' => $tag,
+                'message' => $e->getMessage(),
+                'user_id' => auth()->id() ?? 0,
+            ]);
+
+            return [
+                'message' => $e->getMessage(),
                 'data' => null,
             ];
         } catch (Exception $e) {
