@@ -16,6 +16,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReassignLeadOwnerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendBatchMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetLeadStatusTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UploadFileToLeadTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Social\UploadFileToMessageTool;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Override;
 
@@ -68,6 +70,8 @@ class SalesManagerAgent extends SystemUserAgent
         $core[] = new ReassignLeadOwnerTool()->withContext($app, $company, $user);
         $core[] = new SetLeadStatusTool()->withContext($app, $company, $user);
         $core[] = new AddLeadNoteTool()->withContext($app, $company, $user);
+        $core[] = new UploadFileToLeadTool()->withContext($app, $company, $user);
+        $core[] = new UploadFileToMessageTool()->withContext($app, $company, $user);
         $core[] = new SendBatchMessageTool()->withContext($app, $company, $user)->forRequestingUser($user);
 
         return $this->mergeRegisteredTools(
