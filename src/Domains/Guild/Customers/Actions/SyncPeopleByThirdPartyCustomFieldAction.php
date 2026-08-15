@@ -37,7 +37,7 @@ class SyncPeopleByThirdPartyCustomFieldAction
             // lock expire inside our window — otherwise every waiter times out on a
             // create/update that legitimately takes more than the wait.
             return Cache::lock($lockKey, 10)
-                ->block(11, fn () => $this->sync($customFieldKey, $customFieldValue));
+                ->block(11, fn (): ModelsPeople => $this->sync($customFieldKey, $customFieldValue));
         } catch (LockTimeoutException $e) {
             // The concurrent sync owns the canonical people record for this reference.
             // Yield to it instead of surfacing a 500; only rethrow if it isn't there yet.
