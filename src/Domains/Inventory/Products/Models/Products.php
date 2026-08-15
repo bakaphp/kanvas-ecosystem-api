@@ -33,8 +33,6 @@ use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Contracts\EntityImportFilesystemInterface;
 use Kanvas\Filesystem\Models\FilesystemImports;
-use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
-use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -47,6 +45,7 @@ use Kanvas\Inventory\Products\Observers\ProductsObserver;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Traits\ResolvesAttributesTrait;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
@@ -106,6 +105,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     use HasRating;
     use HasTranslationsDefaultFallback;
     use LogsActivity;
+    use ResolvesAttributesTrait;
 
     protected $table = 'products';
     protected $guarded = [];
@@ -929,27 +929,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 );
             }
         }
-    }
-
-    private function resolveAttribute(UserInterface $user, array $attribute): ?Attributes
-    {
-        if (isset($attribute['id'])) {
-            return Attributes::getById((int) $attribute['id'], $this->app);
-        }
-
-        $attributesDto = AttributesDto::from([
-            'app' => $this->app,
-            'user' => $user,
-            'company' => $this->company,
-            'name' => $attribute['name'],
-            'value' => $attribute['value'],
-            'isVisible' => true,
-            'isSearchable' => true,
-            'isFiltrable' => true,
-            'slug' => Str::slug($attribute['name']),
-        ]);
-
-        return new CreateAttribute($attributesDto, $user)->execute();
     }
 
     public function addAttribute(string $name, mixed $value): void

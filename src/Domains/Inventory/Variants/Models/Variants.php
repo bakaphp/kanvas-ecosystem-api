@@ -30,15 +30,13 @@ use Kanvas\Activities\Contracts\ActivityLogInterface;
 use Kanvas\Activities\Models\Activity;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
-use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
-use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
-use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Traits\ResolvesAttributesTrait;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
@@ -101,6 +99,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     use HasTranslationsDefaultFallback;
     use HasWallet;
     use LogsActivity;
+    use ResolvesAttributesTrait;
 
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
     public $translatable = ['name','description','short_description','html_description'];
@@ -425,31 +424,6 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 );
             }
         }
-    }
-
-    private function resolveAttribute(UserInterface $user, array $attribute): ?Attributes
-    {
-        if (isset($attribute['id'])) {
-            return Attributes::getById((int) $attribute['id'], $this->app);
-        }
-
-        if (empty($attribute['name'])) {
-            return null;
-        }
-
-        $attributesDto = AttributesDto::from([
-            'app' => app(Apps::class),
-            'user' => $user,
-            'company' => $this->company,
-            'name' => $attribute['name'],
-            'value' => $attribute['value'],
-            'isVisible' => true,
-            'isSearchable' => true,
-            'isFiltrable' => true,
-            'slug' => Str::slug($attribute['name']),
-        ]);
-
-        return new CreateAttribute($attributesDto, $user)->execute();
     }
 
     public function addAttribute(string $name, mixed $value): void
