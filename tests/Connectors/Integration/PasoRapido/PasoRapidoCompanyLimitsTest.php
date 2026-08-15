@@ -203,7 +203,7 @@ final class PasoRapidoCompanyLimitsTest extends TestCase
         $this->assertSame(self::TAG, $result->device);
     }
 
-    public function testUpstreamErrorIsRateLimitedIntoLogsAndReturnsCleanMessage(): void
+    public function testUpstreamErrorGoesToTheLogAndReturnsCleanMessage(): void
     {
         $this->disableUserFacingGuards();
 
@@ -214,8 +214,8 @@ final class PasoRapidoCompanyLimitsTest extends TestCase
 
         $service = $this->service($client);
 
-        // 10 reports to Sentry, then the rest are demoted to the log — but every call
-        // still surfaces the upstream message to the client as a ValidationException.
+        // An upstream 4xx is never reported — every call logs a warning and surfaces
+        // the upstream message to the client as a ValidationException.
         for ($i = 0; $i < 12; $i++) {
             try {
                 $service->verifyCustomer(self::TAG);
@@ -227,12 +227,7 @@ final class PasoRapidoCompanyLimitsTest extends TestCase
 
         Log::shouldHaveReceived('warning')
             ->with('PasoRapido tag verification failed', Mockery::type('array'))
-            ->twice();
-
-        $this->assertSame(
-            10,
-            RateLimiter::attempts("paso-rapido-verify-error:{$this->kanvasApp->getId()}:403"),
-        );
+            ->times(12);
     }
 
     public function testRepeatedUpstreamFailuresAutoBlockTheIp(): void
@@ -339,7 +334,6 @@ final class PasoRapidoCompanyLimitsTest extends TestCase
         RateLimiter::clear("paso-rapido-verify:{$appId}:{$this->userId}");
         RateLimiter::clear("paso-rapido-verify-daily:{$appId}:{$this->userId}");
         RateLimiter::clear("paso-rapido-verify-ip-daily:{$appId}:{$ip}");
-        RateLimiter::clear("paso-rapido-verify-error:{$appId}:403");
         RateLimiter::clear("paso-rapido-verify-fail:{$appId}:{$ip}");
         Cache::forget("paso-rapido-verify-tags:{$appId}:{$this->userId}");
         Cache::forget("paso-rapido-ip-users:{$appId}:{$ip}");
