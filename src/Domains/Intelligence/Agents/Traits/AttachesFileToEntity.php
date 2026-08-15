@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
+namespace Kanvas\Intelligence\Agents\Traits;
 
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use InvalidArgumentException;
@@ -11,8 +11,9 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Throwable;
 
 /**
- * Shared body of the upload_file_to_* tools. Requires HasKanvasContext — the file is created under
- * the tool's own app + company, and the host tool must have resolved the entity tenant-scoped first.
+ * Shared body of the upload_file_to_* tools, on both the Neuron and the Laravel-AI side. Host needs
+ * either framework's HasKanvasContext — both expose $app, $company and contextUser(). The file is
+ * created under the tool's own app + company, so the host must resolve the entity tenant-scoped first.
  *
  * The attachment's field_name is the file name rather than a fixed slot: with
  * FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME off (the default) AttachFilesystemAction replaces the

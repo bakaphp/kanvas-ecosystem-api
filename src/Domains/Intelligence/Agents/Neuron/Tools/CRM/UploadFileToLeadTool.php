@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\AttachesFileToEntity;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasFileUploadToolProperties;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
+use Kanvas\Intelligence\Agents\Traits\AttachesFileToEntity;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -24,6 +25,7 @@ use Override;
 class UploadFileToLeadTool extends Tool implements HasRunKey
 {
     use AttachesFileToEntity;
+    use HasFileUploadToolProperties;
     use HasKanvasContext;
     use ResolvesLeadForTool;
     use TrackByInputs;
@@ -55,27 +57,7 @@ class UploadFileToLeadTool extends Tool implements HasRunKey
                 description: 'The ID of the lead to attach the file to (from search_leads or get_lead_ref).',
                 required: true,
             ),
-            new ToolProperty(
-                name: 'file_name',
-                type: PropertyType::STRING,
-                description: 'File name to store it under, including extension — e.g. "integration-prd.md". '
-                    . 'Defaults to the URL\'s own file name, or agent-document.md for inline content.',
-                required: false,
-            ),
-            new ToolProperty(
-                name: 'content',
-                type: PropertyType::STRING,
-                description: 'The full text of the document to store (markdown, plain text, CSV or JSON). Use this '
-                    . 'when you are the one writing the document. Mutually exclusive with file_url.',
-                required: false,
-            ),
-            new ToolProperty(
-                name: 'file_url',
-                type: PropertyType::STRING,
-                description: 'A public URL to download the file from, when the file already exists somewhere. '
-                    . 'Mutually exclusive with content.',
-                required: false,
-            ),
+            ...$this->fileUploadProperties('integration-prd.md'),
         ];
     }
 

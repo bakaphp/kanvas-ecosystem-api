@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Social;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\AttachesFileToEntity;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasFileUploadToolProperties;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesMessageForTool;
+use Kanvas\Intelligence\Agents\Traits\AttachesFileToEntity;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -23,6 +24,7 @@ use Override;
 class UploadFileToMessageTool extends Tool implements HasRunKey
 {
     use AttachesFileToEntity;
+    use HasFileUploadToolProperties;
     use HasKanvasContext;
     use ResolvesMessageForTool;
     use TrackByInputs;
@@ -52,27 +54,7 @@ class UploadFileToMessageTool extends Tool implements HasRunKey
                 description: 'The ID of the message to attach the file to (from create_message).',
                 required: true,
             ),
-            new ToolProperty(
-                name: 'file_name',
-                type: PropertyType::STRING,
-                description: 'File name to store it under, including extension — e.g. "handover-notes.md". '
-                    . 'Defaults to the URL\'s own file name, or agent-document.md for inline content.',
-                required: false,
-            ),
-            new ToolProperty(
-                name: 'content',
-                type: PropertyType::STRING,
-                description: 'The full text of the document to store (markdown, plain text, CSV or JSON). Use this '
-                    . 'when you are the one writing the document. Mutually exclusive with file_url.',
-                required: false,
-            ),
-            new ToolProperty(
-                name: 'file_url',
-                type: PropertyType::STRING,
-                description: 'A public URL to download the file or image from, when it already exists somewhere. '
-                    . 'Mutually exclusive with content.',
-                required: false,
-            ),
+            ...$this->fileUploadProperties('handover-notes.md'),
         ];
     }
 

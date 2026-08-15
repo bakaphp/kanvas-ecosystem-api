@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\AttachesFileToEntity;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasFileUploadToolProperties;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesVariantForTool;
+use Kanvas\Intelligence\Agents\Traits\AttachesFileToEntity;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -25,6 +26,7 @@ class UploadFileToVariantTool extends Tool implements HasRunKey
 {
     use AttachesFileToEntity;
     use GuardsAdminForTool;
+    use HasFileUploadToolProperties;
     use HasKanvasContext;
     use ResolvesVariantForTool;
     use TrackByInputs;
@@ -55,27 +57,7 @@ class UploadFileToVariantTool extends Tool implements HasRunKey
                 description: 'The ID of the variant to attach the file to (from variant_search or variant_detail).',
                 required: true,
             ),
-            new ToolProperty(
-                name: 'file_name',
-                type: PropertyType::STRING,
-                description: 'File name to store it under, including extension — e.g. "sku-certificate.md". '
-                    . 'Defaults to the URL\'s own file name, or agent-document.md for inline content.',
-                required: false,
-            ),
-            new ToolProperty(
-                name: 'content',
-                type: PropertyType::STRING,
-                description: 'The full text of the document to store (markdown, plain text, CSV or JSON). Use this '
-                    . 'when you are the one writing the document. Mutually exclusive with file_url.',
-                required: false,
-            ),
-            new ToolProperty(
-                name: 'file_url',
-                type: PropertyType::STRING,
-                description: 'A public URL to download the file or image from, when it already exists somewhere. '
-                    . 'Mutually exclusive with content.',
-                required: false,
-            ),
+            ...$this->fileUploadProperties('sku-certificate.md'),
         ];
     }
 
