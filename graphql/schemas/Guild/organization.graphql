@@ -89,7 +89,7 @@ type OrganizationDuplicateGroup {
     canonical_id: Int!
     "All member organization ids, including canonical_id, ascending."
     member_ids: [Int!]!
-    "Which dimension flagged this cluster: exact_name | email_match | tax_id_match"
+    "Which dimension flagged this cluster: external_id_conflict | exact_name | email_match"
     reason: String!
     "A representative `name` from the group (for display)."
     sample_name: String!
@@ -127,6 +127,12 @@ extend type Mutation @guard {
     mergeOrganizations(source_ids: [Int!]!, target_id: Int!): Organization!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@merge"
+        )
+    detectOrganizationDuplicates(
+        max_groups: Int
+    ): [OrganizationDuplicateGroup!]!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@detectDuplicates"
         )
 
     addOrganizationAddress(

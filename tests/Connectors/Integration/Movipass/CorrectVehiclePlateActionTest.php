@@ -13,6 +13,7 @@ use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTypes;
@@ -119,11 +120,8 @@ final class CorrectVehiclePlateActionTest extends TestCase
         $this->assertCount(3, $images);
     }
 
-    public function testItBlocksCorrectionOnFinalStatus(): void
+    private function resolveReleasedStatus(Apps $app): OrderStatus
     {
-        $app = app(Apps::class);
-        $user = Auth::user();
-
         $orderType = OrderTypes::where('name', 'impound_lot')->fromApp($app)->first();
 
         if (! $orderType) {
@@ -138,6 +136,16 @@ final class CorrectVehiclePlateActionTest extends TestCase
             $this->markTestSkipped('released_from_lot status not found — run movipass:setup-impound-lot first');
         }
 
+        return $releasedStatus;
+    }
+
+    public function testItBlocksCorrectionOnFinalStatus(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+
+        $releasedStatus = $this->resolveReleasedStatus($app);
+
         $order = $this->createTestOrder($app, $user, [
             'order_number' => 12347,
             'order_status_id' => $releasedStatus->id,
@@ -150,5 +158,33 @@ final class CorrectVehiclePlateActionTest extends TestCase
         Order::withoutSyncingToSearch(
             fn () => new CorrectVehiclePlateAction($order, $user, 'FIN999', 'should fail')->execute()
         );
+    }
+
+    public function testItAllowsCorrectionOnFinalStatusWhenAppFlagIsEnabled(): void
+    {
+        $app = app(Apps::class);
+        $user = Auth::user();
+
+        $releasedStatus = $this->resolveReleasedStatus($app);
+
+        $order = $this->createTestOrder($app, $user, [
+            'order_number' => 12348,
+            'order_status_id' => $releasedStatus->id,
+            'metadata' => ['data' => ['vehiclePlate' => 'FLG001', 'vehicleBrand' => 'Nissan']],
+            'reference' => 'Nissan / FLG001 - #12348',
+        ]);
+
+        $app->set(ConfigurationEnum::ALLOW_ORDER_CORRECTION_ON_FINAL_STATUS->value, 1);
+
+        try {
+            $result = Order::withoutSyncingToSearch(
+                fn () => new CorrectVehiclePlateAction($order, $user, 'FLG999', 'late correction authorized by app flag')->execute()
+            );
+
+            $this->assertEquals('FLG999', $result->metadata['data']['vehiclePlate']);
+            $this->assertEquals('Nissan / FLG999 - #12348', $result->reference);
+        } finally {
+            $app->del(ConfigurationEnum::ALLOW_ORDER_CORRECTION_ON_FINAL_STATUS->value);
+        }
     }
 }

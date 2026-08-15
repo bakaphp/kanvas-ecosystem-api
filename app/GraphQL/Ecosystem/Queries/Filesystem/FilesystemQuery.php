@@ -7,6 +7,8 @@ namespace App\GraphQL\Ecosystem\Queries\Filesystem;
 use Baka\Enums\StateEnums;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\Paginator;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
@@ -54,6 +56,46 @@ class FilesystemQuery
         });
 
         return $files;
+    }
+
+    /**
+     * Same result as getFileByGraphType, but returns a ready-built LengthAwarePaginator
+     * from a single query instead of letting @paginate(builder:) run a separate count(*).
+     *
+     * An entity carries a handful of files, so we fetch them all in one query and paginate
+     * the collection in memory. This keeps the FilesystemPaginator shape intact (data +
+     * paginatorInfo) while dropping the per-parent count(*) — the N+1 offender when a bulk
+     * products list (e.g. a sitemap crawl) resolves files for every product and variant on
+     * a cold @cacheRedis cache. Wire it as @paginate(resolver: ...) on high-fan-out types.
+     */
+    public function getPaginatedFileByGraphType(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): LengthAwarePaginator {
+        $perPage = max(1, (int) ($args['first'] ?? 25));
+        $page = max(1, (int) ($args['page'] ?? 1));
+
+        // A high-fan-out list (e.g. channelVariants) can eager-load `filesForGraphType` so the
+        // per-entity files query is batched into one `entity_id IN (...)`. Read the loaded
+        // relation when present; otherwise fall back to the single-entity query.
+        $files = is_object($root) && method_exists($root, 'relationLoaded') && $root->relationLoaded('filesForGraphType')
+            ? $root->getRelation('filesForGraphType')
+            : $this->getFileByGraphType(
+                $root,
+                $args,
+                $context,
+                $resolveInfo
+            )->get();
+
+        return new LengthAwarePaginator(
+            $files->forPage($page, $perPage)->values(),
+            $files->count(),
+            $perPage,
+            $page,
+            ['path' => Paginator::resolveCurrentPath()]
+        );
     }
 
     /**

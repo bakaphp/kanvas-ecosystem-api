@@ -23,21 +23,16 @@ class ProductService
     public function mapProduct(array $product): array
     {
         $weight = $this->calcWeight($product);
-        $amazonPrice = $this->extractPrice($product);
+        $prices = $this->extractPrices($product);
+        $amazonPrice = $prices['price'];
         $name = Str::limit($product['title'] ?? '', 255);
-        $listPrice = $this->extractListPrice($product);
-        if ($amazonPrice <= 0 && $listPrice > 0) {
-            $amazonPrice = $listPrice;
-        }
-        if ($listPrice == 0 && $amazonPrice > 0) {
-            $listPrice = $amazonPrice;
-        }
+        $discountPrice = $prices['discountPrice'];
         $asin = $this->getProductAsin($product);
         $mappedProduct = [
             'name' => $name,
             'description' => $this->getDescription($product),
             'price' => $amazonPrice,
-            'discountPrice' => $listPrice,
+            'discountPrice' => $discountPrice,
             'slug' => Str::slug($asin),
             'sku' => $asin,
             'source' => 'amazon',
@@ -237,7 +232,7 @@ class ProductService
     public function calcDiscountPrice(array $product): array
     {
         $discount = 0;
-        $amazonPrice = $this->extractPrice($product);
+        $amazonPrice = $this->extractPrices($product)['discountPrice'];
         $weight = $this->calcWeight($product) / 453.592;
         $deliveryCostMile = 2.50;
         $courierCost = $weight * 1.3;
@@ -284,24 +279,51 @@ class ProductService
         return '';
     }
 
-    protected function extractPrice(array $product): float
+    /**
+     * @return array{price: float, discountPrice: float}
+     */
+    protected function extractPrices(array $product): array
     {
-        if (isset($product['price']) && ! empty($product['price'])) {
-            if (preg_match('/\$?([\d,]+\.?\d*)\s+with\s+(\d+)\s+percent\s+savings/i', $product['price'], $matches)) {
-                $discountedPrice = (float) str_replace(',', '', $matches[1]);
-                $discountPercent = (int) $matches[2];
-                $originalPrice = ($discountedPrice * 100) / (100 - $discountPercent);
+        $currentPrice = $this->extractCurrentPrice($product);
+        $listPrice = $this->extractListPrice($product);
 
-                return $originalPrice;
-            }
-
-            preg_match('/\$?([\d,]+\.?\d*)/', $product['price'], $matches);
-            if (isset($matches[1])) {
-                return (float) str_replace(',', '', $matches[1]);
-            }
+        if ($listPrice <= 0) {
+            $listPrice = $this->extractOriginalPriceFromSavings($product);
         }
 
-        return 0.0;
+        $regularPrice = $listPrice > 0 ? $listPrice : $currentPrice;
+        $discountPrice = $currentPrice > 0 ? $currentPrice : $regularPrice;
+
+        return [
+            'price' => $regularPrice,
+            'discountPrice' => $discountPrice,
+        ];
+    }
+
+    protected function extractCurrentPrice(array $product): float
+    {
+        preg_match('/\$?([\d,]+\.?\d*)/', (string) ($product['price'] ?? ''), $matches);
+
+        return isset($matches[1])
+            ? (float) str_replace(',', '', $matches[1])
+            : 0.0;
+    }
+
+    protected function extractOriginalPriceFromSavings(array $product): float
+    {
+        $price = (string) ($product['price'] ?? '');
+        if (! preg_match('/\$?([\d,]+\.?\d*)\s+with\s+(\d+)\s+percent\s+savings/i', $price, $matches)) {
+            return 0.0;
+        }
+
+        $discountedPrice = (float) str_replace(',', '', $matches[1]);
+        $discountPercent = (int) $matches[2];
+
+        if ($discountPercent <= 0 || $discountPercent >= 100) {
+            return 0.0;
+        }
+
+        return round(($discountedPrice * 100) / (100 - $discountPercent), 2);
     }
 
     protected function extractListPrice(array $product): float

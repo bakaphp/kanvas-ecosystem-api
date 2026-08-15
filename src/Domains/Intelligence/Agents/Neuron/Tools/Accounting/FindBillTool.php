@@ -10,9 +10,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -20,11 +22,12 @@ use Override;
  * every line with GL coding. The "pull up bill #X" lookup (vs list_open_bills which enumerates).
  * Reads synced data; reports found=false when the bill isn't in Kanvas.
  */
-#[AgentTool(name: 'Find Bill')]
-class FindBillTool extends Tool
+#[AgentTool(name: 'Find Bill', category: 'accounting')]
+class FindBillTool extends Tool implements HasRunKey
 {
     use FindsTenantRecordForTool;
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

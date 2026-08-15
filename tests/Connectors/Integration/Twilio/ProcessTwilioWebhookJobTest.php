@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Twilio;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -75,6 +76,68 @@ class ProcessTwilioWebhookJobTest extends TestCase
         $this->assertArrayHasKey('message_id', $result[0]);
         $this->assertArrayHasKey('channel_id', $result[0]);
         $this->assertFalse($result[0]['is_from_me']);
+    }
+
+    public function testProcessStopMarksPhoneContactsAsOptedOut(): void
+    {
+        $phone = '+1' . fake()->numerify('##########');
+        $payload = $this->buildTwilioPayload([
+            'From' => $phone,
+            'Body' => 'STOP',
+            'OptOutType' => 'STOP',
+        ]);
+
+        $result = $this->dispatchWebhookJob($payload);
+
+        $lead = Lead::fromApp(app(Apps::class))
+            ->fromCompany(auth()->user()->getCurrentCompany())
+            ->where('title', 'like', '%Twilio Opp%')
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertNotEmpty($lead->people->getAllPhones());
+        $this->assertTrue(
+            $lead->people->getAllPhones()->every(
+                fn ($contact) => $contact->is_opt_out === 1
+            )
+        );
+        $this->assertSame('STOP', $result[0]['consent_type']);
+        $this->assertTrue($result[0]['automated_response_suppressed']);
+        $this->assertTrue(Cache::has(
+            "workflow_job:message_batch:{$this->receiver->getId()}:{$phone}:cancelled"
+        ));
+    }
+
+    public function testProcessStartOptsInOnlyTheInboundPhoneAndSuppressesAutomatedResponse(): void
+    {
+        $phone = '+1' . fake()->numerify('##########');
+
+        $stopResult = $this->dispatchWebhookJob($this->buildTwilioPayload([
+            'From' => $phone,
+            'Body' => 'STOP',
+            'OptOutType' => 'STOP',
+        ]));
+
+        $startResult = $this->dispatchWebhookJob($this->buildTwilioPayload([
+            'From' => $phone,
+            'Body' => 'START',
+            'OptOutType' => 'START',
+        ]));
+
+        $lead = Lead::fromApp(app(Apps::class))
+            ->fromCompany(auth()->user()->getCurrentCompany())
+            ->where('title', 'like', '%Twilio Opp%')
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame('STOP', $stopResult[0]['consent_type']);
+        $this->assertSame('START', $startResult[0]['consent_type']);
+        $this->assertTrue($startResult[0]['automated_response_suppressed']);
+        $this->assertTrue(
+            $lead->people->getAllPhones()
+                ->filter(fn ($contact) => $contact->getCleanPhone() === ltrim($phone, '+'))
+                ->every(fn ($contact) => $contact->is_opt_out === 0)
+        );
     }
 
     public function testProcessIncomingSmsWithMediaAttachesToLead(): void

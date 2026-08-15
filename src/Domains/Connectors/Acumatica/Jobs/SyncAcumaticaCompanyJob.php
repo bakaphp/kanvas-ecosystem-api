@@ -51,6 +51,7 @@ final class SyncAcumaticaCompanyJob implements ShouldQueue
     use SerializesModels;
 
     private const int INITIAL_LOOKBACK_DAYS = 30;
+    private const int OVERLAP_LOCK_TTL = 3900;
 
     public function __construct(
         public readonly Apps $app,
@@ -67,7 +68,9 @@ final class SyncAcumaticaCompanyJob implements ShouldQueue
     public function middleware(): array
     {
         return [
-            new WithoutOverlapping('acumatica-sync-' . (string) $this->company->getId()),
+            new WithoutOverlapping('acumatica-sync-' . (string) $this->company->getId())
+                ->expireAfter(self::OVERLAP_LOCK_TTL)
+                ->dontRelease(),
         ];
     }
 

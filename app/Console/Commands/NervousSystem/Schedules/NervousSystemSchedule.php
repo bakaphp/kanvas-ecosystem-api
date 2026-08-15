@@ -4,22 +4,23 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem\Schedules;
 
-use App\Console\Commands\Intelligence\CollectAgentDeploymentUsageCommand;
-use App\Console\Commands\Intelligence\CollectAgentSessionTranscriptsCommand;
-use App\Console\Commands\Intelligence\DailyAgentConfigBackupCommand;
-use App\Console\Commands\Intelligence\RollupLocalAgentUsageCommand;
-use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
-use App\Console\Commands\NervousSystem\CheckAgentRuntimeHealthCommand;
-use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
-use App\Console\Commands\NervousSystem\ExpireCapabilitiesCommand;
-use App\Console\Commands\NervousSystem\NudgeInactivePlansCommand;
-use App\Console\Commands\NervousSystem\ProjectHeartbeatCommand;
-use App\Console\Commands\NervousSystem\RecordAgentDailyCyclesCommand;
-use App\Console\Commands\NervousSystem\RefreshAgentLiveCountersCommand;
-use App\Console\Commands\NervousSystem\SendDailyLearningDigestCommand;
-use App\Console\Commands\NervousSystem\SummarizeAgentDailyLearningCommand;
-use App\Console\Commands\NervousSystem\SyncKanbanDeploymentsCommand;
-use App\Console\Commands\NervousSystem\SyncModelPricingCommand;
+use App\Console\Commands\Intelligence\Agents\DailyAgentConfigBackupCommand;
+use App\Console\Commands\Intelligence\Usage\CollectAgentDeploymentUsageCommand;
+use App\Console\Commands\Intelligence\Usage\CollectAgentSessionTranscriptsCommand;
+use App\Console\Commands\Intelligence\Usage\RollupLocalAgentUsageCommand;
+use App\Console\Commands\NervousSystem\Agents\CheckAgentRuntimeHealthCommand;
+use App\Console\Commands\NervousSystem\Agents\ExpireCapabilitiesCommand;
+use App\Console\Commands\NervousSystem\Agents\RefreshAgentLiveCountersCommand;
+use App\Console\Commands\NervousSystem\Learning\RecordAgentDailyCyclesCommand;
+use App\Console\Commands\NervousSystem\Learning\SendDailyLearningDigestCommand;
+use App\Console\Commands\NervousSystem\Learning\SummarizeAgentDailyLearningCommand;
+use App\Console\Commands\NervousSystem\Ledger\ArchiveOldLedgerEventsCommand;
+use App\Console\Commands\NervousSystem\Metrics\SyncModelPricingCommand;
+use App\Console\Commands\NervousSystem\Plans\DetectStalledPlanTasksCommand;
+use App\Console\Commands\NervousSystem\Plans\NudgeInactivePlansCommand;
+use App\Console\Commands\NervousSystem\Plans\ProjectHeartbeatCommand;
+use App\Console\Commands\NervousSystem\Plans\SyncKanbanDeploymentsCommand;
+use App\Console\Commands\NervousSystem\Scheduling\SweepScheduledActionsCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Kanvas\NervousSystem\Dashboard\Jobs\RollupDailyDashboardMetricsJob;
 use Kanvas\NervousSystem\Pulse\Jobs\RollupDailyPulseMetricsJob;
@@ -81,6 +82,12 @@ final class NervousSystemSchedule
             ->withoutOverlapping();
         $schedule->command(ExpireCapabilitiesCommand::class)
             ->hourly()
+            ->withoutOverlapping();
+
+        // Scheduled agent actions (reminders / agent tasks) — the every-minute sweep claims the due
+        // batch and dispatches a fire-job per row. Pure dispatcher; ±1 min fire precision.
+        $schedule->command(SweepScheduledActionsCommand::class)
+            ->everyMinute()
             ->withoutOverlapping();
 
         // Inactive-plan nudge — once a day, ping owners of open plans that have gone silent past the

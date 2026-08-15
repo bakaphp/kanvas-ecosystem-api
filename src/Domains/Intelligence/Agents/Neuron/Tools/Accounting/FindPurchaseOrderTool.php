@@ -10,9 +10,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -20,11 +22,12 @@ use Override;
  * coding. This is the "pull up PO #X" lookup (vs list_open_purchase_orders which enumerates). Reads
  * synced data; if the PO isn't in Kanvas it reports that (it may not have been synced yet).
  */
-#[AgentTool(name: 'Find Purchase Order')]
-class FindPurchaseOrderTool extends Tool
+#[AgentTool(name: 'Find Purchase Order', category: 'accounting')]
+class FindPurchaseOrderTool extends Tool implements HasRunKey
 {
     use FindsTenantRecordForTool;
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

@@ -6,13 +6,14 @@ namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Baka\Http\SafeUrlFetcher;
 use finfo;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -29,6 +30,7 @@ use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\ToolCallMessage;
 use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Exceptions\ToolRunsExceededException;
 use NeuronAI\Tools\ToolInterface;
 use Throwable;
 
@@ -55,7 +57,7 @@ class RunNeuronChatAction
         // Agents whose chatHistory already records each turn (KanvasMessageHistory) must not also
         // logTurn here — that writes a second, parallel conversation. SalesAssist-style agents write
         // their history to Social messages, so they keep logTurn as their only conversation record.
-        $selfRecords = $this->handler instanceof BaseKanvasAgent
+        $selfRecords = $this->handler instanceof BehavesAsKanvasAgent
             && $this->handler->persistsTurnsToConversationStore();
 
         $userMessage = new UserMessage($this->message);
@@ -105,17 +107,7 @@ class RunNeuronChatAction
         } catch (Throwable $e) {
             report($e);
 
-            // User-facing fallback stays friendly for channel responders.
-            // The trailing `[provider_error: ...]` marker is parseable by
-            // structured callers (e.g. FollowUpLeadAction) so they don't have
-            // to correlate two Sentry events to debug a provider failure.
-            $fallback = sprintf(
-                'I ran into a hiccup processing that. Could you try rephrasing, '
-                . "or let me know if you want me to hand off to a human?\n"
-                . '[provider_error: %s: %s]',
-                $e::class,
-                substr($e->getMessage(), 0, 500),
-            );
+            $fallback = $this->humanizedFallback($e);
 
             if (! $selfRecords) {
                 new KanvasConversationStore()->logTurn(
@@ -159,6 +151,34 @@ class RunNeuronChatAction
         $this->backfillChannelMessagesToLead();
 
         return $content;
+    }
+
+    /** A duplicate-key violation is a recoverable, explainable case — everything else stays generic. */
+    private function humanizedFallback(Throwable $e): string
+    {
+        if ($this->isDuplicateEntryError($e)) {
+            return "It looks like that already exists — I didn't create a duplicate. Let me know if you'd "
+                . 'like me to look into it or handle it a different way.';
+        }
+
+        if ($e instanceof ToolRunsExceededException) {
+            return "I couldn't find a match after a few tries. Could you double-check the name or email "
+                . 'and confirm the person exists, then ask me again?';
+        }
+
+        return 'I ran into a hiccup processing that. Could you try rephrasing, '
+            . 'or let me know if you want me to hand off to a human?';
+    }
+
+    private function isDuplicateEntryError(Throwable $e): bool
+    {
+        for ($current = $e; $current !== null; $current = $current->getPrevious()) {
+            if ($current instanceof UniqueConstraintViolationException) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function backfillChannelMessagesToLead(): void

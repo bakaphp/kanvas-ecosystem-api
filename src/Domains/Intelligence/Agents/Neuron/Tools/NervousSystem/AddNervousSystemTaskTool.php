@@ -11,9 +11,11 @@ use Kanvas\NervousSystem\Plan\Actions\AddTaskAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -21,10 +23,11 @@ use Override;
  * AddTaskAction (recomputes plan completion, emits ledger events) so an agent-created task is a
  * first-class task like any other.
  */
-#[AgentTool(name: 'Add Task')]
-class AddNervousSystemTaskTool extends Tool
+#[AgentTool(name: 'Add Task', category: 'nervous_system')]
+class AddNervousSystemTaskTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
     use ResolvesPlanForTool;
 
     public function __construct()

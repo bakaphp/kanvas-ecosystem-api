@@ -87,6 +87,16 @@ class AgentProviderService
     }
 
     /**
+     * The provider an agent resolves to, defaulting to the app/Gemini fallback
+     * when nothing explicit is configured. Shared so the Laravel runtime falls
+     * back the same way this (Neuron) service does instead of resolving to null.
+     */
+    public static function resolveProviderEnum(Agent $agent): AgentLlmProviderEnum
+    {
+        return self::providerFrom(self::resolveSource($agent));
+    }
+
+    /**
      * Pick the highest-precedence provider source and normalize it to
      * ['provider', 'base_uri', 'key', 'model', 'parameters'].
      *
@@ -160,7 +170,7 @@ class AgentProviderService
         return (string) ($source['model']
             ?? $app->get(ConfigurationEnum::AI_PROVIDER_MODEL->value)
             ?? $app->get(ConfigurationEnum::GEMINI_MODEL->value)
-            ?? 'gemini-2.5-pro');
+            ?? 'gemini-3.7-flash');
     }
 
     /**

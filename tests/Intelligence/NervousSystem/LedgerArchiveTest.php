@@ -159,6 +159,15 @@ class LedgerArchiveTest extends TestCase
         );
     }
 
+    public function testConfigPreservesAgentKnowledgeSavedByDefault(): void
+    {
+        $this->assertContains(
+            'agent.knowledge.saved',
+            (array) config('nervous-system.ledger.preserve_event_types'),
+            'agent.knowledge.saved backs agent long-term memory (the remember tool) and must never be swept',
+        );
+    }
+
     public function testArchiveNeverSweepsPreservedEventTypes(): void
     {
         Storage::fake('local');

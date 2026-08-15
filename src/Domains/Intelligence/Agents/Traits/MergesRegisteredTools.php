@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
@@ -54,6 +55,12 @@ trait MergesRegisteredTools
         ?Agent $agent,
         CapabilityFrameworkEnum $framework,
     ): array {
+        // A hardcoded baseline tool is constructed by the subclass, so it never passed through
+        // defaultRegisteredToolResolver() and would otherwise run with uninitialized tenant context —
+        // which for a HasKanvasContext tool means an unscoped query. Fill it here so a tool is
+        // tenant-bound whether the subclass hardcoded it or the registry resolved it.
+        $baseline = array_map(fn (object $tool): object => $this->fillKanvasContext($tool), $baseline);
+
         if ($agent === null) {
             return array_values($baseline);
         }
@@ -90,6 +97,10 @@ trait MergesRegisteredTools
      */
     protected function resolveRegisteredTool(Tool $tool): ?object
     {
+        if ($tool->agents_id !== null && method_exists($this, 'resolveRegisteredSubAgentTool')) {
+            return $this->resolveRegisteredSubAgentTool($tool);
+        }
+
         return $this->defaultRegisteredToolResolver($tool);
     }
 
@@ -137,20 +148,37 @@ trait MergesRegisteredTools
      */
     private function fillKanvasContext(object $tool): object
     {
-        if (! in_array(HasKanvasContext::class, class_uses_recursive($tool), true)) {
-            return $tool;
+        $uses = class_uses_recursive($tool);
+
+        if (in_array(HasKanvasContext::class, $uses, true)) {
+            $candidates = $this instanceof ProvidesToolDependencies
+                ? $this->toolDependencyCandidates()
+                : [];
+
+            $app = $this->firstCandidateOfType($candidates, Apps::class);
+            $company = $this->firstCandidateOfType($candidates, Companies::class);
+            $user = $this->firstCandidateOfType($candidates, Users::class);
+
+            if ($app instanceof Apps && $company instanceof Companies && $user instanceof Users) {
+                $tool->withContext($app, $company, $user);
+            }
         }
 
-        $candidates = $this instanceof ProvidesToolDependencies
-            ? $this->toolDependencyCandidates()
-            : [];
+        // An admin-guarded tool authorizes on the HUMAN in the conversation, which is never a
+        // toolDependencyCandidate — those carry actingUser(), i.e. the agent's own (usually admin)
+        // user. Hand it $this->user explicitly, the same wiring the hardcoded baselines do with
+        // ->forRequestingUser($this->user).
+        if (in_array(GuardsAdminForTool::class, $uses, true)
+            && property_exists($this, 'user')
+            && $this->user instanceof Users
+        ) {
+            $tool->forRequestingUser($this->user);
+        }
 
-        $app = $this->firstCandidateOfType($candidates, Apps::class);
-        $company = $this->firstCandidateOfType($candidates, Companies::class);
-        $user = $this->firstCandidateOfType($candidates, Users::class);
-
-        if ($app instanceof Apps && $company instanceof Companies && $user instanceof Users) {
-            $tool->withContext($app, $company, $user);
+        // The record in scope can't come from toolDependencyCandidates() by type (Apps/Companies/Users
+        // all extend Model), so hand the agent's own $entity to tools that opt in via HasEntityContext.
+        if (in_array(HasEntityContext::class, $uses, true) && property_exists($this, 'entity')) {
+            $tool->withEntity($this->entity);
         }
 
         return $tool;

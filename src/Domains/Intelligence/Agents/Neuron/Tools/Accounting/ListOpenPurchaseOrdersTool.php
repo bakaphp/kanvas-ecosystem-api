@@ -16,7 +16,7 @@ use Override;
  * Lists open purchase orders (mirrored from the ERP) — the reference the AP agent matches an
  * incoming vendor invoice against. Optionally filtered to one vendor.
  */
-#[AgentTool(name: 'List Open Purchase Orders')]
+#[AgentTool(name: 'List Open Purchase Orders', category: 'accounting')]
 class ListOpenPurchaseOrdersTool extends Tool
 {
     use HasKanvasContext;

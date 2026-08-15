@@ -144,6 +144,13 @@ class Deal extends BaseModel
             ->where('name', ChannelNameEnum::NOTES->value);
     }
 
+    public function defaultChannel(): HasOne
+    {
+        return $this->hasOne(Channel::class, 'entity_id', 'string_id')
+            ->where('entity_namespace', self::class)
+            ->where('slug', $this->uuid);
+    }
+
     public function aiSession(): HasMany
     {
         return $this->hasMany(Session::class, 'entity_id', 'string_id')

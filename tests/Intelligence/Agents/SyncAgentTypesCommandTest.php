@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Laravel\Inventory\AgentInventoryAssistance;
 use Kanvas\Intelligence\Agents\Laravel\KanvasGenericLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\Commerce\CommerceAgent;
 use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
 use Kanvas\Intelligence\Agents\Neuron\KanvasGenericNeuronAgent;
 use Kanvas\Intelligence\Agents\Services\AgentTypeDiscoveryService;
@@ -57,6 +58,24 @@ class SyncAgentTypesCommandTest extends TestCase
             AgentTypeDefinition::fromClass(stdClass::class),
             'A class without the attribute returns null',
         );
+    }
+
+    public function testCommerceAgentDefinitionIsDiscoverableWithSoul(): void
+    {
+        $meta = AgentTypeDefinition::fromClass(CommerceAgent::class);
+
+        $this->assertNotNull($meta);
+        $this->assertSame('Commerce Agent', $meta->name);
+        $this->assertSame('neuron', $meta->provider);
+        $this->assertStringContainsString('Commerce teammate', (string) $meta->soul);
+        $this->assertLessThanOrEqual(
+            255,
+            strlen((string) $meta->description),
+            'description is stored in a varchar(255) column',
+        );
+
+        $discovered = collect(new AgentTypeDiscoveryService()->discover())->keyBy('class');
+        $this->assertArrayHasKey(CommerceAgent::class, $discovered->all());
     }
 
     public function testSyncCreatesGlobalAgentTypeRow(): void

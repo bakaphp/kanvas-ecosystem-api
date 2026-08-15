@@ -56,6 +56,7 @@ enum AppSettingsEnums implements EnumsInterface
     case REGISTRATION_RATE_LIMIT;
     case VALIDATE_EMAIL_DNS;
     case BLOCKED_EMAIL_DOMAINS;
+    case AGENT_CHAT_ASYNC;
 
     #[Override]
     public function getValue(): mixed
@@ -108,6 +109,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::REGISTRATION_RATE_LIMIT => 'registration_rate_limit',
             self::VALIDATE_EMAIL_DNS => 'validate_email_dns',
             self::BLOCKED_EMAIL_DOMAINS => 'blocked_email_domains',
+            self::AGENT_CHAT_ASYNC => 'agent_chat_async',
         };
     }
 }

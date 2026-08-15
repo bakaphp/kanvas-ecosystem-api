@@ -13,7 +13,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-#[AgentTool(name: 'Query Balance Sheet')]
+#[AgentTool(name: 'Query Balance Sheet', category: 'accounting')]
 class QueryBalanceSheetTool extends Tool
 {
     use HasKanvasContext;

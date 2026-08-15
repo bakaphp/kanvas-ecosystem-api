@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CalendarEventTool;
@@ -20,6 +20,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompletionStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ContactCheckerTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\EventConfigurationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadIntentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
@@ -47,7 +48,7 @@ use Override;
     description: 'Conversational sales assistant for inbound prospect chat — qualifies leads, creates them when intent shows, schedules meetings, and recommends inventory using the CRM + inventory tool suite.',
     provider: 'neuron',
 )]
-class SalesAgent extends BaseKanvasAgent implements ConversesWithCustomer
+class SalesAgent extends BaseRagAgent implements ConversesWithCustomer
 {
     use HasCustomerPersona;
     use HasTemporalContext;
@@ -149,6 +150,7 @@ class SalesAgent extends BaseKanvasAgent implements ConversesWithCustomer
             new RescheduleCalendarEventTool(),
             new CancelCalendarEventTool(),
             new UserAvailabilityTool(),
+            new EventConfigurationTool(),
             new HandOffTool(),
             new LeadIntentTool(),
             new LeadRefTool(),

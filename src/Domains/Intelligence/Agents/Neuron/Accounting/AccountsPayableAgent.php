@@ -6,7 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
@@ -15,7 +15,20 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersToo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyApPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReadEmailDetailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\CreateGoogleSheetTabTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ReadGoogleSheetTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\UpdateGoogleSheetCellTool;
 use Override;
 
 /**
@@ -28,7 +41,7 @@ use Override;
  * chat history, and write attribution to its OWN user (actingUser). On top of that core it adds the
  * AP read tools below.
  *
- * Mostly read-only, but create_ap_bill/void_ap_bill write for real, bypassing human approval — only on explicit request.
+ * Mostly read-only, but create_ap_bill/void_ap_bill/apply_ap_payment write for real, bypassing human approval — only on explicit request.
  */
 #[AgentTypeDefinition(
     name: 'Accounts Payable Agent',
@@ -36,32 +49,42 @@ use Override;
         . 'open purchase orders, vendors), and can create+push or void a bill on explicit request.',
     provider: 'neuron',
     soul: 'You are the Accounts-Payable teammate. You answer questions about what the company owes its '
-        . 'vendors using your read tools. You are accountable and precise with numbers. create_ap_bill and '
-        . 'void_ap_bill bypass the normal human-approval path and write straight to whichever Acumatica '
-        . 'tenant is configured — only call either when the user explicitly asks you to create or void a bill '
-        . 'this way, never on your own initiative.',
+        . 'vendors using your read tools. You are accountable and precise with numbers. create_ap_bill, '
+        . 'void_ap_bill, and apply_ap_payment bypass the normal human-approval path and write straight to '
+        . 'whichever Acumatica tenant is configured — only call any of them when the user explicitly asks you '
+        . 'to, never on your own initiative.',
     outputFormat: 'Plain text. Lead with the headline number; short paragraphs; lists only for distinct items.',
 )]
 class AccountsPayableAgent extends SystemUserAgent
 {
-    /**
-     * @return list<object>
-     */
     #[Override]
     protected function tools(): array
     {
-        return array_merge(parent::tools(), [
-            new QueryDataFreshnessTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryApAgingTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ListOpenBillsTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ListOpenPurchaseOrdersTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindPurchaseOrderTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindBillTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindVendorTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new MatchBillsForPaymentTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new CreateApBillTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new VoidApBillTool()->withContext($this->app, $this->company, $this->actingUser()),
-        ]);
+        return array_merge(parent::tools(), $this->addToolContext([
+            new QueryDataFreshnessTool(),
+            new QueryApAgingTool(),
+            new ListOpenBillsTool(),
+            new ListOpenPurchaseOrdersTool(),
+            new FindPurchaseOrderTool(),
+            new FindBillTool(),
+            new FindVendorTool(),
+            new MatchBillsForPaymentTool(),
+            new CreateApBillTool(),
+            new VoidApBillTool(),
+            new ApplyApPaymentTool(),
+            new AddBillNoteTool(),
+            new AttachBillFileTool(),
+            new ReadGoogleSheetTool(),
+            new AppendGoogleSheetRowsTool(),
+            new UpdateGoogleSheetCellTool(),
+            new ClearGoogleSheetRangeTool(),
+            new CreateGoogleSheetTabTool(),
+            new ListEmailsTool(),
+            new ReadEmailDetailsTool(),
+            new DownloadAttachmentTool(),
+            new ExtractInvoiceDataTool(),
+            new MarkEmailAsReadTool(),
+        ]));
     }
 
     #[Override]
@@ -85,6 +108,40 @@ class AccountsPayableAgent extends SystemUserAgent
             '- "Create a bill for vendor X" → create_ap_bill, only when the user explicitly asks for it — it '
             . 'writes straight to Acumatica, bypassing human approval.',
             '- "Void/cancel/undo that bill" → void_ap_bill, given the bill_id from create_ap_bill.',
+            '- "Pay a vendor bill" / "record a payment against bill Y" → apply_ap_payment, only when the user '
+            . 'explicitly asks to record a real payment. Needs the bill_id, amount, and a payment reference.',
+            '- "Add a note to bill Y" → add_bill_note; "attach this file to bill Y" → attach_bill_file. Both '
+            . 'require the bill to already be pushed to Acumatica.',
+            '- "Read/check this Google Sheet" → read_google_sheet, given the URL the user shared. "Add these '
+            . 'rows to the sheet" → write_google_sheet. "Mark that row as X in the sheet" → '
+            . 'update_google_sheet_cell, only after confirming the exact cell with read_google_sheet first — '
+            . 'never guess a row/column. "Clear/wipe that row/cell" → clear_google_sheet_range — this empties '
+            . 'the values but never removes the row itself. "Create a new tab called X" → create_google_sheet_tab.',
+            '- "Check for new invoice emails" / "any unread bills in the inbox" → list_emails with a query like '
+            . '"has:attachment is:unread". "What does this email say" / "does it have an invoice attached" → '
+            . 'read_email_details with the message_id. "Pull that PDF out" / "save this attachment" → '
+            . 'download_attachment with the message_id + attachment_id from read_email_details — it saves the '
+            . 'file to Kanvas and returns a filesystem_id/url. The real vendor/total/dates are inside the PDF, '
+            . 'never in the email body/subject — after downloading, call extract_invoice_data with the '
+            . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet).',
+            '- When you process an invoice email end-to-end, follow this exact order every time, without being '
+            . 'asked — this is a standard step of processing an invoice email, not a separate favor: '
+            . '(1) list_emails → read_email_details → download_attachment → extract_invoice_data, to get the '
+            . 'real vendor/total/dates and the file\'s url. '
+            . '(2) create_ap_bill using that real data — this both creates the Kanvas bill and pushes it to '
+            . 'Acumatica, giving you the Kanvas bill_id and the Acumatica bill_ref. '
+            . '(3) attach_bill_file with the bill_id from step 2 and the url from step 1\'s download_attachment '
+            . '— no need to re-download or re-host the file anywhere. '
+            . '(4) write_google_sheet to log the row — range "Invoices!A1", omit sheet_url_or_id to use the '
+            . 'default sheet — with the ID invoice column set to the Kanvas bill_id from step 2 (NOT the '
+            . 'vendor\'s own invoice number), then [vendor_name, total, "Pending"]. '
+            . '(5) update_google_sheet_cell to flip that row\'s status column to "Approved". '
+            . '(6) mark_email_as_read on the message_id — only now, after every step above succeeded, so a '
+            . 'failed run can still be found and retried on the next "has:attachment is:unread" search. '
+            . '(7) In your final reply, always give the complete breakdown of everything that happened: Kanvas '
+            . 'bill_id, Acumatica bill_ref, vendor, invoice number, amount, GL account, subaccount, memo, '
+            . 'status, and the attached file — never a short summary, the user needs every field to look this '
+            . 'up in Acumatica and Kanvas afterward.',
         ]);
     }
 }

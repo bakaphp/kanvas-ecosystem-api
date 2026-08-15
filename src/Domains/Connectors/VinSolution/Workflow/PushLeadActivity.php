@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\VinSolution\Actions\PushLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
+use Kanvas\Connectors\VinSolution\Services\ContactRejectionService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -32,12 +34,33 @@ class PushLeadActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::VIN_SOLUTION,
             additionalParams: $params,
-            integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) {
-                $pushLeadAction = new PushLeadAction(
-                    lead: $lead,
-                );
+            integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams): array {
+                try {
+                    $pushLeadAction = new PushLeadAction(
+                        lead: $lead,
+                    );
 
-                $results = $pushLeadAction->execute();
+                    $results = $pushLeadAction->execute();
+                } catch (ClientException $e) {
+                    if ($e->getResponse()?->getStatusCode() === 404) {
+                        return $this->failWorkflow([
+                            'error' => 'VinSolution assigned user not found',
+                            'lead_id' => $lead->getId(),
+                            'company_id' => $lead->companies_id,
+                        ]);
+                    }
+
+                    if (! ContactRejectionService::isRecordRejection($e)) {
+                        throw $e;
+                    }
+
+                    return $this->failWorkflow([
+                        'error' => 'VinSolution rejected the contact information',
+                        'reason' => ContactRejectionService::recordForLead($lead, $e),
+                        'lead_id' => $lead->getId(),
+                        'company_id' => $lead->companies_id,
+                    ]);
+                }
 
                 return [
                     'message' => 'VinSolution integration completed successfully',

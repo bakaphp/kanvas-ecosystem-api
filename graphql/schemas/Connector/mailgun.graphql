@@ -1,0 +1,34 @@
+enum AgentMailboxAccess {
+    RESTRICTED @enum(value: "restricted")
+    OPEN @enum(value: "open")
+}
+
+type AgentMailbox {
+    address: String!
+    access: AgentMailboxAccess!
+    route_id: String!
+    receiver_url: String!
+    contact_email_set: Boolean!
+}
+
+extend type Query @guard {
+    agentMailbox(agent_id: ID!): AgentMailbox
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Mailgun\\MailgunAgentMailboxResolver@mailbox"
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    provisionAgentMailbox(
+        agent_id: ID!
+        access: AgentMailboxAccess
+    ): AgentMailbox!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Mailgun\\MailgunAgentMailboxResolver@provision"
+        )
+
+    disconnectAgentMailbox(agent_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Mailgun\\MailgunAgentMailboxResolver@disconnect"
+        )
+}

@@ -11,18 +11,21 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExposesPersonCustomFields;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExtractsPersonContacts;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesOrganizationForTool;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'List Organization People', category: 'crm')]
-class ListOrganizationPeopleTool extends Tool
+class ListOrganizationPeopleTool extends Tool implements HasRunKey
 {
     use ExposesPersonCustomFields;
     use ExtractsPersonContacts;
     use HasKanvasContext;
     use ResolvesOrganizationForTool;
+    use TrackByInputs;
 
     public function __construct()
     {

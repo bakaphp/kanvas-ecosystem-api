@@ -25,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Redis;
 use Kanvas\Activities\Contracts\ActivityLogInterface;
 use Kanvas\Activities\Models\Activity;
 use Kanvas\Apps\Models\Apps;
@@ -53,6 +54,7 @@ use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
+use Nuwave\Lighthouse\Cache\CacheKeyAndTagsGenerator;
 use Override;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
@@ -84,7 +86,9 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     use UuidTrait;
     use SocialInteractionsTrait;
     use HasShopifyCustomField;
-    use HasLightHouseCache;
+    use HasLightHouseCache {
+        clearLightHouseCache as protected clearLightHouseCacheBase;
+    }
     use IntegrationEntityTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
@@ -242,13 +246,21 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     }
 
     /**
-     * @todo add integration and graph test
+     * Eager-loadable version of the visible-attributes query.
      */
+    public function visibleAttributesRelation(): HasMany
+    {
+        return $this->buildAttributesQuery(['is_visible' => true]);
+    }
+
     public function visibleAttributes(): array
     {
-        return $this->mapAttributes(
-            $this->buildAttributesQuery(['is_visible' => true])->get()
-        );
+        /** @var Collection $attributes */
+        $attributes = $this->relationLoaded('visibleAttributesRelation')
+            ? $this->getRelation('visibleAttributesRelation')
+            : $this->buildAttributesQuery(['is_visible' => true])->get();
+
+        return $this->mapAttributes($attributes);
     }
 
     /**
@@ -444,7 +456,6 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                     'url' => $files->url,
                     'size' => $files->size,
                     'field_name' => $files->field_name,
-                    'attributes' => $files->attributes,
                 ];
             }),
             'company' => [
@@ -514,7 +525,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
      */
     protected function fitWithinAlgoliaRecordLimit(array $variant): array
     {
-        $limit = 9500; // headroom under Algolia's 10,000-byte hard limit
+        $limit = $this->algoliaRecordSizeLimit();
 
         if (Arr::sizeInBytes($variant) <= $limit) {
             return $variant;
@@ -1008,5 +1019,22 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     public static function newFactory(): VariantFactory
     {
         return new VariantFactory();
+    }
+
+    /**
+     * override the clearLightHouseCache to also clear the VariantChannel namespace in Redis.
+     */
+    public function clearLightHouseCache(
+        bool $withKanvasConfiguration = true,
+        bool $cleanGlobalKey = false
+    ): void {
+        $this->clearLightHouseCacheBase(
+            $withKanvasConfiguration,
+            $cleanGlobalKey
+        );
+
+        Redis::connection('graph-cache')->del(
+            CacheKeyAndTagsGenerator::PREFIX . ":VariantChannel:{$this->getId()}"
+        );
     }
 }

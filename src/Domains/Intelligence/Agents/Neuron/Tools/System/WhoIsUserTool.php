@@ -10,15 +10,19 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Users\Repositories\UsersRepository;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Who Is User')]
-class WhoIsUserTool extends Tool
+#[AgentTool(name: 'Who Is User', category: 'ecosystem')]
+class WhoIsUserTool extends Tool implements HasRunKey
 {
+    use TrackByInputs;
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
@@ -55,16 +59,29 @@ class WhoIsUserTool extends Tool
      */
     public function __invoke(?int $user_id = null, ?string $handle = null): array
     {
-        $user = match (true) {
-            $user_id !== null => $this->resolveUser($user_id),
-            $handle !== null && trim($handle) !== '' => $this->resolveByHandle($handle),
-            default => $this->currentUser,
+        $handle = $handle !== null ? ltrim(trim($handle), '@') : null;
+
+        [$user, $notFoundMessage] = match (true) {
+            $user_id !== null => [
+                $this->resolveUser($user_id),
+                'No teammate with id ' . $user_id . ' in this company. Do not call this tool again for that id — '
+                    . 'tell the person you could not find that teammate and ask for their @handle or email.',
+            ],
+            $handle !== null && $handle !== '' => [
+                $this->resolveByHandle($handle),
+                'No teammate with the handle @' . $handle . ' in this company. Do not retry with other spellings or '
+                    . 'other handles — tell the person that handle does not match anyone here and ask for their full name or email.',
+            ],
+            default => [
+                $this->currentUser,
+                'No user in scope. Pass a user_id or a @displayname/handle of a user in this company.',
+            ],
         };
 
         if ($user === null) {
             return [
                 'status' => 'error',
-                'message' => 'No user in scope. Pass a user_id or a @displayname/handle of a user in this company.',
+                'message' => $notFoundMessage,
             ];
         }
 
@@ -98,12 +115,6 @@ class WhoIsUserTool extends Tool
      */
     private function resolveByHandle(string $handle): ?Users
     {
-        $handle = ltrim(trim($handle), '@');
-
-        if ($handle === '') {
-            return null;
-        }
-
         $association = UsersAssociatedApps::query()
             ->where('apps_id', $this->app->getId())
             ->where('displayname', $handle)

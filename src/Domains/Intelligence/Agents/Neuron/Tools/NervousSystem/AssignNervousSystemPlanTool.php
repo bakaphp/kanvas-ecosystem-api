@@ -14,9 +14,11 @@ use Kanvas\NervousSystem\Project\Enums\ProjectMemberTypeEnum;
 use Kanvas\NervousSystem\Project\Jobs\WakeWorkerForPlanJob;
 use Kanvas\NervousSystem\Project\Models\ProjectMember;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -26,10 +28,11 @@ use Override;
  *  - human, or a non-executor/remote agent → recorded as owner, NOT auto-run — @mention them so they
  *    (or their own runtime) do the work and report progress.
  */
-#[AgentTool(name: 'Assign Plan')]
-class AssignNervousSystemPlanTool extends Tool
+#[AgentTool(name: 'Assign Plan', category: 'nervous_system')]
+class AssignNervousSystemPlanTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
     use ResolvesPlanForTool;
 
     public function __construct()

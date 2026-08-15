@@ -49,6 +49,14 @@ class ProductBuilder
             $query->filterByVariantAttributeValue($args['variantAttributeValue']);
         }
 
+        foreach ($args['attributeValues'] ?? [] as $filter) {
+            $query->filterByAttributeValue(
+                value: isset($filter['value']) ? (string) $filter['value'] : null,
+                attributesId: isset($filter['attribute_id']) ? (int) $filter['attribute_id'] : null,
+                slug: $filter['slug'] ?? null,
+            );
+        }
+
         if (! empty($args['withAttributeSlug'])) {
             $slug = $args['withAttributeSlug'];
             $query->whereHas(
@@ -104,6 +112,9 @@ class ProductBuilder
                 )
             );
         }
+
+        // Batch-load the visible attributes for n+1 query prevention when resolving visibleAttributesRelation
+        $query->with('visibleAttributesRelation');
 
         return $query;
     }

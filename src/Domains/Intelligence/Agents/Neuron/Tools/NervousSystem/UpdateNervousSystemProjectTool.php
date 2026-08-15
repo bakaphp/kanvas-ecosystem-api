@@ -9,9 +9,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\NervousSystem\Project\Actions\UpdateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Models\Project;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
@@ -21,10 +23,11 @@ use Throwable;
  * objective is reached, blocked/on_hold when it can't move). Without this the PM can organize tasks
  * but never record the objective or close the project.
  */
-#[AgentTool(name: 'Update Project')]
-class UpdateNervousSystemProjectTool extends Tool
+#[AgentTool(name: 'Update Project', category: 'nervous_system')]
+class UpdateNervousSystemProjectTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

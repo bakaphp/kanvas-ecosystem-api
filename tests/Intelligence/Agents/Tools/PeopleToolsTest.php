@@ -273,7 +273,7 @@ final class PeopleToolsTest extends TestCase
         $types = new RecordExporterRegistry()->types();
 
         $this->assertEqualsCanonicalizing(
-            ['people', 'organizations', 'event_participants', 'products', 'employees', 'orders'],
+            ['people', 'organizations', 'event_participants', 'products', 'employees', 'orders', 'affiliate_commissions'],
             $types,
         );
     }

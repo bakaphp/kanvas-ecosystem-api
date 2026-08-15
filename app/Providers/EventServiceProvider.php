@@ -19,6 +19,9 @@ use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
 use Kanvas\Intelligence\AgentRuntime\Listeners\SendAgentDeploymentLifecycleEmailListener;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Listeners\QueueChannelKnowledgeIndexListener;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Listeners\QueueKnowledgeIndexListener;
+use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
@@ -40,6 +43,7 @@ use Kanvas\NervousSystem\Plan\Listeners\SyncKanbanAfterChatListener;
 use Kanvas\NervousSystem\Plan\Listeners\WakeAgentOnPlanChangeListener;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
+use Kanvas\Social\Channels\Events\ChannelMessageAttachedEvent;
 use Kanvas\Social\Messages\Events\AppModuleMessageCreatedEvent;
 use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
 use Kanvas\Social\Messages\Listeners\NotifyMentionedUsersListener;
@@ -86,6 +90,12 @@ class EventServiceProvider extends ServiceProvider
         ],
         AppModuleMessageCreatedEvent::class => [
             UpdatePeopleMessageTimestampsListener::class,
+        ],
+        ChannelMessageAttachedEvent::class => [
+            QueueChannelKnowledgeIndexListener::class,
+        ],
+        KnowledgeIndexRequested::class => [
+            QueueKnowledgeIndexListener::class,
         ],
         MessageMentionsStoredEvent::class => [
             RespondToAgentMentionListener::class,

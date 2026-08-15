@@ -9,9 +9,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\Social\Messages\Models\Message;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
@@ -20,10 +22,11 @@ use Throwable;
  * a worker reports what it's doing, what it found, or why it's blocked, without changing task state.
  * The PM and humans read these to follow along.
  */
-#[AgentTool(name: 'Comment On Plan')]
-class CommentOnNervousSystemPlanTool extends Tool
+#[AgentTool(name: 'Comment On Plan', category: 'nervous_system')]
+class CommentOnNervousSystemPlanTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
     use ResolvesPlanForTool;
 
     private const int DEDUP_LOOKBACK = 15;

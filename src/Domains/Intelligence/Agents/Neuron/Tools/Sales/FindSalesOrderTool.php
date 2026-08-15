@@ -8,9 +8,11 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Souk\Orders\Models\Order;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -18,20 +20,23 @@ use Override;
  * from a purchase order (what we buy from vendors). Full header + line items. Reads synced Souk
  * orders; reports found=false when the order isn't in Kanvas.
  */
-#[AgentTool(name: 'Find Sales Order')]
-class FindSalesOrderTool extends Tool
+#[AgentTool(name: 'Find Sales Order', category: 'commerce')]
+class FindSalesOrderTool extends Tool implements HasRunKey
 {
     use FindsTenantRecordForTool;
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {
         parent::__construct(
             name: 'find_sales_order',
             description: 'Look up a single sales order (a CUSTOMER order — what a customer bought from us) by its '
-                . 'number: customer, status, fulfillment/payment status, total, and line items (product, sku, '
-                . 'quantity ordered/fulfilled, unit price). Use this for a specific sales-order number. Returns '
-                . 'found=false when it is not in the synced data.',
+                . 'number: customer, status, fulfillment/payment status, total, line items (product, sku, '
+                . 'quantity ordered/fulfilled, unit price), and any affiliate commission recorded for the order '
+                . '(affiliate, commission amount/rate/type, status). Use this for a specific sales-order number, '
+                . 'including "does this order have an affiliate commission". An empty affiliate_commissions list '
+                . 'means the order truly has none. Returns found=false when it is not in the synced data.',
         );
     }
 
@@ -73,6 +78,18 @@ class FindSalesOrderTool extends Tool
         $people = $order->people;
         $customer = $people !== null ? trim($people->firstname . ' ' . $people->lastname) : null;
 
+        $affiliateCommissions = $order->affiliateConversion()
+            ->with('affiliate')
+            ->get()
+            ->map(fn ($conversion): array => [
+                'affiliate' => $conversion->affiliate?->name,
+                'affiliate_code' => $conversion->affiliate?->unique_identifier,
+                'commission_amount' => (float) $conversion->commission_amount,
+                'commission_rate' => (float) $conversion->commission_rate,
+                'commission_type' => $conversion->commission_type,
+                'status' => $conversion->status,
+            ])->all();
+
         return [
             'found' => true,
             'order_number' => $order->order_number,
@@ -85,6 +102,7 @@ class FindSalesOrderTool extends Tool
             'total' => (float) $order->total_gross_amount,
             'order_date' => $order->created_at?->toDateString(),
             'reference' => $order->reference,
+            'affiliate_commissions' => $affiliateCommissions,
             'items' => $order->items()->get()->map(fn ($i): array => [
                 'product' => $i->product_name,
                 'sku' => $i->product_sku,

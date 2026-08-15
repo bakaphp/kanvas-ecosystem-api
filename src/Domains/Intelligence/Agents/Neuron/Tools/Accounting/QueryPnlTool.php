@@ -13,7 +13,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-#[AgentTool(name: 'Query Profit and Loss')]
+#[AgentTool(name: 'Query Profit and Loss', category: 'accounting')]
 class QueryPnlTool extends Tool
 {
     use HasKanvasContext;

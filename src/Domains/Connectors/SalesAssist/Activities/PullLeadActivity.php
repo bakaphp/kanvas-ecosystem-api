@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
+use GuzzleHttp\Exception\ClientException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
@@ -22,6 +23,7 @@ use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum as ReynoldsCustomFieldEnum;
 use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelsAfterPullAction;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
+use Kanvas\Connectors\VinSolution\Services\ContactRejectionService;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
@@ -72,14 +74,30 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 $user
             )->execute($params, $entity->id > 0 ? $entity : null);
         } elseif ($isVinSolutions) {
-            $pullLead = new ActionsPullLeadAction(
-                $app,
-                $company,
-                $user
-            )->execute(
-                lead: $entity->id > 0 ? $entity : null,
-                leadId: (int) $leadId,
-            );
+            try {
+                $pullLead = new ActionsPullLeadAction(
+                    $app,
+                    $company,
+                    $user
+                )->execute(
+                    lead: $entity->id > 0 ? $entity : null,
+                    leadId: (int) $leadId,
+                );
+            } catch (ClientException $e) {
+                if (! ContactRejectionService::isRecordRejection($e)) {
+                    throw $e;
+                }
+
+                return $this->failWorkflow([
+                    'error' => 'VinSolution rejected the contact on pull',
+                    'reason' => ContactRejectionService::recordForLead(
+                        $entity instanceof Lead && $entity->getId() > 0 ? $entity : null,
+                        $e
+                    ),
+                    'lead_id' => $entity->getId(),
+                    'company_id' => $company->getId(),
+                ]);
+            }
         } elseif ($isDealerSocket) {
             $people = new PullPeopleAction(
                 $app,

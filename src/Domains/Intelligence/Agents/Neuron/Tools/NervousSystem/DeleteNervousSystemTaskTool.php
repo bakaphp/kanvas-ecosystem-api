@@ -10,19 +10,22 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
 use Kanvas\NervousSystem\Plan\Actions\DeleteTaskAction;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Models\Project;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
  * Lets the PM remove a task that's no longer needed (superseded, duplicated, or wrong). Soft-deletes
  * via DeleteTaskAction and rolls the project's completion back up.
  */
-#[AgentTool(name: 'Delete Task')]
-class DeleteNervousSystemTaskTool extends Tool
+#[AgentTool(name: 'Delete Task', category: 'nervous_system')]
+class DeleteNervousSystemTaskTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
     use ResolvesTaskForTool;
 
     public function __construct()

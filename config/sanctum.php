@@ -64,4 +64,15 @@ return [
         'encrypt_cookies' => App\Http\Middleware\EncryptCookies::class,
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Sanctum Routes
+    |--------------------------------------------------------------------------
+    |
+    | Disabling route registration drops the dead endpoint so it 404s.
+    |
+    */
+
+    'routes' => false,
+
 ];

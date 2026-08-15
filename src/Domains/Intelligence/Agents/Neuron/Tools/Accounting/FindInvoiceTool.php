@@ -8,9 +8,11 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -18,11 +20,12 @@ use Override;
  * (total / paid / balance), dates, and line items. The AR mirror of find_bill. Reads synced data;
  * reports found=false when the invoice isn't in Kanvas.
  */
-#[AgentTool(name: 'Find Invoice')]
-class FindInvoiceTool extends Tool
+#[AgentTool(name: 'Find Invoice', category: 'accounting')]
+class FindInvoiceTool extends Tool implements HasRunKey
 {
     use FindsTenantRecordForTool;
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

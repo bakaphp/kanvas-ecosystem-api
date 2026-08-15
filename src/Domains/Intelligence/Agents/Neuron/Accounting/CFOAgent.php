@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryBalanceSheetTool;
@@ -48,24 +48,24 @@ use Override;
         . 'data-freshness check before any numeric statement.',
     provider: 'neuron',
 )]
-class CFOAgent extends BaseKanvasAgent
+class CFOAgent extends BaseRagAgent
 {
     use HasTemporalContext;
 
     #[Override]
     protected function tools(): array
     {
-        return array_merge(parent::tools(), [
-            new QueryDataFreshnessTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryBalanceSheetTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryPnlTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryTrialBalanceTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryArAgingTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ListOverdueInvoicesTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new TopLatePayersTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryCashPositionTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryRecentExpensesTool()->withContext($this->app, $this->company, $this->actingUser()),
-        ]);
+        return array_merge(parent::tools(), $this->addToolContext([
+            new QueryDataFreshnessTool(),
+            new QueryBalanceSheetTool(),
+            new QueryPnlTool(),
+            new QueryTrialBalanceTool(),
+            new QueryArAgingTool(),
+            new ListOverdueInvoicesTool(),
+            new TopLatePayersTool(),
+            new QueryCashPositionTool(),
+            new QueryRecentExpensesTool(),
+        ]));
     }
 
     #[Override]

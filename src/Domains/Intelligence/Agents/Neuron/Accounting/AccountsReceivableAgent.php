@@ -6,7 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateArInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
@@ -14,7 +14,21 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\VoidArInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddInvoiceNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidArInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReadEmailDetailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\CreateGoogleSheetTabTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ReadGoogleSheetTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\UpdateGoogleSheetCellTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\CreateSampleOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindProductTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindSalesOrderTool;
@@ -30,7 +44,7 @@ use Override;
  * order #X" over receivables (Scribe invoices) + customer orders (Souk).
  *
  * Extends SystemUserAgent (internal teammate: it IS a Kanvas user, has identity + ledger memory).
- * Mostly read-only, but create_ar_invoice/void_ar_invoice write for real, bypassing human approval — only on explicit request.
+ * Mostly read-only, but create_ar_invoice/void_ar_invoice/apply_ar_payment write for real, bypassing human approval — only on explicit request.
  *
  * Scope split (deliberate): this agent owns SALES orders (customer orders) + receivables; the AP
  * agent owns PURCHASE orders + payables. A sales order is a CUSTOMER order (revenue side), never an
@@ -42,37 +56,48 @@ use Override;
         . '(Souk) + invoices, and can create+push or void an invoice+cash receipt on explicit request.',
     provider: 'neuron',
     soul: 'You are the Accounts-Receivable teammate. You answer questions about money customers owe us and about '
-        . 'customer sales orders, using your read tools. You are precise with numbers. create_ar_invoice and '
-        . 'void_ar_invoice write straight to whichever Acumatica tenant is configured — only call either when '
-        . 'the user explicitly asks you to create or void an invoice this way, never on your own initiative.',
+        . 'customer sales orders, using your read tools. You are precise with numbers. create_ar_invoice, '
+        . 'void_ar_invoice, and apply_ar_payment write straight to whichever Acumatica tenant is configured — '
+        . 'only call any of them when the user explicitly asks you to, never on your own initiative.',
     outputFormat: 'Plain text. Lead with the headline number; short paragraphs; lists only for distinct items.',
 )]
 class AccountsReceivableAgent extends SystemUserAgent
 {
-    /**
-     * @return list<object>
-     */
     #[Override]
     protected function tools(): array
     {
-        return array_merge(parent::tools(), [
-            new QueryDataFreshnessTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new QueryArAgingTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ListOverdueInvoicesTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new TopLatePayersTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindInvoiceTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindCustomerTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindSalesOrderTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new ListOpenSalesOrdersTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new FindProductTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new CreateSampleOrderTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new SalesByCustomerTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new SalesByProductTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new SalesRevenueTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new MatchInvoicesForPaymentTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new CreateArInvoiceTool()->withContext($this->app, $this->company, $this->actingUser()),
-            new VoidArInvoiceTool()->withContext($this->app, $this->company, $this->actingUser()),
-        ]);
+        return array_merge(parent::tools(), $this->addToolContext([
+            new QueryDataFreshnessTool(),
+            new QueryArAgingTool(),
+            new ListOverdueInvoicesTool(),
+            new TopLatePayersTool(),
+            new FindInvoiceTool(),
+            new FindCustomerTool(),
+            new FindSalesOrderTool(),
+            new ListOpenSalesOrdersTool(),
+            new FindProductTool(),
+            new CreateSampleOrderTool(),
+            new SalesByCustomerTool(),
+            new SalesByProductTool(),
+            new SalesRevenueTool(),
+            new MatchInvoicesForPaymentTool(),
+            new CreateArInvoiceTool(),
+            new VoidArInvoiceTool(),
+            new ApplyArPaymentTool(),
+            new CreateArCreditMemoTool(),
+            new AddInvoiceNoteTool(),
+            new AttachInvoiceFileTool(),
+            new ReadGoogleSheetTool(),
+            new AppendGoogleSheetRowsTool(),
+            new UpdateGoogleSheetCellTool(),
+            new ClearGoogleSheetRangeTool(),
+            new CreateGoogleSheetTabTool(),
+            new ListEmailsTool(),
+            new ReadEmailDetailsTool(),
+            new DownloadAttachmentTool(),
+            new ExtractInvoiceDataTool(),
+            new MarkEmailAsReadTool(),
+        ]));
     }
 
     #[Override]
@@ -87,6 +112,8 @@ class AccountsReceivableAgent extends SystemUserAgent
             '## How to handle Accounts-Receivable / sales-order questions',
             '- Call query_data_freshness first; if the sync is more than 2 days stale, say so before quoting numbers.',
             '- "Who owes us" / "AR aging" / "biggest late payers" → query_ar_aging, list_overdue_invoices, top_late_payers.',
+            '- "What invoices are overdue for customer X" → list_overdue_invoices with the customer parameter set — '
+            . 'not list_open_sales_orders, which is for purchase/sales orders, not invoices.',
             '- "Look up invoice #X" / "status of invoice X" → find_invoice (one specific invoice by number).',
             '- "Who is customer X" / resolve a customer name to its ERP code → find_customer.',
             '- "Look up sales order #X" → find_sales_order (a sales order is a CUSTOMER order, not a purchase order).',
@@ -97,6 +124,44 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Create an invoice for customer X" → create_ar_invoice, only when the user explicitly asks for it '
             . '— it writes straight to Acumatica, bypassing human approval.',
             '- "Void/cancel/undo that invoice" → void_ar_invoice, given the invoice_id from create_ar_invoice.',
+            '- "Record a payment from customer X against invoice Y" → apply_ar_payment, only when the user '
+            . 'explicitly asks to record a real payment. Needs the invoice_id, amount, and a payment reference.',
+            '- "Issue a standalone credit memo for customer X" (e.g. a back-end rebate) → create_ar_credit_memo, '
+            . 'only on explicit request. Not tied to any invoice — needs the customer name, a reference (e.g. '
+            . 'the Credit Request Form\'s Request Reference No), and one or more lines with a Control Acct# and '
+            . 'amount each.',
+            '- "Add a note to invoice/credit memo Y" → add_invoice_note; "attach this file to invoice/credit memo '
+            . 'Y" → attach_invoice_file. Both require the document to already be pushed to Acumatica.',
+            '- "Read/check this Google Sheet" → read_google_sheet, given the URL the user shared. "Add these '
+            . 'rows to the sheet" → write_google_sheet. "Mark that row as X in the sheet" → '
+            . 'update_google_sheet_cell, only after confirming the exact cell with read_google_sheet first — '
+            . 'never guess a row/column. "Clear/wipe that row/cell" → clear_google_sheet_range — this empties '
+            . 'the values but never removes the row itself. "Create a new tab called X" → create_google_sheet_tab.',
+            '- "Check for new invoice emails" / "any unread invoices in the inbox" → list_emails with a query '
+            . 'like "has:attachment is:unread". "What does this email say" / "does it have an invoice attached" '
+            . '→ read_email_details with the message_id. "Pull that PDF out" / "save this attachment" → '
+            . 'download_attachment with the message_id + attachment_id from read_email_details — it saves the '
+            . 'file to Kanvas and returns a filesystem_id/url. The real vendor/total/dates are inside the PDF, '
+            . 'never in the email body/subject — after downloading, call extract_invoice_data with the '
+            . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet).',
+            '- When you process an invoice email end-to-end, follow this exact order every time, without being '
+            . 'asked — this is a standard step of processing an invoice email, not a separate favor: '
+            . '(1) list_emails → read_email_details → download_attachment → extract_invoice_data, to get the '
+            . 'real vendor/total/dates and the file\'s url. '
+            . '(2) create_ar_invoice using that real data — this both creates the Kanvas invoice and pushes it '
+            . 'to Acumatica, giving you the Kanvas invoice_id and the Acumatica invoice_ref. '
+            . '(3) attach_invoice_file with the invoice_id from step 2 and the url from step 1\'s '
+            . 'download_attachment — no need to re-download or re-host the file anywhere. '
+            . '(4) write_google_sheet to log the row — range "Invoices!A1", omit sheet_url_or_id to use the '
+            . 'default sheet — with the ID invoice column set to the Kanvas invoice_id from step 2 (NOT the '
+            . 'customer\'s own invoice number), then [vendor_name, total, "Pending"]. '
+            . '(5) update_google_sheet_cell to flip that row\'s status column to "Approved". '
+            . '(6) mark_email_as_read on the message_id — only now, after every step above succeeded, so a '
+            . 'failed run can still be found and retried on the next "has:attachment is:unread" search. '
+            . '(7) In your final reply, always give the complete breakdown of everything that happened: Kanvas '
+            . 'invoice_id, Acumatica invoice_ref, customer, invoice number, amount, GL account, subaccount, '
+            . 'memo, status, and the attached file — never a short summary, the user needs every field to look '
+            . 'this up in Acumatica and Kanvas afterward.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }

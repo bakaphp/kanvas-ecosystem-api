@@ -37,16 +37,28 @@ input UpdateAgentLlmConfigInput {
 
 extend type Mutation @guardByAdmin {
     createAgentLlmConfig(input: AgentLlmConfigInput!): AgentLlmConfig!
-        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentLlmConfigMutation@create")
-    updateAgentLlmConfig(id: ID!, input: UpdateAgentLlmConfigInput!): AgentLlmConfig!
-        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentLlmConfigMutation@update")
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentLlmConfigMutation@create"
+        )
+    updateAgentLlmConfig(
+        id: ID!
+        input: UpdateAgentLlmConfigInput!
+    ): AgentLlmConfig!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentLlmConfigMutation@update"
+        )
     deleteAgentLlmConfig(id: ID!): Boolean!
-        @field(resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentLlmConfigMutation@delete")
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentLlmConfigMutation@delete"
+        )
 }
 
 extend type Query @guard {
     agentLlmConfigs(
-        where: _ @whereConditions(columns: ["id", "name", "slug", "provider", "is_active"])
+        where: _
+            @whereConditions(
+                columns: ["id", "name", "slug", "provider", "is_active"]
+            )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [AgentLlmConfig!]!
         @paginate(

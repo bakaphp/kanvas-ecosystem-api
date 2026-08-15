@@ -46,6 +46,9 @@ use Override;
  * @property string      $employment_type
  * @property string|null $home_entity
  * @property string      $status
+ *
+ * @property-read Position|null   $position
+ * @property-read Department|null $department
  */
 #[ObservedBy([EmployeeObserver::class])]
 class Employee extends BaseModel
@@ -97,6 +100,21 @@ class Employee extends BaseModel
     public function getPathColumn(): string
     {
         return 'reporting_path';
+    }
+
+    /**
+     * A one-line summary — title, department, description — an orchestrator can match work against.
+     * Null when the record carries none of these, so callers fall back to matching by name.
+     */
+    public function describeForAssignment(): ?string
+    {
+        $parts = array_filter([
+            trim((string) $this->position?->title),
+            trim((string) $this->department?->name),
+            trim((string) $this->description),
+        ]);
+
+        return $parts === [] ? null : implode(' — ', $parts);
     }
 
     public function people(): BelongsTo

@@ -50,13 +50,54 @@ class OrderStatus extends BaseModel
     public function toSearchableArray(): array
     {
         return [
-            'objectID' => $this->id,
+            'objectID' => (string) $this->id,
             'id' => (string) $this->id,
             'name' => $this->name,
             'slug' => $this->slug,
             'apps_id' => $this->apps_id,
             'companies_id' => $this->companies_id ?? 0,
             'order_types_id' => $this->order_types_id,
+        ];
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'slug',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'order_types_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+            ],
         ];
     }
 

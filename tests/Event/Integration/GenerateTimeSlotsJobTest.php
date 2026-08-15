@@ -13,6 +13,7 @@ use Kanvas\Event\Events\Models\ScheduleRules;
 use Kanvas\Event\Events\Models\TimeSlots;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
@@ -28,6 +29,7 @@ class GenerateTimeSlotsJobTest extends TestCase
     protected $user;
     protected $apps;
     protected $variantId;
+    protected $warehouseId;
 
     public function setUp(): void
     {
@@ -40,6 +42,7 @@ class GenerateTimeSlotsJobTest extends TestCase
 
         $warehouseResponse = $this->createWarehouses((string) $this->region->getId())->json()['data']['createWarehouse'];
         $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+        $this->warehouseId = (string) $warehouseResponse['id'];
 
         $productResponse = $this->createProduct(attributes: [
             [
@@ -308,6 +311,175 @@ class GenerateTimeSlotsJobTest extends TestCase
         }
     }
 
+    public function testGenerateTimeSlotsKeepsTodayWhenNowIsPastTheOpeningHour(): void
+    {
+        // A Thursday, mid-afternoon: past the 09:00 opening but well inside the 09:00-17:00 window.
+        Carbon::setTestNow(Carbon::parse('2026-08-06 13:14:00', 'UTC'));
+
+        $dtstart = '20260806T090000';
+        $scheduleRule = ScheduleRules::create([
+            'apps_id' => $this->apps->getId(),
+            'companies_id' => $this->company->getId(),
+            'resources_id' => $this->variantId,
+            'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
+            'start_at' => Carbon::parse('2026-08-06 09:00:00', 'UTC'),
+            'end_at' => Carbon::parse('2026-08-06 23:59:59', 'UTC'),
+            'rrule' => "DTSTART:{$dtstart}\nRRULE:FREQ=WEEKLY;BYDAY=TH",
+            'day_rrule' => "DTSTART:{$dtstart}\nRRULE:FREQ=MINUTELY;INTERVAL=60;BYHOUR=9,10,11,12,13,14,15,16;BYMINUTE=0",
+            'slot_duration_min' => 60,
+            'lead_time_min' => 0,
+            'cutoff_time_min' => 0,
+            'capacity_override' => 5,
+        ]);
+
+        [$windowFrom, $windowTo] = GenerateTimeSlots::resolveWindow($scheduleRule->start_at, $scheduleRule->end_at);
+
+        new GenerateTimeSlots(
+            $this->variantId,
+            $scheduleRule->id,
+            $windowFrom,
+            $windowTo
+        )->handle();
+
+        $slots = TimeSlots::where('schedule_rules_id', $scheduleRule->id)->orderBy('start_at')->get();
+
+        $this->assertCount(3, $slots, 'Only the 14:00, 15:00 and 16:00 slots are still bookable');
+        $this->assertEquals(
+            ['14:00', '15:00', '16:00'],
+            $slots->map(fn ($slot) => $slot->start_at->format('H:i'))->all()
+        );
+
+        Carbon::setTestNow();
+    }
+
+    public function testGenerateTimeSlotsSnapshotsChannelPrice(): void
+    {
+        $startDate = Carbon::now()->addDay()->setTime(9, 0, 0);
+        $endDate = $startDate->copy()->addDay();
+
+        $scheduleRule = ScheduleRules::create([
+            'apps_id' => $this->apps->getId(),
+            'companies_id' => $this->company->getId(),
+            'resources_id' => $this->variantId,
+            'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
+            'start_at' => $startDate,
+            'end_at' => $endDate,
+            'rrule' => 'RRULE:FREQ=DAILY',
+            'slot_duration_min' => 60,
+            'lead_time_min' => 0,
+            'cutoff_time_min' => 0,
+            'capacity_override' => 5,
+        ]);
+
+        new GenerateTimeSlots(
+            $this->variantId,
+            $scheduleRule->id,
+            $startDate,
+            $endDate
+        )->handle();
+
+        $slots = TimeSlots::where('schedule_rules_id', $scheduleRule->id)->get();
+
+        $this->assertGreaterThan(0, $slots->count());
+
+        foreach ($slots as $slot) {
+            $this->assertEquals(100.0, (float) $slot->price_snapshot);
+        }
+    }
+
+    public function testGenerateTimeSlotsFallsBackToWarehousePriceWhenChannelPriceIsMissing(): void
+    {
+        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+        $variantId = (string) Products::find($productResponse['id'])->variants()->first()->id;
+
+        $this->addVariantToWarehouse(
+            variantId: $variantId,
+            warehouseId: $this->warehouseId,
+            data: [
+                'id' => $variantId,
+                'data' => [
+                    'id' => $this->warehouseId,
+                    'price' => 250,
+                    'quantity' => 10,
+                    'position' => 1,
+                ],
+            ]
+        );
+
+        $startDate = Carbon::now()->addDay()->setTime(9, 0, 0);
+        $endDate = $startDate->copy()->addDay();
+
+        $scheduleRule = ScheduleRules::create([
+            'apps_id' => $this->apps->getId(),
+            'companies_id' => $this->company->getId(),
+            'resources_id' => $variantId,
+            'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
+            'start_at' => $startDate,
+            'end_at' => $endDate,
+            'rrule' => 'RRULE:FREQ=DAILY',
+            'slot_duration_min' => 60,
+            'lead_time_min' => 0,
+            'cutoff_time_min' => 0,
+            'capacity_override' => 5,
+        ]);
+
+        new GenerateTimeSlots(
+            (int) $variantId,
+            $scheduleRule->id,
+            $startDate,
+            $endDate
+        )->handle();
+
+        $slots = TimeSlots::where('schedule_rules_id', $scheduleRule->id)->get();
+
+        $this->assertGreaterThan(0, $slots->count());
+
+        foreach ($slots as $slot) {
+            $this->assertEquals(250.0, (float) $slot->price_snapshot);
+        }
+    }
+
+    public function testGenerateTimeSlotsDefaultsCapacityWhenRuleHasNoOverride(): void
+    {
+        $startDate = Carbon::now()->addDay()->setTime(8, 0, 0);
+        $endDate = $startDate->copy()->endOfDay();
+        $dayCode = strtoupper(substr($startDate->format('D'), 0, 2));
+        $dtstart = $startDate->format('Ymd\THis');
+
+        // Mirrors what CreateScheduleRulesFromOperationDaysAction produces for a rule
+        // with no capacity_override — the variant has no default_capacity column, so
+        // the job must fall back instead of inserting a null capacity.
+        $scheduleRule = ScheduleRules::create([
+            'apps_id' => $this->apps->getId(),
+            'companies_id' => $this->company->getId(),
+            'resources_id' => $this->variantId,
+            'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
+            'start_at' => $startDate,
+            'end_at' => $endDate,
+            'rrule' => "DTSTART:{$dtstart}\nRRULE:FREQ=WEEKLY;BYDAY={$dayCode}",
+            'day_rrule' => "DTSTART:{$dtstart}\nRRULE:FREQ=MINUTELY;INTERVAL=15;BYHOUR=8,9;BYMINUTE=0,15,30,45",
+            'slot_duration_min' => 15,
+            'lead_time_min' => 0,
+            'cutoff_time_min' => 0,
+            'capacity_override' => null,
+        ]);
+
+        new GenerateTimeSlots(
+            $this->variantId,
+            $scheduleRule->id,
+            $startDate,
+            $endDate
+        )->handle();
+
+        $slots = TimeSlots::where('schedule_rules_id', $scheduleRule->id)->get();
+
+        $this->assertGreaterThan(0, $slots->count());
+
+        foreach ($slots as $slot) {
+            $this->assertEquals(1, $slot->initial_capacity);
+        }
+    }
+
     public function testGenerateTimeSlotsWithMultipleHourSlots(): void
     {
         $startDate = Carbon::now()->addDay()->setTime(9, 0, 0);
@@ -344,5 +516,70 @@ class GenerateTimeSlotsJobTest extends TestCase
             $duration = $slot->start_at->diffInMinutes($slot->end_at);
             $this->assertEquals(120, $duration);
         }
+    }
+
+    public function testGenerateTimeSlotsSkipsRuleWhoseResourceWasDeleted(): void
+    {
+        $startDate = Carbon::now()->addDay()->setTime(9, 0, 0);
+        $endDate = $startDate->copy()->addDays(7);
+
+        $scheduleRule = ScheduleRules::create([
+            'apps_id' => $this->apps->getId(),
+            'companies_id' => $this->company->getId(),
+            'resources_id' => $this->variantId,
+            'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
+            'start_at' => $startDate,
+            'end_at' => $endDate,
+            'rrule' => 'RRULE:FREQ=DAILY',
+            'slot_duration_min' => 60,
+            'lead_time_min' => 0,
+            'cutoff_time_min' => 0,
+            'capacity_override' => 5,
+        ]);
+
+        // Bypass the model: VariantObserver refuses to delete a product's last variant,
+        // but the row can still end up flagged deleted (product deletion, direct cleanup).
+        Variants::where('id', $this->variantId)->update(['is_deleted' => 1]);
+
+        new GenerateTimeSlots(
+            $this->variantId,
+            $scheduleRule->id,
+            $startDate,
+            $endDate
+        )->handle();
+
+        $this->assertSame(0, TimeSlots::where('schedule_rules_id', $scheduleRule->id)->count());
+    }
+
+    public function testGenerateTimeSlotsSkipsDeletedRule(): void
+    {
+        $startDate = Carbon::now()->addDay()->setTime(9, 0, 0);
+        $endDate = $startDate->copy()->addDays(7);
+
+        $scheduleRule = ScheduleRules::create([
+            'apps_id' => $this->apps->getId(),
+            'companies_id' => $this->company->getId(),
+            'resources_id' => $this->variantId,
+            'resources_type' => 'Kanvas\Inventory\Variants\Models\Variants',
+            'start_at' => $startDate,
+            'end_at' => $endDate,
+            'rrule' => 'RRULE:FREQ=DAILY',
+            'slot_duration_min' => 60,
+            'lead_time_min' => 0,
+            'cutoff_time_min' => 0,
+            'capacity_override' => 5,
+        ]);
+
+        $scheduleRule->is_deleted = 1;
+        $scheduleRule->saveOrFail();
+
+        new GenerateTimeSlots(
+            $this->variantId,
+            $scheduleRule->id,
+            $startDate,
+            $endDate
+        )->handle();
+
+        $this->assertSame(0, TimeSlots::where('schedule_rules_id', $scheduleRule->id)->count());
     }
 }

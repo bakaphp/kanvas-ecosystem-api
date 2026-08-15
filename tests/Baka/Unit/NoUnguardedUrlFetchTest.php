@@ -38,7 +38,7 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         // CLI: operates on local temp files.
         'app/Console/Commands/Connectors/ScrapperApi/CleanScrapperImageCommand.php',
         // CLI: reads a local agent-type definition file.
-        'app/Console/Commands/Intelligence/CreateAgentTypeCommand.php',
+        'app/Console/Commands/Intelligence/Agents/CreateAgentTypeCommand.php',
         // Hardcoded SightEngine moderation API URL from config.
         'src/Domains/Connectors/SightEngine/Services/ContentModerationService.php',
         // Local PDF generation.
@@ -50,6 +50,8 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         // Reads a local temp file it created itself (tempnam()) to build a backup ZIP —
         // never a remote or user-influenced path.
         'src/Domains/Intelligence/Agents/Services/AgentConfigBackupService.php',
+        // Reads the admin-configured Google OAuth token file from disk, gated by is_file().
+        'src/Domains/Connectors/Google/Actions/CreateGoogleCalendarMeetingAction.php',
     ];
 
     public function testNoUnguardedRemoteUrlFetch(): void

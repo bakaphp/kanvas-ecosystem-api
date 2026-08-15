@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
@@ -204,8 +205,8 @@ final class FollowUpLeadAction
             );
 
             foreach ($targets as $target) {
-                $this->persistMessage($session, $target->channelType, $sentBody);
-                $this->dispatchOutbound($target->channelType, $sentBody, $target->contact);
+                $message = $this->persistMessage($session, $target->channelType, $sentBody);
+                $this->dispatchOutbound($target->channelType, $sentBody, $target->contact, $message);
                 $channelsForBump[] = $target->channelType;
             }
 
@@ -611,18 +612,23 @@ final class FollowUpLeadAction
         return $message;
     }
 
-    private function dispatchOutbound(string $channelType, string $body, Contact $outboundContact): void
-    {
+    private function dispatchOutbound(
+        string $channelType,
+        string $body,
+        Contact $outboundContact,
+        Message $message,
+    ): void {
         $twilioFrom = (string) $this->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value);
 
         try {
-            new SendMessageToLeadAction($this->lead)->execute(
+            $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
                 channel: $channelType,
                 message: $body,
                 from: $twilioFrom,
                 title: $this->resolveEmailTitle(),
                 to: (string) $outboundContact->value,
             );
+            new StoreMessageSidAction($message)->execute($providerResponse);
         } catch (Throwable $e) {
             // Outbound failure does NOT roll back the persisted message — the
             // record of attempt is the audit truth; the queue layer retries.

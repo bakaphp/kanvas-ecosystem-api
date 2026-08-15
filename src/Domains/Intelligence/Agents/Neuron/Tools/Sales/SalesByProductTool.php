@@ -16,7 +16,7 @@ use Override;
  * Top products by revenue (and units sold) over booked order lines, optionally bounded by a date
  * range. Read-only aggregation over Souk order items joined to their orders — no ERP calls.
  */
-#[AgentTool(name: 'Sales By Product')]
+#[AgentTool(name: 'Sales By Product', category: 'commerce')]
 class SalesByProductTool extends Tool
 {
     use HasKanvasContext;

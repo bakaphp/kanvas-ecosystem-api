@@ -62,7 +62,9 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `src/Domains/Connectors/CLAUDE.md` — connector-tree-specific gotchas (Octane SDK rule, Activities/ folder, AgentRuntime caveat).
 - `graphql/schemas/CLAUDE.md` — directive conventions, FK-id-vs-relation rule, schema folder rule.
 - `src/Domains/Intelligence/FollowUp/CLAUDE.md` — generic-core vs per-entity-executor split for the agent-driven follow-up engine. Recipe for adopting follow-up on a new entity (Deal, Order, etc.).
+- `src/Domains/Guild/Leads/CLAUDE.md` — receiver → lead → email flow: why the email template comes from the **rotation config** (not the job/receiver), the `user-`/`lead-` template-name prefixing, the `notification_mode`/`notification_user_mode` knobs, and how company onboarding differs from the `kanvas:sa-setup-receivers` default.
 - `src/Domains/Inventory/CLAUDE.md` — product search engine (dynamic per-tenant Algolia/Typesense/Meilisearch resolution + precedence), index naming, `shouldBeSearchable` gating, the tenant-aware reindex command, and Typesense Natural Language Search config for the recommendation agent.
+- `src/Domains/Insurance/CLAUDE.md` — provider-agnostic insurance layer (quote → policy). Why it is a top-level domain rather than Souk/Inventory/a connector, why only 2 direct queries exist and everything else is a workflow activity, and the hybrid generic-vs-connector custom-field split.
 
 ### Where to put new conventions (don't bloat this file)
 
@@ -814,6 +816,33 @@ type Filesystem {
 ```
 
 Same rule for `@belongsTo(relation: "company")`, `@hasOne(relation: "primaryAddress")`, `@belongsToMany(relation: "roles")`, and `@method(name: "createdAt")`.
+
+### Workflow Activities — Don't Throw/Report Expected Skips; Return `failWorkflow`
+
+A `KanvasActivity` (anything running through `executeIntegration`) MUST NOT throw an exception or `report()` to Sentry for an **expected business condition** — an empty inbound message, "AI mode off", "already responded", "nothing to sync", a record that legitimately isn't there. Those aren't faults; they're normal control-flow outcomes. `executeIntegration`'s `catch` calls `report($exception)`, so letting an expected skip bubble up floods Sentry with non-actionable noise (real incident: `Message has no content...` threw a `ValidationException` 457×, KANVAS-ECOSYSTEM-5XF).
+
+**Reserve throwing / `report()` for genuinely system-critical faults** — a DB write that failed, a downstream API that errored unexpectedly, a corrupt-state invariant. Those you *want* in Sentry.
+
+For an expected skip, catch it inside the `integrationOperation` closure and **return `$this->failWorkflow([...])`** instead. `failWorkflow` sets the activity's status to `FAILED` and returns your message array — so it's flagged FAILED in the workflow/integration-history UI for humans and future agents to see, *without* an exception or a Sentry report.
+
+```php
+// WRONG — expected skip bubbles to executeIntegration's report() → Sentry flood
+$reply = new InternalAgentChannelResponderAction($agent, $message, $entity)->execute();
+
+// CORRECT — catch the expected condition, flag FAILED in the UI, no Sentry
+try {
+    $reply = new InternalAgentChannelResponderAction($agent, $message, $entity)->execute();
+} catch (ValidationException $e) {
+    return $this->failWorkflow([
+        'message' => $e->getMessage(),
+        'entity' => null,
+    ]);
+}
+```
+
+A plain non-fail early `return ['message' => ..., 'entity' => null]` (status stays CONNECTED) is fine for a benign no-op that isn't even worth flagging (e.g. "message is from the agent side, skipping"). Use `failWorkflow` when you want it visibly marked FAILED; use a plain return for a silent skip. Either way — **not** an uncaught throw.
+
+`SilentWorkflowException` (records FAILED, skips `report()`) still exists for the case where the skip signal must originate *deep* in a call stack you don't want to unwind by hand — but prefer the local `try/catch → failWorkflow` in the activity when the throw site is one call away.
 
 ### Code Style
 - **No section separator comments** — do not add `// --- SectionName ---`, `# --- SectionName ---`, or similar decorative dividers in code, tests, or schema files. Test methods and code sections are self-documenting by their names. If a file grows too large, split it into separate files instead.

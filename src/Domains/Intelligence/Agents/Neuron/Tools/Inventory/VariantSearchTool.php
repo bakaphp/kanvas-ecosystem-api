@@ -13,7 +13,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-#[AgentTool(name: 'Variant Search')]
+#[AgentTool(name: 'Variant Search', category: 'inventory')]
 class VariantSearchTool extends Tool
 {
     public function __construct()

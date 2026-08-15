@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\PipelinesStages\Actions;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Blade;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
@@ -23,6 +24,7 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Models\Channel;
+use Override;
 
 use function Sentry\captureException;
 
@@ -38,6 +40,14 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
     protected array $skippedReasons = [];
     protected bool $ignoreTimeGate = false;
 
+    /**
+     * Hard bound on how long a lead keeps receiving follow-ups, measured from the lead's
+     * created_at. The drip advances day-stages and keeps messaging (varied copy) until this
+     * window closes; after it, no further follow-ups are sent.
+     */
+    private const int FOLLOW_UP_WINDOW_DAYS = 90;
+
+    #[Override]
     public function withIgnoreTimeGate(bool $ignore = true): static
     {
         $this->ignoreTimeGate = $ignore;
@@ -67,6 +77,15 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
     public function execute(): ?array
     {
         if (! $this->followUp) {
+            return null;
+        }
+
+        if ($this->isPastFollowUpWindow()) {
+            $this->logSkip(
+                'follow_up_window_expired',
+                sprintf('Lead is older than the %d-day follow-up window', self::FOLLOW_UP_WINDOW_DAYS)
+            );
+
             return null;
         }
 
@@ -122,6 +141,16 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
                 $this->logSkip(
                     'channel_not_preferred',
                     "Channel '{$messageTemplateChannel}' does not match lead's preferred channel: {$preferredChannel}",
+                    $session
+                );
+
+                continue;
+            }
+
+            if (! $this->leadCanReceiveOnChannel($messageTemplateChannel)) {
+                $this->logSkip(
+                    'no_reachable_contact',
+                    "Lead has no reachable contact for channel '{$messageTemplateChannel}' (sms/whatsapp require a cellphone, email requires an email)",
                     $session
                 );
 
@@ -224,24 +253,44 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
                     continue;
                 }
 
-                try {
-                    $message = new CreateMessageFollowUpAction(
-                        $this->lead,
-                        $this->lead->stage,
-                        $session,
-                        $messageTemplate,
-                        (float)$followUpDay->pipelineStage->weight,
-                        $messageTemplateChannel
-                    )->execute();
+                $creator = new CreateMessageFollowUpAction(
+                    $this->lead,
+                    $this->lead->stage,
+                    $session,
+                    $messageTemplate,
+                    (float) $followUpDay->pipelineStage->weight,
+                    $messageTemplateChannel
+                );
 
-                    $this->logSuccess('message_created', 'Follow-up message created', $session, $message);
+                try {
+                    $candidate = $creator->generateMessageText();
                 } catch (Exception $e) {
                     captureException($e);
-                }
 
-                if ($message === null) {
                     continue;
                 }
+
+                if ($candidate === null) {
+                    continue;
+                }
+
+                // Same message as a prior touch: do NOT resend it. Mark the day complete by
+                // advancing the pipeline so the next run uses the next day-stage's template
+                // (the drip keeps moving toward the 90-day window instead of repeating).
+                if ($creator->isDuplicate($candidate)) {
+                    $this->lead->moveToNextPipelineStage();
+                    $this->logSkip(
+                        'duplicate_message_advanced_stage',
+                        'Generated follow-up duplicated a prior message; advanced stage instead of resending',
+                        $session
+                    );
+
+                    continue;
+                }
+
+                $creator->persistMessage($candidate);
+                $message = $candidate;
+                $this->logSuccess('message_created', 'Follow-up message created', $session, $message);
 
                 if ($followUpDay->send_message) {
                     $emailTitle = $this->lead->get('title_email_follow_up') ?? $this->lead->company->name;
@@ -251,12 +300,16 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
                         $messageToSend = $this->renderTemplate($whatsAppTemplate);
                     }
 
-                    new SendMessageToLeadAction($this->lead)->execute(
+                    $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
                         $messageTemplateChannel,
                         $messageToSend,
                         $this->lead->company->get('twilio_phone_number'),
                         $emailTitle
                     );
+                    $createdMessage = $creator->getCreatedMessage();
+                    if ($createdMessage !== null) {
+                        new StoreMessageSidAction($createdMessage)->execute($providerResponse);
+                    }
 
                     $this->logSuccess('message_sent', 'Follow-up message sent to lead', $session, $messageToSend);
 
@@ -284,6 +337,28 @@ class FollowUpEngagementV1Action implements FollowUpTimeGateOverridable
         }
 
         return null;
+    }
+
+    protected function isPastFollowUpWindow(): bool
+    {
+        if ($this->lead->created_at === null) {
+            return false;
+        }
+
+        return Carbon::parse($this->lead->created_at)
+            ->addDays(self::FOLLOW_UP_WINDOW_DAYS)
+            ->isPast();
+    }
+
+    protected function leadCanReceiveOnChannel(string $channel): bool
+    {
+        $value = match ($channel) {
+            'sms', 'whatsapp' => $this->lead->people->getCellPhones()->first()?->value,
+            'email' => $this->lead->people->getEmails()->first()?->value,
+            default => 'n/a',
+        };
+
+        return $value !== null && $value !== '';
     }
 
     protected function getLastClientMessageTime(Channel $channel): ?Carbon

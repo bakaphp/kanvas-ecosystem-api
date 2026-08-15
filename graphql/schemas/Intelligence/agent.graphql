@@ -127,6 +127,7 @@ input AgentAiInput {
     identity: Mixed
     user_context: String
     tools_config: String
+    voice_config: Mixed
     parent_agent_id: ID
     is_active: Boolean!
     company_task_list_id: Int
@@ -180,6 +181,7 @@ input UserChatInput {
     images: [String!]
     files: [String!]
     uploads: [Upload!]
+    async: Boolean
 }
 
 input NeuronChatInput {
@@ -193,8 +195,25 @@ input NeuronChatInput {
 type UserChatResponse {
     response: Mixed!
     session_id: String!
-    message: Message!
-    channel: SocialChannel!
+    """
+    Null when status is `pending` — the turn is on the queue. The broadcast then carries
+    `message_id`; fetch the turn with it (`response` in the payload is dropped whenever the
+    push exceeds Pusher's ~10KB cap, so never rely on it being there).
+    """
+    message: Message
+    """
+    The session's channel. Null only on the very first turn of a brand-new session, which is
+    where the channel gets created; every later turn carries it, pending or not.
+    """
+    channel: SocialChannel
+    "`completed` when the reply is in this response, `pending` when it will be broadcast."
+    status: String!
+    """
+    Broadcast channel to subscribe to for this session, e.g. `agent-chat-141-11569-<uuid>`.
+    Events: `agent.chat.response` and `agent.chat.failed`. Always use this value — the name is
+    keyed on the AGENT's tenant, which for a global agent is not the caller's company.
+    """
+    broadcast_channel: String!
 }
 
 extend type Mutation @guard {
@@ -226,7 +245,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentIntegrationConfigMutation@set"
         )
-    createAgentConfigBackup(agent_id: ID!, notes: String): AgentConfigBackupType!
+    createAgentConfigBackup(
+        agent_id: ID!
+        notes: String
+    ): AgentConfigBackupType!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentConfigBackupMutation@create"
         )
@@ -293,10 +315,7 @@ extend type Query @guard {
         )
     agentConfigBackups(
         agent_id: ID!
-        where: _
-            @whereConditions(
-                columns: ["id", "status", "created_at"]
-            )
+        where: _ @whereConditions(columns: ["id", "status", "created_at"])
         orderBy: _ @orderBy(columns: ["id", "created_at"])
     ): [AgentConfigBackupType!]!
         @paginate(
@@ -330,14 +349,19 @@ type AgentAnalytics {
     by_user: [AnalyticsCategoryPoint!]!
 }
 
-extend type Subscription @guard {
-    agentChatResponse(agent_id: ID!, session_id: String!): JSON
-        @subscription(
-            class: "App\\GraphQL\\Intelligence\\Subscriptions\\AgentChatSubscription"
-        )
-}
+# Disabled: `agentChatResponse` duplicated the AgentChatResponseEvent Pusher broadcast onto the same
+# connection while costing a queued broadcast job per turn plus Redis subscriber storage, and no
+# client consumed it. Clients use the `broadcast_channel` returned by aiAgentUserChat instead.
+# To revive, uncomment this AND the two Subscription::broadcast calls (AgentChatKernel,
+# DeliverScheduledMessageToChannelAction). AgentChatSubscription is left in place unused.
+#
+# extend type Subscription @guard {
+#     agentChatResponse(agent_id: ID!, session_id: String!): JSON
+#         @subscription(
+#             class: "App\\GraphQL\\Intelligence\\Subscriptions\\AgentChatSubscription"
+#         )
+# }
 
-# Canonical path is observer-driven; these are app-owner overrides only.
 extend type Mutation @guardByAppKey {
     setAgentKanvasModule(
         agent_id: ID!
@@ -351,74 +375,5 @@ extend type Mutation @guardByAppKey {
     removeAgentKanvasModule(agent_id: ID!, kanvas_module_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentKanvasModuleMutation@remove"
-        )
-}
-
-"""
-Compiled agent spec consumed by the external voice runtime (Pipecat / Cloud Run)
-at the start of each call. Read-only, server-to-server (@guardByAppKey).
-"""
-type VoiceAgentSpec {
-    "The agent uuid; the runtime caches by agent_id + version."
-    agent_id: String!
-    "Changes whenever the agent is edited, so the runtime refreshes its cache."
-    version: String!
-    language: String
-    prompts: VoiceAgentPrompts!
-    models: VoiceAgentModels!
-    telephony: VoiceAgentTelephony
-    context_schema: [VoiceAgentContextField!]!
-}
-
-type VoiceAgentPrompts {
-    system_instruction: String!
-    greeting: String
-    voicemail_message: String
-}
-
-type VoiceAgentModels {
-    stt: VoiceAgentSttModel
-    llm: VoiceAgentLlmModel!
-    tts: VoiceAgentTtsModel
-}
-
-type VoiceAgentSttModel {
-    provider: String
-    model: String
-    language: String
-}
-
-type VoiceAgentLlmModel {
-    provider: String
-    model: String
-}
-
-type VoiceAgentTtsModel {
-    provider: String
-    voice_id: String
-    model: String
-    stability: Float
-    similarity: Float
-    style: Float
-    speed: Float
-    use_speaker_boost: Boolean
-}
-
-"Dealership caller-id number. Credentials are intentionally excluded."
-type VoiceAgentTelephony {
-    from_number: String
-}
-
-type VoiceAgentContextField {
-    key: String!
-    required: Boolean
-    default: String
-}
-
-extend type Query @guardByAppKey {
-    "Fetch the compiled voice spec for an agent by uuid (voice runtime → Kanvas)."
-    voiceAgentSpec(uuid: String!): VoiceAgentSpec!
-        @field(
-            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentSpecQuery"
         )
 }

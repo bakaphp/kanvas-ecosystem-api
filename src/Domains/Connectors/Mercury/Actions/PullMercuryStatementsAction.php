@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mercury\Actions;
 
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Mercury\Services\MercuryStatementService;
 use Kanvas\Connectors\Mercury\Traits\MercuryBankAccountTrait;
 use Kanvas\Filesystem\Services\FilesystemServices;
@@ -48,7 +50,7 @@ class PullMercuryStatementsAction
                 continue;
             }
 
-            if ($this->attachPdf($statement)) {
+            if ($this->attachPdf($service, $statement)) {
                 $attached[] = $statement['statement_id'];
             }
         }
@@ -64,28 +66,45 @@ class PullMercuryStatementsAction
     }
 
     /**
-     * NOT addFileFromUrl — that stores the URL and downloads nothing (size=0), and Mercury's links are
-     * presigned and expire. A statement we can't fetch is skipped, not fatal; only successes are recorded, so
-     * the next run retries it.
-     *
      * @param array<string, mixed> $statement
      */
-    private function attachPdf(array $statement): bool
+    private function attachPdf(MercuryStatementService $service, array $statement): bool
     {
-        $url = (string) ($statement['download_url'] ?? '');
+        $statementId = (string) ($statement['statement_id'] ?? '');
 
-        if ($url === '') {
+        if ($statementId === '') {
             return false;
         }
 
-        try {
-            $file = new FilesystemServices($this->app())->uploadFileFromUrl($url, $this->owner());
+        $tempFilePath = sys_get_temp_dir() . '/mercury-statement-' . $statementId . '.pdf';
 
-            return $this->bankAccount->addFile($file, 'statement-' . (string) $statement['statement_id']);
+        try {
+            file_put_contents($tempFilePath, $service->downloadStatementPdf($statementId));
+
+            $file = new FilesystemServices($this->app())->upload(
+                new UploadedFile(
+                    $tempFilePath,
+                    "statement-{$statementId}.pdf",
+                    'application/pdf',
+                    null,
+                    true
+                ),
+                $this->owner(),
+            );
+
+            return $this->bankAccount->addFile($file, 'statement-' . $statementId);
         } catch (Throwable $e) {
-            report($e);
+            Log::error('Failed to download Mercury statement PDF', [
+                'bank_account_id' => $this->bankAccount->getId(),
+                'statement_id' => $statementId,
+                'exception' => $e->getMessage(),
+            ]);
 
             return false;
+        } finally {
+            if (file_exists($tempFilePath)) {
+                @unlink($tempFilePath);
+            }
         }
     }
 }

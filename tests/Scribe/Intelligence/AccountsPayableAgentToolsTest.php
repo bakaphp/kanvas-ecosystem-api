@@ -14,13 +14,19 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
+use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
+use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrderLine;
+use NeuronAI\Tools\HasRunKey;
 use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\ScribeTestCase;
 
@@ -170,5 +176,156 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame('received', $result['document_status']);
         $this->assertSame(640.0, (float) $result['balance_due_native']);
         $this->assertNotEmpty($result['lines']);
+    }
+
+    public function test_add_bill_note_reports_not_found_for_unknown_bill(): void
+    {
+        $result = new AddBillNoteTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: 999999999, note: 'Called vendor.');
+
+        $this->assertFalse($result['note_added']);
+        $this->assertSame('bill_not_found', $result['reason']);
+    }
+
+    public function test_add_bill_note_reports_not_pushed_when_bill_has_no_acumatica_ref(): void
+    {
+        $vendor = $this->seedTestOrganization('Globex Supply');
+        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
+
+        $bill = \Kanvas\Scribe\Bills\Models\Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->latest('id')
+            ->first();
+
+        $result = new AddBillNoteTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: (int) $bill->id, note: 'Called vendor.');
+
+        $this->assertFalse($result['note_added']);
+        $this->assertSame('bill_not_pushed', $result['reason']);
+    }
+
+    public function test_attach_bill_file_reports_not_found_for_unknown_bill(): void
+    {
+        $result = new AttachBillFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: 999999999, file_url: 'https://example.test/invoice.pdf');
+
+        $this->assertFalse($result['file_attached']);
+        $this->assertSame('bill_not_found', $result['reason']);
+    }
+
+    public function test_attach_bill_file_reports_not_pushed_when_bill_has_no_acumatica_ref(): void
+    {
+        $vendor = $this->seedTestOrganization('Globex Supply');
+        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
+
+        $bill = \Kanvas\Scribe\Bills\Models\Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->latest('id')
+            ->first();
+
+        $result = new AttachBillFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: (int) $bill->id, file_url: 'https://example.test/invoice.pdf');
+
+        $this->assertFalse($result['file_attached']);
+        $this->assertSame('bill_not_pushed', $result['reason']);
+    }
+
+    public function test_create_ap_bill_requires_an_invoice_number(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 2500.0,
+                gl_account_number: $accountCode,
+                memo: 'Community Building & Management Services',
+                invoice_number: '',
+            );
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('invoice_number_required', $result['reason']);
+    }
+
+    public function test_create_ap_bill_uses_the_vendor_invoice_number_and_resolves_subaccount(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
+        $accountCode = (string) Account::query()->where('id', $accountId)->value('account_number');
+
+        new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 2500.0,
+                gl_account_number: $accountCode,
+                memo: 'Community Building & Management Services',
+                invoice_number: '1498',
+                subaccount: 'BB-0G-M1',
+            );
+
+        /** @var Bill $bill */
+        $bill = Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->latest('id')
+            ->first();
+
+        $this->assertSame('1498', $bill->bill_number);
+        $this->assertSame('BB-0G-M1', $bill->lines->first()->subaccount->sub_code);
+    }
+
+    public function test_find_vendor_returns_a_dead_end_message_when_nothing_matches(): void
+    {
+        // A bare count=0 reads as "try again" to the model, which is how the same name got re-queried
+        // until the run budget tripped (Sentry KANVAS-ECOSYSTEM-64Q).
+        $result = new FindVendorTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(name: 'Nonexistent Vendor ' . uniqid());
+
+        $this->assertSame(0, (int) $result['count']);
+        $this->assertArrayHasKey('message', $result);
+        $this->assertStringContainsString('Retrying the same name will not help', $result['message']);
+    }
+
+    /**
+     * AP staff drive these per-record tools once per row over an invoice batch/remittance, so each must key
+     * its run budget by inputs — otherwise the 11th DISTINCT call in a turn trips NeuronAI's per-tool-name
+     * cap and aborts the whole turn (Sentry KANVAS-ECOSYSTEM-64Q).
+     */
+    public function test_ap_per_record_tools_key_their_run_budget_by_inputs(): void
+    {
+        $tools = [
+            new FindVendorTool(),
+            new FindBillTool(),
+            new FindPurchaseOrderTool(),
+            new MatchBillsForPaymentTool(),
+        ];
+
+        foreach ($tools as $tool) {
+            $this->assertInstanceOf(HasRunKey::class, $tool, $tool->getName() . ' must key its run budget by inputs.');
+
+            $tool->setInputs(['name' => 'Globex Supply', 'vendor' => 'Globex Supply', 'bill_number' => 'B-1', 'order_number' => 'PO-1']);
+            $keyOne = $tool->getRunKey();
+
+            $tool->setInputs(['name' => 'Initech', 'vendor' => 'Initech', 'bill_number' => 'B-2', 'order_number' => 'PO-2']);
+            $keyTwo = $tool->getRunKey();
+
+            $tool->setInputs(['name' => 'Globex Supply', 'vendor' => 'Globex Supply', 'bill_number' => 'B-1', 'order_number' => 'PO-1']);
+            $keyOneAgain = $tool->getRunKey();
+
+            $this->assertNotEquals($keyOne, $keyTwo, $tool->getName() . ': distinct records must not share a run budget.');
+            $this->assertEquals($keyOneAgain, $keyOne, $tool->getName() . ': identical calls must collapse so a loop is still capped.');
+        }
     }
 }

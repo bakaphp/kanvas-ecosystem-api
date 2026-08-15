@@ -12,9 +12,11 @@ use Kanvas\NervousSystem\Project\Enums\ProjectMemberRoleEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
@@ -25,10 +27,11 @@ use Throwable;
  * nothing matches, the PM is told so it can create the work UNASSIGNED and escalate to a human, rather
  * than assign to the wrong person. Agents are preferred over humans (they can execute).
  */
-#[AgentTool(name: 'Find And Add Member')]
-class FindAndAddNervousSystemMemberTool extends Tool
+#[AgentTool(name: 'Find And Add Member', category: 'nervous_system')]
+class FindAndAddNervousSystemMemberTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

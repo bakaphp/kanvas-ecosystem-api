@@ -1,0 +1,76 @@
+type VoiceAgentSpec {
+    agent_id: String!
+    version: String!
+    language: String
+    prompts: VoiceAgentPrompts!
+    models: VoiceAgentModels!
+    telephony: VoiceAgentTelephony
+    context_schema: [VoiceAgentContextField!]!
+}
+
+type VoiceAgentPrompts {
+    system_instruction: String!
+    greeting: String
+    voicemail_message: String
+}
+
+type VoiceAgentModels {
+    stt: VoiceAgentSttModel
+    llm: VoiceAgentLlmModel!
+    tts: VoiceAgentTtsModel
+}
+
+type VoiceAgentSttModel {
+    provider: String
+    model: String
+    language: String
+}
+
+type VoiceAgentLlmModel {
+    provider: String
+    model: String
+}
+
+type VoiceAgentTtsModel {
+    provider: String
+    voice_id: String
+    model: String
+    stability: Float
+    similarity: Float
+    style: Float
+    speed: Float
+    use_speaker_boost: Boolean
+}
+
+type VoiceAgentTelephony {
+    from_number: String
+}
+
+type VoiceAgentContextField {
+    key: String!
+    required: Boolean
+    default: String
+}
+
+extend type Query @guardByAppKey {
+    voiceAgentSpec(uuid: String!): VoiceAgentSpec!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentSpecQuery"
+        )
+}
+
+type VoiceAgentCallResult {
+    call_id: String
+    twilio_sid: String
+    status: String
+    to: String
+    tenant_id: String
+}
+
+extend type Mutation @guard {
+    "Place a one-off test call for an agent via the external voice runtime."
+    sendVoiceAgentTestCall(id: ID!, to_number: String!): VoiceAgentCallResult!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\VoiceAgentCallMutation@placeTestCall"
+        )
+}

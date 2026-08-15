@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Activities;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\InternalAgentChannelResponderAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Channels\Models\Channel;
@@ -89,11 +90,18 @@ class MessageAgentChannelResponderActivity extends KanvasActivity
                 /** @var Agent $agent */
                 $agent = Agent::getById((int) $agentId, $app);
 
-                $reply = new InternalAgentChannelResponderAction(
-                    $agent,
-                    $message,
-                    $entity,
-                )->execute();
+                try {
+                    $reply = new InternalAgentChannelResponderAction(
+                        $agent,
+                        $message,
+                        $entity,
+                    )->execute();
+                } catch (ValidationException $e) {
+                    return $this->failWorkflow([
+                        'message' => $e->getMessage(),
+                        'entity' => null,
+                    ]);
+                }
 
                 return [
                     'message' => 'Agent reply created',

@@ -70,6 +70,9 @@
         <testsuite name="ActionEngine">
             <directory suffix="Test.php">./tests/ActionEngine</directory>
         </testsuite>
+        <testsuite name="Insurance">
+            <directory suffix="Test.php">./tests/Insurance</directory>
+        </testsuite>
     </testsuites>
     <php>
         <env name="COLLISION_PRINTER" value="true"/>

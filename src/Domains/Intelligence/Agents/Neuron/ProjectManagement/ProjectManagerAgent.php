@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\ProjectManagement;
 
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
@@ -29,7 +31,7 @@ use Override;
     name: 'Project Manager',
     description: 'The default per-project orchestrator: triages project context, breaks it into plans/tasks, assigns work to member agents, and keeps the project moving.',
     provider: 'neuron',
-    soul: 'You are a project manager agent inside Kanvas. You own a single project end to end: you read everything happening on it (meeting transcripts, emails, chat), turn it into concrete plans and tasks, assign each task to the right teammate or agent, and follow up until the work is done. You are accountable for the project moving forward.',
+    soul: 'You are a project manager agent inside Kanvas. You own your projects end to end: you read everything happening on them (meeting transcripts, emails, chat), turn it into concrete plans and tasks, assign each task to the right teammate or agent, and follow up until the work is done. You work one project at a time — the one in scope for the turn — and you are accountable for it moving forward.',
     outputFormat: 'Plain text. Short paragraphs; use lists only when enumerating tasks or assignments.',
 )]
 class ProjectManagerAgent extends SystemUserAgent
@@ -50,6 +52,7 @@ class ProjectManagerAgent extends SystemUserAgent
             agent: $this->agent,
             turnMedia: $this->turnMedia,
             model: $this->resolvedModelName(),
+            privateUserTurn: $this->privateUserTurn,
         );
     }
 
@@ -68,7 +71,12 @@ class ProjectManagerAgent extends SystemUserAgent
     public function instructions(): string
     {
         $base = <<<'PROMPT'
-            You are the project manager (PM) for a single project. Each turn you are given a Context
+            You are a project manager (PM). You may own more than one project, but each turn is about
+            exactly ONE of them — the one in CURRENT PROJECT at the end of these instructions. When
+            several projects are listed there instead, ask which one before acting. Never claim you
+            can only ever see one project; say which projects you manage.
+
+            Each turn you are given a Context
             bundle (JSON): the project (id, objective, status, completion_pct), its members (each with
             role, a `users_id`, a mentionable `handle`, and — for agents only — an `agent_id`), its
             open plans (each with plan_id and its tasks — each with task_id, status, agent_id), and the
@@ -191,21 +199,75 @@ class ProjectManagerAgent extends SystemUserAgent
             return '';
         }
 
-        $project = Project::query()
-            ->where('agent_id', $agent->getId())
-            ->notDeleted()
-            ->first();
+        $project = $this->turnProject($agent);
 
         if (! $project instanceof Project) {
-            return "\n\nYOU HAVE NO PROJECT LOADED THIS TURN. If asked about a project, say you don't have "
-                . 'one loaded and ask which project — NEVER invent a project, id, objective, plan, or task.';
+            return $this->unresolvedProjectGrounding($agent);
         }
 
         $bundle = new ProjectContextService()->buildContextBundle($project, historyLimit: 10);
 
-        return "\n\nCURRENT PROJECT (authoritative — this is the ONLY project you manage; use ONLY these "
+        return "\n\nCURRENT PROJECT (authoritative — this is the project THIS TURN is about; use ONLY these "
             . "ids / objective / plans / tasks and NEVER invent or infer any other project):\n"
             . (string) json_encode($bundle->toArray());
+    }
+
+    /**
+     * The project this turn is about. A wake runs the PM on a session whose entity IS the project it
+     * was woken for, so that project wins — an agent that PMs several projects would otherwise ground
+     * on an arbitrary row and contradict the very context it was woken with. Off the wake path (a DM,
+     * an ad-hoc chat) there is no project entity, so a sole managed project is unambiguous; several
+     * means the human has to name one.
+     */
+    private function turnProject(Agent $agent): ?Project
+    {
+        $entity = $this->entity;
+        if ($entity instanceof Project && ! $entity->is_deleted && $entity->agent_id === $agent->getId()) {
+            return $entity;
+        }
+
+        $projects = $this->managedProjects($agent);
+
+        return $projects->count() === 1 ? $projects->first() : null;
+    }
+
+    /**
+     * @return Collection<int, Project>
+     */
+    private function managedProjects(Agent $agent): Collection
+    {
+        return Project::query()
+            ->where('agent_id', $agent->getId())
+            ->notDeleted()
+            ->orderBy('id')
+            ->get();
+    }
+
+    private function unresolvedProjectGrounding(Agent $agent): string
+    {
+        $projects = $this->managedProjects($agent);
+
+        if ($projects->isEmpty()) {
+            return "\n\nYOU HAVE NO PROJECT LOADED THIS TURN. If asked about a project, say you don't have "
+                . 'one loaded and ask which project — NEVER invent a project, id, objective, plan, or task.';
+        }
+
+        $roster = $projects
+            ->map(fn (Project $project): string => sprintf(
+                '- project_id %d — %s (%s, %d%% complete)',
+                $project->getId(),
+                $project->title,
+                $project->status,
+                (int) $project->completion_pct,
+            ))
+            ->implode("\n");
+
+        return "\n\nYOU MANAGE SEVERAL PROJECTS AND THIS TURN DOES NOT NAME ONE. These are yours:\n"
+            . $roster
+            . "\n\nAsk which project they mean before you create or move any work, and pass that "
+            . 'project_id to your tools. If the person already named one earlier in this conversation, '
+            . 'use that id. NEVER invent a project, id, objective, plan or task, and never act on a '
+            . 'project that is not in this list.';
     }
 
     /**

@@ -8,9 +8,11 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -20,18 +22,21 @@ use Override;
  * prospect must never be able to search other prospects; see Agents/CLAUDE.md audience rule).
  */
 #[AgentTool(name: 'Search Leads', category: 'crm')]
-class SearchLeadsTool extends Tool
+class SearchLeadsTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {
         parent::__construct(
             name: 'search_leads',
-            description: 'Find leads by (partial) contact name, email, phone, or lead title. Use this whenever you '
-                . 'need to locate a lead but do not have its lead_id — e.g. "find the lead for Ana", "which lead has '
-                . 'this email", "look up leads for Acme". Returns lead_id, contact, owner, stage and status so you can '
-                . 'act on the right one. Filter by status (open/closed/all) and by owner name/email.',
+            description: 'Find leads for ONE contact by (partial) name, email, phone, or lead title. Use this whenever '
+                . 'you need to locate a lead but do not have its lead_id — e.g. "find the lead for Ana", "which lead '
+                . 'has this email", "look up leads for Acme". Returns lead_id, contact, owner, stage and status so you '
+                . 'can act on the right one. Filter by status (open/closed/all) and by owner name/email. '
+                . 'For MORE THAN ONE name — a spreadsheet column, a CSV, any list — use find_leads_bulk instead and '
+                . 'pass every name in a single call; do not call this tool once per row.',
         );
     }
 
