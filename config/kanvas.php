@@ -39,5 +39,6 @@ return [
     ],
     'signup_anomaly' => [
         'alert_emails' => env('SIGNUP_ANOMALY_ALERT_EMAILS'),
+        'sentry_enabled' => env('SIGNUP_ABUSE_SENTRY_ENABLED', true),
     ],
 ];

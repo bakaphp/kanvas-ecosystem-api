@@ -33,11 +33,13 @@ final class RegistrationAbuseReportService
     private const COUNTER_TTL_SECONDS = 172800;
 
     private readonly SignupCounterService $counter;
+    private readonly SignupProtectionSettingsService $settings;
 
     public function __construct(
         private readonly Apps $app,
     ) {
         $this->counter = new SignupCounterService($app);
+        $this->settings = new SignupProtectionSettingsService($app);
     }
 
     public function blocked(string $email, string $reason): void
@@ -51,6 +53,10 @@ final class RegistrationAbuseReportService
             'reason' => $reason,
             'blocked_this_hour' => $blockedThisHour,
         ]);
+
+        if (! $this->settings->sentryReportingEnabled()) {
+            return;
+        }
 
         /**
          * A campaign produces tens of thousands of identical blocks an hour and
@@ -85,6 +91,10 @@ final class RegistrationAbuseReportService
      */
     public function anomalyDetected(int $signups, float $baseline, int $blocked, int $multiplier): void
     {
+        if (! $this->settings->sentryReportingEnabled()) {
+            return;
+        }
+
         $this->capture(
             'Signup spike detected: ' . $signups . ' in the last hour',
             ['signup-anomaly', (string) $this->app->getId()],

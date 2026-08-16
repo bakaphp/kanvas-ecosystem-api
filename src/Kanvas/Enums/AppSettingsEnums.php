@@ -65,6 +65,7 @@ enum AppSettingsEnums implements EnumsInterface
     case SIGNUP_ANOMALY_FLOOR;
     case SIGNUP_ANOMALY_BASELINE_DAYS;
     case SIGNUP_ANOMALY_COOLDOWN;
+    case SIGNUP_ABUSE_SENTRY_ENABLED;
     case AGENT_CHAT_ASYNC;
 
     #[Override]
@@ -127,6 +128,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::SIGNUP_ANOMALY_FLOOR => 'signup_anomaly_floor',
             self::SIGNUP_ANOMALY_BASELINE_DAYS => 'signup_anomaly_baseline_days',
             self::SIGNUP_ANOMALY_COOLDOWN => 'signup_anomaly_cooldown',
+            self::SIGNUP_ABUSE_SENTRY_ENABLED => 'signup_abuse_sentry_enabled',
             self::AGENT_CHAT_ASYNC => 'agent_chat_async',
         };
     }

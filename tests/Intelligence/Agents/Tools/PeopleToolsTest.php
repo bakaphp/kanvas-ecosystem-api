@@ -348,9 +348,25 @@ final class PeopleToolsTest extends TestCase
         $this->assertArrayHasKey('error', $result);
     }
 
-    public function test_export_records_people_match_rejects_more_than_the_term_cap(): void
+    public function test_export_records_people_match_exports_past_the_term_cap_as_one_file(): void
     {
+        $this->fakeCsvUpload();
+
         $names = implode(',', array_map(fn (int $i): string => 'Personuniq Number' . $i, range(1, 101)));
+
+        $result = $this->tool(new ExportRecordsTool())->__invoke(
+            record_type: 'people_match',
+            filters: ['names' => $names],
+        );
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertStringStartsWith('https://fake.test/people_match', $result['file_url']);
+        $this->assertSame(101, $result['row_count']);
+    }
+
+    public function test_export_records_people_match_rejects_more_than_the_export_ceiling(): void
+    {
+        $names = implode(',', array_map(fn (int $i): string => 'Personuniq Number' . $i, range(1, 1001)));
 
         $result = $this->tool(new ExportRecordsTool())->__invoke(
             record_type: 'people_match',

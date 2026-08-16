@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Wallet\Actions;
 
+use Bavix\Wallet\Exceptions\BalanceIsEmpty;
+use Bavix\Wallet\Exceptions\InsufficientFunds;
 use Bavix\Wallet\Objects\Cart;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
@@ -97,7 +99,17 @@ class PayFromWalletAction
 
         $cart = $cart->withMeta($audit);
 
-        $wallet->payCart($cart);
+        // Bavix throws on an empty/short wallet — that's a client-side condition (user needs to top up),
+        // not a server fault, so it must not reach Sentry as an unhandled error.
+        try {
+            $wallet->payCart($cart);
+        } catch (BalanceIsEmpty|InsufficientFunds) {
+            throw new ValidationException(
+                'Insufficient wallet balance to complete the order.'
+                . ' Please add funds to your wallet or choose a different payment method.',
+                'wallet_balance_insufficient'
+            );
+        }
 
         $this->order->addTag(ConfigurationEnum::WALLET_CREDIT_TAG->value);
 
