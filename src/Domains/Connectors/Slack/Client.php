@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Http;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Throwable;
 
 class Client
 {
@@ -42,8 +43,11 @@ class Client
      * The posted message's `ts`, which doubles as its id for updateMessage() — the
      * placeholder-then-edit pattern an agent turn needs, since it outlives Slack's ack window.
      */
-    public function postMessage(string $channel, string $text, ?string $threadTs = null): string
-    {
+    public function postMessage(
+        string $channel,
+        string $text,
+        ?string $threadTs = null
+    ): string {
         return (string) $this->call('chat.postMessage', array_filter([
             'channel' => $channel,
             'text' => $text,
@@ -51,8 +55,11 @@ class Client
         ]))['ts'];
     }
 
-    public function updateMessage(string $channel, string $ts, string $text): void
-    {
+    public function updateMessage(
+        string $channel,
+        string $ts,
+        string $text
+    ): void {
         $this->call('chat.update', [
             'channel' => $channel,
             'ts' => $ts,
@@ -60,26 +67,53 @@ class Client
         ]);
     }
 
+    public function deleteMessage(string $channel, string $ts): void
+    {
+        $this->call('chat.delete', ['channel' => $channel, 'ts' => $ts]);
+    }
+
     /**
-     * Edit the placeholder message with a reply that may exceed Slack's per-message limit: the first
-     * chunk updates the placeholder, the rest are posted as follow-ups in the same thread. Avoids the
-     * `msg_too_long` failure a long agent reply otherwise triggers on chat.update.
+     * Deliver the finished reply as NEW messages, then drop the placeholder.
+     *
+     * Slack fires no push, sound, badge or unread marker for chat.update, so editing the placeholder
+     * in place made every agent reply land silently — the only ping a user ever got said "working on
+     * it…". Posting the answer is what makes Slack treat it as a real incoming message. Chunking also
+     * keeps a long reply under the per-message byte limit (`msg_too_long`).
+     *
+     * The delete runs last on purpose: if a chunk fails to post, the placeholder is still there for
+     * the caller to overwrite with its failure notice.
      */
-    public function updateMessageWithOverflow(
+    public function replacePlaceholderWithReply(
         string $channel,
-        string $ts,
+        string $placeholderTs,
         string $text,
         ?string $threadTs = null
     ): void {
         $chunks = self::splitText($text);
 
-        $this->updateMessage($channel, $ts, $chunks[0]);
+        $firstTs = $this->postMessage(
+            $channel,
+            $chunks[0],
+            $threadTs
+        );
 
-        // Keep follow-ups in the same thread; when the turn wasn't threaded, hang them off the
-        // placeholder itself so the reply stays a single readable unit.
-        $thread = $threadTs !== null && $threadTs !== '' ? $threadTs : $ts;
+        // Keep follow-ups in the same thread; when the turn wasn't threaded, hang them off the first
+        // chunk so the reply stays a single readable unit.
+        $thread = $threadTs !== null && $threadTs !== '' ? $threadTs : $firstTs;
         foreach (array_slice($chunks, 1) as $chunk) {
-            $this->postMessage($channel, $chunk, $thread);
+            $this->postMessage(
+                $channel,
+                $chunk,
+                $thread
+            );
+        }
+
+        try {
+            $this->deleteMessage($channel, $placeholderTs);
+        } catch (Throwable $e) {
+            // The reply is already delivered; a surviving hourglass is cosmetic. Letting this bubble
+            // would make the caller replace it with a failure notice that isn't true.
+            report($e);
         }
     }
 
