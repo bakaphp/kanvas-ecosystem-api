@@ -63,4 +63,5 @@ enum IntegrationsEnum: string
     case SALESFORCE = 'salesforce';
     case PIDEV = 'pidev';
     case WORDPRESS = 'wordpress';
+    case UNIVERSAL_SEGUROS = 'universal_seguros';
 }

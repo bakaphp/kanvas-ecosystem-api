@@ -4,11 +4,13 @@ namespace Kanvas\Connectors\Movipass\Actions;
 
 use Baka\Contracts\AppInterface;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Kanvas\Companies\Services\BusinessDayCalculator;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 
 class GenerateOrderLateFee
 {
@@ -36,6 +38,10 @@ class GenerateOrderLateFee
             ", [$timeZonedNow])
             ->notDeleted()
             ->whereNotFulfilled()
+            ->where(
+                fn (Builder $query) => $query->whereNull('payment_status')
+                    ->orWhere('payment_status', '!=', PaymentStatusEnum::PAID->value)
+            )
             ->whereNotNull('metadata')
             ->whereRaw("JSON_VALID(metadata)")
             ->whereRaw("JSON_LENGTH(COALESCE(NULLIF(metadata, ''), '{}')) > 0")

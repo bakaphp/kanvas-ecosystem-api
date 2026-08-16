@@ -6,8 +6,10 @@ use Exception;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -81,8 +83,13 @@ class TransitionOrderStateAction
                     ]);
                 }
 
-                // Update the order status
-                $this->order->updateQuietly(['order_status_id' => $this->newOrderStatus->id]);
+                $attributes = ['order_status_id' => $this->newOrderStatus->id];
+
+                if ($this->newOrderStatus->slug === PaymentStatusEnum::PAID->value) {
+                    $attributes['payment_status'] = PaymentStatusEnum::PAID->value;
+                }
+
+                $this->order->updateQuietly($attributes);
 
                 // Insert into order_transitions_history
                 $transitionDate = $customDate ? Carbon::parse($customDate) : Carbon::now();
@@ -98,6 +105,7 @@ class TransitionOrderStateAction
                     'is_current' => true,
                     'changed_at' => $transitionDate,
                     'changed_by' => $this->user->getId(),
+                    ...$this->amountSnapshot(),
                 ]);
             });
 
@@ -145,9 +153,26 @@ class TransitionOrderStateAction
             'is_current' => true,
             'changed_at' => now(),
             'changed_by' => $this->user->getId(),
+            ...$this->amountSnapshot(),
         ]);
 
         $this->fireWorkflow(null);
+    }
+
+    private function amountSnapshot(): array
+    {
+        return [
+            'total_gross_amount' => (float) $this->order->total_gross_amount,
+            'discount_amount' => (float) $this->order->discount_amount,
+            'total_net_amount' => (float) $this->order->total_net_amount,
+            'items_snapshot' => $this->order->allItems()->get()->map(fn (OrderItem $item) => [
+                'order_item_id' => $item->id,
+                'variant_id' => $item->variant_id,
+                'product_name' => $item->product_name,
+                'quantity' => (float) $item->quantity,
+                'unit_price' => (float) $item->unit_price_net_amount,
+            ])->all(),
+        ];
     }
 
     private function fireWorkflow($currentOrderStatus): void
