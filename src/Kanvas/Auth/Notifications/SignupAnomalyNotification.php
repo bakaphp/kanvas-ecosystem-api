@@ -5,16 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Auth\Notifications;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
-use Illuminate\Notifications\Slack\BlockKit\Blocks\SectionBlock;
-use Illuminate\Notifications\Slack\SlackMessage;
 
-/**
- * Extends Illuminate's notification rather than Kanvas\Notifications\Notification
- * because this is an ops alert routed to a webhook, and the Kanvas base maps
- * channel slugs for user-facing delivery only — it has no slack channel.
- * Mirrors Connectors\Elead\Notifications\ApiUsageLimitNotification.
- */
 class SignupAnomalyNotification extends Notification
 {
     public function __construct(
@@ -28,31 +21,28 @@ class SignupAnomalyNotification extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['slack'];
+        return ['mail'];
     }
 
-    public function toSlack(object $notifiable): SlackMessage
+    public function toMail(object $notifiable): MailMessage
     {
         $baseline = number_format($this->hourlyBaseline, 1);
         $factor = $this->hourlyBaseline > 0.0
             ? number_format((float) $this->signupsLastHour / $this->hourlyBaseline, 1) . '×'
-            : 'no baseline';
+            : 'no prior baseline';
 
-        return new SlackMessage()
-            ->headerBlock('Signup spike: ' . $this->app->name)
-            ->sectionBlock(function (SectionBlock $block) use ($baseline, $factor): void {
-                $block->text(
-                    "App: *{$this->app->name}* (ID: {$this->app->getId()})\n"
-                    . "Signups in the last hour: *{$this->signupsLastHour}* ({$factor} the 7-day hourly average of {$baseline})\n"
-                    . "Blocked as spam in the same hour: *{$this->blockedLastHour}*\n"
-                    . "Alert threshold: {$this->multiplier}× baseline"
-                );
-            })
-            ->sectionBlock(function (SectionBlock $block): void {
-                $block->text(
-                    'A high blocked count means the filters are holding. '
-                    . 'A high signup count with a low blocked count means the campaign is getting through.'
-                );
-            });
+        return new MailMessage()
+            ->subject('Signup spike on ' . $this->app->name . ': ' . $this->signupsLastHour . ' in the last hour')
+            ->line('An app is registering users far faster than it normally does.')
+            ->line('App: ' . $this->app->name . ' (ID: ' . $this->app->getId() . ')')
+            ->line('Signups in the last hour: ' . $this->signupsLastHour)
+            ->line('Normal rate: ' . $baseline . '/hour — this hour is ' . $factor . ' that.')
+            ->line('Blocked as spam in the same hour: ' . $this->blockedLastHour)
+            ->line('Alert threshold: ' . $this->multiplier . '× the baseline.')
+            ->line(
+                'A high blocked count means the filters are holding. A high signup count with a '
+                . 'low blocked count means the campaign is getting through — check the '
+                . 'registration-spam issues in Sentry for the addresses being used.'
+            );
     }
 }

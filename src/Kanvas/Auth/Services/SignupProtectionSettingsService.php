@@ -8,11 +8,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppSettingsEnums;
 
 /**
- * Every tuning knob for signup abuse protection, in one place.
- *
- * Both the blocking path and the hourly anomaly sweep read from here so a
- * default is defined once and an app under attack can be retuned from settings
- * without a deploy.
+ * Every tuning knob for signup abuse protection, so a default is defined once
+ * and an app under attack can be retuned from settings without a deploy.
  */
 final class SignupProtectionSettingsService
 {
@@ -26,9 +23,9 @@ final class SignupProtectionSettingsService
     public const DEFAULT_ANOMALY_COOLDOWN_SECONDS = 21600;
 
     /**
-     * Windows are floored rather than allowed to reach 0 — a 0-second cache TTL
-     * expires the counter before it can ever be read, silently disabling the
-     * rule while the limit still reads as enabled.
+     * Windows floor rather than reaching 0 — a 0-second TTL expires the counter
+     * before it can ever be read, silently disabling the rule while its limit
+     * still reads as enabled.
      */
     private const MIN_WINDOW_SECONDS = 60;
 
@@ -38,7 +35,7 @@ final class SignupProtectionSettingsService
     }
 
     /**
-     * Signups sharing a local-part prefix before the burst rule trips. 0 disables it.
+     * A limit of 0 disables its rule; a window of 0 does not.
      */
     public function prefixLimit(): int
     {
@@ -47,16 +44,9 @@ final class SignupProtectionSettingsService
 
     public function prefixWindowSeconds(): int
     {
-        return $this->int(
-            AppSettingsEnums::SIGNUP_PREFIX_BURST_WINDOW,
-            self::DEFAULT_PREFIX_WINDOW_SECONDS,
-            self::MIN_WINDOW_SECONDS
-        );
+        return $this->int(AppSettingsEnums::SIGNUP_PREFIX_BURST_WINDOW, self::DEFAULT_PREFIX_WINDOW_SECONDS, self::MIN_WINDOW_SECONDS);
     }
 
-    /**
-     * Signups resolving to one real mailbox before the reuse rule trips. 0 disables it.
-     */
     public function mailboxLimit(): int
     {
         return $this->int(AppSettingsEnums::SIGNUP_MAILBOX_LIMIT, self::DEFAULT_MAILBOX_LIMIT);
@@ -64,11 +54,7 @@ final class SignupProtectionSettingsService
 
     public function mailboxWindowSeconds(): int
     {
-        return $this->int(
-            AppSettingsEnums::SIGNUP_MAILBOX_WINDOW,
-            self::DEFAULT_MAILBOX_WINDOW_SECONDS,
-            self::MIN_WINDOW_SECONDS
-        );
+        return $this->int(AppSettingsEnums::SIGNUP_MAILBOX_WINDOW, self::DEFAULT_MAILBOX_WINDOW_SECONDS, self::MIN_WINDOW_SECONDS);
     }
 
     public function anomalyMultiplier(): int
@@ -88,22 +74,28 @@ final class SignupProtectionSettingsService
 
     public function anomalyCooldownSeconds(): int
     {
-        return $this->int(
-            AppSettingsEnums::SIGNUP_ANOMALY_COOLDOWN,
-            self::DEFAULT_ANOMALY_COOLDOWN_SECONDS,
-            self::MIN_WINDOW_SECONDS
-        );
+        return $this->int(AppSettingsEnums::SIGNUP_ANOMALY_COOLDOWN, self::DEFAULT_ANOMALY_COOLDOWN_SECONDS, self::MIN_WINDOW_SECONDS);
     }
 
     /**
-     * Per-app webhook, falling back to the platform one so a new app is covered
+     * Per-app recipients fall back to the platform list so a new app is covered
      * before anyone configures it.
+     *
+     * @return list<string>
      */
-    public function anomalySlackWebhook(): string
+    public function anomalyAlertEmails(): array
     {
-        $configured = $this->app->get(AppSettingsEnums::SIGNUP_ANOMALY_SLACK_WEBHOOK->getValue());
+        $configured = $this->app->get(AppSettingsEnums::SIGNUP_ANOMALY_ALERT_EMAILS->getValue())
+            ?: config('kanvas.signup_anomaly.alert_emails', '');
 
-        return (string) ($configured ?: config('kanvas.signup_anomaly.slack_webhook', ''));
+        $candidates = is_array($configured)
+            ? $configured
+            : (preg_split('/[\s,;]+/', (string) $configured) ?: []);
+
+        return array_values(array_filter(
+            array_map(trim(...), $candidates),
+            static fn (string $email): bool => filter_var($email, FILTER_VALIDATE_EMAIL) !== false
+        ));
     }
 
     /**

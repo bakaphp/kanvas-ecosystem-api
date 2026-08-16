@@ -6,11 +6,22 @@ namespace Baka\Validations;
 
 use Illuminate\Support\Str;
 
+/**
+ * Rejects addresses that cannot exist at the provider they claim.
+ *
+ * A farm signing up as `dggie_l9pbrxc3ex@gmail.com` never had a Gmail account —
+ * Gmail usernames are letters, digits and dots only, so Google bounces every one
+ * of them. That makes the provider's own syntax a far stronger signal than any
+ * randomness heuristic: escaping it costs the attacker a real registered mailbox
+ * per signup instead of a string generator.
+ */
 final class EmailProvider
 {
-    /**
-     * Domains that are the same mailbox as gmail.com.
-     */
+    private const GMAIL_RULE = [
+        'pattern' => '/^[a-z0-9]+(?:\.[a-z0-9]+)*$/',
+        'max' => 30,
+    ];
+
     private const GMAIL_DOMAINS = [
         'gmail.com',
         'googlemail.com',
@@ -36,7 +47,7 @@ final class EmailProvider
     /**
      * Charset + length the provider itself enforces at signup, keyed by domain.
      *
-     * Only Gmail is encoded today because its rule is unambiguous and publicly
+     * Only Gmail is encoded because its rule is unambiguous and publicly
      * documented. Add a provider here only once its rule is verified — a wrong
      * entry locks out real users, which is far worse than letting a bot through.
      *
@@ -44,19 +55,10 @@ final class EmailProvider
      * usernames in through acquisitions and Workspace migrations.
      */
     private const PROVIDER_RULES = [
-        'gmail.com' => [
-            'pattern' => '/^[a-z0-9]+(?:\.[a-z0-9]+)*$/',
-            'max' => 30,
-        ],
-        'googlemail.com' => [
-            'pattern' => '/^[a-z0-9]+(?:\.[a-z0-9]+)*$/',
-            'max' => 30,
-        ],
+        'gmail.com' => self::GMAIL_RULE,
+        'googlemail.com' => self::GMAIL_RULE,
     ];
 
-    /**
-     * Whether the address is impossible at its own provider.
-     */
     public static function violatesProviderRules(string $email): bool
     {
         $domain = self::domain($email);
@@ -76,10 +78,9 @@ final class EmailProvider
     }
 
     /**
-     * Collapse an address down to the mailbox it actually delivers to, so that
-     * `m.a.x+one@gmail.com` and `max+two@googlemail.com` resolve to the same
-     * bucket. Addresses at providers we have no alias rules for are only
-     * lowercased.
+     * Collapse an address to the mailbox it actually delivers to, so
+     * `a.n.a+one@gmail.com` and `ana+two@googlemail.com` land in one bucket.
+     * Providers we have no alias rules for are only lowercased.
      */
     public static function canonicalize(string $email): string
     {

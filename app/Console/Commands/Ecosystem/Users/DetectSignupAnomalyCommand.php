@@ -17,12 +17,10 @@ use Kanvas\Users\Models\UsersAssociatedApps;
 use Throwable;
 
 /**
- * Hourly signup-volume anomaly check.
- *
- * The bot campaign that created ~14k accounts ran for days before anyone
- * noticed, because nothing watched the rate. This compares the last hour
- * against the app's own trailing hourly average, so a quiet app and a busy one
- * each get a threshold that means something.
+ * The campaign that created ~14k accounts ran for days before anyone noticed,
+ * because nothing watched the rate. Comparing each app against its own trailing
+ * average means a quiet app and a busy one both get a threshold that means
+ * something.
  */
 class DetectSignupAnomalyCommand extends Command
 {
@@ -57,28 +55,22 @@ class DetectSignupAnomalyCommand extends Command
     {
         $now = Carbon::now();
         $windowStart = $now->copy()->subHour();
-
         $signups = $this->countSignups($app, $windowStart, $now);
 
+        // Most apps are idle most hours; skip the baseline query for them.
         if ($signups === 0) {
             return;
         }
 
         $settings = new SignupProtectionSettingsService($app);
         $baseline = $this->hourlyBaseline($app, $windowStart, $settings->anomalyBaselineDays());
-        $multiplier = $settings->anomalyMultiplier();
 
-        /**
-         * The baseline floors at 1 so a dormant app can't make every trickle of
-         * traffic look like an infinite spike.
-         */
-        $threshold = max(1.0, $baseline) * $multiplier;
-
-        if ($signups < $settings->anomalyFloor() || $signups <= $threshold) {
+        if (! $this->isSpike($signups, $baseline, $settings)) {
             return;
         }
 
-        $blocked = new RegistrationAbuseReportService($app)->blockedDuring($windowStart);
+        $reporter = new RegistrationAbuseReportService($app);
+        $blocked = $reporter->blockedDuring($windowStart);
 
         $this->warn(sprintf(
             '[%d] %s: %d signups last hour vs %.1f/h baseline (%d blocked)',
@@ -93,7 +85,19 @@ class DetectSignupAnomalyCommand extends Command
             return;
         }
 
-        $this->dispatchAlert($app, $settings, $signups, $baseline, $blocked);
+        $reporter->anomalyDetected($signups, $baseline, $blocked, $settings->anomalyMultiplier());
+
+        $this->email($app, $settings, $signups, $baseline, $blocked);
+    }
+
+    /**
+     * The baseline floors at 1 so a dormant app can't make every trickle of
+     * traffic look like an infinite spike.
+     */
+    private function isSpike(int $signups, float $baseline, SignupProtectionSettingsService $settings): bool
+    {
+        return $signups >= $settings->anomalyFloor()
+            && $signups > max(1.0, $baseline) * $settings->anomalyMultiplier();
     }
 
     private function countSignups(Apps $app, Carbon $from, Carbon $to): int
@@ -112,17 +116,17 @@ class DetectSignupAnomalyCommand extends Command
         return $total / ($baselineDays * 24);
     }
 
-    private function dispatchAlert(
+    private function email(
         Apps $app,
         SignupProtectionSettingsService $settings,
         int $signups,
         float $baseline,
         int $blocked
     ): void {
-        $webhook = $settings->anomalySlackWebhook();
+        $recipients = $settings->anomalyAlertEmails();
 
-        if ($webhook === '') {
-            $this->warn('No Slack webhook configured for app ' . $app->getId() . ' — alert not sent.');
+        if ($recipients === []) {
+            $this->warn('No alert recipients configured for app ' . $app->getId() . ' — Sentry only.');
 
             return;
         }
@@ -133,7 +137,7 @@ class DetectSignupAnomalyCommand extends Command
             return;
         }
 
-        Notification::route('slack', $webhook)->notify(
+        Notification::route('mail', $recipients)->notify(
             new SignupAnomalyNotification($app, $signups, $baseline, $blocked, $settings->anomalyMultiplier())
         );
     }

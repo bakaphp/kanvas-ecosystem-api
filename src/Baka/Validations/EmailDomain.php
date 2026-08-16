@@ -101,8 +101,6 @@ class EmailDomain
 
     /**
      * Detect bot-generated, randomized local parts (e.g. `8rhpkhzq6sqwcx3`).
-     * Tuned to be conservative: a long handle with no vowel at all, or one whose
-     * segments read as machine output, is treated as spam.
      */
     public static function hasSpamLocalPart(string $email): bool
     {
@@ -136,8 +134,8 @@ class EmailDomain
 
     /**
      * Why the address looks like a bot signup, or null when it looks legitimate.
-     * The reason is logged so a false positive can be traced to the rule that
-     * produced it rather than guessed at.
+     * The reason is logged so a false positive traces to the rule that produced
+     * it rather than being guessed at.
      */
     public static function spamReason(string $email, array $extraBlocked = []): ?string
     {

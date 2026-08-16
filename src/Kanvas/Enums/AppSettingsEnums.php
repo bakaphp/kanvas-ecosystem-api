@@ -60,7 +60,7 @@ enum AppSettingsEnums implements EnumsInterface
     case SIGNUP_PREFIX_BURST_WINDOW;
     case SIGNUP_MAILBOX_LIMIT;
     case SIGNUP_MAILBOX_WINDOW;
-    case SIGNUP_ANOMALY_SLACK_WEBHOOK;
+    case SIGNUP_ANOMALY_ALERT_EMAILS;
     case SIGNUP_ANOMALY_MULTIPLIER;
     case SIGNUP_ANOMALY_FLOOR;
     case SIGNUP_ANOMALY_BASELINE_DAYS;
@@ -122,7 +122,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::SIGNUP_PREFIX_BURST_WINDOW => 'signup_prefix_burst_window',
             self::SIGNUP_MAILBOX_LIMIT => 'signup_mailbox_limit',
             self::SIGNUP_MAILBOX_WINDOW => 'signup_mailbox_window',
-            self::SIGNUP_ANOMALY_SLACK_WEBHOOK => 'signup_anomaly_slack_webhook',
+            self::SIGNUP_ANOMALY_ALERT_EMAILS => 'signup_anomaly_alert_emails',
             self::SIGNUP_ANOMALY_MULTIPLIER => 'signup_anomaly_multiplier',
             self::SIGNUP_ANOMALY_FLOOR => 'signup_anomaly_floor',
             self::SIGNUP_ANOMALY_BASELINE_DAYS => 'signup_anomaly_baseline_days',

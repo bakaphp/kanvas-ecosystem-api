@@ -38,8 +38,6 @@ return [
         'decay_minutes' => env('API_RATE_LIMIT_DECAY_MINUTES', 1),
     ],
     'signup_anomaly' => [
-        // Fallback webhook for apps with no `signup_anomaly_slack_webhook` of
-        // their own, so a new app is covered before anyone configures it.
-        'slack_webhook' => env('SIGNUP_ANOMALY_SLACK_WEBHOOK'),
+        'alert_emails' => env('SIGNUP_ANOMALY_ALERT_EMAILS'),
     ],
 ];

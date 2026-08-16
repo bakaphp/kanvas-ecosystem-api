@@ -78,18 +78,35 @@ class SignupProtectionSettingsServiceTest extends TestCase
         $this->assertSame(1, $this->set('signup_anomaly_baseline_days', 0)->anomalyBaselineDays());
     }
 
-    public function testTheWebhookFallsBackToThePlatformConfig(): void
+    public function testAlertRecipientsFallBackToThePlatformList(): void
     {
-        config(['kanvas.signup_anomaly.slack_webhook' => 'https://hooks.slack.test/platform']);
+        config(['kanvas.signup_anomaly.alert_emails' => 'ops@example-corp.com, security@example-corp.com']);
 
         $this->assertSame(
-            'https://hooks.slack.test/platform',
-            new SignupProtectionSettingsService(app(Apps::class))->anomalySlackWebhook()
+            ['ops@example-corp.com', 'security@example-corp.com'],
+            new SignupProtectionSettingsService(app(Apps::class))->anomalyAlertEmails()
         );
 
         $this->assertSame(
-            'https://hooks.slack.test/app',
-            $this->set('signup_anomaly_slack_webhook', 'https://hooks.slack.test/app')->anomalySlackWebhook()
+            ['app-owner@example-corp.com'],
+            $this->set('signup_anomaly_alert_emails', 'app-owner@example-corp.com')->anomalyAlertEmails()
         );
+    }
+
+    public function testRecipientsAcceptAnySeparatorAndDropInvalidEntries(): void
+    {
+        $settings = $this->set(
+            'signup_anomaly_alert_emails',
+            "ops@example-corp.com;  security@example-corp.com\nnot-an-email,  \n"
+        );
+
+        $this->assertSame(['ops@example-corp.com', 'security@example-corp.com'], $settings->anomalyAlertEmails());
+    }
+
+    public function testNoRecipientsAnywhereYieldsAnEmptyList(): void
+    {
+        config(['kanvas.signup_anomaly.alert_emails' => null]);
+
+        $this->assertSame([], new SignupProtectionSettingsService(app(Apps::class))->anomalyAlertEmails());
     }
 }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Auth\Services;
 
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Sentry\Severity;
@@ -16,13 +15,12 @@ use function Sentry\captureMessage;
 use function Sentry\withScope;
 
 /**
- * Single reporting point for blocked signups, so an attack is visible without
+ * Single reporting point for signup abuse, so an attack is visible without
  * anyone tailing logs.
  *
- * Sentry capture is throttled per app + reason. A campaign can produce tens of
- * thousands of blocks an hour, and the value of the 400th identical event is
- * zero — the throttled event carries the real window count instead, so the
- * issue still shows the true scale without paying for it in event quota.
+ * Sentry needs no configuration beyond the DSN every environment already has,
+ * which makes it the alert of last resort — a spike is never invisible just
+ * because nobody set up the email recipients.
  */
 final class RegistrationAbuseReportService
 {
@@ -34,14 +32,17 @@ final class RegistrationAbuseReportService
      */
     private const COUNTER_TTL_SECONDS = 172800;
 
+    private readonly SignupCounterService $counter;
+
     public function __construct(
         private readonly Apps $app,
     ) {
+        $this->counter = new SignupCounterService($app);
     }
 
     public function blocked(string $email, string $reason): void
     {
-        $blockedThisHour = $this->increment(Carbon::now());
+        $blockedThisHour = $this->counter->hit($this->hourBucket(Carbon::now()), self::COUNTER_TTL_SECONDS);
 
         Log::warning('auth.registration_spam_email_blocked', [
             'app_id' => $this->app->getId(),
@@ -51,63 +52,82 @@ final class RegistrationAbuseReportService
             'blocked_this_hour' => $blockedThisHour,
         ]);
 
-        $this->report($email, $reason, $blockedThisHour);
+        /**
+         * A campaign produces tens of thousands of identical blocks an hour and
+         * the 400th event adds nothing, so only one per reason gets through per
+         * window — carrying the real count so the issue still shows true scale.
+         */
+        if (! $this->counter->claim('sentry:' . $reason, self::SENTRY_THROTTLE_SECONDS)) {
+            return;
+        }
+
+        $this->capture(
+            'Registration blocked as spam: ' . $reason,
+            ['registration-spam', (string) $this->app->getId(), $reason],
+            [
+                'email' => $email,
+                'reason' => $reason,
+                'blocked_this_hour' => $blockedThisHour,
+                'throttle_seconds' => self::SENTRY_THROTTLE_SECONDS,
+            ],
+            ['block_reason' => $reason]
+        );
+    }
+
+    public function blockedDuring(Carbon $moment): int
+    {
+        return $this->counter->read($this->hourBucket($moment));
     }
 
     /**
-     * Blocks recorded in the hour bucket the given moment falls into.
+     * Unthrottled — the sweep runs once an hour, so the event count on the issue
+     * tracks how long the attack ran.
      */
-    public function blockedDuring(Carbon $moment): int
+    public function anomalyDetected(int $signups, float $baseline, int $blocked, int $multiplier): void
     {
-        return (int) (Cache::get($this->counterKey($moment)) ?? 0);
+        $this->capture(
+            'Signup spike detected: ' . $signups . ' in the last hour',
+            ['signup-anomaly', (string) $this->app->getId()],
+            [
+                'signups_last_hour' => $signups,
+                'hourly_baseline' => round($baseline, 2),
+                'blocked_last_hour' => $blocked,
+                'multiplier' => $multiplier,
+            ]
+        );
     }
 
-    private function increment(Carbon $moment): int
+    private function hourBucket(Carbon $moment): string
     {
-        $key = $this->counterKey($moment);
-
-        Cache::add($key, 0, self::COUNTER_TTL_SECONDS);
-
-        return (int) Cache::increment($key);
-    }
-
-    private function counterKey(Carbon $moment): string
-    {
-        return 'signup_blocked:' . $this->app->getId() . ':' . $moment->format('YmdH');
+        return 'blocked:' . $moment->format('YmdH');
     }
 
     /**
      * Reporting must never be able to fail a registration — a Sentry transport
      * error here would surface to the user as a failed signup.
+     *
+     * @param list<string> $fingerprint groups every event of one campaign into a
+     *                                  single issue with a rising count, which is
+     *                                  what Sentry's spike alerts key off
+     * @param array<string, mixed> $context
+     * @param array<string, string> $tags
      */
-    private function report(string $email, string $reason, int $blockedThisHour): void
+    private function capture(string $message, array $fingerprint, array $context, array $tags = []): void
     {
-        $throttleKey = 'signup_block_sentry:' . $this->app->getId() . ':' . $reason;
-
-        if (! Cache::add($throttleKey, true, self::SENTRY_THROTTLE_SECONDS)) {
-            return;
-        }
-
         try {
-            withScope(function (Scope $scope) use ($email, $reason, $blockedThisHour): void {
+            withScope(function (Scope $scope) use ($message, $fingerprint, $context, $tags): void {
                 $scope->setLevel(Severity::warning());
                 $scope->setTag('app_id', (string) $this->app->getId());
                 $scope->setTag('app_name', (string) $this->app->name);
-                $scope->setTag('block_reason', $reason);
-                $scope->setContext('registration_abuse', [
-                    'email' => $email,
-                    'reason' => $reason,
-                    'blocked_this_hour' => $blockedThisHour,
-                    'throttle_seconds' => self::SENTRY_THROTTLE_SECONDS,
-                ]);
-                /**
-                 * One issue per app + reason, so a campaign reads as a single
-                 * issue with a rising event count rather than thousands of
-                 * one-off issues Sentry can't alert on.
-                 */
-                $scope->setFingerprint(['registration-spam', (string) $this->app->getId(), $reason]);
 
-                captureMessage('Registration blocked as spam: ' . $reason, Severity::warning());
+                foreach ($tags as $name => $value) {
+                    $scope->setTag($name, $value);
+                }
+
+                $scope->setContext('registration_abuse', $context);
+                $scope->setFingerprint($fingerprint);
+
+                captureMessage($message, Severity::warning());
             });
         } catch (Throwable $e) {
             Log::warning('auth.registration_spam_report_failed', ['error' => $e->getMessage()]);
