@@ -30,7 +30,8 @@ final class WriteLeadStageChangeThreadMessageAction
         return new RecordLeadNoteAction($this->lead)
             ->execute(
                 $this->renderBody(),
-                'stage-change'
+                'stage-change',
+                isPublic: false
             );
     }
 
