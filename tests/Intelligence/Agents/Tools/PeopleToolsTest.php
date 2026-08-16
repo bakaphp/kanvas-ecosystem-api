@@ -109,6 +109,45 @@ final class PeopleToolsTest extends TestCase
         $this->assertSame('Renamedcc', $reloaded->lastname);
     }
 
+    /**
+     * custom_fields is declared as a JSON-object STRING because Gemini rejects an OBJECT
+     * schema with no `properties` — so the string form is what the model actually sends.
+     */
+    public function test_custom_fields_accept_a_json_object_string(): void
+    {
+        $created = $this->tool(new CreatePersonTool())->__invoke(
+            firstname: 'Jsonfielduniq',
+            lastname: 'Contactjs',
+            email: 'json-' . uniqid() . '@x.test',
+            custom_fields: '{"seniority": "manager"}',
+        );
+        $personId = (int) $created['person_id'];
+
+        $setFields = $this->tool(new SetPersonCustomFieldsTool())->__invoke(
+            person_id: $personId,
+            custom_fields: '{"source": "referral", "score": 42}',
+        );
+        $this->assertSame('referral', $setFields['set']['source']);
+
+        /** @var People $reloaded */
+        $reloaded = People::getByIdFromCompanyApp($personId, $this->currentCompany, $this->currentApp);
+        $this->assertSame('manager', $reloaded->get('seniority'));
+        $this->assertSame('referral', $reloaded->get('source'));
+        $this->assertSame(42, $reloaded->get('score'));
+    }
+
+    public function test_set_person_custom_fields_rejects_unparseable_json(): void
+    {
+        $person = $this->makePerson('Badjsonuniq', '');
+
+        $result = $this->tool(new SetPersonCustomFieldsTool())->__invoke(
+            person_id: (int) $person->getId(),
+            custom_fields: 'seniority = director',
+        );
+
+        $this->assertArrayHasKey('error', $result);
+    }
+
     public function test_manage_person_contact_adds_and_opts_out(): void
     {
         $person = $this->makePerson('Contactmgruniq', '');

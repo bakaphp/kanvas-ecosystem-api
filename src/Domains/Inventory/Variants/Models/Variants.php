@@ -8,7 +8,6 @@ use Awobaz\Compoships\Compoships;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
-use Baka\Support\Arr;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -526,27 +525,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
      */
     protected function fitWithinAlgoliaRecordLimit(array $variant): array
     {
-        $limit = $this->algoliaRecordSizeLimit();
-
-        if (Arr::sizeInBytes($variant) <= $limit) {
-            return $variant;
-        }
-
-        // Warehouse breakdown is internal stock detail, never shown in search.
-        $variant['warehouses'] = [];
-        if (Arr::sizeInBytes($variant) <= $limit) {
-            return $variant;
-        }
-
-        $variant['attributes'] = [];
-        if (Arr::sizeInBytes($variant) <= $limit) {
-            return $variant;
-        }
-
-        // Last resort: give up the images.
-        $variant['files'] = [];
-
-        return $variant;
+        return $this->trimToAlgoliaLimit($variant)
+            // Warehouse breakdown is internal stock detail, never shown in search.
+            ->trim(fn (array $v) => [...$v, 'warehouses' => []])
+            ->trim(fn (array $v) => [...$v, 'attributes' => []])
+            // Last resort: give up the images.
+            ->trim(fn (array $v) => [...$v, 'files' => []])
+            ->get();
     }
 
     public function toSearchableArraySummary(): array

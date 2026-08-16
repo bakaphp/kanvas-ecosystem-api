@@ -37,4 +37,7 @@ return [
         'max_attempts' => env('API_RATE_LIMIT_MAX_ATTEMPTS', 250),
         'decay_minutes' => env('API_RATE_LIMIT_DECAY_MINUTES', 1),
     ],
+    'signup_anomaly' => [
+        'alert_emails' => env('SIGNUP_ANOMALY_ALERT_EMAILS'),
+    ],
 ];
