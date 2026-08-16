@@ -333,6 +333,24 @@ final class ProcessSlackWebhookJobTest extends TestCase
         $this->assertSame('Channel bookkeeping event ignored', $result['message']);
     }
 
+    public function testAnOverheardPostWithNoTextIsNotRecorded(): void
+    {
+        $this->fakeSlackApi();
+        $this->enableListenAllChannels();
+
+        $result = $this->dispatch($this->messageEvent([
+            'channel' => self::SLACK_CHANNEL,
+            'channel_type' => 'channel',
+            'subtype' => 'file_share',
+            'text' => '',
+            'files' => [['id' => 'F001', 'url_private' => 'https://files.slack.com/f']],
+        ]));
+
+        $this->assertSame('Empty message ignored', $result['message']);
+        // Overheard files are not re-hosted, so a blank row would be all we stored.
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'files.slack.com'));
+    }
+
     public function testANewlyCreatedChannelIsJoinedWhileListening(): void
     {
         $this->fakeSlackApi();

@@ -114,6 +114,29 @@ final class SlackChannelListeningTest extends TestCase
         $this->assertSame(['C001', 'C002'], $result['joined']);
     }
 
+    public function testAnEmptyPageWithACursorDoesNotSpinForever(): void
+    {
+        // Slack answers this way under rate-limit backoff. A guard that counted collected channels
+        // rather than pages would never advance and the worker would loop on the cursor.
+        Http::fake([
+            'slack.com/api/conversations.list' => Http::response([
+                'ok' => true,
+                'channels' => [],
+                'response_metadata' => ['next_cursor' => 'stuck'],
+            ]),
+        ]);
+
+        $result = new JoinAllSlackChannelsAction($this->agent)->execute();
+
+        $this->assertSame([], $result['joined']);
+        $this->assertLessThanOrEqual(
+            10,
+            collect(Http::recorded())
+                ->filter(fn ($pair) => str_contains($pair[0]->url(), 'conversations.list'))
+                ->count()
+        );
+    }
+
     public function testDisablingListeningLeavesMembershipUntouched(): void
     {
         $this->fakeConversations([['id' => 'C001', 'name' => 'general', 'is_member' => false]]);

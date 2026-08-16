@@ -69,8 +69,16 @@ class ProcessSlackWebhookJob extends ProcessWebhookJob
 
         $isAddressedToAgent = $this->isAddressedToAgent($event);
 
-        if (! $isAddressedToAgent && ! $this->listensToAllChannels()) {
-            return ['message' => 'Event not addressed to the agent'];
+        if (! $isAddressedToAgent) {
+            if (! $this->listensToAllChannels()) {
+                return ['message' => 'Event not addressed to the agent'];
+            }
+
+            // A file-only post carries no text, and overheard files aren't re-hosted — so there is
+            // nothing to record. Storing it anyway would pad the agent's history with blank turns.
+            if (trim((string) ($event['text'] ?? '')) === '') {
+                return ['message' => 'Empty message ignored'];
+            }
         }
 
         $agent = $this->agent();

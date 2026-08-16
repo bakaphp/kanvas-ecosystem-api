@@ -79,10 +79,33 @@ final class ConnectSlackAgentActionTest extends TestCase
             'users:read',
             'users:read.email',
             'users.profile:read',
+            // Slack gives a bot channel history only for channels it has joined, so listening to the
+            // whole workspace is gated on the bot being able to add itself.
+            'channels:join',
         ] as $scope) {
             $this->assertContains($scope, $botScopes, "Manifest is missing bot scope {$scope}");
         }
         $this->assertStringContainsString('api.slack.com/apps?new_app=1', $result['install_url']);
+    }
+
+    public function testManifestSubscribesToRoomTrafficUpFrontSoListeningNeedsNoReinstall(): void
+    {
+        $manifest = json_decode($this->manifestFor($this->agent('Sofia'))['manifest_json'], true);
+        $botEvents = $manifest['settings']['event_subscriptions']['bot_events'];
+
+        // These ship whether or not listen-all is on for this agent. A manifest is consumed once, when
+        // the customer creates their Slack app — adding an event later means walking every existing
+        // customer back through Slack's UI, so the toggle has to stay purely Kanvas-side.
+        foreach ([
+            'app_mention',
+            'message.im',
+            'message.channels',
+            'message.groups',
+            'message.mpim',
+            'channel_created',
+        ] as $event) {
+            $this->assertContains($event, $botEvents, "Manifest is missing bot event {$event}");
+        }
     }
 
     public function testAnUnnamedAgentStillGetsAValidManifest(): void

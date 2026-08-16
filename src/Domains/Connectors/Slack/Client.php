@@ -23,9 +23,10 @@ class Client
 
     private const int CONVERSATIONS_PAGE_SIZE = 200;
 
-    // A workspace with more public channels than this is one where "join everything" is the wrong
-    // answer anyway; the cap keeps a runaway cursor from pinning the worker on Slack's rate limiter.
-    private const int MAX_CONVERSATIONS = 2000;
+    // A workspace with more public channels than this (10 pages × 200) is one where "join everything"
+    // is the wrong answer anyway; the cap keeps a runaway cursor from pinning the worker on Slack's
+    // rate limiter.
+    private const int MAX_CONVERSATION_PAGES = 10;
 
     public function __construct(
         private readonly string $botToken
@@ -235,7 +236,11 @@ class Client
     {
         $conversations = [];
         $cursor = '';
+        $page = 0;
 
+        // Bounded on PAGES, not on collected channels: a page that returns an empty `channels` array
+        // alongside a non-empty cursor (Slack does this under rate-limit backoff) would never advance
+        // a count-of-channels guard, and the worker would spin on the cursor forever.
         do {
             $response = $this->call('conversations.list', array_filter([
                 'types' => 'public_channel',
@@ -257,7 +262,7 @@ class Client
             }
 
             $cursor = (string) ($response['response_metadata']['next_cursor'] ?? '');
-        } while ($cursor !== '' && count($conversations) < self::MAX_CONVERSATIONS);
+        } while ($cursor !== '' && ++$page < self::MAX_CONVERSATION_PAGES);
 
         return $conversations;
     }
