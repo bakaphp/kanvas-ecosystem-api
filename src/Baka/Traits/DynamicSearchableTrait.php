@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use BadMethodCallException;
+use Baka\Search\RecordSizeTrimmer;
 use Baka\Search\SearchEngineResolver;
 use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\Engines\TypesenseEngine;
@@ -69,6 +70,17 @@ trait DynamicSearchableTrait
             ?? config('scout.algolia.record_size_limit', 9500));
 
         return $limit > 0 ? $limit : 9500;
+    }
+
+    /**
+     * Entry point for a model's trimming cascade — see RecordSizeTrimmer.
+     */
+    public function trimToAlgoliaLimit(array $record): RecordSizeTrimmer
+    {
+        return RecordSizeTrimmer::make(
+            $record,
+            $this->algoliaRecordSizeLimit()
+        );
     }
 
     protected function resolvedEngineName(): string

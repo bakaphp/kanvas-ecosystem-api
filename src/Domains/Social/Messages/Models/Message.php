@@ -522,7 +522,32 @@ class Message extends BaseModel
             $data['has_children'] = $this->total_children > 0;
         }
 
+        if ($this->isAlgolia()) {
+            $data = $this->fitWithinAlgoliaRecordLimit($data);
+        }
+
         return $data;
+    }
+
+    /**
+     * A message body can be an entire LLM answer, and Algolia rejects the whole batch over one
+     * oversized record (Sentry KANVAS-ECOSYSTEM-5TG), so trim instead of losing the batch.
+     * Thread previews go first; the body shrinks in stages after that — a shortened body still
+     * matches searches, and the full text is read from the DB on display anyway.
+     */
+    protected function fitWithinAlgoliaRecordLimit(array $message): array
+    {
+        return $this->trimToAlgoliaLimit($message)
+            ->truncateStrings('children', [500, 200])
+            ->forget('children')
+            // `message` duplicates `message_text`; shrink the object copy first since search
+            // matches on the text field.
+            ->truncateStrings('message', [2000, 500, 200])
+            ->limitString('message_text', 10000, 2000, 500)
+            // Whatever is left is a relation toArray() serialized in — never leave the record
+            // over budget, the batch it rides in carries other messages.
+            ->truncateEverything(500, 200, 100)
+            ->get();
     }
 
     private function getSearchableChildrenSummary(): array

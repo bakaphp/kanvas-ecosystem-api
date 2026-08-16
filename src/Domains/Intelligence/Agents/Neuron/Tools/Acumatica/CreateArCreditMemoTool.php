@@ -16,9 +16,12 @@ use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
 use Kanvas\Scribe\Ledger\Models\Account;
+use NeuronAI\Tools\ArrayProperty;
+use NeuronAI\Tools\ObjectProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\ToolPropertyInterface;
 use Override;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
@@ -41,7 +44,7 @@ class CreateArCreditMemoTool extends Tool
     }
 
     /**
-     * @return array<int, ToolProperty>
+     * @return array<int, ToolPropertyInterface>
      */
     #[Override]
     protected function properties(): array
@@ -62,13 +65,34 @@ class CreateArCreditMemoTool extends Tool
                     . 'into an existing invoice. Always required.',
                 required: true,
             ),
-            new ToolProperty(
+            new ArrayProperty(
                 name: 'lines',
-                type: PropertyType::ARRAY,
-                description: 'Array of line objects, one per row on the Credit Request Form: '
-                    . '{control_account_number: string (the "Control Acct#", e.g. "41045"), amount: number, '
-                    . 'description: string (e.g. product name)}. At least one line is required.',
+                description: 'One entry per row on the Credit Request Form. At least one line is required.',
                 required: true,
+                items: new ObjectProperty(
+                    name: 'line',
+                    description: 'A single credit memo line.',
+                    properties: [
+                        new ToolProperty(
+                            name: 'control_account_number',
+                            type: PropertyType::STRING,
+                            description: 'The "Control Acct#" from the form, e.g. "41045".',
+                            required: true,
+                        ),
+                        new ToolProperty(
+                            name: 'amount',
+                            type: PropertyType::NUMBER,
+                            description: 'The credited amount for this line.',
+                            required: true,
+                        ),
+                        new ToolProperty(
+                            name: 'description',
+                            type: PropertyType::STRING,
+                            description: 'Line description, e.g. the product name.',
+                            required: false,
+                        ),
+                    ],
+                ),
             ),
             new ToolProperty(
                 name: 'currency',
