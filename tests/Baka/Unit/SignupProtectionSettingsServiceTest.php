@@ -7,32 +7,15 @@ namespace Tests\Baka\Unit;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\SignupProtectionSettingsService;
 use Tests\TestCase;
+use Tests\Traits\ManagesAppSettings;
 
 class SignupProtectionSettingsServiceTest extends TestCase
 {
-    /**
-     * @var list<string>
-     */
-    private array $touched = [];
-
-    protected function tearDown(): void
-    {
-        $app = app(Apps::class);
-
-        foreach ($this->touched as $key) {
-            $app->del($key);
-        }
-
-        parent::tearDown();
-    }
+    use ManagesAppSettings;
 
     private function set(string $key, mixed $value): SignupProtectionSettingsService
     {
-        $app = app(Apps::class);
-        $app->set($key, $value);
-        $this->touched[] = $key;
-
-        return new SignupProtectionSettingsService($app);
+        return new SignupProtectionSettingsService($this->setAppSettings([$key => $value]));
     }
 
     public function testUnsetKeysFallBackToTheDefaults(): void
@@ -101,6 +84,35 @@ class SignupProtectionSettingsServiceTest extends TestCase
         );
 
         $this->assertSame(['ops@example-corp.com', 'security@example-corp.com'], $settings->anomalyAlertEmails());
+    }
+
+    public function testSentryReportingIsOnByDefault(): void
+    {
+        config(['kanvas.signup_anomaly.sentry_enabled' => true]);
+
+        $this->assertTrue(new SignupProtectionSettingsService(app(Apps::class))->sentryReportingEnabled());
+    }
+
+    public function testThePlatformSwitchTurnsSentryOffEverywhere(): void
+    {
+        config(['kanvas.signup_anomaly.sentry_enabled' => false]);
+
+        $this->assertFalse(new SignupProtectionSettingsService(app(Apps::class))->sentryReportingEnabled());
+    }
+
+    public function testAnAppCanOptBackInWhileThePlatformSwitchIsOff(): void
+    {
+        config(['kanvas.signup_anomaly.sentry_enabled' => false]);
+
+        $this->assertTrue($this->set('signup_abuse_sentry_enabled', '1')->sentryReportingEnabled());
+    }
+
+    public function testAnAppCanBeSilencedWhileThePlatformSwitchIsOn(): void
+    {
+        config(['kanvas.signup_anomaly.sentry_enabled' => true]);
+
+        $this->assertFalse($this->set('signup_abuse_sentry_enabled', '0')->sentryReportingEnabled());
+        $this->assertFalse($this->set('signup_abuse_sentry_enabled', 'false')->sentryReportingEnabled());
     }
 
     public function testNoRecipientsAnywhereYieldsAnEmptyList(): void

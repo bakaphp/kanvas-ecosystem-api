@@ -8,12 +8,12 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
 - **Domain-driven design**: Code is organized by domain under `src/Domains/{DomainName}/`
 - **GraphQL API**: Uses Lighthouse PHP framework with schema files in `graphql/schemas/`
 - **PHP 8.4**: Use modern syntax (e.g., `new Foo(...)->execute()` not `(new Foo(...))->execute()`)
-- **Method call formatting**: When a method call has 4 or more arguments, format vertically with one argument per line:
+- **Method formatting**: When a method **call** or **signature** has 3 or more arguments/parameters, format vertically with one per line. Applies to our own methods; native functions (`str_replace`, `preg_replace`, ...) stay inline.
   ```php
-  // 3 or fewer args — inline is fine
-  $this->doSomething($a, $b, $c);
+  // 2 or fewer — inline is fine
+  $this->doSomething($a, $b);
 
-  // 4+ args — always vertical
+  // 3+ — always vertical, calls and signatures alike
   $this->uploadImageToEntity(
       $company,
       app(Apps::class),
@@ -21,6 +21,12 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
       $request['file'],
       'photo'
   );
+
+  private function rememberPost(
+      RestClient $client,
+      array $result,
+      ?int $featuredMediaId
+  ): void {
   ```
 - **Use PHP 8+ named arguments to skip optional positional `null`s.** When you would otherwise pass `null` for an optional middle parameter just to reach a later one, switch to named arguments instead. The positional `null` is a readability and refactor-safety footgun (rename a parameter or add a new optional in between, every caller silently breaks).
   ```php

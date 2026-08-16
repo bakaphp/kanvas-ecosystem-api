@@ -6,6 +6,7 @@ namespace Tests\GraphQL\Souk;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
@@ -20,6 +21,7 @@ use Kanvas\Souk\Payments\Models\PaymentLogs;
 use Kanvas\Souk\Payments\Models\PaymentRefund;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Wallet\Actions\AddFundsToUserWalletAction;
+use Kanvas\Souk\Wallet\Actions\PayFromWalletAction;
 use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
@@ -133,6 +135,90 @@ class OrderWalletTest extends TestCase
             ],
             ],
         ]);
+    }
+
+    public function testPayFromWalletThrowsValidationExceptionOnEmptyWallet(): void
+    {
+        // Fresh user/company so the wallet balance is isolated from the other tests in this class
+        $this->actingAs($this->createUser(), 'api');
+
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+        $app->set(WalletConfigurationEnum::USE_USER_WALLET->value, false);
+
+        $this->setupInventory($app, $company, $user);
+
+        $productData = new Product(
+            app: $app,
+            company: $company,
+            user: $user,
+            name: fake()->name(),
+            sku: fake()->unique()->uuid(),
+            warehouses: [[
+                'quantity' => 10,
+                'price' => 100,
+            ]]
+        );
+        $product = (new CreateProductAction($productData, $user))->execute();
+        $variant = $product->variants()->first();
+        $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
+        $channel = Channels::fromApp($app)->fromCompany($company)->first();
+        $variant->updatePriceInWarehouse($warehouse, 100);
+        $variant->updatePriceInChannel($channel, 100);
+
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_NOTIFICATION->value);
+        $app->del(ConfigurationEnum::SEND_NEW_ORDER_TO_OWNER_NOTIFICATION->value);
+
+        // Exactly enough for one order — the order below drains the wallet to 0
+        $wallet = $company->createAppWallet($app, ['name' => 'default']);
+        $wallet->deposit(20000, [
+            'description' => 'Balance for order testing',
+            'slug' => 'empty-wallet-deposit',
+        ]);
+
+        $response = $this->graphQL('
+            mutation createOrderFromWalletCart($input: OrderCartInput!) {
+                createOrderFromWalletCart(input: $input) {
+                    order {
+                        id
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'cartId' => 'default',
+                'customer' => [
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                ],
+                'items' => [
+                    [
+                        'variant_id' => $variant->getId(),
+                        'quantity' => 2,
+                    ],
+                ],
+                'shipping_address' => [
+                    'address' => fake()->address(),
+                    'address_2' => fake()->postcode(),
+                    'city' => fake()->city(),
+                    'state' => fake()->state(),
+                ],
+                'metadata' => [
+                    'user_company_id' => $company->getId(),
+                ],
+            ],
+        ]);
+
+        $order = Order::findOrFail($response->json('data.createOrderFromWalletCart.order.id'));
+
+        $wallet->refresh();
+        $this->assertEquals(0, $wallet->balanceFloat);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Insufficient wallet balance to complete the order.');
+
+        new PayFromWalletAction(order: $order)->execute();
     }
 
     public function testCreateOrderWithWalletCreditDiscount()
