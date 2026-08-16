@@ -18,6 +18,7 @@ use Illuminate\Support\Str;
 trait MatchesBulkNameTerms
 {
     protected const int BULK_MAX_TERMS = 100;
+    protected const int BULK_MAX_BATCHED_TERMS = 1000;
     protected const int BULK_MAX_CANDIDATE_ROWS = 2000;
     protected const int BULK_MIN_TOKEN_LENGTH = 3;
     protected const int BULK_DEFAULT_MATCHES_PER_TERM = 3;
@@ -26,8 +27,9 @@ trait MatchesBulkNameTerms
     /**
      * @return list<array{query: string, tokens: list<string>}>
      */
-    protected function parseBulkTerms(string $input): array
+    protected function parseBulkTerms(string $input, ?int $limit = null): array
     {
+        $max = $limit ?? static::BULK_MAX_TERMS;
         $terms = [];
         $seen = [];
 
@@ -42,7 +44,7 @@ trait MatchesBulkNameTerms
             $seen[implode(' ', $tokens)] = true;
             $terms[] = ['query' => $query, 'tokens' => $tokens];
 
-            if (count($terms) >= static::BULK_MAX_TERMS) {
+            if (count($terms) >= $max) {
                 break;
             }
         }
@@ -54,11 +56,11 @@ trait MatchesBulkNameTerms
      * parseBulkTerms() caps silently, which is fine for a chat answer the model can narrate but not for
      * a file — a 500-name export that quietly holds 100 rows reads as "these are the only matches".
      */
-    protected function bulkTermsExceedLimit(string $input): bool
+    protected function bulkTermsExceedLimit(string $input, ?int $limit = null): bool
     {
         $parts = preg_split('/[,;\r\n]+/', trim($input), -1, PREG_SPLIT_NO_EMPTY) ?: [];
 
-        return count($parts) > static::BULK_MAX_TERMS;
+        return count($parts) > ($limit ?? static::BULK_MAX_TERMS);
     }
 
     /**
@@ -67,8 +69,12 @@ trait MatchesBulkNameTerms
      * @param callable(mixed, int): array<string, mixed> $present
      * @return array{searched: int, matched: int, not_found: list<string>, results: list<array<string, mixed>>}
      */
-    protected function assembleBulkResults(array $terms, array $candidates, int $maxMatches, callable $present): array
-    {
+    protected function assembleBulkResults(
+        array $terms,
+        array $candidates,
+        int $maxMatches,
+        callable $present
+    ): array {
         $results = [];
         $notFound = [];
         $matched = 0;

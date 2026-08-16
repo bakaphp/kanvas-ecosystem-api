@@ -98,7 +98,7 @@ class BaseAgentChannelReplyAction
         ?string $from = null
     ): Message {
         if (empty($text)) {
-            throw new Exception('Empty message was created');
+            throw new AgentReplySkippedException('Empty message was created');
         }
         $user = $this->channel->company->getAiAgentUser() ?? $message->user;
         $type = $this->getMessageType($message->app);
