@@ -7,6 +7,7 @@ namespace Kanvas\Notifications\Traits;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use NotificationChannels\Expo\ExpoMessage;
 
@@ -66,7 +67,13 @@ trait NotificationExpoTrait
 
     protected function hasExpoContent(): bool
     {
-        if (! empty($this->resolveExpoContent()['message'])) {
+        try {
+            $content = $this->resolveExpoContent();
+        } catch (ModelNotFoundException) {
+            $content = [];
+        }
+
+        if (! empty($content['message'])) {
             return true;
         }
 

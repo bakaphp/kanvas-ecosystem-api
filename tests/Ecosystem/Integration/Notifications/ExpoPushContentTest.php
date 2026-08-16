@@ -20,7 +20,7 @@ use Tests\TestCase;
  */
 final class ExpoPushContentTest extends TestCase
 {
-    private function makeNotification(string $pushMessageTemplate): Blank
+    private function makeNotification(string $pushMessageTemplate, bool $withPushTemplates = true): Blank
     {
         $user = auth()->user();
         $app = app(Apps::class);
@@ -47,7 +47,7 @@ final class ExpoPushContentTest extends TestCase
         )->execute();
 
         $notification = new Blank(
-            templateName: 'expo-content-test-body',
+            templateName: $withPushTemplates ? 'expo-content-test-body' : $pushMessageTemplate,
             data: [
                 'message' => $lead,
                 'company' => $company,
@@ -58,8 +58,10 @@ final class ExpoPushContentTest extends TestCase
             entity: $lead
         );
 
-        $notification->setPushTitleTemplateName('expo-content-test-title');
-        $notification->setPushMessageTemplateName($pushMessageTemplate);
+        if ($withPushTemplates) {
+            $notification->setPushTitleTemplateName('expo-content-test-title');
+            $notification->setPushMessageTemplateName($pushMessageTemplate);
+        }
 
         return $notification;
     }
@@ -78,6 +80,25 @@ final class ExpoPushContentTest extends TestCase
 
         $this->assertTrue($notification->shouldSend($user, ExpoChannel::class));
         $this->assertStringContainsString('Expo body for lead', $notification->toExpo($user)->toArray()['body']);
+    }
+
+    /**
+     * The split-template path swallows a missing template (tryRenderTemplate), but a notification
+     * that renders one whole push template throws ModelNotFoundException. shouldSend() is a
+     * predicate — that throw used to escape it and kill the entire queued notification, taking the
+     * mail/database channels down with a push template nobody configured.
+     */
+    public function testExpoChannelIsSkippedWhenThePushTemplateDoesNotExist(): void
+    {
+        // No push title/message setters — so resolvePushTemplateName() falls back to the single
+        // template name, which has no row and makes the render throw.
+        $notification = $this->makeNotification(
+            'expo-content-test-no-such-template',
+            withPushTemplates: false
+        );
+
+        $this->assertFalse($notification->shouldSend(auth()->user(), ExpoChannel::class));
+        $this->assertTrue($notification->shouldSend(auth()->user(), KanvasDatabase::class));
     }
 
     public function testOtherChannelsAreUnaffectedByEmptyPushContent(): void
