@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
+namespace Kanvas\Guild\Search;
 
+use Illuminate\Contracts\Database\Query\Builder as BuilderContract;
 use Illuminate\Support\Str;
 
 /**
@@ -50,12 +51,14 @@ trait MatchesBulkNameTerms
     }
 
     /**
-     * @param list<array{query: string, tokens: list<string>}> $terms
-     * @return list<string>
+     * parseBulkTerms() caps silently, which is fine for a chat answer the model can narrate but not for
+     * a file — a 500-name export that quietly holds 100 rows reads as "these are the only matches".
      */
-    protected function bulkLikeTokens(array $terms): array
+    protected function bulkTermsExceedLimit(string $input): bool
     {
-        return array_values(array_unique(array_merge(...array_column($terms, 'tokens'))));
+        $parts = preg_split('/[,;\r\n]+/', trim($input), -1, PREG_SPLIT_NO_EMPTY) ?: [];
+
+        return count($parts) > static::BULK_MAX_TERMS;
     }
 
     /**
@@ -71,7 +74,7 @@ trait MatchesBulkNameTerms
         $matched = 0;
 
         foreach ($terms as $term) {
-            $required = count($term['tokens']) === 1 ? 1 : 2;
+            $required = $this->bulkRequiredScore($term['tokens']);
             $scored = [];
 
             foreach ($candidates as $candidate) {
@@ -104,6 +107,50 @@ trait MatchesBulkNameTerms
             'not_found' => $notFound,
             'results' => $results,
         ];
+    }
+
+    /**
+     * How many of a term's tokens a candidate must share to count as a match. Shared with the SQL
+     * prefilter, which has to admit everything this threshold would accept — keep them reading from
+     * here so a change to one can't silently make the other drop rows.
+     *
+     * @param list<string> $tokens
+     */
+    protected function bulkRequiredScore(array $tokens): int
+    {
+        return count($tokens) === 1 ? 1 : 2;
+    }
+
+    /**
+     * Narrows the candidate query to rows that could actually survive scoring, by counting matched
+     * tokens per term in SQL and applying bulkRequiredScore() there too.
+     *
+     * A flat OR over every token in the batch instead admits any row sharing ONE token with ANY
+     * name, which on a 28k-person directory meant 10k candidates for a 35-name list against a 2k
+     * cap — and the cap is unordered, so a record that does match came back "not found" because a
+     * common surname elsewhere in the batch filled the budget first.
+     *
+     * $columns are code-supplied identifiers (never LLM input); only the token values are bound.
+     *
+     * @param list<string> $tokens
+     * @param list<string> $columns column names the token may appear in, table-qualified when joined
+     */
+    protected function applyBulkCandidateFilter(BuilderContract $query, array $tokens, array $columns): void
+    {
+        $condition = implode(' OR ', array_map(fn (string $column): string => $column . ' LIKE ?', $columns));
+
+        $cases = [];
+        $bindings = [];
+
+        foreach ($tokens as $token) {
+            $cases[] = '(CASE WHEN (' . $condition . ') THEN 1 ELSE 0 END)';
+            $bindings = [...$bindings, ...array_fill(0, count($columns), '%' . $token . '%')];
+        }
+
+        $query->orWhereRaw(
+            '(' . implode(' + ', $cases) . ') >= ' . $this->bulkRequiredScore($tokens),
+            $bindings,
+        );
     }
 
     /**

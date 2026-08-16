@@ -33,8 +33,6 @@ use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Contracts\EntityImportFilesystemInterface;
 use Kanvas\Filesystem\Models\FilesystemImports;
-use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
-use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -47,6 +45,7 @@ use Kanvas\Inventory\Products\Observers\ProductsObserver;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Traits\ResolvesAttributesTrait;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
@@ -106,6 +105,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     use HasRating;
     use HasTranslationsDefaultFallback;
     use LogsActivity;
+    use ResolvesAttributesTrait;
 
     protected $table = 'products';
     protected $guarded = [];
@@ -828,7 +828,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
         if ($isTypesense) {
             $searchQuery->options([
-                'query_by' => 'name,description,translations',
+                'query_by' => 'name,description',
             ]);
         }
 
@@ -887,45 +887,46 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
      */
     public function addAttributes(UserInterface $user, array $attributes): void
     {
+        /**
+         * Resolve every attribute first and write in ascending attribute id, so concurrent
+         * importers take the locks on the shared `attributes` rows in the same order and
+         * can't deadlock against each other.
+         */
+        $resolvedAttributes = [];
+
         foreach ($attributes as $attribute) {
-            if (! isset($attribute['value']) || $attribute['name'] === null) {
+            if (! isset($attribute['value']) || ($attribute['name'] ?? null) === null) {
                 continue; // Skip attributes without a value
             }
 
-            $attributeModel = null;
+            $attributeModel = $this->resolveAttribute($user, $attribute);
 
-            if (isset($attribute['id'])) {
-                $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
-            } else {
-                $attributesDto = AttributesDto::from([
-                    'app' => $this->app,
-                    'user' => $user,
-                    'company' => $this->company,
-                    'name' => $attribute['name'],
-                    'value' => $attribute['value'],
-                    'isVisible' => true,
-                    'isSearchable' => true,
-                    'isFiltrable' => true,
-                    'slug' => Str::slug($attribute['name']),
-                ]);
-                $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
+            if ($attributeModel === null) {
+                continue;
             }
 
-            if ($attributeModel) {
-                (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+            $resolvedAttributes[$attributeModel->getId()] = [
+                'model' => $attributeModel,
+                'value' => $attribute['value'],
+            ];
+        }
 
-                if ($this?->productsType !== null) {
-                    ProductTypeService::addAttributes(
-                        $this->productsType,
-                        $this->user,
+        ksort($resolvedAttributes);
+
+        foreach ($resolvedAttributes as $resolvedAttribute) {
+            new AddAttributeAction($this, $resolvedAttribute['model'], $resolvedAttribute['value'])->execute();
+
+            if ($this->productsType !== null) {
+                ProductTypeService::addAttributes(
+                    $this->productsType,
+                    $this->user,
+                    [
                         [
-                            [
-                                'id' => $attributeModel->getId(),
-                                'value' => $attribute['value'],
-                            ],
-                        ]
-                    );
-                }
+                            'id' => $resolvedAttribute['model']->getId(),
+                            'value' => $resolvedAttribute['value'],
+                        ],
+                    ]
+                );
             }
         }
     }

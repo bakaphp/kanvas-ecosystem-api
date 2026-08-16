@@ -112,7 +112,7 @@ class CreateEntityChannelTool extends Tool
                 entity_namespace: $modelClass,
                 name: $name,
                 description: trim((string) $description),
-                slug: $this->normalizeOptionalString($slug),
+                slug: trim((string) $slug) ?: null,
             ))->execute();
         } catch (Throwable $e) {
             report($e);
@@ -157,12 +157,5 @@ class CreateEntityChannelTool extends Tool
         }
 
         return $query->first();
-    }
-
-    private function normalizeOptionalString(?string $value): ?string
-    {
-        $value = trim((string) $value);
-
-        return $value === '' ? null : $value;
     }
 }
