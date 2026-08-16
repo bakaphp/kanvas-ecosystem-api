@@ -33,7 +33,7 @@ class ConnectSlackAgentAction
     }
 
     /**
-     * @return array{connected: bool, team_id: string, team_name: string, bot_user_id: string, request_url: string}
+     * @return array{connected: bool, team_id: string, team_name: string, bot_user_id: string, request_url: string, listening_all_channels: bool}
      */
     public function execute(): array
     {
@@ -66,6 +66,7 @@ class ConnectSlackAgentAction
             'team_name' => (string) ($identity['team'] ?? ''),
             'bot_user_id' => (string) ($identity['user_id'] ?? ''),
             'request_url' => $receiver->getUrl(),
+            'listening_all_channels' => (bool) ($receiver->configuration[ConfigurationEnum::LISTEN_ALL_CHANNELS->value] ?? false),
         ];
     }
 }

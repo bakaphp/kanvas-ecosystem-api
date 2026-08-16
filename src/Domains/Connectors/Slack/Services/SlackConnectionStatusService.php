@@ -13,7 +13,7 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
 class SlackConnectionStatusService
 {
     /**
-     * @return array{connected: bool, team_id: string, team_name: string, bot_user_id: string, request_url: string}|null
+     * @return array{connected: bool, team_id: string, team_name: string, bot_user_id: string, request_url: string, listening_all_channels: bool}|null
      */
     public function forAgent(Agent $agent): ?array
     {
@@ -43,6 +43,7 @@ class SlackConnectionStatusService
             'team_name' => (string) ($configuration[ConfigurationEnum::TEAM_NAME->value] ?? ''),
             'bot_user_id' => (string) ($configuration[ConfigurationEnum::BOT_USER_ID->value] ?? ''),
             'request_url' => (string) $receiver->getUrl(),
+            'listening_all_channels' => (bool) ($configuration[ConfigurationEnum::LISTEN_ALL_CHANNELS->value] ?? false),
         ];
     }
 }

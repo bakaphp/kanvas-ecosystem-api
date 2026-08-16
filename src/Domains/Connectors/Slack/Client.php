@@ -21,6 +21,12 @@ class Client
     // handful of hops is plenty, and the cap stops a redirect loop from hanging the worker.
     private const int MAX_DOWNLOAD_REDIRECTS = 5;
 
+    private const int CONVERSATIONS_PAGE_SIZE = 200;
+
+    // A workspace with more public channels than this is one where "join everything" is the wrong
+    // answer anyway; the cap keeps a runaway cursor from pinning the worker on Slack's rate limiter.
+    private const int MAX_CONVERSATIONS = 2000;
+
     public function __construct(
         private readonly string $botToken
     ) {
@@ -214,6 +220,56 @@ class Client
     public function authTest(): array
     {
         return $this->call('auth.test', []);
+    }
+
+    /**
+     * Every non-archived public channel in the workspace, cursor-paged.
+     *
+     * `conversations.list` only ever reports membership — it does NOT give the bot any history. A bot
+     * token receives `message.channels` solely for channels it has joined, so this is step one of two;
+     * joinConversation() is step two.
+     *
+     * @return list<array{id: string, name: string, is_member: bool}>
+     */
+    public function listPublicConversations(): array
+    {
+        $conversations = [];
+        $cursor = '';
+
+        do {
+            $response = $this->call('conversations.list', array_filter([
+                'types' => 'public_channel',
+                'exclude_archived' => 'true',
+                'limit' => self::CONVERSATIONS_PAGE_SIZE,
+                'cursor' => $cursor,
+            ]));
+
+            foreach ($response['channels'] ?? [] as $channel) {
+                if (! is_array($channel) || ! isset($channel['id'])) {
+                    continue;
+                }
+
+                $conversations[] = [
+                    'id' => (string) $channel['id'],
+                    'name' => (string) ($channel['name'] ?? ''),
+                    'is_member' => (bool) ($channel['is_member'] ?? false),
+                ];
+            }
+
+            $cursor = (string) ($response['response_metadata']['next_cursor'] ?? '');
+        } while ($cursor !== '' && count($conversations) < self::MAX_CONVERSATIONS);
+
+        return $conversations;
+    }
+
+    /**
+     * Join a public channel. Private channels are not reachable this way at any scope level — only a
+     * human already inside one can `/invite` the bot — so a `channel_not_found` here is the expected
+     * answer for a private id, not a fault.
+     */
+    public function joinConversation(string $channelId): void
+    {
+        $this->call('conversations.join', ['channel' => $channelId]);
     }
 
     /**

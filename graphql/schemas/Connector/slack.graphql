@@ -21,6 +21,18 @@ type SlackAgentConnection {
     team_name: String!
     bot_user_id: String!
     request_url: String!
+    "Is the agent ingesting every message in the channels it belongs to, not just the ones aimed at it?"
+    listening_all_channels: Boolean!
+}
+
+type SlackAgentChannelListening {
+    listening_all_channels: Boolean!
+    "Public channels the bot just joined. Slack posts a visible 'has joined the channel' in each."
+    joined_channels: [String!]!
+    "Public channels the bot was already in — nothing was posted in these."
+    already_member_channels: [String!]!
+    "Public channels the bot could not enter (admin-restricted, archived mid-sweep). Reported, not fatal."
+    failed_channels: [String!]!
 }
 
 extend type Query @guard {
@@ -42,6 +54,26 @@ extend type Mutation @guard {
     connectSlackAgent(input: ConnectSlackAgentInput!): SlackAgentConnection!
         @field(
             resolver: "App\\GraphQL\\Connector\\Slack\\SlackConnectorResolver@connect"
+        )
+
+    """
+    Have the agent read every message in every channel it can reach, instead of only DMs and @mentions.
+
+    Slack gives a bot history only for channels it has JOINED — there is no workspace-wide firehose —
+    so enabling this joins every public channel by default. Private channels still need a human inside
+    them to `/invite` the bot; after that they flow in with no further setup.
+
+    Reading is not answering: overheard messages are recorded into the agent's history, and the agent
+    still only takes a turn when DM'd or @mentioned.
+    """
+    slackAgentListenToAllChannels(
+        agent_id: ID!
+        enabled: Boolean!
+        "Join every existing public channel now. Off leaves membership as-is — useful to enable listening on channels the bot is already in without announcing itself workspace-wide."
+        join_existing_channels: Boolean = true
+    ): SlackAgentChannelListening!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Slack\\SlackConnectorResolver@listenToAllChannels"
         )
 
     "Stop the agent listening on Slack. Keeps the receiver URL so reconnecting doesn't need a new Slack app."

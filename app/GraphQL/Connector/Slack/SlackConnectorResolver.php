@@ -4,28 +4,26 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Connector\Slack;
 
-use Kanvas\Apps\Models\Apps;
+use App\GraphQL\Concerns\ResolvesActingContext;
 use Kanvas\Connectors\Slack\Actions\ConnectSlackAgentAction;
 use Kanvas\Connectors\Slack\Actions\DisconnectSlackAgentAction;
 use Kanvas\Connectors\Slack\Actions\GenerateSlackManifestAction;
+use Kanvas\Connectors\Slack\Actions\SetSlackChannelListeningAction;
 use Kanvas\Connectors\Slack\Services\SlackConnectionStatusService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 
 class SlackConnectorResolver
 {
+    use ResolvesActingContext;
+
     /**
      * @return array<string, mixed>
      */
     public function manifest(mixed $root, array $request): array
     {
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-        $app = app(Apps::class);
-
-        /** @var Agent $agent */
-        $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
-
-        return new GenerateSlackManifestAction($agent)->execute();
+        return new GenerateSlackManifestAction(
+            $this->agent((int) $request['agent_id'])
+        )->execute();
     }
 
     /**
@@ -33,32 +31,32 @@ class SlackConnectorResolver
      */
     public function connect(mixed $root, array $request): array
     {
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-        $app = app(Apps::class);
-
         $input = (array) $request['input'];
 
-        /** @var Agent $agent */
-        $agent = Agent::getByIdFromCompanyApp((int) $input['agent_id'], $company, $app);
-
         return new ConnectSlackAgentAction(
-            agent: $agent,
+            agent: $this->agent((int) $input['agent_id']),
             botToken: (string) $input['bot_token'],
             signingSecret: (string) $input['signing_secret'],
         )->execute();
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function listenToAllChannels(mixed $root, array $request): array
+    {
+        return new SetSlackChannelListeningAction(
+            agent: $this->agent((int) $request['agent_id']),
+            enabled: (bool) $request['enabled'],
+            joinExistingChannels: (bool) ($request['join_existing_channels'] ?? true),
+        )->execute();
+    }
+
     public function disconnect(mixed $root, array $request): bool
     {
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-        $app = app(Apps::class);
-
-        /** @var Agent $agent */
-        $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
-
-        return new DisconnectSlackAgentAction($agent)->execute();
+        return new DisconnectSlackAgentAction(
+            $this->agent((int) $request['agent_id'])
+        )->execute();
     }
 
     /**
@@ -66,13 +64,18 @@ class SlackConnectorResolver
      */
     public function connection(mixed $root, array $request): ?array
     {
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-        $app = app(Apps::class);
+        return new SlackConnectionStatusService()->forAgent(
+            $this->agent((int) $request['agent_id'])
+        );
+    }
+
+    private function agent(int $agentId): Agent
+    {
+        $ctx = $this->actingContext();
 
         /** @var Agent $agent */
-        $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
+        $agent = Agent::getByIdFromCompanyApp($agentId, $ctx->company, $ctx->app);
 
-        return new SlackConnectionStatusService()->forAgent($agent);
+        return $agent;
     }
 }

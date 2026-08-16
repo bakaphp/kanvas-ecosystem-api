@@ -32,6 +32,7 @@ class CreateMessageFromSlackEventAction
         protected readonly ReceiverWebhookCall $webhookRequest,
         protected readonly Agent $agent,
         protected readonly array $event,
+        protected readonly bool $downloadAttachments = true,
     ) {
     }
 
@@ -145,12 +146,14 @@ class CreateMessageFromSlackEventAction
      * audio/CSV into native content blocks. Slack's url_private needs the bot token to fetch, so we
      * download-with-auth and re-upload rather than pass the raw URL through. One bad file must not sink
      * the turn: the text still gets answered.
+     *
+     * Skipped when the message is only being overheard — no turn is about to read those bytes.
      */
     private function attachFiles(Message $message, Client $client): void
     {
         $files = $this->event['files'] ?? null;
 
-        if (! is_array($files)) {
+        if (! $this->downloadAttachments || ! is_array($files)) {
             return;
         }
 

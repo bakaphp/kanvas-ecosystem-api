@@ -271,12 +271,111 @@ final class ProcessSlackWebhookJobTest extends TestCase
         $this->assertSame('Event not addressed to the agent', $result['message']);
     }
 
+    public function testChannelMessageIsRecordedButNotAnsweredWhenListeningToAllChannels(): void
+    {
+        $this->fakeSlackApi();
+        $this->enableListenAllChannels();
+
+        $result = $this->dispatch($this->messageEvent([
+            'channel' => self::SLACK_CHANNEL,
+            'channel_type' => 'channel',
+            'text' => 'just two humans talking',
+        ]));
+
+        $this->assertSame('Message recorded', $result['message']);
+
+        $inbound = $this->messagesOn(self::SLACK_CHANNEL)->first();
+        $speakerName = trim($this->user->firstname . ' ' . $this->user->lastname);
+        $this->assertSame($speakerName . ': just two humans talking', $inbound->message['content']);
+        $this->assertInstanceOf(Channel::class, $inbound->entity());
+
+        // Listening is not answering — overhearing a room must never make the agent chime in.
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'chat.postMessage'));
+    }
+
+    public function testOverheardMentionIsAnsweredOnlyOnceAcrossBothSlackEvents(): void
+    {
+        $this->fakeSlackApi();
+        $this->enableListenAllChannels();
+
+        // Slack delivers a channel mention twice under two different event ids: once as
+        // message.channels, once as app_mention. Answering both would double-post.
+        $asMessage = $this->dispatch($this->messageEvent([
+            'channel' => self::SLACK_CHANNEL,
+            'channel_type' => 'channel',
+            'text' => '<@' . self::BOT_USER_ID . '> status on the deal',
+            'ts' => '1700000000.000201',
+        ]));
+
+        $asMention = $this->dispatch($this->messageEvent([
+            'type' => 'app_mention',
+            'channel' => self::SLACK_CHANNEL,
+            'text' => '<@' . self::BOT_USER_ID . '> status on the deal',
+            'ts' => '1700000000.000201',
+        ]));
+
+        $this->assertStringContainsString('Hola Mundo', $asMessage['response']);
+        $this->assertSame('Mention already handled as a channel message', $asMention['message']);
+    }
+
+    public function testChannelBookkeepingIsNotRecordedAsConversation(): void
+    {
+        $this->fakeSlackApi();
+        $this->enableListenAllChannels();
+
+        $result = $this->dispatch($this->messageEvent([
+            'channel' => self::SLACK_CHANNEL,
+            'channel_type' => 'channel',
+            'subtype' => 'channel_join',
+            'text' => '<@U0001> has joined the channel',
+        ]));
+
+        $this->assertSame('Channel bookkeeping event ignored', $result['message']);
+    }
+
+    public function testANewlyCreatedChannelIsJoinedWhileListening(): void
+    {
+        $this->fakeSlackApi();
+        $this->enableListenAllChannels();
+
+        $result = $this->dispatch([
+            'type' => 'channel_created',
+            'channel' => ['id' => 'CNEW01', 'name' => 'launch-plans'],
+        ]);
+
+        $this->assertSame('Joined new channel CNEW01', $result['message']);
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'conversations.join')
+            && ($request['channel'] ?? null) === 'CNEW01');
+    }
+
+    public function testANewlyCreatedChannelIsIgnoredWhenNotListening(): void
+    {
+        $this->fakeSlackApi();
+
+        $result = $this->dispatch([
+            'type' => 'channel_created',
+            'channel' => ['id' => 'CNEW02', 'name' => 'launch-plans'],
+        ]);
+
+        $this->assertSame('Channel creation ignored', $result['message']);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'conversations.join'));
+    }
+
     public function testUninstallDeactivatesTheReceiver(): void
     {
         $result = $this->dispatch(['type' => 'app_uninstalled']);
 
         $this->assertSame('Slack app uninstalled, receiver deactivated', $result['message']);
         $this->assertFalse((bool) $this->receiver->refresh()->is_active);
+    }
+
+    private function enableListenAllChannels(): void
+    {
+        $this->receiver->configuration = [
+            ...$this->receiver->configuration,
+            ConfigurationEnum::LISTEN_ALL_CHANNELS->value => true,
+        ];
+        $this->receiver->saveOrFail();
     }
 
     private function fakeSlackApi(?string $email = null): void

@@ -33,6 +33,10 @@ class GenerateSlackManifestAction
         'mpim:read',
         'channels:history',
         'channels:read',
+        // Lets the bot add itself to public channels, which is what "listen to everything" needs:
+        // Slack delivers message.channels only for channels the bot is a member of. Private channels
+        // have no equivalent — a human has to /invite the bot.
+        'channels:join',
         'groups:history',
         'groups:read',
         'files:read',
@@ -45,9 +49,19 @@ class GenerateSlackManifestAction
         'users.profile:read',
     ];
 
+    /**
+     * The room-message events are subscribed unconditionally even though listen-all defaults to off.
+     * A manifest is consumed once, when the customer creates their Slack app; adding an event later
+     * means walking every customer back through Slack's UI. Subscribing now and gating in code makes
+     * the toggle a pure Kanvas-side switch — the cost is inbound events we drop early when it's off.
+     */
     private const array BOT_EVENTS = [
         'app_mention',
         'message.im',
+        'message.channels',
+        'message.groups',
+        'message.mpim',
+        'channel_created',
         'app_uninstalled',
         'tokens_revoked',
     ];
