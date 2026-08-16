@@ -7,11 +7,11 @@ namespace App\Console\Commands\Ecosystem\Users;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Notifications\SignupAnomalyNotification;
 use Kanvas\Auth\Services\RegistrationAbuseReportService;
+use Kanvas\Auth\Services\SignupCounterService;
 use Kanvas\Auth\Services\SignupProtectionSettingsService;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use Throwable;
@@ -126,14 +126,18 @@ class DetectSignupAnomalyCommand extends Command
         $recipients = $settings->anomalyAlertEmails();
 
         if ($recipients === []) {
-            $this->warn('No alert recipients configured for app ' . $app->getId() . ' — Sentry only.');
+            $this->warn(
+                'No alert recipients configured for app ' . $app->getId() . ' — '
+                . ($settings->sentryReportingEnabled() ? 'Sentry only.' : 'nobody will be notified.')
+            );
 
             return;
         }
 
-        $cooldownKey = 'signup_anomaly_alerted:' . $app->getId();
+        $slotIsFree = new SignupCounterService($app)
+            ->claim('anomaly_alert', $settings->anomalyCooldownSeconds());
 
-        if (! Cache::add($cooldownKey, true, $settings->anomalyCooldownSeconds())) {
+        if (! $slotIsFree) {
             return;
         }
 

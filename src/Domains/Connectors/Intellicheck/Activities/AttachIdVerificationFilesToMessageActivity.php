@@ -31,8 +31,7 @@ class AttachIdVerificationFilesToMessageActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function (Message $message, Apps $app): array {
-                $content = Str::jsonToArray($message->message);
-                $files = is_array($content) ? $this->collectFiles($content) : [];
+                $files = $this->collectFiles((array) ($message->message ?? []));
 
                 if (empty($files)) {
                     return [
@@ -104,12 +103,6 @@ class AttachIdVerificationFilesToMessageActivity extends KanvasActivity
         return $collected;
     }
 
-    /**
-     * Field names must be unique per file: with FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME off,
-     * a repeated field_name repoints the existing attachment instead of adding a second one.
-     * The two-image license case reuses the drivers_license_front/back names the rest of the
-     * Intellicheck flow looks up by (the upload flow always submits front first).
-     */
     private function resolveFieldName(array $group, array $file, int $index, int $total): string
     {
         $typeName = (string) ($group['type']['name'] ?? '');

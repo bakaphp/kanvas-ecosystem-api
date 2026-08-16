@@ -29,6 +29,15 @@ final class SignupProtectionSettingsService
      */
     private const MIN_WINDOW_SECONDS = 60;
 
+    /**
+     * Each read is a Redis hit and a single anomaly sweep asks for the same
+     * knob several times, so resolved values are held for the instance's life.
+     * Construct a fresh instance to observe a mid-request settings change.
+     *
+     * @var array<string, mixed>
+     */
+    private array $resolved = [];
+
     public function __construct(
         private readonly Apps $app,
     ) {
@@ -78,6 +87,20 @@ final class SignupProtectionSettingsService
     }
 
     /**
+     * Sentry costs event quota, so it has an off switch. The per-app setting
+     * wins when set, letting one app stay instrumented while the platform
+     * switch is off (or one noisy app be silenced while it's on).
+     */
+    public function sentryReportingEnabled(): bool
+    {
+        $configured = $this->raw(AppSettingsEnums::SIGNUP_ABUSE_SENTRY_ENABLED);
+
+        return $configured === null
+            ? (bool) config('kanvas.signup_anomaly.sentry_enabled', true)
+            : filter_var($configured, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
      * Per-app recipients fall back to the platform list so a new app is covered
      * before anyone configures it.
      *
@@ -85,8 +108,8 @@ final class SignupProtectionSettingsService
      */
     public function anomalyAlertEmails(): array
     {
-        $configured = $this->app->get(AppSettingsEnums::SIGNUP_ANOMALY_ALERT_EMAILS->getValue())
-            ?: config('kanvas.signup_anomaly.alert_emails', '');
+        $configured = $this->raw(AppSettingsEnums::SIGNUP_ANOMALY_ALERT_EMAILS)
+            ?? config('kanvas.signup_anomaly.alert_emails', '');
 
         $candidates = is_array($configured)
             ? $configured
@@ -98,18 +121,27 @@ final class SignupProtectionSettingsService
         ));
     }
 
-    /**
-     * An unset key and a key cleared to an empty string both mean "use the
-     * default" — admin UIs write the latter.
-     */
     private function int(AppSettingsEnums $setting, int $default, int $minimum = 0): int
     {
-        $configured = $this->app->get($setting->getValue());
+        $configured = $this->raw($setting);
 
-        if ($configured === null || $configured === '') {
-            return $default;
+        return $configured === null ? $default : max($minimum, (int) $configured);
+    }
+
+    /**
+     * An unset key and a key cleared to an empty string both mean "use the
+     * default" — admin UIs write the latter — so both collapse to null here and
+     * every caller gets one thing to check.
+     */
+    private function raw(AppSettingsEnums $setting): mixed
+    {
+        $key = $setting->getValue();
+
+        if (! array_key_exists($key, $this->resolved)) {
+            $configured = $this->app->get($key);
+            $this->resolved[$key] = $configured === '' ? null : $configured;
         }
 
-        return max($minimum, (int) $configured);
+        return $this->resolved[$key];
     }
 }

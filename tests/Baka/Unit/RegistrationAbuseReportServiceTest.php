@@ -62,6 +62,31 @@ class RegistrationAbuseReportServiceTest extends TestCase
         $this->assertSame(0, $this->service()->blockedDuring(Carbon::parse('2026-08-16 03:00:00')));
     }
 
+    public function testBlocksAreStillCountedAndLoggedWhenSentryIsOff(): void
+    {
+        config(['kanvas.signup_anomaly.sentry_enabled' => false]);
+        Carbon::setTestNow(Carbon::parse('2026-08-16 14:20:00'));
+
+        $service = $this->service();
+        $service->blocked('dggie_a@gmail.com', 'impossible_provider_address');
+        $service->blocked('dggie_b@gmail.com', 'impossible_provider_address');
+
+        $this->assertSame(
+            2,
+            $service->blockedDuring(Carbon::parse('2026-08-16 14:00:00')),
+            'The counter feeds the alert email, so it must survive Sentry being switched off.'
+        );
+    }
+
+    public function testAnomalyReportingIsSkippedWhenSentryIsOff(): void
+    {
+        config(['kanvas.signup_anomaly.sentry_enabled' => false]);
+
+        $this->service()->anomalyDetected(500, 12.0, 40, 5);
+
+        $this->assertTrue(true, 'Reporting with Sentry off is a no-op rather than an error.');
+    }
+
     public function testReportingNeverThrowsIntoTheRegistrationPath(): void
     {
         $service = $this->service();
