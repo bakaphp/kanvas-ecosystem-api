@@ -28,6 +28,7 @@ use Kanvas\Notifications\Traits\NotificationStorageTrait;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
+use NotificationChannels\Expo\ExpoChannel;
 use Override;
 
 class Notification extends LaravelNotification implements EmailInterfaces, ShouldQueue
@@ -122,6 +123,19 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $this->setNotifiableData($notifiable);
 
         return $channels;
+    }
+
+    /**
+     * Laravel checks this per channel right before delivering, letting us drop a channel
+     * whose content didn't render instead of failing the queued job inside the driver.
+     */
+    public function shouldSend(object $notifiable, string $channel): bool
+    {
+        if ($channel === ExpoChannel::class) {
+            return $this->hasExpoContent();
+        }
+
+        return true;
     }
 
     private function isNotifiableReceivable(object $notifiable): bool

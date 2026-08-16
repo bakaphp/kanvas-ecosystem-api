@@ -8,6 +8,7 @@ use Illuminate\Support\Str;
 use Kanvas\Connectors\VinSolution\Client;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
 use Kanvas\Connectors\VinSolution\Dealers\User;
+use Kanvas\Connectors\VinSolution\Exceptions\ContactNotFoundException;
 
 class Contact
 {
@@ -68,12 +69,28 @@ class Contact
     public static function getById(Dealer $dealer, User $user, int $contactId): Contact
     {
         $client = new Client($dealer->id, $user->id);
-        $data['DealerId'] = $dealer->id;
-        $data['UserId'] = $user->id;
 
         $response = $client->get('/gateway/v1/contact/' . $contactId . '?dealerId=' . $dealer->id . '&userId=' . $user->id);
 
-        return new Contact($response[0]);
+        return self::fromApiResponse($response, $contactId);
+    }
+
+    /**
+     * VinSolutions answers with a list, but hands back an empty one — not a 404 — for a contact
+     * the dealer can no longer reach (merged, moved to another dealer, or deleted), and
+     * occasionally the bare contact object instead of a list.
+     */
+    public static function fromApiResponse(array $response, int $contactId): self
+    {
+        $contact = $response[0] ?? $response;
+
+        if (! is_array($contact) || ! isset($contact['ContactId'])) {
+            throw new ContactNotFoundException(
+                'VinSolutions contact ' . $contactId . ' not found for this dealer'
+            );
+        }
+
+        return new self($contact);
     }
 
     /**
