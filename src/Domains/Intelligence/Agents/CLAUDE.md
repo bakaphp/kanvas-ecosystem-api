@@ -360,10 +360,27 @@ There is no approved path for a free-text external recipient.
 - Optional params use **nullable typed defaults** (`?string $cc = null`) — the Neuron base normalizes a
   missing optional to `null` before `__invoke`, so a non-nullable default would `TypeError`. This matches the
   root `no-non-nullable-defaults` rule; normalize inside the body (`$cc ?? ''`, `trim()`).
-- LLM-facing params are **scalar** (STRING/INTEGER/BOOLEAN/NUMBER). Neuron's `ToolProperty` can't emit JSON-schema
-  `items`, so don't expose ARRAY params to strict providers — take a comma-separated STRING and split it
-  (see `send_email`'s `cc`). Domain enums stay **internal** (filtering/dispatch); expose their allowed values
-  as free STRING with the options named in the description.
+- LLM-facing params are **scalar** (STRING/INTEGER/BOOLEAN/NUMBER) by default — a comma-separated STRING you
+  split is usually enough (see `send_email`'s `cc`). Domain enums stay **internal** (filtering/dispatch);
+  expose their allowed values as free STRING with the options named in the description.
+- **Never declare a bare `ToolProperty(type: PropertyType::ARRAY)` or `::OBJECT`.** Gemini rejects the
+  *entire* request — every tool in the turn, not just the offender — for both shapes, because
+  `ToolProperty::getJsonSchema()` emits neither `items` nor `properties`:
+  - `properties[x].items: missing field` for a bare ARRAY (Sentry KANVAS-ECOSYSTEM-606)
+  - `properties[x].properties: should be non-empty for OBJECT type` for a bare OBJECT
+
+  A list of records → `ArrayProperty` (always emits `items`) with an `ObjectProperty` item, see
+  [`CreateArCreditMemoTool`](Neuron/Tools/Acumatica/CreateArCreditMemoTool.php). A list of scalars →
+  `ArrayProperty` with a `ToolProperty` item, see [`CreatePersonTool`](Neuron/Tools/CRM/CreatePersonTool.php)'s
+  `tags`. A **free-form key→value map** can't be expressed at all (Gemini has no `additionalProperties`) —
+  declare it as STRING carrying a JSON object and decode with
+  [`DecodesJsonObjectParam`](Neuron/Tools/Traits/DecodesJsonObjectParam.php), which still accepts a real
+  array so nothing breaks if a provider hands back structured input.
+
+  Guarded by [`AgentToolProviderPayloadTest`](../../../../tests/Intelligence/NervousSystem/AgentToolProviderPayloadTest.php),
+  which maps **every** Neuron tool through the real Gemini/Anthropic/OpenAI `ToolMapper`s and validates the
+  emitted schema. It also carries an opt-in live check (`GEMINI_API_KEY`) that sends the full tool payload to
+  Gemini — the only test that proves the real API accepts it.
 - Normalize manually in `__invoke`: `trim()` everything, treat empty string as absent, clamp numerics
   (`max(1, min($limit ?? 50, 200))`), re-validate required scalars for blank-after-trim.
 
