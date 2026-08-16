@@ -7,7 +7,6 @@ namespace Kanvas\Auth\Actions;
 use Baka\Contracts\CompanyInterface;
 use Baka\Validations\EmailDomain;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
@@ -16,6 +15,8 @@ use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
+use Kanvas\Auth\Services\RegistrationAbuseReportService;
+use Kanvas\Auth\Services\RegistrationVelocityService;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Enums\AppEnums;
@@ -126,30 +127,20 @@ class CreateUserAction
         }
     }
 
-    /**
-     * Reject bot signups by their email signature — a blocklisted/disposable
-     * domain or a randomized local part — independent of IP, name or any other
-     * field the frontend may omit. Built-in blocklist plus per-app additions.
-     *
-     * Only the public register mutation opts into this. Social logins
-     * (Apple/Google/Facebook) are provider-verified and legitimately produce
-     * randomized relay addresses (e.g. Apple Hide-My-Email), so they skip it.
-     */
     protected function validateEmailNotSpam(): void
     {
-        if (EmailDomain::isBlockedDomain($this->data->email, $this->getBlockedEmailDomains())
-            || EmailDomain::hasSpamLocalPart($this->data->email)
-        ) {
-            Log::warning('auth.registration_spam_email_blocked', [
-                'app_id' => $this->app->getId(),
-                'app_name' => $this->app->name,
-                'email' => $this->data->email,
-            ]);
+        $reason = EmailDomain::spamReason($this->data->email, $this->getBlockedEmailDomains())
+            ?? new RegistrationVelocityService($this->app)->violation($this->data->email);
 
-            throw ValidationException::withMessages([
-                'email' => ['The email provided is not allowed.'],
-            ]);
+        if ($reason === null) {
+            return;
         }
+
+        new RegistrationAbuseReportService($this->app)->blocked($this->data->email, $reason);
+
+        throw ValidationException::withMessages([
+            'email' => ['The email provided is not allowed.'],
+        ]);
     }
 
     /**
