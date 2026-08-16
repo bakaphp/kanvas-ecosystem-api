@@ -38,7 +38,7 @@ class AgentChannelResponderActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::TWILIO,
             additionalParams: $params,
-            integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $defaultAgentId, $allowedChannels, $channelAgentMapping, $params) {
+            integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $defaultAgentId, $allowedChannels, $channelAgentMapping, $params): array {
                 if (empty($message)) {
                     return [
                         'message' => 'Message or user not found',

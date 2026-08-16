@@ -22,6 +22,11 @@ trait MatchesPeopleByName
     use MatchesBulkNameTerms;
 
     /**
+     * $maxTerms raises the ceiling past one query's worth; the list is always resolved in batches of
+     * BULK_MAX_TERMS because BULK_MAX_CANDIDATE_ROWS is a per-QUERY budget — one prefilter over too
+     * many names fills it with whatever a common surname pulled in, and a name that does match comes
+     * back "not found". Dedup happens once over the whole list, before chunking.
+     *
      * @return array{searched: int, matched: int, not_found: list<string>, results: list<array<string, mixed>>}
      */
     protected function matchPeopleByName(
@@ -29,31 +34,40 @@ trait MatchesPeopleByName
         Companies $company,
         string $names,
         ?int $maxMatchesPerName = null,
+        ?int $maxTerms = null,
     ): array {
-        $terms = $this->parseBulkTerms($names);
+        $maxMatches = $this->clampBulkMatchesPerTerm($maxMatchesPerName);
+        $merged = [
+            'searched' => 0,
+            'matched' => 0,
+            'not_found' => [],
+            'results' => [],
+        ];
 
-        if ($terms === []) {
-            return [
-                'searched' => 0,
-                'matched' => 0,
-                'not_found' => [],
-                'results' => [],
-            ];
+        $batches = array_chunk($this->parseBulkTerms($names, $maxTerms), static::BULK_MAX_TERMS);
+
+        foreach ($batches as $terms) {
+            $batch = $this->assembleBulkResults(
+                $terms,
+                $this->fetchPeopleCandidates($app, $company, $terms),
+                $maxMatches,
+                fn (People $person, int $score): array => [
+                    'person_id' => $person->getId(),
+                    'name' => $person->getName(),
+                    'email' => $this->primaryEmail($person),
+                    'phone' => $this->primaryPhone($person),
+                    'organization' => $person->organizations->first()?->name,
+                    'matched_tokens' => $score,
+                ],
+            );
+
+            $merged['searched'] += $batch['searched'];
+            $merged['matched'] += $batch['matched'];
+            $merged['not_found'] = [...$merged['not_found'], ...$batch['not_found']];
+            $merged['results'] = [...$merged['results'], ...$batch['results']];
         }
 
-        return $this->assembleBulkResults(
-            $terms,
-            $this->fetchPeopleCandidates($app, $company, $terms),
-            $this->clampBulkMatchesPerTerm($maxMatchesPerName),
-            fn (People $person, int $score): array => [
-                'person_id' => $person->getId(),
-                'name' => $person->getName(),
-                'email' => $this->primaryEmail($person),
-                'phone' => $this->primaryPhone($person),
-                'organization' => $person->organizations->first()?->name,
-                'matched_tokens' => $score,
-            ],
-        );
+        return $merged;
     }
 
     /**

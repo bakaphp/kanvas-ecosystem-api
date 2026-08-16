@@ -18,7 +18,8 @@ use Override;
  * file can't launder a guess as a lookup.
  *
  * One row per input name, in the order given, so the result joins straight back onto the caller's
- * own spreadsheet.
+ * own spreadsheet — which is why the ceiling here is a whole list rather than one query's worth:
+ * three files of 100 rows don't join back onto anything.
  */
 class PeopleMatchRecordExporter implements RecordExporterInterface
 {
@@ -34,8 +35,12 @@ class PeopleMatchRecordExporter implements RecordExporterInterface
     #[Override]
     public function filtersHint(): string
     {
-        return 'names (required) — every name to cross-reference, separated by commas or new lines, '
-            . 'max 100 per export; one row per name in the order given with Found yes/no';
+        return sprintf(
+            'names (required) — EVERY name to cross-reference in ONE call, separated by commas or new '
+            . 'lines, up to %d per export; never split the list across several calls, that hands the '
+            . 'user one file per batch. One row per name in the order given with Found yes/no',
+            self::BULK_MAX_BATCHED_TERMS,
+        );
     }
 
     #[Override]
@@ -56,14 +61,19 @@ class PeopleMatchRecordExporter implements RecordExporterInterface
             );
         }
 
-        if ($this->bulkTermsExceedLimit($names)) {
+        if ($this->bulkTermsExceedLimit($names, self::BULK_MAX_BATCHED_TERMS)) {
             throw new ValidationException(sprintf(
                 'people_match takes at most %d names per export. Split the list into batches and export each one.',
-                self::BULK_MAX_TERMS,
+                self::BULK_MAX_BATCHED_TERMS,
             ));
         }
 
-        $matches = $this->matchPeopleByName($app, $company, $names);
+        $matches = $this->matchPeopleByName(
+            $app,
+            $company,
+            $names,
+            maxTerms: self::BULK_MAX_BATCHED_TERMS,
+        );
 
         if ($matches['searched'] === 0) {
             throw new ValidationException(

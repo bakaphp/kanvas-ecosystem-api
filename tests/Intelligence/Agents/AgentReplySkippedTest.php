@@ -17,6 +17,8 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Contracts\SilentWorkflowException;
+use ReflectionClass;
+use ReflectionMethod;
 use Tests\TestCase;
 
 final class AgentReplySkippedTest extends TestCase
@@ -32,6 +34,27 @@ final class AgentReplySkippedTest extends TestCase
         $this->assertInstanceOf(
             SilentWorkflowException::class,
             new AgentReplySkippedException('Ai Agent Off for this lead')
+        );
+    }
+
+    /**
+     * An agent that returns nothing is a business outcome, not a fault — it must be flagged FAILED
+     * in the integration history without reaching Sentry (KANVAS-ECOSYSTEM-5T1, 64 events).
+     */
+    public function testEmptyReplyThrowsSilentSkip(): void
+    {
+        $action = new ReflectionClass(AgentChannelResponderAction::class)->newInstanceWithoutConstructor();
+        $createMessage = new ReflectionMethod($action, 'createMessage');
+
+        $this->expectException(AgentReplySkippedException::class);
+        $this->expectExceptionMessage('Empty message was created');
+
+        $createMessage->invoke(
+            $action,
+            '',
+            '+13123884288',
+            new Message(),
+            new Channel()
         );
     }
 
