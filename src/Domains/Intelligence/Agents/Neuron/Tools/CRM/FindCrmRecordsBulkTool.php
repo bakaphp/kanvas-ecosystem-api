@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
+use Baka\Search\Contracts\NameSearchInterface;
+use Baka\Search\NameSearchResolver;
 use Illuminate\Contracts\Database\Query\Builder as BuilderContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
+use Kanvas\Guild\Search\MatchesBulkNameTerms;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\MatchesBulkNameTerms;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -121,43 +124,102 @@ abstract class FindCrmRecordsBulkTool extends Tool implements HasRunKey
         return $record->status === null || $record->status < 2;
     }
 
+    /** Overridable so the engine branch — and the tenant re-scope in hydrate() — can be driven in tests. */
+    protected function nameSearch(Model $model): ?NameSearchInterface
+    {
+        return new NameSearchResolver()->for($this->app, $model);
+    }
+
     /**
      * @param list<array{query: string, tokens: list<string>}> $terms
      * @return list<array{record: Model, tokens: list<string>}>
      */
     private function fetchCandidates(array $terms, string $status): array
     {
-        $tokens = $this->bulkLikeTokens($terms);
+        $model = $this->baseQuery()->getModel();
+        $search = $this->nameSearch($model);
 
-        $records = $this->baseQuery()
-            ->when($status === 'open', fn ($q) => $q->where(
-                fn ($s) => $s->whereNull('status')->orWhere('status', '<', 2),
-            ))
-            ->when($status === 'closed', fn ($q) => $q->where('status', '>=', 2))
-            ->where(function (BuilderContract $query) use ($tokens): void {
-                foreach ($tokens as $token) {
-                    $query->orWhere('title', 'like', '%' . $token . '%');
-                }
-
-                // One subquery for the whole batch — an orWhereHas per token would emit N of them.
-                $query->orWhereHas(
-                    'people',
-                    fn ($people) => $people->where(function (BuilderContract $inner) use ($tokens): void {
-                        foreach ($tokens as $token) {
-                            $like = '%' . $token . '%';
-                            $inner->orWhere('name', 'like', $like)
-                                ->orWhere('firstname', 'like', $like)
-                                ->orWhere('lastname', 'like', $like);
-                        }
-                    }),
-                );
-            })
-            ->limit(self::BULK_MAX_CANDIDATE_ROWS)
-            ->get();
+        $records = $search === null
+            ? $this->scanForCandidates($terms, $status)
+            : $this->hydrate($search->idsFor(
+                $model,
+                $this->app,
+                $this->company,
+                $model->searchQueryBy(),
+                $terms,
+                NameSearchInterface::DEFAULT_CANDIDATES_PER_TERM,
+            ), $status);
 
         return $records->map(fn (Model $record): array => [
             'record' => $record,
             'tokens' => $this->matchTokens((string) $record->title . ' ' . (string) $record->people?->getName()),
         ])->all();
+    }
+
+    /**
+     * Status stays out of the index: "open" is `status IS NULL OR status < 2`, which every engine
+     * expresses differently and none expresses well. The engine answers "which records match these
+     * names"; this narrows that to the ones the caller asked for, and re-applies the tenant scopes
+     * from baseQuery() so a stale document can never surface another company's record.
+     *
+     * @param list<string> $ids
+     *
+     * @return Collection<int, Model>
+     */
+    private function hydrate(array $ids, string $status): Collection
+    {
+        if ($ids === []) {
+            return new Collection();
+        }
+
+        $query = $this->baseQuery();
+
+        return $this->applyStatus($query, $status)
+            ->whereIn($query->getModel()->getTable() . '.id', array_map('intval', $ids))
+            ->get();
+    }
+
+    /**
+     * @param list<array{query: string, tokens: list<string>}> $terms
+     *
+     * @return Collection<int, Model>
+     */
+    private function scanForCandidates(array $terms, string $status): Collection
+    {
+        $query = $this->baseQuery();
+        $model = $query->getModel();
+        $relation = $model->people();
+        $table = $model->getTable();
+        $peopleTable = $relation->getRelated()->getTable();
+
+        // Scoring reads the title and the contact's name as one string, so the prefilter has to count
+        // tokens across both — a lead matching one token in each would be lost if they were filtered
+        // separately. Joining beats a per-token EXISTS: belongsTo can't multiply rows.
+        $columns = [
+            $table . '.title',
+            $peopleTable . '.name',
+            $peopleTable . '.firstname',
+            $peopleTable . '.lastname',
+        ];
+
+        return $this->applyStatus($query, $status)
+            ->leftJoin($peopleTable, $peopleTable . '.id', '=', $table . '.' . $relation->getForeignKeyName())
+            ->select($table . '.*')
+            ->where(function (BuilderContract $inner) use ($terms, $columns): void {
+                foreach ($terms as $term) {
+                    $this->applyBulkCandidateFilter($inner, $term['tokens'], $columns);
+                }
+            })
+            ->limit(static::BULK_MAX_CANDIDATE_ROWS)
+            ->get();
+    }
+
+    private function applyStatus(Builder $query, string $status): Builder
+    {
+        return $query
+            ->when($status === 'open', fn ($q) => $q->where(
+                fn ($s) => $s->whereNull('status')->orWhere('status', '<', 2),
+            ))
+            ->when($status === 'closed', fn ($q) => $q->where('status', '>=', 2));
     }
 }

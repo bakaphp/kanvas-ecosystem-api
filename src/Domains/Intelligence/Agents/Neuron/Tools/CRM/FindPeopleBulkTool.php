@@ -4,12 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
-use Illuminate\Contracts\Database\Query\Builder as BuilderContract;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExtractsPersonContacts;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\MatchesBulkNameTerms;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\MatchesPeopleByName;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -20,9 +17,8 @@ use Override;
 #[AgentTool(name: 'Find People Bulk', category: 'crm')]
 class FindPeopleBulkTool extends Tool implements HasRunKey
 {
-    use ExtractsPersonContacts;
     use HasKanvasContext;
-    use MatchesBulkNameTerms;
+    use MatchesPeopleByName;
     use TrackByInputs;
 
     public function __construct()
@@ -66,31 +62,19 @@ class FindPeopleBulkTool extends Tool implements HasRunKey
      */
     public function __invoke(string $names, ?int $max_matches_per_name = null): array
     {
-        $terms = $this->parseBulkTerms($names);
+        $results = $this->matchPeopleByName(
+            $this->app,
+            $this->company,
+            $names,
+            $max_matches_per_name
+        );
 
-        if ($terms === []) {
+        if ($results['searched'] === 0) {
             return [
-                'searched' => 0,
-                'matched' => 0,
-                'not_found' => [],
-                'results' => [],
+                ...$results,
                 'error' => 'Provide at least one name, separated by commas or new lines.',
             ];
         }
-
-        $results = $this->assembleBulkResults(
-            $terms,
-            $this->fetchCandidates($terms),
-            $this->clampBulkMatchesPerTerm($max_matches_per_name),
-            fn (People $person, int $score): array => [
-                'person_id' => $person->getId(),
-                'name' => $person->getName(),
-                'email' => $this->primaryEmail($person),
-                'phone' => $this->primaryPhone($person),
-                'organization' => $person->organizations->first()?->name,
-                'matched_tokens' => $score,
-            ],
-        );
 
         return [
             ...$results,
@@ -98,38 +82,5 @@ class FindPeopleBulkTool extends Tool implements HasRunKey
                 . 'directory — report them as blank/not found. Do NOT retry those names one at a time, the answer '
                 . 'will be the same.',
         ];
-    }
-
-    /**
-     * @param list<array{query: string, tokens: list<string>}> $terms
-     * @return list<array{record: People, tokens: list<string>}>
-     */
-    private function fetchCandidates(array $terms): array
-    {
-        $tokens = $this->bulkLikeTokens($terms);
-
-        $people = People::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->where(function (BuilderContract $query) use ($tokens): void {
-                foreach ($tokens as $token) {
-                    $like = '%' . $token . '%';
-                    $query->orWhere('name', 'like', $like)
-                        ->orWhere('firstname', 'like', $like)
-                        ->orWhere('lastname', 'like', $like);
-                }
-            })
-            ->with([
-                'contacts',
-                'organizations' => fn ($q) => $q->select('organizations.id', 'name'),
-            ])
-            ->limit(self::BULK_MAX_CANDIDATE_ROWS)
-            ->get(['id', 'firstname', 'middlename', 'lastname', 'name']);
-
-        return $people->map(fn (People $person): array => [
-            'record' => $person,
-            'tokens' => $this->matchTokens($person->getName() . ' ' . (string) $person->name),
-        ])->all();
     }
 }

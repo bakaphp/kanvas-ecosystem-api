@@ -685,6 +685,11 @@ class Lead extends BaseModel implements EventResourceInterface
         return config('scout.prefix') . ($customIndex ?? 'leads');
     }
 
+    public function searchQueryBy(): string
+    {
+        return 'title,firstname,lastname,email,description';
+    }
+
     public function startShowRoom(): void
     {
         $this->set('is_chrono_running', 1);
@@ -719,7 +724,7 @@ class Lead extends BaseModel implements EventResourceInterface
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'title,firstname,lastname,email,description',
+                'query_by' => $query->model->searchQueryBy(),
             ]);
         }
 
