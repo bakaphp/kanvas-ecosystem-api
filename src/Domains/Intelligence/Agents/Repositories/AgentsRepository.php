@@ -39,4 +39,30 @@ class AgentsRepository
 
         return $query->firstOrFail();
     }
+
+    /**
+     * Resolve the agent that owns a given inbound phone number (the per-agent
+     * voice_config.phone_number set in the admin UI), for the voice runtime's
+     * inbound routing. Returns null when no agent claims the number so the
+     * caller can fall back to a default agent instead of dropping the call.
+     *
+     * Same cross-app trust model as getByUuidForVoiceRuntime: app-scoped unless
+     * the calling app is flagged VOICE_RUNTIME_CROSS_APP.
+     */
+    public static function getByPhoneForVoiceRuntime(string $phoneNumber, AppInterface $app): ?Agent
+    {
+        $crossApp = filter_var(
+            $app->get(ConfigurationEnum::VOICE_RUNTIME_CROSS_APP->value),
+            FILTER_VALIDATE_BOOLEAN
+        );
+
+        $query = Agent::where('voice_config->phone_number', $phoneNumber)
+            ->notDeleted();
+
+        if (! $crossApp) {
+            $query->where('apps_id', $app->getId());
+        }
+
+        return $query->first();
+    }
 }

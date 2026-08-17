@@ -52,10 +52,19 @@ type VoiceAgentContextField {
     default: String
 }
 
+type VoiceAgentByNumber {
+    agent_id: String!
+}
+
 extend type Query @guardByAppKey {
     voiceAgentSpec(uuid: String!): VoiceAgentSpec!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentSpecQuery"
+        )
+    "Inbound routing: which agent owns this dialed number? Null if none."
+    voiceAgentByNumber(phone_number: String!): VoiceAgentByNumber
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentByNumberQuery"
         )
 }
 
