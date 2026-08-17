@@ -12,10 +12,17 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Social\CreateMessageTool;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class SocialMessageToolsTest extends TestCase
 {
+    /**
+     * An IP literal, not a hostname: SafeUrl short-circuits DNS for literals, so the attachment
+     * tests never depend on the test box being able to resolve anything.
+     */
+    private const PUBLIC_HOST = 'https://93.184.216.34';
+
     public function testCreatesMessageThenAttachesItToAnEntityChannel(): void
     {
         $app = app(Apps::class);
@@ -80,6 +87,215 @@ class SocialMessageToolsTest extends TestCase
 
         $this->assertSame('success', $first['status']);
         $this->assertSame($first['channel_id'], $second['channel_id']);
+    }
+
+    public function testJsonObjectContentIsStoredAsTheMessageItself(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $body = [
+            'title' => 'Quarterly recap',
+            'content' => '<p>Revenue is up.</p>',
+            'categories' => ['News'],
+        ];
+
+        $result = new CreateMessageTool($app, $company, $user)
+            ->__invoke(json_encode($body));
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame($body, $result['message']);
+
+        $message = Message::findOrFail($result['message_id']);
+
+        $this->assertSame($body, $message->message);
+    }
+
+    public function testPlainTextContentKeepsTheContentWrapper(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $result = new CreateMessageTool($app, $company, $user)
+            ->__invoke('Just a plain sentence');
+
+        $this->assertSame('success', $result['status']);
+
+        $message = Message::findOrFail($result['message_id']);
+
+        $this->assertSame(['content' => 'Just a plain sentence'], $message->message);
+    }
+
+    public function testJsonListContentKeepsTheContentWrapper(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $result = new CreateMessageTool($app, $company, $user)
+            ->__invoke('["one", "two"]');
+
+        $this->assertSame('success', $result['status']);
+
+        $message = Message::findOrFail($result['message_id']);
+
+        $this->assertSame(['content' => '["one", "two"]'], $message->message);
+    }
+
+    public function testAttachesFilesFromUrlList(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $result = new CreateMessageTool($app, $company, $user)
+            ->__invoke(
+                content: 'Here are the photos',
+                file_urls: [
+                    self::PUBLIC_HOST . '/photos/front.jpg',
+                    self::PUBLIC_HOST . '/photos/back.png',
+                ],
+            );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertCount(2, $result['files_attached']);
+
+        $files = Message::findOrFail($result['message_id'])->getFiles()->pluck('url')->all();
+
+        $this->assertContains(self::PUBLIC_HOST . '/photos/front.jpg', $files);
+        $this->assertContains(self::PUBLIC_HOST . '/photos/back.png', $files);
+    }
+
+    public function testAttachmentUrlsAreDedupedAndBlanksDropped(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $result = new CreateMessageTool($app, $company, $user)
+            ->__invoke(
+                content: 'One photo, listed twice',
+                file_urls: [
+                    self::PUBLIC_HOST . '/photos/only.jpg',
+                    '  ' . self::PUBLIC_HOST . '/photos/only.jpg  ',
+                    '   ',
+                ],
+            );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame([self::PUBLIC_HOST . '/photos/only.jpg'], $result['files_attached']);
+    }
+
+    public function testAttachmentUrlWithQueryStringKeepsItsRealExtension(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $signed = self::PUBLIC_HOST . '/photos/signed.jpg?X-Amz-Expires=3600&sig=abc';
+
+        $result = new CreateMessageTool($app, $company, $user)
+            ->__invoke(content: 'Signed photo', file_urls: [$signed]);
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame([$signed], $result['files_attached']);
+    }
+
+    /**
+     * A query string must not be able to smuggle an allowed extension past the check —
+     * the path is what decides.
+     */
+    public function testRejectsUnsupportedExtensionDisguisedByQueryString(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $result = new CreateMessageTool($app, $company, $user)
+            ->__invoke(
+                content: 'Disguised payload',
+                file_urls: [self::PUBLIC_HOST . '/payload.exe?name=photo.jpg'],
+            );
+
+        $this->assertSame('error', $result['status']);
+        $this->assertSame([self::PUBLIC_HOST . '/payload.exe?name=photo.jpg'], $result['rejected_urls']);
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function unattachableUrlProvider(): array
+    {
+        return [
+            'cloud metadata' => ['http://169.254.169.254/latest/meta-data/iam.jpg'],
+            'loopback' => ['http://127.0.0.1/photo.jpg'],
+            'private range' => ['http://10.0.0.5/photo.jpg'],
+            'ipv6 loopback' => ['http://[::1]/photo.jpg'],
+            'file scheme' => ['file:///etc/passwd.jpg'],
+            'unsupported extension' => [self::PUBLIC_HOST . '/payload.exe'],
+            'no extension' => [self::PUBLIC_HOST . '/photos/front'],
+        ];
+    }
+
+    #[DataProvider('unattachableUrlProvider')]
+    public function testRejectsUnattachableUrlWithoutCreatingTheMessage(string $url): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $messagesBefore = Message::query()->where('apps_id', $app->getId())->count();
+
+        $result = new CreateMessageTool($app, $company, $user)
+            ->__invoke(content: 'Trying to attach something it should not', file_urls: [$url]);
+
+        $this->assertSame('error', $result['status']);
+        $this->assertSame([$url], $result['rejected_urls']);
+        $this->assertArrayNotHasKey('message_id', $result);
+        $this->assertSame($messagesBefore, Message::query()->where('apps_id', $app->getId())->count());
+    }
+
+    public function testCreatesReplyUnderTheParentMessage(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $tool = new CreateMessageTool($app, $company, $user);
+
+        $parent = $tool->__invoke(content: 'The original', verb: 'agent-note');
+        $reply = $tool->__invoke(
+            content: 'The reply',
+            parent_message_id: $parent['message_id'],
+        );
+
+        $this->assertSame('success', $reply['status']);
+
+        $parentMessage = Message::findOrFail($parent['message_id']);
+        $replyMessage = Message::findOrFail($reply['message_id']);
+
+        $this->assertSame('agent-note', $parentMessage->messageType->verb);
+        $this->assertSame($parentMessage->getId(), $replyMessage->parent_id);
+        $this->assertSame($parentMessage->uuid, $replyMessage->parent_unique_id);
+    }
+
+    public function testRejectsParentMessageFromAnotherCompany(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $foreign = Message::factory()->create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId() + 9999,
+            'users_id' => $user->getId(),
+        ]);
+
+        $result = new CreateMessageTool($app, $company, $user)
+            ->__invoke(content: 'Replying across tenants', parent_message_id: $foreign->getId());
+
+        $this->assertSame('error', $result['status']);
+        $this->assertArrayNotHasKey('message_id', $result);
     }
 
     public function testRejectsEmptyMessageAndUnknownTenantRecords(): void
