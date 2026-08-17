@@ -10,6 +10,9 @@ enum CustomFieldEnum: string
     case SALESFORCE_CONTACT_ID = 'salesforce_contact_id';
     case SALESFORCE_ACCOUNT_ID = 'salesforce_account_id';
     case SALESFORCE_OPPORTUNITY_ID = 'salesforce_opportunity_id';
+    case SALESFORCE_LOCATION_ID = 'salesforce_location_id';
+    case SALESFORCE_LOCATION_CONTACT_ID = 'salesforce_location_contact_id';
+    case PROPERTY_BROKER_PEOPLE_ID = 'broker_people_id';
     case LEAD_FIELDS_MAP = 'salesforce_lead_fields_map';
     case CONTACT_FIELDS_MAP = 'salesforce_contact_fields_map';
     case ACCOUNT_FIELDS_MAP = 'salesforce_account_fields_map';

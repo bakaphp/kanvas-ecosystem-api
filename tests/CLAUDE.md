@@ -24,6 +24,16 @@ Unit, Ecosystem, GraphQL, Inventory, Social, Guild, Connectors, Workflow, Intell
 ## Hard Rules
 
 - **NEVER use `RefreshDatabase`** — it wipes all shared DB tables across connections. Use `DatabaseTransactions`.
+- **`DatabaseTransactions` only rolls back the *default* connection.** Laravel's `connectionsToTransact()` defaults to `[null]`, so anything written on `inventory` / `crm` / `commerce` / `social` / `action_engine` **commits and survives the test**. The symptom is a second test in the same file finding rows the first one "created" — an idempotent action then correctly skips them and returns nothing, and the assertion fails on empty data rather than on the bug you were testing. Declare every connection the code under test writes to:
+  ```php
+  class SeedsProductsTest extends TestCase
+  {
+      use DatabaseTransactions;
+
+      protected $connectionsToTransact = [null, 'inventory'];
+  }
+  ```
+  Check which connection the Action actually writes on (`DB::connection('inventory')->transaction(...)` inside `CreateProductAction`, for example) — not the domain you *think* you're testing. Real case: `tests/Insurance/SyncInsuranceProductsActionTest.php`.
 - Base `TestCase` loads `.env` (not `.env.testing`), no `RefreshDatabase` by default.
 - Base `TestCase` provides `$this->graphQL()` via Lighthouse's `MakesGraphQLRequests` trait.
 - User is auto-authenticated in `createApplication()` with admin role.

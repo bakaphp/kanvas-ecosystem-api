@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "abda95dbd6ef2dd0a60cc92861be7770",
+    "content-hash": "f910b00754a4a29ab398ccdd4c7afffd",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -2483,16 +2483,16 @@
         },
         {
             "name": "google/cloud-recommendations-ai",
-            "version": "v0.9.3",
+            "version": "v0.10.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-recommendations-ai.git",
-                "reference": "fc6c375d3e8f7f56fb820639fc12c0f515c9194b"
+                "reference": "ef64b03578f5788e8a534ba2d0e65b9b17b10e92"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-recommendations-ai/zipball/fc6c375d3e8f7f56fb820639fc12c0f515c9194b",
-                "reference": "fc6c375d3e8f7f56fb820639fc12c0f515c9194b",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-recommendations-ai/zipball/ef64b03578f5788e8a534ba2d0e65b9b17b10e92",
+                "reference": "ef64b03578f5788e8a534ba2d0e65b9b17b10e92",
                 "shasum": ""
             },
             "require": {
@@ -2527,9 +2527,9 @@
             ],
             "description": "Google Cloud Recommendation Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-recommendations-ai/tree/v0.9.3"
+                "source": "https://github.com/googleapis/google-cloud-php-recommendations-ai/tree/v0.10.0"
             },
-            "time": "2026-03-17T23:07:39+00:00"
+            "time": "2026-08-10T16:39:50+00:00"
         },
         {
             "name": "google/cloud-storage",
@@ -7516,20 +7516,20 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.16.4",
+            "version": "3.16.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "bd4d0c95e326f449a582b53c4ada2af6c59cbd23"
+                "reference": "8c8d27a450eb304ddcc21ac656e462df32bf0888"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/bd4d0c95e326f449a582b53c4ada2af6c59cbd23",
-                "reference": "bd4d0c95e326f449a582b53c4ada2af6c59cbd23",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/8c8d27a450eb304ddcc21ac656e462df32bf0888",
+                "reference": "8c8d27a450eb304ddcc21ac656e462df32bf0888",
                 "shasum": ""
             },
             "require": {
-                "guzzlehttp/guzzle": "^7.0 || ^8.0",
+                "guzzlehttp/guzzle": "^7.0",
                 "inspector-apm/inspector-php": "^3.18",
                 "php": "^8.1",
                 "psr/http-message": "^1.0|^2.0"
@@ -7576,7 +7576,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.16.4"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.16.5"
             },
             "funding": [
                 {
@@ -7584,7 +7584,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-08T20:01:47+00:00"
+            "time": "2026-08-13T08:35:28+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
@@ -10752,16 +10752,16 @@
         },
         {
             "name": "recombee/php-api-client",
-            "version": "v6.3.0",
+            "version": "v6.3.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/recombee/php-api-client.git",
-                "reference": "05cbaf3c13fc7d495cc681ecdb039aab4f7320bb"
+                "reference": "43a9850045f13da9b8926640841ac1d9af8f33c4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/recombee/php-api-client/zipball/05cbaf3c13fc7d495cc681ecdb039aab4f7320bb",
-                "reference": "05cbaf3c13fc7d495cc681ecdb039aab4f7320bb",
+                "url": "https://api.github.com/repos/recombee/php-api-client/zipball/43a9850045f13da9b8926640841ac1d9af8f33c4",
+                "reference": "43a9850045f13da9b8926640841ac1d9af8f33c4",
                 "shasum": ""
             },
             "require": {
@@ -10792,9 +10792,9 @@
             "homepage": "https://recombee.com",
             "support": {
                 "issues": "https://github.com/recombee/php-api-client/issues",
-                "source": "https://github.com/recombee/php-api-client/tree/v6.3.0"
+                "source": "https://github.com/recombee/php-api-client/tree/v6.3.1"
             },
-            "time": "2026-06-05T09:25:13+00:00"
+            "time": "2026-08-13T07:50:21+00:00"
         },
         {
             "name": "riimu/kit-phpencoder",
