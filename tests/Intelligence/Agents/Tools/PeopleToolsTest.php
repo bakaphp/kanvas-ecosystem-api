@@ -29,6 +29,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetPersonCustomFieldsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TagPersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdatePersonTool;
 use Kanvas\Users\Models\Users;
+use Tests\Stubs\Intelligence\CapturingCsvExportService;
 use Tests\TestCase;
 
 final class PeopleToolsTest extends TestCase
@@ -467,12 +468,7 @@ final class PeopleToolsTest extends TestCase
 
     private function fakeCsvUpload(): void
     {
-        $this->instance(CsvExportService::class, new class () extends CsvExportService {
-            protected function store(Apps $app, Companies $company, Users $user, string $filename, string $content): string
-            {
-                return 'https://fake.test/' . $filename;
-            }
-        });
+        $this->instance(CsvExportService::class, new CapturingCsvExportService());
     }
 
     /**

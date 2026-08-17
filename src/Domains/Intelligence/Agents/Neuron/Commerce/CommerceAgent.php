@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Commerce;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ExportRecordsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ExportTableTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\CreateSampleOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindProductTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindSalesOrderTool;
@@ -62,6 +63,7 @@ class CommerceAgent extends SystemUserAgent
             new SalesByProductTool(),
             new SalesRevenueTool(),
             new ExportRecordsTool(),
+            new ExportTableTool(),
         ]));
     }
 
