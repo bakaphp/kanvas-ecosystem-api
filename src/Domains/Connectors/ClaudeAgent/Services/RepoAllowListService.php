@@ -88,8 +88,6 @@ class RepoAllowListService
     }
 
     /**
-     * Throws before anything is cloned — this is the gate.
-     *
      * @return array<string, mixed>
      */
     public static function resolve(Agent $agent, string $slug): array

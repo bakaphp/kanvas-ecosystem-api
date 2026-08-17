@@ -136,7 +136,6 @@ class EnsureGithubVaultAction
         ];
     }
 
-    /** Tenant-scoped so a human reading the vendor console can tell whose vault it is. */
     protected function vaultName(): string
     {
         return sprintf(

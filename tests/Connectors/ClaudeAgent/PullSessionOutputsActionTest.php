@@ -126,6 +126,18 @@ final class PullSessionOutputsActionTest extends TestCase
         $this->assertSame([], new PullSessionOutputsAction($plan, static::$cachedUser, 'sesn_01', $client)->execute());
     }
 
+    /**
+     * Nowhere to attach to — an ad-hoc turn with no session, a task whose plan is gone. The guard
+     * lives here rather than in each caller, so the empty mock queue proves no request is made.
+     */
+    public function testNothingToAttachToIsANoOp(): void
+    {
+        $client = $this->claudeAgentClientReturning($this->currentApp, $this->currentCompany, []);
+
+        $this->assertSame([], new PullSessionOutputsAction(null, static::$cachedUser, 'sesn_01', $client)->execute());
+        $this->assertSame([], new PullSessionOutputsAction($this->planForTask(), null, 'sesn_01', $client)->execute());
+    }
+
     public function testEntriesMissingAnIdOrFilenameAreSkipped(): void
     {
         $plan = $this->planForTask();

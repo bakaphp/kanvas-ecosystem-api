@@ -103,22 +103,11 @@ class AdvanceLongTaskAction
 
         // Artifacts before the terminal status: the notification that fires from finish() tells the
         // owner the task is done, and it should not arrive before the files it refers to exist.
-        $this->pullOutputs($client, $sessionId);
+        $plan = $this->task->plan;
+        $this->bestEffort(fn () => new PullSessionOutputsAction($plan, $plan?->user, $sessionId, $client)->execute());
         $this->finish($result);
 
         return false;
-    }
-
-    protected function pullOutputs(Client $client, string $sessionId): void
-    {
-        $plan = $this->task->plan;
-        $owner = $plan?->user;
-
-        if ($plan === null || $owner === null) {
-            return;
-        }
-
-        $this->bestEffort(fn () => new PullSessionOutputsAction($plan, $owner, $sessionId, $client)->execute());
     }
 
     /** One pass per tick — the caller re-schedules rather than holding a worker open. */
@@ -182,7 +171,6 @@ class AdvanceLongTaskAction
         return false;
     }
 
-    /** Narration lands as it arrives, not only at the end. */
     protected function postProgress(string $text): void
     {
         $plan = $this->task->plan;

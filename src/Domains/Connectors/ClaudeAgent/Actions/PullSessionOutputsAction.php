@@ -30,11 +30,13 @@ class PullSessionOutputsAction
     public const string FILE_FIELD = 'claude_task_outputs';
 
     /**
-     * @param Model $entity Anything using HasFilesystemTrait (Plan, Session, Message).
+     * @param Model|null $entity Anything using HasFilesystemTrait (Plan, Session, Message). Null —
+     *        an ad-hoc turn with no session, a task whose plan is gone — means nowhere to attach to,
+     *        which is a no-op rather than an error.
      */
     public function __construct(
-        protected readonly Model $entity,
-        protected readonly Users $owner,
+        protected readonly ?Model $entity,
+        protected readonly ?Users $owner,
         protected readonly string $sessionId,
         protected readonly ?Client $client = null,
     ) {
@@ -45,6 +47,10 @@ class PullSessionOutputsAction
      */
     public function execute(): array
     {
+        if ($this->entity === null || $this->owner === null) {
+            return [];
+        }
+
         $client = $this->claudeClient($this->entity->app, $this->entity->company);
 
         try {

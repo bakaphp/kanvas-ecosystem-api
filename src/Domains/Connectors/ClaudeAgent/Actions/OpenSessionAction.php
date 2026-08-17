@@ -50,7 +50,7 @@ class OpenSessionAction
     public function execute(): string
     {
         $resources = RepoAllowListService::sessionResources($this->agent, $this->repoSlugs);
-        $vaultId = $this->vaultId();
+        $vaultId = AgentSettingsService::vaultId($this->agent);
         $fingerprint = self::resourceFingerprint($resources, $vaultId, $this->remoteAgentVersion);
 
         $existing = self::storedSessionId($this->session);
@@ -69,7 +69,8 @@ class OpenSessionAction
             'title' => trim((string) ($this->title ?? $this->agent->name)),
             'budget' => $this->budget(),
             'resources' => $resources,
-            // MCP credentials live in a vault; the sandbox never sees them.
+            // MCP credentials live in a vault; the sandbox never sees them. Create-only — the API
+            // rejects vault_ids on update, so one not attached here never can be.
             'vault_ids' => array_values(array_filter([$vaultId])),
             'initial_events' => $this->initialEvents,
         ]);
@@ -97,15 +98,6 @@ class OpenSessionAction
         ]);
 
         return $sessionId;
-    }
-
-    /**
-     * Create-only on the API too — `vault_ids` is rejected on session update, so a vault that isn't
-     * attached here can never be attached to this session.
-     */
-    protected function vaultId(): ?string
-    {
-        return AgentSettingsService::vaultId($this->agent);
     }
 
     /**

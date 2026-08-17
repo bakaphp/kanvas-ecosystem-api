@@ -13,7 +13,6 @@ use Kanvas\Connectors\ClaudeAgent\Traits\ReportsAndContinues;
 use Kanvas\Connectors\ClaudeAgent\Traits\ResolvesClaudeClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Throwable;
 
 /**
  * One conversational turn against a hosted agent: ensure the remote agent and environment exist,
@@ -129,28 +128,20 @@ class RunSessionTurnAction
     }
 
     /**
-     * A chat turn can produce files too — the agent writes to `/mnt/session/outputs/` whether it was
-     * asked conversationally or dispatched as a task. Without this they die with the session, which
-     * is the one-way door this connector exists to close.
-     *
-     * Attached to the Kanvas Session (it uses HasFilesystemTrait) rather than a Plan, since a
-     * conversational turn has no plan. Named in the reply so the user knows they exist at all.
+     * Attached to the Kanvas Session rather than a Plan, since a conversational turn has no plan,
+     * and named in the reply so the user knows the files exist at all.
      */
     protected function attachOutputs(Client $client, string $sessionId): string
     {
-        $owner = $this->agent->user;
-
-        if (! $this->session instanceof Session || $owner === null) {
-            return '';
-        }
-
-        try {
-            $attached = new PullSessionOutputsAction($this->session, $owner, $sessionId, $client)->execute();
-        } catch (Throwable $e) {
-            report($e);
-
-            return '';
-        }
+        $attached = [];
+        $this->bestEffort(function () use ($client, $sessionId, &$attached): void {
+            $attached = new PullSessionOutputsAction(
+                $this->session,
+                $this->agent->user,
+                $sessionId,
+                $client,
+            )->execute();
+        });
 
         return $attached === []
             ? ''

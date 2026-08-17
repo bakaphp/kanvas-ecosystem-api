@@ -22,11 +22,8 @@ class AgentSpecBuilderService
     public const AGENT_TOOLSET = 'agent_toolset_20260401';
 
     /**
-     * Mounting a repo gives filesystem + git only. The git proxy injects the token *after* the
-     * request leaves the container, so `git push` works while `api.github.com` answers 401 — the
-     * sandbox genuinely has no API credential. **Anything that is an API call rather than git wire
-     * traffic goes through the GitHub MCP server**, authenticated by the agent's vault. That split
-     * is the single easiest thing to get wrong about this integration.
+     * A repo mount gives git, not the GitHub API — anything API-shaped goes through this server.
+     * {@see EnsureGithubVaultAction} explains why, and provisions the credential it needs.
      */
     public const GITHUB_MCP_NAME = 'github';
     public const GITHUB_MCP_URL = 'https://api.githubcopilot.com/mcp/';
