@@ -61,27 +61,27 @@ class AgentsRepository
             FILTER_VALIDATE_BOOLEAN
         );
 
-        // Match on a digits-only form of BOTH sides so a stored number carrying
-        // spaces / dashes / parens / a leading + still matches Twilio's strict
-        // E.164 `To`. REGEXP_REPLACE strips every non-digit — the SQL mirror of
-        // normalizePhoneNumber's `\D` — so it can't drift from the PHP side.
-        // JSON_VALID guards rows whose voice_config is null or not JSON.
-        // NOTE: this can't use an index — fine at per-app agent counts; if it
-        // ever gets hot, normalize on write and index a generated column.
-        $digitsOnly =
-            "REGEXP_REPLACE(JSON_UNQUOTE(JSON_EXTRACT(voice_config, '$.phone_number')), '[^0-9]', '')";
-
+        // Narrow to voice-configured agents in SQL (a small set — only agents
+        // with a voice_config), then match in PHP with the SAME
+        // normalizePhoneNumber on both sides. One canonical, unit-testable
+        // normalizer, no raw/DB-specific SQL, and no risk of a SQL form drifting
+        // from the PHP one. Fine at per-agent counts; if the voice-agent set ever
+        // grows large, normalize on write and index the number instead.
         $query = Agent::query()
             ->notDeleted()
-            ->whereRaw('JSON_VALID(voice_config)')
-            ->whereRaw("{$digitsOnly} = ?", [$normalized])
+            ->whereNotNull('voice_config')
             ->orderBy('id');
 
         if (! $crossApp) {
             $query->where('apps_id', $app->getId());
         }
 
-        return $query->first();
+        return $query->get()->first(function (Agent $agent) use ($normalized): bool {
+            $stored = $agent->voice_config['phone_number'] ?? null;
+
+            return $stored !== null
+                && self::normalizePhoneNumber((string) $stored) === $normalized;
+        });
     }
 
     /**
