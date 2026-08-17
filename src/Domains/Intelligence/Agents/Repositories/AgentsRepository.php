@@ -94,4 +94,22 @@ class AgentsRepository
     {
         return preg_replace('/\D+/', '', $number) ?? '';
     }
+
+    /**
+     * Canonicalize a phone number for STORAGE: strip spaces, dashes, parens,
+     * etc. but PRESERVE a leading + so it stays a valid E.164 Twilio caller id.
+     * Unlike normalizePhoneNumber (digits only, for lenient matching), this keeps
+     * the +. e.g. "+1 (555) 123-4567" -> "+15551234567", "5551234567" -> "5551234567".
+     */
+    public static function cleanPhoneNumber(string $number): string
+    {
+        $number = trim($number);
+        $digits = preg_replace('/\D+/', '', $number) ?? '';
+
+        if ($digits === '') {
+            return '';
+        }
+
+        return str_starts_with($number, '+') ? '+' . $digits : $digits;
+    }
 }
