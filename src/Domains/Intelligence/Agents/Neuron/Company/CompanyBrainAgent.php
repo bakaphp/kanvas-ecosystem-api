@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Company;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ExportTableTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindLeadsByTraitsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetCompanyBreakdownTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetCustomerStatsTool;
@@ -86,6 +87,7 @@ class CompanyBrainAgent extends SystemUserAgent
             new GetMessageUsageReportTool()->withContext($app, $company, $user),
             new ListProjectsTool()->withContext($app, $company, $user),
             new GetProjectAnalyticsTool()->withContext($app, $company, $user),
+            new ExportTableTool()->withContext($app, $company, $user),
         ];
 
         $seen = [];
