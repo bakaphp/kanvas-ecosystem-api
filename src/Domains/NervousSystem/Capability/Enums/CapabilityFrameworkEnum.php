@@ -15,6 +15,7 @@ enum CapabilityFrameworkEnum: string
     case LARAVEL = 'laravel';
     case ADK = 'adk';
     case OPENCLAW = 'openclaw';
+    case CLAUDE = 'claude';
 
     /**
      * @return array<int, string>

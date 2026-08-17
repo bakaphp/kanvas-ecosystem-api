@@ -14,6 +14,8 @@ class RunRuntimeChatAction
 {
     /**
      * @param list<string> $images URLs to forward as multimodal image items.
+     * @param list<object> $additionalTools Injected for this turn only. Machine runtimes ignore
+     *        them; hosted runtimes bridge them back in-process.
      */
     public function __construct(
         protected readonly Agent $agent,
@@ -21,6 +23,7 @@ class RunRuntimeChatAction
         protected readonly string $message,
         protected readonly Users $user,
         protected readonly array $images = [],
+        protected readonly array $additionalTools = [],
     ) {
     }
 
@@ -35,6 +38,7 @@ class RunRuntimeChatAction
             message: $this->message,
             sessionKey: $sessionId !== '' ? $sessionId : null,
             images: $this->images,
+            additionalTools: $this->additionalTools,
         );
 
         new KanvasConversationStore()->logTurn(
