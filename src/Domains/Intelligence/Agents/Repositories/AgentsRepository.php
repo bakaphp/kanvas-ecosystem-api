@@ -51,18 +51,47 @@ class AgentsRepository
      */
     public static function getByPhoneForVoiceRuntime(string $phoneNumber, AppInterface $app): ?Agent
     {
+        $normalized = self::normalizePhoneNumber($phoneNumber);
+        if ($normalized === '') {
+            return null;
+        }
+
         $crossApp = filter_var(
             $app->get(ConfigurationEnum::VOICE_RUNTIME_CROSS_APP->value),
             FILTER_VALIDATE_BOOLEAN
         );
 
-        $query = Agent::where('voice_config->phone_number', $phoneNumber)
-            ->notDeleted();
+        // Match on a digits-only form of BOTH sides so a stored number carrying
+        // spaces / dashes / parens / a leading + still matches Twilio's strict
+        // E.164 `To`. JSON_VALID guards rows whose voice_config is null or not
+        // JSON. NOTE: this REPLACE/JSON chain can't use an index — fine at
+        // per-app agent counts; if it ever gets hot, normalize on write and
+        // index a generated column instead.
+        $digitsOnly = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE("
+            . "JSON_UNQUOTE(JSON_EXTRACT(voice_config, '$.phone_number')),"
+            . " ' ', ''), '-', ''), '(', ''), ')', ''), '.', ''), '+', '')";
+
+        $query = Agent::query()
+            ->notDeleted()
+            ->whereRaw('JSON_VALID(voice_config)')
+            ->whereRaw("{$digitsOnly} = ?", [$normalized])
+            ->orderBy('id');
 
         if (! $crossApp) {
             $query->where('apps_id', $app->getId());
         }
 
         return $query->first();
+    }
+
+    /**
+     * Canonicalize a phone number for matching: digits only. Drops '+', spaces,
+     * dashes, dots, parentheses, etc. so any human-entered format lines up with
+     * Twilio's E.164 (e.g. "+1 (555) 123-4567" and "+15551234567" both become
+     * "15551234567").
+     */
+    public static function normalizePhoneNumber(string $number): string
+    {
+        return preg_replace('/\D+/', '', $number) ?? '';
     }
 }
