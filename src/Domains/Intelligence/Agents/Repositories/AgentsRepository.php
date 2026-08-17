@@ -63,13 +63,13 @@ class AgentsRepository
 
         // Match on a digits-only form of BOTH sides so a stored number carrying
         // spaces / dashes / parens / a leading + still matches Twilio's strict
-        // E.164 `To`. JSON_VALID guards rows whose voice_config is null or not
-        // JSON. NOTE: this REPLACE/JSON chain can't use an index — fine at
-        // per-app agent counts; if it ever gets hot, normalize on write and
-        // index a generated column instead.
-        $digitsOnly = "REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE("
-            . "JSON_UNQUOTE(JSON_EXTRACT(voice_config, '$.phone_number')),"
-            . " ' ', ''), '-', ''), '(', ''), ')', ''), '.', ''), '+', '')";
+        // E.164 `To`. REGEXP_REPLACE strips every non-digit — the SQL mirror of
+        // normalizePhoneNumber's `\D` — so it can't drift from the PHP side.
+        // JSON_VALID guards rows whose voice_config is null or not JSON.
+        // NOTE: this can't use an index — fine at per-app agent counts; if it
+        // ever gets hot, normalize on write and index a generated column.
+        $digitsOnly =
+            "REGEXP_REPLACE(JSON_UNQUOTE(JSON_EXTRACT(voice_config, '$.phone_number')), '[^0-9]', '')";
 
         $query = Agent::query()
             ->notDeleted()
