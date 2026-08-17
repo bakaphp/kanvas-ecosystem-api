@@ -449,6 +449,10 @@ ansible-playbook playbooks/development-deploy.yaml \
   --diff
 ```
 
+## Collaborators
+
+- [@kaioken](https://github.com/kaioken) — Max Castro
+
 ## Working with kanvas
 - [Coding guideline](https://github.com/bakaphp/kanvas-ecosystem-api/wiki/Coding-Guidelines)
 - [Wiki](https://github.com/alexeymezenin/laravel-best-practices#follow-laravel-naming-conventions)
