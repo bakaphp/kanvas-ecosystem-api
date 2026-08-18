@@ -105,8 +105,10 @@ class AccountsPayableAgent extends SystemUserAgent
             '- Resolving a vendor name off an invoice → find_vendor; if more than one candidate, confirm which.',
             '- Lead with the headline (e.g. "Total payables: $84,200 across 12 vendors; $19,500 overdue"), then '
             . 'the top 3-5 items. Be honest about freshness; never invent precision the data lacks.',
-            '- "Create a bill for vendor X" → create_ap_bill, only when the user explicitly asks for it — it '
-            . 'writes straight to Acumatica, bypassing human approval.',
+            '- "Create a bill for vendor X" → create_ap_bill, only when the user explicitly asks for it — by '
+            . 'default it writes straight to Acumatica, bypassing human approval. Pass push_to_acumatica: false '
+            . 'only when you specifically want it to stop at pending_approval instead (e.g. the automatic '
+            . 'invoice-email flow below).',
             '- "Void/cancel/undo that bill" → void_ap_bill, given the bill_id from create_ap_bill.',
             '- "Pay a vendor bill" / "record a payment against bill Y" → apply_ap_payment, only when the user '
             . 'explicitly asks to record a real payment. Needs the bill_id, amount, and a payment reference.',
@@ -128,20 +130,21 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'asked — this is a standard step of processing an invoice email, not a separate favor: '
             . '(1) list_emails → read_email_details → download_attachment → extract_invoice_data, to get the '
             . 'real vendor/total/dates and the file\'s url. '
-            . '(2) create_ap_bill using that real data — this both creates the Kanvas bill and pushes it to '
-            . 'Acumatica, giving you the Kanvas bill_id and the Acumatica bill_ref. '
-            . '(3) attach_bill_file with the bill_id from step 2 and the url from step 1\'s download_attachment '
-            . '— no need to re-download or re-host the file anywhere. '
-            . '(4) write_google_sheet to log the row — range "Invoices!A1", omit sheet_url_or_id to use the '
+            . '(2) create_ap_bill with push_to_acumatica: false, using that real data — this creates the Kanvas '
+            . 'bill and submits it for approval (status: pending_approval), giving you the Kanvas bill_id. Do '
+            . 'NOT push to Acumatica in this flow — a human approves the bill later and the push happens as a '
+            . 'separate, later step, not something you do here. Skip attach_bill_file too — it requires the '
+            . 'bill to already be pushed to Acumatica, which hasn\'t happened yet. '
+            . '(3) write_google_sheet to log the row — range "Invoices!A1", omit sheet_url_or_id to use the '
             . 'default sheet — with the ID invoice column set to the Kanvas bill_id from step 2 (NOT the '
             . 'vendor\'s own invoice number), then [vendor_name, total, "Pending"]. '
-            . '(5) update_google_sheet_cell to flip that row\'s status column to "Approved". '
-            . '(6) mark_email_as_read on the message_id — only now, after every step above succeeded, so a '
+            . '(4) mark_email_as_read on the message_id — only now, after both steps above succeeded, so a '
             . 'failed run can still be found and retried on the next "has:attachment is:unread" search. '
-            . '(7) In your final reply, always give the complete breakdown of everything that happened: Kanvas '
-            . 'bill_id, Acumatica bill_ref, vendor, invoice number, amount, GL account, subaccount, memo, '
-            . 'status, and the attached file — never a short summary, the user needs every field to look this '
-            . 'up in Acumatica and Kanvas afterward.',
+            . '(5) In your final reply, always give the complete breakdown of everything that happened so far: '
+            . 'Kanvas bill_id, vendor, invoice number, amount, GL account, subaccount, memo, and status '
+            . '(pending_approval in Kanvas / "Pending" in the sheet) — never a short summary. There is no '
+            . 'Acumatica reference yet at this stage — say so plainly rather than leaving it out; the push to '
+            . 'Acumatica and the file attachment happen later, once a human approves the bill.',
         ]);
     }
 }
