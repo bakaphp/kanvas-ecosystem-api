@@ -8,7 +8,7 @@ use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Client as TwilioClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Agents\Services\VoiceRuntimeConfig;
 use Throwable;
 
 use function Sentry\captureException;
@@ -45,9 +45,11 @@ class ConfigureAgentInboundWebhookAction
                 return false; // no per-agent number → nothing to wire
             }
 
-            $runtimeUrl = trim((string) $this->app->get(ConfigurationEnum::VOICE_RUNTIME_URL->value));
+            // Global runtime URL by default (one Cloud Run for every app);
+            // a per-app setting still overrides. See VoiceRuntimeConfig.
+            $runtimeUrl = VoiceRuntimeConfig::url($this->app);
             if ($runtimeUrl === '') {
-                return false; // runtime not configured for this app
+                return false; // runtime not configured
             }
 
             $company = $this->agent->companies_id > 0

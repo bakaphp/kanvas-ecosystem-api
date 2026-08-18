@@ -9,7 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Agents\Services\VoiceRuntimeConfig;
 use Throwable;
 
 use function Sentry\captureException;
@@ -22,10 +22,9 @@ use function Sentry\captureException;
  * speaks with its own voice config and dials FROM its own number
  * (voice_config.phone_number → the spec's telephony.from_number).
  *
- * The runtime endpoint + bearer token are per-app settings:
- *   ConfigurationEnum::VOICE_RUNTIME_URL        → the runtime base URL
- *   ConfigurationEnum::VOICE_RUNTIME_API_TOKEN  → the runtime's RUNTIME_API_TOKEN
- * so a company can point at its own runtime without a code change.
+ * The runtime endpoint + bearer token are resolved by VoiceRuntimeConfig: the
+ * global Kanvas config (VOICE_RUNTIME_URL / VOICE_RUNTIME_API_TOKEN — one Cloud
+ * Run for every app), with a per-app setting override when present.
  */
 class PlaceVoiceTestCallAction
 {
@@ -52,14 +51,15 @@ class PlaceVoiceTestCallAction
             );
         }
 
-        $url = trim((string) $this->app->get(ConfigurationEnum::VOICE_RUNTIME_URL->value));
-        $token = trim((string) $this->app->get(ConfigurationEnum::VOICE_RUNTIME_API_TOKEN->value));
+        // Global default (one Cloud Run serves every app); a per-app setting
+        // overrides. See VoiceRuntimeConfig.
+        $url = VoiceRuntimeConfig::url($this->app);
+        $token = VoiceRuntimeConfig::apiToken($this->app);
 
         if ($url === '' || $token === '') {
             throw new ValidationException(
-                'The voice runtime is not configured for this app. Set the "' .
-                ConfigurationEnum::VOICE_RUNTIME_URL->value . '" and "' .
-                ConfigurationEnum::VOICE_RUNTIME_API_TOKEN->value . '" app settings.'
+                'The voice runtime is not configured. Set VOICE_RUNTIME_URL and '
+                . 'VOICE_RUNTIME_API_TOKEN (or the per-app override settings).'
             );
         }
 
