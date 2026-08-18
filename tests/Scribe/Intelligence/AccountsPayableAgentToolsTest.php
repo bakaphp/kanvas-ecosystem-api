@@ -21,6 +21,7 @@ use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
+use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
@@ -283,6 +284,33 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $this->assertSame('1498', $bill->bill_number);
         $this->assertSame('BB-0G-M1', $bill->lines->first()->subaccount->sub_code);
+    }
+
+    public function test_create_ap_bill_with_push_to_acumatica_false_stops_at_pending_approval(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
+        $accountCode = (string) Account::query()->where('id', $accountId)->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 750.0,
+                gl_account_number: $accountCode,
+                memo: 'Pending flow test',
+                invoice_number: 'PEND-1',
+                push_to_acumatica: false,
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertFalse($result['pushed']);
+        $this->assertSame('pending_approval', $result['document_status']);
+        $this->assertArrayNotHasKey('bill_ref', $result);
+        $this->assertArrayNotHasKey('acumatica_bill_id', $result);
+
+        $bill = Bill::query()->where('id', $result['bill_id'])->first();
+        $this->assertSame(BillDocumentStatusEnum::PENDING_APPROVAL, $bill->document_status);
     }
 
     public function test_find_vendor_returns_a_dead_end_message_when_nothing_matches(): void

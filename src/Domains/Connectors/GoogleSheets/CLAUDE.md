@@ -122,33 +122,40 @@ file itself with the same care as any other production secret: don't commit it, 
 into chat/logs outside the one-time setup, and use a dedicated production service account (never
 reuse a personal/dev one).
 
-## Full invoice-processing flow (Gmail → Sheet → Acumatica)
+## Full invoice-processing flow (Gmail → Kanvas → Sheet)
 
-This connector is one leg of a 3-connector pipeline (see also `src/Domains/Connectors/Gmail/CLAUDE.md`
-and the Acumatica connector). End to end, when Apex/Arc process an emailed invoice, the agent:
+This connector is one leg of a pipeline (see also `src/Domains/Connectors/Gmail/CLAUDE.md` and the
+Acumatica connector). End to end, when Apex/Arc process an emailed invoice, the agent:
 
 1. `list_emails` (Gmail) — finds unread invoice emails.
 2. `read_email_details` (Gmail) — reads the body + attachment list.
 3. `download_attachment` (Gmail) — saves the PDF to Kanvas, returns `filesystem_id`/`url`.
 4. `extract_invoice_data` (Accounting) — reads the PDF with AI, gets the real vendor/total/dates.
    The email body/subject is never the source of truth for these — always read the PDF.
-5. `create_ap_bill` / `create_ar_invoice` (Acumatica) — creates + pushes the bill/invoice using the
-   real data from step 4, giving back the **Kanvas bill/invoice id** and the Acumatica ref.
-6. `attach_bill_file` / `attach_invoice_file` (Acumatica) — attaches the file using the `url`
-   from step 3, no re-download needed.
-7. `write_google_sheet` (this connector) — logs the invoice as a new row (no `sheet_url_or_id`
+5. `create_ap_bill` / `create_ar_invoice` (Acumatica) with **`push_to_acumatica: false`** — creates
+   the bill/invoice in Kanvas only (status `pending_approval` for bills, `draft` for invoices),
+   giving back the **Kanvas bill/invoice id**. Does **not** push to Acumatica and does not call
+   `attach_bill_file`/`attach_invoice_file` (both require an existing Acumatica push) — those
+   happen later, as a separate manual step once a human approves the bill/invoice in Kanvas.
+6. `write_google_sheet` (this connector) — logs the invoice as a new row (no `sheet_url_or_id`
    needed — falls back to the default sheet), automatically, without being asked. **The "ID
    invoice" column holds the Kanvas bill/invoice id from step 5** (not the vendor/customer's own
-   invoice number) — this only works because the bill/invoice is created *before* this step, not
-   after.
-8. `update_google_sheet_cell` (this connector) — flips the sheet row's status to "Approved".
-9. `mark_email_as_read` (Gmail) — removes the message's `UNREAD` label, only now that every prior
-   step succeeded, so the same invoice doesn't get reprocessed on the next `has:attachment
-   is:unread` search. Never mark it read before this point — a failed run must still be findable.
+   invoice number), with status **"Pending"**.
+7. `mark_email_as_read` (Gmail) — removes the message's `UNREAD` label, only now that steps 5–6
+   succeeded, so the same invoice doesn't get reprocessed on the next `has:attachment is:unread`
+   search. Never mark it read before this point — a failed run must still be findable.
 
-The agent's final reply must always give the complete breakdown (Kanvas id, Acumatica ref, vendor,
-invoice number, amount, GL account, subaccount, memo, status, attached file) — the user looks this
-up in Acumatica/Kanvas afterward and needs every field, not a short summary.
+**The Acumatica push, the sheet's flip to "Approved", and the file attachment are explicitly out of
+scope of this automatic flow** — they happen later, as a separate (currently manual) step once a
+human reviews and approves the bill/invoice sitting in Kanvas. That later step is not built yet as
+of this writing; `create_ap_bill`/`create_ar_invoice` still support pushing in one call (the
+default, `push_to_acumatica: true`) for the explicit "create and push this bill/invoice right now"
+request, which is a different, still-supported use case from the automatic email flow above.
+
+The agent's final reply must always give the complete breakdown of what happened so far (Kanvas
+id, vendor, invoice number, amount, GL account, subaccount, memo, status) — the user looks this up
+in Kanvas afterward and needs every field, not a short summary. There is no Acumatica reference at
+this stage — say so plainly instead of omitting it.
 
 ### Setup checklist — every key that must exist before this flow works
 
@@ -160,9 +167,10 @@ up in Acumatica/Kanvas afterward and needs every field, not a short summary.
 | 4 | `google-sheets-credentials` | Settings → Key Configurations | GoogleSheets |
 | 5 | `google-sheets-default-invoice-tracker` | Settings → Key Configurations | GoogleSheets |
 | 6 | Sheet shared as Editor with the service account's `client_email` | Google Sheets UI, per-sheet | GoogleSheets |
-| 7 | Acumatica credentials (see that connector's own docs) | Settings → Key Configurations | Acumatica |
 
 Steps 1–3 come from the OAuth Playground flow in `Gmail/CLAUDE.md`. Steps 4–6 come from the
 service-account flow above. Missing any of 1–6 breaks the flow at that specific step — the tool's
 error `reason` (`no_sheet_configured`, an authentication error from `Client::getInstance()`, etc.)
-tells you which one.
+tells you which one. Acumatica credentials are no longer required for this automatic flow (nothing
+is pushed to Acumatica here) — they're still needed for the separate `push_to_acumatica: true`
+use case and the future manual-approval step.

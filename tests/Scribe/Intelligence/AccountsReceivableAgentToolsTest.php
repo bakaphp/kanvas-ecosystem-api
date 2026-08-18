@@ -195,6 +195,25 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame(0, $allocations);
     }
 
+    public function test_create_ar_invoice_with_push_to_acumatica_false_stops_at_draft(): void
+    {
+        $customer = $this->seedTestOrganization('Pending Invoice Customer');
+        $customer->set(CustomFieldEnum::CUSTOMER_ID->value, 'C0001000');
+
+        $result = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: 'Pending Invoice Customer', amount: 275.0, memo: 'Pending flow test', push_to_acumatica: false);
+
+        $this->assertTrue($result['created']);
+        $this->assertFalse($result['invoice_pushed']);
+        $this->assertSame('draft', $result['document_status']);
+        $this->assertArrayNotHasKey('invoice_ref', $result);
+        $this->assertArrayNotHasKey('acumatica_invoice_id', $result);
+
+        $invoice = Invoice::query()->where('id', $result['invoice_id'])->first();
+        $this->assertSame(InvoiceDocumentStatusEnum::DRAFT, $invoice->document_status);
+    }
+
     public function test_match_invoices_for_payment_flags_the_exact_invoice(): void
     {
         $customer = $this->seedTestOrganization('Acme Corporation');
