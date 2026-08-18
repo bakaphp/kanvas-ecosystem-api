@@ -12,7 +12,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Set Lead AI Mode Off If Email Only',
+    description: 'Turns the agent off for a lead that only left an email address, so it is not pursued on a '
+        . 'channel it never gave. Writes a flag on the lead.',
+)]
 class SetLeadAiModeOffIfEmailOnlyActivity extends KanvasActivity
 {
     public $tries = 3;

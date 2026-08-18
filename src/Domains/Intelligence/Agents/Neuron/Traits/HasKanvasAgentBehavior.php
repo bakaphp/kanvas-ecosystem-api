@@ -86,6 +86,21 @@ trait HasKanvasAgentBehavior
     }
 
     /**
+     * The person an admin-guarded tool must authorize against — never the agent itself.
+     *
+     * `$this->user` is the turn's actor, and what that means depends on the surface: in a user chat
+     * it IS the human, but on the @mention and channel surfaces it is the AGENT'S OWN user. Handing
+     * that to an admin guard gets it wrong in both directions — an agent user that happens to be an
+     * admin authorizes whoever is talking to it, and one that isn't denies the real admin. Only
+     * `conversationHuman` is set to the actual person (see RespondToMentionJob), so it wins wherever
+     * it is set, and `$this->user` remains the answer on the surfaces where it is the human.
+     */
+    public function requestingHuman(): ?Users
+    {
+        return $this->conversationHuman ?? $this->user;
+    }
+
+    /**
      * Whether this agent's chatHistory already writes each turn to the agent_conversation_messages
      * store. When true, RunNeuronChatAction skips its own logTurn to avoid a duplicate conversation.
      * Default false — SalesAssist-style histories write to Social messages, so logTurn is their only

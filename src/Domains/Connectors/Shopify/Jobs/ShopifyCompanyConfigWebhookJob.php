@@ -6,10 +6,16 @@ namespace Kanvas\Connectors\Shopify\Jobs;
 
 use InvalidArgumentException;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Shopify Shop Config Lookup',
+    description: 'Answers with the Kanvas configuration stored for a Shopify shop domain. A lookup endpoint '
+        . 'for the Shopify app itself — it changes nothing.',
+    integration: IntegrationsEnum::SHOPIFY,
+)]
 class ShopifyCompanyConfigWebhookJob extends ProcessWebhookJob
 {
     #[Override]

@@ -25,7 +25,18 @@ use Kanvas\Workflow\KanvasActivity;
 /**
  * @todo move to a SA namespace, this is not for Twilio anymore
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Human Agent Channel Response',
+    description: 'Delivers a HUMAN colleague\'s reply out to the customer\'s channel — the human-in-the-loop '
+        . 'counterpart to the agent responders. Nothing here is written by an agent.',
+    integration: IntegrationsEnum::INTERNAL,
+    params: [
+        'message' => 'Supplied by the trigger — the message that arrived.',
+        'user' => 'The human replying.',
+        'title' => 'Optional title for the outbound notification.',
+        'from' => 'Optional sender identity.',
+    ],
+)]
 class HumanAgentChannelResponseActivity extends KanvasActivity
 {
     private const string SMS_OPT_OUT_NOTICE = 'Reply STOP to opt out.';

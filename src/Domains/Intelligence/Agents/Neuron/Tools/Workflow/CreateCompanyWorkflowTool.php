@@ -6,13 +6,14 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Workflow;
 
 use Kanvas\Enums\AppEnums;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\AssemblesWorkflowRuleForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesWorkflowCatalogForTool;
+use Kanvas\NervousSystem\Capability\Enums\AgentAbilityEnum;
 use Kanvas\Workflow\Rules\Actions\CreateRuleAction;
 use Kanvas\Workflow\Rules\DataTransferObject\Rule as RuleData;
 use Kanvas\Workflow\Rules\DataTransferObject\RuleActionData;
 use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
-use Kanvas\Workflow\Rules\Enums\RuleConditionOperatorEnum;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
 use NeuronAI\Tools\HasRunKey;
@@ -37,6 +38,7 @@ use Throwable;
 #[AgentTool(name: 'Create Company Workflow', category: 'workflow')]
 class CreateCompanyWorkflowTool extends Tool implements HasRunKey
 {
+    use AssemblesWorkflowRuleForTool;
     use GuardsAdminForTool;
     use ResolvesWorkflowCatalogForTool;
     use TrackByInputs;
@@ -88,6 +90,17 @@ class CreateCompanyWorkflowTool extends Tool implements HasRunKey
                 required: true,
             ),
             new ToolProperty(
+                name: 'params',
+                type: PropertyType::STRING,
+                description: 'Settings for the actions, as a JSON object, e.g. '
+                    . '{"message_type_id": 42, "status": "pending", "categories": ["News"]}. Call '
+                    . 'list_workflow_options first and read each action\'s "params" — an action listing '
+                    . '"required_params" will not be accepted without them. The params are shared by every '
+                    . 'action in the workflow, so put actions that need conflicting settings in separate '
+                    . 'workflows.',
+                required: false,
+            ),
+            new ToolProperty(
                 name: 'conditions',
                 type: PropertyType::STRING,
                 description: 'Optional filter — the workflow only runs when ALL of these match. One condition per '
@@ -119,6 +132,7 @@ class CreateCompanyWorkflowTool extends Tool implements HasRunKey
         string $entity,
         string $trigger,
         string $actions,
+        ?string $params = null,
         ?string $conditions = null,
         ?string $description = null,
         ?bool $run_in_background = null,
@@ -153,10 +167,27 @@ class CreateCompanyWorkflowTool extends Tool implements HasRunKey
 
         $systemModule = $this->resolveSystemModule($entity);
         if ($systemModule === null) {
+            // Suggestions are scoped to what the caller asked for. Dumping the first N alphabetically
+            // reads as the complete set and hid the real Message entity, which sorts past the cap.
+            $suggestions = $this->suggestEntities($entity);
+
             return $this->error(
-                sprintf('"%s" is not a record type this app automates. Pick one from available_entities and retry.', trim($entity)),
-                ['available_entities' => $this->availableEntities()],
+                sprintf(
+                    '"%s" is not a record type this app automates. Pick one from available_entities and retry.',
+                    trim($entity)
+                ),
+                [
+                    'available_entities' => $suggestions,
+                    'note' => 'These are matches for your term, not the whole catalog. Search a different '
+                        . 'word if none fit — do not conclude the entity does not exist.',
+                ],
             );
+        }
+
+        $fit = $this->checkTriggerEntityFit($ruleType, $systemModule);
+
+        if ($fit !== null && $fit['refuse']) {
+            return $this->error($fit['message'] . ' Create it on that entity instead.');
         }
 
         $resolvedActions = [];
@@ -177,10 +208,22 @@ class CreateCompanyWorkflowTool extends Tool implements HasRunKey
             return $this->error('A workflow needs at least one action to run. Call list_workflow_options to see them.');
         }
 
+        $parsedParams = $this->parseParams($params);
+        if (isset($parsedParams['error'])) {
+            return $this->error($parsedParams['error']);
+        }
+
+        $paramCheck = $this->refuseBadParams($parsedParams['params'], $resolvedActions);
+        if ($paramCheck !== null) {
+            return $paramCheck;
+        }
+
         $parsedConditions = $this->parseConditions($conditions);
         if (isset($parsedConditions['error'])) {
             return $this->error($parsedConditions['error']);
         }
+
+        $parsedConditions['conditions'] = $this->withDefaultCondition($parsedConditions['conditions']);
 
         $existing = Rule::query()
             ->where('name', $name)
@@ -212,6 +255,7 @@ class CreateCompanyWorkflowTool extends Tool implements HasRunKey
                     systemModule: $systemModule,
                     name: $name,
                     description: $description !== null && trim($description) !== '' ? trim($description) : null,
+                    params: $parsedParams['params'],
                     pattern: $this->buildPattern(count($parsedConditions['conditions'])),
                     is_async: $run_in_background ?? true,
                     conditions: $parsedConditions['conditions'] === []
@@ -252,7 +296,10 @@ class CreateCompanyWorkflowTool extends Tool implements HasRunKey
                 ),
                 $parsedConditions['conditions']
             ),
+            'params' => $parsedParams['params'],
             'runs_in_background' => $rule->is_async,
+            ...$this->conditionWarnings($systemModule, $parsedConditions['conditions'], $parsedParams['params']),
+            ...($fit !== null ? ['entity_warning' => $fit['message']] : []),
             'scope' => 'company:' . $this->company->name,
             'message' => sprintf(
                 'Workflow created for %s only. It runs on %s %s.',
@@ -264,67 +311,49 @@ class CreateCompanyWorkflowTool extends Tool implements HasRunKey
     }
 
     /**
-     * @return array{conditions: list<RuleConditionData>, error?: string}
+     * @return list<string>
      */
-    private function parseConditions(?string $conditions): array
+    /**
+     * @param array<string, mixed> $params
+     * @param list<Action> $actions
+     * @return array<string, mixed>|null
+     */
+    private function refuseBadParams(array $params, array $actions): ?array
     {
-        $conditions = trim((string) $conditions);
+        ['known' => $known, 'unknown' => $unknown, 'missing' => $missing] = $this->auditParams($params, $actions);
 
-        if ($conditions === '') {
-            return ['conditions' => []];
-        }
-
-        $parsed = [];
-        foreach (preg_split('/[|\n]/', $conditions) ?: [] as $entry) {
-            $entry = trim($entry);
-
-            if ($entry === '') {
-                continue;
-            }
-
-            // Word operators are matched first and only when whitespace-delimited: an attribute such as
-            // "min" contains "in", so a combined alternation would read "min > 3" as "m in > 3".
-            // Symbolic operators are alternated longest-first so ">=" isn't cut down to ">".
-            $wordOperators = '/^(?<attribute>.+?)\s+(?<operator>not in|in|matches)\s+(?<value>.+)$/i';
-            $symbolOperators = '/^(?<attribute>.+?)\s*(?<operator>>=|<=|!=|==|=|>|<)\s*(?<value>.*)$/';
-
-            if (! preg_match($wordOperators, $entry, $matches) && ! preg_match($symbolOperators, $entry, $matches)) {
-                return [
-                    'conditions' => [],
-                    'error' => sprintf(
-                        'Could not read the condition "%s". Write each one as "attribute operator value", e.g. '
-                        . '"status == new", and separate them with "|".',
-                        $entry
-                    ),
-                ];
-            }
-
-            $operator = mb_strtolower(trim($matches['operator']));
-            $operator = $operator === '=' ? '==' : $operator;
-            $value = trim(trim($matches['value']), '\'"');
-
-            $parsed[] = new RuleConditionData(
-                attribute_name: trim($matches['attribute']),
-                operator: RuleConditionOperatorEnum::from($operator),
-                value: $value === '' ? null : $value,
+        if ($unknown !== []) {
+            return $this->error(
+                sprintf(
+                    '%s not read by any of these actions. Use list_workflow_options to see what they take.',
+                    count($unknown) === 1
+                        ? sprintf('"%s" is', reset($unknown))
+                        : sprintf('"%s" are', implode('", "', $unknown))
+                ),
+                ['accepted_params' => $known],
             );
         }
 
-        return ['conditions' => $parsed];
+        if ($missing !== []) {
+            return $this->error(
+                sprintf(
+                    'These params are required and were not given: %s. Ask the admin for the values — do not '
+                    . 'guess, and do not create the workflow without them.',
+                    implode(', ', array_map(
+                        fn (string $name, string $actionName): string => sprintf('%s (%s)', $name, $actionName),
+                        array_keys($missing),
+                        $missing
+                    ))
+                ),
+                ['accepted_params' => $known],
+            );
+        }
+
+        return null;
     }
 
-    private function buildPattern(int $conditionCount): string
+    protected function requiredAbilities(): array
     {
-        return $conditionCount === 0 ? '1' : implode(' AND ', range(1, $conditionCount));
-    }
-
-    /**
-     * @param array<string, mixed> $extra
-     *
-     * @return array<string, mixed>
-     */
-    private function error(string $message, array $extra = []): array
-    {
-        return array_merge(['created' => false, 'message' => $message], $extra);
+        return [AgentAbilityEnum::MANAGE_COMPANY_WORKFLOWS->value];
     }
 }

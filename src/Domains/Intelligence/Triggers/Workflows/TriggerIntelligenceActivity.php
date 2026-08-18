@@ -14,7 +14,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Trigger Intelligence On Lead',
+    description: 'Starts the intelligence pipeline for a lead — scoring, enrichment and whatever the app has '
+        . 'configured. Entry point rather than an action in itself.',
+)]
 class TriggerIntelligenceActivity extends KanvasActivity
 {
     public $tries = 3;

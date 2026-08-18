@@ -41,13 +41,20 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Twilio Inbound SMS Webhook',
+    description: 'Receiver for inbound Twilio SMS and MMS: finds or creates the person and their lead, files '
+        . 'the message and any attachments, and notifies the lead\'s stakeholders. This is how texts '
+        . 'ARRIVE — it does not reply. Pair it with the SMS responder step if an agent should answer.',
+    integration: IntegrationsEnum::TWILIO,
+)]
 class ProcessTwilioWebhookJob extends ProcessWebhookJob
 {
     protected bool $hijackSession = false;

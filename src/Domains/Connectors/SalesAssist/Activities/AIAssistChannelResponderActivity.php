@@ -14,7 +14,15 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist AI Assist Channel Responder',
+    description: 'Has the SalesAssist AI assistant answer on a channel it owns. Specific to the SalesAssist '
+        . 'product surface; for a normal Kanvas channel use the Internal Agent Channel Responder.',
+    integration: IntegrationsEnum::INTERNAL,
+    params: [
+        'message' => 'Supplied by the trigger — the message that arrived. Not something you set.',
+    ],
+)]
 class AIAssistChannelResponderActivity extends KanvasActivity
 {
     public $tries = 3;

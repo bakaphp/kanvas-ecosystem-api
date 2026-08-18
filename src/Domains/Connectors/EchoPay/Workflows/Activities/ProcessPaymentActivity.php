@@ -13,7 +13,13 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'EchoPay Process Payment',
+    description: 'Charges the customer\'s card through EchoPay for a pending payment on an order. This MOVES '
+        . 'MONEY — attach it only where a charge is genuinely intended, and never to a trigger that can '
+        . 'fire more than once for the same payment.',
+    integration: IntegrationsEnum::ECHO_PAY,
+)]
 class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

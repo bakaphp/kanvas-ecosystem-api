@@ -16,10 +16,18 @@ use Kanvas\Connectors\RespondIO\Actions\ProcessIncomingMessageAction;
 use Kanvas\Connectors\RespondIO\Actions\ProcessOutgoingMessageAction;
 use Kanvas\Connectors\RespondIO\Enums\WebhookEventEnum;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'RespondIO Inbound Webhook',
+    description: 'Receiver for everything Respond.io reports — messages in and out, comments, conversations '
+        . 'opening and closing, contact and tag changes, ended calls — and files each against the right '
+        . 'Kanvas record. Inbound only; it records what happened and replies to nobody. The agent reply '
+        . 'is a separate responder step.',
+    integration: IntegrationsEnum::RESPOND_IO,
+)]
 class ProcessRespondIOWebhookJob extends ProcessWebhookJob
 {
     #[Override]

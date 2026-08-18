@@ -22,7 +22,13 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Zoho Push Agent',
+    description: 'Creates or updates the user as an agent (salesperson) in Zoho and records the sponsorship '
+        . 'chain that decides who owns their leads. Outbound write plus local agent bookkeeping. Runs '
+        . 'on the USER.',
+    integration: IntegrationsEnum::ZOHO,
+)]
 class ZohoAgentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     //public $tries = 10;

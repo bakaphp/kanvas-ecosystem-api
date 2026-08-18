@@ -15,7 +15,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist Push Person',
+    description: 'Pushes a person\'s contact record into the SalesAssist legacy CRM. Outbound one-way write; '
+        . 'use the push-lead step for the opportunity itself.',
+    integration: IntegrationsEnum::SALESASSIST,
+)]
 class PushPeopleActivity extends KanvasActivity
 {
     public function execute(People $people, AppInterface $app, array $params): array
