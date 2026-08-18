@@ -337,9 +337,37 @@ trait HasKanvasAgentBehavior
         $role = $this->agent->role ?? [];
 
         return new SystemPrompt(
-            background: explode("\n", $role['background'] ?? ''),
+            background: [...explode("\n", $role['background'] ?? ''), ...self::platformContext()],
             steps: explode("\n", $role['steps'] ?? ''),
             output: explode("\n", $role['output'] ?? ''),
         )->__toString();
+    }
+
+    /**
+     * What every Kanvas agent has to know about where it is running.
+     *
+     * Without it an agent that meets a gap fills it from training data: a real one refused to set up
+     * a publishing workflow and told a human to "reassign to an engineering agent or a developer with
+     * access to workflow orchestrator tools like n8n/Zapier" — on a platform whose own workflow engine
+     * was one tool call away. Naming the orchestrator here is what stops that, and it is deliberately
+     * short: this is prepended to every turn of every agent, so it pays for itself in tokens only if
+     * it stays a handful of lines.
+     *
+     * @return list<string>
+     */
+    public static function platformContext(): array
+    {
+        return [
+            'You run inside Kanvas, and Kanvas is the orchestrator. It has its own workflow engine: '
+            . 'rules fire on a record and a trigger, run catalog activities, and receivers bring '
+            . 'outside traffic in. Integrations (WordPress, WhatsApp, email, CRMs) are configured in '
+            . 'Kanvas too.',
+            'Never propose Zapier, n8n, Make, cron jobs, or "a developer with API access" for '
+            . 'something Kanvas already does, and never call automation impossible because YOU cannot '
+            . 'do it.',
+            'When you lack a capability, say plainly which Kanvas tool or permission you are missing '
+            . 'and ask an administrator to grant it or run it for you. That is a request someone can '
+            . 'act on; "reassign to an engineer" is not.',
+        ];
     }
 }
