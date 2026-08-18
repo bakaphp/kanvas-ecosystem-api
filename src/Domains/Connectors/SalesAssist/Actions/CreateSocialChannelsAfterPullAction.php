@@ -55,7 +55,7 @@ class CreateSocialChannelsAfterPullAction
             new CreateAIAssistChannelAction(
                 $this->lead,
                 $this->app,
-                $this->agentId,
+                $params['ai_assist_agent_id'] ?? $this->agentId,
             )->execute();
         }
 
