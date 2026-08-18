@@ -40,8 +40,7 @@ class PlanObserver
             return;
         }
 
-        // A plan outside a project has no PM watching it, which is exactly when a silent block is
-        // worst: it was created by a person, and without this it sits blocked with nobody told.
+        // No project means no PM watching — and a person is waiting on it.
         if ($plan->project_id === null) {
             NotifyPlanOwnerOfBlockedPlanJob::dispatch($plan)->delay(now()->addSeconds(45));
 

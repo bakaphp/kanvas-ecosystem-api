@@ -10,10 +10,8 @@ use Kanvas\Intelligence\Agents\Models\AgentVersion;
 /**
  * Snapshot an agent's wording as it stands BEFORE an edit, so a bad one is a copy back.
  *
- * Called from the observer rather than from each write path on purpose. An agent's prompt is edited
- * from the admin UI, from GraphQL, from an agent retuning a teammate, and from a console command —
- * and a history that only records the path someone remembered to instrument is worse than none,
- * because it reads as complete.
+ * Driven from the observer, not from each write path: a history that only covers the paths someone
+ * remembered to instrument is worse than none, because it reads as complete.
  */
 class RecordAgentVersionAction
 {
@@ -42,15 +40,14 @@ class RecordAgentVersionAction
             'changes' => $this->reason,
             'created_by' => $this->resolveEditor(),
             'created_at' => now(),
-            // Marks the most recent snapshot, not "the agent's current state" — the agent row is
-            // always that. Older snapshots stay put so any of them can be restored.
+            // The most recent snapshot, not "current state" — the agent row is always that.
             'is_active' => true,
         ]);
     }
 
     /**
-     * Numbered from the highest existing version rather than a row count: a deleted snapshot would
-     * otherwise hand its number to the next one and two rows would claim the same version.
+     * Highest existing version, not a row count — a deleted snapshot would otherwise hand its number
+     * to the next one.
      */
     private function latestVersionNumber(): int
     {
@@ -64,14 +61,9 @@ class RecordAgentVersionAction
     }
 
     /**
-     * The editor is supplied by whoever knows one — a resolver has the request user, a tool has the
-     * person it is acting for. This layer does not go looking: reaching for `auth()` here would make
-     * a domain action behave differently depending on whether a request happened to be in flight,
-     * and it would be wrong exactly when it matters, since the same code runs from queue workers and
-     * console commands with nobody logged in.
-     *
-     * With nobody named, the agent's own user stands in — `created_by` is NOT NULL, and the agent is
-     * the one thing every caller has.
+     * Callers supply the editor; this layer never reaches for `auth()`, which is null exactly where
+     * this runs most — queue workers and console commands. The agent's own user stands in otherwise,
+     * since `created_by` is NOT NULL.
      */
     private function resolveEditor(): int
     {

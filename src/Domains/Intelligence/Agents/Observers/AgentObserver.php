@@ -31,6 +31,7 @@ class AgentObserver
         }
     }
 
+    /** `updating`, not `updated`: after the write the wording being replaced is already gone. */
     public function updating(Agent $agent): void
     {
         $replaced = [];

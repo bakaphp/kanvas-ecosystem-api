@@ -344,14 +344,10 @@ trait HasKanvasAgentBehavior
     }
 
     /**
-     * What every Kanvas agent has to know about where it is running.
+     * Where the agent is running. Without it, one that meets a gap fills it from training data — a
+     * real agent refused to build a publishing workflow and sent a human off to find n8n/Zapier.
      *
-     * Without it an agent that meets a gap fills it from training data: a real one refused to set up
-     * a publishing workflow and told a human to "reassign to an engineering agent or a developer with
-     * access to workflow orchestrator tools like n8n/Zapier" — on a platform whose own workflow engine
-     * was one tool call away. Naming the orchestrator here is what stops that, and it is deliberately
-     * short: this is prepended to every turn of every agent, so it pays for itself in tokens only if
-     * it stays a handful of lines.
+     * Kept to a few lines: it rides on every turn of every agent.
      *
      * @return list<string>
      */

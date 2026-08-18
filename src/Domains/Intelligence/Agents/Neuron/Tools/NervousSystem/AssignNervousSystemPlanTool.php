@@ -123,14 +123,8 @@ class AssignNervousSystemPlanTool extends Tool implements HasRunKey
             ];
         }
 
-        // An agent hired for one job gets the tools for that job, so handing it a plan needing another
-        // is how work stalls: a news editor asked to configure a publishing workflow blocked and told
-        // a human to find "an engineer", because refusing was all it could do. Reporting the grants
-        // lets the PM widen them or pick someone else BEFORE the plan sits blocked.
-        //
-        // Reported, never enforced — these are the REGISTRY grants only. An agent also carries its
-        // handler class's hardcoded baseline, so an empty list here does not mean it can do nothing,
-        // and refusing on it would block assignments that work fine.
+        // Reported, never enforced: these are the REGISTRY grants only — an agent also carries its
+        // handler class's baseline, so an empty list does not mean it can do nothing.
         $grantedTools = $agent->selectedTools()->pluck('name')->all();
 
         // Only an executor agent auto-runs. A non-executor (remote/container/Lead-context) is recorded
@@ -169,7 +163,6 @@ class AssignNervousSystemPlanTool extends Tool implements HasRunKey
             'agent_id' => $agent->getId(),
             'name' => $agent->name,
             'auto_run' => $autoRun,
-            // So the PM can see what it just handed the work to, and grant more if it looks thin.
             'agent_tools' => $grantedTools,
             ...($grantedTools === [] ? ['warning' => sprintf(
                 '%s has no tools granted to it beyond its built-in ones. If this plan needs Kanvas '

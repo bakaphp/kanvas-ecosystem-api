@@ -83,10 +83,7 @@ class Agent extends BaseModel
     }
     use HasLightHouseCache;
 
-    /**
-     * The fields that make up an agent's prompt — everything that changes what it is TOLD, as opposed
-     * to what it can touch. Any edit to one of these is snapshotted into `agent_versions` first.
-     */
+    /** What an agent is TOLD, as opposed to what it can touch. Edits here are snapshotted first. */
     public const array PROMPT_FIELDS = [
         'soul',
         'instructions',
@@ -96,6 +93,7 @@ class Agent extends BaseModel
         'role',
     ];
 
+    // Set before saving; AgentObserver reads them. Plain properties, so Eloquent never persists them.
     public ?string $versionChangeReason = null;
     public ?int $versionEditedByUserId = null;
     public ?AgentVersion $lastRecordedVersion = null;

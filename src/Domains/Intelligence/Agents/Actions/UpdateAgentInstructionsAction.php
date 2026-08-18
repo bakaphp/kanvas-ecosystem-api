@@ -56,9 +56,7 @@ class UpdateAgentInstructionsAction
         }
 
         return DB::connection($this->agent->getConnectionName())->transaction(function () use ($changes): AgentVersion {
-            // The snapshot is written by AgentObserver::updating, which every edit path goes through
-            // — this one only supplies the reason and the editor, so a change made here is recorded
-            // the same way as one made from the admin UI or a console command.
+            // AgentObserver::updating writes the snapshot; this only supplies the reason and editor.
             $this->agent->versionChangeReason = $this->reason;
             $this->agent->versionEditedByUserId = $this->editedBy->getId();
 

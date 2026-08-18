@@ -19,10 +19,9 @@ use Throwable;
 /**
  * Tell the person who owns a project-less plan that it is blocked.
  *
- * A plan inside a project has a PM watching it, and the project alert reaches them. A plan created
- * on its own has neither — the whole escalation used to be gated on `project_id !== null`, so the
- * blocks that most needed a human were the ones nobody heard about. This posts to the plan's own
- * activities channel and @mentions its owner.
+ * A plan in a project has a PM watching it. One created on its own has nobody, and the escalation
+ * used to be gated on `project_id !== null` — so the blocks that most needed a human were the ones
+ * nobody heard about.
  */
 class NotifyPlanOwnerOfBlockedPlanJob implements ShouldQueue
 {
@@ -43,8 +42,8 @@ class NotifyPlanOwnerOfBlockedPlanJob implements ShouldQueue
     {
         $plan = $this->plan->refresh();
 
-        // It can be unblocked in the 45s before this runs — a stale alert is worse than none, because
-        // it sends someone to look at work that is already moving again.
+        // It can be unblocked within the 45s delay; a stale alert sends someone to look at work that
+        // is already moving again.
         if ($plan->status !== PlanStatusEnum::BLOCKED->value) {
             return;
         }
