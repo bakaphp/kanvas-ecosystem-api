@@ -169,6 +169,7 @@ abstract class AbstractAgentRuntimeProvider implements AgentRuntimeProvider
         string $message,
         ?string $sessionKey = null,
         array $images = [],
+        array $additionalTools = [],
     ): string {
         throw $this->unsupported('chat');
     }

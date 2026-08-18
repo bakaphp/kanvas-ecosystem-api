@@ -57,11 +57,11 @@ class AgentToolDiscoveryService extends AttributeClassDiscovery
         /** @var AgentTool $attribute */
         $fqcn = $reflection->getName();
 
-        $frameworks = array_values(array_filter(
+        $frameworks = $this->withHostedFrameworks(array_values(array_filter(
             $attribute->frameworks !== []
                 ? $attribute->frameworks
                 : [$this->frameworkFromNamespace($fqcn)],
-        ));
+        )));
 
         return [
             'class' => $fqcn,
@@ -73,6 +73,31 @@ class AgentToolDiscoveryService extends AttributeClassDiscovery
             'version' => $attribute->version,
             'requiresPermission' => $attribute->requiresPermission,
         ];
+    }
+
+    /**
+     * A NeuronAI tool is also runnable by a Claude Managed Agent: the custom-tool bridge hands the
+     * call back in-process and executes the very same object. Tagging both keeps the catalog honest
+     * about that — and, more practically, `CapabilityProvider::getActiveTools()` and the grant UI
+     * filter by the agent type's provider, so without the `claude` tag a hosted agent could not be
+     * granted a single tool.
+     *
+     * @param list<string> $frameworks
+     * @return list<string>
+     */
+    private function withHostedFrameworks(array $frameworks): array
+    {
+        if (! in_array(CapabilityFrameworkEnum::NEURON->value, $frameworks, true)) {
+            return $frameworks;
+        }
+
+        if (in_array(CapabilityFrameworkEnum::CLAUDE->value, $frameworks, true)) {
+            return $frameworks;
+        }
+
+        $frameworks[] = CapabilityFrameworkEnum::CLAUDE->value;
+
+        return $frameworks;
     }
 
     private function frameworkFromNamespace(string $fqcn): ?string

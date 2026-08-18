@@ -15,7 +15,13 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Tookan Child Order Status',
+    description: 'Handles a status change on a supplier leg of a split delivery: creates the next Tookan task '
+        . 'when it is due, emails the company at the configured stages, and cascades the change up to '
+        . 'the parent order. Pairs with the parent-order step — this is the supplier side.',
+    integration: IntegrationsEnum::TOOKAN,
+)]
 class TookanChildOrderStatusActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

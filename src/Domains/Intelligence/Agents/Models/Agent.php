@@ -83,6 +83,23 @@ class Agent extends BaseModel
     }
     use HasLightHouseCache;
 
+    /**
+     * The fields that make up an agent's prompt — everything that changes what it is TOLD, as opposed
+     * to what it can touch. Any edit to one of these is snapshotted into `agent_versions` first.
+     */
+    public const array PROMPT_FIELDS = [
+        'soul',
+        'instructions',
+        'identity',
+        'user_context',
+        'output_format',
+        'role',
+    ];
+
+    public ?string $versionChangeReason = null;
+    public ?int $versionEditedByUserId = null;
+    public ?AgentVersion $lastRecordedVersion = null;
+
     protected $cascadeDeletes = [
         'deployments',
         'swarmMemberships',
@@ -216,12 +233,6 @@ class Agent extends BaseModel
         );
     }
 
-    /**
-     * Module subscriptions for this agent. Each row carries a per-agent JSON
-     * `config` (e.g. which inventory integrations / channels / pipelines to
-     * watch). Soft-deleted rows are excluded by default; `is_active=false`
-     * rows are included so the UI can render disabled-but-configured state.
-     */
     public function kanvasModules(): HasMany
     {
         return $this->hasMany(AgentKanvasModule::class, 'agent_id', 'id')
@@ -361,9 +372,29 @@ class Agent extends BaseModel
     {
         $handler = $this->type?->handler;
 
-        return is_string($handler)
-            && ! $this->isContainerRuntime()
+        if (! is_string($handler) || $handler === '') {
+            return false;
+        }
+
+        // A hosted runtime (Claude Managed Agents) executes our PHP tools through the custom-tool
+        // bridge, so it CAN hold the board toolset — the test is capability, not transport. Machine
+        // runtimes (Hermes/OpenClaw) stay excluded: they run their own kanban and cannot hold our
+        // tools at all.
+        if ($this->isHostedRuntime()) {
+            return true;
+        }
+
+        return ! $this->isContainerRuntime()
             && is_a($handler, BehavesAsKanvasAgent::class, true);
+    }
+
+    /**
+     * Vendor-hosted runtime — the loop and sandbox live on the vendor's infrastructure, so there is
+     * no deployment row to consult; the agent type's provider is the whole answer.
+     */
+    public function isHostedRuntime(): bool
+    {
+        return AgentProviderEnum::tryFrom(strtolower($this->type?->provider ?? ''))?->isHosted() === true;
     }
 
     /**

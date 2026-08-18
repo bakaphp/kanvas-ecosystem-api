@@ -18,7 +18,15 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist Push Lead',
+    description: 'Pushes the lead into the SalesAssist legacy CRM so the CRM has it. Outbound one-way sync — '
+        . 'it writes to the SalesAssist legacy CRM and does not bring anything back, and it does not '
+        . 'contact the customer. Only useful if this company actually runs the SalesAssist legacy CRM; '
+        . 'several connectors ship a near-identical step, so pick the one matching the CRM the company '
+        . 'uses.',
+    integration: IntegrationsEnum::SALESASSIST,
+)]
 class PushLeadActivity extends KanvasActivity
 {
     public function execute(Lead $lead, AppInterface $app, array $params): array

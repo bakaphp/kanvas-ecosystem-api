@@ -166,13 +166,17 @@ trait MergesRegisteredTools
 
         // An admin-guarded tool authorizes on the HUMAN in the conversation, which is never a
         // toolDependencyCandidate — those carry actingUser(), i.e. the agent's own (usually admin)
-        // user. Hand it $this->user explicitly, the same wiring the hardcoded baselines do with
-        // ->forRequestingUser($this->user).
-        if (in_array(GuardsAdminForTool::class, $uses, true)
-            && property_exists($this, 'user')
-            && $this->user instanceof Users
-        ) {
-            $tool->forRequestingUser($this->user);
+        // user. requestingHuman() prefers the identified person over the turn's actor, because on
+        // the @mention and channel surfaces the actor IS the agent's own user — passing that would
+        // let whoever mentions the agent inherit its admin rights.
+        if (in_array(GuardsAdminForTool::class, $uses, true)) {
+            $human = method_exists($this, 'requestingHuman')
+                ? $this->requestingHuman()
+                : (property_exists($this, 'user') ? $this->user : null);
+
+            if ($human instanceof Users) {
+                $tool->forRequestingUser($human);
+            }
         }
 
         // The record in scope can't come from toolDependencyCandidates() by type (Apps/Companies/Users

@@ -9,10 +9,16 @@ use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Zoho Lead Owner Changed Webhook',
+    description: 'Receiver for a Zoho lead-owner change: re-syncs the lead so Kanvas shows the new owner. '
+        . 'Inbound one-way.',
+    integration: IntegrationsEnum::ZOHO,
+)]
 class SwitchZohoLeadOwnerReceiverJob extends ProcessWebhookJob
 {
     #[Override]

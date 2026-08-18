@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Services;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
@@ -166,16 +168,43 @@ class AgentMailboxService
      */
     public function agentAtAddress(string $address, Agent $exclude): ?Agent
     {
-        /** @var Agent|null $agent */
-        $agent = Agent::getByCustomFieldBuilderTransactionSafe(
+        return $this->lookupAgentAtAddress(
+            $exclude->app,
+            $exclude->company,
+            $address,
+            $exclude->getId()
+        );
+    }
+
+    /**
+     * The same question asked without an agent in hand — anything wiring a shared address needs to know
+     * whether it is about to take an agent's personal inbox out from under it.
+     */
+    public function agentAtAddressIn(AppInterface $app, CompanyInterface $company, string $address): ?Agent
+    {
+        return $this->lookupAgentAtAddress($app, $company, $address, null);
+    }
+
+    private function lookupAgentAtAddress(
+        AppInterface $app,
+        CompanyInterface $company,
+        string $address,
+        ?int $excludeAgentId,
+    ): ?Agent {
+        $query = Agent::getByCustomFieldBuilderTransactionSafe(
             CustomFieldEnum::MAILBOX_ADDRESS->value,
             strtolower(trim($address)),
-            $exclude->company,
+            $company,
         )
-            ->fromApp($exclude->app)
-            ->notDeleted()
-            ->where('id', '!=', $exclude->getId())
-            ->first();
+            ->fromApp($app)
+            ->notDeleted();
+
+        if ($excludeAgentId !== null) {
+            $query->where('id', '!=', $excludeAgentId);
+        }
+
+        /** @var Agent|null $agent */
+        $agent = $query->first();
 
         return $agent;
     }

@@ -23,6 +23,13 @@ class GenerateTimeSlotsJobTest extends TestCase
     use InventoryCases;
     use DatabaseTransactions;
 
+    // Every connection this test writes to has to be listed: DatabaseTransactions only wraps the ones
+    // named here, and the slot tables live on `event` while the variant they hang off lives on
+    // `inventory`. Left off, those rows are committed for good — they accumulate in the shared CI
+    // database run after run, and a count this test makes about its own rule can then be inflated by
+    // work it never did.
+    protected $connectionsToTransact = ['mysql', 'ecosystem', 'inventory', 'event'];
+
     protected $variant;
     protected $region;
     protected $company;

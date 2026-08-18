@@ -17,7 +17,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist Process Person Driver Licence',
+    description: 'Reads a driver licence image on a person or lead and runs identity verification on what it '
+        . 'extracts. Verification can notify the person, so this is not purely an extraction step.',
+    integration: IntegrationsEnum::SALESASSIST,
+)]
 class PeopleProcessDriverLicenseImageActivity extends KanvasActivity
 {
     public $tries = 3;

@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\WordPress\Activities;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WordPress\Actions\PushMessageToWordPressAction;
+use Kanvas\Connectors\WordPress\Enums\ConfigurationEnum;
 use Kanvas\Connectors\WordPress\RestClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
@@ -18,7 +19,28 @@ use Kanvas\Workflow\KanvasActivity;
  * on the site. `message_type_id` in the rule params keeps unrelated chat traffic out; the rest of
  * the params are post defaults the message body can override.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Push Message To WordPress',
+    description: 'Publishes a Kanvas message as a post on the WordPress site connected to the message\'s '
+        . 'company. Uploads any attached media, resolves categories and tags by name, and re-runs as an '
+        . 'update to the same post rather than creating a duplicate.',
+    integration: IntegrationsEnum::WORDPRESS,
+    requiresConfig: [
+        ConfigurationEnum::SITE_URL,
+        ConfigurationEnum::USERNAME,
+        ConfigurationEnum::APPLICATION_PASSWORD,
+    ],
+    requiredParams: ['message_type_id'],
+    params: [
+        'message_type_id' => 'Only messages of this type are published. Leaving it unset does not error — '
+            . 'it publishes EVERY message on the channel to the site, which is why it is required here.',
+        'status' => 'draft | pending | publish | private | future. Use "pending" when a human should '
+            . 'review before it goes live. Defaults to the site\'s configured default.',
+        'categories' => 'Category names, not WordPress ids. Created on the site if term creation is allowed.',
+        'tags' => 'Tag names, not WordPress ids.',
+        'author_id' => 'WordPress user id to attribute the post to.',
+    ],
+)]
 class PushMessageToWordPressActivity extends KanvasActivity
 {
     public function execute(

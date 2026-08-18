@@ -8,7 +8,13 @@ use Illuminate\Support\Carbon;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'ElevenLabs Current Date And Time',
+    description: 'One of the endpoints an ElevenLabs VOICE agent calls back into Kanvas mid-call. These are '
+        . 'wired as that agent\'s server-side tools, not chosen as workflow steps — the caller on the '
+        . 'phone triggers them. This one answers with the current date and time in the COMPANY\'s '
+        . 'timezone, so the voice agent can reason about \'tomorrow\' correctly.',
+)]
 class ProcessElevenLabsAgentDateWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

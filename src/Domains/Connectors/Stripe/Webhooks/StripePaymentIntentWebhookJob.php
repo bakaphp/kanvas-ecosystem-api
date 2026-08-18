@@ -6,11 +6,18 @@ namespace Kanvas\Connectors\Stripe\Webhooks;
 
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Stripe Payment Intent Webhook',
+    description: 'Receiver that matches a Stripe payment intent back to its order and records the outcome. The '
+        . 'narrower counterpart of the order-payment receiver — prefer that one for a full checkout '
+        . 'flow.',
+    integration: IntegrationsEnum::STRIPE,
+)]
 class StripePaymentIntentWebhookJob extends ProcessWebhookJob
 {
     #[Override]

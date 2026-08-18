@@ -28,9 +28,12 @@ class ListWorkflowOptionsTool extends Tool implements HasRunKey
         parent::__construct(
             name: 'list_workflow_options',
             description: 'Lists the valid building blocks for create_company_workflow: triggers (what makes a '
-                . 'workflow run), entities (which record type it watches) and actions (the activities it can run). '
-                . 'Call this before create_company_workflow, and pass a search term when looking for a specific '
-                . 'action such as "email" or "slack".',
+                . 'workflow run), entities (which record type it watches), actions (the activities it can run) '
+                . 'and receivers (the inbound endpoints this app can accept data on). Each action and receiver '
+                . 'comes back with what it does, the params it reads, and whether the integration it needs is '
+                . 'configured for this company — read those before choosing. Call this before '
+                . 'create_company_workflow, and pass a search term when looking for something specific such as '
+                . '"email", "slack" or "wordpress".',
         );
     }
 
@@ -44,13 +47,15 @@ class ListWorkflowOptionsTool extends Tool implements HasRunKey
             new ToolProperty(
                 name: 'kind',
                 type: PropertyType::STRING,
-                description: 'Which catalog to list: "triggers", "entities", "actions", or "all" (default).',
+                description: 'Which catalog to list: "triggers", "entities", "actions", "receivers", or '
+                    . '"all" (default).',
                 required: false,
             ),
             new ToolProperty(
                 name: 'search',
                 type: PropertyType::STRING,
-                description: 'Optional term to filter entities and actions by name, e.g. "lead", "email", "slack".',
+                description: 'Optional term to filter entities, actions and receivers, e.g. "lead", "email", '
+                    . '"slack", "wordpress". Matches names, descriptions and integration names.',
                 required: false,
             ),
         ];
@@ -78,16 +83,26 @@ class ListWorkflowOptionsTool extends Tool implements HasRunKey
             $options['actions'] = $this->searchActions($search);
         }
 
+        if ($kind === 'all' || $kind === 'receivers') {
+            $options['receivers'] = $this->searchReceivers($search);
+        }
+
         if ($options === []) {
             return [
                 'status' => 'error',
-                'message' => sprintf('"%s" is not a catalog. Use triggers, entities, actions or all.', $kind),
+                'message' => sprintf(
+                    '"%s" is not a catalog. Use triggers, entities, actions, receivers or all.',
+                    $kind
+                ),
             ];
         }
 
         return array_merge(['status' => 'success'], $options, [
-            'note' => 'Use these names verbatim in create_company_workflow. The action list is capped — pass a '
-                . 'search term to narrow it instead of assuming an action does not exist.',
+            'note' => 'Use these names verbatim in create_company_workflow. An action whose "configured" is '
+                . 'false cannot run yet — tell the admin which settings in "to_configure" to fill in rather '
+                . 'than building the workflow around it and letting it fail silently. Receivers are inbound '
+                . 'endpoints, not rule steps; never pass one as an action. The lists are capped — pass a '
+                . 'search term to narrow them instead of assuming something does not exist.',
         ]);
     }
 }

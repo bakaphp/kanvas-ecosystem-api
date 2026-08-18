@@ -44,7 +44,6 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-use RuntimeException;
 
 /**
  * @deprecated Pre-kernel outbound-first orchestrator. Generates first-touch messages
@@ -59,7 +58,11 @@ use RuntimeException;
  *
  *   Remove this class once all tenants have been migrated to the new flow.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Lead Agent First Message Outreach',
+    description: 'Sends the agent\'s FIRST outbound message to a new lead. This CONTACTS the customer — wire '
+        . 'it only to a trigger that means a genuinely new lead, or people get messaged twice.',
+)]
 class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -89,13 +92,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     ]);
                 }
 
-                $cellPhone = $lead->people->getCellPhones()->first()?->value ?? ''; //$lead->people->getPhones()->first()?->value ?? '';
+                $cellPhone = $lead->people->getCellPhones()->first()?->value ?? '';
                 $email = $lead->people->getEmails()->first()?->value ?? '';
-                //$cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
                 $cellPhone = Str::normalizePhoneNumber($cellPhone);
                 $source = $lead->source?->name ?? '';
 
-                //for now avoid service
+                // Dealertrack sends its own first touch, so ours would be a duplicate to the customer.
                 if (in_array(strtolower($source), ['dealertrack'])) {
                     return $this->failWorkflow([
                         'error' => 'Lead source is ' . $source . ', skipping first message outreach.',
@@ -115,7 +117,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $availableChannels = [
                     'sms' => $cellPhone,
                     'email' => $email,
-                    //'whatsapp' => $cellPhone,
                 ];
 
                 $channels = [];
@@ -162,7 +163,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $stopTheClock = false;
 
                 foreach ($channels as $communicationChannel => $value) {
-                    //get the first message
                     if ($value === null || empty($value)) {
                         continue;
                     }
@@ -173,7 +173,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     }
                     $firstLeadMessage = new CreateLeadFirstEngagementMessageAction($lead, $template)->execute();
 
-                    //set the first message
                     $leadContext = $lead->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value);
                     $leadContext['first_message'] = $firstLeadMessage;
                     $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
@@ -187,11 +186,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     };
 
                     if (empty($communicationChannelNumber)) {
-                        //throw new RuntimeException('Lead does not have a phone number or email, wont be able to send message until we add email support');
                         return $this->failWorkflow([
                             'error' => 'Lead does not have a phone number or email for channel ' . $communicationChannel . ', wont be able to send message until we add email support',
-                            //'context' => $createContext,
-                            //'first_message' => $firstLeadMessage,
                         ]);
                     }
 

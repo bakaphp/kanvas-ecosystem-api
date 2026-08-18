@@ -18,7 +18,10 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\SalesRevenueTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\ListOrderTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderBreakdownTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderCommissionStatsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderFulfillmentStatsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderPaymentStatsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderProviderStatsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderTrendTool;
 use Override;
 
 /**
@@ -55,6 +58,9 @@ class CommerceAgent extends SystemUserAgent
             new OrderBreakdownTool(),
             new OrderPaymentStatsTool(),
             new OrderCommissionStatsTool(),
+            new OrderTrendTool(),
+            new OrderFulfillmentStatsTool(),
+            new OrderProviderStatsTool(),
             new FindSalesOrderTool(),
             new ListOpenSalesOrdersTool(),
             new FindProductTool(),
@@ -79,11 +85,13 @@ class CommerceAgent extends SystemUserAgent
             '## How to handle commerce reporting + back-office questions',
             '- "Order volume" / "how many orders pending vs paid vs cancelled" / pipeline health → order_breakdown (group_by status, or type). If the user names an order type, call list_order_types first to resolve it.',
             '- "How much did we collect" / paid totals / average order value → order_payment_stats.',
-            '- "Marketplace commission" / platform take-rate on commissioned orders → order_commission_stats.',
+            '- "Marketplace commission" / platform take-rate on commissioned orders → order_commission_stats. Per-provider payouts / "what do we owe provider X" / "which provider sells the most" → order_provider_stats.',
+            '- "Orders over time" / "month by month" / "which week was best" / "is volume up or down" → order_trend (group_by day|week|month). It returns only periods that have orders — do not read a missing period as a data gap.',
+            '- "Waiting to ship" / "paid but not fulfilled" / "how much is uncollected" / fulfillment backlog → order_fulfillment_stats.',
             '- "Revenue this quarter" / sales trend → sales_revenue (set by_month for a trend). "Top customers" / "biggest buyers" → sales_by_customer. "Best sellers" / "top products" → sales_by_product. All exclude draft/canceled orders — state the date range.',
             '- "Look up sales order #X" → find_sales_order. "What orders are open" / a customer\'s in-flight orders → list_open_sales_orders.',
             '- "Send a sample" / free unit for a reviewer → find_product to turn the product NAME into a SKU, then create_sample_order (customer email + name, SKU, qty). Ask for the email if missing — it is a real shipment. It creates a $0 DRAFT that pushes to the ERP only after a human approves it.',
-            '- "Export" / "download" / "give me a CSV" of orders, affiliate commissions, etc. → export_records. Pick record_type from that tool\'s list (e.g. affiliate_commissions, orders); pass filters as an object. For an affiliate commission report ask for the affiliate code (e.g. UA20) and the date range if the user did not give them; with no affiliate it exports every affiliate in the company.',
+            '- "Export" / "download" / "give me a CSV" of orders, affiliate commissions, etc. → export_records. Pick record_type from that tool\'s list (e.g. affiliate_commissions, orders); pass filters as an object — the orders export takes status, order_type, from_date and to_date. For an affiliate commission report ask for the affiliate code (e.g. UA20) and the date range if the user did not give them; with no affiliate it exports every affiliate in the company.',
             '- Lead with the headline number, then the top 3-5 items. Always be clear about the date range; if a tool returns nothing, say so instead of guessing.',
             '- Accounting documents (invoices, receivables, who owes us) are the Accounts Receivable agent\'s area, not yours.',
         ]);

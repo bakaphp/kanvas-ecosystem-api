@@ -20,7 +20,13 @@ use Override;
 /**
  * @todo refactor move core logic to SyncLeadWithZohoAction
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Zoho Push Lead',
+    description: 'Pushes the lead into Zoho CRM so the CRM has it. Outbound one-way sync — it writes to Zoho '
+        . 'and does not bring anything back, and it does not contact the customer. Only useful if this '
+        . 'company actually runs Zoho.',
+    integration: IntegrationsEnum::ZOHO,
+)]
 class ZohoLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     //public $tries = 5;

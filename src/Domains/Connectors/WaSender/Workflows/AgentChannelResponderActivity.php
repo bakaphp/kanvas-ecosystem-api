@@ -17,7 +17,22 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'WhatsApp Agent Channel Responder',
+    description: 'Has an agent read an inbound WhatsApp message and REPLY BACK on the same WhatsApp '
+        . 'thread. Use it for conversations the company wants answered — a receptionist or sales agent '
+        . 'handling inbound. Do NOT use it when the agent should read a channel and act somewhere else '
+        . '(write an article, file a record): it will post the agent\'s output back into the customer\'s '
+        . 'WhatsApp chat.',
+    integration: IntegrationsEnum::WASENDER,
+    params: [
+        'agent_id' => 'Which agent answers. Falls back to the rule\'s configured agent.',
+        'filterByChannel' => 'true to only run on the chat ids listed in channelId. Defaults to false, '
+            . 'meaning every chat on the session is answered.',
+        'channelId' => 'Chat JIDs the agent is allowed to answer on, used when filterByChannel is true.',
+        'channelAgentMapping' => 'Map of chat JID to agent id, when different chats need different agents.',
+    ],
+)]
 class AgentChannelResponderActivity extends KanvasActivity
 {
     use HandlesSupportModeDelayedResponseTrait;

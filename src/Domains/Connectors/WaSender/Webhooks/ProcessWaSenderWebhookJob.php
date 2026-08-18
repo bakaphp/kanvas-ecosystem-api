@@ -45,12 +45,20 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'WhatsApp Inbound Webhook',
+    description: 'Receiver for WhatsApp: files inbound messages, edits, deletions and reactions against the '
+        . 'right channel and lead, downloads any media, and notifies the lead\'s stakeholders. This is '
+        . 'how WhatsApp traffic ARRIVES — it replies to nobody. Attach a responder or an agent step to '
+        . 'the resulting message if something should happen with it.',
+    integration: IntegrationsEnum::WASENDER,
+)]
 class ProcessWaSenderWebhookJob extends ProcessWebhookJob
 {
     protected int $timeThresholdInSeconds = 8;
