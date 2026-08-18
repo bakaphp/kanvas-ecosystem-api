@@ -30,7 +30,6 @@ class MarkOrderAsDuplicateAction extends BaseOrderCorrectionAction
             $metadata['data']['duplicate_of_order_number'] = $this->originalOrder->order_number;
             $this->order->metadata = $metadata;
 
-            $this->appendEvidenceImages($this->evidenceUrls);
             $this->order->saveOrFail();
 
             $this->logCorrection(
