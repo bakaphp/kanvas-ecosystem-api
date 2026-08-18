@@ -17,6 +17,7 @@ use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Jobs\MigrateCorporateUserVariantsJob;
 use Kanvas\Connectors\Movipass\Workflows\Activities\AutoApproveCorporateLeadActivity;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Inventory\Regions\Enums\CustomFieldEnum as RegionCustomFieldEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\AssignCompanyAction;
@@ -102,10 +103,18 @@ class EnableCorporateModeAction
                 $this->user->getCurrentCompany(),
                 $this->app,
             );
-            $company->set(CustomFieldEnum::COMPANY_REGION_ID->value, $region->getId());
+            $this->setCompanyRegion($company, $region->getId());
         } elseif (app()->bound(Regions::class)) {
-            $company->set(CustomFieldEnum::COMPANY_REGION_ID->value, app(Regions::class)->getId());
+            $this->setCompanyRegion($company, app(Regions::class)->getId());
         }
+    }
+
+    // movipass_region_id predates the generic key; keep writing both until the legacy
+    // readers are gone, so RegionResolutionService::forCompany() sees corporate companies.
+    private function setCompanyRegion(Companies $company, int $regionId): void
+    {
+        $company->set(CustomFieldEnum::COMPANY_REGION_ID->value, $regionId);
+        $company->set(RegionCustomFieldEnum::DEFAULT_REGION_ID->value, $regionId);
     }
 
     private function setUserFields(): void

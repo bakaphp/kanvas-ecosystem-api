@@ -89,4 +89,17 @@ class Region
 
         return true;
     }
+
+    public function setCompanyDefaultRegion(mixed $root, array $request): bool
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $region = RegionModel::getByIdFromCompanyAppOrGlobal(
+            (int) $request['region_id'],
+            $company,
+            app(Apps::class)
+        );
+        $company->set(CustomFieldEnum::DEFAULT_REGION_ID->value, $region->getId(), isPublic: 1);
+
+        return true;
+    }
 }
