@@ -61,7 +61,6 @@ class RelocateVehicleAction extends BaseOrderCorrectionAction
 
             $metadata['data']['carDeposit'] = $this->carDeposit;
             $this->order->metadata = $metadata;
-            $this->appendEvidenceImages($this->evidenceUrls);
             $this->order->saveOrFail();
 
             $this->order->calculateTotal();
