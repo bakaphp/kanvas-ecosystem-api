@@ -17,9 +17,14 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\SystemPrompt;
+use NeuronAI\Exceptions\ArrayPropertyException;
+use NeuronAI\Exceptions\MissingCallbackParameter;
+use NeuronAI\Exceptions\ToolRunsExceededException;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Tools\ToolInterface;
 use Override;
+use Throwable;
+use TypeError;
 
 trait HasKanvasAgentBehavior
 {
@@ -182,6 +187,42 @@ trait HasKanvasAgentBehavior
         // occurrence favors the hardcoded instance, which is always appended after the registry
         // merge in this codebase's array_merge(parent::tools(), [...]) convention.
         return $this->dedupeByName($tools);
+    }
+
+    /**
+     * Without a handler Neuron rethrows every tool exception (ToolNode::handleError), killing the run
+     * over something the model could have fixed by calling the tool again — a flash model omitting a
+     * required argument is the common case (Sentry KANVAS-ECOSYSTEM-65P). Hand the failure back as the
+     * tool result instead, and keep Sentry for the faults the model can't retry out of.
+     */
+    #[Override]
+    protected function resolveToolErrorHandler(): ?callable
+    {
+        return function (Throwable $e, ToolInterface $tool): string {
+            // The run cap IS the loop guard — as a tool result the model would just call again.
+            if ($e instanceof ToolRunsExceededException) {
+                throw $e;
+            }
+
+            if (! $this->isModelCorrectableToolError($e)) {
+                report($e);
+            }
+
+            return json_encode([
+                'error' => $e->getMessage(),
+                'tool' => $tool->getName(),
+                'hint' => 'This tool call failed. Fix the arguments and call it again, or ask the user for what is '
+                    . 'missing. Do not repeat the identical call.',
+            ]) ?: $e->getMessage();
+        };
+    }
+
+    private function isModelCorrectableToolError(Throwable $e): bool
+    {
+        return $e instanceof MissingCallbackParameter
+            || $e instanceof ArrayPropertyException
+            || $e instanceof ValidationException
+            || $e instanceof TypeError;
     }
 
     /**

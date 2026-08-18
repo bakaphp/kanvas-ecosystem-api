@@ -35,6 +35,8 @@ class SearchLeadsTool extends Tool implements HasRunKey
                 . 'you need to locate a lead but do not have its lead_id — e.g. "find the lead for Ana", "which lead '
                 . 'has this email", "look up leads for Acme". Returns lead_id, contact, owner, stage and status so you '
                 . 'can act on the right one. Filter by status (open/closed/all) and by owner name/email. '
+                . 'Omit query to list the most recently updated leads matching the status/owner filters — '
+                . 'e.g. "what open leads do I have". '
                 . 'For MORE THAN ONE name — a spreadsheet column, a CSV, any list — use find_leads_bulk instead and '
                 . 'pass every name in a single call; do not call this tool once per row.',
         );
@@ -50,8 +52,9 @@ class SearchLeadsTool extends Tool implements HasRunKey
             new ToolProperty(
                 name: 'query',
                 type: PropertyType::STRING,
-                description: 'The text to search for: a contact name, email, phone number, or lead title.',
-                required: true,
+                description: 'The text to search for: a contact name, email, phone number, or lead title. '
+                    . 'Omit it to list leads by status/owner alone.',
+                required: false,
             ),
             new ToolProperty(
                 name: 'status',
@@ -78,16 +81,12 @@ class SearchLeadsTool extends Tool implements HasRunKey
      * @return array<string, mixed>
      */
     public function __invoke(
-        string $query,
+        ?string $query = null,
         ?string $status = null,
         ?string $owner = null,
         ?int $limit = null,
     ): array {
-        $query = trim($query);
-        if ($query === '') {
-            return ['count' => 0, 'leads' => [], 'error' => 'Provide a name, email, phone, or lead title to search for.'];
-        }
-
+        $query = trim($query ?? '');
         $status = strtolower($status ?? 'open');
         $limit = max(1, min(100, $limit ?? 25));
         $like = '%' . $query . '%';
@@ -100,14 +99,16 @@ class SearchLeadsTool extends Tool implements HasRunKey
                 fn ($s) => $s->whereNull('status')->orWhere('status', '<', 2),
             ))
             ->when($status === 'closed', fn ($q) => $q->where('status', '>=', 2))
-            ->where(function ($q) use ($like): void {
-                $q->where('title', 'like', $like)
-                    ->orWhereHas(
-                        'people',
-                        fn ($p) => $p->where('firstname', 'like', $like)
-                            ->orWhere('lastname', 'like', $like)
-                            ->orWhereHas('contacts', fn ($c) => $c->where('value', 'like', $like)),
-                    );
+            ->when($query !== '', function ($q) use ($like): void {
+                $q->where(function ($s) use ($like): void {
+                    $s->where('title', 'like', $like)
+                        ->orWhereHas(
+                            'people',
+                            fn ($p) => $p->where('firstname', 'like', $like)
+                                ->orWhere('lastname', 'like', $like)
+                                ->orWhereHas('contacts', fn ($c) => $c->where('value', 'like', $like)),
+                        );
+                });
             })
             ->when($owner !== null && $owner !== '', function ($q) use ($owner): void {
                 // owner is a Users relation on the `ecosystem` connection — resolve ids first
