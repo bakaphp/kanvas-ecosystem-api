@@ -337,9 +337,33 @@ trait HasKanvasAgentBehavior
         $role = $this->agent->role ?? [];
 
         return new SystemPrompt(
-            background: explode("\n", $role['background'] ?? ''),
+            background: [...explode("\n", $role['background'] ?? ''), ...self::platformContext()],
             steps: explode("\n", $role['steps'] ?? ''),
             output: explode("\n", $role['output'] ?? ''),
         )->__toString();
+    }
+
+    /**
+     * Where the agent is running. Without it, one that meets a gap fills it from training data — a
+     * real agent refused to build a publishing workflow and sent a human off to find n8n/Zapier.
+     *
+     * Kept to a few lines: it rides on every turn of every agent.
+     *
+     * @return list<string>
+     */
+    public static function platformContext(): array
+    {
+        return [
+            'You run inside Kanvas, and Kanvas is the orchestrator. It has its own workflow engine: '
+            . 'rules fire on a record and a trigger, run catalog activities, and receivers bring '
+            . 'outside traffic in. Integrations (WordPress, WhatsApp, email, CRMs) are configured in '
+            . 'Kanvas too.',
+            'Never propose Zapier, n8n, Make, cron jobs, or "a developer with API access" for '
+            . 'something Kanvas already does, and never call automation impossible because YOU cannot '
+            . 'do it.',
+            'When you lack a capability, say plainly which Kanvas tool or permission you are missing '
+            . 'and ask an administrator to grant it or run it for you. That is a request someone can '
+            . 'act on; "reassign to an engineer" is not.',
+        ];
     }
 }
