@@ -25,12 +25,14 @@ use Kanvas\Connectors\VinSolution\Actions\PullLeadAction as ActionsPullLeadActio
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Services\ContactRejectionService;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
@@ -165,12 +167,29 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 )->execute();
 
                 new ApplyLeadClosingStatusAction($resolvedLead)->execute();
+                $this->triggerFirstMessageIfNeeded($resolvedLead, $app, $params);
             }
         } catch (Throwable $e) {
             report($e);
         }
 
         return $pullLead;
+    }
+
+    protected function triggerFirstMessageIfNeeded(Lead $lead, AppInterface $app, array $params): void
+    {
+        if (! empty($lead->get(LeadsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value))) {
+            return;
+        }
+
+        $lead->fireWorkflow(
+            WorkflowEnum::FAKE_CONTEXT->value,
+            true,
+            array_merge($params, [
+                'app' => $app,
+                'company' => $lead->company,
+            ]),
+        );
     }
 
     private function findReynoldsLead(
