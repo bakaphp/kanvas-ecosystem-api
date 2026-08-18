@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Tools;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -266,11 +267,17 @@ final class UpdateCompanyWorkflowToolTest extends TestCase
 
     private function anyAction(): Action
     {
+        // "No required params" is stored as NULL on rows that predate the column and as `[]` once the
+        // sync has written them — a freshly synced database (CI) has only the latter, so matching on
+        // NULL alone finds nothing there while passing on a developer's older tenant.
         return Action::query()
             ->where('is_deleted', 0)
             ->where('kind', 'workflow')
             ->where('model_name', 'like', 'Kanvas%')
-            ->whereNull('required_params')
+            ->where(function (Builder $query): void {
+                $query->whereNull('required_params')
+                    ->orWhere('required_params', '[]');
+            })
             ->firstOrFail();
     }
 

@@ -20,6 +20,8 @@ final class HireAgentToolTest extends TestCase
 
     protected $connectionsToTransact = ['mysql', 'intelligence'];
 
+    private ?Companies $company = null;
+
     public function testHiresATeammateWithItsOwnIdentity(): void
     {
         $hirer = $this->hiringAgent(['Read Channel Window', 'Create Message']);
@@ -233,9 +235,19 @@ final class HireAgentToolTest extends TestCase
         return app(Apps::class);
     }
 
+    /**
+     * A company of this test's own, never the shared one every other test hires into.
+     *
+     * Hiring is capped per company, and on a long-lived CI database that shared company accumulates
+     * agents across the whole suite — it was at 75 when this first broke. Every assertion here then
+     * reads back the cap message instead of the behaviour under test, so the tests fail for a reason
+     * that has nothing to do with them.
+     */
     private function company(): Companies
     {
-        return $this->currentUser()->getCurrentCompany();
+        return $this->company ??= Companies::factory()->create([
+            'users_id' => $this->currentUser()->getId(),
+        ]);
     }
 
     private function currentUser(): Users

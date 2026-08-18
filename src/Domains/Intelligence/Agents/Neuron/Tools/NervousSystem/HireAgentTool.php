@@ -130,9 +130,10 @@ class HireAgentTool extends Tool
 
         if ($headcount >= self::MAX_AGENTS_PER_COMPANY) {
             return $this->error(sprintf(
-                'This company already has %d agents, which is the limit. Retune or retire one before '
+                'This company already has %d agents and the limit is %d. Retune or retire one before '
                 . 'hiring another.',
-                $headcount
+                $headcount,
+                self::MAX_AGENTS_PER_COMPANY
             ));
         }
 

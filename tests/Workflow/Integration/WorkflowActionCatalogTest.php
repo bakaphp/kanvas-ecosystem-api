@@ -313,6 +313,8 @@ final class WorkflowActionCatalogTest extends TestCase
      */
     public function testASearchFindsAnEntityThatSortsPastTheCap(): void
     {
+        $this->ensureMessageIsAnEntityOfThisApp();
+
         $entities = $this->listOptions('entities', 'Message')['entities'] ?? [];
 
         $this->assertContains(
@@ -328,6 +330,8 @@ final class WorkflowActionCatalogTest extends TestCase
      */
     public function testAnEntityIsFindableByItsClassName(): void
     {
+        $this->ensureMessageIsAnEntityOfThisApp();
+
         $entities = $this->listOptions('entities', Message::class)['entities'] ?? [];
 
         $this->assertContains(Message::class, $entities);
@@ -406,6 +410,34 @@ final class WorkflowActionCatalogTest extends TestCase
     /**
      * @return array<string, mixed>
      */
+    /**
+     * `system_modules` is per-app and seeded per deployment, so which entities a given app exposes is
+     * environment data, not a fact about the code. These tests are about how the SEARCH behaves once
+     * an entity is there — asserting against whatever the environment happens to hold passes on a
+     * developer's tenant and fails on a fresh CI database.
+     */
+    private function ensureMessageIsAnEntityOfThisApp(): SystemModules
+    {
+        $app = app(Apps::class);
+
+        $existing = SystemModules::query()
+            ->where('model_name', Message::class)
+            ->fromApp($app)
+            ->first();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        $module = new SystemModules();
+        $module->name = Message::class;
+        $module->model_name = Message::class;
+        $module->apps_id = $app->getId();
+        $module->saveOrFail();
+
+        return $module;
+    }
+
     private function listOptions(string $kind, ?string $search = null): array
     {
         $user = $this->currentUser();

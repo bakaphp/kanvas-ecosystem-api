@@ -512,7 +512,10 @@ class ProjectPmToolsTest extends TestCase
      */
     public function testAGrantedAbilityAuthorizesHiringWithoutMakingTheAgentAnAdmin(): void
     {
-        [$app, $company] = $this->context();
+        [$app, , $user] = $this->context();
+        // Its own company: hiring is capped per company, and the shared one accumulates agents across
+        // the suite until every hire here fails on the cap rather than on what it is testing.
+        $company = Companies::factory()->create(['users_id' => $user->getId()]);
         $agentUser = Users::factory()->create();
         $agent = $this->makeAgent($app, $company, $agentUser);
 
