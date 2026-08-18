@@ -34,4 +34,16 @@ trait HasKanvasContext
     {
         return isset($this->user) ? $this->user : null;
     }
+
+    /**
+     * Whether this tool knows which tenant it is acting for.
+     *
+     * The properties are typed and non-nullable, so reading one without context is a fatal rather
+     * than a null — every tool has to ask before it touches them. Named here so the check reads as
+     * one question instead of a pair of issets repeated at eight call sites.
+     */
+    protected function hasTenantContext(): bool
+    {
+        return isset($this->app) && isset($this->company);
+    }
 }

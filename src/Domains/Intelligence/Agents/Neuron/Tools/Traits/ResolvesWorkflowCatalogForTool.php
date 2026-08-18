@@ -71,6 +71,36 @@ trait ResolvesWorkflowCatalogForTool
             ->all();
     }
 
+    /**
+     * Resolve a comma-separated list of step names to catalog rows, refusing on the first unknown one.
+     *
+     * @return array{actions: list<Action>}|array{error: array<string, mixed>}
+     */
+    protected function resolveActionList(string $actions, string $emptyMessage): array
+    {
+        $resolved = [];
+
+        foreach (array_filter(array_map('trim', explode(',', $actions))) as $actionName) {
+            $action = $this->resolveAction($actionName);
+
+            if ($action === null) {
+                return ['error' => $this->error(
+                    sprintf(
+                        '"%s" is not an available workflow activity. Pick one from suggested_actions and retry.',
+                        $actionName
+                    ),
+                    ['suggested_actions' => $this->searchActions($actionName) ?: $this->searchActions()],
+                )];
+            }
+
+            $resolved[] = $action;
+        }
+
+        return $resolved === []
+            ? ['error' => $this->error($emptyMessage)]
+            : ['actions' => $resolved];
+    }
+
     protected function resolveRuleType(string $trigger): ?RuleType
     {
         $trigger = trim($trigger);

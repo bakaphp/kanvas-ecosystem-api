@@ -100,7 +100,7 @@ class CreateCompanyReceiverTool extends Tool implements HasRunKey
             return $denied;
         }
 
-        if (! isset($this->app) || ! isset($this->company) || ! isset($this->user)) {
+        if (! $this->hasTenantContext() || ! isset($this->user)) {
             return $this->error('This agent has no company context, so it cannot create a receiver.');
         }
 

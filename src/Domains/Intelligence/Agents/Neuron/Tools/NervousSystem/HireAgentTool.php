@@ -113,7 +113,7 @@ class HireAgentTool extends Tool
             return $this->error((string) $denied['message']);
         }
 
-        if (! isset($this->app) || ! isset($this->company)) {
+        if (! $this->hasTenantContext()) {
             return $this->error('This agent has no company context, so it cannot hire.');
         }
 

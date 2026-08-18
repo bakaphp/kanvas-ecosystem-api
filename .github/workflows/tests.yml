@@ -307,6 +307,9 @@ jobs:
       - name: Setup Kanvas Agent Tools
         run: php artisan kanvas:nervous-system:sync-tools
 
+      - name: Setup Kanvas Agent Types
+        run: php artisan kanvas:intelligence:sync-agent-types
+
       - name: create .env file
         run: echo '' > .env
 

@@ -125,7 +125,7 @@ class UpdateCompanyWorkflowTool extends Tool implements HasRunKey
             return $denied;
         }
 
-        if (! isset($this->app) || ! isset($this->company)) {
+        if (! $this->hasTenantContext()) {
             return $this->error('This agent has no company context, so it cannot change a workflow.');
         }
 
@@ -180,27 +180,16 @@ class UpdateCompanyWorkflowTool extends Tool implements HasRunKey
         $resolvedActions = null;
 
         if ($actions !== null) {
-            $resolved = [];
+            $actionList = $this->resolveActionList(
+                $actions,
+                'A workflow needs at least one action. Leave actions out to keep the current ones.'
+            );
 
-            foreach (array_filter(array_map('trim', explode(',', $actions))) as $actionName) {
-                $action = $this->resolveAction($actionName);
-
-                if ($action === null) {
-                    return $this->error(
-                        sprintf('"%s" is not an available workflow activity. Pick one from suggested_actions.', $actionName),
-                        ['suggested_actions' => $this->searchActions($actionName) ?: $this->searchActions()],
-                    );
-                }
-
-                $resolved[] = $action;
+            if (isset($actionList['error'])) {
+                return $actionList['error'];
             }
 
-            if ($resolved === []) {
-                return $this->error('A workflow needs at least one action. Leave actions out to keep the '
-                    . 'current ones.');
-            }
-
-            $resolvedActions = $resolved;
+            $resolvedActions = $actionList['actions'];
         }
 
         if ($parsedParams !== null && $resolvedActions === null) {

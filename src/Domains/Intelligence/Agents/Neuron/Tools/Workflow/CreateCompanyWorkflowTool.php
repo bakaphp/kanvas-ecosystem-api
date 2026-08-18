@@ -10,12 +10,14 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\AssemblesWorkflowRuleForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesWorkflowCatalogForTool;
 use Kanvas\NervousSystem\Capability\Enums\AgentAbilityEnum;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Rules\Actions\CreateRuleAction;
 use Kanvas\Workflow\Rules\DataTransferObject\Rule as RuleData;
 use Kanvas\Workflow\Rules\DataTransferObject\RuleActionData;
 use Kanvas\Workflow\Rules\DataTransferObject\RuleConditionData;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
+use Kanvas\Workflow\Rules\Models\RuleType;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -146,7 +148,7 @@ class CreateCompanyWorkflowTool extends Tool implements HasRunKey
             return $this->error('The workflow needs a name. Ask the admin what to call it.');
         }
 
-        if (! isset($this->app) || ! isset($this->company) || ! isset($this->user)) {
+        if (! $this->hasTenantContext() || ! isset($this->user)) {
             return $this->error('This agent has no company context, so it cannot create a workflow.');
         }
 
@@ -190,23 +192,16 @@ class CreateCompanyWorkflowTool extends Tool implements HasRunKey
             return $this->error($fit['message'] . ' Create it on that entity instead.');
         }
 
-        $resolvedActions = [];
-        foreach (array_filter(array_map('trim', explode(',', $actions)), fn (string $a): bool => $a !== '') as $actionName) {
-            $action = $this->resolveAction($actionName);
+        $actionList = $this->resolveActionList(
+            $actions,
+            'A workflow needs at least one action to run. Call list_workflow_options to see them.'
+        );
 
-            if ($action === null) {
-                return $this->error(
-                    sprintf('"%s" is not an available workflow activity. Pick one from suggested_actions and retry.', $actionName),
-                    ['suggested_actions' => $this->searchActions($actionName) ?: $this->searchActions()],
-                );
-            }
-
-            $resolvedActions[] = $action;
+        if (isset($actionList['error'])) {
+            return $actionList['error'];
         }
 
-        if ($resolvedActions === []) {
-            return $this->error('A workflow needs at least one action to run. Call list_workflow_options to see them.');
-        }
+        $resolvedActions = $actionList['actions'];
 
         $parsedParams = $this->parseParams($params);
         if (isset($parsedParams['error'])) {
@@ -225,24 +220,8 @@ class CreateCompanyWorkflowTool extends Tool implements HasRunKey
 
         $parsedConditions['conditions'] = $this->withDefaultCondition($parsedConditions['conditions']);
 
-        $existing = Rule::query()
-            ->where('name', $name)
-            ->where('rules_types_id', $ruleType->getId())
-            ->where('systems_modules_id', $systemModule->getId())
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->where('is_deleted', 0)
-            ->first();
-
-        if ($existing !== null) {
-            return [
-                'created' => false,
-                'already_exists' => true,
-                'workflow_id' => $existing->getId(),
-                'name' => $existing->name,
-                'message' => 'A workflow with this name, trigger and entity already exists for this company. '
-                    . 'Tell the admin instead of creating a duplicate.',
-            ];
+        if (($duplicate = $this->refuseDuplicate($name, $ruleType, $systemModule)) !== null) {
+            return $duplicate;
         }
 
         try {
@@ -280,6 +259,61 @@ class CreateCompanyWorkflowTool extends Tool implements HasRunKey
             return $this->error('The workflow could not be saved. Tell the admin it failed and do not retry.');
         }
 
+        return $this->describeCreated(
+            $rule,
+            $ruleType,
+            $systemModule,
+            $resolvedActions,
+            $parsedConditions['conditions'],
+            $parsedParams['params'],
+            $fit,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function refuseDuplicate(string $name, RuleType $ruleType, SystemModules $systemModule): ?array
+    {
+        $existing = Rule::query()
+            ->where('name', $name)
+            ->where('rules_types_id', $ruleType->getId())
+            ->where('systems_modules_id', $systemModule->getId())
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->where('is_deleted', 0)
+            ->first();
+
+        if ($existing === null) {
+            return null;
+        }
+
+        return [
+            'created' => false,
+            'already_exists' => true,
+            'workflow_id' => $existing->getId(),
+            'name' => $existing->name,
+            'message' => 'A workflow with this name, trigger and entity already exists for this company. '
+                . 'Tell the admin instead of creating a duplicate.',
+        ];
+    }
+
+    /**
+     * @param list<Action> $resolvedActions
+     * @param list<RuleConditionData> $conditions
+     * @param array<string, mixed> $params
+     * @param array{message: string, refuse: bool}|null $fit
+     * @return array<string, mixed>
+     */
+    private function describeCreated(
+        Rule $rule,
+        RuleType $ruleType,
+        SystemModules $systemModule,
+        array $resolvedActions,
+        array $conditions,
+        array $params,
+        ?array $fit,
+    ): array {
         return [
             'created' => true,
             'workflow_id' => $rule->getId(),
@@ -294,11 +328,11 @@ class CreateCompanyWorkflowTool extends Tool implements HasRunKey
                     $condition->operator->value,
                     (string) $condition->value
                 ),
-                $parsedConditions['conditions']
+                $conditions
             ),
-            'params' => $parsedParams['params'],
+            'params' => $params,
             'runs_in_background' => $rule->is_async,
-            ...$this->conditionWarnings($systemModule, $parsedConditions['conditions'], $parsedParams['params']),
+            ...$this->conditionWarnings($systemModule, $conditions, $params),
             ...($fit !== null ? ['entity_warning' => $fit['message']] : []),
             'scope' => 'company:' . $this->company->name,
             'message' => sprintf(

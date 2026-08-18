@@ -100,7 +100,7 @@ class UpdateAgentInstructionsTool extends Tool
         ?string $soul = null,
         ?string $output_format = null,
     ): array {
-        if (! isset($this->app) || ! isset($this->company)) {
+        if (! $this->hasTenantContext()) {
             return $this->error('This tool has no company context, so it cannot change an agent.');
         }
 

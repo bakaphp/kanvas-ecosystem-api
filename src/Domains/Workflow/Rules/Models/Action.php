@@ -7,6 +7,7 @@ namespace Kanvas\Workflow\Rules\Models;
 use Baka\Casts\Json;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Rules\Factories\ActionFactory;
+use Kanvas\Workflow\Traits\CatalogedByHandler;
 use Override;
 
 /**
@@ -27,6 +28,8 @@ use Override;
  */
 class Action extends BaseModel
 {
+    use CatalogedByHandler;
+
     protected $table = 'actions';
 
     protected $guarded = [];

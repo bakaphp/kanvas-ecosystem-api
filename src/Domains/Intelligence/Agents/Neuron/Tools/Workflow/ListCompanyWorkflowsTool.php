@@ -62,7 +62,7 @@ class ListCompanyWorkflowsTool extends Tool implements HasRunKey
      */
     public function __invoke(?string $search = null): array
     {
-        if (! isset($this->app) || ! isset($this->company)) {
+        if (! $this->hasTenantContext()) {
             return [
                 'status' => 'error',
                 'message' => 'This tool has no company context, so it cannot list workflows.',

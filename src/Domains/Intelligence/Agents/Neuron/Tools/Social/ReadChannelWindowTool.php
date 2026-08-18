@@ -72,7 +72,7 @@ class ReadChannelWindowTool extends Tool
      */
     public function __invoke(?int $channel_id = null, ?int $limit = null): array
     {
-        if (! isset($this->app) || ! isset($this->company)) {
+        if (! $this->hasTenantContext()) {
             return [
                 'status' => 'error',
                 'message' => 'This tool has no company context, so it cannot read a channel.',
