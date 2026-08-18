@@ -23,7 +23,7 @@ use Override;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
-/** Creates a one-line AR invoice, issues it, and pushes it to Acumatica — the AR mirror of CreateApBillTool. Stays open; use apply_ar_payment to record a payment against it separately. */
+/** Creates a one-line AR invoice and, by default, issues it and pushes it to Acumatica — the AR mirror of CreateApBillTool. Stays open; use apply_ar_payment to record a payment against it separately. */
 #[AgentTool(name: 'Create AR Invoice', category: 'accounting')]
 class CreateArInvoiceTool extends Tool
 {
@@ -33,10 +33,13 @@ class CreateArInvoiceTool extends Tool
     {
         parent::__construct(
             name: 'create_ar_invoice',
-            description: 'Creates a one-line AR invoice for a customer, issues it, and pushes it to Acumatica — '
-                . 'returning the invoice ref. The invoice stays open; use apply_ar_payment separately to record a '
-                . 'payment against it. Bypasses the normal human approval gate — use only when the user explicitly '
-                . 'asks to create an invoice this way, never on a whim.',
+            description: 'Creates a one-line AR invoice for a customer. By default also issues it and pushes it '
+                . 'to Acumatica in one step, returning the invoice ref — bypassing the normal human approval gate, '
+                . 'so only do this when the user explicitly asks to create an invoice this way, never on a whim. '
+                . 'The invoice stays open; use apply_ar_payment separately to record a payment against it. Set '
+                . 'push_to_acumatica to false to just create the invoice (status: draft) and stop there — this is '
+                . 'the default for the standard automatic invoice-processing flow, where a human issues/pushes it '
+                . 'later as a separate step.',
         );
     }
 
@@ -72,6 +75,15 @@ class CreateArInvoiceTool extends Tool
                 description: 'Currency code. Defaults to USD.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'push_to_acumatica',
+                type: PropertyType::BOOLEAN,
+                description: 'Whether to issue and push this invoice to Acumatica immediately. Defaults to true. '
+                    . 'Set to false to just create the invoice (status: draft) and stop there — used by the '
+                    . 'standard automatic invoice-processing flow, where a human issues/pushes it later as a '
+                    . 'separate step.',
+                required: false,
+            ),
         ];
     }
 
@@ -83,6 +95,7 @@ class CreateArInvoiceTool extends Tool
         float $amount,
         string $memo,
         ?string $currency = null,
+        bool $push_to_acumatica = true,
     ): array {
         $app = $this->app;
         $company = $this->company;
@@ -132,6 +145,22 @@ class CreateArInvoiceTool extends Tool
             ),
             $actingUser,
         )->execute();
+
+        if (! $push_to_acumatica) {
+            return [
+                'created' => true,
+                'invoice_pushed' => false,
+                'invoice_id' => $invoice->getId(),
+                'invoice_number' => $invoice->invoice_number,
+                'document_status' => $invoice->document_status->value,
+                'customer' => $customer->name,
+                'amount' => $amount,
+                'currency' => $currency,
+                'memo' => $memo,
+                'next' => 'Invoice created in Kanvas (status: draft). Not issued or pushed to Acumatica — that '
+                    . 'happens separately once a human approves it.',
+            ];
+        }
 
         $invoice = new IssueInvoiceAction($invoice, $customer, $actingUser)->execute();
 
