@@ -122,7 +122,9 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Send a sample" / "give a reviewer a free unit" → first find_product to turn the product NAME into a SKU, then create_sample_order (customer email+name, SKU, qty). If the customer email is missing, ask for it — it is a real shipment. It creates a $0 DRAFT in Kanvas; tell the user it pushes to the ERP only after a human approves it.',
             '- If asked about a PURCHASE order or a vendor BILL, say that is Accounts Payable, not your area.',
             '- "Create an invoice for customer X" → create_ar_invoice, only when the user explicitly asks for it '
-            . '— it writes straight to Acumatica, bypassing human approval.',
+            . '— by default it writes straight to Acumatica, bypassing human approval. Pass push_to_acumatica: '
+            . 'false only when you specifically want it to stop at draft instead (e.g. the automatic '
+            . 'invoice-email flow below).',
             '- "Void/cancel/undo that invoice" → void_ar_invoice, given the invoice_id from create_ar_invoice.',
             '- "Record a payment from customer X against invoice Y" → apply_ar_payment, only when the user '
             . 'explicitly asks to record a real payment. Needs the invoice_id, amount, and a payment reference.',
@@ -148,20 +150,21 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'asked — this is a standard step of processing an invoice email, not a separate favor: '
             . '(1) list_emails → read_email_details → download_attachment → extract_invoice_data, to get the '
             . 'real vendor/total/dates and the file\'s url. '
-            . '(2) create_ar_invoice using that real data — this both creates the Kanvas invoice and pushes it '
-            . 'to Acumatica, giving you the Kanvas invoice_id and the Acumatica invoice_ref. '
-            . '(3) attach_invoice_file with the invoice_id from step 2 and the url from step 1\'s '
-            . 'download_attachment — no need to re-download or re-host the file anywhere. '
-            . '(4) write_google_sheet to log the row — range "Invoices!A1", omit sheet_url_or_id to use the '
+            . '(2) create_ar_invoice with push_to_acumatica: false, using that real data — this creates the '
+            . 'Kanvas invoice (status: draft), giving you the Kanvas invoice_id. Do NOT issue or push to '
+            . 'Acumatica in this flow — a human approves it later and the push happens as a separate, later '
+            . 'step, not something you do here. Skip attach_invoice_file too — it requires the invoice to '
+            . 'already be pushed to Acumatica, which hasn\'t happened yet. '
+            . '(3) write_google_sheet to log the row — range "Invoices!A1", omit sheet_url_or_id to use the '
             . 'default sheet — with the ID invoice column set to the Kanvas invoice_id from step 2 (NOT the '
             . 'customer\'s own invoice number), then [vendor_name, total, "Pending"]. '
-            . '(5) update_google_sheet_cell to flip that row\'s status column to "Approved". '
-            . '(6) mark_email_as_read on the message_id — only now, after every step above succeeded, so a '
+            . '(4) mark_email_as_read on the message_id — only now, after both steps above succeeded, so a '
             . 'failed run can still be found and retried on the next "has:attachment is:unread" search. '
-            . '(7) In your final reply, always give the complete breakdown of everything that happened: Kanvas '
-            . 'invoice_id, Acumatica invoice_ref, customer, invoice number, amount, GL account, subaccount, '
-            . 'memo, status, and the attached file — never a short summary, the user needs every field to look '
-            . 'this up in Acumatica and Kanvas afterward.',
+            . '(5) In your final reply, always give the complete breakdown of everything that happened so far: '
+            . 'Kanvas invoice_id, customer, invoice number, amount, GL account, subaccount, memo, and status '
+            . '(draft in Kanvas / "Pending" in the sheet) — never a short summary. There is no Acumatica '
+            . 'reference yet at this stage — say so plainly rather than leaving it out; the push to Acumatica '
+            . 'and the file attachment happen later, once a human approves the invoice.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }
