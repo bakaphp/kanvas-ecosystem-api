@@ -34,8 +34,8 @@ class CreateMessageTool extends Tool
             name: 'create_message',
             description: 'Persist a generated Social message without posting it to a channel or sending it externally. '
                 . 'The body can be plain text or a JSON object of named fields, and photos or documents can be '
-                . 'attached by public URL. Set trigger_automation when the message is work product the company\'s '
-                . 'workflows should act on — publishing or filing it — rather than plain conversation. '
+                . 'attached by public URL. Whatever the company has set up to run on this message type will pick '
+                . 'the message up on its own — use the verb the company actually uses for this kind of record. '
                 . 'Returns the message_id needed by add_message_to_channel.',
         );
     }
@@ -65,16 +65,6 @@ class CreateMessageTool extends Tool
                 description: 'Optional parent message ID when creating a reply.',
                 required: false,
             ),
-            new ToolProperty(
-                name: 'trigger_automation',
-                type: PropertyType::BOOLEAN,
-                description: 'Default false. Set true when this message is work product the company\'s '
-                    . 'workflows should pick up — an article to publish, a report to file. The verb must then '
-                    . 'name a message type that ALREADY exists, because a rule is watching that exact type; '
-                    . 'the call fails and lists the real types rather than inventing one. Leave false for '
-                    . 'plain conversation, which must not set anything running.',
-                required: false,
-            ),
             new ArrayProperty(
                 name: 'file_urls',
                 description: 'Optional list of public http(s) URLs to attach to the message — photos, images '
@@ -98,9 +88,7 @@ class CreateMessageTool extends Tool
         ?string $verb = null,
         ?int $parent_message_id = null,
         ?array $file_urls = null,
-        ?bool $trigger_automation = null,
     ): array {
-        $triggerAutomation = (bool) $trigger_automation;
         $content = trim($content);
         $verb = trim((string) $verb);
 
@@ -141,7 +129,11 @@ class CreateMessageTool extends Tool
                 app: $this->app,
                 verb: $verb === '' ? 'agent-message' : $verb,
             );
-            $action = new CreateMessageAction(new MessageInput(
+
+            // Left at the default, like every other message-creation path in Kanvas: whether anything
+            // runs is decided downstream by the rules and by the integration being configured, not by
+            // the writer suppressing dispatch.
+            $message = new CreateMessageAction(new MessageInput(
                 app: $this->app,
                 company: $this->company,
                 user: $this->user,
@@ -149,9 +141,7 @@ class CreateMessageTool extends Tool
                 message: $messageBody,
                 parent_id: $parent?->getId(),
                 parent_unique_id: $parent?->uuid,
-            ));
-            $action->runWorkflow = false;
-            $message = $action->execute();
+            ))->execute();
         } catch (Throwable $e) {
             report($e);
 
@@ -165,6 +155,7 @@ class CreateMessageTool extends Tool
             'status' => 'success',
             'message_id' => $message->getId(),
             'message_uuid' => $message->uuid,
+            'message_type' => $messageType->verb,
             'message' => $messageBody,
         ];
 
