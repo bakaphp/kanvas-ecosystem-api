@@ -63,4 +63,5 @@ enum IntegrationsEnum: string
     case SALESFORCE = 'salesforce';
     case PIDEV = 'pidev';
     case UNIVERSAL_SEGUROS = 'universal_seguros';
+    case DEALER_APP_CENTER = 'dealer_app_center';
 }
