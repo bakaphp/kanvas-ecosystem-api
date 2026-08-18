@@ -313,12 +313,12 @@ final class WorkflowActionCatalogTest extends TestCase
      */
     public function testASearchFindsAnEntityThatSortsPastTheCap(): void
     {
-        $this->ensureMessageIsAnEntityOfThisApp();
+        $module = $this->ensureMessageIsAnEntityOfThisApp();
 
         $entities = $this->listOptions('entities', 'Message')['entities'] ?? [];
 
         $this->assertContains(
-            Message::class,
+            $module->name,
             $entities,
             'A search for "Message" must surface the real Message entity regardless of where it sorts.'
         );
@@ -330,11 +330,11 @@ final class WorkflowActionCatalogTest extends TestCase
      */
     public function testAnEntityIsFindableByItsClassName(): void
     {
-        $this->ensureMessageIsAnEntityOfThisApp();
+        $module = $this->ensureMessageIsAnEntityOfThisApp();
 
         $entities = $this->listOptions('entities', Message::class)['entities'] ?? [];
 
-        $this->assertContains(Message::class, $entities);
+        $this->assertContains($module->name, $entities);
     }
 
     /**
@@ -415,6 +415,11 @@ final class WorkflowActionCatalogTest extends TestCase
      * environment data, not a fact about the code. These tests are about how the SEARCH behaves once
      * an entity is there — asserting against whatever the environment happens to hold passes on a
      * developer's tenant and fails on a fresh CI database.
+     *
+     * The module is RETURNED so callers assert against its own `name`. The catalog lists entities by
+     * that column, and what lands there differs by environment — some seeded rows carry a slug rather
+     * than the class name — so hardcoding the FQCN as the expected label tests the seeding, not the
+     * search.
      */
     private function ensureMessageIsAnEntityOfThisApp(): SystemModules
     {
@@ -435,7 +440,9 @@ final class WorkflowActionCatalogTest extends TestCase
         $module->apps_id = $app->getId();
         $module->saveOrFail();
 
-        return $module;
+        // Read back rather than trust the in-memory value: traits and observers on this model can
+        // rewrite `name` on save, and the catalog lists entities by whatever actually landed.
+        return $module->refresh();
     }
 
     private function listOptions(string $kind, ?string $search = null): array
