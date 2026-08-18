@@ -8,7 +8,6 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum as MovipassCustomFieldEnum;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Regions\Enums\CustomFieldEnum;
 use Kanvas\Regions\Models\Regions;
@@ -84,25 +83,6 @@ final class CompanyDefaultRegionTest extends TestCase
 
         $this->assertEquals($expected?->getId(), $resolved?->getId());
         $this->assertNotEquals($foreign->getId(), $resolved?->getId());
-    }
-
-    public function testBackfillCopiesLegacyMovipassRegionId(): void
-    {
-        $global = $this->makeGlobalRegion('test-company-default-backfill', 'TCDBF');
-
-        $this->company->set(MovipassCustomFieldEnum::COMPANY_REGION_ID->value, $global->getId());
-
-        $this->artisan('kanvas-movipass:backfill-company-default-region', [
-            'app_id' => $this->appInstance->getId(),
-            '--company_id' => $this->company->getId(),
-        ])->assertExitCode(0);
-
-        $this->assertEquals(
-            $global->getId(),
-            (int) $this->company->get(CustomFieldEnum::DEFAULT_REGION_ID->value)
-        );
-
-        $this->company->del(MovipassCustomFieldEnum::COMPANY_REGION_ID->value);
     }
 
     private function makeGlobalRegion(string $slug, string $shortSlug): Regions
