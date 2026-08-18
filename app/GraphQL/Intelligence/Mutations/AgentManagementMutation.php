@@ -11,6 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
 use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
+use Kanvas\Intelligence\Agents\Actions\Voice\ConfigureAgentInboundWebhookAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentDTO;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
@@ -81,6 +82,10 @@ class AgentManagementMutation
 
         new RebuildAgentToolInstructionsAction($agent, $app)->execute();
 
+        // Best-effort: point the agent's Twilio number at the inbound webhook.
+        // Never throws — inbound wiring must not block creating the agent.
+        new ConfigureAgentInboundWebhookAction($agent, $app)->execute();
+
         return $agent;
     }
 
@@ -139,6 +144,10 @@ class AgentManagementMutation
         }
 
         new RebuildAgentToolInstructionsAction($agent, $app)->execute();
+
+        // Best-effort: (re)point the agent's Twilio number at the inbound webhook
+        // when its number changes. Never throws — must not block the update.
+        new ConfigureAgentInboundWebhookAction($agent, $app)->execute();
 
         return $agent->refresh();
     }
