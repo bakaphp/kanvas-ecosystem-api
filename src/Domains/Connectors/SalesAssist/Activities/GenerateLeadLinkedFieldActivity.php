@@ -13,7 +13,10 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Spatie\Activitylog\Models\Activity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Generate Lead Linked Field',
+    description: 'Fills a lead field that is derived from other fields, keeping computed values current.',
+)]
 class GenerateLeadLinkedFieldActivity extends KanvasActivity
 {
     public function execute(Lead $lead, AppInterface $app, array $params): array

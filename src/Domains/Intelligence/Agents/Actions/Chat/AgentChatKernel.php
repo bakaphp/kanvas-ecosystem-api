@@ -132,6 +132,10 @@ class AgentChatKernel
                 message: $this->message,
                 user: $this->user,
                 images: $this->images,
+                // Forwarded, not dropped: a wake job injects the board toolset here, and a hosted
+                // agent that silently loses it replies "I've marked it done" while the task never
+                // moves.
+                additionalTools: $this->additionalTools,
             )->execute();
         }
 

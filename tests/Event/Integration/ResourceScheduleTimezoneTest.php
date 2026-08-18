@@ -23,6 +23,13 @@ class ResourceScheduleTimezoneTest extends TestCase
     use InventoryCases;
     use DatabaseTransactions;
 
+    // Every connection this test writes to has to be listed: DatabaseTransactions only wraps the ones
+    // named here, and the slot tables live on `event` while variants live on `inventory`. Left off,
+    // those rows commit for good — and the upcoming-slots command sweeps EVERY active rule in the
+    // database, so one test's committed rule gets extra slots generated for it by another test
+    // running in a parallel process.
+    protected $connectionsToTransact = ['mysql', 'ecosystem', 'inventory', 'event'];
+
     protected $apps;
     protected $user;
     protected $company;

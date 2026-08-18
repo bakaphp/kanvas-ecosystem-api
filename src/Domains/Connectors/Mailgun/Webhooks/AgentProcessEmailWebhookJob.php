@@ -11,13 +11,20 @@ use Kanvas\Connectors\Mailgun\Actions\VerifyMailgunWebhookSignatureAction;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
 
 use function Sentry\captureMessage;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Mailgun Lead Inbox',
+    description: 'Receiver for a company\'s shared lead inbox: files an inbound email (and its attachments) '
+        . 'against the lead it belongs to. It records the mail; it does not reply — the reply is a '
+        . 'separate email-responder step attached to the message.',
+    integration: IntegrationsEnum::MAILGUN,
+)]
 class AgentProcessEmailWebhookJob extends ProcessWebhookJob
 {
     #[Override]

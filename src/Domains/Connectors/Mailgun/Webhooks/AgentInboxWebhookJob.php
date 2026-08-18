@@ -26,6 +26,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
@@ -37,7 +38,15 @@ use Override;
  * its agent from a workflow rule. Here the receiver *is* the agent's, so the agent is known before
  * the sender is, and an unknown sender can be turned away instead of becoming a lead.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Mailgun Agent Inbox',
+    description: 'Receiver for ONE agent\'s own email address: mail sent to that address reaches that agent, '
+        . 'which reads it and replies by email. This CONTACTS the sender. The receiver belongs to the '
+        . 'agent, so the agent is known before the sender is and an unrecognised sender is turned away '
+        . 'rather than becoming a lead. Use the company lead inbox receiver instead for a shared '
+        . 'address where the agent is chosen by a workflow rule.',
+    integration: IntegrationsEnum::MAILGUN,
+)]
 class AgentInboxWebhookJob extends ProcessWebhookJob
 {
     private const int DEDUPE_TTL_SECONDS = 900;

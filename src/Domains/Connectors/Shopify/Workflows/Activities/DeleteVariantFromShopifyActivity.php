@@ -17,7 +17,12 @@ use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Shopify Delete Variant',
+    description: 'DELETES the variant from Shopify, taking it off the storefront. Destructive and outbound — '
+        . 'attach it only to a deliberate removal, never to a routine product update.',
+    integration: IntegrationsEnum::SHOPIFY,
+)]
 class DeleteVariantFromShopifyActivity extends KanvasActivity
 {
     public function execute(Variants $variant, Apps $app, array $params): array

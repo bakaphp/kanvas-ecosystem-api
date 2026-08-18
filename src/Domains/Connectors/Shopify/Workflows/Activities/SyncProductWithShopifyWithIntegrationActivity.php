@@ -18,7 +18,14 @@ use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Shopify Sync Product With History',
+    description: 'Pushes the product to Shopify AND records the attempt in the entity\'s integration history. '
+        . 'Same outbound write as the plain sync step; pick this one when the tenant needs to see what '
+        . 'was synced and when. Do not attach both to the same trigger — the product would be pushed '
+        . 'twice.',
+    integration: IntegrationsEnum::SHOPIFY,
+)]
 class SyncProductWithShopifyWithIntegrationActivity extends KanvasActivity
 {
     public function execute(Products $product, Apps $app, array $params): array

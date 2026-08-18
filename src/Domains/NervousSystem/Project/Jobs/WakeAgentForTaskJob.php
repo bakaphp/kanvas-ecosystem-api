@@ -11,11 +11,15 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
+use Kanvas\Connectors\ClaudeAgent\Actions\StartHostedTaskSessionAction;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
 use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
 use Kanvas\NervousSystem\Project\Models\Project;
+use Throwable;
 
 /**
  * Wake the agent a task was ASSIGNED to, so it actually executes the work — the "and agents execute"
@@ -57,7 +61,7 @@ class WakeAgentForTaskJob implements ShouldQueue
             return;
         }
 
-        // Only active, in-process, tool-capable Neuron agents can execute board work. Container/ADK
+        // Only active, tool-capable agents can execute board work. Machine runtimes (Hermes/OpenClaw)
         // self-drive elsewhere; CRM/Lead-context agents would fatal on a Task entity. assign_task
         // guards this; this is the safety net.
         if (! $agent->is_active || ! $agent->canExecuteBoardWork()) {
@@ -73,6 +77,12 @@ class WakeAgentForTaskJob implements ShouldQueue
 
         $owner = $agent->user;
         if ($owner === null) {
+            return;
+        }
+
+        if ($agent->isHostedRuntime()) {
+            $this->startHostedRun($agent, $project);
+
             return;
         }
 
@@ -102,6 +112,60 @@ class WakeAgentForTaskJob implements ShouldQueue
             author: $owner,
             fromIa: true,
             extraPayload: ['task_id' => $this->task->getId()],
+        )->execute();
+
+        $project->emitLedgerEvent(
+            'task.agent.replied',
+            payload: ['task_id' => $this->task->getId(), 'message_id' => $reply->getId()],
+        );
+    }
+
+    /**
+     * A hosted assignee runs asynchronously: open its session, say so, and return. Driving it
+     * through the synchronous wake would block a worker for the length of the whole job — a queue
+     * worker caps out around an hour and these can run longer.
+     *
+     * The reply is deliberately worded as a START. The task stays `in_progress` and only the poller
+     * writes a terminal status; a wake that read as completion would have the PM report the work
+     * done the moment it was handed over.
+     */
+    protected function startHostedRun(Agent $agent, Project $project): void
+    {
+        $basePayload = ['task_id' => $this->task->getId(), 'agent_id' => $agent->getId()];
+
+        try {
+            $sessionId = new StartHostedTaskSessionAction(
+                task: $this->task,
+                agent: $agent,
+                brief: $this->buildMessage($project),
+            )->execute();
+        } catch (Throwable $e) {
+            $project->emitLedgerEvent(
+                'task.agent.invocation_failed',
+                status: EventStatusEnum::ERROR,
+                payload: $basePayload,
+                error: ['message' => $e->getMessage(), 'class' => $e::class],
+            );
+
+            return;
+        }
+
+        $project->emitLedgerEvent(
+            'task.agent.dispatched',
+            payload: [...$basePayload, 'session_id' => $sessionId],
+        );
+
+        $reply = new PostProjectMessageAction(
+            project: $project,
+            verb: 'task-agent-started',
+            content: sprintf(
+                'Started work on task %d. This runs in the background and is NOT finished yet — '
+                . 'progress appears on the plan and the task status changes when it is genuinely done.',
+                $this->task->getId(),
+            ),
+            author: $agent->user,
+            fromIa: true,
+            extraPayload: [...$basePayload, 'session_id' => $sessionId],
         )->execute();
 
         $project->emitLedgerEvent(

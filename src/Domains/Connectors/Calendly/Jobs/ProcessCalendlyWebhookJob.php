@@ -6,10 +6,17 @@ namespace Kanvas\Connectors\Calendly\Jobs;
 
 use Kanvas\Connectors\Calendly\Actions\ProcessCalendlyInviteeAction;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Calendly Booking Webhook',
+    description: 'Receiver for Calendly: turns a booking or cancellation notification into the matching Kanvas '
+        . 'records for the invitee. Inbound only — it reacts to what someone booked and does not create '
+        . 'or move anything in Calendly.',
+    integration: IntegrationsEnum::CALENDLY,
+)]
 class ProcessCalendlyWebhookJob extends ProcessWebhookJob
 {
     #[Override]

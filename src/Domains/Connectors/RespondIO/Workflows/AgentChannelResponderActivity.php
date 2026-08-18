@@ -17,7 +17,17 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'RespondIO Agent Channel Responder',
+    description: 'Has an agent read an inbound Respond.io message and REPLY BACK on the same conversation. Use '
+        . 'it for inbound the company wants answered. Do NOT use it when the agent should read and act '
+        . 'somewhere else — it posts the agent\'s output back to the customer.',
+    integration: IntegrationsEnum::RESPOND_IO,
+    params: [
+        'agent_id' => 'Which agent answers. Falls back to the rule\'s configured agent.',
+        'message' => 'Supplied by the trigger — the inbound message. Not something you set.',
+    ],
+)]
 class AgentChannelResponderActivity extends KanvasActivity
 {
     use HandlesSupportModeDelayedResponseTrait;

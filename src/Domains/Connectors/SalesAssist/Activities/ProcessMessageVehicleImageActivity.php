@@ -21,7 +21,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist Process Message Vehicle Image',
+    description: 'Reads a vehicle image attached to a message and stores what it extracts on the lead. '
+        . 'Extraction only; it replies to nobody.',
+)]
 class ProcessMessageVehicleImageActivity extends KanvasActivity
 {
     public $tries = 3;

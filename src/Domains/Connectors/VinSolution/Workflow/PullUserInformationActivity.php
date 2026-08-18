@@ -10,9 +10,19 @@ use Kanvas\Connectors\VinSolution\Dealers\Dealer;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'VinSolution Link User To Dealer Staff',
+    description: 'Matches a Kanvas user to their VinSolutions dealer-staff record by email and stores the '
+        . 'link, so later pushes can attribute work to the right salesperson. Runs on the USER and '
+        . 'needs the company passed in.',
+    integration: IntegrationsEnum::VIN_SOLUTION,
+    params: [
+        'company' => 'The Companies model whose VinSolutions dealer to look in. Required.',
+    ],
+)]
 class PullUserInformationActivity extends KanvasActivity
 {
     public $tries = 3;

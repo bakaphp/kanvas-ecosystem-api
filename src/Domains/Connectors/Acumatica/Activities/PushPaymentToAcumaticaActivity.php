@@ -13,7 +13,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Acumatica Push Payment',
+    description: 'Pushes a payment into Acumatica ERP so the ledger there matches Kanvas. Outbound one-way '
+        . 'write, gated on Acumatica writes being enabled for this app.',
+    integration: IntegrationsEnum::ACUMATICA,
+)]
 class PushPaymentToAcumaticaActivity extends KanvasActivity
 {
     public $tries = 3;

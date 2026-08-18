@@ -6,6 +6,7 @@ type VoiceAgentSpec {
     models: VoiceAgentModels!
     telephony: VoiceAgentTelephony
     context_schema: [VoiceAgentContextField!]!
+    tools: [VoiceAgentTool!]!
 }
 
 type VoiceAgentPrompts {
@@ -52,6 +53,13 @@ type VoiceAgentContextField {
     default: String
 }
 
+type VoiceAgentTool {
+    name: String!
+    description: String
+    "JSON Schema for the tool's arguments: { type, properties, required }."
+    parameters: Mixed
+}
+
 type VoiceAgentByNumber {
     agent_id: String!
 }
@@ -81,5 +89,13 @@ extend type Mutation @guard {
     sendVoiceAgentTestCall(id: ID!, to_number: String!): VoiceAgentCallResult!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\VoiceAgentCallMutation@placeTestCall"
+        )
+}
+
+extend type Mutation @guardByAppKey {
+    "Data plane: execute one of an agent's tools (called by the voice runtime on an LLM function call). Returns the tool's JSON result."
+    runVoiceAgentTool(agent_uuid: String!, tool_name: String!, arguments: Mixed): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\VoiceAgentToolMutation@run"
         )
 }

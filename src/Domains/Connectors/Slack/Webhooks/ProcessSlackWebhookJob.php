@@ -23,7 +23,12 @@ use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Slack Agent Webhook',
+    description: 'Receiver for Slack: a message in a connected channel or DM reaches the agent, which reads it '
+        . 'and replies IN SLACK. This is the internal-teammate surface — staff talk to the agent where '
+        . 'they already work. It keeps one thread per Slack conversation.',
+)]
 class ProcessSlackWebhookJob extends ProcessWebhookJob
 {
     private const int DEDUPE_TTL_SECONDS = 300;

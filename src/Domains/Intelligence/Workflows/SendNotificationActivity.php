@@ -13,7 +13,16 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Send Lead Notification',
+    description: 'Notifies a Kanvas USER about a lead, on whichever channels the company has enabled. Internal '
+        . 'only — it tells a colleague something happened, it does not contact the lead.',
+    integration: IntegrationsEnum::INTERNAL,
+    params: [
+        'user_id' => 'REQUIRED. The Kanvas user to notify. This is an internal teammate, not the customer.',
+        'text' => 'REQUIRED. The notification body.',
+    ],
+)]
 class SendNotificationActivity extends KanvasActivity
 {
     public $tries = 3;
