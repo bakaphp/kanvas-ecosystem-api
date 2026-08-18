@@ -42,7 +42,10 @@ final class CompanyDefaultRegionTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->company->del(CustomFieldEnum::DEFAULT_REGION_ID->value);
+        // setUp() can markTestSkipped() before $company is assigned; tearDown still runs
+        if (isset($this->company)) {
+            $this->company->del(CustomFieldEnum::DEFAULT_REGION_ID->value);
+        }
 
         parent::tearDown();
     }
