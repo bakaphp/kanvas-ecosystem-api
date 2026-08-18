@@ -90,6 +90,13 @@ class Region
         return true;
     }
 
+    /**
+     * TODO: fold this into createRegion/updateRegion — the UI shouldn't need a third
+     * mutation to mark a region as the company's default. Blocker: RegionObserver's
+     * default bookkeeping only looks at the regions table, while this writes a custom
+     * field (the only form that can point at a global region), so both notions of
+     * "default" have to be reconciled first.
+     */
     public function setCompanyDefaultRegion(mixed $root, array $request): bool
     {
         $company = auth()->user()->getCurrentCompany();
