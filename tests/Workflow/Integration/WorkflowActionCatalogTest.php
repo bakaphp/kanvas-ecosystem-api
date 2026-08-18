@@ -25,7 +25,10 @@ final class WorkflowActionCatalogTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected $connectionsToTransact = ['mysql', 'workflow'];
+    // `ecosystem` matters as much as the other two: SystemModules lives there, and a connection left
+    // off this list is not wrapped in a transaction at all — the rows this test seeds would then be
+    // committed for good, accumulating in the shared database on every run.
+    protected $connectionsToTransact = ['mysql', 'workflow', 'ecosystem'];
 
     public function testDiscoveryReturnsTheMetadataTheAttributeDeclares(): void
     {

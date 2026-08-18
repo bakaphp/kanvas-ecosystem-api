@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Tools;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -265,20 +264,17 @@ final class UpdateCompanyWorkflowToolTest extends TestCase
             ->firstOrFail();
     }
 
+    /**
+     * A named, always-present step rather than "whatever the catalog happens to hold".
+     *
+     * Searching for any row with no required params depended on what the environment had been synced
+     * with — it found a legacy row on a developer's tenant and nothing at all on CI's freshly synced
+     * one, so eleven tests failed for a reason unrelated to what they assert. The factory is keyed on
+     * `model_name`, so it returns the catalogued Generate Company Dashboard row or creates it.
+     */
     private function anyAction(): Action
     {
-        // "No required params" is stored as NULL on rows that predate the column and as `[]` once the
-        // sync has written them — a freshly synced database (CI) has only the latter, so matching on
-        // NULL alone finds nothing there while passing on a developer's older tenant.
-        return Action::query()
-            ->where('is_deleted', 0)
-            ->where('kind', 'workflow')
-            ->where('model_name', 'like', 'Kanvas%')
-            ->where(function (Builder $query): void {
-                $query->whereNull('required_params')
-                    ->orWhere('required_params', '[]');
-            })
-            ->firstOrFail();
+        return Action::factory()->create();
     }
 
     private function tool(Users $requestingUser): UpdateCompanyWorkflowTool
