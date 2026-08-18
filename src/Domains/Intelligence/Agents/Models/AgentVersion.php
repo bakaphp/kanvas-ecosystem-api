@@ -5,19 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
-use Illuminate\Database\Eloquent\Model;
+use Baka\Traits\NoAppRelationshipTrait;
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
 /**
- * An append-only snapshot of an agent's wording, written before each edit so a bad one is a copy back.
- *
- * Deliberately NOT on the Intelligence `BaseModel`: that base adds `AppsIdTrait` and this model used
- * to add `UuidTrait`, and `agent_versions` has neither column — the mismatch went unnoticed because
- * nothing ever wrote a row. Tenancy comes from the parent agent, and a history row needs no external
- * identity of its own.
- *
  * @property int $id
  * @property int $agent_id
  * @property string $version
@@ -28,9 +23,10 @@ use Kanvas\Users\Models\Users;
  * @property bool $is_active
  * @property bool $is_deleted
  */
-class AgentVersion extends Model
+class AgentVersion extends BaseModel
 {
-    protected $connection = 'intelligence';
+    use NoAppRelationshipTrait;
+    use NoCompanyRelationshipTrait;
 
     protected $table = 'agent_versions';
 

@@ -56,43 +56,24 @@ class UpdateAgentInstructionsAction
         }
 
         return DB::connection($this->agent->getConnectionName())->transaction(function () use ($changes): AgentVersion {
-            // Snapshot BEFORE the write: the row records the wording being replaced, so restoring it
-            // is a straight copy back.
-            $snapshot = $this->snapshot();
+            // The snapshot is written by AgentObserver::updating, which every edit path goes through
+            // — this one only supplies the reason and the editor, so a change made here is recorded
+            // the same way as one made from the admin UI or a console command.
+            $this->agent->versionChangeReason = $this->reason;
+            $this->agent->versionEditedByUserId = $this->editedBy->getId();
 
             $this->agent->update($changes);
 
-            return $snapshot;
+            $version = $this->agent->lastRecordedVersion;
+
+            if ($version === null) {
+                throw new ValidationException(
+                    'The instructions were saved but the previous wording could not be recorded, so '
+                    . 'this edit cannot be undone. Tell an administrator before changing it again.'
+                );
+            }
+
+            return $version;
         });
-    }
-
-    /**
-     * `is_active` marks the most recent snapshot rather than "the agent's current state" — the agent
-     * row itself is always the current state. Older snapshots stay for restore.
-     */
-    private function snapshot(): AgentVersion
-    {
-        AgentVersion::query()
-            ->where('agent_id', $this->agent->getId())
-            ->where('is_active', true)
-            ->update(['is_active' => false]);
-
-        $previous = (int) AgentVersion::query()
-            ->where('agent_id', $this->agent->getId())
-            ->count();
-
-        return AgentVersion::create([
-            'agent_id' => $this->agent->getId(),
-            'version' => (string) ($previous + 1),
-            'config' => [
-                'instructions' => $this->agent->instructions,
-                'soul' => $this->agent->soul,
-                'output_format' => $this->agent->output_format,
-            ],
-            'changes' => $this->reason,
-            'created_by' => $this->editedBy->getId(),
-            'created_at' => now(),
-            'is_active' => true,
-        ]);
     }
 }

@@ -22,15 +22,7 @@ class KanvasWorkflowSynActionCommand extends Command
         $updated = [];
 
         foreach ($discovery->discover() as $entry) {
-            // Deliberately not filtered by is_deleted: a handler that was soft-deleted and then
-            // re-tagged should be revived, and `model_name` is unique, so inserting instead would
-            // violate the constraint.
             $record = Action::firstOrNew(['model_name' => $entry['class']]);
-
-            // The attribute is the source of truth for everything here, so the metadata is written on
-            // every run — descriptions are the point of the catalog and would otherwise only ever land
-            // on rows created after the attribute was written. Rules reference actions by id, so
-            // rewriting the name cannot detach an existing rule.
             $record->fill([
                 'name' => $entry['name'],
                 'kind' => $entry['kind'],

@@ -83,6 +83,23 @@ class Agent extends BaseModel
     }
     use HasLightHouseCache;
 
+    /**
+     * The fields that make up an agent's prompt — everything that changes what it is TOLD, as opposed
+     * to what it can touch. Any edit to one of these is snapshotted into `agent_versions` first.
+     */
+    public const array PROMPT_FIELDS = [
+        'soul',
+        'instructions',
+        'identity',
+        'user_context',
+        'output_format',
+        'role',
+    ];
+
+    public ?string $versionChangeReason = null;
+    public ?int $versionEditedByUserId = null;
+    public ?AgentVersion $lastRecordedVersion = null;
+
     protected $cascadeDeletes = [
         'deployments',
         'swarmMemberships',
@@ -216,12 +233,6 @@ class Agent extends BaseModel
         );
     }
 
-    /**
-     * Module subscriptions for this agent. Each row carries a per-agent JSON
-     * `config` (e.g. which inventory integrations / channels / pipelines to
-     * watch). Soft-deleted rows are excluded by default; `is_active=false`
-     * rows are included so the UI can render disabled-but-configured state.
-     */
     public function kanvasModules(): HasMany
     {
         return $this->hasMany(AgentKanvasModule::class, 'agent_id', 'id')

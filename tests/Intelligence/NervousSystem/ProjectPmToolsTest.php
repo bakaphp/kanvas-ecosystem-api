@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\AccessControlList\Enums\RolesEnums;
@@ -50,7 +51,11 @@ use Tests\TestCase;
 
 class ProjectPmToolsTest extends TestCase
 {
-    protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'workflow'];
+    // The property below is inert without this trait — it was declared alone, so nothing this test
+    // wrote was ever rolled back and the rows leaked into every test that ran after it.
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'workflow', 'ecosystem'];
 
     /**
      * @return array{0: Apps, 1: Companies, 2: Users}
