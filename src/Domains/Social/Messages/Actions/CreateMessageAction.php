@@ -16,6 +16,7 @@ use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Channels\Models\Channel as ModelsChannel;
 use Kanvas\Social\Enums\AppEnum;
+use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Enums\MessageSenderTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
@@ -41,6 +42,13 @@ class CreateMessageAction
     {
         $payload = $this->messageInput->message;
         if (! is_array($payload) || MessageSenderTypeEnum::fromPayload($payload) === null) {
+            return null;
+        }
+
+        // The in-app assistant (ai-chat / ai-control) also writes from_me, so sender_type alone
+        // would classify it as a customer conversation. Only real SMS/email/WhatsApp channels
+        // carry a person.
+        if (! ChannelCategoryEnum::isCommunicationVerb((string) $this->messageInput->type->verb)) {
             return null;
         }
 
