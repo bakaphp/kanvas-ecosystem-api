@@ -28,6 +28,7 @@ use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
@@ -55,6 +56,7 @@ use Override;
  *  @property int $apps_id
  *  @property int $companies_id
  *  @property int $users_id
+ *  @property int|null $people_id
  *  @property int $message_types_id
  *  @property string|array $message
  *  @property string|null $sender_type
@@ -102,6 +104,7 @@ class Message extends BaseModel
     protected $casts = [
         'message' => Json::class,
         'message_types_id' => 'integer',
+        'people_id' => 'integer',
         'is_public' => 'integer',
         'is_deleted' => 'boolean',
         'is_un_response' => 'boolean',
@@ -132,6 +135,11 @@ class Message extends BaseModel
     public function messageType(): BelongsTo
     {
         return $this->belongsTo(MessageType::class, 'message_types_id');
+    }
+
+    public function people(): BelongsTo
+    {
+        return $this->belongsTo(People::class, 'people_id', 'id');
     }
 
     public function isCommunicationMessage(): bool
