@@ -12,6 +12,8 @@ use Kanvas\Analytics\Actions\BuildEngagementLeaderboardAction;
 use Kanvas\Analytics\DataTransferObject\AnalyticsRequest;
 use Kanvas\Analytics\Enums\AnalyticsBucketEnum;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Actions\RegisterUsersAction;
+use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -58,8 +60,8 @@ class EngagementLeaderboardTest extends TestCase
 
     public function testAttributesEveryMetricToTheLeadOwnerNotTheMessageUser(): void
     {
-        $owner = $this->createUser();
-        $webhookUser = $this->createUser();
+        $owner = $this->createRep();
+        $webhookUser = $this->createRep();
         $lead = $this->createLead($owner);
 
         // Outbound is written with the rep's own users_id...
@@ -77,7 +79,7 @@ class EngagementLeaderboardTest extends TestCase
 
     public function testExcludesNonCommunicationMessages(): void
     {
-        $owner = $this->createUser();
+        $owner = $this->createRep();
         $lead = $this->createLead($owner);
 
         $this->createMessage($lead, ['from_me' => true], $owner);
@@ -91,7 +93,7 @@ class EngagementLeaderboardTest extends TestCase
 
     public function testChannelFilterSeparatesSmsFromEmail(): void
     {
-        $owner = $this->createUser();
+        $owner = $this->createRep();
         $lead = $this->createLead($owner);
 
         $this->createMessage($lead, ['from_me' => true], $owner, $this->smsType);
@@ -105,7 +107,7 @@ class EngagementLeaderboardTest extends TestCase
 
     public function testSplitsHumanAndAiSends(): void
     {
-        $owner = $this->createUser();
+        $owner = $this->createRep();
         $lead = $this->createLead($owner);
 
         $this->createMessage($lead, ['from_me' => true], $owner);
@@ -122,7 +124,7 @@ class EngagementLeaderboardTest extends TestCase
 
     public function testMedianResponseTimeIgnoresAiReplies(): void
     {
-        $owner = $this->createUser();
+        $owner = $this->createRep();
         $lead = $this->createLead($owner);
 
         // Human answered after 120s, AI answered after 5s. Only the human pair may count.
@@ -134,7 +136,7 @@ class EngagementLeaderboardTest extends TestCase
 
     public function testRepWithSendsButNoInboundHasZeroReplyRateAndNullMedian(): void
     {
-        $owner = $this->createUser();
+        $owner = $this->createRep();
         $lead = $this->createLead($owner);
 
         $this->createMessage($lead, ['from_me' => true], $owner);
@@ -148,13 +150,13 @@ class EngagementLeaderboardTest extends TestCase
 
     public function testExcludesTheAiAgentUserAsItsOwnRow(): void
     {
-        $aiUser = $this->createUser();
+        $aiUser = $this->createRep();
         $this->company->set(ConfigurationEnum::AI_AGENT_USER_ID->value, $aiUser->getId());
 
         $aiOwnedLead = $this->createLead($aiUser);
         $this->createMessage($aiOwnedLead, ['from_me' => true, 'from_ia' => true], $aiUser);
 
-        $owner = $this->createUser();
+        $owner = $this->createRep();
         $lead = $this->createLead($owner);
         $this->createMessage($lead, ['from_me' => true], $owner);
 
@@ -170,12 +172,12 @@ class EngagementLeaderboardTest extends TestCase
 
     public function testDoesNotLeakAnotherCompanysMessages(): void
     {
-        $owner = $this->createUser();
+        $owner = $this->createRep();
         $lead = $this->createLead($owner);
         $this->createMessage($lead, ['from_me' => true], $owner);
 
         $otherCompany = Companies::factory()->create();
-        $otherOwner = $this->createUser();
+        $otherOwner = $this->createRep();
         $otherLead = $this->createLead($otherOwner, $otherCompany);
         $this->createMessage($otherLead, ['from_me' => true], $otherOwner, null, $otherCompany);
 
@@ -188,7 +190,7 @@ class EngagementLeaderboardTest extends TestCase
 
     public function testCountsAppointmentsBookedForTheLeadOwner(): void
     {
-        $owner = $this->createUser();
+        $owner = $this->createRep();
         $lead = $this->createLead($owner);
         $this->createMessage($lead, ['from_me' => true], $owner);
 
@@ -201,8 +203,8 @@ class EngagementLeaderboardTest extends TestCase
 
     public function testRanksRowsByTotalSentDescending(): void
     {
-        $quiet = $this->createUser();
-        $busy = $this->createUser();
+        $quiet = $this->createRep();
+        $busy = $this->createRep();
 
         $quietLead = $this->createLead($quiet);
         $busyLead = $this->createLead($busy);
@@ -221,7 +223,7 @@ class EngagementLeaderboardTest extends TestCase
 
     public function testEmailTemplateRendersTheLeaderboard(): void
     {
-        $owner = $this->createUser();
+        $owner = $this->createRep();
         $lead = $this->createLead($owner);
         $this->createMessage($lead, ['from_me' => true], $owner);
         $this->createMessage($lead, ['from_me' => false], $owner);
@@ -293,6 +295,21 @@ class EngagementLeaderboardTest extends TestCase
             ),
             channel: $channel,
         )->execute();
+    }
+
+    /**
+     * The base createUser() picks a non-unique fake()->email, and this file registers a dozen-odd
+     * reps per run — enough for "Email has already been taken" to hit intermittently. Same
+     * registration path, deterministic address.
+     */
+    private function createRep(): Users
+    {
+        return new RegisterUsersAction(RegisterInput::from([
+            'email' => 'rep-' . uniqid('', true) . '@example.test',
+            'password' => fake()->password(8),
+            'firstname' => fake()->firstName(),
+            'lastname' => fake()->lastName(),
+        ]))->execute();
     }
 
     private function createLead(Users $owner, ?Companies $company = null): Lead
