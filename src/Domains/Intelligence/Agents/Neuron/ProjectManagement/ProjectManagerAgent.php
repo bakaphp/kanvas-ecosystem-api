@@ -13,11 +13,15 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSystemMemberTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleReminderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
@@ -27,6 +31,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ListMessageTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadChannelWindowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyReceiverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyWorkflowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateEmailRouteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\ListCompanyWorkflowsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\ListWorkflowOptionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\UpdateCompanyWorkflowTool;
@@ -346,6 +351,16 @@ class ProjectManagerAgent extends SystemUserAgent
             ->forRequestingUser($requestingHuman);
         $core[] = new UpdateAgentInstructionsTool($agent)->withContext($app, $company, $user);
 
+        // A manager whose only lever is the current turn cannot manage across time — "follow up
+        // Friday", "check the deploy in an hour", "nudge the assignee tomorrow". They key on the
+        // HUMAN, not the agent: "remind me" has to land on the person who asked.
+        $scheduleFor = $this->requestingHuman() ?? $agent->user;
+
+        $core[] = new ScheduleReminderTool($agent, $this->session)->withContext($app, $company, $scheduleFor);
+        $core[] = new ScheduleAgentTaskTool($agent, $this->session)->withContext($app, $company, $scheduleFor);
+        $core[] = new ListScheduledActionsTool($this->session)->withContext($app, $company, $scheduleFor);
+        $core[] = new CancelScheduledActionTool($this->session)->withContext($app, $company, $scheduleFor);
+
         $core[] = new ListWorkflowOptionsTool()->withContext($app, $company, $user);
         $core[] = new ListCompanyWorkflowsTool()->withContext($app, $company, $user);
         $core[] = new CreateCompanyWorkflowTool()
@@ -355,6 +370,10 @@ class ProjectManagerAgent extends SystemUserAgent
             ->withContext($app, $company, $user)
             ->forRequestingUser($requestingHuman);
         $core[] = new CreateCompanyReceiverTool()
+            ->withContext($app, $company, $user)
+            ->forRequestingUser($requestingHuman);
+        // The other half of inbound email: a receiver is only a URL until an address forwards to it.
+        $core[] = new CreateEmailRouteTool()
             ->withContext($app, $company, $user)
             ->forRequestingUser($requestingHuman);
 
