@@ -171,7 +171,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             . '(draft in Kanvas / "Pending" in the sheet) — never a short summary. There is no Acumatica '
             . 'reference yet at this stage — say so plainly rather than leaving it out; the push to Acumatica '
             . 'happens later, once a human approves the invoice.',
-            '- When the configured approver says to approve a pending invoice (e.g. "apruebame el invoice '
+            '- When the configured approver says to approve a pending invoice (e.g. "approve invoice '
             . '2044") → approve_pending_item with target_type: "invoice" and the target_id they gave you. If it '
             . 'reports not_authorized, tell them plainly only the configured approver can do this — never try '
             . 'to work around it. On success with pushed: true, do all of the following before your final '

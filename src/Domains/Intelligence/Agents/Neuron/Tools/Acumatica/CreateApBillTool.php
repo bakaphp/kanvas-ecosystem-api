@@ -241,11 +241,11 @@ class CreateApBillTool extends Tool
         if (! $push_to_acumatica) {
             new NotifyApproverAction(
                 $app,
-                "Tienes una factura AP pendiente de aprobar:\nVendor: {$vendor->name}\nMonto: {$currency} "
+                "You have an AP bill pending approval:\nVendor: {$vendor->name}\nAmount: {$currency} "
                     . "{$amount}\nGL: {$gl_account_number}"
                     . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : '')
-                    . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nResponde \"apruébame el bill "
-                    . "{$bill->getId()}\" para aprobarlo y empujarlo a Acumatica.",
+                    . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
+                    . "{$bill->getId()}\" to approve it and push it to Acumatica.",
             )->execute();
 
             return [

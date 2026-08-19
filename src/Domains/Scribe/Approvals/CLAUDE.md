@@ -46,7 +46,7 @@ the tool, the Slack notification, and the queue never change.
 
 **Approval** (the human, then Apex/Arc again):
 
-5. The approver replies in Slack, in natural language — "apruébame el bill 1072". This reaches Apex
+5. The approver replies in Slack, in natural language — "approve bill 1072". This reaches Apex
    through the normal Slack↔agent pipeline, same as any other message.
 6. `approve_pending_item(target_type, target_id)` — checks the sender's email against
    `ap-bill-approver-email` (`VerifiesApprovalAuthority`), finds the pending `ApprovalQueueItem`, and

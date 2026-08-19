@@ -151,7 +151,7 @@ class AccountsPayableAgent extends SystemUserAgent
             . '(pending_approval in Kanvas / "Pending" in the sheet) — never a short summary. There is no '
             . 'Acumatica reference yet at this stage — say so plainly rather than leaving it out; the push to '
             . 'Acumatica happens later, once a human approves the bill.',
-            '- When the configured approver says to approve a pending bill (e.g. "apruebame el bill 1072") → '
+            '- When the configured approver says to approve a pending bill (e.g. "approve bill 1072") → '
             . 'approve_pending_item with target_type: "bill" and the target_id they gave you. If it reports '
             . 'not_authorized, tell them plainly only the configured approver can do this — never try to work '
             . 'around it. On success with pushed: true, do all of the following before your final reply, in '
