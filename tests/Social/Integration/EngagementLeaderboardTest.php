@@ -201,6 +201,34 @@ class EngagementLeaderboardTest extends TestCase
         $this->assertSame(2, $this->leaderboard()['team']['appointments']);
     }
 
+    public function testUsesTheRepsRealNameRatherThanTheirDisplayname(): void
+    {
+        $owner = $this->createRep();
+        $owner->firstname = 'Kevin';
+        $owner->lastname = 'Bury';
+        $owner->displayname = 'kbury19236';
+        $owner->saveOrFail();
+
+        $lead = $this->createLead($owner);
+        $this->createMessage($lead, ['from_me' => true], $owner);
+
+        $this->assertSame('Kevin Bury', $this->leaderboard()['rows'][0]['name']);
+    }
+
+    public function testFallsBackToDisplaynameWhenThereIsNoRealName(): void
+    {
+        $owner = $this->createRep();
+        $owner->firstname = '';
+        $owner->lastname = '';
+        $owner->displayname = 'kbury19236';
+        $owner->saveOrFail();
+
+        $lead = $this->createLead($owner);
+        $this->createMessage($lead, ['from_me' => true], $owner);
+
+        $this->assertSame('kbury19236', $this->leaderboard()['rows'][0]['name']);
+    }
+
     public function testRanksRowsByTotalSentDescending(): void
     {
         $quiet = $this->createRep();
