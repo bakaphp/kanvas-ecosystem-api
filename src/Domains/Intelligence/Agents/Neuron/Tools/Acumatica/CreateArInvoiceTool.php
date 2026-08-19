@@ -195,9 +195,9 @@ class CreateArInvoiceTool extends Tool
 
             new NotifyApproverAction(
                 $app,
-                "Tienes una factura AR pendiente de aprobar:\nCustomer: {$customer->name}\nMonto: {$currency} "
-                    . "{$amount}\nMemo: {$memo}\nInvoice ID (Kanvas): {$invoice->getId()}\n\nResponde "
-                    . "\"apruébame el invoice {$invoice->getId()}\" para aprobarlo y empujarlo a Acumatica.",
+                "You have an AR invoice pending approval:\nCustomer: {$customer->name}\nAmount: {$currency} "
+                    . "{$amount}\nMemo: {$memo}\nInvoice ID (Kanvas): {$invoice->getId()}\n\nReply "
+                    . "\"approve invoice {$invoice->getId()}\" to approve it and push it to Acumatica.",
             )->execute();
 
             return [
