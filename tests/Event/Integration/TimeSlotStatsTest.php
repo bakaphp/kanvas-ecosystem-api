@@ -49,9 +49,13 @@ class TimeSlotStatsTest extends TestCase
      * Booking writes to the `event` connection (BuildEventDataAction firstOrCreates a default
      * Theme), which the default DatabaseTransactions wrapping does not roll back.
      */
+    /**
+     * `inventory` has to roll back too: setUp builds a warehouse, a channel and a product
+     * per test, so leaving that connection out leaks every one of them into the next test.
+     */
     protected function connectionsToTransact(): array
     {
-        return [null, 'event'];
+        return ['mysql', 'ecosystem', 'inventory', 'event'];
     }
 
     public function setUp(): void
@@ -67,22 +71,28 @@ class TimeSlotStatsTest extends TestCase
         $this->company = $this->user->getCurrentCompany();
         $this->region = Regions::getDefault($this->company, $this->apps);
 
-        $warehouseResponse = $this->createWarehouses((string) $this->region->getId())->json()['data']['createWarehouse'];
-        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
-        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+        $warehouseResponse = $this->graphQLData($this->createWarehouses((string) $this->region->getId()), 'createWarehouse');
+        $channelResponse = $this->graphQLData($this->createChannel(), 'createChannel');
+        $productResponse = $this->graphQLData($this->createProduct(), 'createProduct');
 
         $this->variant = Products::find($productResponse['id'])->variants()->first();
 
-        $this->addVariantToChannel(
-            variantId: (string) $this->variant->getId(),
-            channelId: $channelResponse['id'],
-            warehouseData: ['id' => $warehouseResponse['id']]
+        $this->graphQLData(
+            $this->addVariantToChannel(
+                variantId: (string) $this->variant->getId(),
+                channelId: $channelResponse['id'],
+                warehouseData: ['id' => $warehouseResponse['id']]
+            ),
+            'addVariantToChannel'
         );
 
-        $this->addVariantToWarehouse(
-            variantId: (string) $this->variant->getId(),
-            warehouseId: (string) $warehouseResponse['id'],
-            amount: 10
+        $this->graphQLData(
+            $this->addVariantToWarehouse(
+                variantId: (string) $this->variant->getId(),
+                warehouseId: (string) $warehouseResponse['id'],
+                amount: 10
+            ),
+            'addVariantToWarehouse'
         );
 
         $this->company->timezone = 'UTC';
