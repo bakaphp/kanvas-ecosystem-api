@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Gmail;
 
-use Kanvas\Connectors\Gmail\Actions\ReplyToInvoiceEmailAction;
+use Kanvas\Connectors\Gmail\Actions\ReplyToEmailAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
@@ -15,23 +15,24 @@ use Override;
 use Throwable;
 
 /**
- * Replies inside an invoice email's thread with an internal approval note, for audit purposes.
- * The recipient is always the configured approver's own email — never the LLM's choice, and never
- * the invoice's original external sender — so this can't be used to leak internal notes outward.
+ * Replies inside an existing email thread with an internal-only note — e.g. approval evidence,
+ * a status update, or any other note that should stay attached to the original thread. The
+ * recipient is always the configured internal approver's own email — never the LLM's choice, and
+ * never the thread's original external sender — so this can't be used to leak internal notes out.
  */
-#[AgentTool(name: 'Reply To Invoice Email', category: 'productivity')]
-class ReplyToInvoiceEmailTool extends Tool
+#[AgentTool(name: 'Reply To Email', category: 'productivity')]
+class ReplyToEmailTool extends Tool
 {
     use HasKanvasContext;
 
     public function __construct()
     {
         parent::__construct(
-            name: 'reply_to_invoice_email',
-            description: 'Replies inside an invoice email\'s thread with an internal approval note (e.g. '
-                . '"Approved by X on Y"), as an audit trail. Always sent only to the configured internal '
-                . 'approver — never to the invoice\'s original external sender. Call this right after '
-                . 'approve_pending_item succeeds, using the message_id of the ORIGINAL invoice email.',
+            name: 'reply_to_email',
+            description: 'Replies inside an existing email thread with an internal note (e.g. "Approved by X '
+                . 'on Y"), as an audit trail. Always sent only to the configured internal approver — never to '
+                . 'the thread\'s original external sender. Commonly used right after approve_pending_item '
+                . 'succeeds, using the message_id of the original email.',
         );
     }
 
@@ -45,13 +46,13 @@ class ReplyToInvoiceEmailTool extends Tool
             new ToolProperty(
                 name: 'message_id',
                 type: PropertyType::STRING,
-                description: 'The Gmail message_id of the original invoice email (from list_emails/read_email_details).',
+                description: 'The Gmail message_id of the original email (from list_emails/read_email_details).',
                 required: true,
             ),
             new ToolProperty(
                 name: 'note',
                 type: PropertyType::STRING,
-                description: 'The approval evidence text, e.g. "Approved by Jane Doe on 2026-08-19 — Bill #1072."',
+                description: 'The note text, e.g. "Approved by Jane Doe on 2026-08-19 — Bill #1072."',
                 required: true,
             ),
         ];
@@ -73,12 +74,12 @@ class ReplyToInvoiceEmailTool extends Tool
         }
 
         try {
-            $result = new ReplyToInvoiceEmailAction($this->app, $message_id, [$approverEmail], $note)->execute();
+            $result = new ReplyToEmailAction($this->app, $message_id, [$approverEmail], $note)->execute();
         } catch (Throwable $e) {
             return [
                 'replied' => false,
                 'reason' => 'reply_failed',
-                'message' => 'Could not reply to the invoice email: ' . $e->getMessage(),
+                'message' => 'Could not reply to the email: ' . $e->getMessage(),
             ];
         }
 

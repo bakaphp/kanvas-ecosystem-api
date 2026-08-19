@@ -17,7 +17,7 @@ use Kanvas\Connectors\Gmail\Actions\DownloadAttachmentAction;
 use Kanvas\Connectors\Gmail\Actions\ListEmailsAction;
 use Kanvas\Connectors\Gmail\Actions\MarkEmailAsReadAction;
 use Kanvas\Connectors\Gmail\Actions\ReadEmailDetailsAction;
-use Kanvas\Connectors\Gmail\Actions\ReplyToInvoiceEmailAction;
+use Kanvas\Connectors\Gmail\Actions\ReplyToEmailAction;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Mockery;
@@ -165,7 +165,7 @@ class GmailActionsTest extends TestCase
         $this->assertSame('MSG_1', $result['message_id']);
     }
 
-    public function test_reply_to_invoice_email_sends_an_internal_only_threaded_reply(): void
+    public function test_reply_to_email_sends_an_internal_only_threaded_reply(): void
     {
         $messagesResource = Mockery::mock(UsersMessages::class);
         $messagesResource->shouldReceive('get')
@@ -197,7 +197,7 @@ class GmailActionsTest extends TestCase
         $service = Mockery::mock(GmailService::class);
         $service->users_messages = $messagesResource;
 
-        $result = new ReplyToInvoiceEmailAction(
+        $result = new ReplyToEmailAction(
             app(Apps::class),
             'MSG_1',
             ['approver@kanvas.test'],

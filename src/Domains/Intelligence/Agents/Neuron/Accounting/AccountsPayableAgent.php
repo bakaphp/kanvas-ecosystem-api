@@ -25,7 +25,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReadEmailDetailsTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReplyToInvoiceEmailTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReplyToEmailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\CreateGoogleSheetTabTool;
@@ -87,7 +87,7 @@ class AccountsPayableAgent extends SystemUserAgent
             new DownloadAttachmentTool(),
             new ExtractInvoiceDataTool(),
             new MarkEmailAsReadTool(),
-            new ReplyToInvoiceEmailTool(),
+            new ReplyToEmailTool(),
         ]));
     }
 
@@ -161,7 +161,7 @@ class AccountsPayableAgent extends SystemUserAgent
             . '(2) If the result included a source_attachment_url, call attach_bill_file with that bill_id, '
             . 'file_url, and file_name — the invoice PDF can only be attached now that the bill is actually '
             . 'pushed to Acumatica. Skip this step silently when there is no source_attachment_url. '
-            . '(3) If the result included a source_email_message_id, call reply_to_invoice_email with that '
+            . '(3) If the result included a source_email_message_id, call reply_to_email with that '
             . 'message_id and the same evidence text plus the bill reference (e.g. "Approved by {approved_by} '
             . 'on {approved_at} — Bill #{bill_number}, Acumatica ref {reference}."), so it lands as an internal '
             . 'note in the original invoice thread. Skip this step silently when there is no '
