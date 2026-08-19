@@ -56,6 +56,8 @@ class AgentChatKernel
         protected readonly array $documents = [],
         protected readonly array $additionalTools = [],
         protected readonly bool $privateUserTurn = false,
+        protected readonly ?string $adkAppName = null,
+        protected readonly ?string $adkBaseUrl = null,
     ) {
     }
 
@@ -181,6 +183,8 @@ class AgentChatKernel
                 user: $this->user,
                 sourceChannel: $this->sourceChannel,
                 sourceMessage: $this->sourceMessage,
+                appName: $this->adkAppName,
+                baseUrl: $this->adkBaseUrl,
             )->execute();
         }
 
