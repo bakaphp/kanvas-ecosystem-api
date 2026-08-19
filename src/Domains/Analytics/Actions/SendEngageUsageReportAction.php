@@ -34,6 +34,13 @@ class SendEngageUsageReportAction
         protected readonly Companies $company,
         protected readonly AnalyticsRequest $request,
         protected readonly MessageChannelEnum $channel = MessageChannelEnum::ALL,
+        /**
+         * Send here instead of to the company's managers. For previewing a real tenant's report
+         * without mailing their staff.
+         *
+         * @var array<int, string>
+         */
+        protected readonly array $overrideEmails = [],
     ) {
     }
 
@@ -62,6 +69,30 @@ class SendEngageUsageReportAction
             return 0;
         }
 
+        $range = [
+            'from' => $this->request->from->toDateString(),
+            'to' => $this->request->to->toDateString(),
+            'label' => $this->rangeLabel(),
+            'channel_label' => $this->channel->label(),
+        ];
+
+        $notification = fn (): EngageUsageReportNotification => new EngageUsageReportNotification(
+            $this->company,
+            $result['rows'],
+            $result['team'],
+            $range,
+        );
+
+        if ($this->overrideEmails !== []) {
+            foreach ($this->overrideEmails as $email) {
+                // notifyNow, not the queue: an override is a manual preview, and the operator needs
+                // an SMTP failure to surface in the console rather than in a worker log.
+                NotificationFacade::route('mail', $email)->notifyNow($notification());
+            }
+
+            return count($this->overrideEmails);
+        }
+
         $recipients = $this->resolveRecipients();
 
         if ($recipients->isEmpty()) {
@@ -73,24 +104,9 @@ class SendEngageUsageReportAction
             return 0;
         }
 
-        $range = [
-            'from' => $this->request->from->toDateString(),
-            'to' => $this->request->to->toDateString(),
-            'label' => $this->rangeLabel(),
-            'channel_label' => $this->channel->label(),
-        ];
-
         $sent = 0;
         foreach ($recipients as $recipient) {
-            NotificationFacade::send(
-                [$recipient],
-                new EngageUsageReportNotification(
-                    $this->company,
-                    $result['rows'],
-                    $result['team'],
-                    $range,
-                ),
-            );
+            NotificationFacade::send([$recipient], $notification());
             $sent++;
         }
 
