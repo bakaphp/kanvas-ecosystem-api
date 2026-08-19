@@ -53,6 +53,7 @@ enum WorkflowEnum: string
     case AFTER_ONBOARDING = 'after-onboarding';
     case AFTER_CONFIGURATION = 'after-configuration';
     case AFTER_MERGE = 'after-merge';
+    case EVENT_VERSIONS_WORKFLOW = 'event-versions-workflow';
 
     /**
      * Get the enum case by its value.
