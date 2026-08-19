@@ -38,6 +38,7 @@ class SendEngageUsageReportCommand extends Command
         {--from= : Range start (Y-m-d). Requires --to. Defaults to the last 7 complete days.}
         {--to= : Range end (Y-m-d). Requires --from.}
         {--channel=all : sms, email, or all}
+        {--email= : Comma-separated address(es) to send to instead of the company\'s managers}
         {--dry-run : Build the leaderboard and print it without sending any email}';
 
     protected $description = 'Email the weekly Engage usage leaderboard to each company\'s managers.';
@@ -111,14 +112,23 @@ class SendEngageUsageReportCommand extends Command
             return 0;
         }
 
+        $overrideEmails = $this->overrideEmails();
+
         $sent = new SendEngageUsageReportAction(
             app: $app,
             company: $company,
             request: $request,
             channel: $channel,
+            overrideEmails: $overrideEmails,
         )->execute();
 
-        $this->line(sprintf('  company=%-6d %-40s recipients=%d', $company->getId(), $company->name, $sent));
+        $this->line(sprintf(
+            '  company=%-6d %-40s sent=%d%s',
+            $company->getId(),
+            $company->name,
+            $sent,
+            $overrideEmails === [] ? '' : ' -> ' . implode(', ', $overrideEmails),
+        ));
 
         return $sent;
     }
@@ -194,6 +204,20 @@ class SendEngageUsageReportCommand extends Command
             'bucket' => 'DAY',
             'timezone' => $timezone,
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function overrideEmails(): array
+    {
+        $to = trim((string) $this->option('email'));
+
+        if ($to === '') {
+            return [];
+        }
+
+        return array_values(array_filter(array_map('trim', explode(',', $to))));
     }
 
     /**
