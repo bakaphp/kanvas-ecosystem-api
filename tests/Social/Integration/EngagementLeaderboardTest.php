@@ -386,23 +386,50 @@ class EngagementLeaderboardTest extends TestCase
         ])->saveQuietly();
     }
 
+    /**
+     * `events` has FKs onto six lookup tables. A seeded DB already has rows; a fresh CI database
+     * does not, and `value('id')` on an empty table returns null which casts to 0 and trips the
+     * constraint. Create the row when it is missing rather than assuming a seed.
+     *
+     * @param  array<string, mixed>  $extra
+     */
+    private function eventLookupId(string $table, array $extra = []): int
+    {
+        $existing = (int) DB::connection('event')->table($table)->value('id');
+
+        if ($existing > 0) {
+            return $existing;
+        }
+
+        return (int) DB::connection('event')->table($table)->insertGetId([
+            'companies_id' => $this->company->getId(),
+            'apps_id' => $this->kanvasApp->getId(),
+            'users_id' => auth()->user()->getId(),
+            'name' => 'Test ' . $table,
+            ...$extra,
+        ]);
+    }
+
     private function createAppointment(Users $owner): void
     {
-        $lookup = static fn (string $table): int => (int) DB::connection('event')
-            ->table($table)
-            ->value('id');
+        $typeId = $this->eventLookupId('event_types');
+        $classId = $this->eventLookupId('event_classes');
 
         DB::connection('event')->table('events')->insert([
             'uuid' => fake()->uuid(),
             'users_id' => $owner->getId(),
             'companies_id' => $this->company->getId(),
             'apps_id' => $this->kanvasApp->getId(),
-            'theme_id' => $lookup('themes'),
-            'theme_area_id' => $lookup('theme_areas'),
-            'event_status_id' => $lookup('event_statuses'),
-            'event_type_id' => $lookup('event_types'),
-            'event_class_id' => $lookup('event_classes'),
-            'event_category_id' => $lookup('event_categories'),
+            'theme_id' => $this->eventLookupId('themes'),
+            'theme_area_id' => $this->eventLookupId('theme_areas'),
+            'event_status_id' => $this->eventLookupId('event_statuses'),
+            'event_type_id' => $typeId,
+            'event_class_id' => $classId,
+            'event_category_id' => $this->eventLookupId('event_categories', [
+                'event_type_id' => $typeId,
+                'event_class_id' => $classId,
+                'slug' => 'test-category-' . uniqid('', true),
+            ]),
             'name' => 'Test appointment',
             'slug' => 'test-appointment-' . fake()->unique()->uuid(),
             'resources_type' => Lead::class,
