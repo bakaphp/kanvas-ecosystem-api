@@ -10,14 +10,17 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Social\Enums\ChannelCategoryEnum;
 
 /**
  * Backfill messages.people_id from the entity each message is associated with in
  * app_module_message. New rows are populated live by CreateMessageAction::resolvePeopleId();
  * this catches up history so "who was talking" works on old conversations.
  *
- * Only real communication messages (sender_type IS NOT NULL) get a person — an internal note or
- * system row attached to a lead is not a message with a customer. Rows that already carry a
+ * Only real customer messages get a person: the row needs a sender_type AND a message type whose
+ * verb is a communication channel (sms / email / whatsapp / voice). An internal note, a system row
+ * or an in-app ai-chat turn is not a conversation with a customer, even though ai-chat payloads do
+ * carry from_me and therefore get a sender_type. Rows that already carry a
  * people_id but are not communication messages are cleared, so the command converges rather than
  * only ever adding.
  *
@@ -61,9 +64,11 @@ class BackfillMessagePeopleIdCommand extends Command
             $dryRun ? ' [DRY RUN]' : '',
         ));
 
+        $commTypeIds = $this->communicationTypeIds();
+
         do {
             $rows = $connection->table('messages')
-                ->select(['id', 'sender_type', 'people_id'])
+                ->select(['id', 'sender_type', 'people_id', 'message_types_id'])
                 ->when($appId !== null, fn ($q) => $q->where('apps_id', $appId))
                 ->where('id', '>', $lastId)
                 ->orderBy('id')
@@ -80,7 +85,10 @@ class BackfillMessagePeopleIdCommand extends Command
             $messageIds = [];
             $staleIds = [];
             foreach ($rows as $row) {
-                if ($row->sender_type !== null) {
+                $isCustomerMessage = $row->sender_type !== null
+                    && isset($commTypeIds[(int) $row->message_types_id]);
+
+                if ($isCustomerMessage) {
                     $messageIds[] = (int) $row->id;
                 } elseif ($row->people_id !== null) {
                     $staleIds[] = (int) $row->id;
@@ -135,6 +143,23 @@ class BackfillMessagePeopleIdCommand extends Command
         ));
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Communication message-type ids, so the chunk loop can tell a real SMS/email from an ai-chat
+     * row that merely carries from_me in its payload and therefore also gets a sender_type.
+     *
+     * @return array<int, true>
+     */
+    private function communicationTypeIds(): array
+    {
+        return DB::connection('social')
+            ->table('message_types')
+            ->when($this->option('app') !== null, fn ($q) => $q->where('apps_id', (int) $this->option('app')))
+            ->get(['id', 'verb'])
+            ->filter(fn (object $type): bool => ChannelCategoryEnum::isCommunicationVerb((string) $type->verb))
+            ->mapWithKeys(fn (object $type): array => [(int) $type->id => true])
+            ->all();
     }
 
     /**

@@ -112,6 +112,44 @@ class MessagePeopleIdTest extends TestCase
         $this->assertNull($message->refresh()->people_id);
     }
 
+    public function testLeavesPeopleIdNullOnAnAiChatMessageEvenWithALeadInScope(): void
+    {
+        $lead = $this->createLead();
+        $aiChat = MessageType::factory()->create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'verb' => 'ai-chat',
+        ]);
+
+        // ai-chat payloads carry from_me, so this row DOES get a sender_type — but it is an in-app
+        // assistant turn, not a customer conversation.
+        $message = $this->createMessage($lead, type: $aiChat);
+
+        $this->assertNotNull($message->refresh()->sender_type);
+        $this->assertNull($message->people_id);
+    }
+
+    public function testBackfillClearsPeopleIdFromANonCommunicationChannel(): void
+    {
+        $lead = $this->createLead();
+        $aiChat = MessageType::factory()->create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'verb' => 'ai-control',
+        ]);
+        $message = $this->createMessage($lead, type: $aiChat);
+
+        // A row left behind by the earlier version that gated on sender_type alone.
+        DB::connection('social')->table('messages')
+            ->where('id', $message->getId())
+            ->update(['people_id' => (int) $lead->people_id]);
+
+        Artisan::call('kanvas:social:backfill-message-people-id', [
+            '--from-id' => $message->getId() - 1,
+            '--app' => $this->kanvasApp->getId(),
+        ]);
+
+        $this->assertNull($message->refresh()->people_id);
+    }
+
     public function testBackfillPopulatesHistoricalMessagesFromTheirLead(): void
     {
         $lead = $this->createLead();
@@ -141,15 +179,19 @@ class MessagePeopleIdTest extends TestCase
     /**
      * @param  array<string, mixed>|null  $payload
      */
-    private function createMessage(mixed $entity = null, ?People $people = null, ?array $payload = null): Message
-    {
+    private function createMessage(
+        mixed $entity = null,
+        ?People $people = null,
+        ?array $payload = null,
+        ?MessageType $type = null,
+    ): Message {
         $user = auth()->user();
 
         $input = new MessageInput(
             app: $this->kanvasApp,
             company: $user->getCurrentCompany(),
             user: $user,
-            type: $this->messageType,
+            type: $type ?? $this->messageType,
             message: $payload ?? ['content' => 'hi', 'from_me' => false],
             people: $people,
         );
