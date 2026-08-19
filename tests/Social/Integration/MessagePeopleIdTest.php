@@ -59,7 +59,12 @@ class MessagePeopleIdTest extends TestCase
     public function testAnExplicitPeopleOnTheInputWinsOverTheEntity(): void
     {
         $lead = $this->createLead();
-        $otherPeople = People::getById((int) $this->createLead()->people_id);
+        // A bare People, not a second lead — each Lead::factory() fires LeadObserver ->
+        // CreateChannelAction inside a transaction, and that contention deadlocks under CI.
+        $otherPeople = People::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId(auth()->user()->getCurrentCompany()->getId())
+            ->create();
 
         $message = $this->createMessage($lead, $otherPeople);
 
