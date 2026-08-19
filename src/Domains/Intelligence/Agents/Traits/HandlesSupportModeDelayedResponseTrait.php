@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Jobs\SendUnrespondedAgentMessageJob;
 use Kanvas\Intelligence\Jobs\SendUnrespondedAgentMessageV1Job;
@@ -31,6 +32,10 @@ trait HandlesSupportModeDelayedResponseTrait
         string $actionClass,
         ?Session $session = null
     ): ?array {
+        if (! $this->isSupportModeDelayedResponseEnabled($app)) {
+            return null;
+        }
+
         $isWithinWorkingHours = $lead->company->isWithinWorkingHours(now());
         $hasHumanMessage = $channel->messages()
             ->where('message->from_human', true)
@@ -111,5 +116,16 @@ trait HandlesSupportModeDelayedResponseTrait
             'entity' => $lead,
             'delay_minutes' => $delayMinutes,
         ];
+    }
+
+    protected function isSupportModeDelayedResponseEnabled(Apps $app): bool
+    {
+        $setting = $app->get(ConfigurationEnum::SUPPORT_MODE_DELAYED_RESPONSE->value);
+
+        if ($setting === null) {
+            return true;
+        }
+
+        return filter_var($setting, FILTER_VALIDATE_BOOLEAN);
     }
 }

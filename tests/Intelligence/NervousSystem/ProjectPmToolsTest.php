@@ -502,9 +502,16 @@ class ProjectPmToolsTest extends TestCase
             'create_company_workflow',
             'update_company_workflow',
             'create_company_receiver',
+            'create_email_route',
             'read_channel_window',
             'list_message_types',
             'create_message_type',
+            // Lost once already: ProjectManagerAgent overrides SystemUserAgent::tools() without
+            // calling parent, which drops these silently — a shorter list, no error.
+            'schedule_reminder',
+            'schedule_agent_task',
+            'list_scheduled_actions',
+            'cancel_scheduled_action',
         ] as $expected) {
             $this->assertContains($expected, $names, $expected . ' is missing from the PM toolset.');
         }
