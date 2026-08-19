@@ -7,15 +7,15 @@ namespace Tests\Intelligence\FollowUp\Commands;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\FollowUp\Jobs\DispatchAppLeadFollowUpsJob;
 use Tests\TestCase;
 
 /**
  * Verifies the hourly entry point honors the work-hours gate. The command
  * only dispatches DispatchAppLeadFollowUpsJob when CompanyWorkHoursTool
- * returns status='open'. We force "after_hours" by clearing the company's
- * work-hours config and confirm nothing is queued.
+ * returns status='work_hours'; a company with no working-hours config is
+ * always "after_hours", so nothing should be queued for it.
  */
 class DispatchLeadFollowUpsCommandTest extends TestCase
 {
@@ -28,21 +28,19 @@ class DispatchLeadFollowUpsCommandTest extends TestCase
         Queue::fake();
 
         $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
 
         // Enable the feature flag — otherwise the loop skips the app entirely
         // and we can't tell whether work-hours OR the flag stopped it.
         $app->set('use_lead_follow_up_v2', true);
 
-        // Clear work-hours config to force "after_hours" status from the tool.
-        $company->set(CompanyConfigurationEnum::WORKING_HOURS->value, null);
-        $company->set(CompanyConfigurationEnum::WORKING_DAYS->value, []);
+        $company = Companies::factory()->create([
+            'users_id' => auth()->user()->getId(),
+            'timezone' => 'UTC',
+        ]);
+        $company->associateApp($app);
 
         $this->artisan('lead:dispatch-follow-ups')->assertExitCode(0);
 
-        // Other companies in the same app may dispatch; this test only asserts
-        // that the test company (with cleared hours) is NOT in the dispatched set.
         Queue::assertNotPushed(
             DispatchAppLeadFollowUpsJob::class,
             fn (DispatchAppLeadFollowUpsJob $job) => $job->company->getId() === $company->getId()
