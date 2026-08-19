@@ -134,4 +134,28 @@ class ChatHelperTest extends TestCase
 
         $this->assertSame($body, ChatHelper::extractTextFromResponse($body));
     }
+
+    /**
+     * The envelope is what the reply text throws away: an agent that answered with a whole record
+     * keeps only its body once {@see ChatHelper::extractTextFromResponse()} picks a field.
+     */
+    public function testExtractsTheWholeEnvelopeFromAFencedReply(): void
+    {
+        $reply = "```json\n" . json_encode([
+            'title' => 'Educación acelera construcción de aulas',
+            'content' => '<p>Body.</p>',
+            'tags' => ['Educación', 'El Seibo'],
+        ], JSON_UNESCAPED_UNICODE) . "\n```";
+
+        $envelope = ChatHelper::extractJsonEnvelope($reply);
+
+        $this->assertSame('Educación acelera construcción de aulas', $envelope['title']);
+        $this->assertSame(['Educación', 'El Seibo'], $envelope['tags']);
+        $this->assertSame('<p>Body.</p>', ChatHelper::extractTextFromResponse($reply));
+    }
+
+    public function testEnvelopeIsNullForAPlainTextReply(): void
+    {
+        $this->assertNull(ChatHelper::extractJsonEnvelope("Hi Max,\n\nHappy to help."));
+    }
 }

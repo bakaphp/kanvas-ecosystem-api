@@ -76,12 +76,42 @@ the raw JSON when it finds no text key, which would publish the message's own JS
 `WordPressPost::resolveContent()` reads the object by key instead and only uses `contentText()` for
 a genuinely non-object body.
 
+### An agent reply that IS the post (`response_json`)
+
+A message written by a channel responder does not carry the post at the top level. The agent's reply
+travels as **text**: `ChatHelper::extractTextFromResponse()` picks ONE field out of the agent's JSON
+(so the email/WhatsApp body is prose, not a JSON dump), and everything else — title, terms, excerpt,
+status — is thrown away. An agent that wrote a whole post would arrive with only its body, and the
+title would be the first 117 characters of the article.
+
+So `BaseAgentChannelReplyAction::createMessage()` keeps the decoded envelope on the message as
+`response_json` alongside the reply text, and `WordPressPost::fromMessage()` reads it as a layer:
+
+```json
+{
+  "content": "<p>The reply text that was actually sent.</p>",
+  "from_ia": true,
+  "response_json": { "title": "…", "content": "<p>…</p>", "categories": ["News"], "status": "draft" }
+}
+```
+
+`response_json` is deliberately connector-agnostic — the responder does not know WordPress exists, it
+only records that the agent answered with structure. Any activity can consume it.
+
+Messages written before that existed (or by a producer that stores the reply verbatim) are still
+handled: a **string** `response_json` / `response_text` / `responseText` / `content` is run through
+`ChatHelper::extractJsonEnvelope()`, which unwraps a ```` ```json ```` fence. Without that, a fenced
+reply publishes the raw JSON as the article body — a silent wrong post rather than a loud failure,
+since `content` is itself a valid post key.
+
 ### Precedence
 
-`message body wordpress: {}` > `message body top level` > `workflow rule params` > connector config.
+`message body wordpress: {}` > `response_json` > `message body top level` > `workflow rule params` >
+connector config.
 
 Only the keys wp/v2 understands are read out of each layer, so agent bookkeeping in the message
-body can never reach the site.
+body — and the editorial extras a news agent emits (`titulos_alternativos`, `correcciones`) — can
+never reach the site.
 
 ## Setup
 

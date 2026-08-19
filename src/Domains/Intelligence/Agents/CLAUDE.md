@@ -168,8 +168,15 @@ public function execute(array $params = []): array
     )->execute();
     $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
-    // 4. Persist outbound exactly once via base class
-    $messageResponse = $this->createMessage($responseText, $to, $this->message, $this->channel);
+    // 4. Persist outbound exactly once via base class. Pass rawResponse so an agent that answered
+    //    with a whole record (a post, a quote) keeps its structure — see below.
+    $messageResponse = $this->createMessage(
+        $responseText,
+        $to,
+        $this->message,
+        $this->channel,
+        rawResponse: $responseContent
+    );
 
     // 5. Send via connector client only if not locked (support-mode + human-takeover)
     if (! $messageResponse->is_locked) {
@@ -179,6 +186,26 @@ public function execute(array $params = []): array
     return ['response' => $responseText, /* ... */];
 }
 ```
+
+### `rawResponse` → `response_json` — the reply text is lossy
+
+`ChatHelper::extractTextFromResponse()` SELECTS one field out of the agent's JSON envelope (never
+concatenates — see its docblock for why). That is right for the channel: the customer gets prose, not
+a JSON dump. But an agent that answers with a whole **record** — a blog post, a quote, an enrichment —
+loses every field but the body, and nothing downstream can recover it.
+
+Passing `rawResponse: $responseContent` to `createMessage()` stores the decoded envelope on the
+outbound message as `response_json`, next to the text that was actually sent. Consumers read
+`$message->getMessage()['response_json']`; its **presence** is the signal that the agent replied with
+structure, so no consumer has to type-check or know about ```` ```json ```` fences.
+
+Keep it connector-agnostic: the responder records *that* the agent answered with structure, never what
+some downstream feature wants to do with it. A responder writing a `wordpress` key would be backwards
+— see [`Connectors/WordPress/CLAUDE.md`](../../Connectors/WordPress/CLAUDE.md) for the consumer side.
+
+Wired today on **Mailgun** and **WaSender**; the remaining responders (RespondIO, Twilio, Microsoft,
+Slack, SalesAssist) still drop the envelope — add the argument when one of them needs it, the
+parameter is optional and changes nothing for a plain-text agent.
 
 Connectors set two protected props on their class:
 - `$messageTypeVerb` — e.g. `'whatsapp'`, `'mailgun-email'`, `'respondio-text'`, `'twilio-sms'` (used by `createMessage()` for the outbound's `MessageType`)
