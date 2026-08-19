@@ -370,10 +370,16 @@ class BuildEngagementLeaderboardAction
 
         return Users::query()
             ->whereIn('id', $userIds)
-            ->get(['id', 'displayname', 'email'])
-            ->mapWithKeys(fn (Users $user): array => [
-                (int) $user->id => (string) ($user->displayname ?: $user->email),
-            ])
+            ->get(['id', 'firstname', 'lastname', 'displayname', 'email'])
+            ->mapWithKeys(function (Users $user): array {
+                $realName = trim(trim((string) $user->firstname) . ' ' . trim((string) $user->lastname));
+
+                return [
+                    (int) $user->id => $realName !== ''
+                        ? $realName
+                        : (string) ($user->displayname ?: $user->email),
+                ];
+            })
             ->all();
     }
 
