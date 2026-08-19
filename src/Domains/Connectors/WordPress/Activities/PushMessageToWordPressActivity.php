@@ -71,6 +71,17 @@ class PushMessageToWordPressActivity extends KanvasActivity
                     );
                 }
 
+                // An inbound message is SOURCE material, never the post. Both sides of a channel
+                // conversation share one message type (a Mailgun inbound and the agent's reply are
+                // both `mailgun-email`), so type alone would publish the customer's own email —
+                // and it would succeed, because `content` is a valid post key. Absent flag =
+                // publish: a message created by hand or through the API has no from_me at all.
+                $body = $message->getMessage();
+
+                if (array_key_exists('from_me', $body) && ! $body['from_me']) {
+                    return $this->skip($message, 'Inbound message, skipping WordPress publish');
+                }
+
                 // Kanvas visibility (is_public) is deliberately not consulted — the post's own wp
                 // status decides what the site shows, so a private Kanvas message can still ship
                 // as a WP draft.

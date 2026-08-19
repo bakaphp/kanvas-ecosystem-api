@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\WordPress\DataTransferObject;
 
 use Illuminate\Support\Str;
 use Kanvas\Connectors\WordPress\Enums\PostStatusEnum;
+use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
@@ -50,6 +51,7 @@ class WordPressPost
         $data = array_merge(
             self::onlyPostKeys($defaults),
             self::onlyPostKeys($body),
+            self::onlyPostKeys(self::agentEnvelope($body)),
             self::onlyPostKeys($nested),
         );
 
@@ -118,6 +120,38 @@ class WordPressPost
             // this", which would wipe terms and meta on an update.
             ...array_filter($optional, fn (mixed $value): bool => ! in_array($value, [null, '', [], false], true)),
         ];
+    }
+
+    /**
+     * Recover the agent's structured reply from a message written by a channel responder.
+     *
+     * A channel reply lands as TEXT: ChatHelper picks ONE field out of the agent's JSON, so an agent
+     * that wrote a whole post keeps only its body and loses title, terms and excerpt. `response_json`
+     * is the decoded envelope the reply actions persist alongside that text. The string candidates
+     * cover messages written before that existed, and any producer that stores the reply verbatim —
+     * fence and all.
+     */
+    private static function agentEnvelope(array $body): array
+    {
+        if (is_array($body['response_json'] ?? null)) {
+            return $body['response_json'];
+        }
+
+        foreach (['response_json', 'response_text', 'responseText', 'content'] as $key) {
+            $raw = self::string($body[$key] ?? null);
+
+            if ($raw === null) {
+                continue;
+            }
+
+            $decoded = ChatHelper::extractJsonEnvelope($raw);
+
+            if ($decoded !== null) {
+                return $decoded;
+            }
+        }
+
+        return [];
     }
 
     /**

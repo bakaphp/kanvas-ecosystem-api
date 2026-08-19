@@ -76,7 +76,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             $responseText,
             $channelId,
             $this->message,
-            $this->channel
+            $this->channel,
+            rawResponse: $responseContent
         );
 
         // Freeze the inbound subject on the outbound so SendAgentEmailAction can thread the reply
@@ -87,7 +88,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             'subject' => $this->message->message['subject'] ?? null,
             'email_message_id' => $this->message->message['email_message_id'] ?? null,
             'email_references' => $this->message->message['email_references'] ?? null,
-            'response_text' => $responseContent,
+            'response_text' => $responseText,
         ]);
 
         if (! $messageResponse->is_locked) {
