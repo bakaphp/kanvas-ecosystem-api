@@ -94,7 +94,11 @@ class AgentInboxWebhookJob extends ProcessWebhookJob
             return ['message' => 'Sender is not known to this company and the mailbox is restricted'];
         }
 
-        $message = new CreateMessageFromAgentInboxAction($this->webhookRequest, $agent, $entity)->execute();
+        $message = new CreateMessageFromAgentInboxAction(
+            $this->webhookRequest,
+            $agent,
+            $entity
+        )->execute();
 
         /** @var Channel $channel */
         $channel = $message->channels()->firstOrFail();
@@ -104,7 +108,12 @@ class AgentInboxWebhookJob extends ProcessWebhookJob
                 $channel,
                 $message,
                 $agent,
-                $this->resolveSession($channel, $message, $agent, $entity),
+                $this->resolveSession(
+                    $channel,
+                    $message,
+                    $agent,
+                    $entity
+                ),
             )->execute();
         } catch (AgentReplySkippedException | ValidationException $e) {
             // Expected control flow — AI switched off for this lead, an already-answered message, an

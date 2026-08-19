@@ -87,6 +87,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             'subject' => $this->message->message['subject'] ?? null,
             'email_message_id' => $this->message->message['email_message_id'] ?? null,
             'email_references' => $this->message->message['email_references'] ?? null,
+            'response_text' => $responseText,
         ]);
 
         if (! $messageResponse->is_locked) {

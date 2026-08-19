@@ -9,11 +9,15 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Models\Deal;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Social\Channels\Models\Channel as ModelsChannel;
 use Kanvas\Social\Enums\AppEnum;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
+use Kanvas\Social\Messages\Enums\MessageSenderTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Services\MessageFileConstrainerService;
 use Kanvas\Social\Messages\Validations\ValidParentMessage;
@@ -33,6 +37,31 @@ class CreateMessageAction
     ) {
     }
 
+    private function resolvePeopleId(): ?int
+    {
+        $payload = $this->messageInput->message;
+        if (! is_array($payload) || MessageSenderTypeEnum::fromPayload($payload) === null) {
+            return null;
+        }
+
+        if ($this->messageInput->people !== null) {
+            return $this->messageInput->people->getId();
+        }
+
+        if ($this->systemModule === null || $this->entityId === null) {
+            return null;
+        }
+
+        $entityId = (int) $this->entityId;
+
+        return match ($this->systemModule->model_name) {
+            People::class => $entityId,
+            Lead::class => Lead::query()->where('id', $entityId)->value('people_id'),
+            Deal::class => Deal::query()->where('id', $entityId)->value('people_id'),
+            default => null,
+        };
+    }
+
     public function execute(): Message
     {
         return DB::connection('social')->transaction(function () {
@@ -42,6 +71,7 @@ class CreateMessageAction
                 'parent_unique_id' => $this->messageInput->parent_unique_id,
                 'companies_id' => $this->messageInput->company->getId(),
                 'users_id' => $this->messageInput->user->getId(),
+                'people_id' => $this->resolvePeopleId(),
                 'message_types_id' => $this->messageInput->type->getId(),
                 'message' => $this->messageInput->message,
                 'reactions_count' => $this->messageInput->reactions_count,

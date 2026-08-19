@@ -2,6 +2,7 @@
 
 namespace App\Console;
 
+use App\Console\Commands\Analytics\Schedules\AnalyticsSchedule;
 use App\Console\Commands\Connectors\Acumatica\ScheduledAcumaticaSyncCommand;
 use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
@@ -75,6 +76,9 @@ class Kernel extends ConsoleKernel
 
         // Scribe — daily AR-aging fan-out (per (app, company) tuple with open AR).
         ScribeSchedule::register($schedule);
+
+        // Analytics — weekly Engage usage leaderboard to each company's managers.
+        AnalyticsSchedule::register($schedule);
 
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()
