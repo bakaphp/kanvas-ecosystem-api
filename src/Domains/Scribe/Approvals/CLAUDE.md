@@ -55,8 +55,8 @@ the tool, the Slack notification, and the queue never change.
 7. On success, the agent's own guidance (in `AccountsPayableAgent`/`AccountsReceivableAgent`) drives
    the rest: `add_bill_note`/`add_invoice_note` records "Approved by {email} on {date}";
    `attach_bill_file`/`attach_invoice_file` attaches the stashed PDF (only possible now, since it
-   needs an existing Acumatica push); `reply_to_invoice_email` replies inside the original email
-   thread with the same evidence, sent only to the configured approver — never to the vendor; and
+   needs an existing Acumatica push); `reply_to_email` replies inside the original email thread
+   with the same evidence, sent only to the configured approver — never to the vendor; and
    `update_google_sheet_cell` flips the sheet row to "Approved" with the date and approver's email.
 
 If the Acumatica push fails, the queue item is still **not** marked approved-and-clean — the agent

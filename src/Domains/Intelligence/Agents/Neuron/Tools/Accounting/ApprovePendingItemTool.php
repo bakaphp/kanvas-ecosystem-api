@@ -118,7 +118,7 @@ class ApprovePendingItemTool extends Tool
                 ? "Pushed to Acumatica. Now: (1) add a note with the approval evidence (\"{$evidence}\"). "
                     . '(2) If source_attachment_url is present, attach it (attach_bill_file/attach_invoice_file) '
                     . 'now that this record is actually pushed. '
-                    . '(3) If source_email_message_id is present, reply_to_invoice_email with that same '
+                    . '(3) If source_email_message_id is present, reply_to_email with that same '
                     . 'evidence on the original invoice email. '
                     . '(4) In the sheet, find the row for this record and update column D (Status) to '
                     . '"Approved", column E (Approved Date) to approved_at, and column F (Approved By) to '

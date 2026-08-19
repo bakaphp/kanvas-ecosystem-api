@@ -14,7 +14,7 @@ use Kanvas\Connectors\Gmail\Support\GmailMessageParser;
  * The recipient list is always whatever the caller explicitly passes, never derived from the
  * original message's sender, so this can never leak internal notes back to an external vendor.
  */
-class ReplyToInvoiceEmailAction extends AbstractGmailAction
+class ReplyToEmailAction extends AbstractGmailAction
 {
     /**
      * @param array<int, string> $to
