@@ -7,6 +7,7 @@ namespace Tests\Scribe\Intelligence;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
@@ -17,6 +18,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
+use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
@@ -311,6 +313,84 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $bill = Bill::query()->where('id', $result['bill_id'])->first();
         $this->assertSame(BillDocumentStatusEnum::PENDING_APPROVAL, $bill->document_status);
+    }
+
+    public function test_approve_pending_item_requires_the_configured_approver(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $created = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Approval flow test',
+                invoice_number: 'APR-1',
+                push_to_acumatica: false,
+            );
+
+        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, '');
+
+        $result = new ApprovePendingItemTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(target_type: 'bill', target_id: (int) $created['bill_id']);
+
+        $this->assertFalse($result['approved']);
+        $this->assertSame('not_authorized', $result['reason']);
+    }
+
+    public function test_approve_pending_item_approves_a_pending_bill_and_carries_the_source_email(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $created = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Approval flow test',
+                invoice_number: 'APR-2',
+                push_to_acumatica: false,
+                source_email_message_id: 'MSG_APR_2',
+                source_attachment_url: 'https://cdn.example.test/invoice-apr-2.pdf',
+                source_attachment_filename: 'invoice-apr-2.pdf',
+            );
+
+        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+
+        $result = new ApprovePendingItemTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(target_type: 'bill', target_id: (int) $created['bill_id']);
+
+        $this->assertTrue($result['approved']);
+        $this->assertSame('MSG_APR_2', $result['source_email_message_id']);
+        $this->assertSame('https://cdn.example.test/invoice-apr-2.pdf', $result['source_attachment_url']);
+        $this->assertSame('invoice-apr-2.pdf', $result['source_attachment_filename']);
+        $this->assertSame(static::$cachedUser->email, $result['approved_by']);
+        $this->assertNotEmpty($result['approved_at']);
+
+        $bill = Bill::query()->where('id', $created['bill_id'])->first();
+        $this->assertSame(BillDocumentStatusEnum::RECEIVED, $bill->document_status);
+    }
+
+    public function test_approve_pending_item_reports_not_found_when_nothing_pending(): void
+    {
+        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+
+        $result = new ApprovePendingItemTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(target_type: 'bill', target_id: 999999999);
+
+        $this->assertFalse($result['approved']);
+        $this->assertSame('not_found', $result['reason']);
     }
 
     public function test_find_vendor_returns_a_dead_end_message_when_nothing_matches(): void
