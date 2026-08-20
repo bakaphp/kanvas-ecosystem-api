@@ -51,6 +51,8 @@ enum WorkflowEnum: string
     case DEBUG = 'debug';
     case NOTIFICATION = 'notify';
     case AFTER_ONBOARDING = 'after-onboarding';
+    case AFTER_ADDING_MESSAGE_TO_GROUP_CHANNEL = 'after-adding-message-to-group-channel';
+    case AFTER_ADDING_MESSAGE_TO_AGENT_CHANNEL = 'after-adding-message-to-agent-channel';
     case AFTER_CONFIGURATION = 'after-configuration';
     case AFTER_MERGE = 'after-merge';
 

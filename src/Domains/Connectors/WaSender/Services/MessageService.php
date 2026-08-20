@@ -129,6 +129,7 @@ class MessageService
     {
         return $this->client->post('/api/decrypt-media', $payload);
     }
+
     /**
      * Send a contact card.
      *

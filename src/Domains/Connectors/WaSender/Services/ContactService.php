@@ -160,6 +160,22 @@ class ContactService
     }
 
     /**
+     * The opaque per-account id WhatsApp addresses this number as under lid addressing.
+     *
+     * Needed because group payloads mention people by `@lid` while we only ever stored a phone
+     * number — without this the two never compare equal and a mention is invisible.
+     *
+     * @param string $phoneNumber digits or a full JID
+     */
+    public function getLidFromPhoneNumber(string $phoneNumber): ?string
+    {
+        $response = $this->client->get('/api/lid-from-phone-number/' . rawurlencode($phoneNumber));
+        $lid = $response['data']['lid'] ?? $response['lid'] ?? null;
+
+        return is_string($lid) && $lid !== '' ? $lid : null;
+    }
+
+    /**
      * Get the current user's own contact info.
      */
     public function getOwnContactInfo(): array
