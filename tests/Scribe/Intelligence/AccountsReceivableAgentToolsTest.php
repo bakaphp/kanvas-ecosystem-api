@@ -6,6 +6,7 @@ namespace Tests\Scribe\Intelligence;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
@@ -15,6 +16,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
+use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -212,6 +214,69 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $invoice = Invoice::query()->where('id', $result['invoice_id'])->first();
         $this->assertSame(InvoiceDocumentStatusEnum::DRAFT, $invoice->document_status);
+    }
+
+    public function test_approve_pending_item_requires_the_configured_approver(): void
+    {
+        $customer = $this->seedTestOrganization('Approval Flow Customer');
+
+        $created = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: 'Approval Flow Customer', amount: 300.0, memo: 'Approval flow test', push_to_acumatica: false);
+
+        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, '');
+
+        $result = new ApprovePendingItemTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(target_type: 'invoice', target_id: (int) $created['invoice_id']);
+
+        $this->assertFalse($result['approved']);
+        $this->assertSame('not_authorized', $result['reason']);
+    }
+
+    public function test_approve_pending_item_approves_a_pending_invoice_and_carries_the_source_email(): void
+    {
+        $customer = $this->seedTestOrganization('Approval Flow Customer 2');
+
+        $created = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                customer_name: 'Approval Flow Customer 2',
+                amount: 300.0,
+                memo: 'Approval flow test',
+                push_to_acumatica: false,
+                source_email_message_id: 'MSG_AR_APR_1',
+                source_attachment_url: 'https://cdn.example.test/invoice-ar-apr-1.pdf',
+                source_attachment_filename: 'invoice-ar-apr-1.pdf',
+            );
+
+        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+
+        $result = new ApprovePendingItemTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(target_type: 'invoice', target_id: (int) $created['invoice_id']);
+
+        $this->assertTrue($result['approved']);
+        $this->assertSame('MSG_AR_APR_1', $result['source_email_message_id']);
+        $this->assertSame('https://cdn.example.test/invoice-ar-apr-1.pdf', $result['source_attachment_url']);
+        $this->assertSame('invoice-ar-apr-1.pdf', $result['source_attachment_filename']);
+        $this->assertSame(static::$cachedUser->email, $result['approved_by']);
+        $this->assertNotEmpty($result['approved_at']);
+
+        $invoice = Invoice::query()->where('id', $created['invoice_id'])->first();
+        $this->assertSame(InvoiceDocumentStatusEnum::ISSUED, $invoice->document_status);
+    }
+
+    public function test_approve_pending_item_reports_not_found_when_nothing_pending(): void
+    {
+        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+
+        $result = new ApprovePendingItemTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(target_type: 'invoice', target_id: 999999999);
+
+        $this->assertFalse($result['approved']);
+        $this->assertSame('not_found', $result['reason']);
     }
 
     public function test_match_invoices_for_payment_flags_the_exact_invoice(): void

@@ -17,6 +17,7 @@ use Kanvas\Connectors\Gmail\Actions\DownloadAttachmentAction;
 use Kanvas\Connectors\Gmail\Actions\ListEmailsAction;
 use Kanvas\Connectors\Gmail\Actions\MarkEmailAsReadAction;
 use Kanvas\Connectors\Gmail\Actions\ReadEmailDetailsAction;
+use Kanvas\Connectors\Gmail\Actions\ReplyToEmailAction;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Mockery;
@@ -162,5 +163,49 @@ class GmailActionsTest extends TestCase
         $result = new MarkEmailAsReadAction(app(Apps::class), 'MSG_1', $service)->execute();
 
         $this->assertSame('MSG_1', $result['message_id']);
+    }
+
+    public function test_reply_to_email_sends_an_internal_only_threaded_reply(): void
+    {
+        $messagesResource = Mockery::mock(UsersMessages::class);
+        $messagesResource->shouldReceive('get')
+            ->once()
+            ->with('me', 'MSG_1', ['format' => 'metadata', 'metadataHeaders' => ['Subject', 'Message-ID']])
+            ->andReturn(new Message([
+                'threadId' => 'THREAD_1',
+                'payload' => new MessagePart([
+                    'headers' => [
+                        new MessagePartHeader(['name' => 'Subject', 'value' => 'Invoice #4521']),
+                        new MessagePartHeader(['name' => 'Message-ID', 'value' => '<original@vendor.com>']),
+                    ],
+                ]),
+            ]));
+
+        $messagesResource->shouldReceive('send')
+            ->once()
+            ->with('me', Mockery::on(function (Message $message): bool {
+                $decoded = (string) base64_decode(strtr((string) $message->getRaw(), '-_', '+/'));
+
+                return $message->getThreadId() === 'THREAD_1'
+                    && str_contains($decoded, 'To: approver@kanvas.test')
+                    && str_contains($decoded, 'Subject: Re: Invoice #4521')
+                    && str_contains($decoded, 'In-Reply-To: <original@vendor.com>')
+                    && str_contains($decoded, 'Approved by Jane Doe on 2026-08-19');
+            }))
+            ->andReturn(new Message(['id' => 'SENT_1', 'threadId' => 'THREAD_1']));
+
+        $service = Mockery::mock(GmailService::class);
+        $service->users_messages = $messagesResource;
+
+        $result = new ReplyToEmailAction(
+            app(Apps::class),
+            'MSG_1',
+            ['approver@kanvas.test'],
+            'Approved by Jane Doe on 2026-08-19',
+            $service,
+        )->execute();
+
+        $this->assertSame('SENT_1', $result['message_id']);
+        $this->assertSame('THREAD_1', $result['thread_id']);
     }
 }
