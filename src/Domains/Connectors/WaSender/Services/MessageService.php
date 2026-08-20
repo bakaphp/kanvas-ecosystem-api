@@ -8,6 +8,15 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\WaSender\Client;
 
+/**
+ * Outbound WhatsApp.
+ *
+ * **No bulk send lives here, deliberately.** This provider is an unofficial client and WhatsApp
+ * restricts numbers for "spam, automated or bulk messaging" — a `sendBulkMessage()` existed with no
+ * callers and no throttle, and was removed rather than left as a loaded gun. Sending to many
+ * recipients is not a capability this connector offers; the supported shapes are a 1:1 reply and a
+ * group reply when the agent is mentioned, both delayed by the burst window.
+ */
 class MessageService
 {
     protected Client $client;
@@ -211,25 +220,6 @@ class MessageService
         $data = array_merge(['to' => $to], $messageData);
 
         return $this->client->post('/api/send-message', $data);
-    }
-
-    /**
-     * Send a message to multiple recipients.
-     *
-     * @param array $recipients Array of recipient phone numbers in E.164 format
-     * @param array $messageData Message data (text, media, etc.)
-     * @return array Array of responses for each recipient
-     */
-    public function sendBulkMessage(array $recipients, array $messageData): array
-    {
-        $responses = [];
-
-        foreach ($recipients as $recipient) {
-            $data = array_merge(['to' => $recipient], $messageData);
-            $responses[$recipient] = $this->client->post('/api/send-message', $data);
-        }
-
-        return $responses;
     }
 
     /**

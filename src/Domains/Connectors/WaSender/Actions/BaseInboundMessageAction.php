@@ -51,12 +51,12 @@ abstract class BaseInboundMessageAction
     protected function armBurstClose(Message $head): void
     {
         $token = Str::uuid()->toString();
-        $idleSeconds = $this->closeIdleSeconds();
+        $delaySeconds = $this->closeIdleSeconds() + $this->jitterSeconds();
 
         Cache::put(
             ProcessGroupBurstJob::cacheKey($head->getId()),
             $token,
-            BurstConfigEnum::BURST_MAX_SECONDS->getInt($this->receiver) + $idleSeconds
+            BurstConfigEnum::BURST_MAX_SECONDS->getInt($this->receiver) + $delaySeconds
         );
 
         ProcessGroupBurstJob::dispatch(
@@ -65,7 +65,18 @@ abstract class BaseInboundMessageAction
             $this->channel,
             $head->getId(),
             $token
-        )->delay(now()->addSeconds($idleSeconds));
+        )->delay(now()->addSeconds($delaySeconds));
+    }
+
+    /**
+     * Nobody answers at exactly the same interval every time, and a fixed delay is as much of a
+     * bot signature as an instant one.
+     */
+    private function jitterSeconds(): int
+    {
+        $jitter = BurstConfigEnum::BURST_JITTER_SECONDS->getInt($this->receiver);
+
+        return $jitter > 0 ? random_int(0, $jitter) : 0;
     }
 
     protected function attachToBurst(Message $message): ?Message
