@@ -62,7 +62,7 @@ class AccountsPayableAgent extends SystemUserAgent
     #[Override]
     protected function tools(): array
     {
-        return array_merge(parent::tools(), $this->addToolContext([
+        $tools = array_merge(parent::tools(), $this->addToolContext([
             new QueryDataFreshnessTool(),
             new QueryApAgingTool(),
             new ListOpenBillsTool(),
@@ -74,7 +74,6 @@ class AccountsPayableAgent extends SystemUserAgent
             new CreateApBillTool(),
             new VoidApBillTool(),
             new ApplyApPaymentTool(),
-            new ApprovePendingItemTool(),
             new AddBillNoteTool(),
             new AttachBillFileTool(),
             new ReadGoogleSheetTool(),
@@ -89,6 +88,14 @@ class AccountsPayableAgent extends SystemUserAgent
             new MarkEmailAsReadTool(),
             new ReplyToEmailTool(),
         ]));
+
+        // approve_pending_item must authorize against the real human, not actingUser() (the agent itself on @mention/channel surfaces).
+        $requestingHuman = $this->requestingHuman();
+        if ($requestingHuman !== null && $this->app !== null && $this->company !== null) {
+            $tools[] = new ApprovePendingItemTool()->withContext($this->app, $this->company, $requestingHuman);
+        }
+
+        return $tools;
     }
 
     #[Override]

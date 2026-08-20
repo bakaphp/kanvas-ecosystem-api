@@ -68,7 +68,7 @@ class AccountsReceivableAgent extends SystemUserAgent
     #[Override]
     protected function tools(): array
     {
-        return array_merge(parent::tools(), $this->addToolContext([
+        $tools = array_merge(parent::tools(), $this->addToolContext([
             new QueryDataFreshnessTool(),
             new QueryArAgingTool(),
             new ListOverdueInvoicesTool(),
@@ -86,7 +86,6 @@ class AccountsReceivableAgent extends SystemUserAgent
             new CreateArInvoiceTool(),
             new VoidArInvoiceTool(),
             new ApplyArPaymentTool(),
-            new ApprovePendingItemTool(),
             new CreateArCreditMemoTool(),
             new AddInvoiceNoteTool(),
             new AttachInvoiceFileTool(),
@@ -102,6 +101,14 @@ class AccountsReceivableAgent extends SystemUserAgent
             new MarkEmailAsReadTool(),
             new ReplyToEmailTool(),
         ]));
+
+        // approve_pending_item must authorize against the real human, not actingUser() (the agent itself on @mention/channel surfaces).
+        $requestingHuman = $this->requestingHuman();
+        if ($requestingHuman !== null && $this->app !== null && $this->company !== null) {
+            $tools[] = new ApprovePendingItemTool()->withContext($this->app, $this->company, $requestingHuman);
+        }
+
+        return $tools;
     }
 
     #[Override]
