@@ -32,8 +32,10 @@ use Kanvas\Workflow\KanvasActivity;
     ],
     requiredParams: ['message_type_id'],
     params: [
-        'message_type_id' => 'Only messages of this type are published. Leaving it unset does not error — '
-            . 'it publishes EVERY message on the channel to the site, which is why it is required here.',
+        'message_type_id' => 'Only messages of these types are published. One id, a list of ids, or a '
+            . 'comma-separated string — a newsroom publishing from both email and WhatsApp names both. '
+            . 'Leaving it unset does not error — it publishes EVERY message on the channel to the site, '
+            . 'which is why it is required here.',
         'status' => 'draft | pending | publish | private | future. Use "pending" when a human should '
             . 'review before it goes live. Defaults to the site\'s configured default.',
         'categories' => 'Category names, not WordPress ids. Created on the site if term creation is allowed.',
@@ -62,12 +64,13 @@ class PushMessageToWordPressActivity extends KanvasActivity
             integration: IntegrationsEnum::WORDPRESS,
             additionalParams: $params,
             integrationOperation: function (Message $message, Apps $app, mixed $integrationCompany, array $additionalParams): array {
-                $messageTypeId = $additionalParams['message_type_id'] ?? null;
+                $messageTypeIds = $this->messageTypeIds($additionalParams['message_type_id'] ?? null);
 
-                if ($messageTypeId !== null && $message->message_types_id !== (int) $messageTypeId) {
+                if ($messageTypeIds !== [] && ! in_array((int) $message->message_types_id, $messageTypeIds, true)) {
                     return $this->skip(
                         $message,
-                        'Message type ' . $message->message_types_id . ' does not match the configured ' . $messageTypeId
+                        'Message type ' . $message->message_types_id
+                            . ' does not match the configured ' . implode(', ', $messageTypeIds)
                     );
                 }
 
@@ -97,6 +100,22 @@ class PushMessageToWordPressActivity extends KanvasActivity
             },
             company: $company,
         );
+    }
+
+    /**
+     * A rule can name one type or several — a newsroom that publishes what its agent writes over
+     * email AND WhatsApp needs both. Accepts an id, an array of ids, or the comma-separated string
+     * a plain text rule param gives you.
+     *
+     * @return list<int>
+     */
+    private function messageTypeIds(mixed $configured): array
+    {
+        $values = is_string($configured) ? explode(',', $configured) : (array) $configured;
+
+        $ids = array_map(static fn (mixed $id): int => (int) trim((string) $id), $values);
+
+        return array_values(array_unique(array_filter($ids, static fn (int $id): bool => $id > 0)));
     }
 
     /**

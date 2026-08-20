@@ -79,6 +79,61 @@ final class PushMessageToWordPressActivityTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function testPublishesWhenTheMessageTypeIsOneOfSeveralConfigured(): void
+    {
+        $this->configureSite();
+        $this->registerIntegration();
+        $this->fakeWordPress();
+
+        $message = $this->makeMessage(['content' => 'Body']);
+
+        $result = $this->activity()->execute(
+            $message,
+            app(Apps::class),
+            ['message_type_id' => [$message->message_types_id + 1, $message->message_types_id]]
+        );
+
+        $this->assertSame(101, $result['id']);
+    }
+
+    /**
+     * A rule param typed into a plain text field arrives as a string, not an array.
+     */
+    public function testAcceptsACommaSeparatedListOfMessageTypes(): void
+    {
+        $this->configureSite();
+        $this->registerIntegration();
+        $this->fakeWordPress();
+
+        $message = $this->makeMessage(['content' => 'Body']);
+
+        $result = $this->activity()->execute(
+            $message,
+            app(Apps::class),
+            ['message_type_id' => ($message->message_types_id + 1) . ', ' . $message->message_types_id]
+        );
+
+        $this->assertSame(101, $result['id']);
+    }
+
+    public function testSkipsWhenTheMessageTypeIsInNoneOfTheConfigured(): void
+    {
+        $this->configureSite();
+        $this->registerIntegration();
+        $this->fakeWordPress();
+
+        $message = $this->makeMessage(['content' => 'Body']);
+
+        $result = $this->activity()->execute(
+            $message,
+            app(Apps::class),
+            ['message_type_id' => [$message->message_types_id + 1, $message->message_types_id + 2]]
+        );
+
+        $this->assertStringContainsString('does not match', $result['message']);
+        Http::assertNothingSent();
+    }
+
     /**
      * Both sides of a channel conversation carry the same message type, so without this guard the
      * customer's own email publishes as a post — and succeeds, since `content` is a valid post key.
