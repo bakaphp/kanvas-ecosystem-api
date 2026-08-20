@@ -6,6 +6,9 @@ namespace Tests\Scribe\Intelligence;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsReceivableAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
@@ -24,6 +27,7 @@ use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\HasRunKey;
 use Tests\Scribe\ScribeTestCase;
 
@@ -297,6 +301,46 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $this->assertFalse($result['approved']);
         $this->assertSame('not_found', $result['reason']);
+    }
+
+    public function test_approve_pending_item_authorizes_the_conversation_human_not_the_agents_own_identity(): void
+    {
+        $this->seedTestOrganization('Approval Flow Customer 3');
+
+        $created = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: 'Approval Flow Customer 3', amount: 300.0, memo: 'Approval flow test', push_to_acumatica: false);
+
+        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+
+        // Mirrors an @mention/channel turn: setConfiguration() receives the agent's OWN user, distinct
+        // from the human actually approving, exactly like SlackUserResolverService resolving a DM sender.
+        $agentOwnUser = Users::factory()->create(['email' => 'agent-own-user-' . uniqid() . '@internal.test']);
+        $agentType = AgentType::factory()->withAppId($this->kanvasApp->getId())->create(['provider' => 'neuron']);
+        $agentModel = Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['agent_type_id' => $agentType->getId(), 'user_id' => $agentOwnUser->getId()]);
+
+        $handler = new AccountsReceivableAgent();
+        $handler->setConfiguration($agentModel, user: $agentOwnUser);
+        $handler->setConversationHuman(static::$cachedUser);
+
+        $approveTool = null;
+        foreach ($handler->getTools() as $tool) {
+            if ($tool instanceof ApprovePendingItemTool) {
+                $approveTool = $tool;
+
+                break;
+            }
+        }
+
+        $this->assertNotNull($approveTool, 'approve_pending_item must be registered once the conversation human is known.');
+
+        $result = $approveTool->__invoke(target_type: 'invoice', target_id: (int) $created['invoice_id']);
+
+        $this->assertTrue($result['approved'], 'The configured approver must be authorized even when the agent turn is wired with its own identity.');
+        $this->assertSame(static::$cachedUser->email, $result['approved_by']);
     }
 
     public function test_match_invoices_for_payment_flags_the_exact_invoice(): void

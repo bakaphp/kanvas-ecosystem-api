@@ -7,6 +7,9 @@ namespace Tests\Scribe\Intelligence;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
@@ -29,6 +32,7 @@ use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Scribe\Purchasing\Models\PurchaseOrderLine;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\HasRunKey;
 use Spatie\LaravelData\DataCollection;
 use Tests\Scribe\ScribeTestCase;
@@ -414,6 +418,56 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $this->assertFalse($result['approved']);
         $this->assertSame('not_found', $result['reason']);
+    }
+
+    public function test_approve_pending_item_authorizes_the_conversation_human_not_the_agents_own_identity(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $created = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Approval flow test',
+                invoice_number: 'APR-3',
+                push_to_acumatica: false,
+            );
+
+        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+
+        // Mirrors an @mention/channel turn: setConfiguration() receives the agent's OWN user, distinct
+        // from the human actually approving, exactly like SlackUserResolverService resolving a DM sender.
+        $agentOwnUser = Users::factory()->create(['email' => 'agent-own-user-' . uniqid() . '@internal.test']);
+        $agentType = AgentType::factory()->withAppId($this->kanvasApp->getId())->create(['provider' => 'neuron']);
+        $agentModel = Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['agent_type_id' => $agentType->getId(), 'user_id' => $agentOwnUser->getId()]);
+
+        $handler = new AccountsPayableAgent();
+        $handler->setConfiguration($agentModel, user: $agentOwnUser);
+        $handler->setConversationHuman(static::$cachedUser);
+
+        $approveTool = null;
+        foreach ($handler->getTools() as $tool) {
+            if ($tool instanceof ApprovePendingItemTool) {
+                $approveTool = $tool;
+
+                break;
+            }
+        }
+
+        $this->assertNotNull($approveTool, 'approve_pending_item must be registered once the conversation human is known.');
+
+        $result = $approveTool->__invoke(target_type: 'bill', target_id: (int) $created['bill_id']);
+
+        $this->assertTrue($result['approved'], 'The configured approver must be authorized even when the agent turn is wired with its own identity.');
+        $this->assertSame(static::$cachedUser->email, $result['approved_by']);
     }
 
     public function test_find_vendor_returns_a_dead_end_message_when_nothing_matches(): void
