@@ -106,8 +106,18 @@ since `content` is itself a valid post key.
 
 ### Precedence
 
-`message body wordpress: {}` > `response_json` > `message body top level` > `workflow rule params` >
-connector config.
+`workflow rule status` > `message body wordpress: {}` > `response_json` > `message body top level` >
+`workflow rule params` > connector config.
+
+**`status` from the workflow rule is the one field that outranks the message.** It is editorial
+policy, not content: a rule configured to hold everything for review must not be overruled by an
+agent that wrote `"status": "publish"` into its envelope. Everything else the rule sets stays a
+default the message can override — categories and tags describe the article, and whoever wrote it
+knows those better than the rule does.
+
+The promotion is scoped to the **rule's** status (`PushMessageToWordPressAction::statusOverride()`),
+not the connector's `default_post_status`. That one stays a site-wide default, so a message naming
+its own status still wins over it.
 
 Only the keys wp/v2 understands are read out of each layer, so agent bookkeeping in the message
 body — and the editorial extras a news agent emits (`titulos_alternativos`, `correcciones`) — can
