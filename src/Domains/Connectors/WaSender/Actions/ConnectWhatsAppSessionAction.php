@@ -209,9 +209,6 @@ class ConnectWhatsAppSessionAction
      */
     private function webhookEvents(): array
     {
-        return array_map(
-            static fn (WebhookEventEnum $event): string => $event->value,
-            WebhookEventEnum::cases(),
-        );
+        return WebhookEventEnum::subscribable();
     }
 }

@@ -129,6 +129,7 @@ class MessageService
     {
         return $this->client->post('/api/decrypt-media', $payload);
     }
+
     /**
      * Send a contact card.
      *
@@ -253,19 +254,4 @@ class MessageService
      * @param string $defaultCountryCode Default country code if not present in phone number
      * @return string Phone number in E.164 format
      */
-    public function formatPhoneNumber(string $phoneNumber, string $defaultCountryCode = '1'): string
-    {
-        // Remove any non-numeric characters
-        $cleaned = preg_replace('/[^0-9]/', '', $phoneNumber);
-
-        // If the number doesn't start with +, add the default country code
-        if (! str_starts_with($phoneNumber, '+')) {
-            // If the number already starts with the country code, don't add it again
-            if (! str_starts_with($cleaned, $defaultCountryCode)) {
-                $cleaned = $defaultCountryCode . $cleaned;
-            }
-        }
-
-        return '+' . $cleaned;
-    }
 }

@@ -97,7 +97,7 @@ class ConnectWhatsAppSessionActionTest extends TestCase
         $this->assertSame('need_scan', $result['status']);
         $this->assertSame('base64QRDATA', $result['qr_code']);
 
-        // Session name defaulted to phone; ALL webhook events subscribed.
+        // Session name defaulted to phone; every event we act on is subscribed.
         $this->assertSame('18095551234', $captured[0]);
         $events = null;
         foreach ($captured as $arg) {
@@ -108,7 +108,13 @@ class ConnectWhatsAppSessionActionTest extends TestCase
             }
         }
         $this->assertNotNull($events);
-        $this->assertCount(count(WebhookEventEnum::cases()), $events);
+        $this->assertSame(WebhookEventEnum::subscribable(), $events);
+
+        // The inbound mirrors of messages.upsert are recognised but never subscribed to — one
+        // group message would otherwise arrive four times.
+        foreach (WebhookEventEnum::duplicateMessageEvents() as $duplicate) {
+            $this->assertNotContains($duplicate->value, $events);
+        }
 
         // Receiver created + webhook_secret stored (so signature verification passes)
         $receiver = ReceiverWebhook::query()

@@ -315,6 +315,29 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame(BillDocumentStatusEnum::PENDING_APPROVAL, $bill->document_status);
     }
 
+    public function test_create_ap_bill_treats_an_explicit_null_push_flag_as_the_default(): void
+    {
+        // The LLM sends `"push_to_acumatica": null` for an omitted optional boolean, which used to
+        // TypeError against a non-nullable `bool $push_to_acumatica = true` (Sentry KANVAS-ECOSYSTEM-67Z).
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
+        $accountCode = (string) Account::query()->where('id', $accountId)->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 2500.0,
+                gl_account_number: $accountCode,
+                memo: 'Null push flag test',
+                invoice_number: 'NULLFLAG-1',
+                push_to_acumatica: null,
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertNotSame('pending_approval', $result['document_status']);
+    }
+
     public function test_approve_pending_item_requires_the_configured_approver(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
