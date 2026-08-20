@@ -199,6 +199,8 @@ class CreateArInvoiceTool extends Tool
                 "You have an AR invoice pending approval:\nCustomer: {$customer->name}\nAmount: {$currency} "
                     . "{$amount}\nMemo: {$memo}\nInvoice ID (Kanvas): {$invoice->getId()}\n\nReply "
                     . "\"approve invoice {$invoice->getId()}\" to approve it and push it to Acumatica.",
+                $source_attachment_url,
+                $source_attachment_filename,
             )->execute();
 
             return [

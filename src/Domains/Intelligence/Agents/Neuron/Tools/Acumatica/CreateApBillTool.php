@@ -247,6 +247,8 @@ class CreateApBillTool extends Tool
                     . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : '')
                     . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
                     . "{$bill->getId()}\" to approve it and push it to Acumatica.",
+                $source_attachment_url,
+                $source_attachment_filename,
             )->execute();
 
             return [

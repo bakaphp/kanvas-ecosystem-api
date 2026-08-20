@@ -41,7 +41,10 @@ the tool, the Slack notification, and the queue never change.
    `RequestApprovalAction` explicitly (`action_type: 'approve_invoice'`) since a draft invoice has no
    built-in approval-queue side effect of its own.
 3. `NotifyApproverAction` fires automatically — DMs the configured approver on Slack with the
-   record's details and its Kanvas id.
+   record's details and its Kanvas id, and uploads the invoice PDF (`source_attachment_url`) as a
+   real Slack attachment when one was captured, so the approver can open the actual document
+   before deciding. If the upload fails for any reason, it falls back to the plain text DM instead
+   of losing the notification entirely.
 4. Logged to the tracking sheet as "Pending".
 
 **Approval** (the human, then Apex/Arc again):
