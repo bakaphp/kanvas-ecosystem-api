@@ -95,8 +95,9 @@ class CreateArInvoiceTool extends Tool
         float $amount,
         string $memo,
         ?string $currency = null,
-        bool $push_to_acumatica = true,
+        ?bool $push_to_acumatica = null,
     ): array {
+        $push_to_acumatica ??= true;
         $app = $this->app;
         $company = $this->company;
 

@@ -122,8 +122,9 @@ class CreateApBillTool extends Tool
         string $invoice_number,
         ?string $subaccount = null,
         ?string $currency = null,
-        bool $push_to_acumatica = true,
+        ?bool $push_to_acumatica = null,
     ): array {
+        $push_to_acumatica ??= true;
         $app = $this->app;
         $company = $this->company;
 

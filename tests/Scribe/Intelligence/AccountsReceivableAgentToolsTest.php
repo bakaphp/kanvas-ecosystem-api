@@ -195,6 +195,26 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame(0, $allocations);
     }
 
+    public function test_create_ar_invoice_treats_an_explicit_null_push_flag_as_the_default(): void
+    {
+        // The LLM sends `"push_to_acumatica": null` for an omitted optional boolean, which used to
+        // TypeError against a non-nullable `bool $push_to_acumatica = true` (Sentry KANVAS-ECOSYSTEM-67Z).
+        $customer = $this->seedTestOrganization('Null Flag Customer');
+        $customer->set(CustomFieldEnum::CUSTOMER_ID->value, 'C0001001');
+
+        $result = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                customer_name: 'Null Flag Customer',
+                amount: 275.0,
+                memo: 'Null push flag test',
+                push_to_acumatica: null,
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertNotSame('draft', $result['document_status']);
+    }
+
     public function test_create_ar_invoice_with_push_to_acumatica_false_stops_at_draft(): void
     {
         $customer = $this->seedTestOrganization('Pending Invoice Customer');
