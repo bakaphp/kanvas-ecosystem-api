@@ -68,10 +68,6 @@ abstract class BaseInboundMessageAction
         )->delay(now()->addSeconds($delaySeconds));
     }
 
-    /**
-     * Nobody answers at exactly the same interval every time, and a fixed delay is as much of a
-     * bot signature as an instant one.
-     */
     private function jitterSeconds(): int
     {
         $jitter = BurstConfigEnum::BURST_JITTER_SECONDS->getInt($this->receiver);

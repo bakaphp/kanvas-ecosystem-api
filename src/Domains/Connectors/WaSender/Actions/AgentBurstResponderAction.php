@@ -57,10 +57,8 @@ class AgentBurstResponderAction extends BaseAgentChannelReplyAction
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
-        // Filed whether or not we speak. The message carries `response_json` and fires the
-        // message-created rule, so a conversation the agent stays silent in still publishes its
-        // work — that is what "listens quietly, publishes the article, answers only when
-        // addressed" means. Gating message creation on the mention would throw the article away.
+        // Filed whether or not we speak: this message carries `response_json` and fires the
+        // message-created rule, so gating creation on the mention would discard the agent's work.
         $messageResponse = $this->createMessage(
             $responseText,
             $groupJid,
