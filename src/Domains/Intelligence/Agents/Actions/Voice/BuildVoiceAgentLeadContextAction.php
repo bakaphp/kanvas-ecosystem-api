@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
+use Baka\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
@@ -110,21 +111,18 @@ class BuildVoiceAgentLeadContextAction
     }
 
     /**
-     * Digit-only variants to match stored contacts (getByPhoneNumber compares on
-     * digits). A US-style 11-digit "1XXXXXXXXXX" also matches the 10-digit local.
+     * The number variants to feed getByPhoneNumber — the local (normalized) form
+     * and the country-code form. Mirrors the shared pattern used elsewhere for
+     * this exact lookup (see ProcessTwilioWebhookJob::processContactFromMessage).
      *
      * @return array<int, string>
      */
     private function phoneVariants(): array
     {
-        $digits = preg_replace('/\D+/', '', $this->phone) ?? '';
-        $variants = array_filter([$digits]);
-
-        if (strlen($digits) === 11 && str_starts_with($digits, '1')) {
-            $variants[] = substr($digits, 1);
-        }
-
-        return array_values(array_unique($variants));
+        return array_values(array_unique(array_filter([
+            Str::normalizePhoneNumber($this->phone),
+            str_replace('+', '', $this->phone),
+        ])));
     }
 
     /**
