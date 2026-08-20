@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Services;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\WaSender\Enums\ConversationTypeEnum;
@@ -83,73 +84,85 @@ final readonly class ConversationChannelService
             ->first();
     }
 
+    /**
+     * Mutual exclusion is a cache lock, not `SELECT ... FOR UPDATE`.
+     *
+     * `channels.slug` carries only non-unique composite indexes, so locking a row that does not
+     * exist yet gap-locks the whole index range: two workers opening different conversations then
+     * deadlock on the insert-intention lock. The old transaction also ran on the default
+     * connection while Channel writes to `social`, so it never guarded these writes at all.
+     */
     public function getOrCreateChannel(string $jid, ?string $name = null, ?Lead $lead = null): Channel
     {
-        $slug = self::channelSlug($jid);
+        // Every message after the first in a conversation takes this path — no lock, no
+        // transaction, one indexed read.
+        $channel = $this->findChannel($jid);
 
-        return DB::transaction(function () use ($slug, $jid, $name, $lead) {
-            $channel = Channel::where('slug', $slug)
-                ->where('companies_id', $this->receiver->company->getId())
-                ->where('apps_id', $this->receiver->app->getId())
-                ->lockForUpdate()
-                ->first();
+        if ($channel === null) {
+            $channel = Cache::lock('wasender:channel:' . self::channelSlug($jid), 10)
+                ->block(5, fn (): Channel => $this->findChannel($jid) ?? $this->createChannel($jid, $name, $lead));
+        } elseif ($name && $channel->name !== $name) {
+            $channel->name = $name;
+            $channel->save();
+        }
 
-            if (! $channel) {
-                $channel = new Channel();
-                $channel->name = $name ?? self::extractContactName($jid);
-                $channel->description = self::describe($jid);
-                $channel->slug = $slug;
-                $channel->companies_id = $this->receiver->company->getId();
-                $channel->apps_id = $this->receiver->app->getId();
+        if ($lead && empty($channel->entity_namespace)) {
+            $channel->entity_namespace = get_class($lead->people);
+            $channel->entity_id = $lead->people->getId();
+            $channel->update();
+        }
 
-                if ($lead) {
-                    $channel->entity_namespace = get_class($lead);
-                    $channel->entity_id = $lead->getId();
-                }
+        // Guarded by a read: set() is a Redis write plus three custom-field queries and a workflow
+        // fire, and this runs on every inbound message for the life of the channel.
+        if ($channel->id && $channel->get(ConfigurationEnum::AGENT_CHANNEL_TYPE->value) !== 'WhatsApp') {
+            $channel->set(
+                ConfigurationEnum::AGENT_CHANNEL_TYPE->value,
+                'WhatsApp'
+            );
+        }
 
-                // Saved unconditionally: a lead-less channel (group, newsletter) used to be built
-                // and thrown away on every delivery, so it never got an id and the config set
-                // below was silently skipped.
-                $channel->save();
+        return $channel;
+    }
 
-                $channel->addTags(
-                    [
-                        'whatsapp',
-                        'ai-agent',
-                    ],
-                    $lead?->app ?? $this->receiver->app,
-                    $lead?->user ?? $this->receiver->user,
-                    $lead?->company ?? $this->receiver->company
-                );
+    private function createChannel(string $jid, ?string $name, ?Lead $lead): Channel
+    {
+        return DB::connection('social')->transaction(function () use ($jid, $name, $lead): Channel {
+            $channel = new Channel();
+            $channel->name = $name ?? self::extractContactName($jid);
+            $channel->description = self::describe($jid);
+            $channel->slug = self::channelSlug($jid);
+            $channel->companies_id = $this->receiver->company->getId();
+            $channel->apps_id = $this->receiver->app->getId();
 
-                $channel->addCategory(
+            if ($lead) {
+                $channel->entity_namespace = get_class($lead);
+                $channel->entity_id = $lead->getId();
+            }
+
+            // Saved unconditionally: a lead-less channel (group, newsletter) used to be built and
+            // thrown away on every delivery, so it never got an id and the config set on the way
+            // out was silently skipped.
+            $channel->save();
+
+            $channel->addTags(
+                [
+                    'whatsapp',
                     'ai-agent',
-                    $this->receiver->app,
-                    $this->receiver->user,
-                    $this->receiver->company
-                );
-            } elseif ($name && $channel->name !== $name) {
-                $channel->name = $name;
-                $channel->save();
-            }
+                ],
+                $lead?->app ?? $this->receiver->app,
+                $lead?->user ?? $this->receiver->user,
+                $lead?->company ?? $this->receiver->company
+            );
 
-            if ($lead && empty($channel->entity_namespace)) {
-                $channel->entity_namespace = get_class($lead->people);
-                $channel->entity_id = $lead->people->getId();
-                $channel->update();
-            }
-
-            // Guarded by a read: set() is a Redis write plus three custom-field queries and a
-            // workflow fire, and this runs on every inbound message for the life of the channel.
-            if ($channel->id && $channel->get(ConfigurationEnum::AGENT_CHANNEL_TYPE->value) !== 'WhatsApp') {
-                $channel->set(
-                    ConfigurationEnum::AGENT_CHANNEL_TYPE->value,
-                    'WhatsApp'
-                );
-            }
+            $channel->addCategory(
+                'ai-agent',
+                $this->receiver->app,
+                $this->receiver->user,
+                $this->receiver->company
+            );
 
             return $channel;
-        }, 5);
+        });
     }
 
     public static function extractContactName(string $jid): string
