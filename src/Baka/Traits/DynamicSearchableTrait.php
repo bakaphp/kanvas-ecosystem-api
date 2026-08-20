@@ -7,6 +7,7 @@ namespace Baka\Traits;
 use BadMethodCallException;
 use Baka\Search\RecordSizeTrimmer;
 use Baka\Search\SearchEngineResolver;
+use Baka\Search\TypesenseCollectionInspector;
 use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\Engines\TypesenseEngine;
 use Laravel\Scout\Searchable;
@@ -56,6 +57,21 @@ trait DynamicSearchableTrait
         }
 
         return $this->resolvedEngineName() === 'algolia';
+    }
+
+    public function searchIndexRejectsObjectField(string $field): bool
+    {
+        if (! $this->isTypesense()) {
+            return false;
+        }
+
+        $app = $this->app ?? app(Apps::class);
+
+        return TypesenseCollectionInspector::rejectsObjectField(
+            $app,
+            $this->searchableAs(),
+            $field
+        );
     }
 
     /**
