@@ -25,13 +25,9 @@ enum BurstConfigEnum: string
     case BURST_MAX_SECONDS = 'burst_max_seconds';
 
     /**
-     * Random seconds added on top of the window before the agent answers.
-     *
-     * A reply that always lands exactly N seconds after the last message is a metronome, and
-     * WhatsApp restricts numbers that look automated — their support's own guidance is a short
-     * *variable* delay rather than a longer fixed one. Additive on purpose: jittering the window
-     * itself could shorten it below the point where a burst still collapses into one turn.
-     * Set to 0 for deterministic timing.
+     * Random seconds **added** to the window, so replies are not a metronome — WhatsApp restricts
+     * numbers that look automated. Additive rather than a percentage of the window: scaling it
+     * could shorten the window below the point where a burst still collapses into one turn.
      */
     case BURST_JITTER_SECONDS = 'burst_jitter_seconds';
 

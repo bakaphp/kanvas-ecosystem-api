@@ -201,12 +201,4 @@ class GroupService
         // Adjust the endpoint as needed based on actual API documentation
         return $this->client->post("/api/groups/{$groupJid}/invite-link", []);
     }
-
-    /**
-     * Format a phone number to E.164 format (remove all non-numeric characters).
-     *
-     * @param string $phoneNumber Phone number to format
-     * @param string $defaultCountryCode Default country code if not present in phone number
-     * @return string Formatted phone number (without the '+' prefix)
-     */
 }
