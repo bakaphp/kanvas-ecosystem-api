@@ -38,7 +38,6 @@ class ContactService
      */
     public function getContactInfo(string $phoneNumber): array
     {
-        // Ensure the phone number is properly formatted
         $formattedPhone = $this->formatPhoneNumber($phoneNumber);
 
         return $this->client->get("/api/contacts/{$formattedPhone}");
@@ -51,7 +50,6 @@ class ContactService
      */
     public function getContactProfilePicture(string $phoneNumber): array
     {
-        // Ensure the phone number is properly formatted
         $formattedPhone = $this->formatPhoneNumber($phoneNumber);
 
         return $this->client->get("/api/contacts/{$formattedPhone}/picture");
@@ -64,7 +62,6 @@ class ContactService
      */
     public function blockContact(string $phoneNumber): array
     {
-        // Ensure the phone number is properly formatted
         $formattedPhone = $this->formatPhoneNumber($phoneNumber);
 
         return $this->client->post("/api/contacts/{$formattedPhone}/block", []);
@@ -77,7 +74,6 @@ class ContactService
      */
     public function unblockContact(string $phoneNumber): array
     {
-        // Ensure the phone number is properly formatted
         $formattedPhone = $this->formatPhoneNumber($phoneNumber);
 
         return $this->client->post("/api/contacts/{$formattedPhone}/unblock", []);
@@ -111,14 +107,6 @@ class ContactService
         // Adjust the endpoint as needed based on actual API documentation
         return $this->client->get('/api/contacts/blocked');
     }
-
-    /**
-     * Format a phone number to E.164 format (remove all non-numeric characters and ensure it starts with country code).
-     *
-     * @param string $phoneNumber The phone number to format
-     * @param string $defaultCountryCode Default country code if not present in phone number
-     * @return string The formatted phone number (without the '+' prefix as required by the API)
-     */
 
     /**
      * Search contacts by name or phone number.
