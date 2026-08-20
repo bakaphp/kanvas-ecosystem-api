@@ -56,6 +56,13 @@ class NoShowQueryTest extends TestCase
         }
     ';
 
+    /**
+     * `inventory` is deliberately NOT transacted. CreateProductAction leans on
+     * `DB::connection('inventory')->transaction($cb, 3)` to retry the gap-lock deadlock that
+     * concurrent product inserts hit, and Laravel can only retry a transaction it opened
+     * itself — wrapping this connection here demotes that one to a savepoint and the
+     * deadlock escapes as a 500 instead.
+     */
     protected function connectionsToTransact(): array
     {
         return [null, 'event'];
@@ -74,22 +81,28 @@ class NoShowQueryTest extends TestCase
         $this->company = $this->user->getCurrentCompany();
         $this->region = Regions::getDefault($this->company, $this->apps);
 
-        $warehouseResponse = $this->createWarehouses((string) $this->region->getId())->json()['data']['createWarehouse'];
-        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
-        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+        $warehouseResponse = $this->graphQLData($this->createWarehouses((string) $this->region->getId()), 'createWarehouse');
+        $channelResponse = $this->graphQLData($this->createChannel(), 'createChannel');
+        $productResponse = $this->graphQLData($this->createProduct(), 'createProduct');
 
         $this->variant = Products::find($productResponse['id'])->variants()->first();
 
-        $this->addVariantToChannel(
-            variantId: (string) $this->variant->getId(),
-            channelId: $channelResponse['id'],
-            warehouseData: ['id' => $warehouseResponse['id']]
+        $this->graphQLData(
+            $this->addVariantToChannel(
+                variantId: (string) $this->variant->getId(),
+                channelId: $channelResponse['id'],
+                warehouseData: ['id' => $warehouseResponse['id']]
+            ),
+            'addVariantToChannel'
         );
 
-        $this->addVariantToWarehouse(
-            variantId: (string) $this->variant->getId(),
-            warehouseId: (string) $warehouseResponse['id'],
-            amount: 10
+        $this->graphQLData(
+            $this->addVariantToWarehouse(
+                variantId: (string) $this->variant->getId(),
+                warehouseId: (string) $warehouseResponse['id'],
+                amount: 10
+            ),
+            'addVariantToWarehouse'
         );
 
         $this->company->timezone = 'UTC';
