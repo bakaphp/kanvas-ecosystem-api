@@ -15,20 +15,29 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Enums\MessageChannelEnum;
 use Kanvas\Social\Messages\Enums\MessageSenderTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Repositories\MessagesTypesRepository;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 
 /**
  * The Engage usage leaderboard. A sibling of BuildAnalyticsAction rather than a mode of it: that
- * one is count-by-group over a single table, this needs a median plus lookups across four
- * connections (social, crm, event, ecosystem).
+ * one is count-by-group over a single table, this needs a median plus lookups across five
+ * connections (social, crm, event, intelligence, workflow, ecosystem).
  *
- * Attribution runs `messages.people_id` -> the person's lead -> `leads_owner_id`, never
- * `messages.users_id`, which on inbound is the receiver webhook's user and would pile every
- * customer reply onto one system user.
+ * Attribution splits by direction. A rep-sent message and a human response time are credited to
+ * `messages.users_id` — whoever actually typed it, which is the number the leaderboard is asked
+ * for. AI sends, customer replies and appointments are credited to the lead owner instead, because
+ * on those rows `users_id` is a system account (inbound carries the receiver webhook's user, AI
+ * sends carry the agent's) and crediting it would pile the whole company onto one fake rep.
+ *
+ * Two connectors write rep-sent rows as a system user as well: WaSender stores `receiver->user` on
+ * a message the rep typed on their own phone, and RespondIO does the same on every outgoing. So a
+ * sender that belongs to a receiver, an agent, or the company's AI user falls back to the lead
+ * owner rather than inventing a phantom top performer.
  *
  * Counting off `people_id` instead of joining `app_module_message` is what keeps totals honest —
  * one message can carry 20+ association rows, and that join multiplied every metric.
@@ -40,6 +49,9 @@ class BuildEngagementLeaderboardAction
 {
     private const int MAX_RESPONSE_PAIRS = 50000;
     private const int LOOKUP_CHUNK = 2000;
+
+    private ?int $aiAgentUserId = null;
+    private bool $aiAgentUserResolved = false;
 
     public function __construct(
         protected readonly AppInterface $app,
@@ -60,22 +72,28 @@ class BuildEngagementLeaderboardAction
             return ['rows' => [], 'team' => $this->teamRow([], [])];
         }
 
-        $counts = $this->messageCountsByPeople($typeIds);
-        $pairs = $this->responsePairsByPeople($typeIds);
+        $counts = $this->messageCounts($typeIds);
+        $pairs = $this->responsePairs($typeIds);
 
-        $byOwner = $this->foldByOwner(
+        $peopleIds = array_values(array_unique([
+            ...array_column($counts, 'people_id'),
+            ...array_column($pairs, 'people_id'),
+        ]));
+
+        $byRep = $this->foldByRep(
             $counts,
             $pairs,
-            $this->ownersForPeople(array_unique([...array_keys($counts), ...array_keys($pairs)])),
+            $this->ownersForPeople($peopleIds),
             $this->appointmentsByOwner(),
+            $this->systemUserIds(),
         );
 
-        $names = $this->resolveNames(array_keys($byOwner));
+        $names = $this->resolveNames(array_keys($byRep));
 
         $rows = [];
         $allDeltas = [];
-        foreach ($byOwner as $ownerId => $bucket) {
-            $rows[] = $this->presentRow($ownerId, $names[$ownerId] ?? 'user #' . $ownerId, $bucket);
+        foreach ($byRep as $repId => $bucket) {
+            $rows[] = $this->presentRow($repId, $names[$repId] ?? 'user #' . $repId, $bucket);
             $allDeltas = [...$allDeltas, ...$bucket['deltas']];
         }
 
@@ -88,72 +106,153 @@ class BuildEngagementLeaderboardAction
     }
 
     /**
-     * A person with no owning lead is dropped — there is no rep to credit.
+     * A row nobody can be credited for — a system-written send on a person whose lead has no
+     * owner — is dropped rather than parked on a placeholder rep.
      *
-     * @param  array<int, array<string, int>>  $counts
-     * @param  array<int, array<int, int>>  $pairs
+     * @param  array<int, array{people_id: int, sender_type: string, users_id: int, count: int}>  $counts
+     * @param  array<int, array{people_id: int, users_id: int, seconds: int}>  $pairs
      * @param  array<int, int>  $ownerByPeople
      * @param  array<int, int>  $appointments
+     * @param  array<int, true>  $systemUsers
      * @return array<int, array<string, mixed>>
      */
-    private function foldByOwner(
+    private function foldByRep(
         array $counts,
         array $pairs,
         array $ownerByPeople,
         array $appointments,
+        array $systemUsers,
     ): array {
-        $byOwner = [];
+        $byRep = [];
 
-        foreach ($counts as $peopleId => $bySender) {
-            if (! isset($ownerByPeople[$peopleId])) {
+        foreach ($counts as $row) {
+            $metric = match ($row['sender_type']) {
+                MessageSenderTypeEnum::USER->value => 'rep_sent',
+                MessageSenderTypeEnum::AGENT->value => 'ai_sent',
+                MessageSenderTypeEnum::CONTACT->value => 'replies',
+                default => null,
+            };
+
+            if ($metric === null) {
                 continue;
             }
 
-            $bucket = &$byOwner[$ownerByPeople[$peopleId]];
-            $bucket ??= self::emptyBucket();
-            $bucket['rep_sent'] += $bySender[MessageSenderTypeEnum::USER->value] ?? 0;
-            $bucket['ai_sent'] += $bySender[MessageSenderTypeEnum::AGENT->value] ?? 0;
-            $bucket['replies'] += $bySender[MessageSenderTypeEnum::CONTACT->value] ?? 0;
-            unset($bucket);
+            $repId = $metric === 'rep_sent'
+                ? self::creditFor($row['users_id'], $row['people_id'], $ownerByPeople, $systemUsers)
+                : $ownerByPeople[$row['people_id']] ?? null;
+
+            if ($repId === null) {
+                continue;
+            }
+
+            $byRep[$repId] ??= self::emptyBucket();
+            $byRep[$repId][$metric] += $row['count'];
         }
 
-        foreach ($pairs as $peopleId => $deltas) {
-            if (! isset($ownerByPeople[$peopleId])) {
+        foreach ($pairs as $pair) {
+            $repId = self::creditFor($pair['users_id'], $pair['people_id'], $ownerByPeople, $systemUsers);
+
+            if ($repId === null) {
                 continue;
             }
 
-            $bucket = &$byOwner[$ownerByPeople[$peopleId]];
-            $bucket ??= self::emptyBucket();
-            $bucket['deltas'] = [...$bucket['deltas'], ...$deltas];
-            unset($bucket);
+            $byRep[$repId] ??= self::emptyBucket();
+            $byRep[$repId]['deltas'][] = $pair['seconds'];
         }
 
         foreach ($appointments as $ownerId => $count) {
-            $byOwner[$ownerId] ??= self::emptyBucket();
-            $byOwner[$ownerId]['appointments'] += $count;
+            $byRep[$ownerId] ??= self::emptyBucket();
+            $byRep[$ownerId]['appointments'] += $count;
         }
 
         // The AI has its own Kanvas user and would otherwise rank as a rep, double-counting volume
         // that every row already reports as ai_sent.
         $aiUserId = $this->aiAgentUserId();
         if ($aiUserId !== null) {
-            unset($byOwner[$aiUserId]);
+            unset($byRep[$aiUserId]);
         }
 
-        return $byOwner;
+        return $byRep;
+    }
+
+    /**
+     * Who gets the credit for a human-sent message. The sender is the honest answer, but two
+     * connectors store a system account there (see the class docblock), so those rows fall back to
+     * the lead owner — the pre-existing behaviour — instead of crowning the receiver as top rep.
+     *
+     * @param  array<int, int>  $ownerByPeople
+     * @param  array<int, true>  $systemUsers
+     */
+    private static function creditFor(
+        int $senderId,
+        int $peopleId,
+        array $ownerByPeople,
+        array $systemUsers,
+    ): ?int {
+        if ($senderId > 0 && ! isset($systemUsers[$senderId])) {
+            return $senderId;
+        }
+
+        return $ownerByPeople[$peopleId] ?? null;
+    }
+
+    /**
+     * Accounts that are not reps: the company's AI agent user, the user each connector receiver
+     * writes messages as, and every agent's own user. Not filtered by is_deleted — a retired
+     * receiver's user is still not a person who sold anything.
+     *
+     * @return array<int, true>
+     */
+    private function systemUserIds(): array
+    {
+        $ids = [
+            ...ReceiverWebhook::query()
+                ->where('apps_id', $this->app->getId())
+                ->where('companies_id', $this->company->getId())
+                ->pluck('users_id')
+                ->all(),
+            ...Agent::query()
+                ->where('apps_id', $this->app->getId())
+                ->where('companies_id', $this->company->getId())
+                ->pluck('user_id')
+                ->all(),
+        ];
+
+        $aiUserId = $this->aiAgentUserId();
+        if ($aiUserId !== null) {
+            $ids[] = $aiUserId;
+        }
+
+        $set = [];
+        foreach ($ids as $id) {
+            $set[(int) $id] = true;
+        }
+
+        return $set;
     }
 
     /**
      * Throws when the configured id points at a deleted user; a dangling setting must not take the
      * whole report down. Worst case the AI keeps a row, which is visible and fixable, unlike a 500.
+     *
+     * Memoized because both the system-user set and the final row removal need it, and each miss
+     * is a settings read plus a user lookup.
      */
     private function aiAgentUserId(): ?int
     {
-        try {
-            return $this->company->getAiAgentUser()?->getId();
-        } catch (ModelNotFoundException | EloquentModelNotFoundException) {
-            return null;
+        if ($this->aiAgentUserResolved) {
+            return $this->aiAgentUserId;
         }
+
+        $this->aiAgentUserResolved = true;
+
+        try {
+            $this->aiAgentUserId = $this->company->getAiAgentUser()?->getId();
+        } catch (ModelNotFoundException | EloquentModelNotFoundException) {
+            $this->aiAgentUserId = null;
+        }
+
+        return $this->aiAgentUserId;
     }
 
     /**
@@ -217,23 +316,32 @@ class BuildEngagementLeaderboardAction
     }
 
     /**
+     * Grouped by sender as well as person, so a rep-sent row can be credited to whoever typed it
+     * while the rest of the row still resolves through the person's lead.
+     *
      * @param  array<int, int>  $typeIds
-     * @return array<int, array<string, int>>
+     * @return array<int, array{people_id: int, sender_type: string, users_id: int, count: int}>
      */
-    private function messageCountsByPeople(array $typeIds): array
+    private function messageCounts(array $typeIds): array
     {
         $rows = $this->communicationMessages($typeIds)
-            ->groupBy('people_id', 'sender_type')
+            ->groupBy('people_id', 'sender_type', 'users_id')
             ->select([
                 'people_id',
                 'sender_type',
+                'users_id',
                 DB::raw('COUNT(*) as aggregate_count'),
             ])
             ->get();
 
         $counts = [];
         foreach ($rows as $row) {
-            $counts[(int) $row->people_id][(string) $row->sender_type] = (int) $row->aggregate_count;
+            $counts[] = [
+                'people_id' => (int) $row->people_id,
+                'sender_type' => (string) $row->sender_type,
+                'users_id' => (int) $row->users_id,
+                'count' => (int) $row->aggregate_count,
+            ];
         }
 
         return $counts;
@@ -247,9 +355,9 @@ class BuildEngagementLeaderboardAction
      * far better than a mean.
      *
      * @param  array<int, int>  $typeIds
-     * @return array<int, array<int, int>>
+     * @return array<int, array{people_id: int, users_id: int, seconds: int}>
      */
-    private function responsePairsByPeople(array $typeIds): array
+    private function responsePairs(array $typeIds): array
     {
         $rows = $this->communicationMessages($typeIds)
             ->join('messages as reply', 'reply.id', '=', 'messages.response_message_id')
@@ -259,6 +367,8 @@ class BuildEngagementLeaderboardAction
             ->limit(self::MAX_RESPONSE_PAIRS)
             ->select([
                 'messages.people_id',
+                // The replier, not the inbound row's users_id — that one is the receiver webhook.
+                'reply.users_id as reply_users_id',
                 DB::raw('TIMESTAMPDIFF(SECOND, messages.created_at, reply.created_at) as response_seconds'),
             ])
             ->get();
@@ -277,7 +387,11 @@ class BuildEngagementLeaderboardAction
 
             // A reply stamped before its inbound is clock skew or a backfill artifact.
             if ($seconds >= 0) {
-                $pairs[(int) $row->people_id][] = $seconds;
+                $pairs[] = [
+                    'people_id' => (int) $row->people_id,
+                    'users_id' => (int) $row->reply_users_id,
+                    'seconds' => $seconds,
+                ];
             }
         }
 

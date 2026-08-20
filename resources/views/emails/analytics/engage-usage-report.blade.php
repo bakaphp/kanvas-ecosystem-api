@@ -98,7 +98,8 @@
     @endif
 
     <p style="{{ $muted }} font-size: 12px; line-height: 1.5; margin-top: 20px;">
-        Rows are keyed by the lead owner, so a rep's replies are the ones their own leads sent back.
+        Sent and rep resp are credited to the rep who actually sent the message. Customer replies and
+        AI sent are credited to the lead owner, so a rep's replies are the ones their own leads sent back.
         Rep resp is the median time a human took to answer an inbound message — AI replies are excluded.
         The AI agent has no row of its own; its volume shows per rep as AI sent.
         Only messaging that flows through Kanvas is counted, so a rep texting from a personal phone or

@@ -23,6 +23,7 @@ use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 use Tests\TestCase;
 
 class EngagementLeaderboardTest extends TestCase
@@ -30,10 +31,10 @@ class EngagementLeaderboardTest extends TestCase
     use DatabaseTransactions;
 
     /**
-     * Messages + app_module_message live on `social`, leads on `crm`, appointments on `event`.
-     * Omitting any of them leaks rows into the next test in this file.
+     * Messages + app_module_message live on `social`, leads on `crm`, appointments on `event`,
+     * receivers on `workflow`. Omitting any of them leaks rows into the next test in this file.
      */
-    protected $connectionsToTransact = [null, 'social', 'crm', 'event'];
+    protected $connectionsToTransact = [null, 'social', 'crm', 'event', 'workflow'];
 
     private Apps $kanvasApp;
     private Companies $company;
@@ -58,7 +59,7 @@ class EngagementLeaderboardTest extends TestCase
         ]);
     }
 
-    public function testAttributesEveryMetricToTheLeadOwnerNotTheMessageUser(): void
+    public function testCreditsASendToItsSenderAndAnInboundReplyToTheLeadOwner(): void
     {
         $owner = $this->createRep();
         $webhookUser = $this->createRep();
@@ -75,6 +76,80 @@ class EngagementLeaderboardTest extends TestCase
         $this->assertSame($owner->getId(), $rows[0]['users_id']);
         $this->assertSame(1, $rows[0]['rep_sent']);
         $this->assertSame(1, $rows[0]['replies']);
+    }
+
+    /**
+     * The reason this attribution changed: a rep covering a colleague's lead used to be invisible,
+     * with all their volume folded into the owner's row.
+     */
+    public function testCreditsASendToTheRepWhoTypedItRatherThanTheLeadOwner(): void
+    {
+        $owner = $this->createRep();
+        $coveringRep = $this->createRep();
+        $lead = $this->createLead($owner);
+
+        $this->createMessage($lead, ['from_me' => true], $coveringRep);
+
+        $rows = collect($this->leaderboard()['rows'])->keyBy('users_id')->all();
+
+        $this->assertArrayHasKey($coveringRep->getId(), $rows);
+        $this->assertSame(1, $rows[$coveringRep->getId()]['rep_sent']);
+        $this->assertArrayNotHasKey($owner->getId(), $rows);
+    }
+
+    public function testCreditsAiSendsToTheLeadOwnerNotTheAgentsUser(): void
+    {
+        $owner = $this->createRep();
+        $agentUser = $this->createRep();
+        $lead = $this->createLead($owner);
+
+        $this->createMessage($lead, ['from_me' => true, 'from_ia' => true], $agentUser);
+
+        $rows = $this->leaderboard()['rows'];
+
+        $this->assertCount(1, $rows);
+        $this->assertSame($owner->getId(), $rows[0]['users_id']);
+        $this->assertSame(1, $rows[0]['ai_sent']);
+    }
+
+    /**
+     * WaSender stores `receiver->user` on a message the rep typed on their own phone, and RespondIO
+     * does the same on every outgoing. Crediting that sender would crown the receiver top rep on
+     * every connector-backed company, so those rows fall back to the lead owner.
+     */
+    public function testFallsBackToTheLeadOwnerWhenAConnectorSendsAsItsReceiverUser(): void
+    {
+        $owner = $this->createRep();
+        $receiverUser = $this->createRep();
+        $lead = $this->createLead($owner);
+
+        ReceiverWebhook::factory()->create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => $receiverUser->getId(),
+        ]);
+
+        $this->createMessage($lead, ['from_me' => true], $receiverUser);
+
+        $rows = $this->leaderboard()['rows'];
+
+        $this->assertCount(1, $rows, 'the receiver user must not appear as a rep of its own');
+        $this->assertSame($owner->getId(), $rows[0]['users_id']);
+        $this->assertSame(1, $rows[0]['rep_sent']);
+    }
+
+    public function testCreditsResponseTimeToTheRepWhoActuallyReplied(): void
+    {
+        $owner = $this->createRep();
+        $coveringRep = $this->createRep();
+        $lead = $this->createLead($owner);
+
+        $this->createRespondedPair($lead, $coveringRep, 90, MessageSenderTypeEnum::USER);
+
+        $rows = collect($this->leaderboard()['rows'])->keyBy('users_id')->all();
+
+        $this->assertSame(90, $rows[$coveringRep->getId()]['median_response_seconds']);
+        $this->assertNull($rows[$owner->getId()]['median_response_seconds']);
     }
 
     public function testExcludesNonCommunicationMessages(): void
@@ -391,7 +466,7 @@ class EngagementLeaderboardTest extends TestCase
      */
     private function createRespondedPair(
         Lead $lead,
-        Users $owner,
+        Users $sender,
         int $seconds,
         MessageSenderTypeEnum $responder,
     ): void {
@@ -402,11 +477,11 @@ class EngagementLeaderboardTest extends TestCase
             $responder === MessageSenderTypeEnum::AGENT
                 ? ['from_me' => true, 'from_ia' => true]
                 : ['from_me' => true],
-            $owner,
+            $sender,
         );
         $reply->forceFill(['created_at' => $inboundAt->copy()->addSeconds($seconds)])->saveQuietly();
 
-        $inbound = $this->createMessage($lead, ['from_me' => false], $owner);
+        $inbound = $this->createMessage($lead, ['from_me' => false], $sender);
         $inbound->forceFill([
             'created_at' => $inboundAt,
             'is_un_response' => true,
