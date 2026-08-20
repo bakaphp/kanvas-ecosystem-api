@@ -24,6 +24,17 @@ enum BurstConfigEnum: string
     /** Hard ceiling, so a conversation that never goes quiet still flushes. */
     case BURST_MAX_SECONDS = 'burst_max_seconds';
 
+    /**
+     * Random seconds added on top of the window before the agent answers.
+     *
+     * A reply that always lands exactly N seconds after the last message is a metronome, and
+     * WhatsApp restricts numbers that look automated — their support's own guidance is a short
+     * *variable* delay rather than a longer fixed one. Additive on purpose: jittering the window
+     * itself could shorten it below the point where a burst still collapses into one turn.
+     * Set to 0 for deterministic timing.
+     */
+    case BURST_JITTER_SECONDS = 'burst_jitter_seconds';
+
     /** Media the agent is allowed to see. Video is filed and tagged but never sent through. */
     case MEDIA_TYPES = 'media_types';
 
@@ -35,6 +46,7 @@ enum BurstConfigEnum: string
             self::BURST_IDLE_SECONDS => 30,
             self::BURST_MENTION_IDLE_SECONDS => 8,
             self::BURST_MAX_SECONDS => 180,
+            self::BURST_JITTER_SECONDS => 12,
             self::MEDIA_TYPES => [MessageTypeEnum::IMAGE->value],
         };
     }
