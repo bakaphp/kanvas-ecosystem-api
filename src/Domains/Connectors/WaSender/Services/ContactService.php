@@ -7,10 +7,13 @@ namespace Kanvas\Connectors\WaSender\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\WaSender\Client;
+use Kanvas\Connectors\WaSender\Traits\FormatsPhoneNumberTrait;
 use Kanvas\Exceptions\ValidationException;
 
 class ContactService
 {
+    use FormatsPhoneNumberTrait;
+
     protected Client $client;
 
     public function __construct(
@@ -116,18 +119,6 @@ class ContactService
      * @param string $defaultCountryCode Default country code if not present in phone number
      * @return string The formatted phone number (without the '+' prefix as required by the API)
      */
-    protected function formatPhoneNumber(string $phoneNumber, string $defaultCountryCode = '1'): string
-    {
-        // Remove any non-numeric characters, including the '+' prefix if present
-        $cleaned = preg_replace('/[^0-9]/', '', $phoneNumber);
-
-        // If the number doesn't start with the country code, add it
-        if (! str_starts_with($phoneNumber, '+') && ! str_starts_with($cleaned, $defaultCountryCode)) {
-            $cleaned = $defaultCountryCode . $cleaned;
-        }
-
-        return $cleaned; // Return without '+' prefix as API requires
-    }
 
     /**
      * Search contacts by name or phone number.
