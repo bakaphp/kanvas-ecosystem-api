@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\WaSender\Enums\BurstConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\ConnectionFieldEnum;
 use Kanvas\Connectors\WaSender\Enums\DirectConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\DirectConversationModeEnum;
@@ -163,6 +164,78 @@ final class ProcessGroupBurstJobTest extends TestCase
             "Alex Rivera: Press release body\n\nAlex Rivera: Y la foto va aparte",
             $prompt
         );
+    }
+
+    /**
+     * A reply that always lands exactly N seconds after the last message is a metronome. Jitter is
+     * additive, so it can never shorten the window below the point where a burst still collapses.
+     */
+    public function testTheCloseDelayIsJitteredWithinBounds(): void
+    {
+        Queue::fake();
+        $this->allowGroup();
+        $this->setJitter(12);
+
+        $delays = [];
+
+        for ($i = 0; $i < 8; $i++) {
+            $armedAt = $this->clock->copy()->addSeconds($i * 120);
+            Carbon::setTestNow($armedAt);
+
+            $this->ingestAt($i * 120, $this->groupText('Alex Rivera', 'nota ' . $i));
+
+            $pushed = [];
+            Queue::assertPushed(ProcessGroupBurstJob::class, function (ProcessGroupBurstJob $job) use (&$pushed): bool {
+                $pushed[] = $job;
+
+                return true;
+            });
+
+            $delays[] = end($pushed)->delay->getTimestamp() - $armedAt->getTimestamp();
+        }
+
+        // Plain chatter, so the window is the full idle one.
+        $window = BurstConfigEnum::BURST_IDLE_SECONDS->getInt($this->receiver);
+
+        foreach ($delays as $delay) {
+            $this->assertGreaterThanOrEqual($window, $delay, 'Jitter must never shorten the burst window');
+            $this->assertLessThanOrEqual($window + 12, $delay);
+        }
+
+        $this->assertGreaterThan(1, count(array_unique($delays)), 'A fixed delay is as robotic as no delay');
+    }
+
+    public function testJitterOfZeroGivesTheExactConfiguredWindow(): void
+    {
+        Queue::fake();
+        $this->allowGroup();
+        $this->setJitter(0);
+
+        $armedAt = $this->clock->copy();
+        Carbon::setTestNow($armedAt);
+        $this->ingestAt(0, $this->groupText('Alex Rivera'));
+
+        $pushed = [];
+        Queue::assertPushed(ProcessGroupBurstJob::class, function (ProcessGroupBurstJob $job) use (&$pushed): bool {
+            $pushed[] = $job;
+
+            return true;
+        });
+
+        $this->assertSame(
+            BurstConfigEnum::BURST_IDLE_SECONDS->getInt($this->receiver),
+            end($pushed)->delay->getTimestamp() - $armedAt->getTimestamp()
+        );
+    }
+
+    private function setJitter(int $seconds): void
+    {
+        $receiver = $this->receiver();
+        $receiver->configuration = [
+            ...$receiver->configuration,
+            BurstConfigEnum::BURST_JITTER_SECONDS->value => $seconds,
+        ];
+        $receiver->saveOrFail();
     }
 
     public function testAMentionShortensTheCloseWindow(): void

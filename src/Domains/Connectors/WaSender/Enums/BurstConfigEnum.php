@@ -24,6 +24,13 @@ enum BurstConfigEnum: string
     /** Hard ceiling, so a conversation that never goes quiet still flushes. */
     case BURST_MAX_SECONDS = 'burst_max_seconds';
 
+    /**
+     * Random seconds **added** to the window, so replies are not a metronome — WhatsApp restricts
+     * numbers that look automated. Additive rather than a percentage of the window: scaling it
+     * could shorten the window below the point where a burst still collapses into one turn.
+     */
+    case BURST_JITTER_SECONDS = 'burst_jitter_seconds';
+
     /** Media the agent is allowed to see. Video is filed and tagged but never sent through. */
     case MEDIA_TYPES = 'media_types';
 
@@ -35,6 +42,7 @@ enum BurstConfigEnum: string
             self::BURST_IDLE_SECONDS => 30,
             self::BURST_MENTION_IDLE_SECONDS => 8,
             self::BURST_MAX_SECONDS => 180,
+            self::BURST_JITTER_SECONDS => 12,
             self::MEDIA_TYPES => [MessageTypeEnum::IMAGE->value],
         };
     }

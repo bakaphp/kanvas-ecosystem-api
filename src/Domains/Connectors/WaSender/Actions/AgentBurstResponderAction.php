@@ -57,17 +57,8 @@ class AgentBurstResponderAction extends BaseAgentChannelReplyAction
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
-        // A silent group still runs the agent — the activities wired to the burst consume its
-        // output. Only the posting back is gated.
-        if (! $shouldReply) {
-            return [
-                'message' => $prompt,
-                'response' => $responseText,
-                'responseText' => $responseContent,
-                'replied' => false,
-            ];
-        }
-
+        // Filed whether or not we speak: this message carries `response_json` and fires the
+        // message-created rule, so gating creation on the mention would discard the agent's work.
         $messageResponse = $this->createMessage(
             $responseText,
             $groupJid,
@@ -76,19 +67,34 @@ class AgentBurstResponderAction extends BaseAgentChannelReplyAction
             rawResponse: $responseContent
         );
 
-        if (! $messageResponse->is_locked) {
-            new MessageService(
-                $this->message->app,
-                $this->message->company
-            )->sendTextMessage($groupJid, $responseText);
+        $replied = $shouldReply && ! $messageResponse->is_locked;
+
+        if ($replied) {
+            $this->sendText($groupJid, $responseText);
+        } else {
+            // Otherwise channel history shows an agent turn that WhatsApp never received, and
+            // there is no way to tell a delivered reply from a withheld one after the fact.
+            $messageResponse->addTag('not-delivered');
         }
 
         return [
             'message' => $prompt,
             'response' => $responseText,
             'responseText' => $responseContent,
-            'replied' => true,
+            'replied' => $replied,
         ];
+    }
+
+    /**
+     * The one call that reaches WhatsApp. Isolated so a test can assert what would be sent without
+     * a live session — the client is Guzzle-backed, so `Http::fake()` does not intercept it.
+     */
+    protected function sendText(string $to, string $text): void
+    {
+        new MessageService(
+            $this->message->app,
+            $this->message->company
+        )->sendTextMessage($to, $text);
     }
 
     /**
