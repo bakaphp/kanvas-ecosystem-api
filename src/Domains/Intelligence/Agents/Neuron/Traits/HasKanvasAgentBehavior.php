@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\CurrentTimeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\DynamicSubAgentTool;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
+use Kanvas\Intelligence\Agents\Traits\HasTemporalContext;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
@@ -23,6 +24,8 @@ use Override;
 
 trait HasKanvasAgentBehavior
 {
+    use HasTemporalContext;
+
     protected ?Agent $agent = null;
     protected ?Apps $app = null;
     protected ?Companies $company = null;
@@ -337,7 +340,11 @@ trait HasKanvasAgentBehavior
         $role = $this->agent->role ?? [];
 
         return new SystemPrompt(
-            background: [...explode("\n", $role['background'] ?? ''), ...self::platformContext()],
+            background: [
+                ...explode("\n", $role['background'] ?? ''),
+                ...$this->temporalContextLines($this->resolveTenantTimezone()),
+                ...self::platformContext(),
+            ],
             steps: explode("\n", $role['steps'] ?? ''),
             output: explode("\n", $role['output'] ?? ''),
         )->__toString();

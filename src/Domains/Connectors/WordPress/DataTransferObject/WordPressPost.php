@@ -41,10 +41,15 @@ class WordPressPost
     }
 
     /**
-     * @param array<string, mixed> $defaults workflow-rule params + connector config, lowest precedence
+     * @param array<string, mixed> $defaults  workflow-rule params + connector config, lowest precedence
+     * @param array<string, mixed> $overrides editorial policy the message may not override — see
+     *                                        PushMessageToWordPressAction::statusOverride()
      */
-    public static function fromMessage(Message $message, array $defaults = []): self
-    {
+    public static function fromMessage(
+        Message $message,
+        array $defaults = [],
+        array $overrides = []
+    ): self {
         $body = $message->getMessage();
         $nested = is_array($body['wordpress'] ?? null) ? $body['wordpress'] : [];
 
@@ -53,6 +58,7 @@ class WordPressPost
             self::onlyPostKeys($body),
             self::onlyPostKeys(self::agentEnvelope($body)),
             self::onlyPostKeys($nested),
+            self::onlyPostKeys($overrides),
         );
 
         $content = self::resolveContent(

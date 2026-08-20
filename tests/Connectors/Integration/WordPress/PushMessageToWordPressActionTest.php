@@ -123,18 +123,30 @@ final class PushMessageToWordPressActionTest extends TestCase
         });
     }
 
+    /**
+     * True for every param except `status`, which the rule owns outright — see
+     * testTheRuleStatusOverridesTheAgentsOwn().
+     */
     public function testWorkflowDefaultsLoseToTheMessageBody(): void
     {
         $this->fakeWordPress();
 
-        $message = $this->makeMessage(['content' => 'Body', 'status' => 'publish']);
+        $message = $this->makeMessage([
+            'content' => 'Body',
+            'title' => 'Written by the agent',
+            'excerpt' => 'From the message',
+        ]);
 
-        new PushMessageToWordPressAction($message, defaults: ['status' => 'draft'])->execute();
+        new PushMessageToWordPressAction(
+            $message,
+            defaults: ['title' => 'From the rule', 'excerpt' => 'From the rule']
+        )->execute();
 
         Http::assertSent(function (Request $request): bool {
             return $request->method() === 'POST'
                 && str_ends_with($request->url(), '/wp/v2/posts')
-                && $request->data()['status'] === 'publish';
+                && $request->data()['title'] === 'Written by the agent'
+                && $request->data()['excerpt'] === 'From the message';
         });
     }
 
@@ -255,6 +267,83 @@ final class PushMessageToWordPressActionTest extends TestCase
                 && $body['content'] === '<p>El Nuevo Diario, LA ROMANA.- Un hombre falleció este jueves.</p>'
                 && $body['categories'] === [7];
         });
+    }
+
+    /**
+     * Status is the one field the rule owns outright: an editor who configured "hold for review" must
+     * not be overruled by an agent that wrote `publish` into its envelope.
+     */
+    public function testTheRuleStatusOverridesTheAgentsOwn(): void
+    {
+        $this->fakeWordPress();
+
+        $message = $this->makeMessage([
+            'content' => '<p>Body.</p>',
+            'response_json' => ['title' => 'Agent post', 'content' => '<p>Body.</p>', 'status' => 'publish'],
+        ]);
+
+        new PushMessageToWordPressAction($message, ['status' => 'pending'])->execute();
+
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
+            && str_ends_with($request->url(), '/wp/v2/posts')
+            && $request->data()['status'] === 'pending');
+    }
+
+    /**
+     * The promotion is scoped to status — the article's own terms still come from whoever wrote it.
+     */
+    public function testTheRuleDoesNotOverrideTheAgentsTerms(): void
+    {
+        $this->fakeWordPress();
+
+        $message = $this->makeMessage([
+            'content' => '<p>Body.</p>',
+            'response_json' => ['title' => 'Agent post', 'content' => '<p>Body.</p>', 'categories' => ['News']],
+        ]);
+
+        new PushMessageToWordPressAction($message, ['status' => 'pending', 'categories' => ['Ignored']])->execute();
+
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
+            && str_ends_with($request->url(), '/wp/v2/posts')
+            && $request->data()['categories'] === [7]);
+    }
+
+    /**
+     * The site-wide default is NOT policy — a message that names its own status still wins over it.
+     */
+    public function testTheConfiguredDefaultStatusDoesNotOverrideTheMessage(): void
+    {
+        $this->fakeWordPress();
+        $this->company()->set(ConfigurationEnum::DEFAULT_POST_STATUS->value, 'pending');
+
+        $message = $this->makeMessage([
+            'content' => '<p>Body.</p>',
+            'response_json' => ['title' => 'Agent post', 'content' => '<p>Body.</p>', 'status' => 'publish'],
+        ]);
+
+        new PushMessageToWordPressAction($message)->execute();
+
+        $this->company()->del(ConfigurationEnum::DEFAULT_POST_STATUS->value);
+
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
+            && str_ends_with($request->url(), '/wp/v2/posts')
+            && $request->data()['status'] === 'publish');
+    }
+
+    public function testTheRuleParamStatusAppliesWhenTheAgentOmitsIt(): void
+    {
+        $this->fakeWordPress();
+
+        $message = $this->makeMessage([
+            'content' => '<p>Body.</p>',
+            'response_json' => ['title' => 'Agent post', 'content' => '<p>Body.</p>'],
+        ]);
+
+        new PushMessageToWordPressAction($message, ['status' => 'pending'])->execute();
+
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
+            && str_ends_with($request->url(), '/wp/v2/posts')
+            && $request->data()['status'] === 'pending');
     }
 
     public function testRejectsAMessageWithNoContent(): void

@@ -34,7 +34,11 @@ class PushMessageToWordPressAction
         $company = $this->message->company;
         $client = $this->client ?? new RestClient($app, $company);
 
-        $post = WordPressPost::fromMessage($this->message, $this->defaults + $this->configDefaults());
+        $post = WordPressPost::fromMessage(
+            $this->message,
+            $this->defaults + $this->configDefaults(),
+            $this->statusOverride()
+        );
 
         if (trim(strip_tags($post->content)) === '') {
             throw new ValidationException('Message ' . $this->message->getId() . ' has no content to publish to WordPress');
@@ -116,6 +120,24 @@ class PushMessageToWordPressAction
         if ($attachmentIds !== []) {
             $this->message->set(CustomFieldEnum::MEDIA_IDS->value, $attachmentIds);
         }
+    }
+
+    /**
+     * Publishing status is editorial POLICY, not content: a workflow rule that holds everything for
+     * review must beat an agent that asked for `publish`. Every other rule param stays a default the
+     * message can override — categories and tags describe the article, and the writer knows those
+     * better than the rule does.
+     *
+     * Only the RULE's status is promoted; the connector configuration's default_post_status stays a
+     * default, so a message that names its own status still wins over the site-wide setting.
+     *
+     * @return array<string, string>
+     */
+    private function statusOverride(): array
+    {
+        $status = $this->defaults['status'] ?? null;
+
+        return is_string($status) && trim($status) !== '' ? ['status' => trim($status)] : [];
     }
 
     private function configDefaults(): array
