@@ -7,6 +7,11 @@ namespace Kanvas\NervousSystem\Scheduling\Enums;
 enum ScheduledActionStatusEnum: string
 {
     case PENDING = 'pending';
+    /**
+     * Disabled from the UI. Not terminal — the row keeps its schedule and can be resumed. The sweep
+     * only claims PENDING rows, so a paused row simply never becomes due.
+     */
+    case PAUSED = 'paused';
     case EXECUTING = 'executing';
     case EXECUTED = 'executed';
     case COMPLETED = 'completed';
