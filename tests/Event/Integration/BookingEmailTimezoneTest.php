@@ -40,6 +40,12 @@ class BookingEmailTimezoneTest extends TestCase
      * Booking writes to the `event` connection (BuildEventDataAction firstOrCreates a default
      * Theme), which the default DatabaseTransactions wrapping does not roll back — SetupTest
      * asserts an exact theme count and would see the leftover.
+     *
+     * `inventory` stays out on purpose: CreateProductAction relies on
+     * `DB::connection('inventory')->transaction($cb, 3)` to retry the gap-lock deadlock
+     * concurrent product inserts hit, and Laravel only retries a transaction it opened
+     * itself — listing the connection here demotes that one to a savepoint and the
+     * deadlock escapes as a 500.
      */
     protected function connectionsToTransact(): array
     {
@@ -55,22 +61,28 @@ class BookingEmailTimezoneTest extends TestCase
         $this->company = $this->user->getCurrentCompany();
         $this->region = Regions::getDefault($this->company, $this->apps);
 
-        $warehouseResponse = $this->createWarehouses((string) $this->region->getId())->json()['data']['createWarehouse'];
-        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
-        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+        $warehouseResponse = $this->graphQLData($this->createWarehouses((string) $this->region->getId()), 'createWarehouse');
+        $channelResponse = $this->graphQLData($this->createChannel(), 'createChannel');
+        $productResponse = $this->graphQLData($this->createProduct(), 'createProduct');
 
         $this->variant = Products::find($productResponse['id'])->variants()->first();
 
-        $this->addVariantToChannel(
-            variantId: (string) $this->variant->getId(),
-            channelId: $channelResponse['id'],
-            warehouseData: ['id' => $warehouseResponse['id']]
+        $this->graphQLData(
+            $this->addVariantToChannel(
+                variantId: (string) $this->variant->getId(),
+                channelId: $channelResponse['id'],
+                warehouseData: ['id' => $warehouseResponse['id']]
+            ),
+            'addVariantToChannel'
         );
 
-        $this->addVariantToWarehouse(
-            variantId: (string) $this->variant->getId(),
-            warehouseId: (string) $warehouseResponse['id'],
-            amount: 10
+        $this->graphQLData(
+            $this->addVariantToWarehouse(
+                variantId: (string) $this->variant->getId(),
+                warehouseId: (string) $warehouseResponse['id'],
+                amount: 10
+            ),
+            'addVariantToWarehouse'
         );
 
         $this->company->timezone = 'UTC';

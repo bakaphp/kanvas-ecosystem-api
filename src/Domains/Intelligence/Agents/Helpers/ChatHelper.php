@@ -15,7 +15,7 @@ class ChatHelper
 
     private static function resolveResponseText(string $response): string
     {
-        $data = self::decodeJsonEnvelope($response);
+        $data = self::extractJsonEnvelope($response);
         if ($data !== null) {
             return self::pickResponseField($data);
         }
@@ -79,7 +79,7 @@ class ChatHelper
      */
     public static function extractSubjectFromResponse(string $response): ?string
     {
-        $data = self::decodeJsonEnvelope($response);
+        $data = self::extractJsonEnvelope($response);
         if ($data === null) {
             return null;
         }
@@ -98,9 +98,14 @@ class ChatHelper
      * a fenced ```json block, then a bare `{...}` anywhere in the text. Returns null
      * when nothing parses as a JSON object.
      *
+     * Public because the reply text alone is lossy: {@see pickResponseField()} selects ONE
+     * field, so an agent that answers with a whole record (a post, a quote, an enrichment)
+     * loses every field but the body. Callers that persist the reply keep the envelope
+     * alongside it so a later activity can consume the structure.
+     *
      * @return array<array-key, mixed>|null
      */
-    private static function decodeJsonEnvelope(string $response): ?array
+    public static function extractJsonEnvelope(string $response): ?array
     {
         if (Str::isJson($response)) {
             $data = json_decode($response, true);

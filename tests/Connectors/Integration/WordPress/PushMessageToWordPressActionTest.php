@@ -177,6 +177,86 @@ final class PushMessageToWordPressActionTest extends TestCase
         new PushMessageToWordPressAction($this->makeMessage(['content' => 'Body']))->execute();
     }
 
+    /**
+     * The shape a channel responder writes: `content` holds the reply text ChatHelper picked out of
+     * the agent's JSON, `response_json` holds everything that pick threw away.
+     */
+    public function testPublishesTheStructuredEnvelopeAChannelReplyStoredAlongsideItsText(): void
+    {
+        $this->fakeWordPress();
+
+        $message = $this->makeMessage([
+            'content' => '<p>Agents can now post straight to the site.</p>',
+            'from_ia' => true,
+            'response_json' => [
+                'title' => 'Educación acelera construcción de aulas',
+                'content' => '<p>Agents can now post straight to the site.</p>',
+                'excerpt' => 'Short summary',
+                'status' => 'publish',
+                'categories' => ['News'],
+                'tags' => ['ai', 'kanvas'],
+                'featured_image' => '',
+                'meta' => ['source' => 'kanvas'],
+                'correcciones' => [['original' => 'x', 'corregida' => 'y']],
+            ],
+        ]);
+
+        $result = new PushMessageToWordPressAction($message)->execute();
+
+        $this->assertSame(101, $result['id']);
+
+        Http::assertSent(function (Request $request): bool {
+            if ($request->method() !== 'POST' || ! str_ends_with($request->url(), '/wp/v2/posts')) {
+                return false;
+            }
+
+            $body = $request->data();
+
+            return $body['title'] === 'Educación acelera construcción de aulas'
+                && $body['excerpt'] === 'Short summary'
+                && $body['status'] === 'publish'
+                && $body['categories'] === [7]
+                && $body['tags'] === [21, 22]
+                && $body['meta'] === ['source' => 'kanvas']
+                && ! array_key_exists('correcciones', $body);
+        });
+    }
+
+    /**
+     * Messages written before the responders decoded the envelope carry the reply verbatim, fence
+     * and all — they must still publish rather than shipping the raw JSON as the post body.
+     */
+    public function testDecodesAFencedEnvelopeStoredAsText(): void
+    {
+        $this->fakeWordPress();
+
+        $envelope = json_encode([
+            'title' => 'Ultiman a tiros a un hombre en La Romana',
+            'content' => '<p>El Nuevo Diario, LA ROMANA.- Un hombre falleció este jueves.</p>',
+            'categories' => ['News'],
+            'status' => 'draft',
+        ], JSON_UNESCAPED_UNICODE);
+
+        $message = $this->makeMessage([
+            'content' => 'El Nuevo Diario, LA ROMANA.- Un hombre falleció este jueves.',
+            'response_text' => "```json\n" . $envelope . "\n```",
+        ]);
+
+        new PushMessageToWordPressAction($message)->execute();
+
+        Http::assertSent(function (Request $request): bool {
+            if ($request->method() !== 'POST' || ! str_ends_with($request->url(), '/wp/v2/posts')) {
+                return false;
+            }
+
+            $body = $request->data();
+
+            return $body['title'] === 'Ultiman a tiros a un hombre en La Romana'
+                && $body['content'] === '<p>El Nuevo Diario, LA ROMANA.- Un hombre falleció este jueves.</p>'
+                && $body['categories'] === [7];
+        });
+    }
+
     public function testRejectsAMessageWithNoContent(): void
     {
         $this->fakeWordPress();
