@@ -395,8 +395,14 @@ class CreateEngagementAction
             channel_id: $this->engagementData->data['channel_id'] ?? null,
         );
 
+        $data = $engagementMessage->toArray();
+        if ($this->company->get('hide_millage')) {
+            $data['data']['hide_price'] = true;
+            $data['data']['hide_mileage'] = true;
+        }
+
         $messageInput = [
-            'message' => $engagementMessage->toArray(),
+            'message' => $data,
             'reactions_count' => 0,
             'comments_count' => 0,
             'total_liked' => 0,
