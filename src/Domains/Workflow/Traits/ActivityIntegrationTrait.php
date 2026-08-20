@@ -22,6 +22,7 @@ use Kanvas\Workflow\Integrations\DataTransferObject\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory as ModelsEntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
+use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Throwable;
 
@@ -100,6 +101,48 @@ trait ActivityIntegrationTrait
         return $this->lastIntegrationHistory;
     }
 
+    /**
+     * The region and integration-company lookups run before the try block, so a tenant with no
+     * default region — or none wired for that region — used to return an error array nobody reads:
+     * no history row, no exception, and the workflow looks like it simply stopped firing. Leave a
+     * FAILED row instead, then hand the caller the same array it always got.
+     */
+    protected function recordMisconfiguration(
+        AppInterface $app,
+        IntegrationsEnum $integration,
+        Companies $company,
+        Model $entity,
+        array $error,
+        ?Rule $rule = null
+    ): array {
+        $status = $this->getStatus(StatusEnum::FAILED);
+        $integrationModel = Integrations::where('name', $integration->value)->first();
+
+        // Nothing to point the row at — the status catalog or the integration itself is missing,
+        // which is a seeding problem rather than a tenant one.
+        if ($status === null || $integrationModel === null) {
+            return $error;
+        }
+
+        $this->lastIntegrationHistory = new AddEntityIntegrationHistoryAction(
+            dto: new EntityIntegrationHistory(
+                app: $app,
+                integrationCompany: null,
+                status: $status,
+                entity: $entity,
+                rule: $rule,
+                response: $error,
+                workflowId: $this->workflowId(),
+                company: $company,
+                integration: $integrationModel,
+            ),
+            app: $app,
+            status: $status
+        )->execute();
+
+        return $error;
+    }
+
     public function executeIntegration(
         Model $entity,
         AppInterface $app,
@@ -125,12 +168,19 @@ trait ActivityIntegrationTrait
         $region = $region ?? Regions::getDefault($company, $app);
 
         if (! $region) {
-            return [
-                'error' => 'No region configured for this company',
-                'integration' => $integration->value,
-                'company' => $company->getId(),
-                'entity_id' => $entity->getId(),
-            ];
+            return $this->recordMisconfiguration(
+                $app,
+                $integration,
+                $company,
+                $entity,
+                [
+                    'error' => 'No region configured for this company',
+                    'integration' => $integration->value,
+                    'company' => $company->getId(),
+                    'entity_id' => $entity->getId(),
+                ],
+                $additionalParams['rule'] ?? null
+            );
         }
 
         $integrationCompany = $this->getIntegrationCompany(
@@ -141,13 +191,20 @@ trait ActivityIntegrationTrait
         );
 
         if (! $integrationCompany) {
-            return [
-                'error' => 'No integration configured for this company',
-                'region' => $region->getId(),
-                'integration' => $integration->value,
-                'company' => $company->getId(),
-                'entity_id' => $entity->getId(),
-            ];
+            return $this->recordMisconfiguration(
+                $app,
+                $integration,
+                $company,
+                $entity,
+                [
+                    'error' => 'No integration configured for this company',
+                    'region' => $region->getId(),
+                    'integration' => $integration->value,
+                    'company' => $company->getId(),
+                    'entity_id' => $entity->getId(),
+                ],
+                $additionalParams['rule'] ?? null
+            );
         }
 
         $response = null;

@@ -19,7 +19,9 @@ trait DefaultTrait
      */
     public static function getDefault(CompanyInterface $company, ?AppInterface $app = null): ?EloquentModel
     {
-        $query = self::where('companies_id', $company->getId())
+        // static::, not self:: — subclasses (Inventory\Regions) inherit this instead of re-using
+        // the trait, and callers type-hint against the subclass.
+        $query = static::where('companies_id', $company->getId())
                 ->where('is_default', 1);
         if ($app) {
             $query->where('apps_id', $app->getId());
@@ -36,7 +38,7 @@ trait DefaultTrait
             return null;
         }
 
-        $globalQuery = self::where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+        $globalQuery = static::where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
                 ->where('is_default', 1);
         if ($app) {
             $globalQuery->where('apps_id', $app->getId());

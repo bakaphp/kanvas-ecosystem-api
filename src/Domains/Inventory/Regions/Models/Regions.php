@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions as ModelsRegions;
-use Kanvas\Traits\DefaultTrait;
 use Override;
 
 /**
@@ -35,9 +34,10 @@ use Override;
  */
 class Regions extends ModelsRegions
 {
+    // No `use DefaultTrait` here: a trait method beats an inherited one, so re-using it would
+    // shadow the parent's getDefault() override and lose the company default_region_id lookup.
     use UuidTrait;
     use SlugTrait;
-    use DefaultTrait;
     use SoftDeletesTrait;
 
     protected $table = 'regions';

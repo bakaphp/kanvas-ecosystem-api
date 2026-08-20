@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Workflow\Integration;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Inventory\Regions\Enums\CustomFieldEnum as RegionCustomFieldEnum;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\Models\Integrations;
@@ -118,6 +121,44 @@ final class ActivityIntegrationTraitTest extends TestCase
         $this->assertNull($resolved);
     }
 
+    public function testExecuteIntegrationRecordsFailedHistoryWhenNoIntegrationIsWiredForTheRegion(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $region = $this->createRegion($app, companiesId: $company->getId());
+        $company->set(RegionCustomFieldEnum::DEFAULT_REGION_ID->value, $region->getId());
+
+        try {
+            $result = $this->activity()->executeIntegration(
+                entity: $company,
+                app: $app,
+                integration: IntegrationsEnum::INTERNAL,
+                integrationOperation: fn () => ['ran' => true],
+                company: $company
+            );
+        } finally {
+            $company->del(RegionCustomFieldEnum::DEFAULT_REGION_ID->value);
+        }
+
+        $this->assertEquals('No integration configured for this company', $result['error']);
+        $this->assertArrayNotHasKey('ran', $result);
+
+        $history = EntityIntegrationHistory::where('entity_namespace', $company::class)
+            ->where('entity_id', $company->getId())
+            ->orderByDesc('id')
+            ->first();
+
+        $this->assertNotNull($history, 'the misconfiguration must leave a row, not return silently');
+        $this->assertNull($history->integrations_company_id);
+        $this->assertEquals($company->getId(), (int) $history->companies_id);
+        $this->assertEquals(
+            Integrations::getByName(IntegrationsEnum::INTERNAL->value)->getId(),
+            (int) $history->integrations_id
+        );
+        $this->assertEquals(StatusEnum::FAILED->value, $history->status->slug);
+    }
+
     private function createRegion(Apps $app, int $companiesId): Regions
     {
         return Regions::create([
@@ -151,8 +192,16 @@ final class ActivityIntegrationTraitTest extends TestCase
 
     private function activity(): object
     {
+        // executeIntegration() reaches for overwriteAppService() and workflowId(), which the real
+        // KanvasActivity gets from KanvasJobsTrait and Workflow\Activity respectively.
         return new class () {
             use ActivityIntegrationTrait;
+            use KanvasJobsTrait;
+
+            public function workflowId(): ?int
+            {
+                return null;
+            }
         };
     }
 }

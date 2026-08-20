@@ -20,13 +20,15 @@ class AddEntityIntegrationHistoryAction
 
     public function execute(): ModelsEntityIntegrationHistory
     {
+        $integrationCompany = $this->dto->integrationCompany;
+
         $integrationHistory = new ModelsEntityIntegrationHistory();
         $integrationHistory->entity_namespace = get_class($this->dto->entity);
         $integrationHistory->entity_id = $this->dto->entity->getId();
         $integrationHistory->apps_id = $this->app->getId();
-        $integrationHistory->integrations_company_id = $this->dto->integrationCompany->getId();
-        $integrationHistory->companies_id = $this->dto->integrationCompany->company->getId();
-        $integrationHistory->integrations_id = $this->dto->integrationCompany->integration->getId();
+        $integrationHistory->integrations_company_id = $integrationCompany?->getId();
+        $integrationHistory->companies_id = $integrationCompany?->company->getId() ?? $this->dto->company?->getId();
+        $integrationHistory->integrations_id = $integrationCompany?->integration->getId() ?? $this->dto->integration?->getId();
         $integrationHistory->status_id = $this->dto->status->getId();
         $integrationHistory->response = $this->dto->response;
         $integrationHistory->exception = $this->dto->exception;
