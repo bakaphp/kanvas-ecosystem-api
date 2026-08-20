@@ -55,6 +55,7 @@ enum WorkflowEnum: string
     case AFTER_ADDING_MESSAGE_TO_AGENT_CHANNEL = 'after-adding-message-to-agent-channel';
     case AFTER_CONFIGURATION = 'after-configuration';
     case AFTER_MERGE = 'after-merge';
+    case EVENT_VERSIONS_WORKFLOW = 'event-versions-workflow';
 
     /**
      * Get the enum case by its value.
