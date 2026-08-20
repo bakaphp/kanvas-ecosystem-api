@@ -488,6 +488,36 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
         $action->lookupPhoneNumberForTest($client, '8095551234');
     }
 
+    public function testLookupPhoneNumberRejectsPremiumLineType(): void
+    {
+        $httpClient = Mockery::mock(TwilioHttpClient::class);
+        $httpClient->shouldReceive('request')
+            ->once()
+            ->andReturn(new Response(200, json_encode([
+                'phone_number' => '+18095551234',
+                'valid' => true,
+                'validation_errors' => [],
+                'line_type_intelligence' => [
+                    'type' => 'premium',
+                ],
+            ], JSON_THROW_ON_ERROR)));
+
+        $client = new TwilioClient(
+            username: 'ACtest',
+            password: 'token',
+            httpClient: $httpClient,
+        );
+
+        $action = $this->makeAction($this->makeLead());
+
+        $this->expectException(LeadMissingContactException::class);
+        $this->expectExceptionMessage(
+            'Lead cellphone number 8095551234 is a premium line and cannot receive SMS messages'
+        );
+
+        $action->lookupPhoneNumberForTest($client, '8095551234');
+    }
+
     public function testFailedResultClassifiesNonRetryableTwilioError(): void
     {
         $lead = $this->makeLead();
