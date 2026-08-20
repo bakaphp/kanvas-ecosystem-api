@@ -29,6 +29,7 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Throwable;
 
 #[WorkflowAction]
 class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements WorkflowActivityInterface
@@ -43,12 +44,15 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             app: $app,
             integration: IntegrationsEnum::MOVIPASS,
             additionalParams: $params,
-            integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) use ($params) {
-                if ($order->orderType->name !== OrderTypeEnum::ROADSIDE_ASSISTANCE->value) {
+            integrationOperation: function ($order, $app, $integrationCompany, $additionalParams) {
+                $orderTypeName = $order->orderType?->name;
+
+                if ($orderTypeName !== OrderTypeEnum::ROADSIDE_ASSISTANCE->value) {
                     return [
                         'order' => $order->getId(),
                         'status' => 'success',
                         'message' => 'Order is not a roadside assistance type',
+                        'order_type' => $orderTypeName,
                     ];
                 }
 
@@ -57,7 +61,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 if ($eventName === WorkflowEnum::CREATED->value) {
                     $result = $this->handleCreated($order, $app);
                 } elseif ($eventName === WorkflowEnum::STATUS_TRANSITION->value) {
-                    $result = $this->handleStatusTransition($order, $params['to_status'] ?? null);
+                    $result = $this->handleStatusTransition($order, $additionalParams['to_status'] ?? null);
                 } elseif ($eventName === WorkflowEnum::UPDATED->value) {
                     $result = $this->handleUpdated($order, $app);
                 } else {
@@ -65,6 +69,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                         'order' => $order->getId(),
                         'status' => 'success',
                         'message' => 'No roadside assistance processing required for this event',
+                        'event' => $eventName,
                     ];
                 }
 
@@ -76,7 +81,11 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
     private function handleCreated($order, $app): array
     {
-        $user = Users::getById((int) $order->users_id);
+        $user = $this->resolveUser($order->users_id);
+
+        if (! $user instanceof Users) {
+            return $this->missingOrderUser($order);
+        }
 
         $metadata = new PrepareRoadsideAssistanceCaseAction()->execute(
             $order->metadata ?? [],
@@ -91,20 +100,38 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             new AttachRoadsideAssistancePhotosAction()->execute($order, $photos, $app);
         }
 
+        $mechanicNotificationError = null;
         $mechanic = $metadata['assistance_case']['mechanic'] ?? null;
         if (empty($mechanic['user_id'])) {
-            new NotifyAvailableMechanicsAction($order, $app, $user)->execute();
+            try {
+                new NotifyAvailableMechanicsAction($order, $app, $user)->execute();
+            } catch (ValidationException $exception) {
+                $mechanicNotificationError = $exception->getMessage();
+            }
         }
 
         $order->refresh();
 
-        return [
+        $result = [
             'order' => $order->getId(),
             'status' => 'success',
             'message' => 'Roadside assistance case prepared',
             'data' => $order->toArray(),
             'response' => $order->toArray(),
         ];
+
+        if ($mechanicNotificationError === null) {
+            return $result;
+        }
+
+        // The case is already persisted at this point. Letting the exception escape would throw away
+        // a valid case and hide it behind a stack trace, so flag the run instead: the operator sees a
+        // failed run for a case that exists and can be dispatched by hand.
+        return $this->failWorkflow([
+            ...$result,
+            'status' => 'error',
+            'message' => 'Roadside assistance case prepared but no mechanic was notified: ' . $mechanicNotificationError,
+        ]);
     }
 
     private function handleUpdated($order, AppInterface $app): array
@@ -115,8 +142,20 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
         $assignMechanicId = (int) ($assistanceCase['assign_mechanic_id'] ?? 0);
         if ($assignMechanicId > 0 && $currentStatusSlug === MovipassOrderStatusEnum::AWAITING_OPERATOR->slug()) {
-            $mechanic = Users::getById($assignMechanicId);
-            $user = Users::getById((int) $order->users_id);
+            $mechanic = $this->resolveUser($assignMechanicId);
+            $user = $this->resolveUser($order->users_id);
+
+            if (! $user instanceof Users) {
+                return $this->missingOrderUser($order);
+            }
+
+            if (! $mechanic instanceof Users) {
+                return $this->failWorkflow([
+                    'order' => $order->getId(),
+                    'status' => 'error',
+                    'message' => 'Cannot assign mechanic: user ' . $assignMechanicId . ' could not be resolved',
+                ]);
+            }
 
             new AssignMechanicToOrderAction($order, $user, $mechanic)->execute();
 
@@ -133,10 +172,9 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
         if ($currentStatusSlug === MovipassOrderStatusEnum::DISPATCHED->slug()) {
             $mechanicUserId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
+            $mechanic = $this->resolveUser($mechanicUserId);
 
-            if ($mechanicUserId > 0) {
-                $mechanic = Users::getById($mechanicUserId);
-
+            if ($mechanic instanceof Users) {
                 RefreshActiveAssistanceEvent::dispatch($order, $mechanicUserId);
 
                 $arrived = new CheckMechanicArrivalAction($order, $mechanic)->execute();
@@ -156,12 +194,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         }
 
         if (($assistanceCase['cancel_order'] ?? false) === true) {
-            $terminalStatuses = [
-                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
-                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
-                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
-            ];
-            if (in_array($currentStatusSlug, $terminalStatuses, true)) {
+            if ($this->isTerminal($currentStatusSlug)) {
                 return [
                     'order' => $order->getId(),
                     'status' => 'success',
@@ -169,7 +202,12 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 ];
             }
 
-            $user = Users::getById((int) $order->users_id);
+            $user = $this->resolveUser($order->users_id);
+
+            if (! $user instanceof Users) {
+                return $this->missingOrderUser($order);
+            }
+
             $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
 
             unset($assistanceCase['cancel_order']);
@@ -179,15 +217,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             $assistanceCase['pin_hash'] = null;
             $assistanceCase['pin_invalidated_at'] = Carbon::now()->toISOString();
 
-            $order->metadata = [
-                ...$metadata,
-                'assistance_case' => $assistanceCase,
-                'data' => [
-                    ...($metadata['data'] ?? []),
-                    'assistance_case' => $assistanceCase,
-                ],
-            ];
-            $order->saveQuietly();
+            $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
 
             $order->transitionToStatus($user, MovipassOrderStatusEnum::SERVICE_CANCELLED->slug());
             $order->fulfillCancelled();
@@ -195,7 +225,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             $broadcastId = $mechanicId > 0 ? $mechanicId : (int) $order->users_id;
             RefreshActiveAssistanceEvent::dispatch($order, $broadcastId);
 
-            $user->notify(new RoadsideAssistanceStatusNotification(
+            $this->notifySafely($user, new RoadsideAssistanceStatusNotification(
                 $order,
                 'Service cancelled',
                 'The roadside assistance service has been cancelled.',
@@ -212,12 +242,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         }
 
         if (($assistanceCase['complete_order'] ?? false) === true || ($assistanceCase['complete_order_not_resolved'] ?? false) === true) {
-            $terminalStatuses = [
-                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
-                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
-                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
-            ];
-            if (in_array($currentStatusSlug, $terminalStatuses, true)) {
+            if ($this->isTerminal($currentStatusSlug)) {
                 return [
                     'order' => $order->getId(),
                     'status' => 'success',
@@ -226,7 +251,12 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             }
 
             $isResolved = ($assistanceCase['complete_order'] ?? false) === true;
-            $user = Users::getById((int) $order->users_id);
+            $user = $this->resolveUser($order->users_id);
+
+            if (! $user instanceof Users) {
+                return $this->missingOrderUser($order);
+            }
+
             $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
 
             unset($assistanceCase['complete_order'], $assistanceCase['complete_order_not_resolved']);
@@ -241,7 +271,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             $broadcastId = $mechanicId > 0 ? $mechanicId : (int) $order->users_id;
             RefreshActiveAssistanceEvent::dispatch($order, $broadcastId);
 
-            $user->notify(new RoadsideAssistanceStatusNotification(
+            $this->notifySafely($user, new RoadsideAssistanceStatusNotification(
                 $order,
                 'Confirm service completion',
                 'The mechanic marked the service as complete. Please confirm to close the case.',
@@ -258,12 +288,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         }
 
         if (($assistanceCase['user_confirm_completion'] ?? false) === true) {
-            $terminalStatuses = [
-                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
-                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
-                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
-            ];
-            if (in_array($currentStatusSlug, $terminalStatuses, true)) {
+            if ($this->isTerminal($currentStatusSlug)) {
                 return [
                     'order' => $order->getId(),
                     'status' => 'success',
@@ -295,7 +320,12 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 ? MovipassOrderStatusEnum::SERVICE_COMPLETED->slug()
                 : MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug();
 
-            $user = Users::getById((int) $order->users_id);
+            $user = $this->resolveUser($order->users_id);
+
+            if (! $user instanceof Users) {
+                return $this->missingOrderUser($order);
+            }
+
             $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
 
             unset($assistanceCase['user_confirm_completion'], $assistanceCase['pending_user_confirmation']);
@@ -331,10 +361,8 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 : ['Service completed', 'The roadside assistance service has ended without resolution.'];
 
             $notification = new RoadsideAssistanceStatusNotification($order, $notifTitle, $notifMessage, $targetStatus);
-            $user->notify($notification);
-            if ($mechanicId > 0) {
-                Users::getById($mechanicId)->notify($notification);
-            }
+            $this->notifySafely($user, $notification);
+            $this->notifySafely($this->resolveUser($mechanicId), $notification);
 
             return [
                 'order' => $order->getId(),
@@ -346,12 +374,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         }
 
         if (($assistanceCase['mechanic_cancel'] ?? false) === true) {
-            $nonCancellableStatuses = [
-                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
-                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
-                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
-            ];
-            if (in_array($currentStatusSlug, $nonCancellableStatuses, true)) {
+            if ($this->isTerminal($currentStatusSlug)) {
                 return [
                     'order' => $order->getId(),
                     'status' => 'success',
@@ -359,8 +382,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 ];
             }
 
-            $mechanicUserId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
-            $mechanic = $mechanicUserId ? Users::getById($mechanicUserId) : null;
+            $mechanic = $this->resolveUser($assistanceCase['mechanic']['user_id'] ?? 0);
 
             if (! $mechanic instanceof Users) {
                 return [
@@ -420,6 +442,12 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             ];
         }
 
+        $orderUser = $this->resolveUser($order->users_id);
+
+        if (! $orderUser instanceof Users) {
+            return $this->missingOrderUser($order);
+        }
+
         // PIN is valid — clean up metadata and transition to SERVICE_IN_PROGRESS
         $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
         if ($mechanicId > 0) {
@@ -432,13 +460,12 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         unset($assistanceCase['pin_attempt'], $assistanceCase['pin_validation_error']);
         $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
 
-        $orderUser = Users::getById((int) $order->users_id);
         $order->transitionToStatus(
             $orderUser,
             MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug(),
         );
 
-        $orderUser->notify(new RoadsideAssistanceStatusNotification(
+        $this->notifySafely($orderUser, new RoadsideAssistanceStatusNotification(
             $order,
             'Service started',
             'The mechanic has started the roadside assistance service.',
@@ -465,104 +492,106 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         $metadata = $order->metadata ?? [];
         $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
 
-        if ($assistanceCase !== []) {
-            $timestamp = $this->getFormattedTimestamp();
+        if ($assistanceCase === []) {
+            return [
+                'order' => $order->getId(),
+                'status' => 'success',
+                'message' => 'Roadside assistance status transition skipped: order has no assistance_case metadata',
+                'to_status' => $toStatus,
+            ];
+        }
 
-            $assistanceCase['status'] = $toStatus;
-            $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
+        $timestamp = $this->getFormattedTimestamp();
 
-            match ($toStatus) {
-                MovipassOrderStatusEnum::AWAITING_OPERATOR->slug() => $assistanceCase['awaiting_operator_at'] = $timestamp,
-                MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug() => (function () use ($order, &$assistanceCase, $timestamp) {
-                    $assistanceCase['provider_assigned_at'] = $timestamp;
-                    $pin = new GenerateRoadsideAssistancePinAction($order)->execute();
-                    $order->refresh();
-                    $assistanceCase = array_merge($assistanceCase, [
-                        'pin_hash' => $order->metadata['assistance_case']['pin_hash'] ?? null,
-                        'pin_generated_at' => $order->metadata['assistance_case']['pin_generated_at'] ?? null,
-                    ]);
-                    $assistanceCase['pin'] = $pin;
-                })(),
-                MovipassOrderStatusEnum::DISPATCHED->slug() => $assistanceCase['dispatched_at'] = $timestamp,
-                MovipassOrderStatusEnum::ON_SITE->slug() => $assistanceCase['arrived_at'] = $timestamp,
-                MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug() => $assistanceCase['service_started_at'] = $timestamp,
-                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug() => (function () use (&$assistanceCase, $timestamp) {
-                    $assistanceCase['completed_at'] = $timestamp;
-                    $assistanceCase['resolved'] = true;
-                    $assistanceCase['pin_hash'] = null;
-                    $assistanceCase['pin_invalidated_at'] = $timestamp;
-                })(),
-                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug() => (function () use (&$assistanceCase, $timestamp) {
-                    $assistanceCase['completed_at'] = $timestamp;
-                    $assistanceCase['resolved'] = false;
-                    $assistanceCase['pin_hash'] = null;
-                    $assistanceCase['pin_invalidated_at'] = $timestamp;
-                })(),
-                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug() => (function () use (&$assistanceCase, $timestamp) {
-                    $assistanceCase['cancelled_at'] = $timestamp;
-                    $assistanceCase['pin_hash'] = null;
-                    $assistanceCase['pin_invalidated_at'] = $timestamp;
-                })(),
-                default => null,
-            };
+        $assistanceCase['status'] = $toStatus;
+        $assistanceCase['status_updated_at'] = Carbon::now()->toISOString();
 
-            $order->metadata = [
-                ...$metadata,
+        match ($toStatus) {
+            MovipassOrderStatusEnum::AWAITING_OPERATOR->slug() => $assistanceCase['awaiting_operator_at'] = $timestamp,
+            MovipassOrderStatusEnum::PROVIDER_ASSIGNED->slug() => (function () use ($order, &$assistanceCase, $timestamp) {
+                $assistanceCase['provider_assigned_at'] = $timestamp;
+                $pin = new GenerateRoadsideAssistancePinAction($order)->execute();
+                $order->refresh();
+                $assistanceCase = array_merge($assistanceCase, [
+                    'pin_hash' => $order->metadata['assistance_case']['pin_hash'] ?? null,
+                    'pin_generated_at' => $order->metadata['assistance_case']['pin_generated_at'] ?? null,
+                ]);
+                $assistanceCase['pin'] = $pin;
+            })(),
+            MovipassOrderStatusEnum::DISPATCHED->slug() => $assistanceCase['dispatched_at'] = $timestamp,
+            MovipassOrderStatusEnum::ON_SITE->slug() => $assistanceCase['arrived_at'] = $timestamp,
+            MovipassOrderStatusEnum::SERVICE_IN_PROGRESS->slug() => $assistanceCase['service_started_at'] = $timestamp,
+            MovipassOrderStatusEnum::SERVICE_COMPLETED->slug() => (function () use (&$assistanceCase, $timestamp) {
+                $assistanceCase['completed_at'] = $timestamp;
+                $assistanceCase['resolved'] = true;
+                $assistanceCase['pin_hash'] = null;
+                $assistanceCase['pin_invalidated_at'] = $timestamp;
+            })(),
+            MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug() => (function () use (&$assistanceCase, $timestamp) {
+                $assistanceCase['completed_at'] = $timestamp;
+                $assistanceCase['resolved'] = false;
+                $assistanceCase['pin_hash'] = null;
+                $assistanceCase['pin_invalidated_at'] = $timestamp;
+            })(),
+            MovipassOrderStatusEnum::SERVICE_CANCELLED->slug() => (function () use (&$assistanceCase, $timestamp) {
+                $assistanceCase['cancelled_at'] = $timestamp;
+                $assistanceCase['pin_hash'] = null;
+                $assistanceCase['pin_invalidated_at'] = $timestamp;
+            })(),
+            default => null,
+        };
+
+        $order->metadata = [
+            ...$metadata,
+            'assistance_case' => $assistanceCase,
+            'data' => [
+                ...($metadata['data'] ?? []),
                 'assistance_case' => $assistanceCase,
-                'data' => [
-                    ...($metadata['data'] ?? []),
-                    'assistance_case' => $assistanceCase,
-                ],
-            ];
-            $order->saveQuietly();
+            ],
+        ];
+        $order->saveQuietly();
 
-            match ($toStatus) {
-                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
-                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug() => $order->fulfill(),
-                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug() => $order->fulfillCancelled(),
-                default => null,
+        match ($toStatus) {
+            MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
+            MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug() => $order->fulfill(),
+            MovipassOrderStatusEnum::SERVICE_CANCELLED->slug() => $order->fulfillCancelled(),
+            default => null,
+        };
+
+        $refreshStatuses = [
+            MovipassOrderStatusEnum::ON_SITE->slug(),
+            MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
+            MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
+            MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+        ];
+
+        if (in_array($toStatus, $refreshStatuses, true)) {
+            $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
+            $broadcastMechanicId = $mechanicId > 0 ? $mechanicId : (int) $order->users_id;
+            RefreshActiveAssistanceEvent::dispatch($order, $broadcastMechanicId);
+
+            [$title, $message, $event] = match ($toStatus) {
+                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug() => [
+                    'Service completed',
+                    'The roadside assistance service has been completed successfully.',
+                    MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
+                ],
+                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug() => [
+                    'Service completed',
+                    'The roadside assistance service has ended without resolution.',
+                    MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
+                ],
+                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug() => [
+                    'Service cancelled',
+                    'The roadside assistance service has been cancelled.',
+                    MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+                ],
+                default => ['Order updated', 'Your order has been updated.', $toStatus],
             };
 
-            $refreshStatuses = [
-                MovipassOrderStatusEnum::ON_SITE->slug(),
-                MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
-                MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
-                MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
-            ];
-
-            if (in_array($toStatus, $refreshStatuses, true)) {
-                $mechanicId = (int) ($assistanceCase['mechanic']['user_id'] ?? 0);
-                $broadcastMechanicId = $mechanicId > 0 ? $mechanicId : (int) $order->users_id;
-                RefreshActiveAssistanceEvent::dispatch($order, $broadcastMechanicId);
-
-                $orderUser = Users::getById((int) $order->users_id);
-                $mechanic = $mechanicId > 0 ? Users::getById($mechanicId) : null;
-
-                [$title, $message, $event] = match ($toStatus) {
-                    MovipassOrderStatusEnum::SERVICE_COMPLETED->slug() => [
-                        'Service completed',
-                        'The roadside assistance service has been completed successfully.',
-                        MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
-                    ],
-                    MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug() => [
-                        'Service completed',
-                        'The roadside assistance service has ended without resolution.',
-                        MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
-                    ],
-                    MovipassOrderStatusEnum::SERVICE_CANCELLED->slug() => [
-                        'Service cancelled',
-                        'The roadside assistance service has been cancelled.',
-                        MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
-                    ],
-                    default => ['Order updated', 'Your order has been updated.', $toStatus],
-                };
-
-                $notification = new RoadsideAssistanceStatusNotification($order, $title, $message, $event);
-                $orderUser->notify($notification);
-                if ($mechanic instanceof Users) {
-                    $mechanic->notify($notification);
-                }
-            }
+            $notification = new RoadsideAssistanceStatusNotification($order, $title, $message, $event);
+            $this->notifySafely($this->resolveUser($order->users_id), $notification);
+            $this->notifySafely($this->resolveUser($mechanicId), $notification);
         }
 
         return [
@@ -579,8 +608,25 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
      * on the order. Since this sync fires on every roadside order change, resolve that channel from
      * the order's participants, and push the latest chat message to the counterparty if it hasn't
      * been pushed yet. The last-pushed id is tracked in the assistance_case metadata for idempotency.
+     *
+     * Runs after the case handler on every event, so it must never be able to sink the run: the
+     * order state is already committed and a chat push failing is not a reason to lose it.
      */
     private function pushPendingRoadsideChat($order): array
+    {
+        try {
+            return $this->resolvePendingRoadsideChat($order);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return [
+                'chat_push' => 'error',
+                'chat_push_reason' => $exception->getMessage(),
+            ];
+        }
+    }
+
+    private function resolvePendingRoadsideChat($order): array
     {
         $metadata = $order->metadata ?? [];
         $assistanceCase = $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
@@ -622,16 +668,19 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
 
         $notified = new SendRoadsideChatMessagePushAction($channel, $message)->execute();
 
-        if ($notified === 0) {
-            return $this->failWorkflow([
-                'chat_push' => 'failed',
-                'chat_push_reason' => 'resolved a new chat message but notified 0 recipients',
-                'chat_push_message_id' => (int) $message->id,
-            ]);
-        }
-
+        // Advance the pointer even when nobody was notified. An undeliverable message (both parties
+        // gone, mechanic unassigned mid-chat) used to leave the pointer behind, so every later
+        // roadside event re-picked the same message and failed the run again — permanently.
         $assistanceCase['last_pushed_chat_message_id'] = (int) $message->id;
         $this->saveAssistanceCaseMetadata($order, $metadata, $assistanceCase);
+
+        if ($notified === 0) {
+            return [
+                'chat_push' => 'skipped',
+                'chat_push_reason' => 'no recipients resolved for the message',
+                'chat_push_message_id' => (int) $message->id,
+            ];
+        }
 
         return [
             'chat_push' => 'sent',
@@ -651,6 +700,58 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             ],
         ];
         $order->saveQuietly();
+    }
+
+    private function isTerminal(?string $statusSlug): bool
+    {
+        return in_array($statusSlug, [
+            MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
+            MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
+            MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+        ], true);
+    }
+
+    private function resolveUser(mixed $userId): ?Users
+    {
+        $userId = (int) $userId;
+
+        if ($userId <= 0) {
+            return null;
+        }
+
+        try {
+            return Users::getById($userId);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return null;
+        }
+    }
+
+    private function missingOrderUser($order): array
+    {
+        return $this->failWorkflow([
+            'order' => $order->getId(),
+            'status' => 'error',
+            'message' => 'Order user ' . (int) $order->users_id . ' could not be resolved',
+        ]);
+    }
+
+    /**
+     * The state change is already committed by the time we notify, so a push/mail provider outage
+     * must not fail the run, roll nothing back, and must not stop the other recipient from hearing.
+     */
+    private function notifySafely(?Users $user, RoadsideAssistanceStatusNotification $notification): void
+    {
+        if (! $user instanceof Users) {
+            return;
+        }
+
+        try {
+            $user->notify($notification);
+        } catch (Throwable $exception) {
+            report($exception);
+        }
     }
 
     private function getFormattedTimestamp(): string
