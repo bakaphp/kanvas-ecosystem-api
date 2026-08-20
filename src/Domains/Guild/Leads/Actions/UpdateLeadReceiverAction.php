@@ -27,6 +27,7 @@ class UpdateLeadReceiverAction
             'is_default' => (int) $this->leadReceiverDto->isDefault,
             'rotations_id' => $this->leadReceiverDto->rotation ? $this->leadReceiverDto->rotation->getId() : 0,
             'source_name' => $this->leadReceiverDto->source,
+            'notification_email' => $this->leadReceiverDto->notificationEmail,
             'leads_sources_id' => $this->leadReceiverDto->lead_sources_id,
             'lead_types_id' => $this->leadReceiverDto->lead_types_id,
             'template' => $this->leadReceiverDto->template,

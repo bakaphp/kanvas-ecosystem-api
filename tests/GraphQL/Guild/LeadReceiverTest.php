@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\LeadRotation;
@@ -13,6 +14,12 @@ use Tests\TestCase;
 
 class LeadReceiverTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    // Receivers are written on `crm`; leaked rows accumulate and push the ones these tests assert on
+    // off page 1 of the paginated leadReceivers list.
+    protected $connectionsToTransact = [null, 'crm'];
+
     public function testCreateLeadReceiver(): void
     {
         $leadRotation = LeadRotation::create([
@@ -221,6 +228,100 @@ class LeadReceiverTest extends TestCase
                     'is_default' => $input['is_default'],
                     'source_name' => $input['source_name'],
                     'template' => $input['template'],
+                ],
+            ],
+        ]);
+    }
+
+    public function testUpdateLeadReceiverKeepsNotificationEmailWhenOmitted(): void
+    {
+        $input = [
+            'name' => fake()->word,
+            'agents_id' => auth()->user()->getId(),
+            'is_default' => true,
+            'rotations_id' => 1,
+            'source_name' => 'source',
+            'notification_email' => 'ofertas@example.com,contacto@example.com',
+            'lead_sources_id' => 0,
+            'lead_types_id' => 0,
+        ];
+        $id = $this->graphQL(
+            'mutation createLeadReceiver($input: LeadReceiverInput!) {
+                createLeadReceiver(input: $input){
+                    id
+                    notification_email
+                }
+            }',
+            ['input' => $input]
+        )->assertJson([
+            'data' => [
+                'createLeadReceiver' => [
+                    'notification_email' => $input['notification_email'],
+                ],
+            ],
+        ])->json('data.createLeadReceiver.id');
+
+        unset($input['notification_email']);
+        $input['name'] = 'renamed receiver';
+
+        $this->graphQL(
+            'mutation updateLeadReceiver($id: ID!, $input: LeadReceiverInput!) {
+                updateLeadReceiver(id: $id, input: $input){
+                    name
+                    notification_email
+                }
+            }',
+            [
+                'id' => $id,
+                'input' => $input,
+            ]
+        )->assertJson([
+            'data' => [
+                'updateLeadReceiver' => [
+                    'name' => 'renamed receiver',
+                    'notification_email' => 'ofertas@example.com,contacto@example.com',
+                ],
+            ],
+        ]);
+    }
+
+    public function testUpdateLeadReceiverClearsNotificationEmailWhenExplicitlyNull(): void
+    {
+        $input = [
+            'name' => fake()->word,
+            'agents_id' => auth()->user()->getId(),
+            'is_default' => true,
+            'rotations_id' => 1,
+            'source_name' => 'source',
+            'notification_email' => 'ofertas@example.com',
+            'lead_sources_id' => 0,
+            'lead_types_id' => 0,
+        ];
+        $id = $this->graphQL(
+            'mutation createLeadReceiver($input: LeadReceiverInput!) {
+                createLeadReceiver(input: $input){
+                    id
+                }
+            }',
+            ['input' => $input]
+        )->json('data.createLeadReceiver.id');
+
+        $input['notification_email'] = null;
+
+        $this->graphQL(
+            'mutation updateLeadReceiver($id: ID!, $input: LeadReceiverInput!) {
+                updateLeadReceiver(id: $id, input: $input){
+                    notification_email
+                }
+            }',
+            [
+                'id' => $id,
+                'input' => $input,
+            ]
+        )->assertJson([
+            'data' => [
+                'updateLeadReceiver' => [
+                    'notification_email' => null,
                 ],
             ],
         ]);
