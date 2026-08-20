@@ -48,14 +48,16 @@ class TimeSlotStatsTest extends TestCase
     /**
      * Booking writes to the `event` connection (BuildEventDataAction firstOrCreates a default
      * Theme), which the default DatabaseTransactions wrapping does not roll back.
-     */
-    /**
-     * `inventory` has to roll back too: setUp builds a warehouse, a channel and a product
-     * per test, so leaving that connection out leaks every one of them into the next test.
+     *
+     * `inventory` stays out on purpose: CreateProductAction relies on
+     * `DB::connection('inventory')->transaction($cb, 3)` to retry the gap-lock deadlock
+     * concurrent product inserts hit, and Laravel only retries a transaction it opened
+     * itself — listing the connection here demotes that one to a savepoint and the
+     * deadlock escapes as a 500.
      */
     protected function connectionsToTransact(): array
     {
-        return ['mysql', 'ecosystem', 'inventory', 'event'];
+        return [null, 'event'];
     }
 
     public function setUp(): void

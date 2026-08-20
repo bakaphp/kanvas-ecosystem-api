@@ -57,12 +57,15 @@ class ParticipantStatsTest extends TestCase
     ';
 
     /**
-     * `inventory` has to roll back too: setUp builds a warehouse, a channel and a product
-     * per test, so leaving that connection out leaks every one of them into the next test.
+     * `inventory` is deliberately NOT transacted. CreateProductAction leans on
+     * `DB::connection('inventory')->transaction($cb, 3)` to retry the gap-lock deadlock that
+     * concurrent product inserts hit, and Laravel can only retry a transaction it opened
+     * itself — wrapping this connection here demotes that one to a savepoint and the
+     * deadlock escapes as a 500 instead.
      */
     protected function connectionsToTransact(): array
     {
-        return ['mysql', 'ecosystem', 'inventory', 'event'];
+        return [null, 'event'];
     }
 
     public function setUp(): void

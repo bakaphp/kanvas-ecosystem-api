@@ -28,7 +28,14 @@ class ResourceScheduleTimezoneTest extends TestCase
     // those rows commit for good — and the upcoming-slots command sweeps EVERY active rule in the
     // database, so one test's committed rule gets extra slots generated for it by another test
     // running in a parallel process.
-    protected $connectionsToTransact = ['mysql', 'ecosystem', 'inventory', 'event'];
+    /**
+     * `inventory` stays out on purpose: CreateProductAction relies on
+     * `DB::connection('inventory')->transaction($cb, 3)` to retry the gap-lock deadlock
+     * concurrent product inserts hit, and Laravel only retries a transaction it opened
+     * itself — listing the connection here demotes that one to a savepoint and the
+     * deadlock escapes as a 500.
+     */
+    protected $connectionsToTransact = ['mysql', 'ecosystem', 'event'];
 
     protected $apps;
     protected $user;
