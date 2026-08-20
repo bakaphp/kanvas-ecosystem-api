@@ -41,4 +41,11 @@ return [
         'alert_emails' => env('SIGNUP_ANOMALY_ALERT_EMAILS'),
         'sentry_enabled' => env('SIGNUP_ABUSE_SENTRY_ENABLED', true),
     ],
+    // External voice runtime (Pipecat / Cloud Run). A single deployment serves
+    // every app, so these are the global default; a per-app setting
+    // (kanvas-intelligence-voice-runtime-*) still overrides when present.
+    'voice_runtime' => [
+        'url' => env('VOICE_RUNTIME_URL'),
+        'api_token' => env('VOICE_RUNTIME_API_TOKEN'),
+    ],
 ];

@@ -13,6 +13,8 @@ use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
+use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
 use Kanvas\Scribe\Bills\Actions\ApproveBillAction;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction;
@@ -32,6 +34,7 @@ use Throwable;
 class CreateApBillTool extends Tool
 {
     use HasKanvasContext;
+    use StoresApprovalSourceFields;
 
     public function __construct()
     {
@@ -108,6 +111,29 @@ class CreateApBillTool extends Tool
                     . 'flow, where a human approves it later and the Acumatica push happens as a separate step.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'source_email_message_id',
+                type: PropertyType::STRING,
+                description: 'The Gmail message_id of the invoice email this bill was created from, when '
+                    . 'created as part of the automatic invoice-email flow. Kept so a later approval (often in '
+                    . 'a separate Slack conversation) can reply in that same email thread with evidence.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'source_attachment_url',
+                type: PropertyType::STRING,
+                description: 'The Kanvas-hosted URL of the invoice PDF (from download_attachment), when created '
+                    . 'as part of the automatic invoice-email flow. Kept so it can be attached to the bill once '
+                    . 'it is actually pushed to Acumatica, at approval time.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'source_attachment_filename',
+                type: PropertyType::STRING,
+                description: 'The file name for source_attachment_url (from download_attachment). Optional — '
+                    . 'defaults to the URL\'s own file name when attached.',
+                required: false,
+            ),
         ];
     }
 
@@ -123,6 +149,9 @@ class CreateApBillTool extends Tool
         ?string $subaccount = null,
         ?string $currency = null,
         ?bool $push_to_acumatica = null,
+        ?string $source_email_message_id = null,
+        ?string $source_attachment_url = null,
+        ?string $source_attachment_filename = null,
     ): array {
         $push_to_acumatica ??= true;
         $app = $this->app;
@@ -203,7 +232,23 @@ class CreateApBillTool extends Tool
 
         $bill = new SubmitBillForApprovalAction($bill, $actingUser)->execute();
 
+        $this->storeApprovalSourceFields(
+            $bill,
+            $source_email_message_id,
+            $source_attachment_url,
+            $source_attachment_filename,
+        );
+
         if (! $push_to_acumatica) {
+            new NotifyApproverAction(
+                $app,
+                "You have an AP bill pending approval:\nVendor: {$vendor->name}\nAmount: {$currency} "
+                    . "{$amount}\nGL: {$gl_account_number}"
+                    . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : '')
+                    . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
+                    . "{$bill->getId()}\" to approve it and push it to Acumatica.",
+            )->execute();
+
             return [
                 'created' => true,
                 'pushed' => false,
