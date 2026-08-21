@@ -19,7 +19,8 @@ use Override;
 /**
  * Native Neuron retrieval over the shared knowledge store. Retrieves the agent's
  * own uploaded docs plus, for a customer-facing agent, the lead in scope — each
- * scoped to its entity so knowledge never leaks between agents (or prospects).
+ * scoped to its entity so knowledge never leaks between prospects. Explicitly
+ * internal agents can instead retrieve across their app/company boundary.
  * No-ops when the app hasn't enabled knowledge.
  */
 class KnowledgeRetrieval implements RetrievalInterface
@@ -29,6 +30,7 @@ class KnowledgeRetrieval implements RetrievalInterface
         private readonly ?Companies $company,
         private readonly ?Model $agent = null,
         private readonly ?Model $entity = null,
+        private readonly bool $organizationWide = false,
     ) {
     }
 
@@ -48,6 +50,17 @@ class KnowledgeRetrieval implements RetrievalInterface
         $topK = KnowledgeComponents::resultLimit($this->app);
         $minScore = KnowledgeComponents::minScore($this->app);
         $embedding = KnowledgeComponents::embedder($this->app)->embed((string) $query->getContent());
+
+        if ($this->organizationWide) {
+            $hits = $store->search(
+                $embedding,
+                KnowledgeScope::forOrganization($this->app->getId(), $this->company->getId()),
+                $topK,
+                $minScore,
+            );
+
+            return $this->toDocuments($hits, $topK);
+        }
 
         // The agent's own docs, plus the record in scope (a Lead). A global row like
         // a Users (apps_id/companies_id = 0) can't form a KnowledgeEntity, so it's skipped.

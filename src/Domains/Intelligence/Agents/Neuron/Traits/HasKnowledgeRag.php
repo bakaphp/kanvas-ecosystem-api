@@ -12,6 +12,9 @@ use NeuronAI\RAG\Nodes\InstructionsNode;
 use NeuronAI\RAG\Nodes\PostProcessNode;
 use NeuronAI\RAG\Nodes\PreProcessNode;
 use NeuronAI\RAG\Nodes\RetrievalNode;
+use NeuronAI\RAG\PostProcessor\AdaptiveThresholdPostProcessor;
+use NeuronAI\RAG\PreProcessor\QueryTransformationPreProcessor;
+use NeuronAI\RAG\PreProcessor\QueryTransformationType;
 use NeuronAI\RAG\Retrieval\RetrievalInterface;
 use NeuronAI\RAG\VectorStore\MemoryVectorStore;
 use NeuronAI\RAG\VectorStore\VectorStoreInterface;
@@ -46,7 +49,8 @@ trait HasKnowledgeRag
             $this->app,
             $this->company,
             $this->agent,
-            $this->resolveEntityForTurn()
+            $this->resolveEntityForTurn(),
+            organizationWide: $this->usesOrganizationWideKnowledge(),
         );
     }
 
@@ -68,5 +72,22 @@ trait HasKnowledgeRag
     protected function vectorStore(): VectorStoreInterface
     {
         return new MemoryVectorStore();
+    }
+
+    protected function preProcessors(): array
+    {
+        return [
+            new QueryTransformationPreProcessor(
+                provider: $this->resolveProvider(),
+                transformation: QueryTransformationType::REWRITING,
+            ),
+        ];
+    }
+
+    protected function postProcessors(): array
+    {
+        return [
+            new AdaptiveThresholdPostProcessor(multiplier: 0.6),
+        ];
     }
 }
