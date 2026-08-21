@@ -83,7 +83,10 @@ class PushCreditAppAction
             ]));
         }
 
-        $this->people->set(PeopleCustomFieldEnum::CREDIT_APP->value, $creditApp);
+        $this->people->set(
+            PeopleCustomFieldEnum::CREDIT_APP->value,
+            $creditApp->toArray()
+        );
 
         return $contact->update($vinCompany, $user);
     }
