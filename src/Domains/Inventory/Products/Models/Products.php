@@ -622,7 +622,14 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'position' => $category->position,
                 ];
             }),
-            'categories_flat' => $this->categories->flatMap(fn ($category) => [$category->name => 1])->toArray() ?? [],
+            // Keys become Typesense sub-fields (`categories_flat.<name>`), so a blank category name
+            // registers the invalid field `categories_flat.` and the whole import batch is rejected
+            // (Sentry KANVAS-ECOSYSTEM-628).
+            'categories_flat' => $this->categories
+                ->map(fn (Categories $category) => trim((string) $category->name))
+                ->filter(fn (string $name) => $name !== '')
+                ->mapWithKeys(fn (string $name) => [$name => 1])
+                ->all(),
             'variants' => $this->getVariantsData(),
             'status' => [
                 'id' => $this->status->id ?? null,
