@@ -9,6 +9,8 @@ use Illuminate\JsonSchema\Types\Type;
 use Kanvas\Connectors\ProductEnrichment\DataTransferObject\EnrichmentConfig;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
+use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum as RecommendationConfigurationEnum;
+use Kanvas\Inventory\Recommendations\Enums\SemanticProfileStrategyEnum;
 use Laravel\Ai\Contracts\HasStructuredOutput;
 use Override;
 use Stringable;
@@ -32,15 +34,20 @@ class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasStructured
     #[Override]
     public function instructions(): Stringable|string
     {
-        return $this->instructionsFromRecord(default: <<<'PROMPT'
+        $framing = SemanticProfileStrategyEnum::fromApp(
+            $this->app?->get(RecommendationConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value),
+        )->blurbFraming();
+
+        return $this->instructionsFromRecord(default: <<<PROMPT
         You enrich ONE product into a structured profile used by a recommendation search.
         You receive the product's name, description and categories.
 
         For each facet, choose values ONLY from the allowed list shown in the output schema
         (return an empty array if none truly apply — do NOT force a value).
 
-        Write `blurb_es` and `blurb_en`: 1-2 sentences each, in natural language, describing who this
-        product is for and when they would use it — a search-friendly summary, not a tag list.
+        Write `blurb_es` and `blurb_en`: 1-2 sentences each, in natural language — a search-friendly
+        summary, not a tag list.
+        {$framing}
 
         The blurb is matched against how a customer describes what they want, so it MUST be
         DISCRIMINATING: someone reading it should be able to tell this product apart from every other
@@ -54,8 +61,6 @@ class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasStructured
           fits everything matches nothing.
 
         Never invent values outside the allowed lists. Be precise, not exhaustive.
-        The store's domain and tone are set per app via this agent's instructions; with no override,
-        assume a general retail catalog.
         PROMPT);
     }
 

@@ -8,11 +8,13 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\ProductEnrichment\Actions\EnrichProductAction;
 use Kanvas\Connectors\ProductEnrichment\Agents\ProductEnrichmentAgent;
 use Kanvas\Connectors\ProductEnrichment\Jobs\EnrichProductJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum as RecommendationConfigurationEnum;
 use Tests\TestCase;
 
 class BackfillProductEnrichmentCommandTest extends TestCase
@@ -22,6 +24,55 @@ class BackfillProductEnrichmentCommandTest extends TestCase
     // 'intelligence' holds Agent/AgentType. Without it a sibling test's
     // enrichment agent survives and the no-agent guard silently passes.
     protected $connectionsToTransact = [null, 'inventory', 'intelligence'];
+
+    public function testStrategySettingSwapsTheBlurbFramingButKeepsTheMechanics(): void
+    {
+        $app = app(Apps::class);
+        $original = $app->get(RecommendationConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value);
+
+        try {
+            $agent = new ProductEnrichmentAgent();
+            $agent->setConfiguration(agent: $this->makeEnrichmentAgent($app, Companies::factory()->create()), app: $app);
+
+            $app->set(RecommendationConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value, 'generic');
+            $generic = (string) $agent->instructions();
+
+            $app->set(RecommendationConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value, 'gift');
+            $gift = (string) $agent->instructions();
+
+            $this->assertStringContainsString('GIFT catalog', $gift);
+            $this->assertStringNotContainsString('GIFT catalog', $generic);
+
+            // The anti-filler rules are mechanics — swapping a vertical must not
+            // take them with it, which is what an instructions override does.
+            foreach ([$gift, $generic] as $prompt) {
+                $this->assertStringContainsString('DISCRIMINATING', $prompt);
+                $this->assertStringContainsString('NEVER write filler', $prompt);
+                $this->assertStringContainsString('blurb_es', $prompt);
+            }
+        } finally {
+            $app->set(RecommendationConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value, $original);
+        }
+    }
+
+    public function testSkipsAProductWhoseCompanyDoesNotResolveInsteadOfFataling(): void
+    {
+        $app = app(Apps::class);
+        $company = Companies::factory()->create();
+        $product = $this->makeProduct($app, $company);
+
+        // In production this is normally a SOFT-DELETED company: the row exists but
+        // Companies carries a SoftDeletingScope, so the relation resolves null.
+        // Pointing at a missing id reproduces the same null.
+        $product->companies_id = 999999999;
+        $product->unsetRelation('company');
+        $this->assertNull($product->company, 'Test setup should produce a company-less product.');
+
+        $result = new EnrichProductAction($product)->execute();
+
+        $this->assertSame('skipped', $result['status']);
+        $this->assertStringContainsString('no company', $result['reason']);
+    }
 
     public function testFailsFastWhenTheAppHasNoEnrichmentAgent(): void
     {

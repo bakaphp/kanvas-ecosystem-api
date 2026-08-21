@@ -28,6 +28,10 @@ class EnrichProductAction
 
     public function execute(): array
     {
+        if ($this->product->company === null) {
+            return ['status' => 'skipped', 'reason' => 'product has no company'];
+        }
+
         $hash = $this->contentHash();
 
         // Hash gate: skip the LLM call when name/description/categories are unchanged.
