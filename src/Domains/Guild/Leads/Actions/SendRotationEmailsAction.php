@@ -41,16 +41,10 @@ class SendRotationEmailsAction
             ? collect([$owner])->merge($activeUsers)->all()
             : [$owner];
 
-        // The receiver's own address always fires: it identifies the source (which form the lead came
-        // from), so it must not depend on the rotation's agent-side notification mode.
-        // Commas are trimmed alongside whitespace so a stray "," or " " falls through to the rotation
-        // instead of blocking it and then parsing down to zero recipients.
-        $receiverEmails = trim((string) $this->leadReceiver->notification_email, ", \t\n\r\0\x0B");
+        $extraEmails = $this->resolveExtraEmails($shouldNotifyAgents);
 
-        if ($receiverEmails !== '') {
-            $payload['extraEmails'] = $receiverEmails;
-        } elseif ($shouldNotifyAgents) {
-            $payload['extraEmails'] = $this->leadRotation->leads_rotations_email;
+        if ($extraEmails !== null) {
+            $payload['extraEmails'] = $extraEmails;
         }
 
         $sender = new SendLeadEmailsAction(
@@ -65,6 +59,19 @@ class SendRotationEmailsAction
         );
     }
 
+    // Commas are trimmed alongside whitespace so a stray "," falls through to the rotation instead
+    // of parsing down to zero recipients.
+    private function resolveExtraEmails(bool $shouldNotifyAgents): ?string
+    {
+        $receiverEmails = trim((string) $this->leadReceiver->notification_email, ", \t\n\r\0\x0B");
+
+        if ($receiverEmails !== '') {
+            return $receiverEmails;
+        }
+
+        return $shouldNotifyAgents ? $this->leadRotation->leads_rotations_email : null;
+    }
+
     /**
      * Reads `rotation.config.notification_mode` — controls WHO on the recipient axis gets the email.
      *
@@ -72,9 +79,7 @@ class SendRotationEmailsAction
      * - NOTIFY_AGENTS        → agents only (lead does not get an email)
      * - NOTIFY_LEAD          → the lead's contact email only (agents do not get an email)
      *
-     * Note: `extraEmails` always fires regardless of this mode. When it comes from the rotation
-     * (leads_rotations_email) it is gated by notification_user_mode instead; when it comes from
-     * the receiver (notification_email) it is not gated at all.
+     * Note: `extraEmails` is unaffected by this mode — see resolveExtraEmails().
      */
     private function resolveNotificationMode(): LeadNotificationModeEnum
     {

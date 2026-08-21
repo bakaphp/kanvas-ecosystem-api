@@ -51,17 +51,7 @@ The `flag` (`'user'` default) picks the "owner" identity: `flag === 'user'` → 
 
 A rotation is a *distribution policy* (who works the lead); a receiver is a *source* (which form it came from). When several forms share one agent pool but each must notify a different address, the address goes on the receiver — cloning the rotation per form would split the round-robin `hits` counters to achieve something unrelated to distribution.
 
-`notification_email` is a nullable comma-separated string mirroring `leads_rotations_email`. It **overrides** the rotation's address and fires **unconditionally** — unlike the rotation's, it is not gated by `NOTIFY_ROTATION_USERS` + a non-empty agent pool, because a source's address should always receive its own leads:
-
-```php
-if (! empty($this->leadReceiver->notification_email)) {
-    $payload['extraEmails'] = $this->leadReceiver->notification_email;
-} elseif ($shouldNotifyAgents) {
-    $payload['extraEmails'] = $this->leadRotation->leads_rotations_email;
-}
-```
-
-Recipients still get the same `user-<template>` mail, so content is identical across forms — only the address differs.
+`notification_email` is a nullable comma-separated string mirroring `leads_rotations_email`, resolved in `SendRotationEmailsAction::resolveExtraEmails()`. It **overrides** the rotation's address and fires **unconditionally** — unlike the rotation's, it is not gated by `NOTIFY_ROTATION_USERS` + a non-empty agent pool, because a source's address should always receive its own leads. Recipients still get the same `user-<template>` mail, so only the address differs.
 
 **The receiver must be wired to a rotation for this to fire at all.** `CreateLeadsFromReceiverJob::sendEmails()` returns `['no email sent']` on a null owner *before* it constructs `SendRotationEmailsAction`, and with `rotations_id = 0` `resolveOwner()` only produces an owner when the payload carries a `Member` key that matches an Agent. A plain contact form posting to a rotation-less receiver therefore sends nothing — no rotation email, no receiver email — regardless of `notification_email` or a webhook `email_template`. The template itself also still comes only from the rotation (or the webhook fallback).
 

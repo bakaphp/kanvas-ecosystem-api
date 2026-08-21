@@ -20,14 +20,14 @@ use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Notifications\NewLeadNotification;
 use Kanvas\Guild\LeadSources\Models\LeadSource;
 use Kanvas\Notifications\Enums\NotificationChannelEnum;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class SendLeadEmailsTest extends TestCase
 {
     use DatabaseTransactions;
 
-    // Guild models write on `crm`; without it listed here the rotations these tests create commit
-    // and survive, eventually pushing LeadRotationTest's own rotation off page 1 of leadsRotations.
+    // Rotations are written on `crm`; leaked rows push LeadRotationTest's own off page 1.
     protected $connectionsToTransact = [null, 'crm'];
 
     public function testSendLeadEmailsFromReceiverConfig(): void
@@ -244,99 +244,59 @@ class SendLeadEmailsTest extends TestCase
         });
     }
 
-    public function testReceiverNotificationEmailFiresUnderNotifyOwner(): void
+    public static function extraEmailsProvider(): array
     {
-        Notification::fake();
-        $user = auth()->user();
+        return [
+            'receiver address fires even under NOTIFY_OWNER' => [
+                LeadNotificationUserModeEnum::NOTIFY_OWNER,
+                'ofertas@example.com,contacto@example.com',
+                ['ofertas@example.com', 'contacto@example.com'],
+            ],
+            'receiver address overrides the rotation one' => [
+                LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS,
+                'tradein@example.com',
+                ['tradein@example.com'],
+            ],
+            'rotation address is used when the receiver has none' => [
+                LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS,
+                null,
+                ['rotation@example.com'],
+            ],
+            'blank receiver address falls back to the rotation' => [
+                LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS,
+                ' , ',
+                ['rotation@example.com'],
+            ],
+        ];
+    }
 
-        $leadRotation = $this->makeRotation('rotation@example.com', LeadNotificationUserModeEnum::NOTIFY_OWNER);
-        $leadReceiver = $this->makeReceiver($leadRotation, 'ofertas@example.com,contacto@example.com');
+    #[DataProvider('extraEmailsProvider')]
+    public function testExtraEmailsResolution(
+        LeadNotificationUserModeEnum $userMode,
+        ?string $receiverEmail,
+        array $expectedEmails
+    ): void {
+        Notification::fake();
+
+        $leadRotation = $this->makeRotation('rotation@example.com', $userMode);
+        $leadReceiver = $this->makeReceiver($leadRotation, $receiverEmail);
         $lead = Lead::factory()->withReceiverId($leadReceiver->getId())->create();
 
         new SendRotationEmailsAction(
             $lead,
             $leadReceiver,
             $leadRotation,
-            $user
+            auth()->user()
         )->execute($this->leadPayload(), 'user');
 
-        Notification::assertSentOnDemandTimes(NewLeadNotification::class, 2);
+        Notification::assertSentOnDemandTimes(NewLeadNotification::class, count($expectedEmails));
 
-        foreach (['ofertas@example.com', 'contacto@example.com'] as $email) {
+        foreach ($expectedEmails as $email) {
             Notification::assertSentOnDemand(
                 NewLeadNotification::class,
                 fn ($notification, $channels, $notifiable) => $notifiable->routes['mail'] === $email
             );
         }
-    }
-
-    public function testReceiverNotificationEmailOverridesRotationEmail(): void
-    {
-        Notification::fake();
-        $user = auth()->user();
-
-        $leadRotation = $this->makeRotation('rotation@example.com', LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS);
-        $leadReceiver = $this->makeReceiver($leadRotation, 'tradein@example.com');
-        $lead = Lead::factory()->withReceiverId($leadReceiver->getId())->create();
-
-        new SendRotationEmailsAction(
-            $lead,
-            $leadReceiver,
-            $leadRotation,
-            $user
-        )->execute($this->leadPayload(), 'user');
-
-        Notification::assertSentOnDemandTimes(NewLeadNotification::class, 1);
-        Notification::assertSentOnDemand(
-            NewLeadNotification::class,
-            fn ($notification, $channels, $notifiable) => $notifiable->routes['mail'] === 'tradein@example.com'
-        );
-    }
-
-    public function testRotationEmailStillUsedWhenReceiverHasNone(): void
-    {
-        Notification::fake();
-        $user = auth()->user();
-
-        $leadRotation = $this->makeRotation('rotation@example.com', LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS);
-        $leadReceiver = $this->makeReceiver($leadRotation);
-        $lead = Lead::factory()->withReceiverId($leadReceiver->getId())->create();
-
-        new SendRotationEmailsAction(
-            $lead,
-            $leadReceiver,
-            $leadRotation,
-            $user
-        )->execute($this->leadPayload(), 'user');
-
-        Notification::assertSentOnDemandTimes(NewLeadNotification::class, 1);
-        Notification::assertSentOnDemand(
-            NewLeadNotification::class,
-            fn ($notification, $channels, $notifiable) => $notifiable->routes['mail'] === 'rotation@example.com'
-        );
-    }
-
-    public function testBlankReceiverNotificationEmailFallsBackToRotation(): void
-    {
-        Notification::fake();
-        $user = auth()->user();
-
-        $leadRotation = $this->makeRotation('rotation@example.com', LeadNotificationUserModeEnum::NOTIFY_ROTATION_USERS);
-        $leadReceiver = $this->makeReceiver($leadRotation, ' , ');
-        $lead = Lead::factory()->withReceiverId($leadReceiver->getId())->create();
-
-        new SendRotationEmailsAction(
-            $lead,
-            $leadReceiver,
-            $leadRotation,
-            $user
-        )->execute($this->leadPayload(), 'user');
-
-        Notification::assertSentOnDemandTimes(NewLeadNotification::class, 1);
-        Notification::assertSentOnDemand(
-            NewLeadNotification::class,
-            fn ($notification, $channels, $notifiable) => $notifiable->routes['mail'] === 'rotation@example.com'
-        );
     }
 
     private function makeRotation(string $rotationEmail, LeadNotificationUserModeEnum $userMode): LeadRotation
