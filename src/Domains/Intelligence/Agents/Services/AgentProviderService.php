@@ -63,6 +63,7 @@ class AgentProviderService
             return new Gemini(
                 key: self::requireKey($source, $agent, $provider),
                 model: $model,
+                parameters: $parameters,
                 httpClient: $httpClient,
             );
         }

@@ -495,6 +495,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             'short_description' => null, //$this->short_description,
             'attributes' => [],
             'apps_id' => $this->apps_id,
+            'created_at' => $this->created_at?->timestamp ?? 0,
             'rating' => (float) $this->rating,
         ];
         $attributes = $this->searchableAttributes();
@@ -758,6 +759,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 [
                     'name' => 'files',
                     'type' => 'object[]',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'company',
@@ -780,11 +782,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                     'name' => 'ean',
                     'type' => 'string',
                     'facet' => true,
+                    'optional' => true,
                 ],
                 [
                     'name' => 'barcode',
                     'type' => 'string',
                     'facet' => true,
+                    'optional' => true,
                 ],
                 [
                     'name' => 'status',
@@ -814,6 +818,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 [
                     'name' => 'attributes',
                     'type' => 'object',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'apps_id',
@@ -837,7 +842,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 ],
             ],
             'default_sorting_field' => 'created_at',
-            'enable_nested_fields' => true,  // Enable nested fields support for complex objects
+            'enable_nested_fields' => true,
         ];
     }
 
