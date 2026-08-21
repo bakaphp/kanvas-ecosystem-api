@@ -119,7 +119,13 @@ class BackfillProductEnrichmentCommand extends Command
         }
 
         try {
-            new EnrichProductAction($product, $agentId)->execute();
+            $result = new EnrichProductAction($product, $agentId)->execute();
+
+            // --sync exists so a human can judge blurb quality on a handful before
+            // paying for the whole catalog. Printing it is the whole point.
+            $this->newLine();
+            $this->line("<info>{$product->name}</info>");
+            $this->line('  ' . (($result['blurb'] ?? '') ?: '(' . ($result['status'] ?? 'unknown') . ($result['reason'] ?? '' ? ' — ' . $result['reason'] : '') . ')'));
 
             return 0;
         } catch (Throwable $e) {
