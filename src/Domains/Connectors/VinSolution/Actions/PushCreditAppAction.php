@@ -47,7 +47,7 @@ class PushCreditAppAction
         $user = Dealer::getUser(
             $vinCompany,
             $vinUserId,
-            $this->app,
+            $this->people->app,
         );
 
         $vinContact = new ContactService(
