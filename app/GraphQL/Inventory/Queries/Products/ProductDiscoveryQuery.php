@@ -22,13 +22,9 @@ use Kanvas\Users\Repositories\UsersRepository;
 use Throwable;
 
 /**
- * A read, so it is a Query — clients may cache it.
- *
- * That is exactly why the attribution id comes FROM the client: a server-minted
- * one would be frozen into the cache, and every repeat of a cached search would
- * report the first search's id. The client generates one per search and caches
- * it alongside the result, which also makes the impression write idempotent —
- * the same id arriving twice records one search, not two.
+ * A Query, so clients cache it — which is why the attribution id comes FROM the
+ * client. A server-minted one would be frozen into that cache and every repeat
+ * would report the first search's id.
  */
 class ProductDiscoveryQuery
 {
@@ -66,11 +62,7 @@ class ProductDiscoveryQuery
         ];
     }
 
-    /**
-     * An app-key caller must supply the id: without a session there is nothing
-     * server-side to tie repeat searches to, and a minted one would be lost the
-     * moment the client cached the response.
-     */
+    /** App-key callers must supply it; a minted one dies in their cache. */
     private function resolveRequestId(mixed $requestId): string
     {
         $requestId = is_string($requestId) ? trim($requestId) : '';
@@ -86,8 +78,7 @@ class ProductDiscoveryQuery
             return (string) Str::uuid();
         }
 
-        // Stored in a unique, indexed column — a free-text id would let a caller
-        // poison the impression log with unbounded junk.
+        // Unique indexed column — free text would let a caller fill it with junk.
         if (! Str::isUuid($requestId)) {
             throw new ValidationException('request_id must be a UUID.');
         }
@@ -96,10 +87,8 @@ class ProductDiscoveryQuery
     }
 
     /**
-     * An app-key request authenticates as a fallback user whose current company
-     * is arbitrary — left implicit it silently answers from whichever tenant
-     * that lands on. So the company is required there, and a real user may only
-     * name one they actually belong to.
+     * An app-key request authenticates as a fallback user whose current company is
+     * arbitrary, so it must name one. A real user may only name one they belong to.
      */
     private function resolveCompany(AppInterface $app, ?Users $user, mixed $companyId): CompanyInterface
     {
@@ -123,18 +112,13 @@ class ProductDiscoveryQuery
         }
 
         if (! $this->isAppKeyRequest() && $user !== null) {
-            // Otherwise any member of the app could read a sibling company's
-            // catalog just by naming its id.
             UsersRepository::belongsToCompany($user, $company);
         }
 
         return $company;
     }
 
-    /**
-     * An app key is the platform's super-admin context; `@guard` accepts it with
-     * no real end user behind it.
-     */
+    /** `@guard` accepts an app key with no real end user behind it. */
     private function isAppKeyRequest(): bool
     {
         return app()->bound(AppKey::class);

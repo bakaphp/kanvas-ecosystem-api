@@ -61,9 +61,7 @@ class EnrichProductAction
         $blurb = trim(($data['blurb_es'] ?? '') . ' ' . ($data['blurb_en'] ?? ''));
         $this->product->set(CustomFieldEnum::BLURB->value, $blurb);
 
-        // Only a run that produced a blurb counts as done. Stamping the hash
-        // regardless made an empty blurb permanent — the gate then skipped the
-        // product forever and the miss was invisible.
+        // Only a run that produced a blurb counts as done, or an empty one is permanent.
         if ($blurb !== '') {
             $this->product->set(CustomFieldEnum::ENRICHMENT_HASH->value, $hash);
         }
@@ -77,12 +75,8 @@ class EnrichProductAction
     }
 
     /**
-     * Fingerprints everything the prompt is built from, so the gate re-runs
-     * exactly when the model would produce a different answer.
-     *
-     * Attributes are included because they now feed the prompt: hashing only
-     * name/description/categories would leave a product whose body type or
-     * mileage changed with a blurb describing the old one, forever.
+     * Fingerprints everything the prompt is built from — attributes included, or a
+     * product whose body type changed keeps a blurb describing the old one forever.
      */
     private function contentHash(): string
     {
@@ -109,14 +103,9 @@ class EnrichProductAction
     }
 
     /**
-     * Attributes are where a catalog actually differentiates — body type, seats,
-     * fuel, year, condition. Without them the model only has a model name and a
-     * stub description, and every product in a vertical gets the same
-     * interchangeable blurb, which embeds to the same place and discriminates
-     * nothing.
-     *
-     * Enrichment's own facet outputs are excluded: feeding a previous run's
-     * guesses back in entrenches them instead of re-deriving from source data.
+     * Attributes are where a catalog differentiates. Without them every product in
+     * a vertical gets the same interchangeable blurb, which embeds to one place.
+     * Enrichment's own facet outputs are excluded — feeding them back entrenches them.
      */
     private function promptAttributes(): string
     {

@@ -19,11 +19,7 @@ use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Throwable;
 
 /**
- * Free-form sentence in, product payloads out.
- *
- * The search engine only nominates candidates; the database decides what the
- * caller actually sees. Every id comes back through a tenant-scoped read, so a
- * stale, mis-scoped or compromised index cannot surface another company's row.
+ * The engine only nominates ids; the DB read below is the tenant boundary.
  */
 class RecommendProductsAction
 {
@@ -56,8 +52,7 @@ class RecommendProductsAction
         $limit = min(max($limit, 1), self::MAX_LIMIT);
         $intent = ProductIntent::fromSentence($query, new IntentLexiconService($this->app));
 
-        // Pull more candidates than the page holds: diversification can only
-        // drop near-duplicates if there is something behind them to promote.
+        // Wider than the page so diversify() has something to promote.
         $ids = $this->candidateIds($intent, $this->candidatePoolSize($limit), $tasteVector);
 
         return $ids === [] ? [] : $this->hydrate($ids, $intent, $limit);
@@ -70,8 +65,6 @@ class RecommendProductsAction
      */
     private function candidateIds(ProductIntent $intent, int $limit, ?array $tasteVector): array
     {
-        // Personalized results are per-shopper, so they are never served from
-        // the shared query cache.
         if ($tasteVector !== null && $tasteVector !== []) {
             return $this->runSearch($intent, $limit, $tasteVector);
         }
@@ -85,9 +78,7 @@ class RecommendProductsAction
 
         $ids = $this->runSearch($intent, $limit, null);
 
-        // Only a real result is cached. Caching an empty one would let a
-        // momentary engine outage answer "nothing matched" for the whole TTL,
-        // long after the engine came back.
+        // Never cache empty: an engine blip would answer "nothing matched" for the whole TTL.
         if ($ids !== []) {
             Cache::put($key, $ids, $this->cacheTtl());
         }
@@ -108,9 +99,6 @@ class RecommendProductsAction
         try {
             return $service->search($intent, $limit, $tasteVector);
         } catch (Throwable $e) {
-            // An unreachable or misconfigured engine degrades to keyword search
-            // rather than showing the shopper an empty catalog. Logged, because
-            // silence here is indistinguishable from "nothing matched".
             Log::warning('Product discovery engine failed, falling back to SQL', [
                 'app_id' => $this->app->getId(),
                 'company_id' => $this->company->getId(),
@@ -141,9 +129,7 @@ class RecommendProductsAction
             ->whereIn('id', $ids)
             ->with(['categories', 'variants.variantChannels.productVariantWarehouse']);
 
-        // Not `fromCompany()`: that scope widens to `companies_id > 0` under an
-        // AppKey binding, which would let ids from any company in the app
-        // through. This is the boundary, so it stays pinned.
+        // Not fromCompany(): it widens to `companies_id > 0` under an AppKey binding.
         if (! (bool) $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value)) {
             $query->where('companies_id', $this->company->getId());
         }
@@ -160,12 +146,8 @@ class RecommendProductsAction
     }
 
     /**
-     * Stops one product from taking the whole page.
-     *
-     * A dealer lists the same model once per colour, and near-identical products
-     * embed to near-identical vectors — so an unfiltered ranking answers "a new
-     * car for my girlfriend" with the same car three times. Anything dropped is
-     * appended rather than discarded, so a thin catalogue still fills the page.
+     * Near-identical products embed alike, so one model in five colours takes the
+     * whole page. Overflow is appended, not dropped, so a thin catalogue still fills.
      *
      * @param array<int, array{product: array, variants: array}> $ranked
      *
@@ -213,8 +195,7 @@ class RecommendProductsAction
     }
 
     /**
-     * The SQL path cannot filter on price in the query — price lives on the
-     * variant channel — so the bound is enforced here for every backend.
+     * Price lives on the variant channel, so the SQL path cannot filter it in-query.
      */
     private function withinBudget(array $result, ProductIntent $intent): bool
     {
@@ -237,7 +218,7 @@ class RecommendProductsAction
             }
         }
 
-        // An unpriced product cannot be shown to violate a budget, so it stays.
+        // Unpriced cannot be shown to break a budget, so it stays.
         return ! $this->hasAnyPricedVariant($result);
     }
 

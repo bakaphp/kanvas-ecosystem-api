@@ -9,12 +9,8 @@ use Illuminate\Support\Str;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 
 /**
- * Resolves the phrase lists used to pull hard numeric constraints out of a
- * free-form query.
- *
- * Shipped config is English; a tenant adds its own language as an app setting
- * and the two are merged, never swapped — one storefront receives both
- * "menos de $50" and "under 50".
+ * Shipped config is English; a tenant's own language is MERGED over it, never
+ * swapped — one storefront receives both "menos de $50" and "under 50".
  */
 class IntentLexiconService
 {
@@ -32,12 +28,8 @@ class IntentLexiconService
     }
 
     /**
-     * Users type "maximo" as often as "máximo", so both the lexicon and the
-     * incoming sentence are folded to unaccented lowercase before matching.
-     *
-     * No framework helper covers this pair: `Str::slug()` hyphenates, which
-     * destroys the multi-word phrases the lexicon matches on, and Baka's Str
-     * only carries phone/email/slug helpers.
+     * Users type "maximo" as often as "máximo". Not Str::slug() — it hyphenates,
+     * which destroys the multi-word phrases the lexicon matches on.
      */
     public static function normalize(string $value): string
     {
@@ -64,13 +56,9 @@ class IntentLexiconService
     }
 
     /**
-     * Price phrases from BOTH buckets in one ordered map, longest first.
-     *
-     * The ordering has to be global, not per-bucket: "no mas de" (a maximum) and
-     * "mas de" (a minimum) both match the same sentence, and PCRE takes the
-     * first alternative that matches at the leftmost position. Ranking the
-     * longer phrase ahead of the shorter one is what stops "no mas de 50" from
-     * parsing as a minimum and inverting the filter.
+     * Both buckets in one globally-ordered map, longest first: "no mas de" (a max)
+     * contains "mas de" (a min), and PCRE takes the first matching alternative —
+     * shorter-first would parse "no mas de 50" as a floor and invert the filter.
      *
      * @return array<string, string> phrase => bucket
      */

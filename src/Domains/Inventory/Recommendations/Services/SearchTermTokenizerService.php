@@ -8,11 +8,8 @@ use Baka\Contracts\AppInterface;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 
 /**
- * Reduces a sentence to the words worth matching in SQL.
- *
- * Only the SQL fallback needs this — a search engine tokenizes and scores on its
- * own. Without it a LIKE on the raw sentence matches nothing, because no product
- * is literally named "un regalo para mi esposo".
+ * SQL fallback only — an engine tokenizes on its own. Without this a LIKE on the
+ * raw sentence matches nothing: no product is named "un regalo para mi esposo".
  */
 class SearchTermTokenizerService
 {

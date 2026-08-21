@@ -9,12 +9,8 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Inventory\Recommendations\Contracts\ProductDiscoveryInterface;
 
 /**
- * Picks the discovery backend for a tenant.
- *
- * Mirrors SearchEngineResolver's precedence exactly — model-specific setting,
- * then app default, then the global driver. Getting that order wrong would make
- * discovery disagree with how Products::search() actually routes, and the two
- * would quietly index and query different engines.
+ * Mirrors SearchEngineResolver's precedence exactly. Getting the order wrong
+ * would have discovery query a different engine than indexing writes to.
  */
 class ProductDiscoveryResolver
 {

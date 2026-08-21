@@ -12,13 +12,9 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 
 /**
- * Expands the agent's id-only structured output into the full product payload.
- *
- * The agent used to re-emit every product field verbatim into its schema, which
- * meant thousands of output tokens per reply and dominated the ~20s response
- * time. It now returns ids and a reason; the payload is rebuilt here from the
- * DB, which is also the tenant boundary — a hallucinated or cross-tenant id
- * simply fails to resolve and is dropped.
+ * Expands the agent's id-only output into the full payload. The agent used to
+ * re-emit every field, which dominated its ~20s reply. The DB read is also the
+ * tenant boundary: a hallucinated or cross-tenant id just fails to resolve.
  */
 class HydrateRecommendationsAction
 {
@@ -89,22 +85,14 @@ class HydrateRecommendationsAction
             ->with(['categories', 'variants.variantChannels.productVariantWarehouse']);
 
         if (! (bool) $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value)) {
-            // Deliberately not `fromCompany()`: that scope degrades to
-            // `companies_id > 0` whenever an AppKey is bound without a branch,
-            // which would let ids from any company in the app hydrate. This is
-            // the last boundary between a model-produced id and the response,
-            // so it stays pinned to the caller's company.
+            // Not fromCompany(): it degrades to `companies_id > 0` under an AppKey binding.
             $query->where('companies_id', $this->company->getId());
         }
 
         return $query->get()->keyBy(fn (Products $product): int => $product->getId())->all();
     }
 
-    /**
-     * Falls back to the product's first variant when the agent names one that
-     * does not belong to it — the recommendation is still valid, only the
-     * variant choice was wrong.
-     */
+    /** A wrong variant id is still a valid recommendation — fall back, don't drop. */
     private function resolveVariant(Products $product, int $variantId): ?Variants
     {
         $variant = $variantId > 0

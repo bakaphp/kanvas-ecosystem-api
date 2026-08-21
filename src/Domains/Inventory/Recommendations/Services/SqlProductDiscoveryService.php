@@ -14,12 +14,8 @@ use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Override;
 
 /**
- * Keyword fallback for tenants with no search engine, and the landing spot when
- * the engine is unreachable.
- *
- * Deliberately dumb — it matches words, it does not understand the sentence. It
- * exists so every tenant gets results on day one rather than an empty page, not
- * to compete with the vector path.
+ * Keyword fallback for tenants with no engine, and where an unreachable one
+ * lands. Deliberately dumb — it matches words, it does not read the sentence.
  */
 class SqlProductDiscoveryService implements ProductDiscoveryInterface
 {
@@ -60,11 +56,7 @@ class SqlProductDiscoveryService implements ProductDiscoveryInterface
             ->all();
     }
 
-    /**
-     * Price bounds are applied by the caller after hydration rather than here:
-     * price lives on the variant channel, and joining it per candidate would
-     * cost more than filtering the handful of rows that come back.
-     */
+    /** Price lives on the variant channel; the caller filters it after hydration. */
     private function baseQuery(): Builder
     {
         $query = Products::fromApp($this->app)

@@ -15,20 +15,13 @@ use Override;
 use Typesense\Client;
 
 /**
- * Candidate lookup against the tenant's Typesense collection.
- *
- * Every query the shopper waits on is ONE `multi_search` round trip. Two
- * searches can ride in it — the sentence, and the shopper's taste vector when
- * one exists — because they enter the same vector space from different points:
- * "what is near what they just typed" and "what is near what they liked
- * before". Sending them separately would pay the network round trip twice.
+ * One multi_search round trip. The sentence and the taste vector enter the same
+ * vector space from different points, so they ride together rather than paying
+ * the network twice.
  */
 class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
 {
-    /**
-     * Rank-fusion dampener. Standard value; large enough that the top slot does
-     * not dominate everything below it.
-     */
+    /** Rank-fusion dampener; stops the top slot dominating everything below. */
     private const int RRF_K = 60;
 
     private ?Client $client = null;
@@ -55,9 +48,7 @@ class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
             $searches[] = $this->tasteSearch($intent, $tasteVector, $limit);
         }
 
-        // A Typesense failure is not swallowed here: the caller degrades to the
-        // SQL path, which is more useful to a shopper than an empty result that
-        // looks like "we sell nothing you want".
+        // Failures bubble: the caller degrades to SQL rather than showing an empty catalog.
         $response = $this->client()->multiSearch->perform(
             ['searches' => $searches],
             ['exclude_fields' => 'embedding'],
@@ -83,9 +74,7 @@ class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
             $search['query_by_weights'] = $weights;
         }
 
-        // Only ask for the vector half when the collection actually declares the
-        // auto-embed field — naming a field it does not have makes Typesense
-        // reject the whole search rather than degrade.
+        // Naming `embedding` when the collection lacks it rejects the WHOLE search.
         if ($this->hasEmbeddingField($queryBy)) {
             $search['vector_query'] = sprintf('embedding:([], alpha: %s)', $this->vectorAlpha());
         }
@@ -110,9 +99,7 @@ class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
     }
 
     /**
-     * Tenant scoping here narrows the candidate pool; it is not the security
-     * boundary — the caller re-reads every id from the database under its own
-     * scope regardless of what the index returns.
+     * Narrows the pool only — the caller's DB read is the security boundary.
      */
     private function filterBy(ProductIntent $intent): string
     {
@@ -126,11 +113,8 @@ class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
             $filters[] = 'in_stock:=true';
         }
 
-        // 0 is "price unknown", not "free" — the index has no null for a typed
-        // float. Both bounds have to let it through or a floor filter wipes out
-        // every unpriced product, which is what the caller deliberately keeps
-        // and flags unavailable. `price:<=X` already admits 0; the floor needs
-        // saying explicitly.
+        // 0 means "price unknown" (the field is a typed float, no null). `price:<=X`
+        // already admits it; the floor has to say so or it wipes out every unpriced product.
         if ($intent->minPrice !== null) {
             $filters[] = sprintf('(price:>=%s || price:=0)', $intent->minPrice);
         }
@@ -143,12 +127,8 @@ class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
     }
 
     /**
-     * Reciprocal-rank fusion.
-     *
-     * The two searches score on different scales — a hybrid text+vector score
-     * and a raw cosine distance — so adding them would let whichever produces
-     * bigger numbers silently win. Fusing on rank position instead means a
-     * product both searches like beats one that only a single search loved.
+     * Reciprocal-rank fusion. The two searches score on different scales (hybrid
+     * text+vector vs raw cosine), so they are fused on rank position, not score.
      *
      * @return list<int>
      */
@@ -173,10 +153,7 @@ class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
         return array_slice(array_map('intval', array_keys($scores)), 0, $limit);
     }
 
-    /**
-     * Pull a wider pool than we return: fusion and the caller's own filtering
-     * both drop candidates, and a pool the size of the page starves them.
-     */
+    /** Wider than the page: fusion and caller-side filtering both drop candidates. */
     private function poolSize(int $limit): int
     {
         return min($limit * 3, 100);

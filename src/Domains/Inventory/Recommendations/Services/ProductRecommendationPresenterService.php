@@ -13,10 +13,8 @@ use Kanvas\Inventory\Variants\Models\Variants;
 use Throwable;
 
 /**
- * Single source of truth for the `{ product, variants[] }` JSON shape the
- * recommendation tools return and the frontend consumes. Both lookup tools and
- * the agent hydration action render through this, so a change to the payload
- * cannot drift between the Typesense path, the SQL path and the agent path.
+ * The one `{ product, variants[] }` shape every path renders through, so the
+ * payload cannot drift between Typesense, SQL and the agent.
  */
 class ProductRecommendationPresenterService
 {
@@ -31,10 +29,7 @@ class ProductRecommendationPresenterService
     ) {
     }
 
-    /**
-     * Products with no variants render nothing renderable downstream, so they
-     * are dropped rather than emitted as an empty card.
-     */
+    /** No variants means nothing to render downstream. */
     public function product(Products $product): ?array
     {
         $variants = $product->variants
@@ -88,11 +83,7 @@ class ProductRecommendationPresenterService
         ];
     }
 
-    /**
-     * Out-of-stock and unpriced variants stay in the payload flagged
-     * `is_available = false` — the storefront shows them as unavailable rather
-     * than silently dropping a product the customer asked for.
-     */
+    /** Out-of-stock and unpriced stay in, flagged unavailable, rather than vanishing. */
     public function channel(Variants $variant): array
     {
         $quantity = $variant->getTotalQuantity();
@@ -102,9 +93,7 @@ class ProductRecommendationPresenterService
             return $this->emptyChannel($quantity);
         }
 
-        // Reads the eager-loaded variantChannels collection (callers load
-        // `variants.variantChannels.productVariantWarehouse`) so this stays O(1)
-        // instead of a query per variant.
+        // Eager-loaded by callers, so this stays O(1) instead of a query per variant.
         $channelInfo = $variant->variantChannels->firstWhere('channels_id', $defaultChannelId);
 
         if (! $channelInfo) {

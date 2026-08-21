@@ -5,15 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Recommendations\Enums;
 
 /**
- * Picks what the indexed `semantic_profile` describes.
- *
- * A customer's query describes a PERSON and a situation; a product record
- * describes an object. Vector search across that gap is weak, so the profile is
- * written in the same register as the query — the strategy decides which
- * register that is for this catalog.
- *
- * Add a case when a customer's catalog genuinely reads differently (auto parts
- * match on fitment, B2B on role and use case), not to pre-empt one.
+ * A query describes a PERSON; a product record describes an object. Vector
+ * search across that gap is weak, so the profile is written in the query's
+ * register — this picks which register. Add a case when a catalog needs one.
  */
 enum SemanticProfileStrategyEnum: string
 {

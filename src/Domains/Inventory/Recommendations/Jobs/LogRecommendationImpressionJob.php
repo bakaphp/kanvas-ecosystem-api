@@ -16,11 +16,8 @@ use Kanvas\Inventory\Recommendations\Actions\LogRecommendationImpressionAction;
 use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
 
 /**
- * Writes the impression off the request path — the shopper never waits on it.
- *
- * The intent arrives as loose scalars rather than the ProductIntent DTO: a
- * Spatie Data object on a queued job is a documented foot-gun in this codebase,
- * and there is nothing here worth the risk.
+ * Off the request path. Intent arrives as loose scalars, not the ProductIntent
+ * DTO — a Spatie Data object on a queued job is a documented foot-gun here.
  */
 class LogRecommendationImpressionJob implements ShouldQueue
 {

@@ -8,12 +8,8 @@ use Kanvas\Inventory\Recommendations\Services\IntentLexiconService;
 use Spatie\LaravelData\Data;
 
 /**
- * The hard constraints pulled out of a free-form query.
- *
- * Deliberately shallow: a price ceiling has to become a `filter_by` because no
- * similarity score will reliably keep a $900 watch out of a "under $50" result.
- * Everything else the sentence carries — recipient, occasion, style, tone — is
- * left to the embedding, which is multilingual and needs no rules here.
+ * Only the hard numeric constraints. A price ceiling has to be a real filter;
+ * recipient, occasion and style are left to the embedding.
  */
 class ProductIntent extends Data
 {
@@ -84,9 +80,7 @@ class ProductIntent extends Data
     }
 
     /**
-     * A currency symbol is required here on purpose. Gift queries are full of
-     * bare numbers that are not prices — "una mujer de 32 años" would otherwise
-     * cap the budget at $32 and return almost nothing.
+     * Currency symbol required: "una mujer de 32 años" would otherwise cap the budget at $32.
      */
     private static function matchBareCurrencyAmount(string $normalized): ?float
     {
@@ -112,13 +106,9 @@ class ProductIntent extends Data
     }
 
     /**
-     * Assumes en-US grouping ("1,299.99"). A locale that groups the other way
-     * round is not distinguishable from this string alone.
-     *
-     * `Illuminate\Support\Number::parseFloat()` does this properly, locale and
-     * all — but it hard-requires the `intl` extension, which this image does not
-     * ship. It throws rather than degrading, so adopting it would turn every
-     * discovery query into a 500. Swap to it if `intl` ever becomes standard.
+     * Assumes en-US grouping ("1,299.99"). Number::parseFloat() does this properly
+     * but hard-requires `intl`, which this image lacks — it throws, so it would
+     * 500 every query. Swap to it if `intl` ever becomes standard.
      */
     private static function toFloat(string $raw): ?float
     {

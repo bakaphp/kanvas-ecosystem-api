@@ -14,8 +14,7 @@ use Kanvas\Inventory\Recommendations\Services\IntentLexiconService;
 class LogRecommendationImpressionAction
 {
     /**
-     * @param list<int> $productIds in the order they were shown; rank position
-     *                              is half the signal, so order is preserved
+     * @param list<int> $productIds in the order shown — rank position is half the signal
      */
     public function __construct(
         private readonly AppInterface $app,
@@ -37,10 +36,8 @@ class LogRecommendationImpressionAction
             ->where('recommendation_uuid', $this->recommendationUuid)
             ->first();
 
-        // Same id, DIFFERENT query means the client is reusing one id across
-        // searches — one per page load instead of one per search. Overwriting
-        // would delete the earlier search, so the first report wins and the
-        // misuse is logged rather than silently losing history.
+        // Same id, different query = client reusing one id per page instead of per
+        // search. First report wins; overwriting would delete the earlier search.
         if ($existing !== null && $existing->query_normalized !== $normalizedQuery) {
             Log::warning('Recommendation request_id reused across different queries', [
                 'request_id' => $this->recommendationUuid,
@@ -52,8 +49,7 @@ class LogRecommendationImpressionAction
             return $existing;
         }
 
-        // Otherwise the same search was reported twice — a cached result carries
-        // its id — so it collapses to one row instead of hitting the unique index.
+        // Same search reported twice (a cached result carries its id) — collapse it.
         return RecommendationImpression::updateOrCreate(
             ['recommendation_uuid' => $this->recommendationUuid],
             [
@@ -62,8 +58,7 @@ class LogRecommendationImpressionAction
             'users_id' => $this->usersId,
             'session_id' => $this->sessionId,
             'query_raw' => $this->query,
-            // Normalized alongside the raw text so the popular / no-hit report
-            // groups "Menos de $50" and "menos de 50" as one query.
+            // Normalized so the no-hit report groups "Menos de $50" and "menos de 50".
             'query_normalized' => $normalizedQuery,
             'intent' => $this->intent === null ? null : [
                 'min_price' => $this->intent->minPrice,

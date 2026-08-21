@@ -10,12 +10,9 @@ use Illuminate\Database\Eloquent\Model;
 use Override;
 
 /**
- * One recorded recommendation response.
- *
- * Append-only, so it deliberately skips the Inventory BaseModel: there is no
- * `is_deleted` column and nothing edits a row after it is written. Use
- * `query()->fromApp($app)` for lookups — KanvasModelTrait's static getById
- * helpers call notDeleted() and would error here.
+ * Append-only, so it skips the Inventory BaseModel — there is no `is_deleted`.
+ * Look up with `query()->fromApp($app)`: the static getById helpers call
+ * notDeleted() and would error here.
  *
  * @property int $id
  * @property int $apps_id
