@@ -443,13 +443,21 @@ class ProductDiscoveryQueryTest extends TestCase
         Queue::assertNotPushed(LogRecommendationImpressionJob::class);
     }
 
-    public function testAnonymousSearchRequiresTheAppKey(): void
+    public function testLoggedInUserCannotNameACompanyTheyDoNotBelongTo(): void
     {
+        Queue::fake();
+
+        // Otherwise any member of the app could read a sibling company's catalog
+        // just by passing its id.
+        $strangersCompany = Companies::factory()->create();
+
         $this->graphQL(self::DISCOVER_ANON, ['input' => [
             'query' => 'reloj',
-                'request_id' => (string) Str::uuid(),
-            'company_id' => '1',
+            'request_id' => (string) Str::uuid(),
+            'company_id' => (string) $strangersCompany->getId(),
         ]])->assertJsonStructure(['errors']);
+
+        Queue::assertNotPushed(LogRecommendationImpressionJob::class);
     }
 
     private function appKeyHeader(): array
