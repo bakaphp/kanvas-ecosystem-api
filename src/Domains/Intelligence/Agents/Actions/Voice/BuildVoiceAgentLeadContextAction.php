@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Actions\Voice;
 use Baka\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
@@ -46,48 +47,36 @@ class BuildVoiceAgentLeadContextAction
     public function execute(): ?array
     {
         try {
-            $lead = $this->resolveLead();
-            if ($lead === null) {
-                return null;
+            [$person, $lead] = $this->resolve();
+            if ($person === null) {
+                return null; // truly unknown number — nothing to recognize
             }
 
-            $name = trim(($lead->firstname ?? '') . ' ' . ($lead->lastname ?? ''));
-            if ($name === '') {
-                $name = (string) ($lead->title ?? '');
-            }
-
-            $vehicle = trim((string) $lead->get(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value));
-            $contextInfo = trim((string) $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value));
-            if ($contextInfo !== '') {
-                $contextInfo = mb_substr($contextInfo, 0, self::CONTEXT_INFO_MAX);
-            }
-
-            $context = [
-                'lead_id' => $lead->getId(),
-                'name' => $name !== '' ? $name : null,
-                'status' => $lead->status?->name,
-                'stage' => $lead->stage?->name,
-                'owner' => $lead->owner?->displayname,
-                'vehicle_interest' => $vehicle !== '' ? $vehicle : null,
-                'context_info' => $contextInfo !== '' ? $contextInfo : null,
-            ];
-            $context['summary'] = $this->summarize($context);
-
-            return $context;
+            // Known lead -> full context. Known contact with no lead -> a lighter
+            // "returning caller" context (recognition without pretending we have a
+            // lead). Both set is_returning so callers can tailor the greeting.
+            return $lead !== null
+                ? $this->leadContext($lead)
+                : $this->contactContext($person);
         } catch (Throwable $e) {
             captureException($e);
 
-            return null; // never block placing the call over a context miss
+            return null; // never block the call over a context miss
         }
     }
 
-    private function resolveLead(): ?Lead
+    /**
+     * Resolve the person behind the number and their current lead (if any).
+     *
+     * @return array{0: People|null, 1: Lead|null}
+     */
+    private function resolve(): array
     {
         $company = $this->agent->companies_id > 0
             ? Companies::find($this->agent->companies_id)
             : null;
         if ($company === null) {
-            return null;
+            return [null, null];
         }
 
         $people = PeoplesRepository::getByPhoneNumber(
@@ -96,18 +85,89 @@ class BuildVoiceAgentLeadContextAction
             phoneNumbers: $this->phoneVariants(),
         )->get();
         if ($people->isEmpty()) {
-            return null;
+            return [null, null];
         }
 
         // Prefer a person with an active lead; else the first person's last lead.
         foreach ($people as $person) {
             $lead = LeadsRepository::getPeopleActiveLead($person);
             if ($lead !== null) {
-                return $lead;
+                return [$person, $lead];
             }
         }
 
-        return LeadsRepository::getPeopleLastLead($people->first());
+        $first = $people->first();
+
+        return [$first, LeadsRepository::getPeopleLastLead($first)];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function leadContext(Lead $lead): array
+    {
+        $name = trim(($lead->firstname ?? '') . ' ' . ($lead->lastname ?? ''));
+        if ($name === '') {
+            $name = (string) ($lead->title ?? '');
+        }
+
+        $vehicle = trim((string) $lead->get(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value));
+        $contextInfo = trim((string) $lead->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value));
+        if ($contextInfo !== '') {
+            $contextInfo = mb_substr($contextInfo, 0, self::CONTEXT_INFO_MAX);
+        }
+
+        $context = [
+            'lead_id' => $lead->getId(),
+            'name' => $name !== '' ? $name : null,
+            'status' => $lead->status?->name,
+            'stage' => $lead->stage?->name,
+            'owner' => $lead->owner?->displayname,
+            'vehicle_interest' => $vehicle !== '' ? $vehicle : null,
+            'context_info' => $contextInfo !== '' ? $contextInfo : null,
+            'is_returning' => true,
+        ];
+        $context['summary'] = $this->summarize($context);
+
+        return $context;
+    }
+
+    /**
+     * A known contact with no lead yet — recognized, but not (yet) a lead.
+     *
+     * @return array<string, mixed>
+     */
+    private function contactContext(People $person): array
+    {
+        $name = $this->peopleName($person);
+
+        return [
+            'lead_id' => null,
+            'name' => $name,
+            'status' => null,
+            'stage' => null,
+            'owner' => null,
+            'vehicle_interest' => null,
+            'context_info' => null,
+            'is_returning' => true,
+            'summary' => $name !== null
+                ? "Ya conocemos a este contacto: {$name}. Aún no hay un lead abierto; ya ha contactado antes."
+                : 'Este número ya ha contactado antes, pero todavía no tenemos su nombre.',
+        ];
+    }
+
+    /**
+     * A real name for the person, or null. createPeopleFromPhone stores the phone
+     * number as firstname, so a phone-only "name" is treated as unknown.
+     */
+    private function peopleName(People $person): ?string
+    {
+        $name = trim(($person->firstname ?? '') . ' ' . ($person->lastname ?? ''));
+        if ($name === '' || preg_match('/^[\d\s+()\-]+$/', $name) === 1) {
+            return null;
+        }
+
+        return $name;
     }
 
     /**
