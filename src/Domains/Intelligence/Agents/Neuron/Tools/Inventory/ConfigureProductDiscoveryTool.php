@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
+use Kanvas\Inventory\Recommendations\Enums\SemanticProfileStrategyEnum;
 use Kanvas\Inventory\Recommendations\Services\ProductDiscoveryStatusService;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -61,6 +62,16 @@ class ConfigureProductDiscoveryTool extends Tool
                 required: false,
             ),
             new ToolProperty(
+                name: 'catalog_type',
+                type: PropertyType::STRING,
+                description: 'What kind of catalog this is, which decides who the product blurbs are '
+                    . 'written for. "gift" = the shopper is buying for someone else, so blurbs describe '
+                    . 'who would love to RECEIVE it and for what occasion. "generic" = the shopper is '
+                    . 'buying for themselves, so blurbs describe the need it solves. Defaults to '
+                    . '"generic". Changing it later means re-running enrichment.',
+                required: false,
+            ),
+            new ToolProperty(
                 name: 'embedding_model',
                 type: PropertyType::STRING,
                 description: 'Embedding model for semantic search. Defaults to "ts/multilingual-e5-small", '
@@ -86,6 +97,7 @@ class ConfigureProductDiscoveryTool extends Tool
      * @return array<string, mixed>
      */
     public function __invoke(
+        ?string $catalog_type = null,
         ?string $index_name = null,
         ?string $embedding_model = null,
         ?string $typesense_api_key = null,
@@ -100,7 +112,7 @@ class ConfigureProductDiscoveryTool extends Tool
         }
 
         try {
-            $applied = $this->apply($index_name, $embedding_model, $typesense_api_key, $typesense_host);
+            $applied = $this->apply($catalog_type, $index_name, $embedding_model, $typesense_api_key, $typesense_host);
             $report = new ProductDiscoveryStatusService($this->app, $this->company)->report();
         } catch (Throwable $e) {
             report($e);
@@ -124,16 +136,27 @@ class ConfigureProductDiscoveryTool extends Tool
                 . 'vectors from product names alone and the results look broken. If the collection already '
                 . 'exists without an embedding field it must be dropped and rebuilt; the embed field is '
                 . 'fixed when the collection is created. Then add a workflow rule on Products '
-                . 'created + updated so new products stay enriched.',
+                . 'created + updated so new products stay enriched. If products were already enriched '
+                . 'under a different catalog_type, their blurbs are written for the wrong reader — clear '
+                . 'their search_enrichment_hash and re-run the backfill.',
         ];
     }
 
     /**
      * @return array<string, string>
      */
-    private function apply(?string $indexName, ?string $embeddingModel, ?string $apiKey, ?string $host): array
-    {
+    private function apply(
+        ?string $catalogType,
+        ?string $indexName,
+        ?string $embeddingModel,
+        ?string $apiKey,
+        ?string $host,
+    ): array {
         $applied = [];
+
+        $strategy = SemanticProfileStrategyEnum::fromApp(trim((string) $catalogType) ?: null);
+        $this->app->set(ConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value, $strategy->value);
+        $applied[ConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value] = $strategy->value;
 
         $this->app->set('products_search_engine', 'typesense');
         $applied['products_search_engine'] = 'typesense';

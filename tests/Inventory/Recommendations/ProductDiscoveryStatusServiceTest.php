@@ -43,6 +43,7 @@ class ProductDiscoveryStatusServiceTest extends TestCase
             'app_custom_product_index',
             'collection',
             'query_by',
+            'catalog_strategy',
             'enrichment_agent',
             'blurb_coverage',
             'workflow_rule',
