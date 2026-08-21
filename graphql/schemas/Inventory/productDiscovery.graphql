@@ -1,7 +1,7 @@
 input ProductDiscoveryInput {
     "The shopper's request in their own words, in any language."
     query: String!
-    "Client-generated id for this search, echoed back and sent again with any click or purchase so the outcome can be attributed to it. Generate one per search so it rides the client cache alongside the result. REQUIRED for app-key callers; optional for a logged-in user, who gets a server-generated one."
+    "Client-generated id for THIS SEARCH — one per search, not one per page or session. Echoed back, and sent again with any click or purchase so the outcome can be attributed to it. Re-sending it for the same search is safe (a cached result carries it); re-using it for a DIFFERENT search is a bug and the later search will not be recorded. REQUIRED for app-key callers; optional for a logged-in user, who gets a server-generated one."
     request_id: String
     "Whose catalog to search. Optional for a logged-in user — defaults to their current company, and may only name a company they belong to. REQUIRED for app-key callers, which have no user to infer it from."
     company_id: ID

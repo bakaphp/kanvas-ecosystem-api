@@ -244,6 +244,67 @@ class ProductDiscoveryQueryTest extends TestCase
         $app->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, $originalCrossCompany);
     }
 
+    public function testDifferentSearchesInOneSessionEachGetTheirOwnRow(): void
+    {
+        $app = app(Apps::class);
+        $company = $this->actingUser()->getCurrentCompany();
+
+        // session_id is the visitor; request_id is one search. A shopper who
+        // searches twice in a session must not overwrite their first search.
+        foreach (['reloj', 'perfume'] as $query) {
+            new LogRecommendationImpressionAction(
+                app: $app,
+                company: $company,
+                recommendationUuid: (string) Str::uuid(),
+                query: $query,
+                productIds: [1],
+                sessionId: 'anon-same-session',
+            )->execute();
+        }
+
+        $rows = RecommendationImpression::query()
+            ->fromApp($app)
+            ->where('session_id', 'anon-same-session')
+            ->get();
+
+        $this->assertCount(2, $rows);
+        $this->assertEqualsCanonicalizing(['reloj', 'perfume'], $rows->pluck('query_normalized')->all());
+    }
+
+    public function testReusingOneRequestIdForADifferentQueryKeepsTheFirstSearch(): void
+    {
+        $app = app(Apps::class);
+        $company = $this->actingUser()->getCurrentCompany();
+        $requestId = (string) Str::uuid();
+
+        // A client generating one id per page load instead of per search would
+        // otherwise delete its earlier search. First report wins.
+        new LogRecommendationImpressionAction(
+            app: $app,
+            company: $company,
+            recommendationUuid: $requestId,
+            query: 'reloj',
+            productIds: [1, 2],
+        )->execute();
+
+        new LogRecommendationImpressionAction(
+            app: $app,
+            company: $company,
+            recommendationUuid: $requestId,
+            query: 'perfume',
+            productIds: [9],
+        )->execute();
+
+        $rows = RecommendationImpression::query()
+            ->fromApp($app)
+            ->where('recommendation_uuid', $requestId)
+            ->get();
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('reloj', $rows->first()->query_normalized);
+        $this->assertSame([1, 2], $rows->first()->product_ids);
+    }
+
     public function testAppKeyRequestWithoutARequestIdIsRejected(): void
     {
         Queue::fake();
