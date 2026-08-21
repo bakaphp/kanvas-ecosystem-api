@@ -12,6 +12,7 @@ use Kanvas\Connectors\ProductEnrichment\Agents\ProductEnrichmentAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Enums\SearchFieldEnum;
+use Kanvas\Inventory\Recommendations\Enums\SemanticProfileStrategyEnum;
 use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
 use Throwable;
@@ -44,6 +45,7 @@ class ProductDiscoveryStatusService
             $this->indexNameCheck(),
             $this->collectionCheck(),
             $this->queryByCheck(),
+            $this->strategyCheck(),
             $this->enrichmentAgentCheck(),
             $this->blurbCoverageCheck(),
             $this->workflowRuleCheck(),
@@ -116,10 +118,24 @@ class ProductDiscoveryStatusService
         }
 
         $docs = (int) ($collection['num_documents'] ?? 0);
-        $hasEmbedding = in_array('embedding', array_column($collection['fields'] ?? [], 'name'), true);
+        $fields = array_column($collection['fields'] ?? [], 'name');
+        $hasEmbedding = in_array('embedding', $fields, true);
 
         if ($docs === 0) {
             return $this->check('collection', false, "'{$name}' exists but is empty", 'run the reindex command');
+        }
+
+        // A collection built before these fields existed cannot be filtered or
+        // queried at all — discovery errors rather than degrading.
+        $missing = array_values(array_diff(['search_blurb', 'price', 'in_stock', 'companies_id'], $fields));
+
+        if ($missing !== []) {
+            return $this->check(
+                'collection',
+                false,
+                "'{$name}': {$docs} docs, missing " . implode(', ', $missing),
+                'this collection predates the discovery fields — DROP it and reindex, or every search fails',
+            );
         }
 
         if (! $hasEmbedding) {
@@ -149,6 +165,25 @@ class ProductDiscoveryStatusService
             true,
             $queryBy . (in_array('embedding', $names, true) ? ' (hybrid)' : ' (lexical only)'),
             in_array('embedding', $names, true) ? null : 'add `embedding` once the collection declares it, for cross-language matching',
+        );
+    }
+
+    /**
+     * Not a failure — `generic` is a valid answer. It is reported because a gift
+     * catalog left on `generic` produces blurbs written for the wrong reader,
+     * which is invisible unless someone looks.
+     */
+    private function strategyCheck(): array
+    {
+        $strategy = SemanticProfileStrategyEnum::fromApp(
+            $this->app->get(ConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value),
+        );
+
+        return $this->check(
+            'catalog_strategy',
+            true,
+            $strategy->value . ' — blurbs are written for "' . mb_strimwidth($strategy->blurbFraming(), 0, 60, '…') . '"',
+            null,
         );
     }
 
