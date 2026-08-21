@@ -233,43 +233,144 @@ model for ES/EN.
 
 ---
 
-## 7. The recommendation tools
+## 7. Product discovery
 
-Two **separate, non-mixed** tools, both returning the **identical** JSON shape
-(`{ product, variants[] }` with the same product/variant/channel keys) so the
-agent's structured-output schema (and the frontend) work with either:
+One pipeline serves both the storefront and the agent, so they cannot drift:
 
-| Tool | Matching strategy | When |
-|---|---|---|
-| `ProductRecommendationLookupTool` | SQL term-filter, or Algolia/Scout when an engine is configured (hybrid), with in-PHP scoring | Default; works with `SCOUT_DRIVER=null` |
-| `TypesenseProductRecommendationTool` | Typesense **NL search** — sends the customer's verbatim sentence, the cluster's LLM builds filters/sorts | Tenant on Typesense with an NL model |
+```
+discoverProducts (GraphQL, @guard)  ─┐
+ProductRecommendationLookupTool     ─┴─▶ RecommendProductsAction
+                                            ├ ProductIntent      — budget out of the sentence
+                                            ├ ProductDiscoveryResolver
+                                            │    ├ TypesenseProductDiscoveryService  (multi_search + RRF)
+                                            │    └ SqlProductDiscoveryService        (keyword fallback)
+                                            ├ cache (non-empty results only)
+                                            └ DB hydrate, tenant-pinned  ← the security boundary
+```
 
-Both:
-- **Re-hydrate matched IDs from the DB**, re-scoped to the tenant (`fromApp` +
-  `fromCompany`) — search only generates candidates; the DB is the source of
-  truth and the tenant-safety boundary. A mis-scoped engine cannot leak rows.
-- Resolve **stock from `getTotalQuantity()`** (warehouse total) and price from the
-  default channel, flagging `channel.is_available = (price > 0 && quantity > 0)`.
-- Keep out-of-stock / unpriced products in the result, flagged unavailable.
+Key points:
+- **The engine is resolved per tenant** (`ProductDiscoveryResolver`, same precedence as
+  `SearchEngineResolver`). There is no longer a separate tool per backend.
+- **Search only nominates ids.** Hydration re-reads them with an explicit
+  `where('companies_id', ...)` — deliberately NOT `fromCompany()`, which widens to
+  `companies_id > 0` under an AppKey binding.
+- **The vector half is opt-in via `query_by`.** Naming `embedding` when the collection does not
+  declare it makes Typesense reject the *whole* search, so it is only added when
+  `typesense_product_query_by` (or `config('inventory-discovery.typesense_query_by')`) includes it.
+  Until then discovery runs lexically over `search_blurb`.
+- **Out-of-stock / unpriced products stay in the result**, flagged `channel.is_available = false`.
+- **Every response is logged** (`product_recommendation_impressions`) with its ordered ids and a
+  `recommendation_uuid` for outcome attribution — including no-hit queries, which are the best
+  signal for catalog gaps.
+- `search_blurb` comes from the ProductEnrichment connector; the field name is owned by
+  `Kanvas\Inventory\Recommendations\Enums\SearchFieldEnum` so the core model does not depend on
+  a connector.
 
-The Typesense tool reads `typesense_nl_model_id` (app setting, default
-`gemini-model`) and is a no-op (clear message) when the tenant isn't on Typesense.
+Scoring a change: `kanvas-inventory:evaluate-product-discovery {app} {company} --file=<golden-set>`
+reports recall@k and MRR, and exits non-zero under `--min-recall`.
 
 ---
 
-## 8. Switch an app to Typesense — checklist
+## 8. Turning discovery on for an app (production)
 
-1. `$app->set('products_search_engine', 'typesense')` (persisted; agent + indexer).
-2. `$app->set('typesense_search_settings', { api_key, nodes })` — or global env.
-3. (Optional, recommended) `$app->set('app_custom_product_index', '<per-app name>')`.
-4. Create the Typesense **NL model** in Cloud; set `typesense_nl_model_id` if its id ≠ `gemini-model`.
-5. Ensure the products collection schema has filterable/sortable `price`/`in_stock`/`rating`.
-6. Confirm `company.index_product_must_have_price` is off if you want unpriced products indexed.
-7. Reindex: `kanvas-inventory:scout-product-index-process <app_id> --action=reindex`.
-8. Wire `TypesenseProductRecommendationTool` into the agent's `agentTools()` and
-   update the agent prompt to pass the customer's **verbatim** sentence as `query`
-   (do NOT pre-extract gender/price — the NL model does it).
-9. Verify: collection doc count in Cloud, then run a Spanish NL query end-to-end.
+Everything is per-app settings — no deploy, no code. All of these are editable from the app
+settings UI; the `$app->set()` form is what the UI writes.
+
+### Required
+
+| Setting | Value | Why |
+|---|---|---|
+| `products_search_engine` | `typesense` | Routes indexing AND discovery to Typesense for products only, leaving Leads/Users/Messages on whatever the app already used |
+| `typesense_search_settings` | `{"typesense_api_key": "…", "typesense_nodes": [{"host":"…","port":443,"path":"/","protocol":"https"}]}` | Per-tenant credentials; falls back to `config/scout.php` (env) when absent |
+| `app_custom_product_index` | e.g. `acme_product_index` | **Strongly recommended.** Without it every app on the same cluster shares one `product_index` collection |
+
+### Enrichment (required for semantic quality)
+
+Discovery matches a shopper's sentence against `search_blurb`. With no blurb it degrades to keyword
+matching on the product name — see §7.
+
+1. Ensure the global **"Product Enrichment"** agent type exists: `php artisan kanvas:intelligence:sync-agent-types`
+2. Create an **Agent** of that type for the app (UI: Agents → New → type "Product Enrichment").
+   Set its LLM provider on the agent. **Gemini cannot be used for any structured-output agent that
+   also has tools** — it rejects `response_mime_type: application/json` combined with function
+   calling. Enrichment itself is tool-free so Gemini works there; the Inventory Recommendation agent
+   is not, and needs OpenAI/Anthropic.
+3. Optional per-app tuning on the agent record:
+   - `instructions` — **overrides the in-code prompt entirely** (`instructionsFromRecord`). Leave it
+     EMPTY to keep the shipped prompt. A generic instruction here is the single most common reason an
+     agent "ignores" its design.
+   - `config.enrichment.facets` — the controlled vocabulary
+4. Backfill: `php artisan kanvas-inventory:backfill-product-enrichment {app} [--company_id=] [--sync]`
+
+### Embeddings (required for cross-language and paraphrase matching)
+
+Without an embedding field the search is lexical only — "a luxury SUV" will not match a Spanish
+catalog. Two mutually exclusive ways to get one, both read at collection-creation time:
+
+| Setting | Effect |
+|---|---|
+| `OPEN_AI_EMBEDDING_KEY` | `openai/text-embedding-3-small`, billed per call |
+| `product_discovery_embedding_model` | A Typesense built-in, e.g. `ts/multilingual-e5-small` — runs inside the cluster, **no API key**, multilingual |
+
+Then add `embedding` to the query fields:
+
+| Setting | Value |
+|---|---|
+| `typesense_product_query_by` | `search_blurb,name,description,embedding` |
+
+⚠️ **Order matters.** The embed field is only added when the collection is CREATED. Turning
+embeddings on for an app that already has a collection requires deleting the collection and
+reindexing — and naming `embedding` in `query_by` when the collection lacks it makes Typesense
+reject **every** search with `Field \`embedding\` does not have a vector query index`.
+
+### Optional tuning
+
+| Setting | Default | Effect |
+|---|---|---|
+| `product_discovery_vector_alpha` | `0.75` | Vector vs keyword weight in the hybrid search |
+| `product_discovery_max_results_per_group` | `2` | Max results sharing a product name — stops one model in five colours taking the page |
+| `product_discovery_cache_ttl` | `1800` | Seconds a non-empty candidate list is cached |
+| `product_intent_lexicon` | — | Tenant-language budget phrases, MERGED over the shipped English (§`config/inventory-discovery.php`) |
+| `product_discovery_premium_min_price` / `_cheap_max_price` | config | Price band for vague signals ("de lujo", "barato") |
+
+### Order of operations
+
+```
+1. set products_search_engine + typesense_search_settings + app_custom_product_index
+2. set the embedding model (if wanted)  ← BEFORE first index
+3. create + configure the enrichment Agent
+4. backfill enrichment                   ← writes search_blurb
+5. reindex                               ← creates the collection, builds vectors
+6. set typesense_product_query_by to include `embedding`
+7. verify: discoverProducts returns results; check impressions are landing
+```
+
+Reindex: `php artisan kanvas-inventory:scout-product-index-process {app} --action=reindex`
+
+### Queue workers this depends on
+
+`scout` (indexing), `product-enrichment` (blurbs), `product-discovery` (impression logging). All
+three are in the compose files. **`SCOUT_QUEUE=true` with no `scout` worker silently queues every
+index operation forever** — the catalog looks indexed in the DB and is empty in Typesense.
+
+### Verifying
+
+```bash
+# collection exists, has docs, has an embedding field
+curl -H "X-TYPESENSE-API-KEY: $KEY" "$HOST/collections/<prefix><index>" | jq '{num_documents, fields: [.fields[].name]}'
+
+# blurb coverage
+SELECT COUNT(*) FROM apps_custom_fields WHERE name='search_blurb' AND value <> '' AND companies_id = ?;
+
+# discovery is being used and what it returns
+SELECT query_raw, results_count, engine FROM product_recommendation_impressions ORDER BY id DESC LIMIT 20;
+
+# score a change instead of guessing
+php artisan kanvas-inventory:evaluate-product-discovery {app} {company} --file=golden.json
+```
+
+A row with `results_count = 0` is the most useful thing in that table: it is either a catalog gap or
+a blurb that failed to describe what the shopper asked for.
 
 ---
 
@@ -289,5 +390,21 @@ The Typesense tool reads `typesense_nl_model_id` (app setting, default
   stock/price from the DB for display, never trust the indexed copy for truth.
 - **NL search cost/latency**: every NL query makes an LLM (Gemini) call (~hundreds
   of ms + token cost). Don't also pre-parse intent in the agent — pick one.
+- **`SCOUT_QUEUE=true` with no `scout` worker** queues every index operation and never runs it.
+  The DB looks fine, the collection stays empty, and the backlog eventually pressures Redis. The
+  worker exists in all three compose files — make sure it is actually up.
+- **An agent's `instructions` field OVERRIDES the in-code prompt.** A record saved with something
+  generic ("answer directly, ask clarifying questions") replaces the whole designed pipeline, and
+  the agent behaves like a plain chatbot. Leave it empty to keep the shipped prompt.
+- **Gemini rejects structured output + tools** (`response_mime_type: application/json` with
+  function calling). Any `HasStructuredOutput` agent that also declares tools needs OpenAI or
+  Anthropic. `KanvasLaravelAgent` therefore does NOT inject `CurrentTimeTool` into a tool-free
+  structured agent.
+- **The embed field is fixed at collection-creation time.** Enabling embeddings later means
+  dropping and recreating the collection; until then, `embedding` in `query_by` breaks every search.
+- **Typesense needs a minute after restart** when a local embedding model is configured — it loads
+  the ONNX model from disk and answers `Not Ready or Lagging` until it finishes.
+- **A required nested field breaks indexing** when it arrives empty. `categories` / `variants` /
+  `attributes` are `optional` in `typesenseCollectionSchema()` for exactly this reason.
 </content>
 </invoke>

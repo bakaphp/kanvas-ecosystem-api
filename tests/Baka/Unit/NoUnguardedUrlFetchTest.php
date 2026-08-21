@@ -52,6 +52,8 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         'src/Domains/Intelligence/Agents/Services/AgentConfigBackupService.php',
         // Reads the admin-configured Google OAuth token file from disk, gated by is_file().
         'src/Domains/Connectors/Google/Actions/CreateGoogleCalendarMeetingAction.php',
+        // CLI: reads a local golden-set JSON file from the --file option, gated by is_readable().
+        'app/Console/Commands/Inventory/EvaluateProductDiscoveryCommand.php',
     ];
 
     public function testNoUnguardedRemoteUrlFetch(): void

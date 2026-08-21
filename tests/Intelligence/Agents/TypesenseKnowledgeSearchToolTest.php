@@ -57,7 +57,7 @@ class TypesenseKnowledgeSearchToolTest extends TestCase
     {
         // Whether Typesense is unreachable or simply has no collection/rows for this
         // tenant yet, the tool must return a clean message and never throw into the
-        // agent loop (same contract as TypesenseProductRecommendationTool).
+        // agent loop (same contract as ProductRecommendationLookupTool).
         $result = (string) $this->tool()->handle(new Request(['query' => 'refund policy']));
 
         $this->assertTrue(

@@ -1,0 +1,74 @@
+input ProductDiscoveryInput {
+    "The shopper's request in their own words, in any language."
+    query: String!
+    "Client-generated id for THIS SEARCH — one per search, not one per page or session. Echoed back, and sent again with any click or purchase so the outcome can be attributed to it. Re-sending it for the same search is safe (a cached result carries it); re-using it for a DIFFERENT search is a bug and the later search will not be recorded. REQUIRED for app-key callers; optional for a logged-in user, who gets a server-generated one."
+    request_id: String
+    "Whose catalog to search. Optional for a logged-in user — defaults to their current company, and may only name a company they belong to. REQUIRED for app-key callers, which have no user to infer it from."
+    company_id: ID
+    "Anonymous browsing id, carried so a visitor's searches can be tied to their account if they sign up."
+    session_id: String
+    limit: Int
+}
+
+type DiscoveredFile {
+    id: Int!
+    url: String!
+    name: String
+}
+
+type DiscoveredCategory {
+    id: Int!
+    name: String!
+}
+
+type DiscoveredAttribute {
+    id: Int
+    name: String!
+    value: String!
+}
+
+type DiscoveredVariantChannel {
+    price: Float
+    discounted_price: Float
+    is_on_sale: Boolean!
+    is_available: Boolean!
+    quantity: Int!
+}
+
+type DiscoveredProduct {
+    id: Int!
+    slug: String!
+    name: String!
+    files: [DiscoveredFile!]!
+    categories: [DiscoveredCategory!]!
+}
+
+type DiscoveredVariant {
+    id: Int!
+    slug: String
+    name: String!
+    sku: String
+    description: String
+    attributes: [DiscoveredAttribute!]!
+    channel: DiscoveredVariantChannel!
+    files: [DiscoveredFile!]!
+}
+
+type ProductDiscoveryMatch {
+    product: DiscoveredProduct!
+    variants: [DiscoveredVariant!]!
+}
+
+type ProductDiscoveryResult {
+    "The id this search was recorded under. Send it back with any click or purchase so the outcome can be attributed to the search that produced it."
+    request_id: String!
+    recommendations: [ProductDiscoveryMatch!]!
+}
+
+extend type Query @guard {
+    "Search the catalog with a natural-language request. Works for a logged-in shopper and, with an app key, for an anonymous storefront visitor — the latter must pass company_id and request_id."
+    discoverProducts(input: ProductDiscoveryInput!): ProductDiscoveryResult!
+        @field(
+            resolver: "App\\GraphQL\\Inventory\\Queries\\Products\\ProductDiscoveryQuery@discover"
+        )
+}
