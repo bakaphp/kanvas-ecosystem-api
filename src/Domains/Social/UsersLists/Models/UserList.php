@@ -75,4 +75,37 @@ class UserList extends BaseModel
 
         return $array;
     }
+
+    /**
+     * Scout creates the collection from this. Without it the create call carries a
+     * name and nothing else, and Typesense answers `Parameter \`fields\` is required`
+     * on every index attempt.
+     *
+     * Only what is filtered or sorted on is typed; the trailing `.*` absorbs the rest,
+     * so a change to toSearchableArray() cannot break indexing.
+     *
+     * @return array<string, mixed>
+     */
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'enable_nested_fields' => true,
+            'fields' => [
+                ['name' => 'id', 'type' => 'string'],
+                ['name' => 'objectID', 'type' => 'string'],
+                ['name' => 'name', 'type' => 'string'],
+                ['name' => 'slug', 'type' => 'string', 'optional' => true],
+                ['name' => 'description', 'type' => 'string', 'optional' => true],
+                ['name' => 'apps_id', 'type' => 'int64', 'facet' => true],
+                ['name' => 'companies_id', 'type' => 'int64', 'facet' => true, 'optional' => true],
+                ['name' => 'users_id', 'type' => 'int64', 'facet' => true, 'optional' => true],
+                ['name' => 'is_public', 'type' => 'bool', 'facet' => true, 'optional' => true],
+                ['name' => 'is_default', 'type' => 'bool', 'facet' => true, 'optional' => true],
+                // Empty for a list with no items, so it cannot be required.
+                ['name' => 'items', 'type' => 'object[]', 'optional' => true],
+                ['name' => '.*', 'type' => 'auto', 'optional' => true],
+            ],
+        ];
+    }
 }

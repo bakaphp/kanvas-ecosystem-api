@@ -19,6 +19,7 @@ use Kanvas\Intelligence\Agents\Traits\HasEntityContext;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
+use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Contracts\HasTools;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Files\File;
@@ -283,6 +284,15 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
         $tools = is_array($agentTools)
             ? array_values($agentTools)
             : iterator_to_array($agentTools, false);
+
+        // A one-shot structured-output agent with no tools of its own must stay
+        // tool-free: Gemini rejects the whole request when a JSON response mime
+        // type is combined with function calling ("Function calling with a
+        // response mime type: 'application/json' is unsupported"), so injecting
+        // a clock it never asked for makes it unrunnable on that provider.
+        if ($tools === [] && $this instanceof HasStructuredOutput) {
+            return [];
+        }
 
         foreach ($tools as $tool) {
             if ($tool instanceof CurrentTimeTool) {

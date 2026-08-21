@@ -15,14 +15,15 @@ use Kanvas\Social\Messages\Models\Message;
  * or drops an album of seven. The agent has to see one unit, so consecutive messages from the same
  * speaker chain onto a burst head via `parent_id`.
  *
- * Two signals, in precedence:
+ * Two signals. The album id is tried first and the speaker window **backs it up** — not
+ * "otherwise": the first part of an album has no sibling filed yet, so without the fallback a
+ * caption and the photos illustrating it become two separate bursts.
  *
- * 1. `messageContextInfo.messageAssociation` binds the parts of an album under a shared parent
- *    message key. Deterministic, ignores time entirely — the captured album spans 22 seconds with
- *    an 11-second internal gap, which no sane idle window would hold together. WhatsApp sends it,
- *    the vendor documents it nowhere, so it is a hint we take when offered and never depend on.
- * 2. Otherwise the same speaker continuing inside an idle window. A different speaker posting
- *    closes the previous burst, which is why the newest message on the channel decides.
+ * 1. `messageContextInfo.messageAssociation` binds album parts under a shared parent message key.
+ *    Deterministic, ignores time — the captured album spans 22 seconds with an 11-second internal
+ *    gap. WhatsApp sends it, the vendor documents it nowhere, so it is a hint, never a dependency.
+ * 2. The same speaker continuing inside an idle window. A different speaker closes the previous
+ *    burst, which is why the newest message on the channel decides.
  */
 final readonly class GroupBurstService
 {
@@ -41,11 +42,9 @@ final readonly class GroupBurstService
 
     public function resolveHead(Message $message, InboundMessage $inbound): ?Message
     {
-        // An album searches back for a sibling; a speaker burst only ever consults the newest
-        // message, so it has no reason to pull the whole lookback window.
-        $head = $inbound->albumId !== null
-            ? $this->headByAlbum($this->recentMessages($message, self::LOOKBACK), $inbound->albumId)
-            : $this->headBySpeaker($this->recentMessages($message, 1)->first(), $inbound, $message);
+        $head = $this->headByAlbum($message, $inbound);
+
+        $head ??= $this->headBySpeaker($this->recentMessages($message, 1)->first(), $inbound, $message);
 
         if ($head === null || $this->isOlderThanMaxWindow($head, $message)) {
             return null;
@@ -57,13 +56,15 @@ final readonly class GroupBurstService
     /**
      * Album parts can arrive out of order and with arbitrary gaps, so any sibling already filed
      * under this album id anchors the burst regardless of when it landed.
-     *
-     * @param Collection<int, Message> $candidates
      */
-    private function headByAlbum(Collection $candidates, string $albumId): ?Message
+    private function headByAlbum(Message $message, InboundMessage $inbound): ?Message
     {
-        foreach ($candidates as $candidate) {
-            if (($candidate->message['album_id'] ?? null) === $albumId) {
+        if ($inbound->albumId === null) {
+            return null;
+        }
+
+        foreach ($this->recentMessages($message, self::LOOKBACK) as $candidate) {
+            if (($candidate->message['album_id'] ?? null) === $inbound->albumId) {
                 return $candidate->parent ?? $candidate;
             }
         }

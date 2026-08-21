@@ -33,6 +33,7 @@ use Kanvas\Users\Models\Users;
  * @property int $leads_sources_id
  * @property int $leads_types_id
  * @property string $source_name
+ * @property string|null $notification_email
  * @property string|null $template
  * @property int $is_default
  * @property int $total_leads

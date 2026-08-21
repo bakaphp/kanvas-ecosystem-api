@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f910b00754a4a29ab398ccdd4c7afffd",
+    "content-hash": "0cb24774d6ff0d416f08da39d2a0478c",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -2260,16 +2260,16 @@
         },
         {
             "name": "google/apiclient-services",
-            "version": "v0.454.0",
+            "version": "v0.455.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-api-php-client-services.git",
-                "reference": "4c0b343eb836b63616592ce98eca9f804b2b6493"
+                "reference": "86cecb5443bde01cb6731a650735680b9ab8b4c0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/4c0b343eb836b63616592ce98eca9f804b2b6493",
-                "reference": "4c0b343eb836b63616592ce98eca9f804b2b6493",
+                "url": "https://api.github.com/repos/googleapis/google-api-php-client-services/zipball/86cecb5443bde01cb6731a650735680b9ab8b4c0",
+                "reference": "86cecb5443bde01cb6731a650735680b9ab8b4c0",
                 "shasum": ""
             },
             "require": {
@@ -2298,9 +2298,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/google-api-php-client-services/issues",
-                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.454.0"
+                "source": "https://github.com/googleapis/google-api-php-client-services/tree/v0.455.0"
             },
-            "time": "2026-08-10T01:06:25+00:00"
+            "time": "2026-08-17T01:06:24+00:00"
         },
         {
             "name": "google/auth",
@@ -16889,25 +16889,25 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.11.6",
+            "version": "8.12.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php",
-                "reference": "57754efb0998086007ec9a63874fd85def5afb7f"
+                "reference": "ba0784ba0095eb4cea6f7f1e8e3201f6ff6f3404"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/57754efb0998086007ec9a63874fd85def5afb7f",
-                "reference": "57754efb0998086007ec9a63874fd85def5afb7f",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/ba0784ba0095eb4cea6f7f1e8e3201f6ff6f3404",
+                "reference": "ba0784ba0095eb4cea6f7f1e8e3201f6ff6f3404",
                 "shasum": ""
             },
             "require": {
                 "php": ">=7.1.0"
             },
             "require-dev": {
-                "friendsofphp/php-cs-fixer": "^3.0",
-                "guzzlehttp/guzzle": "^6.3 || ^7.0",
-                "phpunit/phpunit": ">=7.0 < 10"
+                "friendsofphp/php-cs-fixer": "3.94.2",
+                "guzzlehttp/guzzle": "7.15.3",
+                "phpunit/phpunit": "9.6.34"
             },
             "suggest": {
                 "guzzlehttp/guzzle": "An HTTP client to execute the API requests"
@@ -16935,7 +16935,7 @@
                 "sms",
                 "twilio"
             ],
-            "time": "2026-05-07T16:40:31+00:00"
+            "time": "2026-08-17T05:36:02+00:00"
         },
         {
             "name": "typesense/typesense-php",

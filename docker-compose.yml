@@ -69,6 +69,30 @@ services:
             - "-c"
             - "php artisan config:cache && php artisan queue:work
               --queue=agent-runtime --tries=3 --timeout=3750"
+    product-enrichment-queue:
+        <<: *common-queue-settings
+        container_name: product-enrichment-queue
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && php artisan queue:work
+              --queue=product-enrichment --tries=3 --timeout=3750"
+    product-discovery-queue:
+        <<: *common-queue-settings
+        container_name: product-discovery-queue
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && php artisan queue:work
+              --queue=product-discovery --tries=3 --timeout=300"
+    scout-queue:
+        <<: *common-queue-settings
+        container_name: scout-queue
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && php artisan queue:work
+              --queue=scout --tries=3 --timeout=300"
     agent-chat-queue:
         <<: *common-queue-settings
         container_name: agent-chat-queue
