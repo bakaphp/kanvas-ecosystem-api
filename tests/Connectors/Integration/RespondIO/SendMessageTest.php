@@ -13,10 +13,16 @@ final class SendMessageTest extends TestCase
 {
     public function testSendingMessage(): void
     {
+        $bearerToken = getenv('TEST_RESPOND_IO');
+
+        if (! is_string($bearerToken) || $bearerToken === '') {
+            $this->markTestSkipped('TEST_RESPOND_IO is not configured.');
+        }
+
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
-        $app->set(ConfigurationEnum::BEARER_TOKEN->value, getenv('TEST_RESPOND_IO'));
+        $app->set(ConfigurationEnum::BEARER_TOKEN->value, $bearerToken);
 
         //$client = new Client($app, $company);
         //@todo figure out how to mock this

@@ -62,6 +62,12 @@ jobs:
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:clear-cache all
             docker exec -i phpkanvas-ecosystem php artisan config:cache
 
+            # Stage only for now — writes/updates rows in the `actions` table from
+            # the #[WorkflowAction] attributes. Drop the guard once it's proven on 1.x.
+            if [ "${{ github.ref_name }}" != "1.x" ]; then
+              docker exec -i phpkanvas-ecosystem php artisan kanvas:workflow-sync-actions
+            fi
+
             # Restart all queue worker containers so they pick up new code.
             # Names come from docker-compose — no hand-maintained list to rot.
             docker ps --format "{{.ID}} {{.Names}}" | awk '$2 ~ /queue/ {print $1}' | xargs -r docker restart
