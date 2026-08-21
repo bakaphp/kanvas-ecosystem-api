@@ -7516,20 +7516,20 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.16.5",
+            "version": "3.16.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "8c8d27a450eb304ddcc21ac656e462df32bf0888"
+                "reference": "ff91189d5279099db749b830831ed6b384296ace"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/8c8d27a450eb304ddcc21ac656e462df32bf0888",
-                "reference": "8c8d27a450eb304ddcc21ac656e462df32bf0888",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/ff91189d5279099db749b830831ed6b384296ace",
+                "reference": "ff91189d5279099db749b830831ed6b384296ace",
                 "shasum": ""
             },
             "require": {
-                "guzzlehttp/guzzle": "^7.0",
+                "guzzlehttp/guzzle": "^7.0 || ^8.0",
                 "inspector-apm/inspector-php": "^3.18",
                 "php": "^8.1",
                 "psr/http-message": "^1.0|^2.0"
@@ -7538,7 +7538,7 @@
                 "amphp/amp": "^3.1.1",
                 "amphp/http-client": "^5.3",
                 "aws/aws-sdk-php": "^3.209",
-                "elasticsearch/elasticsearch": "^8.0",
+                "elasticsearch/elasticsearch": "^8.0|^9.0",
                 "ext-pdo": "*",
                 "friendsofphp/php-cs-fixer": "^3.75",
                 "google/auth": "^1.49",
@@ -7576,7 +7576,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.16.5"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.16.6"
             },
             "funding": [
                 {
@@ -7584,7 +7584,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-13T08:35:28+00:00"
+            "time": "2026-08-18T01:35:54+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
