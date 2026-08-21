@@ -110,7 +110,7 @@ class PushCoBuyerAction
                 //update cosigner with all info
                 if ($contact = $vinContactService->getContactByPeople($people)) {
                     $contactInfo = CreditApp::fromMessage($this->message);
-                    $people->set(PeopleCustomFieldEnum::CREDIT_APP->value, $contactInfo);
+                    $people->set(PeopleCustomFieldEnum::CREDIT_APP->value, $contactInfo->toArray());
 
                     $contact->addresses = $contactInfo->address;
                     $contact->personalInformation = $contactInfo->personalInformation;

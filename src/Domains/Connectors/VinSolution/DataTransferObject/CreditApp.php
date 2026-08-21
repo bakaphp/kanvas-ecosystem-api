@@ -36,13 +36,14 @@ class CreditApp extends Data
             $contactDOB = null;
         }
 
-        $employContact = preg_replace('/\D+/', '', $formData['financial']['current_employer_phone'] ?? '');
         $previousEmployerStateId = $formData['financial']['previous_state']['id'] ?? 0;
         $previousEmployersState = $previousEmployerStateId > 0 ? States::find($previousEmployerStateId) : null;
         $currentEmployerStateId = $formData['financial']['state']['id'] ?? 0;
         $currentEmployerState = $currentEmployerStateId > 0 ? States::find($currentEmployerStateId) : null;
-        $currentEmployerPhoneNumber = strlen(Phone::removeUSCountryCode($formData['financial']['current_employer_phone'])) === 10 ? Phone::removeUSCountryCode($formData['financial']['current_employer_phone']) : '';
-        $previousEmployerPhoneNumber = strlen(Phone::removeUSCountryCode($formData['financial']['previous_employer_phone'])) === 10 ? Phone::removeUSCountryCode($formData['financial']['previous_employer_phone']) : '';
+        $currentEmployerPhoneNumber = Phone::removeUSCountryCode($formData['financial']['current_employer_phone'] ?? '');
+        $currentEmployerPhoneNumber = strlen($currentEmployerPhoneNumber) === 10 ? $currentEmployerPhoneNumber : '';
+        $previousEmployerPhoneNumber = Phone::removeUSCountryCode($formData['financial']['previous_employer_phone'] ?? '');
+        $previousEmployerPhoneNumber = strlen($previousEmployerPhoneNumber) === 10 ? $previousEmployerPhoneNumber : '';
         $defaultState = $company->get(ConfigurationEnum::DEFAULT_STATE_KEY->value) ?? 'FL';
 
         $result = [
