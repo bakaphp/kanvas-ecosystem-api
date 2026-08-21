@@ -6,11 +6,13 @@ namespace Tests\Connectors\Integration\WaSender;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
+use Kanvas\Connectors\WaSender\Services\GroupBurstService;
 use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -152,6 +154,33 @@ final class CreateGroupMessageActionTest extends TestCase
      * The captured album spans 22 seconds with an 11-second internal gap — no idle window would
      * hold it together, which is why the shared parentMessageKey decides.
      */
+    /**
+     * The production sequence behind "images never reach the agent" (app 60, 2026-08-21 02:43):
+     * a caption followed by a three-part album. The album's first part has no sibling filed yet,
+     * so before the speaker fallback it opened its own burst and the agent wrote the article
+     * having never seen the photos.
+     */
+    public function testAnAlbumChainsOntoTheCaptionThatPrecedesIt(): void
+    {
+        $this->allowGroup();
+
+        $caption = $this->ingestAt('02:43:22', $this->groupText(Str::uuid()->toString(), 'Yhanelly Rodriguez'));
+        $first = $this->ingestAt('02:43:22', $this->groupAlbumImage(Str::uuid()->toString(), 'Yhanelly Rodriguez'));
+        $second = $this->ingestAt('02:43:22', $this->groupAlbumImage(Str::uuid()->toString(), 'Yhanelly Rodriguez'));
+        $third = $this->ingestAt('02:43:23', $this->groupAlbumImage(Str::uuid()->toString(), 'Yhanelly Rodriguez'));
+
+        $headId = $caption['result']['messages'][0]['message_id'];
+
+        $this->assertNull($caption['result']['messages'][0]['parent_id']);
+        $this->assertSame($headId, $first['result']['messages'][0]['parent_id'], 'Album part 1 must join the caption');
+        $this->assertSame($headId, $second['result']['messages'][0]['parent_id']);
+        $this->assertSame($headId, $third['result']['messages'][0]['parent_id']);
+
+        // What the agent is handed: one turn holding the caption and all three photos.
+        $burst = GroupBurstService::messagesFor($headId);
+        $this->assertCount(4, $burst);
+    }
+
     public function testAlbumPartsChainOntoOneHeadDespiteTheElevenSecondGap(): void
     {
         $this->allowGroup();
@@ -219,6 +248,53 @@ final class CreateGroupMessageActionTest extends TestCase
 
         $this->assertSame('whatsapp-video', $message->messageType->verb);
         $this->assertTrue($message->tags()->where('name', 'media-not-processed')->exists());
+    }
+
+    /**
+     * Chaining is a read-then-write and deliveries arrive as parallel jobs, so it is serialised on
+     * a per-channel lock. Holding that lock stands in for "another worker is mid-chain": the
+     * message must still be filed, just unchained, rather than the delivery failing.
+     *
+     * Deliberately NOT using ingestAt(): `Lock::block()` derives its timeout from `now()`, so a
+     * frozen Carbon makes the wait loop spin forever.
+     */
+    public function testAContendedChannelStillFilesTheMessageUnchained(): void
+    {
+        $this->allowGroup();
+
+        $first = $this->ingest($this->groupText(Str::uuid()->toString(), 'Alex Rivera'));
+        $channelId = $first['result']['messages'][0]['channel_id'];
+
+        $lock = Cache::lock('wasender:burst-chain:' . $channelId, 10);
+        $this->assertTrue($lock->get(), 'precondition: the test holds the channel lock');
+
+        try {
+            $second = $this->ingest($this->groupText(Str::uuid()->toString(), 'Alex Rivera'));
+        } finally {
+            $lock->release();
+        }
+
+        $filed = $second['result']['messages'][0];
+
+        $this->assertNotNull($filed['message_id'], 'A contended delivery must still be filed');
+        $this->assertNull($filed['parent_id'], 'It degrades to its own head rather than failing');
+    }
+
+    /**
+     * The same sequence with the lock free chains — proving the test above measures the lock and
+     * not some unrelated reason the second message found no head.
+     */
+    public function testTheSameSequenceChainsWhenTheLockIsFree(): void
+    {
+        $this->allowGroup();
+
+        $first = $this->ingest($this->groupText(Str::uuid()->toString(), 'Alex Rivera'));
+        $second = $this->ingest($this->groupText(Str::uuid()->toString(), 'Alex Rivera'));
+
+        $this->assertSame(
+            $first['result']['messages'][0]['message_id'],
+            $second['result']['messages'][0]['parent_id']
+        );
     }
 
     private function allowGroup(): void
@@ -329,10 +405,12 @@ final class CreateGroupMessageActionTest extends TestCase
         ];
     }
 
-    private function groupAlbumImage(string $messageId): array
+    private function groupAlbumImage(string $messageId, string $pushName = 'Sam Okafor'): array
     {
         return [
-            ...$this->groupEnvelope($messageId, 'Sam Okafor', '900000000000002', '15550002222'),
+            ...($pushName === 'Sam Okafor'
+                ? $this->groupEnvelope($messageId, 'Sam Okafor', '900000000000002', '15550002222')
+                : $this->groupEnvelope($messageId, $pushName, '900000000000001', '15550001111')),
             'message' => [
                 'imageMessage' => [
                     'url' => 'https://mmg.whatsapp.net/o1/v/t24/f2/m000/EXAMPLE',

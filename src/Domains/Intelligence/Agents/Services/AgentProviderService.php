@@ -37,7 +37,11 @@ class AgentProviderService
         $provider = self::providerFrom($source);
         $model = self::modelFrom($source, $agent);
         $parameters = is_array($source['parameters'] ?? null) ? $source['parameters'] : [];
-        $httpClient = new GuzzleHttpClient(timeout: 220, connectTimeout: 220);
+        $httpClient = new GuzzleHttpClient(
+            timeout: 220,
+            connectTimeout: 220,
+            handler: LlmHttpRetryService::handlerStack(),
+        );
 
         if ($provider === AgentLlmProviderEnum::OPENAI_LIKE) {
             return new OpenAILike(

@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\ProductEnrichment\Agents;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\JsonSchema\Types\Type;
 use Kanvas\Connectors\ProductEnrichment\DataTransferObject\EnrichmentConfig;
+use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Laravel\Ai\Contracts\HasStructuredOutput;
 use Override;
@@ -21,6 +22,11 @@ use Stringable;
  * Registered as an AgentType handler so each app can override instructions/model
  * in the existing agent UI; the connector resolves + invokes it per product.
  */
+#[AgentTypeDefinition(
+    name: 'Product Enrichment',
+    description: 'Turns a product into search facets and a semantic blurb for conversational product discovery.',
+    provider: 'laravel',
+)]
 class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasStructuredOutput
 {
     #[Override]
@@ -32,8 +38,20 @@ class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasStructured
 
         For each facet, choose values ONLY from the allowed list shown in the output schema
         (return an empty array if none truly apply — do NOT force a value).
-        Write `blurb_es` and `blurb_en`: 1-2 sentences each, in natural language, describing who the
-        product is for, the occasion/use, and its style — a short, search-friendly summary, not a tag list.
+
+        Write `blurb_es` and `blurb_en`: 1-2 sentences each, in natural language, describing who this
+        product is for and when they would use it — a search-friendly summary, not a tag list.
+
+        The blurb is matched against how a customer describes what they want, so it MUST be
+        DISCRIMINATING: someone reading it should be able to tell this product apart from every other
+        product in the catalog.
+        - Ground every claim in the `attributes` and description you were given — body type, capacity,
+          size, material, fuel, year, condition, whatever this catalog actually varies on. Name them.
+        - Say who it suits BECAUSE of those specifics ("cinco plazas y maletero amplio, para familias
+          que viajan"), not in the abstract.
+        - NEVER write filler that would be true of any product in this category — "moderno y fiable",
+          "ideal para el uso diario", "gran calidad", "perfecto para cualquier ocasión". A blurb that
+          fits everything matches nothing.
 
         Never invent values outside the allowed lists. Be precise, not exhaustive.
         The store's domain and tone are set per app via this agent's instructions; with no override,
@@ -60,8 +78,8 @@ class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasStructured
             'occasion' => $this->facetField($schema, $config, 'occasion'),
             'interests' => $this->facetField($schema, $config, 'interests'),
             'tags' => $this->facetField($schema, $config, 'tags'),
-            'gift_blurb_es' => $schema->string()->description('1-2 sentence gift description in Spanish.')->required(),
-            'gift_blurb_en' => $schema->string()->description('1-2 sentence gift description in English.')->required(),
+            'blurb_es' => $schema->string()->description('1-2 sentence description in Spanish of who this is for and when.')->required(),
+            'blurb_en' => $schema->string()->description('1-2 sentence description in English of who this is for and when.')->required(),
         ];
     }
 

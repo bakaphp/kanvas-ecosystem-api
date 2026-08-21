@@ -43,6 +43,8 @@ use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\Products\Observers\ProductsObserver;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
+use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum as RecommendationConfigurationEnum;
+use Kanvas\Inventory\Recommendations\Enums\SearchFieldEnum;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Traits\ResolvesAttributesTrait;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
@@ -233,6 +235,42 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             : $this->buildAttributesQuery(['is_visible' => true])->get();
 
         return $this->mapAttributes($attributes);
+    }
+
+    /**
+     * Cheapest priced variant on the default channel, or null when nothing is
+     * priced. A shopper reads a product's price as "from $X", so a "under $50"
+     * filter has to match a product that HAS a variant under $50 — taking the
+     * lowest is what makes that true.
+     */
+    public function lowestChannelPrice(): ?float
+    {
+        $prices = [];
+
+        foreach ($this->variants as $variant) {
+            try {
+                $channelInfo = $variant->getPriceInfoFromDefaultChannel();
+            } catch (Exception) {
+                continue;
+            }
+
+            if ($channelInfo && $channelInfo->price > 0) {
+                $prices[] = (float) $channelInfo->price;
+            }
+        }
+
+        return $prices === [] ? null : min($prices);
+    }
+
+    public function hasStockInAnyVariant(): bool
+    {
+        foreach ($this->variants as $variant) {
+            if ($variant->getTotalQuantity() > 0) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function searchableAttributes(): array
@@ -606,6 +644,19 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'apps_id' => $this->apps_id,
             'published_at' => $this->published_at,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
+            // Flat, index-friendly discovery fields. search_blurb is the vector
+            // embedding source and price/in_stock are what a budget or
+            // availability filter can act on — a nested custom_fields path can
+            // be neither an `embed.from` source nor a scalar filter.
+            'search_blurb' => (string) ($this->get(SearchFieldEnum::BLURB->value) ?? ''),
+            // Flat alongside the nested `company` object: a scalar filter_by
+            // cannot reach into a nested field without enable_nested_fields.
+            'companies_id' => $this->companies_id,
+            // 0 rather than null for an unknown price: Typesense types the field
+            // as float, and a shopper's "under $50" should still surface an
+            // unpriced product, which the caller then flags unavailable.
+            'price' => $this->lowestChannelPrice() ?? 0.0,
+            'in_stock' => $this->hasStockInAnyVariant(),
         ];
 
         if ($this->isTypesense()) {
@@ -969,6 +1020,33 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     /**
      * The Typesense schema to be created.
      */
+    /**
+     * Which model Typesense should auto-embed with, or null to leave the vector
+     * half off entirely.
+     *
+     * An OpenAI key wins when set. Otherwise a tenant can name one of the models
+     * Typesense ships with (`ts/…`), which run inside the cluster and need no
+     * API key — the only way to get multilingual embeddings without an external
+     * provider, and what makes an ES catalog answer an EN query.
+     */
+    private function resolveEmbeddingModelConfig(): ?array
+    {
+        $openAiKey = $this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->getValue());
+
+        if ($openAiKey) {
+            return [
+                'model_name' => 'openai/text-embedding-3-small',
+                'api_key' => $openAiKey,
+            ];
+        }
+
+        $builtInModel = $this->app->get(RecommendationConfigurationEnum::EMBEDDING_MODEL->value);
+
+        return is_string($builtInModel) && $builtInModel !== ''
+            ? ['model_name' => $builtInModel]
+            : null;
+    }
+
     public function typesenseCollectionSchema(): array
     {
         $schema = [
@@ -1007,13 +1085,18 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'type' => 'object',
                 ],
                 [
+                    // Optional because a product with no categories is normal, and
+                    // Typesense rejects the whole document when a required object[]
+                    // arrives empty — it breaks indexing into any fresh collection.
                     'name' => 'categories',
                     'type' => 'object[]',
-                    'facet' => true,  // Enable faceting on the whole object
+                    'facet' => true,
+                    'optional' => true,
                 ],
                 [
                     'name' => 'variants',
-                    'type' => 'object[]', // Adjust based on what getVariantsData() returns
+                    'type' => 'object[]',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'status',
@@ -1050,6 +1133,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 [
                     'name' => 'attributes',
                     'type' => 'object',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'custom_fields',
@@ -1125,6 +1209,32 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'type' => 'int64',
                 ],
                 [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                // Discovery fields: the enrichment blurb is what semantic search
+                // matches on, and price/in_stock are the only scalars a budget or
+                // availability filter can act on.
+                [
+                    'name' => 'search_blurb',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'price',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'in_stock',
+                    'type' => 'bool',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
                     'name' => 'published_at',
                     'type' => 'string',
                     'optional' => true,
@@ -1138,19 +1248,22 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
         ];
-        if ($this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->getValue())) {
+        $embeddingModelConfig = $this->resolveEmbeddingModelConfig();
+
+        if ($embeddingModelConfig !== null) {
             $schema['fields'][] = [
                 'name' => 'embedding',
                 'type' => 'float[]',
                 'embed' => [
+                    // The enrichment blurb first: it describes who a product is
+                    // for, in the same register a shopper writes their request,
+                    // which is what the vector half is there to match.
                     'from' => [
+                        'search_blurb',
                         'name',
                         'description',
                     ],
-                    'model_config' => [
-                        'model_name' => 'openai/text-embedding-3-small',
-                        'api_key' => $this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->getValue()),
-                    ],
+                    'model_config' => $embeddingModelConfig,
                 ],
             ];
         }

@@ -18,6 +18,8 @@ use Laravel\Ai\Responses\StructuredAgentResponse;
  */
 class EnrichProductAction
 {
+    private const int MAX_PROMPT_ATTRIBUTES = 25;
+
     public function __construct(
         private readonly Products $product,
         private readonly ?int $agentId = null,
@@ -58,7 +60,13 @@ class EnrichProductAction
 
         $blurb = trim(($data['blurb_es'] ?? '') . ' ' . ($data['blurb_en'] ?? ''));
         $this->product->set(CustomFieldEnum::BLURB->value, $blurb);
-        $this->product->set(CustomFieldEnum::ENRICHMENT_HASH->value, $hash);
+
+        // Only a run that produced a blurb counts as done. Stamping the hash
+        // regardless made an empty blurb permanent — the gate then skipped the
+        // product forever and the miss was invisible.
+        if ($blurb !== '') {
+            $this->product->set(CustomFieldEnum::ENRICHMENT_HASH->value, $hash);
+        }
 
         $this->product->searchable();
 
@@ -68,14 +76,21 @@ class EnrichProductAction
         ];
     }
 
+    /**
+     * Fingerprints everything the prompt is built from, so the gate re-runs
+     * exactly when the model would produce a different answer.
+     *
+     * Attributes are included because they now feed the prompt: hashing only
+     * name/description/categories would leave a product whose body type or
+     * mileage changed with a blurb describing the old one, forever.
+     */
     private function contentHash(): string
     {
-        $categories = (string) $this->product->categories->pluck('name')->implode(',');
-
         return md5(implode('|', [
             $this->product->name,
             $this->product->description,
-            $categories,
+            $this->product->categories->pluck('name')->implode(','),
+            $this->promptAttributes(),
         ]));
     }
 
@@ -83,9 +98,52 @@ class EnrichProductAction
     {
         $categories = $this->product->categories->pluck('name')->implode(', ');
 
-        return "Enrich this product:\n"
+        $prompt = "Enrich this product:\n"
             . "name: {$this->product->name}\n"
             . "description: {$this->product->description}\n"
             . "categories: {$categories}";
+
+        $attributes = $this->promptAttributes();
+
+        return $attributes === '' ? $prompt : $prompt . "\nattributes:\n" . $attributes;
+    }
+
+    /**
+     * Attributes are where a catalog actually differentiates — body type, seats,
+     * fuel, year, condition. Without them the model only has a model name and a
+     * stub description, and every product in a vertical gets the same
+     * interchangeable blurb, which embeds to the same place and discriminates
+     * nothing.
+     *
+     * Enrichment's own facet outputs are excluded: feeding a previous run's
+     * guesses back in entrenches them instead of re-deriving from source data.
+     */
+    private function promptAttributes(): string
+    {
+        $skip = array_map(
+            static fn (AttributeEnum $attribute): string => mb_strtolower($attribute->value),
+            AttributeEnum::cases(),
+        );
+
+        $lines = [];
+
+        foreach ($this->product->searchableAttributes() as $attribute) {
+            $name = (string) ($attribute['name'] ?? '');
+            $value = $attribute['value'] ?? null;
+            $value = is_array($value) ? implode(', ', array_filter($value, 'is_scalar')) : (string) $value;
+            $value = trim($value);
+
+            if ($name === '' || $value === '' || in_array(mb_strtolower($name), $skip, true)) {
+                continue;
+            }
+
+            $lines[] = '  ' . $name . ': ' . mb_strimwidth($value, 0, 120, '…');
+
+            if (count($lines) >= self::MAX_PROMPT_ATTRIBUTES) {
+                break;
+            }
+        }
+
+        return implode("\n", $lines);
     }
 }

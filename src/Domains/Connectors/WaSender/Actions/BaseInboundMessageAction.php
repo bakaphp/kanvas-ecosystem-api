@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Actions;
 
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\WaSender\DataTransferObject\InboundMessage;
@@ -75,7 +76,24 @@ abstract class BaseInboundMessageAction
         return $jitter > 0 ? random_int(0, $jitter) : 0;
     }
 
+    /**
+     * Serialised per channel: chaining is a read-then-write and deliveries arrive as parallel
+     * jobs, so unserialised each part of an album looks for a sibling before the others land and
+     * every one of them opens its own burst.
+     */
     protected function attachToBurst(Message $message): ?Message
+    {
+        try {
+            return Cache::lock('wasender:burst-chain:' . $this->channel->getId(), 10)
+                ->block(5, fn (): ?Message => $this->chainOntoHead($message));
+        } catch (LockTimeoutException) {
+            // Degrade to an unchained message rather than failing the delivery. A split burst is
+            // worse output; a dropped webhook is lost data.
+            return null;
+        }
+    }
+
+    private function chainOntoHead(Message $message): ?Message
     {
         $head = new GroupBurstService(
             $this->channel,
