@@ -35,8 +35,14 @@ class WordPressMediaService
     /** @var array<string, string> */
     private array $failures = [];
 
-    public function __construct(private readonly RestClient $client)
-    {
+    /**
+     * @param array<string, string> $filenames url => original name, for urls whose basename is an
+     *        opaque storage hash. Anything unmapped falls back to that basename.
+     */
+    public function __construct(
+        private readonly RestClient $client,
+        private readonly array $filenames = [],
+    ) {
     }
 
     public function upload(string $url): ?int
@@ -91,6 +97,29 @@ class WordPressMediaService
     }
 
     /**
+     * REST uploads land unattached, so a post's own images sit loose in the media library until
+     * something claims them. Callable only after the post exists, and a failure is recorded rather
+     * than thrown because by then the post is already published.
+     *
+     * @return list<int>
+     */
+    public function attachTo(int $postId): array
+    {
+        $attached = [];
+
+        foreach ($this->uploaded as $url => $mediaId) {
+            try {
+                $this->client->attachMediaToPost($mediaId, $postId);
+                $attached[] = $mediaId;
+            } catch (Throwable $e) {
+                $this->fail($url, 'attach to post ' . $postId . ': ' . $e->getMessage());
+            }
+        }
+
+        return $attached;
+    }
+
+    /**
      * A dead URL must not sink the post, but it has to surface in the integration history —
      * otherwise the post silently ships with no images.
      *
@@ -117,7 +146,7 @@ class WordPressMediaService
         $name = (string) preg_replace(
             '/[^A-Za-z0-9._-]/',
             '-',
-            basename((string) parse_url($url, PHP_URL_PATH))
+            $this->filenames[$url] ?? basename((string) parse_url($url, PHP_URL_PATH))
         );
 
         if ($name === '' || pathinfo($name, PATHINFO_EXTENSION) === '') {

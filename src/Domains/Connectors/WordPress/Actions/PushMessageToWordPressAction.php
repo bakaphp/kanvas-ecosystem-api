@@ -45,7 +45,9 @@ class PushMessageToWordPressAction
         }
 
         $terms = new WordPressTermService($client, $this->allowsTermCreation());
-        $media = new WordPressMediaService($client);
+        // Only the message's own files are named here; a url the agent wrote into the body keeps
+        // falling back to its basename.
+        $media = new WordPressMediaService($client, $this->message->fileNamesByUrl());
 
         $featuredMediaId = $post->featuredImageUrl !== null
             ? $media->upload($post->featuredImageUrl)
@@ -64,6 +66,8 @@ class PushMessageToWordPressAction
         $result = $existingPostId !== null
             ? $client->updatePost($existingPostId, $payload)
             : $client->createPost($payload);
+
+        $media->attachTo((int) $result['id']);
 
         $this->rememberPost(
             $client,

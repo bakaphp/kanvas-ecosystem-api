@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Actions;
 
+use Illuminate\Support\Collection;
 use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
+use Kanvas\Social\Messages\Models\Message;
 use Override;
+use Throwable;
 
 /**
  * Runs the agent over one finished burst — a group room or an assistant 1:1 alike — and, when it
@@ -41,7 +44,11 @@ class AgentBurstResponderAction extends BaseAgentChannelReplyAction
             ];
         }
 
-        $media = $this->burstMedia($params['burst_message_ids'] ?? []);
+        $burst = $this->channel->messages()
+            ->whereIn('messages.id', $params['burst_message_ids'] ?? [])
+            ->get();
+
+        $media = $this->burstMedia($burst);
 
         $responseContent = new AgentChatKernel(
             agent: $this->agent,
@@ -67,6 +74,8 @@ class AgentBurstResponderAction extends BaseAgentChannelReplyAction
             rawResponse: $responseContent
         );
 
+        $this->carryForwardBurstAttachments($messageResponse, $burst);
+
         $replied = $shouldReply && ! $messageResponse->is_locked;
 
         if ($replied) {
@@ -86,6 +95,38 @@ class AgentBurstResponderAction extends BaseAgentChannelReplyAction
     }
 
     /**
+     * The base carries the head's attachments onto the reply, because everything downstream reads
+     * the reply — the WordPress publisher skips inbound messages outright. In a burst the head is
+     * usually the caption and the photos hang off its children, so that alone copies nothing and
+     * an article publishes with no featured image.
+     *
+     * @param Collection<int, Message> $burst
+     */
+    private function carryForwardBurstAttachments(Message $reply, Collection $burst): void
+    {
+        $already = $reply->files->pluck('id')->all();
+
+        foreach ($burst as $part) {
+            if ($part->getId() === $this->message->getId()) {
+                continue;
+            }
+
+            foreach ($part->files as $file) {
+                if (in_array($file->getId(), $already, true)) {
+                    continue;
+                }
+
+                try {
+                    $reply->addFile($file, (string) $file->name);
+                    $already[] = $file->getId();
+                } catch (Throwable $e) {
+                    report($e);
+                }
+            }
+        }
+    }
+
+    /**
      * The one call that reaches WhatsApp. Isolated so a test can assert what would be sent without
      * a live session — the client is Guzzle-backed, so `Http::fake()` does not intercept it.
      */
@@ -101,16 +142,16 @@ class AgentBurstResponderAction extends BaseAgentChannelReplyAction
      * Every attachment across the burst, not just the message that closed it — the article and its
      * photo are one turn as far as the agent is concerned.
      *
-     * @param array<int, int> $burstMessageIds
+     * @param Collection<int, Message> $burst
      *
      * @return array{images: list<string>, documents: list<string>}
      */
-    private function burstMedia(array $burstMessageIds): array
+    private function burstMedia(Collection $burst): array
     {
         $images = [];
         $documents = [];
 
-        foreach ($this->channel->messages()->whereIn('messages.id', $burstMessageIds)->get() as $message) {
+        foreach ($burst as $message) {
             $urls = $message->attachmentUrls();
             $images = [...$images, ...$urls['images']];
             $documents = [...$documents, ...$urls['documents']];
