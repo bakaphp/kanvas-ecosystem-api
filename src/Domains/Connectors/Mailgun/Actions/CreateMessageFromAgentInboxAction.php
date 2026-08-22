@@ -6,8 +6,8 @@ namespace Kanvas\Connectors\Mailgun\Actions;
 
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Mailgun\Enums\ReceiverConfigurationEnum;
+use Kanvas\Connectors\Mailgun\Services\MailgunAttachmentService;
 use Kanvas\Connectors\Mailgun\Services\MailgunPayloadService;
-use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
@@ -23,7 +23,6 @@ use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
-use Throwable;
 
 /**
  * Turns one email delivered to an agent's own mailbox into a Message on a per-sender channel.
@@ -95,7 +94,7 @@ class CreateMessageFromAgentInboxAction
             $company
         );
 
-        $this->attachCapturedFiles($message, $payload);
+        new MailgunAttachmentService($this->webhookRequest)->attachTo($message);
 
         return $message;
     }
@@ -122,46 +121,5 @@ class CreateMessageFromAgentInboxAction
         $channel->set(ReceiverConfigurationEnum::AGENT_ID->value, $this->agent->getId());
 
         return $channel;
-    }
-
-    /**
-     * ProcessWebhookAttemptAction already uploaded the email's attachments into Filesystem (the
-     * receiver sets capture_files) — the multipart request is gone by the time this job runs, so
-     * this is the only chance to hang them off the message for the kernel to read.
-     */
-    private function attachCapturedFiles(Message $message, MailgunPayloadService $payload): void
-    {
-        $rawPayload = $this->webhookRequest->payload;
-        $files = is_array($rawPayload) ? ($rawPayload['uploaded_files'] ?? null) : null;
-
-        if (! is_array($files)) {
-            return;
-        }
-
-        $inlineFields = $payload->inlineAttachmentFields();
-
-        foreach ($files as $file) {
-            $filesystemId = is_array($file) ? (int) ($file['filesystem_id'] ?? 0) : 0;
-
-            if ($filesystemId === 0) {
-                continue;
-            }
-
-            $field = is_string($file['field'] ?? null) ? $file['field'] : '';
-
-            if ($field !== '' && in_array($field, $inlineFields, true)) {
-                continue;
-            }
-
-            try {
-                $filesystem = Filesystem::getById($filesystemId, $message->app);
-                $message->addFile(
-                    $filesystem,
-                    (string) ($file['name'] ?? $filesystem->name)
-                );
-            } catch (Throwable $e) {
-                report($e);
-            }
-        }
     }
 }

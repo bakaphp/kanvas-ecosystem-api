@@ -18,6 +18,7 @@ use Kanvas\Connectors\Mailgun\Enums\ReceiverConfigurationEnum;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentInboxWebhookJob;
 use Kanvas\Connectors\WordPress\Actions\PushMessageToWordPressAction;
 use Kanvas\Connectors\WordPress\Activities\PushMessageToWordPressActivity;
+use Kanvas\Connectors\WordPress\DataTransferObject\WordPressPost;
 use Kanvas\Connectors\WordPress\Enums\ConfigurationEnum as WordPressConfigurationEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
@@ -163,8 +164,11 @@ final class AgentInboxWebhookJobTest extends TestCase
             'sender' => $this->user->email,
             'subject' => 'The signed contract',
             'stripped-text' => 'Here is the contract, can you summarize it?',
-            // Mailgun maps each content-id referenced in the body to its multipart field.
+            // Mailgun maps each content-id to its multipart field; the body referencing that id as
+            // `cid:` is what makes it part of the layout rather than something the sender attached.
             'content-id-map' => json_encode(['<logo@corp>' => 'attachment-2']),
+            'body-html' => '<p>Here is the contract, can you summarize it?</p>'
+                . '<img src="cid:logo@corp" alt="Corp">',
             'uploaded_files' => [
                 [
                     'filesystem_id' => $this->uploadFile(UploadedFile::fake()->create('contract.pdf', 12, 'application/pdf')),
@@ -195,6 +199,74 @@ final class AgentInboxWebhookJobTest extends TestCase
         // Stored as a document, not an image — what any later reader (caption backfill, a tool, the
         // UI) keys off to decide how to open it.
         $this->assertNotEmpty($message->attachmentUrls()['documents']);
+    }
+
+    /**
+     * Gmail stamps a Content-ID on EVERY attachment it sends, so `content-id-map` alone said "inline"
+     * about a photo a newsroom had deliberately attached and the file was dropped on the floor — no
+     * exception, nothing in Sentry, just a post with no image. Only a `cid:` reference in the body
+     * makes one inline.
+     */
+    public function testAnAttachmentGmailGaveAContentIdToIsStillKept(): void
+    {
+        $this->fakeMailgun();
+
+        $this->deliver([
+            'sender' => $this->user->email,
+            'subject' => 'noticia presidente',
+            'stripped-text' => 'El presidente reafirmó este viernes que la transformación continuará.',
+            // Gmail's `f_…` id for a plain attached file, and a body that never references it.
+            'content-id-map' => json_encode(['<f_mt3wwiwb0>' => 'attachment-1']),
+            'body-html' => '<div dir="ltr"><p>El presidente reafirmó este viernes.</p></div>',
+            'uploaded_files' => [
+                [
+                    'filesystem_id' => $this->uploadFile(UploadedFile::fake()->image('abinader.jpg')),
+                    'name' => 'abinader.jpg',
+                    'field' => 'attachment-1',
+                ],
+            ],
+        ]);
+
+        $this->assertContains('abinader.jpg', $this->inboundMessage()->files->pluck('name')->all());
+    }
+
+    /**
+     * The publisher skips inbound messages by design, so the post is built from the agent's reply —
+     * which owned no files at all. The newsroom's photo has to ride across for it to ever become a
+     * featured image.
+     */
+    public function testTheAgentsReplyInheritsTheEmailsPhotoForTheWordPressPost(): void
+    {
+        $this->fakeMailgunAndWordPress();
+        $this->useStructuredAgent();
+
+        $this->deliver([
+            'sender' => $this->user->email,
+            'subject' => 'noticia presidente',
+            'stripped-text' => 'El presidente reafirmó este viernes que la transformación continuará.',
+            'Message-Id' => '<photo-' . Str::random(8) . '@mail.gmail.test>',
+            'uploaded_files' => [
+                [
+                    'filesystem_id' => $this->uploadFile(UploadedFile::fake()->image('abinader.jpg')),
+                    'name' => 'abinader.jpg',
+                    'field' => 'attachment-1',
+                ],
+            ],
+        ]);
+
+        $reply = Message::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->whereJsonContains('message->from_ia', true)
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($reply, 'The agent reply must be persisted');
+        $this->assertContains('abinader.jpg', $reply->files->pluck('name')->all());
+
+        $featured = WordPressPost::fromMessage($reply)->featuredImageUrl;
+
+        $this->assertNotNull($featured, 'The carried-forward photo must become the post featured image');
+        $this->assertContains($featured, $reply->attachmentUrls()['images']);
     }
 
     public function testAStrangerIsTurnedAwayWhenTheMailboxIsRestricted(): void
@@ -419,6 +491,15 @@ final class AgentInboxWebhookJobTest extends TestCase
         }
 
         return $result;
+    }
+
+    private function inboundMessage(): Message
+    {
+        return Message::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->whereJsonContains('message->from_email', $this->user->email)
+            ->latest('id')
+            ->firstOrFail();
     }
 
     private function uploadFile(UploadedFile $file): int

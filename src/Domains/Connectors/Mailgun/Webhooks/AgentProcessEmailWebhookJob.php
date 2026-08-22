@@ -24,6 +24,11 @@ use function Sentry\captureMessage;
         . 'against the lead it belongs to. It records the mail; it does not reply — the reply is a '
         . 'separate email-responder step attached to the message.',
     integration: IntegrationsEnum::MAILGUN,
+    params: [
+        'capture_files' => 'Stores the email\'s attachments and attaches them to the message and the '
+            . 'lead. Already on for this receiver; set it to false only to discard attachments on '
+            . 'purpose. There is no backfill — the files are unrecoverable once the delivery is over.',
+    ],
 )]
 class AgentProcessEmailWebhookJob extends ProcessWebhookJob
 {
@@ -57,6 +62,12 @@ class AgentProcessEmailWebhookJob extends ProcessWebhookJob
         $this->assertAttachmentsCaptured();
 
         return $message->toArray();
+    }
+
+    #[Override]
+    public static function capturesFiles(): bool
+    {
+        return true;
     }
 
     #[Override]

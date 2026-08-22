@@ -54,7 +54,8 @@ class AttachEmailAttachmentsToLeadActionTest extends TestCase
     {
         $lead = $this->createLead();
 
-        // content-id-map flags attachment-1 as the inline signature image.
+        // content-id-map flags attachment-1, and the body referencing it as `cid:` is what confirms
+        // it is the inline signature image rather than something the sender attached.
         $webhookCall = $this->buildWebhookCall(
             [
                 'sender' => 'customer@example.com',
@@ -62,6 +63,8 @@ class AttachEmailAttachmentsToLeadActionTest extends TestCase
                 'content-id-map' => json_encode([
                     '<image001.png@01DCE907.D2C23CA0>' => 'attachment-1',
                 ]),
+                'body-html' => '<p>Adjunto la hoja</p>'
+                    . '<img src="cid:image001.png@01DCE907.D2C23CA0">',
             ],
             [
                 'attachment-1' => UploadedFile::fake()->image('image001.png'),
@@ -74,6 +77,30 @@ class AttachEmailAttachmentsToLeadActionTest extends TestCase
         $attached = new AttachEmailAttachmentsToLeadAction($webhookCall, $lead)->execute();
 
         $this->assertSame(['worksheet.pdf'], $attached);
+        $this->assertCount(1, $lead->getFiles());
+    }
+
+    /**
+     * Gmail gives every attachment a Content-ID whether it is embedded or not, so the map on its own
+     * threw away files senders had attached on purpose.
+     */
+    public function testAttachesAFileGmailGaveAContentIdButNeverReferencedInTheBody(): void
+    {
+        $lead = $this->createLead();
+
+        $webhookCall = $this->buildWebhookCall(
+            [
+                'sender' => 'customer@example.com',
+                'attachment-count' => '1',
+                'content-id-map' => json_encode(['<f_mt3wwiwb0>' => 'attachment-1']),
+                'body-html' => '<div dir="ltr"><p>Aquí va la foto</p></div>',
+            ],
+            ['attachment-1' => UploadedFile::fake()->image('abinader.jpg')]
+        );
+
+        $attached = new AttachEmailAttachmentsToLeadAction($webhookCall, $lead)->execute();
+
+        $this->assertSame(['abinader.jpg'], $attached);
         $this->assertCount(1, $lead->getFiles());
     }
 
