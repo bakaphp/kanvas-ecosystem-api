@@ -18,6 +18,19 @@ use Kanvas\Social\Messages\Models\Message;
 
 class DownloadMessageFileAction
 {
+    /**
+     * Only where the family default would be wrong — a png named `.jpg` is a lie WordPress will
+     * later trip over.
+     */
+    private const array EXTENSION_BY_MIME = [
+        'image/png' => 'png',
+        'image/webp' => 'webp',
+        'image/gif' => 'gif',
+        'audio/mpeg' => 'mp3',
+        'audio/mp4' => 'm4a',
+        'application/pdf' => 'pdf',
+    ];
+
     protected FilesystemServices $filesystemService;
     protected string $messageTypeKey;
 
@@ -81,7 +94,7 @@ class DownloadMessageFileAction
         string $url,
         string $type = 'image'
     ): array {
-        $extension = explode(';', $type);
+
         $payload = [
             'data' => [
                 'messages' => [
@@ -93,7 +106,7 @@ class DownloadMessageFileAction
                             'url' => $url,
                             'mimetype' => $type,
                             'mediaKey' => $mediaKey,
-                            'fileName' => uniqid() . '.' . $extension[0],
+                            'fileName' => uniqid() . '.' . self::fileExtensionFor($type),
                         ],
                     ],
                 ],
@@ -104,7 +117,7 @@ class DownloadMessageFileAction
         SafeUrl::assertSafe($response['publicUrl']);
         $content = Http::get($response['publicUrl']);
         // Generate a unique filename
-        $filename = uniqid() . '.' . $this->getFileExtension($type);
+        $filename = uniqid() . '.' . self::fileExtensionFor($type);
 
         // Save to temporary storage using Laravel's Storage
         $tempPath = 'temp/' . $filename;
@@ -117,15 +130,23 @@ class DownloadMessageFileAction
         ];
     }
 
-    protected function getFileExtension(string $type): string
+    /**
+     * WhatsApp hands us a mimetype (`image/jpeg`), not a bare kind. This used to `match` on
+     * 'image'/'video' and so fell through to `bin` for every real payload — the file landed named
+     * `*.bin`, and WordPress rejects uploads by filename extension, so every published article
+     * came out with no featured image.
+     */
+    public static function fileExtensionFor(string $mimeType): string
     {
-        return match ($type) {
-            'image' => 'jpg',
-            'video' => 'mp4',
-            'audio' => 'ogg',
-            'document' => 'pdf',
-            default => 'bin',
-        };
+        $mimeType = strtolower(trim(explode(';', $mimeType)[0]));
+
+        return self::EXTENSION_BY_MIME[$mimeType]
+            ?? match (explode('/', $mimeType)[0]) {
+                'image' => 'jpg',
+                'video' => 'mp4',
+                'audio' => 'ogg',
+                default => 'bin',
+            };
     }
 
     /**
