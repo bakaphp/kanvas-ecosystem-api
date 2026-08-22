@@ -67,6 +67,39 @@ enum MediaTypeEnum: string
         'json',
     ];
 
+    /**
+     * The filename extension a mimetype should be stored under.
+     *
+     * Lives here rather than in each connector because it is the same knowledge in both directions
+     * as `fromExtension()`, and because getting it wrong is expensive elsewhere: WordPress judges
+     * an upload by filename, so a JPEG saved as `.bin` is refused outright.
+     *
+     * Only the subtypes whose family default would be wrong are listed — a png named `.jpg` is a
+     * lie something downstream eventually trips over.
+     */
+    public static function extensionForMime(string $mimeType): string
+    {
+        $mimeType = strtolower(trim(explode(';', $mimeType)[0]));
+
+        $exact = [
+            'image/png' => 'png',
+            'image/gif' => 'gif',
+            'image/webp' => 'webp',
+            'image/avif' => 'avif',
+            'image/heic' => 'heic',
+            'audio/mpeg' => 'mp3',
+            'audio/mp4' => 'm4a',
+            'application/pdf' => 'pdf',
+        ];
+
+        return $exact[$mimeType] ?? match (explode('/', $mimeType)[0]) {
+            'image' => 'jpg',
+            'video' => 'mp4',
+            'audio' => 'ogg',
+            default => 'bin',
+        };
+    }
+
     public static function fromExtension(string $extension): self
     {
         $ext = strtolower(trim($extension, '.'));
