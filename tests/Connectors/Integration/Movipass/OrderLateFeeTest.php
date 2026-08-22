@@ -322,7 +322,7 @@ class OrderLateFeeTest extends TestCase
         // Add special days: Christmas Eve as half-day, custom company day as full day
         $this->company->set(CompaniesEnumsConfigurationEnum::SPECIAL_DAYS->value, [
             [
-                'date' => "2025-12-25",
+                'date' => '2025-12-25',
                 'type' => 'full_day',
                 'name' => 'Christmas',
             ],
@@ -428,12 +428,12 @@ class OrderLateFeeTest extends TestCase
         // Configure company with special days for Dec 24 and 25
         $this->company->set(CompaniesEnumsConfigurationEnum::SPECIAL_DAYS->value, [
             [
-                'date' => "2025-12-24",
+                'date' => '2025-12-24',
                 'type' => 'full_day',
                 'name' => 'Christmas Eve',
             ],
             [
-                'date' => "2025-12-25",
+                'date' => '2025-12-25',
                 'type' => 'full_day',
                 'name' => 'Christmas',
             ],
