@@ -138,8 +138,11 @@ class WordPressMediaService
     }
 
     /**
-     * WP rejects an upload whose extension is not in its allow-list, and signed S3 URLs often have
-     * no extension in the path at all — fall back to one derived from the sniffed content type.
+     * WP rejects an upload whose extension is not in its allow-list, and it decides by **filename**,
+     * not by content. Signed S3 URLs often carry no extension at all, and a stored name can carry
+     * the wrong one — WhatsApp media was filed as `*.bin` for a while, which WP refused with
+     * "no tienes permisos para subir este tipo de archivo" while the bytes were a perfectly good
+     * JPEG. The sniffed content type is the authority; the stored name only supplies the stem.
      */
     private function filename(string $url, string $mimeType): string
     {
@@ -149,9 +152,14 @@ class WordPressMediaService
             $this->filenames[$url] ?? basename((string) parse_url($url, PHP_URL_PATH))
         );
 
-        if ($name === '' || pathinfo($name, PATHINFO_EXTENSION) === '') {
-            $extension = self::EXTENSION_BY_MIME[$mimeType] ?? 'bin';
-            $name = ($name !== '' ? $name : 'kanvas-' . substr(sha1($url), 0, 12)) . '.' . $extension;
+        $expected = self::EXTENSION_BY_MIME[strtolower(trim(explode(';', $mimeType)[0]))] ?? null;
+        $actual = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+
+        if ($expected !== null && $actual !== $expected) {
+            $stem = pathinfo($name, PATHINFO_FILENAME);
+            $name = ($stem !== '' ? $stem : 'kanvas-' . substr(sha1($url), 0, 12)) . '.' . $expected;
+        } elseif ($name === '' || $actual === '') {
+            $name = ($name !== '' ? $name : 'kanvas-' . substr(sha1($url), 0, 12)) . '.bin';
         }
 
         return mb_substr($name, -self::MAX_FILENAME_LENGTH);

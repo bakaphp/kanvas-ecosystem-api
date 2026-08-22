@@ -16,8 +16,8 @@ final class AzulTest extends AzulBase
 {
     public function testSaleWithCard(): void
     {
-        $service  = $this->getService();
-        $request  = $this->buildSaleRequest();
+        $service = $this->getService();
+        $request = $this->buildSaleRequest();
         $response = $service->sale($request);
 
         $this->assertInstanceOf(AzulPaymentResponse::class, $response);
@@ -31,14 +31,14 @@ final class AzulTest extends AzulBase
         $service = $this->getService();
 
         // First sale: save the card to DataVault
-        $firstRequest  = $this->buildSaleRequest(['saveToDataVault' => '1']);
+        $firstRequest = $this->buildSaleRequest(['saveToDataVault' => '1']);
         $firstResponse = $service->sale($firstRequest);
 
         $this->assertTrue($firstResponse->isApproved());
         $this->assertNotEmpty($firstResponse->dataVaultToken, 'Expected DataVaultToken in response');
 
         // Second sale: use the DataVault token (no raw card fields)
-        $credentials     = $this->getCredentials();
+        $credentials = $this->getCredentials();
         $tokenOnlyRequest = new AzulPaymentRequest(
             channel: $credentials['channel'],
             store: $credentials['store'],
@@ -57,8 +57,8 @@ final class AzulTest extends AzulBase
 
     public function testHold(): void
     {
-        $service  = $this->getService();
-        $request  = $this->buildSaleRequest();
+        $service = $this->getService();
+        $request = $this->buildSaleRequest();
         $response = $service->hold($request);
 
         $this->assertInstanceOf(AzulPaymentResponse::class, $response);
@@ -89,7 +89,7 @@ final class AzulTest extends AzulBase
     {
         $this->expectException(ValidationException::class);
 
-        $app     = app(Apps::class);
+        $app = app(Apps::class);
         $company = Companies::first();
 
         new Client($app, $company, [

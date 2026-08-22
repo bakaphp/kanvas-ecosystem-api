@@ -15,6 +15,7 @@ use Kanvas\Connectors\WordPress\RestClient;
 use Kanvas\Connectors\WordPress\Services\WordPressMediaService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
+use ReflectionMethod;
 use Tests\TestCase;
 
 final class PushMessageToWordPressActionTest extends TestCase
@@ -382,6 +383,45 @@ final class PushMessageToWordPressActionTest extends TestCase
 
         $this->assertSame([], $media->attachTo(101));
         Http::assertNothingSent();
+    }
+
+    /**
+     * WordPress decides what it will accept by **filename**, not by content. WhatsApp media was
+     * stored as `*.bin` for a while and WP refused it with "no tienes permisos para subir este tipo
+     * de archivo" while the bytes were a perfectly good JPEG. The sniffed content type wins over a
+     * stored name that contradicts it, which also rescues files already named `.bin`.
+     *
+     * Exercised through reflection: `upload()` fetches bytes via SafeUrlFetcher, which builds its
+     * own Guzzle client and so cannot be fed by `Http::fake()`.
+     */
+    public function testTheSniffedTypeOverridesAContradictoryStoredFilename(): void
+    {
+        $service = new WordPressMediaService(
+            new RestClient(app(Apps::class), $this->company()),
+            [
+                'https://cdn.example.test/a' => 'whatsapp-media.bin',
+                'https://cdn.example.test/b' => 'already-right.png',
+                'https://cdn.example.test/c' => 'no-extension-at-all',
+            ],
+        );
+
+        $filename = new ReflectionMethod($service, 'filename');
+
+        $this->assertSame(
+            'whatsapp-media.jpg',
+            $filename->invoke($service, 'https://cdn.example.test/a', 'image/jpeg'),
+            'a .bin name must be corrected to the real type'
+        );
+        $this->assertSame(
+            'already-right.png',
+            $filename->invoke($service, 'https://cdn.example.test/b', 'image/png'),
+            'a correct name is left alone'
+        );
+        $this->assertSame(
+            'no-extension-at-all.jpg',
+            $filename->invoke($service, 'https://cdn.example.test/c', 'image/jpeg; charset=binary'),
+            'mimetype parameters must not defeat the lookup'
+        );
     }
 
     /**
