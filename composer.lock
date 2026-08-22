@@ -8,16 +8,16 @@
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
-            "version": "4.46.3",
+            "version": "4.47.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/algolia/algoliasearch-client-php.git",
-                "reference": "66ffb94de86a45248a7fb31decf9a1ecb4e8c90f"
+                "reference": "d2ad9378c66681536d49f29134717a1d4cd66b6c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/algolia/algoliasearch-client-php/zipball/66ffb94de86a45248a7fb31decf9a1ecb4e8c90f",
-                "reference": "66ffb94de86a45248a7fb31decf9a1ecb4e8c90f",
+                "url": "https://api.github.com/repos/algolia/algoliasearch-client-php/zipball/d2ad9378c66681536d49f29134717a1d4cd66b6c",
+                "reference": "d2ad9378c66681536d49f29134717a1d4cd66b6c",
                 "shasum": ""
             },
             "require": {
@@ -69,9 +69,9 @@
             ],
             "support": {
                 "issues": "https://github.com/algolia/algoliasearch-client-php/issues",
-                "source": "https://github.com/algolia/algoliasearch-client-php/tree/4.46.3"
+                "source": "https://github.com/algolia/algoliasearch-client-php/tree/4.47.0"
             },
-            "time": "2026-07-15T15:15:42+00:00"
+            "time": "2026-08-18T12:43:34+00:00"
         },
         {
             "name": "algolia/scout-extended",
