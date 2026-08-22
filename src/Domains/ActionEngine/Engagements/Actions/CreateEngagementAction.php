@@ -302,6 +302,10 @@ class CreateEngagementAction
             'form_type' => $this->engagementData->formType,
         ];
 
+        if ($this->company->get('hide_millage')) {
+            $params['welcome'] = 'false';
+        }
+
         $extraField = $this->engagementData->extraField;
         if (is_array($extraField)) {
             $extraField = implode('&', $extraField);
