@@ -129,16 +129,16 @@ class CreateDirectAgentMessageAction extends BaseInboundMessageAction
         }
 
         $this->channel->addMessage($message);
-        $this->attachMedia($message, $messageType);
 
         // `messages.upsert` echoes outgoing messages back; arming a burst on one would have the
         // agent answer itself, forever.
         if ($this->inbound->isFromMe) {
+            $this->attachMedia($message, $messageType);
+
             return $message;
         }
 
-        $head = $this->attachToBurst($message);
-        $this->armBurstClose($head ?? $message);
+        $this->fileIntoBurst($message, $messageType);
 
         return $message;
     }

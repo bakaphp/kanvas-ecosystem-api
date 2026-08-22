@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\VinSolution\DataTransferObject;
 use DateTime;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Support\Phone;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Locations\Models\States;
 use Kanvas\Social\Messages\Models\Message;
 use Spatie\LaravelData\Data;
@@ -21,7 +22,7 @@ class CreditApp extends Data
     ) {
     }
 
-    public static function fromMessage(Message $message): self
+    public static function fromMessage(Message $message, ?People $people = null): self
     {
         $company = $message->company;
         $message = $message->getMessage();
@@ -118,6 +119,14 @@ class CreditApp extends Data
             $result['licenseData']['LicenseID'] = $formData['personal']['drivers_license'];
             $result['licenseData']['Country'] = 'US';
             $result['licenseData']['State'] = isset($formData['personal']['drivers_license_state']['code']) ? $formData['personal']['drivers_license_state']['code'] : $formData['personal']['drivers_license_state'];
+        } elseif ($peopleLicense = $people?->getDriverLicense()) {
+            $result['licenseData']['LicenseID'] = $peopleLicense->number;
+            $result['licenseData']['Country'] = 'US';
+            $result['licenseData']['State'] = $peopleLicense->state;
+
+            if (! isset($result['licenseData']['DateOfBirth']) && $peopleLicense->dob !== null) {
+                $result['licenseData']['DateOfBirth'] = $peopleLicense->dob->format('Y-m-d\TH:i:s\Z');
+            }
         }
 
         //set state

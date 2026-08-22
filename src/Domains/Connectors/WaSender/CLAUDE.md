@@ -72,6 +72,9 @@ burst**, not once per message.
 - Two signals, in precedence: `messageContextInfo.messageAssociation` (an album — deterministic,
   ignores time) then same-speaker-inside-the-idle-window. A different speaker closes the previous
   burst.
+- **Chain before downloading media** (`fileIntoBurst()` keeps the order chain → media → arm). The
+  first part to reach the head registry wins it, so a message that spends the download unregistered
+  loses the head to a part that arrived after it.
 - `ProcessGroupBurstJob` is **debounce-superseded**: every part re-arms a cache token and dispatches a
   fresh delayed copy; only the last one still matches the token when it fires.
 - It runs on the **default queue**. If nothing drains that queue the message files and the agent never
