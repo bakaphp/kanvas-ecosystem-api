@@ -28,6 +28,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
 
 /**
  * Shared base for per-connector channel reply actions (WaSender, Mailgun, RespondIO,
@@ -142,6 +143,8 @@ class BaseAgentChannelReplyAction
         $newMessage->set('communicationChannel', $this->communicationChannel);
         $newMessage->set('from_number', $from);
 
+        $this->carryForwardAttachments($message, $newMessage);
+
         $entity = $message->entity();
         if ($entity instanceof Model) {
             $newMessage->addEntity($entity);
@@ -200,6 +203,24 @@ class BaseAgentChannelReplyAction
         }
 
         return $newMessage;
+    }
+
+    /**
+     * The sender's attachments land on the inbound message, but everything downstream reads the reply
+     * — the WordPress publisher skips inbound messages outright, so an emailed-in photo could never
+     * become a post's featured image. Same Filesystem rows, not copies.
+     *
+     * Must stay ahead of fireWorkflow() so the rules the reply triggers already see the files.
+     */
+    private function carryForwardAttachments(Message $inbound, Message $reply): void
+    {
+        foreach ($inbound->files as $file) {
+            try {
+                $reply->addFile($file, (string) $file->name);
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
     }
 
     protected function companyRequiresHumanApproval(): bool
