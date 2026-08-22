@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Actions\AgentBurstResponderAction;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
@@ -88,6 +89,60 @@ final class AgentBurstResponderActionTest extends TestCase
         $this->assertSame([], self::$sent);
     }
 
+    /**
+     * The photos hang off the burst's child messages, but everything downstream reads the agent's
+     * reply — `PushMessageToWordPressActivity` skips inbound messages outright and takes its
+     * featured image from `$message->attachmentUrls()`. Without carrying the whole burst forward,
+     * the article publishes with no image even though the agent saw the photos.
+     */
+    public function testTheReplyCarriesEveryPhotoInTheBurstNotJustTheHeads(): void
+    {
+        $this->runBurst(shouldReply: false, withPhotoChild: true);
+
+        $reply = $this->latestAgentMessage();
+
+        $this->assertNotNull($reply);
+        $this->assertCount(
+            1,
+            $reply->attachmentUrls()['images'],
+            "The agent's reply must carry the burst's photo so the publisher can use it"
+        );
+    }
+
+    /**
+     * A photo filed as a child of the burst head — the shape a WhatsApp album takes.
+     */
+    private function attachPhotoChild(Message $head, MessageType $messageType): Message
+    {
+        $child = Message::factory()
+            ->withAppId($head->apps_id)
+            ->withCompanyId($head->companies_id)
+            ->withMessageType($messageType)
+            ->create([
+                'parent_id' => $head->getId(),
+                'message' => [
+                    'content' => '',
+                    'from_me' => false,
+                    'from_ia' => false,
+                    'chat_jid' => self::GROUP_JID,
+                    'conversation_type' => 'group',
+                ],
+                'is_locked' => 0,
+            ]);
+
+        $this->channel->addMessage($child);
+
+        $file = new FilesystemServices($head->app, $head->company)->createFileSystemFromBase64(
+            base64_encode(file_get_contents(__DIR__ . '/../../../../public/favicon.ico') ?: 'x'),
+            'burst-photo.png',
+            auth()->user()
+        );
+
+        $child->addFile($file, 'burst-photo.png');
+
+        return $child;
+    }
+
     private function latestAgentMessage(): ?Message
     {
         return $this->channel->messages()
@@ -96,7 +151,7 @@ final class AgentBurstResponderActionTest extends TestCase
             ->first(fn (Message $m): bool => (bool) ($m->message['from_ia'] ?? false));
     }
 
-    private function runBurst(bool $shouldReply): array
+    private function runBurst(bool $shouldReply, bool $withPhotoChild = false): array
     {
         // The WaSender client is Guzzle-backed, so this only neutralises anything on the Http
         // facade; the send itself is asserted through the `replied` flag and the tag.
@@ -185,11 +240,17 @@ final class AgentBurstResponderActionTest extends TestCase
             }
         };
 
+        $burstIds = [$head->getId()];
+
+        if ($withPhotoChild) {
+            $burstIds[] = $this->attachPhotoChild($head, $messageType)->getId();
+        }
+
         return $responder->execute([
             'prompt' => 'Rafael Zapata: Educación entregó 12 aulas nuevas en El Seibo esta mañana.',
             'group_jid' => self::GROUP_JID,
             'should_reply' => $shouldReply,
-            'burst_message_ids' => [$head->getId()],
+            'burst_message_ids' => $burstIds,
         ]);
     }
 

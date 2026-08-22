@@ -11,6 +11,8 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\WordPress\Actions\PushMessageToWordPressAction;
 use Kanvas\Connectors\WordPress\Enums\ConfigurationEnum;
 use Kanvas\Connectors\WordPress\Enums\CustomFieldEnum;
+use Kanvas\Connectors\WordPress\RestClient;
+use Kanvas\Connectors\WordPress\Services\WordPressMediaService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
@@ -355,6 +357,31 @@ final class PushMessageToWordPressActionTest extends TestCase
         $this->expectException(ValidationException::class);
 
         new PushMessageToWordPressAction($message)->execute();
+    }
+
+    /**
+     * REST uploads land with `post_parent = 0`, so a post's own photos show as "Unattached" in the
+     * media library and never appear under the post in the editor.
+     */
+    public function testAttachingMediaPointsItAtThePost(): void
+    {
+        Http::fake(fn () => Http::response(['id' => 55, 'post' => 101]));
+
+        new RestClient(app(Apps::class), $this->company())->attachMediaToPost(55, 101);
+
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
+            && str_ends_with((string) parse_url($request->url(), PHP_URL_PATH), '/wp/v2/media/55')
+            && $request->data()['post'] === 101);
+    }
+
+    public function testNoAttachCallIsMadeWhenNothingWasUploaded(): void
+    {
+        Http::fake();
+
+        $media = new WordPressMediaService(new RestClient(app(Apps::class), $this->company()));
+
+        $this->assertSame([], $media->attachTo(101));
+        Http::assertNothingSent();
     }
 
     /**
