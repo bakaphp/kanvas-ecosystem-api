@@ -145,9 +145,17 @@ class DriverLicenseVerificationService
         );
     }
 
-    /** Persists the scan onto the People row so third-party pushes read the person. */
-    public function updatePeopleFromDriverLicense(People $people, array $driverLicenseData): PeopleDataInput
-    {
+    /**
+     * Persists the scan onto the People row so third-party pushes read the person.
+     *
+     * `$runWorkflow: false` is for backfills — replaying old scans through the workflow engine
+     * would fire lead automations years after the fact.
+     */
+    public function updatePeopleFromDriverLicense(
+        People $people,
+        array $driverLicenseData,
+        bool $runWorkflow = true
+    ): PeopleDataInput {
         $license = DriverLicense::fromScan($driverLicenseData);
 
         $addressComponents = $license?->address !== null ? self::parseAddress($license->address) : null;
@@ -183,7 +191,9 @@ class DriverLicenseVerificationService
             tags: []
         );
 
-        new UpdatePeopleAction($people, $peopleData)->execute();
+        $updatePeople = new UpdatePeopleAction($people, $peopleData);
+        $updatePeople->runWorkflow = $runWorkflow;
+        $updatePeople->execute();
 
         return $peopleData;
     }

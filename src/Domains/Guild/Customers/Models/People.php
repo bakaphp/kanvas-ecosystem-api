@@ -54,7 +54,7 @@ use Override;
  * @property string|null $firstname
  * @property string|null $middlename = null
  * @property string|null $lastname
- * @property string $license_number
+ * @property string|null $license_number
  * @property string|null $license_expiration_date
  * @property string|null $license_state
  * @property string|null $dob = null

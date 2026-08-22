@@ -8,9 +8,14 @@ use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Models\People;
 
 /**
- * For self-reported sources (credit-app forms) — writes only the license, no names or address.
- * A scan from `DriverLicenseVerificationService` always wins, so an existing `license_number`
- * is replaced only when `$overwrite` is set.
+ * Fills the license columns without touching names, dob or addresses.
+ *
+ * Blank columns are always filled; populated ones are left alone unless `$overwrite` is set,
+ * so a self-reported credit-app license never clobbers a scan.
+ *
+ * `$quietly` is for backfills: it fires no workflow and no model events. Old data replayed
+ * through the workflow engine would run lead automations years after the fact, and the People
+ * observer broadcasts `people.updated` on every save.
  */
 class UpdatePeopleDriverLicenseAction
 {
@@ -18,27 +23,60 @@ class UpdatePeopleDriverLicenseAction
         private readonly People $people,
         private readonly DriverLicense $license,
         private readonly bool $overwrite = false,
+        private readonly bool $quietly = false,
     ) {
     }
 
-    public function execute(): People
+    public function execute(): bool
     {
-        if (! $this->overwrite && ! empty($this->people->license_number)) {
-            return $this->people;
+        if (! $this->apply()) {
+            return false;
         }
 
-        $this->people->license_number = $this->license->number;
+        if ($this->quietly) {
+            $this->people->disableWorkflows();
+            $this->people->saveQuietly();
 
-        if ($this->license->expirationDate !== null) {
-            $this->people->license_expiration_date = $this->license->expirationDate;
-        }
-
-        if ($this->license->state !== null) {
-            $this->people->license_state = $this->license->state;
+            return true;
         }
 
         $this->people->saveOrFail();
 
-        return $this->people;
+        return true;
+    }
+
+    /**
+     * Applies the change in memory only and reports the columns that would be written.
+     *
+     * @return array<int, string>
+     */
+    public function preview(): array
+    {
+        return $this->apply() ? array_keys($this->people->getDirty()) : [];
+    }
+
+    private function apply(): bool
+    {
+        $existingNumber = (string) ($this->people->license_number ?? '');
+
+        if ($this->overwrite || $existingNumber === '') {
+            $this->people->license_number = $this->license->number;
+        } elseif (strcasecmp($existingNumber, $this->license->number) !== 0) {
+            // A different license is on file. Grafting this one's state/expiry onto it would
+            // produce a row describing two documents at once.
+            return false;
+        }
+
+        $this->fill('license_expiration_date', $this->license->expirationDate);
+        $this->fill('license_state', $this->license->state);
+
+        return $this->people->isDirty();
+    }
+
+    private function fill(string $column, mixed $value): void
+    {
+        if ($value !== null && ($this->overwrite || empty($this->people->{$column}))) {
+            $this->people->{$column} = $value;
+        }
     }
 }

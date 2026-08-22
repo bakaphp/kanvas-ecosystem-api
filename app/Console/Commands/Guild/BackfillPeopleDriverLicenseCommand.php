@@ -25,10 +25,10 @@ class BackfillPeopleDriverLicenseCommand extends Command
     protected $signature = 'kanvas-guild:backfill-people-driver-license
                             {apps_id : App to backfill}
                             {--chunk=500 : Rows per chunk}
-                            {--overwrite : Replace a license_number that is already set}
+                            {--overwrite : Replace license values that are already set}
                             {--dry-run : Report what would change without writing}';
 
-    protected $description = 'Backfill peoples.license_number / license_expiration_date from the get_docs_drivers_license custom field';
+    protected $description = 'Backfill the peoples license columns from the get_docs_drivers_license custom field';
 
     public function handle(): int
     {
@@ -73,21 +73,29 @@ class BackfillPeopleDriverLicenseCommand extends Command
                             continue;
                         }
 
-                        if (! $overwrite && ! empty($people->license_number)) {
-                            $skipped++;
-
-                            continue;
-                        }
+                        $action = new UpdatePeopleDriverLicenseAction(
+                            people: $people,
+                            license: $license,
+                            overwrite: $overwrite,
+                            quietly: true,
+                        );
 
                         if ($dryRun) {
-                            $this->line("people {$people->getId()}: {$license->number} exp " . ($license->expirationDate?->toDateString() ?? '-'));
+                            $columns = $action->preview();
+
+                            if ($columns === []) {
+                                $skipped++;
+
+                                continue;
+                            }
+
+                            $this->line("people {$people->getId()}: " . implode(', ', $columns));
                             $updated++;
 
                             continue;
                         }
 
-                        new UpdatePeopleDriverLicenseAction($people, $license, $overwrite)->execute();
-                        $updated++;
+                        $action->execute() ? $updated++ : $skipped++;
                     } catch (Throwable $e) {
                         $failed++;
                         $this->error("custom field {$row->getId()}: {$e->getMessage()}");

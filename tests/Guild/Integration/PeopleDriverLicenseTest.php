@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Integration;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Event;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleDriverLicenseAction;
@@ -11,13 +13,21 @@ use Kanvas\Guild\Customers\DataTransferObject\Address as AddressData;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as ContactData;
 use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
+use Kanvas\Guild\Customers\Events\PeopleUpdateEvent;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
 use Tests\TestCase;
 
 final class PeopleDriverLicenseTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    // The command writes People on `crm` and custom fields on the default connection; both
+    // must roll back or the backfill test permanently mutates unrelated rows.
+    protected $connectionsToTransact = [null, 'crm'];
+
     public function testFromScanNormalizesTheScannerPayload(): void
     {
         $license = DriverLicense::fromScan($this->scan());
@@ -157,14 +167,113 @@ final class PeopleDriverLicenseTest extends TestCase
     {
         $people = $this->makePeople();
         $people->license_number = 'SCANNED';
+        $people->license_state = 'TX';
         $people->saveOrFail();
 
-        new UpdatePeopleDriverLicenseAction(
+        $changed = new UpdatePeopleDriverLicenseAction(
             $people,
             new DriverLicense(number: 'SELF-REPORTED', state: 'FL'),
         )->execute();
 
-        $this->assertSame('SCANNED', $people->fresh()->license_number);
+        $this->assertFalse($changed);
+
+        $fresh = $people->fresh();
+        $this->assertSame('SCANNED', $fresh->license_number);
+        $this->assertSame('TX', $fresh->license_state, 'a different license must not graft its state on');
+    }
+
+    /**
+     * The main backfill case: rows written before the expiration/state columns existed carry
+     * a number and nothing else. Skipping them because a number is present defeats the point.
+     */
+    public function testUpdatePeopleDriverLicenseActionFillsBlanksAlongsideAnExistingNumber(): void
+    {
+        $people = $this->makePeople();
+        $people->license_number = 'D1234567';
+        $people->saveOrFail();
+
+        $changed = new UpdatePeopleDriverLicenseAction(
+            $people,
+            DriverLicense::fromScan(['license' => 'd1234567', 'state' => 'IN', 'exp_date' => ['day' => 1, 'month' => 1, 'year' => 2030]]),
+        )->execute();
+
+        $this->assertTrue($changed);
+
+        $fresh = $people->fresh();
+        $this->assertSame('D1234567', $fresh->license_number, 'the number on file is kept as-is');
+        $this->assertSame('IN', $fresh->license_state);
+        $this->assertSame('2030-01-01', $fresh->license_expiration_date->format('Y-m-d'));
+    }
+
+    public function testUpdatePeopleDriverLicenseActionReportsNoChangeWhenEverythingIsAlreadySet(): void
+    {
+        $people = $this->makePeople();
+        $people->license_number = 'D1234567';
+        $people->license_state = 'IN';
+        $people->license_expiration_date = '2030-01-01';
+        $people->saveOrFail();
+
+        $action = new UpdatePeopleDriverLicenseAction(
+            $people,
+            new DriverLicense(number: 'D1234567', state: 'IN'),
+        );
+
+        $this->assertSame([], $action->preview());
+        $this->assertFalse($action->execute());
+    }
+
+    /**
+     * The backfill writes quietly: replaying old scans must not fire lead workflows, and the
+     * People observer broadcasts `people.updated` on every save.
+     */
+    public function testQuietWriteFiresNoWorkflowAndNoPeopleUpdateEvent(): void
+    {
+        Event::fake([PeopleUpdateEvent::class]);
+
+        $people = $this->makePeople();
+
+        new UpdatePeopleDriverLicenseAction(
+            $people,
+            new DriverLicense(number: 'QUIET-1', state: 'FL'),
+            quietly: true,
+        )->execute();
+
+        Event::assertNotDispatched(PeopleUpdateEvent::class);
+        $this->assertFalse($people->fireWorkflow(WorkflowEnum::UPDATED->value) !== null, 'workflows stay disabled on the instance');
+        $this->assertSame('QUIET-1', $people->fresh()->license_number);
+    }
+
+    public function testBackfillCommandFillsColumnsWithoutFiringWorkflowsOrEvents(): void
+    {
+        Event::fake([PeopleUpdateEvent::class]);
+
+        $people = $this->makePeople();
+        $people->set('get_docs_drivers_license', $this->scan());
+
+        $this->artisan('kanvas-guild:backfill-people-driver-license', [
+            'apps_id' => app(Apps::class)->getId(),
+        ])->assertSuccessful();
+
+        $fresh = $people->fresh();
+        $this->assertSame('0000-00-0000', $fresh->license_number);
+        $this->assertSame('IN', $fresh->license_state);
+        $this->assertSame('2030-01-01', $fresh->license_expiration_date->format('Y-m-d'));
+
+        Event::assertNotDispatched(PeopleUpdateEvent::class);
+    }
+
+    public function testNonQuietWriteStillDispatchesThePeopleUpdateEvent(): void
+    {
+        Event::fake([PeopleUpdateEvent::class]);
+
+        $people = $this->makePeople();
+
+        new UpdatePeopleDriverLicenseAction(
+            $people,
+            new DriverLicense(number: 'LOUD-1', state: 'FL'),
+        )->execute();
+
+        Event::assertDispatched(PeopleUpdateEvent::class);
     }
 
     public function testUpdatePeopleDriverLicenseActionFillsAnEmptyLicense(): void
