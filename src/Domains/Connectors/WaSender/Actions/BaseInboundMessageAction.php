@@ -113,6 +113,18 @@ abstract class BaseInboundMessageAction
     }
 
     /**
+     * Chaining runs before the media download: the download takes seconds, and a message left
+     * unparented that long is adopted as head by the next part of the burst.
+     */
+    protected function fileIntoBurst(Message $message, MessageTypeEnum $messageType): void
+    {
+        $head = $this->attachToBurst($message);
+
+        $this->attachMedia($message, $messageType);
+        $this->armBurstClose($head ?? $message);
+    }
+
+    /**
      * Video is filed so the conversation history is complete, but it is tagged and left
      * undownloaded — nothing sends it to the agent yet.
      */

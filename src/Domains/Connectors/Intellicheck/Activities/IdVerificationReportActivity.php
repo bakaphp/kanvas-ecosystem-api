@@ -16,6 +16,7 @@ use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Intellicheck\Jobs\AttachDriverLicenseImagesJob;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Services\DriverLicenseVerificationService;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
@@ -77,31 +78,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         ],
                     ];
 
-                    $getDocsDriversLicense = null;
-                    if (isset($verificationData['idcheck']['data'])) {
-                        $idCheck = $verificationData['idcheck']['data'];
-                        $ocrMatchData = $verificationData['ocr_match']['data'] ?? [];
-
-                        $getDocsDriversLicense = [
-                            'address' => $ocrMatchData['address'] ?? '',
-                            'state' => $idCheck['state'] ?? '',
-                            'birthday' => [
-                                'day' => isset($idCheck['dateOfBirth']) ? (int) date('d', strtotime($idCheck['dateOfBirth'])) : 0,
-                                'month' => isset($idCheck['dateOfBirth']) ? (int) date('m', strtotime($idCheck['dateOfBirth'])) : 0,
-                                'year' => isset($idCheck['dateOfBirth']) ? (int) date('Y', strtotime($idCheck['dateOfBirth'])) : 0,
-                            ],
-                            'license' => $idCheck['dLIDNumberRaw'] ?? '',
-                            'exp_date' => [
-                                'day' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('d', strtotime($idCheck['expirationDate'])) : 0,
-                                'month' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('m', strtotime($idCheck['expirationDate'])) : 0,
-                                'year' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('Y', strtotime($idCheck['expirationDate'])) : 0,
-                            ],
-                            'state_id' => 0,
-                            'firstname' => $idCheck['firstName'] ?? '',
-                            'middlename' => '',
-                            'lastname' => $idCheck['lastName'] ?? '',
-                        ];
-                    }
+                    $getDocsDriversLicense = IdVerificationService::toDriverLicenseScan($verificationData);
 
                     $resultsFromIntellicheck = [
                         'intelicheck' => $verificationResults['status'] == 'green' || $verificationResults['status'] == 'flag' ? true : false,
@@ -128,6 +105,14 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         $verifiedPeople->set('id_verification', $resultsFromIntellicheck);
 
                         if (! empty($getDocsDriversLicense)) {
+                            // Persist before dropping the custom field — downstream pushes read
+                            // the People row, only the showroom flow re-reads the lead's copy.
+                            new DriverLicenseVerificationService(
+                                $lead->app,
+                                $verifiedPeople->company,
+                                $lead->user,
+                            )->updatePeopleFromDriverLicense($verifiedPeople, $getDocsDriversLicense);
+
                             $verifiedPeople->del('get_docs_drivers_license');
                         }
                     }

@@ -9,6 +9,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadSource;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
@@ -55,7 +56,9 @@ class UpdateLeadTool extends Tool implements HasRunKey
                 . 'Set disposition to "qualified", "unqualified", or "spam" once you can tell. Disposition is your '
                 . 'qualification judgment, NOT the lead\'s status — it does not close a lead and does not change '
                 . 'what the lead UI shows. To close, reopen, or otherwise change a lead\'s status, use set_lead_status. '
-                . 'Set advance_stage=true to move the lead to the next pipeline stage when it is genuinely progressing.',
+                . 'For any other custom field, use set_lead_custom_fields. '
+                . 'To move the lead through its pipeline: pass pipeline_stage with the stage name when you know where '
+                . 'it should land, or advance_stage=true to step it to the next one. Never both.',
         );
     }
 
@@ -172,9 +175,18 @@ class UpdateLeadTool extends Tool implements HasRunKey
                 required: false,
             ),
             new ToolProperty(
+                name: 'pipeline_stage',
+                type: PropertyType::STRING,
+                description: 'Move the lead to this pipeline stage, by name (e.g. "Negotiation"). Works in both '
+                    . 'directions. If the name does not match you get the pipeline\'s stages back, retry with one of '
+                    . 'those. Do not combine with advance_stage.',
+                required: false,
+            ),
+            new ToolProperty(
                 name: 'advance_stage',
                 type: PropertyType::BOOLEAN,
-                description: 'Set true to move the lead to the next pipeline stage (only when it is genuinely progressing).',
+                description: 'Set true to move the lead to the next pipeline stage (only when it is genuinely '
+                    . 'progressing and you do not know the stage name). Do not combine with pipeline_stage.',
                 required: false,
             ),
         ];
@@ -198,6 +210,7 @@ class UpdateLeadTool extends Tool implements HasRunKey
         ?string $timeline = null,
         ?string $notes = null,
         ?string $disposition = null,
+        ?string $pipeline_stage = null,
         ?bool $advance_stage = null,
     ): array {
         $result = $this->resolveLeadOrError($lead_id);
@@ -267,8 +280,26 @@ class UpdateLeadTool extends Tool implements HasRunKey
             $updated[] = 'disposition';
         }
 
+        $pipeline_stage = $this->trimmedOrNull($pipeline_stage);
+        if ($pipeline_stage !== null && $advance_stage === true) {
+            return [
+                'status' => 'error',
+                'message' => 'Pass either pipeline_stage (the stage you want) or advance_stage (step to the next one), not both.',
+            ];
+        }
+
         $stageAdvanced = false;
-        if ($advance_stage === true) {
+        if ($pipeline_stage !== null) {
+            $stage = $this->resolvePipelineStage($lead, $pipeline_stage);
+            if (is_array($stage)) {
+                return $stage;
+            }
+
+            $stageAdvanced = (int) $lead->pipeline_stage_id !== $stage->getId();
+            $lead->pipeline_stage_id = $stage->getId();
+            $lead->saveOrFail();
+            $updated[] = 'pipeline_stage';
+        } elseif ($advance_stage === true) {
             $before = $lead->pipeline_stage_id;
             $lead->moveToNextPipelineStage();
             $stageAdvanced = $lead->pipeline_stage_id !== $before;
@@ -411,6 +442,44 @@ class UpdateLeadTool extends Tool implements HasRunKey
                 ->pluck('name')
                 ->all(),
         ];
+    }
+
+    /**
+     * Resolve a stage by name inside the lead's OWN pipeline. Scoping to `$lead->pipeline_id` is what keeps
+     * this tenant-safe without a company clause — the pipeline id came off a lead already resolved for this
+     * tenant, and a stage borrowed from another pipeline would put the lead in a state its own board cannot
+     * render. A miss returns the pipeline's stages so the agent retries with a real one.
+     *
+     * @return PipelineStage|array<string, mixed>
+     */
+    private function resolvePipelineStage(Lead $lead, string $name): PipelineStage|array
+    {
+        $pipelineId = (int) $lead->pipeline_id;
+        if ($pipelineId === 0) {
+            return [
+                'status' => 'error',
+                'message' => 'This lead is not on a pipeline, so it has no stages to move between.',
+            ];
+        }
+
+        $stages = PipelineStage::query()
+            ->where('pipelines_id', $pipelineId)
+            ->where('is_deleted', 0)
+            ->orderBy('weight')
+            ->get();
+
+        $match = $stages->first(fn (PipelineStage $stage): bool => strcasecmp($stage->name, $name) === 0)
+            ?? $stages->first(fn (PipelineStage $stage): bool => stripos($stage->name, $name) !== false);
+
+        if ($match === null) {
+            return [
+                'status' => 'error',
+                'message' => "No stage named \"{$name}\" on this lead's pipeline. Retry with one of the available stages.",
+                'available' => $stages->pluck('name')->all(),
+            ];
+        }
+
+        return $match;
     }
 
     private function trimmedOrNull(?string $value): ?string
