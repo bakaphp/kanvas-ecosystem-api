@@ -217,6 +217,46 @@ class Client
     }
 
     /**
+     * Uploads a file into a channel/DM as a real Slack attachment, via the current 3-step external
+     * upload flow (the old one-shot files.upload was deprecated): reserve an upload URL, PUT the
+     * bytes to it, then complete the upload against the destination channel.
+     */
+    public function uploadFile(
+        string $channel,
+        string $filename,
+        string $contents,
+        ?string $initialComment = null,
+        ?string $threadTs = null,
+    ): void {
+        $reservation = $this->call('files.getUploadURLExternal', [
+            'filename' => $filename,
+            'length' => (string) strlen($contents),
+        ]);
+
+        $uploadUrl = (string) ($reservation['upload_url'] ?? '');
+        $fileId = (string) ($reservation['file_id'] ?? '');
+
+        if ($uploadUrl === '' || $fileId === '') {
+            throw new ValidationException('Slack files.getUploadURLExternal did not return an upload_url/file_id.');
+        }
+
+        $response = Http::timeout(30)
+            ->withBody($contents, 'application/octet-stream')
+            ->post($uploadUrl);
+
+        if (! $response->successful()) {
+            throw new ValidationException('Slack file upload failed with HTTP ' . $response->status() . '.');
+        }
+
+        $this->call('files.completeUploadExternal', array_filter([
+            'files' => json_encode([['id' => $fileId, 'title' => $filename]]),
+            'channel_id' => $channel,
+            'initial_comment' => $initialComment,
+            'thread_ts' => $threadTs,
+        ]));
+    }
+
+    /**
      * Download a Slack-hosted file (url_private / url_private_download). These require the bot token as
      * a bearer header — a plain GET (e.g. SafeUrlFetcher, which sends no auth) gets Slack's HTML login
      * page instead of the bytes.
