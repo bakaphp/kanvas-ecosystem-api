@@ -300,8 +300,11 @@ class CreateEngagementAction
             'cid' => $this->lead->company->uuid,
             'bcid' => $this->lead->branch ? $this->lead->branch->uuid : null,
             'form_type' => $this->engagementData->formType,
-            'welcome' => ! $this->company->get('hide_millage'),
         ];
+
+        if ($this->company->get('hide_millage')) {
+            $params['welcome'] = 'false';
+        }
 
         $extraField = $this->engagementData->extraField;
         if (is_array($extraField)) {
