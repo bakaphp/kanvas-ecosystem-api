@@ -255,6 +255,29 @@ class Message extends BaseModel
         return ['images' => $images, 'documents' => $documents];
     }
 
+    /**
+     * The name each attachment was uploaded under, keyed by the url `attachmentUrls()` returns.
+     * Storage urls end in an opaque hash, so anything copying a file elsewhere needs this to keep
+     * a readable name.
+     *
+     * @return array<string, string>
+     */
+    public function fileNamesByUrl(): array
+    {
+        $names = [];
+
+        foreach ($this->files as $file) {
+            $url = (string) $file->url;
+            $name = trim((string) $file->name);
+
+            if ($url !== '' && $name !== '') {
+                $names[$url] = $name;
+            }
+        }
+
+        return $names;
+    }
+
     public function addMessage(array $message): void
     {
         $this->message = array_merge($this->getMessage(), $message);
