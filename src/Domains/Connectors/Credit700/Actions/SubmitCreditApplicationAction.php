@@ -8,6 +8,8 @@ use Kanvas\Connectors\Credit700\DataTransferObject\CreditApplication;
 use Kanvas\Connectors\Credit700\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Credit700\Services\CreditApplicationService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Actions\UpdatePeopleDriverLicenseAction;
+use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
@@ -40,6 +42,17 @@ class SubmitCreditApplicationAction
         $targetPeople = $this->people ?? $lead->people;
 
         $application = CreditApplication::from($formData, $targetPeople);
+
+        // Keep the People row in sync so the next integration need not re-read this form.
+        if ($application->driversLicenseNumber !== null) {
+            new UpdatePeopleDriverLicenseAction(
+                $targetPeople,
+                new DriverLicense(
+                    number: $application->driversLicenseNumber,
+                    state: $application->driversLicenseState,
+                ),
+            )->execute();
+        }
 
         $service = new CreditApplicationService($lead->app, $lead->company);
         $result = $service->submitToRouteOne($application);

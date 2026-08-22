@@ -10,6 +10,8 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\WaSender\DataTransferObject\InboundMessage;
+use Kanvas\Connectors\WaSender\Enums\BurstConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
 use Kanvas\Connectors\WaSender\Services\GroupBurstService;
@@ -224,16 +226,29 @@ final class CreateGroupMessageActionTest extends TestCase
         $this->assertNull($later['result']['messages'][0]['parent_id']);
     }
 
-    public function testAnotherSpeakerClosesThePreviousBurst(): void
+    /**
+     * Each speaker gets their own burst, so an interruption does not split a flurry.
+     *
+     * This replaced "any other speaker closes the burst", which was a consequence of deriving the
+     * head from the channel's newest row rather than a deliberate rule — and under parallel
+     * delivery it meant whoever happened to be visible decided the grouping. A turn is one
+     * person's flurry: in a busy room two reporters posting alternately should not shred each
+     * other's messages into single-message bursts.
+     */
+    public function testEachSpeakerKeepsTheirOwnBurstThroughAnInterruption(): void
     {
         $this->allowGroup();
 
-        $this->ingestAt('13:28:30', $this->groupText(Str::uuid()->toString(), 'Alex Rivera'));
+        $alex = $this->ingestAt('13:28:30', $this->groupText(Str::uuid()->toString(), 'Alex Rivera'));
         $interruption = $this->ingestAt('13:28:35', $this->groupText(Str::uuid()->toString(), 'Sam Okafor', '900000000000002', '15550002222'));
         $resumed = $this->ingestAt('13:28:40', $this->groupText(Str::uuid()->toString(), 'Alex Rivera'));
 
-        $this->assertNull($interruption['result']['messages'][0]['parent_id']);
-        $this->assertNull($resumed['result']['messages'][0]['parent_id'], 'A closed burst does not reopen');
+        $this->assertNull($interruption['result']['messages'][0]['parent_id'], 'Sam opens his own burst');
+        $this->assertSame(
+            $alex['result']['messages'][0]['message_id'],
+            $resumed['result']['messages'][0]['parent_id'],
+            "Alex's own flurry stays one turn"
+        );
     }
 
     /**
@@ -295,6 +310,39 @@ final class CreateGroupMessageActionTest extends TestCase
             $first['result']['messages'][0]['message_id'],
             $second['result']['messages'][0]['parent_id']
         );
+    }
+
+    /**
+     * The follower hands the message back through `$candidate->parent`, which threw
+     * CircularReferenceException and lost the delivery (Sentry KANVAS-ECOSYSTEM-68E).
+     */
+    public function testAMessageAlreadyAdoptedAsHeadIsNeverHandedBackToItself(): void
+    {
+        $this->allowGroup();
+
+        $headPayload = $this->groupText(Str::uuid()->toString(), 'Alex Rivera');
+        $head = $this->ingest($headPayload);
+        $follower = $this->ingest($this->groupText(Str::uuid()->toString(), 'Alex Rivera'));
+
+        $headMessage = Message::findOrFail($head['result']['messages'][0]['message_id']);
+        $channel = Channel::findOrFail($head['result']['messages'][0]['channel_id']);
+
+        $this->assertSame(
+            $headMessage->getId(),
+            $follower['result']['messages'][0]['parent_id'],
+            'precondition: the follower adopted this message as its head'
+        );
+
+        $inbound = InboundMessage::fromWebhookMessage($headPayload);
+        $this->assertNotNull($inbound);
+
+        $resolved = new GroupBurstService(
+            $channel,
+            BurstConfigEnum::BURST_IDLE_SECONDS->getInt($this->receiver()),
+            BurstConfigEnum::BURST_MAX_SECONDS->getInt($this->receiver()),
+        )->resolveHead($headMessage, $inbound);
+
+        $this->assertNull($resolved, 'A message can never be its own burst head');
     }
 
     private function allowGroup(): void

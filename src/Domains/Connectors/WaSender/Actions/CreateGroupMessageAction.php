@@ -104,19 +104,18 @@ class CreateGroupMessageAction extends BaseInboundMessageAction
         $message->saveOrFail();
 
         $this->channel->addMessage($message);
-        $this->attachMedia($message, $messageType);
 
         // Our own message is the one moment WhatsApp discloses our lid, so it is filed and read —
         // but never burst. `messages.upsert` echoes outgoing messages back, so arming a burst on
         // one would have the agent answer itself, forever.
         if ($this->inbound->isFromMe) {
             new GroupMentionService($this->receiver, $this->channel)->rememberOwnLid($this->inbound);
+            $this->attachMedia($message, $messageType);
 
             return $message;
         }
 
-        $head = $this->attachToBurst($message);
-        $this->armBurstClose($head ?? $message);
+        $this->fileIntoBurst($message, $messageType);
 
         return $message;
     }

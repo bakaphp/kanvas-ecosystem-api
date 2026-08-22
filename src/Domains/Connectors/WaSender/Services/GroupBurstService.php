@@ -6,33 +6,28 @@ namespace Kanvas\Connectors\WaSender\Services;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\WaSender\DataTransferObject\InboundMessage;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
- * A group message rarely arrives alone: someone posts an article and its photo 22 seconds later,
- * or drops an album of seven. The agent has to see one unit, so consecutive messages from the same
- * speaker chain onto a burst head via `parent_id`.
+ * A group message rarely arrives alone: someone posts an article and its photos, or drops an album
+ * of seven. The agent has to see one unit, so the parts of a flurry chain onto a head via
+ * `parent_id`.
  *
- * Two signals. The album id is tried first and the speaker window **backs it up** — not
- * "otherwise": the first part of an album has no sibling filed yet, so without the fallback a
- * caption and the photos illustrating it become two separate bursts.
+ * The head lives in a **cache registry keyed on album-id-or-speaker**, not in the message rows.
+ * Deliveries are parallel jobs and every message is INSERTED before it chains, so "the newest row
+ * on the channel" is not stable: by the time a worker resolves its head, messages that arrived
+ * after it are already visible. Deriving the head from row order produced captions orphaned from
+ * their own photos, and three images chained under the last of them instead of the first.
  *
- * 1. `messageContextInfo.messageAssociation` binds album parts under a shared parent message key.
- *    Deterministic, ignores time — the captured album spans 22 seconds with an 11-second internal
- *    gap. WhatsApp sends it, the vendor documents it nowhere, so it is a hint, never a dependency.
- * 2. The same speaker continuing inside an idle window. A different speaker closes the previous
- *    burst, which is why the newest message on the channel decides.
+ * Whichever part reaches the registry first becomes the head and the rest adopt it, whatever order
+ * the workers run in. Windows are compared against the messages' own timestamps rather than left
+ * to cache TTL, so a frozen clock in tests behaves like a real one.
  */
 final readonly class GroupBurstService
 {
-    /**
-     * How far back to look. A burst is recent and small by definition; anything older than this
-     * many messages on a busy channel is a different conversation.
-     */
-    private const int LOOKBACK = 30;
-
     public function __construct(
         private Channel $channel,
         private int $idleSeconds,
@@ -42,30 +37,70 @@ final readonly class GroupBurstService
 
     public function resolveHead(Message $message, InboundMessage $inbound): ?Message
     {
-        $head = $this->headByAlbum($message, $inbound);
+        $keys = $this->burstKeys($inbound);
 
-        $head ??= $this->headBySpeaker($this->recentMessages($message, 1)->first(), $inbound, $message);
-
-        if ($head === null || $this->isOlderThanMaxWindow($head, $message)) {
+        if ($keys === []) {
             return null;
         }
 
-        return $head;
+        $at = $message->created_at->getTimestamp();
+        $state = $this->openState($keys, $at);
+
+        if ($state !== null) {
+            $head = Message::find($state['id']);
+
+            if ($head !== null && $head->getId() !== $message->getId()) {
+                $this->remember($keys, (int) $state['id'], (int) $state['started'], $at);
+
+                return $head;
+            }
+        }
+
+        $this->remember($keys, $message->getId(), $at, $at);
+
+        return null;
     }
 
     /**
-     * Album parts can arrive out of order and with arbitrary gaps, so any sibling already filed
-     * under this album id anchors the burst regardless of when it landed.
+     * Every name this burst answers to, most specific first. The speaker key is what binds an album
+     * to the caption it illustrates — they share a sender but not an album id — while the album key
+     * lets a straggling part rejoin its siblings after the idle window would have closed them.
+     *
+     * Deliberately NOT "the newest row on the channel": deliveries are parallel jobs and each
+     * message is INSERTED before it chains, so messages that arrived later are already visible when
+     * a worker resolves its head.
+     *
+     * @return list<string>
      */
-    private function headByAlbum(Message $message, InboundMessage $inbound): ?Message
+    private function burstKeys(InboundMessage $inbound): array
     {
-        if ($inbound->albumId === null) {
-            return null;
-        }
+        $prefix = 'wasender:burst-head:' . $this->channel->getId() . ':';
 
-        foreach ($this->recentMessages($message, self::LOOKBACK) as $candidate) {
-            if (($candidate->message['album_id'] ?? null) === $inbound->albumId) {
-                return $candidate->parent ?? $candidate;
+        return array_values(array_filter([
+            $inbound->albumId !== null ? $prefix . 'album:' . $inbound->albumId : null,
+            $inbound->senderIdentity() !== null ? $prefix . 'speaker:' . $inbound->senderIdentity() : null,
+        ]));
+    }
+
+    /**
+     * @param list<string> $keys
+     *
+     * @return array{id: int, started: int, last: int}|null
+     */
+    private function openState(array $keys, int $at): ?array
+    {
+        foreach ($keys as $key) {
+            $state = Cache::get($key);
+
+            if (! is_array($state)) {
+                continue;
+            }
+
+            // Compared against the messages' own timestamps rather than left to cache TTL, so a
+            // frozen clock in tests behaves like a real one.
+            if (abs($at - (int) $state['last']) <= $this->idleSeconds
+                && abs($at - (int) $state['started']) <= $this->maxSeconds) {
+                return $state;
             }
         }
 
@@ -73,26 +108,17 @@ final readonly class GroupBurstService
     }
 
     /**
-     * Only the newest message decides: if someone else spoke, or the gap is too long, the previous
-     * burst is closed and this one opens a new head.
+     * @param list<string> $keys
      */
-    private function headBySpeaker(?Message $newest, InboundMessage $inbound, Message $message): ?Message
+    private function remember(array $keys, int $headId, int $started, int $last): void
     {
-        $speaker = $inbound->senderIdentity();
-
-        if ($speaker === null || $newest === null) {
-            return null;
+        foreach ($keys as $key) {
+            Cache::put(
+                $key,
+                ['id' => $headId, 'started' => $started, 'last' => $last],
+                $this->maxSeconds + $this->idleSeconds
+            );
         }
-
-        if (($newest->message['sender_identity'] ?? null) !== $speaker) {
-            return null;
-        }
-
-        if ($message->created_at->diffInSeconds($newest->created_at, absolute: true) > $this->idleSeconds) {
-            return null;
-        }
-
-        return $newest->parent ?? $newest;
     }
 
     /**
@@ -124,23 +150,5 @@ final readonly class GroupBurstService
                 ->filter(fn (string $line): bool => trim($line) !== '')
                 ->implode("\n\n")
         );
-    }
-
-    private function isOlderThanMaxWindow(Message $head, Message $message): bool
-    {
-        return $message->created_at->diffInSeconds($head->created_at, absolute: true) > $this->maxSeconds;
-    }
-
-    /**
-     * @return Collection<int, Message>
-     */
-    private function recentMessages(Message $message, int $limit): Collection
-    {
-        return $this->channel->messages()
-            ->where('messages.id', '!=', $message->getId())
-            ->orderBy('messages.created_at', 'desc')
-            ->orderBy('messages.id', 'desc')
-            ->limit($limit)
-            ->get();
     }
 }

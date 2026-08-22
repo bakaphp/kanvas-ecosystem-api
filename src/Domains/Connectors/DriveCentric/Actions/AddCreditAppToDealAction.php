@@ -8,7 +8,9 @@ use Baka\Support\DateHelper;
 use Kanvas\Connectors\DriveCentric\Enums\CustomFieldEnums;
 use Kanvas\Connectors\DriveCentric\Services\LeadService;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
+use Kanvas\Guild\Customers\Actions\UpdatePeopleDriverLicenseAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address as AddressDTO;
+use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
@@ -47,7 +49,9 @@ class AddCreditAppToDealAction
 
         $messageData = $message->getMessage();
 
-        $creditAppData = $this->formatCreditApp($messageData);
+        $this->persistFormDriverLicense($targetPeople, $messageData);
+
+        $creditAppData = $this->formatCreditApp($messageData, $targetPeople);
 
         $targetPeople->set(LeadCustomFieldEnum::CREDIT_APP->value, $creditAppData);
 
@@ -56,7 +60,24 @@ class AddCreditAppToDealAction
         return $this->leadService->updateCustomerCreditApp($customerId, $creditAppData);
     }
 
-    protected function formatCreditApp(array $messageData): array
+    protected function persistFormDriverLicense(People $people, array $messageData): void
+    {
+        $number = $messageData['data']['form']['personal']['drivers_license'] ?? null;
+
+        if ($number === null || $number === '') {
+            return;
+        }
+
+        new UpdatePeopleDriverLicenseAction(
+            $people,
+            new DriverLicense(
+                number: (string) $number,
+                state: $this->getStateCode($messageData['data']['form']['personal']['drivers_license_state'] ?? null),
+            ),
+        )->execute();
+    }
+
+    protected function formatCreditApp(array $messageData, People $people): array
     {
         $formData = $messageData['data']['form'] ?? [];
 
@@ -71,11 +92,13 @@ class AddCreditAppToDealAction
 
         $creditApp = [];
 
-        // Driving License
-        if (isset($formData['personal']['drivers_license']) || isset($formData['personal']['dob'])) {
+        $peopleLicense = $people->getDriverLicense();
+
+        if (isset($formData['personal']['drivers_license']) || isset($formData['personal']['dob']) || $peopleLicense !== null) {
             $creditApp['drivingLicense'] = [
-                'driversLicenseNumber' => $formData['personal']['drivers_license'] ?? null,
-                'driversLicenseState' => $this->getStateCode($formData['personal']['drivers_license_state'] ?? null),
+                'driversLicenseNumber' => $formData['personal']['drivers_license'] ?? $peopleLicense?->number,
+                'driversLicenseState' => $this->getStateCode($formData['personal']['drivers_license_state'] ?? null)
+                    ?? $peopleLicense?->state,
             ];
         }
 
@@ -242,15 +265,7 @@ class AddCreditAppToDealAction
      */
     protected function getStateCode(array|null|string $state): ?string
     {
-        if (is_array($state)) {
-            return $state['code'] ?? null;
-        }
-
-        if (is_string($state) && strlen($state) === 2) {
-            return strtoupper($state);
-        }
-
-        return null;
+        return DriverLicense::normalizeState($state);
     }
 
     /**

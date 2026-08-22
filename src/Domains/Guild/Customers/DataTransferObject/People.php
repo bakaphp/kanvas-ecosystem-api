@@ -32,6 +32,7 @@ class People extends Data
         public ?string $license_number = null,
         #[WithCast(DateTimeInterfaceCast::class, format: 'Y-m-d')]
         public ?DateTime $license_expiration_date = null,
+        public ?string $license_state = null,
         public ?string $facebook_contact_id = null,
         public ?string $google_contact_id = null,
         public ?string $apple_contact_id = null,

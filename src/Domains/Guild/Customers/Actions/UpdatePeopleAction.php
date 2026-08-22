@@ -34,12 +34,15 @@ class UpdatePeopleAction
             'middlename' => $this->peopleData->middlename,
             'lastname' => $this->peopleData->lastname,
             'name' => $this->peopleData->firstname . ' ' . $this->peopleData->lastname, // @todo remove this
-            'dob' => $this->peopleData->dob,
+            // Partial updates (third-party syncs, GraphQL patches) omit these, so assigning
+            // unconditionally would erase a scanned license on the next unrelated sync.
+            'dob' => $this->peopleData->dob ?? $this->people->dob,
             'google_contact_id' => $this->peopleData->google_contact_id,
             'facebook_contact_id' => $this->peopleData->facebook_contact_id,
             'apple_contact_id' => $this->peopleData->apple_contact_id,
-            'license_number' => $this->peopleData->license_number,
-            'license_expiration_date' => $this->peopleData->license_expiration_date,
+            'license_number' => $this->peopleData->license_number ?? $this->people->license_number,
+            'license_expiration_date' => $this->peopleData->license_expiration_date ?? $this->people->license_expiration_date,
+            'license_state' => $this->peopleData->license_state ?? $this->people->license_state,
             'people_types_id' => $this->peopleData->people_type_id ?? $this->people->people_types_id,
         ];
 

@@ -11,6 +11,7 @@ type People {
     dob: Date
     license_number: String
     license_expiration_date: Date
+    license_state: String
     people_type: PeopleType @belongsTo(relation: "peopleType")
     organizations: [Organization!] @belongsToMany
     contacts: [Contact!]! @hasMany
@@ -112,6 +113,7 @@ input PeopleInput {
     google_contact_id: String
     license_number: String
     license_expiration_date: Date
+    license_state: String
     dob: String
     contacts: [ContactInput!]
     address: [AddressInput!]
