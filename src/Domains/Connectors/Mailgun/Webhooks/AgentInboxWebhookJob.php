@@ -46,6 +46,15 @@ use Override;
         . 'rather than becoming a lead. Use the company lead inbox receiver instead for a shared '
         . 'address where the agent is chosen by a workflow rule.',
     integration: IntegrationsEnum::MAILGUN,
+    params: [
+        'agent_id' => 'REQUIRED. Id of the agent that owns this mailbox. Without it nothing is '
+            . 'processed — every delivery answers "Receiver has no agent configured".',
+        'mailbox_address' => 'The address the Mailgun route forwards here, e.g. sofia@mail.example.com.',
+        'capture_files' => 'Stores the email\'s attachments and hangs them off the message, which is '
+            . 'what lets a photo or PDF reach anything downstream. Already on for this receiver; set '
+            . 'it to false only to discard attachments on purpose. There is no backfill — the files '
+            . 'are unrecoverable once the delivery is over.',
+    ],
 )]
 class AgentInboxWebhookJob extends ProcessWebhookJob
 {
@@ -120,6 +129,12 @@ class AgentInboxWebhookJob extends ProcessWebhookJob
             // empty turn. Reporting it would bury the real faults in the same feed.
             return ['message' => $e->getMessage()];
         }
+    }
+
+    #[Override]
+    public static function capturesFiles(): bool
+    {
+        return true;
     }
 
     #[Override]

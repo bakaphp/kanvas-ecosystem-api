@@ -57,6 +57,12 @@ use Override;
 )]
 class ScribePdfInboundWebhookJob extends ProcessWebhookJob
 {
+    #[Override]
+    public static function capturesFiles(): bool
+    {
+        return true;
+    }
+
     /**
      * @return array<string, mixed>
      */
