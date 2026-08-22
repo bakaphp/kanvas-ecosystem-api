@@ -60,7 +60,6 @@ class AddCreditAppToDealAction
         return $this->leadService->updateCustomerCreditApp($customerId, $creditAppData);
     }
 
-    /** Fills the People row when nothing has been scanned yet; a scan always wins. */
     protected function persistFormDriverLicense(People $people, array $messageData): void
     {
         $number = $messageData['data']['form']['personal']['drivers_license'] ?? null;

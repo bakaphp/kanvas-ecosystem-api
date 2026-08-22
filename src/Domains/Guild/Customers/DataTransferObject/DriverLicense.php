@@ -7,10 +7,7 @@ namespace Kanvas\Guild\Customers\DataTransferObject;
 use Carbon\Carbon;
 use Spatie\LaravelData\Data;
 
-/**
- * Scanners (Intellicheck, OCR, Mindee) each emit their own array; all of them normalize here
- * so the People row — not a per-connector custom field — is what third parties are built from.
- */
+/** Every scanner's own array (Intellicheck, OCR, Mindee) normalizes here before it hits People. */
 class DriverLicense extends Data
 {
     public function __construct(
@@ -25,10 +22,6 @@ class DriverLicense extends Data
     ) {
     }
 
-    /**
-     * Null when the scan carries no license number — it is unusable downstream and must not
-     * overwrite what the People row already holds.
-     */
     public static function fromScan(?array $scan): ?self
     {
         if ($scan === null || $scan === [] || empty($scan['license'])) {
@@ -48,9 +41,8 @@ class DriverLicense extends Data
     }
 
     /**
-     * Every consumer (DriveCentric, VinSolution, 700Credit) wants the 2-letter code, and
-     * sources hand it over as a bare string or a `{code: 'FL'}` array. A full state name is
-     * rejected rather than stored — a caller that has one resolves it against `States` first.
+     * Sources send a bare string or a `{code: 'FL'}` array. A full state name is rejected, not
+     * stored — a caller holding one resolves it against `States` first.
      */
     public static function normalizeState(mixed $state): ?string
     {
@@ -70,8 +62,7 @@ class DriverLicense extends Data
     }
 
     /**
-     * The `{driversLicenseNumber, driversLicenseState}` shape DriveCentric ships verbatim
-     * as its `drivingLicense` payload — do not add keys to it.
+     * DriveCentric ships this verbatim as its `drivingLicense` payload — do not add keys.
      *
      * @return array{driversLicenseNumber: string, driversLicenseState: string|null}
      */
@@ -83,7 +74,6 @@ class DriverLicense extends Data
         ];
     }
 
-    /** Scanners zero-fill `['year' =>, 'month' =>, 'day' =>]` when a date could not be read. */
     private static function partsToDate(mixed $parts): ?Carbon
     {
         if (! is_array($parts)) {

@@ -97,8 +97,7 @@ class VerifyPeopleIdAction
             );
         }
 
-        // The lead custom field is only a hand-off for the showroom flow; persist here so the
-        // direct pushes that skip it still see the license.
+        // The lead field is only a showroom hand-off; persist so direct pushes see it too.
         if (! empty($getDocsDriversLicense)) {
             new DriverLicenseVerificationService(
                 $app,

@@ -105,8 +105,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         $verifiedPeople->set('id_verification', $resultsFromIntellicheck);
 
                         if (! empty($getDocsDriversLicense)) {
-                            // Persist before dropping the custom field — downstream pushes read
-                            // the People row, only the showroom flow re-reads the lead's copy.
+                            // Persist before dropping the custom field below.
                             new DriverLicenseVerificationService(
                                 $lead->app,
                                 $verifiedPeople->company,

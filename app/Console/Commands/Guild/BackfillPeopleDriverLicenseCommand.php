@@ -14,10 +14,6 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\SystemModules\Models\SystemModules;
 use Throwable;
 
-/**
- * Move historic scans out of the `get_docs_drivers_license` custom field and onto the
- * People row, so third-party pushes can stop reading custom fields entirely.
- */
 class BackfillPeopleDriverLicenseCommand extends Command
 {
     use KanvasJobsTrait;
@@ -42,8 +38,7 @@ class BackfillPeopleDriverLicenseCommand extends Command
         $skipped = 0;
         $failed = 0;
 
-        // `apps_custom_fields` has no apps_id — scoping happens when the People row is
-        // loaded with fromApp(). Legacy rows carry the pre-namespace model_name.
+        // `apps_custom_fields` has no apps_id — fromApp() on the People load does the scoping.
         AppsCustomFields::query()
             ->whereIn('model_name', [People::class, SystemModules::getLegacyNamespace(People::class)])
             ->whereIn('name', ['get_docs_drivers_license', 'drivers_license_number'])

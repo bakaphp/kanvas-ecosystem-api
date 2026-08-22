@@ -8,14 +8,10 @@ use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Models\People;
 
 /**
- * Fills the license columns without touching names, dob or addresses.
+ * Fills the license columns only — no names, dob or addresses.
  *
- * Blank columns are always filled; populated ones are left alone unless `$overwrite` is set,
- * so a self-reported credit-app license never clobbers a scan.
- *
- * `$quietly` is for backfills: it fires no workflow and no model events. Old data replayed
- * through the workflow engine would run lead automations years after the fact, and the People
- * observer broadcasts `people.updated` on every save.
+ * `$quietly` is for backfills: no workflow, no model events. Replaying old scans would run lead
+ * automations years after the fact, and the People observer broadcasts on every save.
  */
 class UpdatePeopleDriverLicenseAction
 {
@@ -46,7 +42,7 @@ class UpdatePeopleDriverLicenseAction
     }
 
     /**
-     * Applies the change in memory only and reports the columns that would be written.
+     * Mutates the model in memory without saving, and names the columns that would be written.
      *
      * @return array<int, string>
      */

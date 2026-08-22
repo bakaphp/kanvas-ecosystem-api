@@ -31,8 +31,6 @@ class ProcessDriversLicenseAction
         $scan = $people->get(PeopleCustomFieldEnum::DRIVERS_LICENSE->value)
             ?? $this->lead->get(PeopleCustomFieldEnum::DRIVERS_LICENSE->value);
 
-        // Read back from the person afterwards so eLead gets the same license every other
-        // integration sees.
         if (! empty($scan) && is_array($scan)) {
             new DriverLicenseVerificationService(
                 $this->lead->app,

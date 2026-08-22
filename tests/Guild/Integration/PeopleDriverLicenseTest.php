@@ -222,10 +222,6 @@ final class PeopleDriverLicenseTest extends TestCase
         $this->assertFalse($action->execute());
     }
 
-    /**
-     * The backfill writes quietly: replaying old scans must not fire lead workflows, and the
-     * People observer broadcasts `people.updated` on every save.
-     */
     public function testQuietWriteFiresNoWorkflowAndNoPeopleUpdateEvent(): void
     {
         Event::fake([PeopleUpdateEvent::class]);

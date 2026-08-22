@@ -38,10 +38,7 @@ class IdVerificationService
         return 'Unknown';
     }
 
-    /**
-     * Reshape an Intellicheck response into the `get_docs_drivers_license` scan payload.
-     * Unreadable dates stay zero-filled — `DriverLicense::fromScan` drops them.
-     */
+    /** Reshapes an Intellicheck response into the `get_docs_drivers_license` scan payload. */
     public static function toDriverLicenseScan(array $verificationData): ?array
     {
         $idCheck = $verificationData['idcheck']['data'] ?? null;

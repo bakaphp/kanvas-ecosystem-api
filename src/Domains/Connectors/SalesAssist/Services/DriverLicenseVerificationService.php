@@ -145,12 +145,7 @@ class DriverLicenseVerificationService
         );
     }
 
-    /**
-     * Persists the scan onto the People row so third-party pushes read the person.
-     *
-     * `$runWorkflow: false` is for backfills — replaying old scans through the workflow engine
-     * would fire lead automations years after the fact.
-     */
+    /** `$runWorkflow: false` for backfills — old scans must not fire lead automations. */
     public function updatePeopleFromDriverLicense(
         People $people,
         array $driverLicenseData,

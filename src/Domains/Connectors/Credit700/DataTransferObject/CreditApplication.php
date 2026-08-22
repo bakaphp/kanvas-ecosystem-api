@@ -52,7 +52,6 @@ class CreditApplication extends Data
 
         $employmentDuration = DateHelper::parseDuration($financial['years_at_current_employment'] ?? '');
 
-        // The form does not always carry the license; the scanned one is the fallback.
         $peopleLicense = $people->getDriverLicense();
 
         $name = trim(($personal['first_name'] ?? '') . ' ' . ($personal['last_name'] ?? ''));
