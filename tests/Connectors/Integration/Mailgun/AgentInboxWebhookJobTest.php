@@ -213,21 +213,21 @@ final class AgentInboxWebhookJobTest extends TestCase
 
         $this->deliver([
             'sender' => $this->user->email,
-            'subject' => 'noticia presidente',
-            'stripped-text' => 'El presidente reafirmó este viernes que la transformación continuará.',
+            'subject' => 'Press release with photo',
+            'stripped-text' => 'The minister confirmed the reform will continue. Photo attached.',
             // Gmail's `f_…` id for a plain attached file, and a body that never references it.
             'content-id-map' => json_encode(['<f_mt3wwiwb0>' => 'attachment-1']),
-            'body-html' => '<div dir="ltr"><p>El presidente reafirmó este viernes.</p></div>',
+            'body-html' => '<div dir="ltr"><p>The minister confirmed the reform will continue.</p></div>',
             'uploaded_files' => [
                 [
-                    'filesystem_id' => $this->uploadFile(UploadedFile::fake()->image('abinader.jpg')),
-                    'name' => 'abinader.jpg',
+                    'filesystem_id' => $this->uploadFile(UploadedFile::fake()->image('press-photo.jpg')),
+                    'name' => 'press-photo.jpg',
                     'field' => 'attachment-1',
                 ],
             ],
         ]);
 
-        $this->assertContains('abinader.jpg', $this->inboundMessage()->files->pluck('name')->all());
+        $this->assertContains('press-photo.jpg', $this->inboundMessage()->files->pluck('name')->all());
     }
 
     /**
@@ -242,13 +242,13 @@ final class AgentInboxWebhookJobTest extends TestCase
 
         $this->deliver([
             'sender' => $this->user->email,
-            'subject' => 'noticia presidente',
-            'stripped-text' => 'El presidente reafirmó este viernes que la transformación continuará.',
+            'subject' => 'Press release with photo',
+            'stripped-text' => 'The minister confirmed the reform will continue. Photo attached.',
             'Message-Id' => '<photo-' . Str::random(8) . '@mail.gmail.test>',
             'uploaded_files' => [
                 [
-                    'filesystem_id' => $this->uploadFile(UploadedFile::fake()->image('abinader.jpg')),
-                    'name' => 'abinader.jpg',
+                    'filesystem_id' => $this->uploadFile(UploadedFile::fake()->image('press-photo.jpg')),
+                    'name' => 'press-photo.jpg',
                     'field' => 'attachment-1',
                 ],
             ],
@@ -261,7 +261,7 @@ final class AgentInboxWebhookJobTest extends TestCase
             ->first();
 
         $this->assertNotNull($reply, 'The agent reply must be persisted');
-        $this->assertContains('abinader.jpg', $reply->files->pluck('name')->all());
+        $this->assertContains('press-photo.jpg', $reply->files->pluck('name')->all());
 
         $featured = WordPressPost::fromMessage($reply)->featuredImageUrl;
 

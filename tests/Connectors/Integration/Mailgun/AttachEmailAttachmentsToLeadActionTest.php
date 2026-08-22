@@ -63,7 +63,7 @@ class AttachEmailAttachmentsToLeadActionTest extends TestCase
                 'content-id-map' => json_encode([
                     '<image001.png@01DCE907.D2C23CA0>' => 'attachment-1',
                 ]),
-                'body-html' => '<p>Adjunto la hoja</p>'
+                'body-html' => '<p>Worksheet attached</p>'
                     . '<img src="cid:image001.png@01DCE907.D2C23CA0">',
             ],
             [
@@ -93,14 +93,14 @@ class AttachEmailAttachmentsToLeadActionTest extends TestCase
                 'sender' => 'customer@example.com',
                 'attachment-count' => '1',
                 'content-id-map' => json_encode(['<f_mt3wwiwb0>' => 'attachment-1']),
-                'body-html' => '<div dir="ltr"><p>Aquí va la foto</p></div>',
+                'body-html' => '<div dir="ltr"><p>Here is the photo</p></div>',
             ],
-            ['attachment-1' => UploadedFile::fake()->image('abinader.jpg')]
+            ['attachment-1' => UploadedFile::fake()->image('press-photo.jpg')]
         );
 
         $attached = new AttachEmailAttachmentsToLeadAction($webhookCall, $lead)->execute();
 
-        $this->assertSame(['abinader.jpg'], $attached);
+        $this->assertSame(['press-photo.jpg'], $attached);
         $this->assertCount(1, $lead->getFiles());
     }
 
