@@ -94,7 +94,6 @@ class DownloadMessageFileAction
         string $url,
         string $type = 'image'
     ): array {
-
         $payload = [
             'data' => [
                 'messages' => [
