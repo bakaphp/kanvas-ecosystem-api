@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\WordPress\Services;
 use Baka\Http\SafeUrlFetcher;
 use finfo;
 use Kanvas\Connectors\WordPress\RestClient;
+use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Throwable;
 
 /**
@@ -16,18 +17,6 @@ use Throwable;
 class WordPressMediaService
 {
     private const int MAX_FILENAME_LENGTH = 120;
-
-    private const array EXTENSION_BY_MIME = [
-        'image/jpeg' => 'jpg',
-        'image/png' => 'png',
-        'image/gif' => 'gif',
-        'image/webp' => 'webp',
-        'image/avif' => 'avif',
-        'image/heic' => 'heic',
-        'video/mp4' => 'mp4',
-        'audio/mpeg' => 'mp3',
-        'application/pdf' => 'pdf',
-    ];
 
     /** @var array<string, int> */
     private array $uploaded = [];
@@ -138,11 +127,10 @@ class WordPressMediaService
     }
 
     /**
-     * WP rejects an upload whose extension is not in its allow-list, and it decides by **filename**,
-     * not by content. Signed S3 URLs often carry no extension at all, and a stored name can carry
-     * the wrong one — WhatsApp media was filed as `*.bin` for a while, which WP refused with
-     * "no tienes permisos para subir este tipo de archivo" while the bytes were a perfectly good
-     * JPEG. The sniffed content type is the authority; the stored name only supplies the stem.
+     * WP decides what it accepts by **filename**, not by content, so the sniffed type is the
+     * authority and the stored name only supplies the stem. A signed S3 URL often has no extension
+     * at all, and a stored one can be wrong — WhatsApp media was filed as `*.bin`, which WP refused
+     * while the bytes were a perfectly good JPEG.
      */
     private function filename(string $url, string $mimeType): string
     {
@@ -152,14 +140,11 @@ class WordPressMediaService
             $this->filenames[$url] ?? basename((string) parse_url($url, PHP_URL_PATH))
         );
 
-        $expected = self::EXTENSION_BY_MIME[strtolower(trim(explode(';', $mimeType)[0]))] ?? null;
-        $actual = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        $expected = MediaTypeEnum::extensionForMime($mimeType);
 
-        if ($expected !== null && $actual !== $expected) {
-            $stem = pathinfo($name, PATHINFO_FILENAME);
-            $name = ($stem !== '' ? $stem : 'kanvas-' . substr(sha1($url), 0, 12)) . '.' . $expected;
-        } elseif ($name === '' || $actual === '') {
-            $name = ($name !== '' ? $name : 'kanvas-' . substr(sha1($url), 0, 12)) . '.bin';
+        if (strtolower(pathinfo($name, PATHINFO_EXTENSION)) !== $expected) {
+            $stem = pathinfo($name, PATHINFO_FILENAME) ?: 'kanvas-' . substr(sha1($url), 0, 12);
+            $name = $stem . '.' . $expected;
         }
 
         return mb_substr($name, -self::MAX_FILENAME_LENGTH);
