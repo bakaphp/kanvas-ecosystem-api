@@ -329,6 +329,8 @@ reject **every** search with `Field \`embedding\` does not have a vector query i
 |---|---|---|
 | `product_discovery_vector_alpha` | `0.75` | Vector vs keyword weight in the hybrid search |
 | `product_discovery_max_results_per_group` | `2` | Max results sharing a product name — stops one model in five colours taking the page |
+| `product_discovery_excluded_categories` | `[]` | Category names dropped from every result, however well they match. Gift wrap is the canonical case: on a gift catalog "Envoltura" scores highly on every gift query and is never the gift. Matched case- and accent-insensitively |
+| `product_semantic_profile_strategy` | `generic` | Who the blurbs are written for — `gift` (buying for someone else, describe the recipient) or `generic` (buying for themselves, describe the need). Changing it invalidates every existing blurb; see below |
 | `product_discovery_cache_ttl` | `1800` | Seconds a non-empty candidate list is cached |
 | `product_intent_lexicon` | — | Tenant-language budget phrases, MERGED over the shipped English (§`config/inventory-discovery.php`) |
 | `product_discovery_premium_min_price` / `_cheap_max_price` | config | Price band for vague signals ("de lujo", "barato") |
@@ -338,6 +340,7 @@ reject **every** search with `Field \`embedding\` does not have a vector query i
 ```
 1. set products_search_engine + typesense_search_settings + app_custom_product_index
 2. set the embedding model (if wanted)  ← BEFORE first index
+   set product_semantic_profile_strategy ← BEFORE enrichment
 3. create + configure the enrichment Agent
 4. backfill enrichment                   ← writes search_blurb
 5. reindex                               ← creates the collection, builds vectors
@@ -406,5 +409,12 @@ a blurb that failed to describe what the shopper asked for.
   the ONNX model from disk and answers `Not Ready or Lagging` until it finishes.
 - **A required nested field breaks indexing** when it arrives empty. `categories` / `variants` /
   `attributes` are `optional` in `typesenseCollectionSchema()` for exactly this reason.
+- **`product_semantic_profile_strategy` is part of the enrichment hash.** Flipping an app from
+  `generic` to `gift` reopens the gate on every product, so a plain re-run of the backfill rewrites
+  the blurbs — no clearing `search_enrichment_hash` by hand. Setting it *after* a catalog is already
+  enriched costs a full re-enrichment, so set it before step 4.
+- **Gift wrap outranks the gift.** A "regalo para mi suegra" query matches a gift-wrap blurb almost
+  perfectly, because the blurb genuinely is about giving. Nothing in the ranking can tell the
+  wrapping from the present — put those categories in `product_discovery_excluded_categories`.
 </content>
 </invoke>

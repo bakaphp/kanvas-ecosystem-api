@@ -79,6 +79,15 @@ class ConfigureProductDiscoveryTool extends Tool
                 required: false,
             ),
             new ToolProperty(
+                name: 'excluded_categories',
+                type: PropertyType::ARRAY,
+                description: 'Category names never worth recommending, however well they match — gift wrap, '
+                    . 'gift cards, shipping fees, warranties. On a gift catalog "Envoltura" scores highly on '
+                    . 'every gift query and is never the gift. Names are matched case- and accent-insensitively. '
+                    . 'Pass an empty array to clear.',
+                required: false,
+            ),
+            new ToolProperty(
                 name: 'typesense_api_key',
                 type: PropertyType::STRING,
                 description: 'Typesense API key, if this app needs its own rather than the platform default.',
@@ -100,6 +109,7 @@ class ConfigureProductDiscoveryTool extends Tool
         ?string $catalog_type = null,
         ?string $index_name = null,
         ?string $embedding_model = null,
+        ?array $excluded_categories = null,
         ?string $typesense_api_key = null,
         ?string $typesense_host = null,
     ): array {
@@ -112,7 +122,14 @@ class ConfigureProductDiscoveryTool extends Tool
         }
 
         try {
-            $applied = $this->apply($catalog_type, $index_name, $embedding_model, $typesense_api_key, $typesense_host);
+            $applied = $this->apply(
+                $catalog_type,
+                $index_name,
+                $embedding_model,
+                $excluded_categories,
+                $typesense_api_key,
+                $typesense_host,
+            );
             $report = new ProductDiscoveryStatusService($this->app, $this->company)->report();
         } catch (Throwable $e) {
             report($e);
@@ -136,9 +153,8 @@ class ConfigureProductDiscoveryTool extends Tool
                 . 'vectors from product names alone and the results look broken. If the collection already '
                 . 'exists without an embedding field it must be dropped and rebuilt; the embed field is '
                 . 'fixed when the collection is created. Then add a workflow rule on Products '
-                . 'created + updated so new products stay enriched. If products were already enriched '
-                . 'under a different catalog_type, their blurbs are written for the wrong reader — clear '
-                . 'their search_enrichment_hash and re-run the backfill.',
+                . 'created + updated so new products stay enriched. Changing catalog_type invalidates every '
+                . 'existing blurb on its own — re-running the backfill rewrites them, no hash clearing needed.',
         ];
     }
 
@@ -149,6 +165,7 @@ class ConfigureProductDiscoveryTool extends Tool
         ?string $catalogType,
         ?string $indexName,
         ?string $embeddingModel,
+        ?array $excludedCategories,
         ?string $apiKey,
         ?string $host,
     ): array {
@@ -177,6 +194,16 @@ class ConfigureProductDiscoveryTool extends Tool
         } else {
             $this->app->set(ConfigurationEnum::TYPESENSE_QUERY_BY->value, 'search_blurb,name,description');
             $applied[ConfigurationEnum::TYPESENSE_QUERY_BY->value] = 'search_blurb,name,description (keyword only)';
+        }
+
+        if ($excludedCategories !== null) {
+            $names = array_values(array_filter(array_map(
+                static fn (mixed $name): string => is_string($name) ? trim($name) : '',
+                $excludedCategories,
+            )));
+
+            $this->app->set(ConfigurationEnum::EXCLUDED_CATEGORIES->value, $names);
+            $applied[ConfigurationEnum::EXCLUDED_CATEGORIES->value] = $names === [] ? 'cleared' : implode(', ', $names);
         }
 
         if ($apiKey !== null && trim($apiKey) !== '' && $host !== null && trim($host) !== '') {

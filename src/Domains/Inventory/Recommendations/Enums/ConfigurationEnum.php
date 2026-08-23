@@ -18,4 +18,5 @@ enum ConfigurationEnum: string
     case VECTOR_ALPHA = 'product_discovery_vector_alpha';
     case CACHE_TTL = 'product_discovery_cache_ttl';
     case MAX_RESULTS_PER_GROUP = 'product_discovery_max_results_per_group';
+    case EXCLUDED_CATEGORIES = 'product_discovery_excluded_categories';
 }

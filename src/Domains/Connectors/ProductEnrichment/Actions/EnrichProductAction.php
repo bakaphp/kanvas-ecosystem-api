@@ -10,6 +10,8 @@ use Kanvas\Connectors\ProductEnrichment\Enums\AttributeEnum;
 use Kanvas\Connectors\ProductEnrichment\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ProductEnrichment\Services\ProductEnrichmentAgentService;
 use Kanvas\Inventory\Products\Models\Products;
+use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum as RecommendationConfigurationEnum;
+use Kanvas\Inventory\Recommendations\Enums\SemanticProfileStrategyEnum;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 
 /**
@@ -81,6 +83,8 @@ class EnrichProductAction
     /**
      * Fingerprints everything the prompt is built from — attributes included, or a
      * product whose body type changed keeps a blurb describing the old one forever.
+     * The framing strategy is in here too: flipping an app from generic to gift
+     * rewrites the prompt, so every blurb written under the old one is stale.
      */
     private function contentHash(): string
     {
@@ -89,6 +93,9 @@ class EnrichProductAction
             $this->product->description,
             $this->product->categories->pluck('name')->implode(','),
             $this->promptAttributes(),
+            SemanticProfileStrategyEnum::fromApp(
+                $this->product->app?->get(RecommendationConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value),
+            )->value,
         ]));
     }
 
