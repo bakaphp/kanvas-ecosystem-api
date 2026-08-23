@@ -119,7 +119,8 @@ class Apps extends BaseModel implements AppInterface
 
     public function keys(): HasMany
     {
-        return $this->hasMany(AppKey::class, 'apps_id');
+        return $this->hasMany(AppKey::class, 'apps_id')
+            ->where('is_deleted', StateEnums::NO->getValue());
     }
 
     public function getTotalUsersAttribute(): int
@@ -146,7 +147,7 @@ class Apps extends BaseModel implements AppInterface
 
     public function userKeys(): HasMany
     {
-        return $this->hasMany(AppKey::class, 'apps_id')
+        return $this->keys()
             ->where('users_id', auth()->id());
     }
 

@@ -41,6 +41,8 @@ final class CreateGroupMessageActionTest extends TestCase
     protected $connectionsToTransact = [null, 'social', 'crm', 'workflow'];
 
     private const string GROUP_JID = '15550001111-1700000000@g.us';
+    private const string JPEG_THUMBNAIL = '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==';
+
     private const string ALBUM_ID = '3AALBUMPARENT000001';
 
     /**
@@ -345,6 +347,40 @@ final class CreateGroupMessageActionTest extends TestCase
         $this->assertNull($resolved, 'A message can never be its own burst head');
     }
 
+    /**
+     * No model takes video — `nativeKind()` returns null for `video/*` and the attachment is
+     * dropped before the prompt. WhatsApp ships a poster frame inside the payload, so storing it
+     * as an image is the only way the agent sees what was posted, and it costs no extra fetch.
+     */
+    public function testAVideoStoresItsPosterFrameSoTheAgentCanSeeIt(): void
+    {
+        $this->allowGroup();
+
+        $result = $this->ingest($this->groupVideo(Str::uuid()->toString(), self::JPEG_THUMBNAIL));
+        $message = Message::findOrFail($result['result']['messages'][0]['message_id']);
+
+        $this->assertSame('whatsapp-video', $message->messageType->verb);
+        $this->assertCount(
+            1,
+            $message->attachmentUrls()['images'],
+            'the poster frame must reach the agent as an image'
+        );
+    }
+
+    /**
+     * A video without a poster frame must not blow up the delivery.
+     */
+    public function testAVideoWithNoPosterFrameIsStillFiled(): void
+    {
+        $this->allowGroup();
+
+        $result = $this->ingest($this->groupVideo(Str::uuid()->toString()));
+        $message = Message::findOrFail($result['result']['messages'][0]['message_id']);
+
+        $this->assertSame('whatsapp-video', $message->messageType->verb);
+        $this->assertSame([], $message->attachmentUrls()['images']);
+    }
+
     private function allowGroup(): void
     {
         $receiver = $this->receiver();
@@ -439,7 +475,7 @@ final class CreateGroupMessageActionTest extends TestCase
         ];
     }
 
-    private function groupVideo(string $messageId): array
+    private function groupVideo(string $messageId, ?string $jpegThumbnail = null): array
     {
         return [
             ...$this->groupEnvelope($messageId, 'Sam Okafor', '900000000000002', '15550002222'),
@@ -448,6 +484,7 @@ final class CreateGroupMessageActionTest extends TestCase
                     'url' => 'https://mmg.whatsapp.net/v/t62.0000-00/000000000',
                     'mimetype' => 'video/mp4',
                     'mediaKey' => 'ZXhhbXBsZS1tZWRpYS1rZXktZm9yLXRlc3RzLW9ubHkz',
+                    ...($jpegThumbnail !== null ? ['jpegThumbnail' => $jpegThumbnail] : []),
                 ],
             ],
         ];
