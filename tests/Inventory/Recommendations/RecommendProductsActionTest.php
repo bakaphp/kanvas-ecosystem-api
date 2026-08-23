@@ -8,10 +8,14 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Inventory\Categories\Actions\CreateCategory;
+use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoriesDto;
+use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Recommendations\Actions\RecommendProductsAction;
 use Kanvas\Inventory\Recommendations\Contracts\ProductDiscoveryInterface;
 use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
+use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Services\ProductDiscoveryResolver;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use RuntimeException;
@@ -165,6 +169,33 @@ class RecommendProductsActionTest extends TestCase
         $this->assertCount(4, $result);
     }
 
+    public function testDropsProductsInAnExcludedCategory(): void
+    {
+        $app = app(Apps::class);
+        $original = $app->get(ConfigurationEnum::EXCLUDED_CATEGORIES->value);
+        $app->set(ConfigurationEnum::EXCLUDED_CATEGORIES->value, ['Envoltura']);
+
+        try {
+            $company = Companies::factory()->create();
+            $wrap = $this->makeProduct($app, $company, 'Envoltura roja');
+            $gift = $this->makeProduct($app, $company, 'Delantal Home Chef');
+
+            // Gift wrap scores highly on a gift query and is never the gift. The
+            // category is matched case-insensitively and accent-folded.
+            $wrap->categories()->attach($this->makeCategory($app, $company, 'ENVOLTURA')->getId());
+
+            $result = new RecommendProductsAction($app, $company, $this->engineReturning([$wrap->getId(), $gift->getId()]))
+                ->execute('regalos para mi suegra');
+
+            $names = array_column(array_column($result, 'product'), 'name');
+
+            $this->assertNotContains('Envoltura roja', $names);
+            $this->assertContains('Delantal Home Chef', $names);
+        } finally {
+            $app->set(ConfigurationEnum::EXCLUDED_CATEGORIES->value, $original);
+        }
+    }
+
     public function testEmptyQueryShortCircuitsWithoutHittingTheEngine(): void
     {
         $app = app(Apps::class);
@@ -291,6 +322,19 @@ class RecommendProductsActionTest extends TestCase
                 return $this->ids;
             }
         };
+    }
+
+    private function makeCategory(Apps $app, Companies $company, string $name): Categories
+    {
+        return new CreateCategory(
+            new CategoriesDto(
+                app: $app,
+                company: $company,
+                user: auth()->user(),
+                name: $name,
+            ),
+            auth()->user(),
+        )->execute();
     }
 
     private function makeProduct(Apps $app, Companies $company, ?string $name = null): Products

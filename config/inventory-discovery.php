@@ -70,6 +70,14 @@ return [
      * luxurious") and no explicit number. A tenant with a different price band
      * overrides both on the app.
      */
+    /*
+     * Categories a shopper never means, however well they match. Gift wrapping is
+     * the canonical case: it scores highly on a gift query and is not a gift.
+     * Matched on the category name, case-insensitively; a tenant overrides with
+     * the `product_discovery_excluded_categories` app setting.
+     */
+    'excluded_categories' => [],
+
     'premium_min_price' => 10000.0,
     'cheap_max_price' => 50.0,
 ];

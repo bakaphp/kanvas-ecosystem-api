@@ -18,11 +18,30 @@ class EvaluateProductDiscoveryCommandTest extends TestCase
 
     private array $tempFiles = [];
 
+    private mixed $originalEngine = null;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Recall is asserted against what the SQL path finds. Whichever engine the
+        // app happens to be pointed at otherwise would score a live cluster.
+        $app = app(Apps::class);
+        $this->originalEngine = $app->get('products_search_engine');
+        $app->set('products_search_engine', 'database');
+    }
+
     protected function tearDown(): void
     {
         foreach ($this->tempFiles as $file) {
             @unlink($file);
         }
+
+        $app = app(Apps::class);
+
+        is_string($this->originalEngine)
+            ? $app->set('products_search_engine', $this->originalEngine)
+            : $app->del('products_search_engine');
 
         parent::tearDown();
     }

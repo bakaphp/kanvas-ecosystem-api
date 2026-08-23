@@ -138,6 +138,7 @@ class RecommendProductsAction
             ->sortBy(fn (Products $product): int => $position[$product->getId()] ?? PHP_INT_MAX)
             ->map(fn (Products $product) => $presenter->product($product))
             ->filter()
+            ->filter(fn (array $result): bool => ! $this->isExcludedCategory($result))
             ->filter(fn (array $result): bool => $this->withinBudget($result, $intent))
             ->values()
             ->all();
@@ -192,6 +193,45 @@ class RecommendProductsAction
         $max = $this->app->get(ConfigurationEnum::MAX_RESULTS_PER_GROUP->value);
 
         return is_numeric($max) ? (int) $max : self::DEFAULT_MAX_PER_GROUP;
+    }
+
+    /**
+     * Some categories match well and are never what the shopper meant — gift wrap
+     * on a gift query being the canonical case.
+     */
+    private function isExcludedCategory(array $result): bool
+    {
+        $excluded = $this->excludedCategories();
+
+        if ($excluded === []) {
+            return false;
+        }
+
+        foreach ($result['product']['categories'] ?? [] as $category) {
+            if (in_array(IntentLexiconService::normalize((string) ($category['name'] ?? '')), $excluded, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function excludedCategories(): array
+    {
+        $configured = $this->app->get(ConfigurationEnum::EXCLUDED_CATEGORIES->value)
+            ?? config('inventory-discovery.excluded_categories', []);
+
+        if (is_string($configured)) {
+            $configured = json_decode($configured, true);
+        }
+
+        return array_values(array_filter(array_map(
+            static fn (mixed $name): string => is_string($name) ? IntentLexiconService::normalize($name) : '',
+            is_array($configured) ? $configured : [],
+        )));
     }
 
     /**
