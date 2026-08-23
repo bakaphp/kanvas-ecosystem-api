@@ -80,6 +80,13 @@ class ProcessGroupBurstJob implements ShouldQueue
             return;
         }
 
+        // Claimed here, not on the way out: the token is what stops a burst running twice, and it
+        // has to stop a RETRY too. `$tries = 2`, so anything that throws after the agent has
+        // answered — a workflow fire, a tag write — used to re-enter with the token still valid
+        // and produce a second reply, which publishes a second post. Only delete on a match, or an
+        // early job would clear the token a later part legitimately armed.
+        Cache::forget(self::cacheKey($this->burstHeadId));
+
         $messages = GroupBurstService::messagesFor($this->burstHeadId);
 
         if ($messages->isEmpty()) {
@@ -130,8 +137,6 @@ class ProcessGroupBurstJob implements ShouldQueue
                 'replied' => (bool) ($result['replied'] ?? false),
             ]
         );
-
-        Cache::forget(self::cacheKey($this->burstHeadId));
     }
 
     private function resolveAgent(bool $isDirect): ?Agent

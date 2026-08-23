@@ -158,4 +158,74 @@ class ChatHelperTest extends TestCase
     {
         $this->assertNull(ChatHelper::extractJsonEnvelope("Hi Max,\n\nHappy to help."));
     }
+
+    /**
+     * A newsroom burst carrying two press releases comes back as a LIST of records. Anchoring the
+     * fenced match on `{` left it unparsed, so the envelope was lost and the caller published the
+     * model's raw JSON as the article body (prod, El Nuevo Diario).
+     */
+    public function testExtractsAFencedListOfRecordsAsTheEnvelope(): void
+    {
+        $envelope = ChatHelper::extractJsonEnvelope($this->twoArticles(fenced: true));
+
+        $this->assertCount(2, $envelope);
+        $this->assertSame('Primera nota', $envelope[0]['title']);
+        $this->assertSame('Segunda nota', $envelope[1]['title']);
+    }
+
+    public function testExtractsABareListOfRecordsAsTheEnvelope(): void
+    {
+        $envelope = ChatHelper::extractJsonEnvelope($this->twoArticles(fenced: false));
+
+        $this->assertCount(2, $envelope);
+        $this->assertSame('Primera nota', $envelope[0]['title']);
+    }
+
+    /**
+     * Every value in a list is an array, so the string scan found nothing and returned '' — and an
+     * empty reply makes the responder throw the whole agent turn away.
+     */
+    public function testTheReplyTextOfAListIsTheFirstRecordNotEmpty(): void
+    {
+        foreach ([true, false] as $fenced) {
+            $this->assertSame(
+                '<p>Cuerpo de la primera.</p>',
+                ChatHelper::extractTextFromResponse($this->twoArticles($fenced))
+            );
+        }
+    }
+
+    /**
+     * Prose with a bracketed aside decodes as a valid JSON array. Treating that as structure handed
+     * the caller one fragment of the list — or, when the members were numbers, an empty reply, which
+     * the responder reads as "the agent said nothing" and throws the turn away.
+     */
+    public function testProseContainingABracketedListIsNotAnEnvelope(): void
+    {
+        $prose = 'Los pasos son [1, 2, 3] y nada mas.';
+
+        $this->assertNull(ChatHelper::extractJsonEnvelope($prose));
+        $this->assertSame($prose, ChatHelper::extractTextFromResponse($prose));
+    }
+
+    public function testProseContainingAQuotedListIsNotAnEnvelope(): void
+    {
+        $prose = 'Puedes elegir ["azul", "rojo"] cuando quieras.';
+
+        $this->assertNull(ChatHelper::extractJsonEnvelope($prose));
+        $this->assertSame($prose, ChatHelper::extractTextFromResponse($prose));
+    }
+
+    private function twoArticles(bool $fenced): string
+    {
+        $json = json_encode(
+            [
+                ['title' => 'Primera nota', 'content' => '<p>Cuerpo de la primera.</p>', 'status' => 'draft'],
+                ['title' => 'Segunda nota', 'content' => '<p>Cuerpo de la segunda.</p>', 'status' => 'draft'],
+            ],
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE
+        );
+
+        return $fenced ? "```json\n" . $json . "\n```" : $json . "\n";
+    }
 }

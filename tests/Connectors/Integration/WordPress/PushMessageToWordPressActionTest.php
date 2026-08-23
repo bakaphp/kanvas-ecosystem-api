@@ -349,6 +349,59 @@ final class PushMessageToWordPressActionTest extends TestCase
             && $request->data()['status'] === 'pending');
     }
 
+    /**
+     * A burst carrying two press releases comes back as a LIST of records. The list reached
+     * onlyPostKeys() as numeric keys, matched nothing, and the post fell through to the message's own
+     * `content` — publishing the model's raw JSON as the article body under a title that was its
+     * first 117 characters (prod, El Nuevo Diario).
+     */
+    public function testAListOfArticlesPublishesTheFirstOneNotItsRawJson(): void
+    {
+        $this->fakeWordPress();
+
+        $articles = [
+            ['title' => 'Primera nota', 'content' => '<p>Cuerpo de la primera.</p>', 'categories' => ['News']],
+            ['title' => 'Segunda nota', 'content' => '<p>Cuerpo de la segunda.</p>'],
+        ];
+
+        $message = $this->makeMessage([
+            'content' => json_encode($articles, JSON_UNESCAPED_UNICODE),
+            'response_json' => $articles,
+        ]);
+
+        new PushMessageToWordPressAction($message)->execute();
+
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
+            && str_ends_with($request->url(), '/wp/v2/posts')
+            && $request->data()['title'] === 'Primera nota'
+            && $request->data()['content'] === '<p>Cuerpo de la primera.</p>');
+    }
+
+    /**
+     * The same shape as it reaches us when the envelope was never decoded — the reply text IS the
+     * fenced JSON, which is exactly what the message that surfaced this carried.
+     */
+    public function testAFencedListInTheContentIsReadAsAnEnvelope(): void
+    {
+        $this->fakeWordPress();
+
+        $articles = json_encode(
+            [
+                ['title' => 'Primera nota', 'content' => '<p>Cuerpo de la primera.</p>'],
+                ['title' => 'Segunda nota', 'content' => '<p>Cuerpo de la segunda.</p>'],
+            ],
+            JSON_UNESCAPED_UNICODE
+        );
+
+        $message = $this->makeMessage(['content' => "```json\n" . $articles . "\n```"]);
+
+        new PushMessageToWordPressAction($message)->execute();
+
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
+            && str_ends_with($request->url(), '/wp/v2/posts')
+            && $request->data()['title'] === 'Primera nota');
+    }
+
     public function testRejectsAMessageWithNoContent(): void
     {
         $this->fakeWordPress();

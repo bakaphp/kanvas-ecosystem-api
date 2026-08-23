@@ -104,6 +104,18 @@ handled: a **string** `response_json` / `response_text` / `responseText` / `cont
 reply publishes the raw JSON as the article body — a silent wrong post rather than a loud failure,
 since `content` is itself a valid post key.
 
+**An envelope can be a LIST.** An agent handed several press releases in one turn answers with
+`[{...},{...}]`. A post is one record, so `agentEnvelope()` reads the first — the rest stay on the
+message in `response_json` for whatever consumes them next. Getting this wrong is silent: a list
+reaches `onlyPostKeys()` as numeric keys, matches nothing, and the post falls through to the
+message's own `content`, publishing the model's raw JSON as the article under a title that is its
+first 117 characters. The parse side matters as much — `extractJsonEnvelope()` used to anchor its
+fenced and bare matches on `{`, so a fenced list was never decoded at all.
+
+Only the first record is published, so an agent that regularly has several stories to file should be
+instructed to answer with **one article per turn** — the extra records survive on the message but
+nothing ships them.
+
 ### Precedence
 
 `workflow rule status` > `message body wordpress: {}` > `response_json` > `message body top level` >

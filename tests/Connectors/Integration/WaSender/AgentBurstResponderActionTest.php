@@ -19,6 +19,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
+use Tests\Stubs\Intelligence\MultiRecordNeuronAgentStub;
 use Tests\Stubs\Intelligence\StructuredNeuronAgentStub;
 use Tests\TestCase;
 
@@ -110,6 +111,34 @@ final class AgentBurstResponderActionTest extends TestCase
     }
 
     /**
+     * A burst carrying two press releases comes back as a fenced JSON LIST. That shape decoded to
+     * nothing, so the reply was filed with the raw JSON as its body and no `response_json` at all —
+     * and the publisher then shipped that dump as the article (prod, El Nuevo Diario). The bare-list
+     * form was worse: the reply text came back empty and the whole agent turn was thrown away.
+     */
+    public function testAMultiArticleReplyIsFiledWithItsEnvelopeNotAsAJsonDump(): void
+    {
+        $this->runBurst(shouldReply: false, handler: MultiRecordNeuronAgentStub::class);
+
+        $reply = $this->latestAgentMessage();
+
+        $this->assertNotNull($reply, 'A list answer must still file the agent turn');
+
+        $envelope = $reply->message['response_json'] ?? null;
+
+        $this->assertIsArray($envelope, 'The whole list must survive on the message');
+        $this->assertCount(2, $envelope);
+        $this->assertSame('Fundación entrega útiles escolares en Herrera', $envelope[0]['title']);
+        $this->assertSame('Diputado presenta informe de labor legislativa', $envelope[1]['title']);
+
+        $this->assertSame(
+            '<p>Cuerpo de la primera nota.</p>',
+            $reply->message['content'],
+            'The reply body must be the first article, never the raw JSON'
+        );
+    }
+
+    /**
      * A photo filed as a child of the burst head — the shape a WhatsApp album takes.
      */
     private function attachPhotoChild(Message $head, MessageType $messageType): Message
@@ -151,8 +180,11 @@ final class AgentBurstResponderActionTest extends TestCase
             ->first(fn (Message $m): bool => (bool) ($m->message['from_ia'] ?? false));
     }
 
-    private function runBurst(bool $shouldReply, bool $withPhotoChild = false): array
-    {
+    private function runBurst(
+        bool $shouldReply,
+        bool $withPhotoChild = false,
+        string $handler = StructuredNeuronAgentStub::class
+    ): array {
         // The WaSender client is Guzzle-backed, so this only neutralises anything on the Http
         // facade; the send itself is asserted through the `replied` flag and the tag.
         Http::fake();
@@ -201,7 +233,7 @@ final class AgentBurstResponderActionTest extends TestCase
             ->create([
                 'name' => 'Newsroom (Structured Test)',
                 'provider' => 'neuron',
-                'handler' => StructuredNeuronAgentStub::class,
+                'handler' => $handler,
             ]);
 
         $agent = Agent::factory()

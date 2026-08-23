@@ -24,12 +24,17 @@ use Kanvas\Connectors\WaSender\Services\GroupMentionService;
 use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Kanvas\Workflow\Models\WorkflowAction;
+use Kanvas\Workflow\SyncWorkflowStub;
+use RuntimeException;
+use Tests\Stubs\Intelligence\StructuredNeuronAgentStub;
 use Tests\TestCase;
 
 /**
@@ -144,6 +149,106 @@ final class ProcessGroupBurstJobTest extends TestCase
         )->handle();
 
         $this->assertNull(Cache::get(ProcessGroupBurstJob::cacheKey($headId)));
+    }
+
+    /**
+     * `$tries = 2`, and the burst does work after the agent has already answered — the workflow fire
+     * above all. The token is what makes a burst run once, so it has to survive the retry: claiming
+     * it only on the way out left it armed when something threw mid-run, so the retry re-entered,
+     * ran the agent again and filed a SECOND reply — two replies, two published posts from one
+     * burst (prod 736602 / 736603).
+     */
+    public function testARetryAfterAMidRunFailureDoesNotFileASecondAgentReply(): void
+    {
+        Queue::fake();
+        $this->useStructuredAgent();
+        // NEVER keeps the reply off the wire; the agent still runs and still files its answer, which
+        // is the thing that duplicated.
+        $this->allowGroup(GroupReplyModeEnum::NEVER);
+
+        $result = $this->ingestAt(0, $this->groupText('Alex Rivera'));
+        $headId = $result['result']['messages'][0]['message_id'];
+        $channel = Channel::findOrFail($result['result']['messages'][0]['channel_id']);
+        $token = (string) Cache::get(ProcessGroupBurstJob::cacheKey($headId));
+
+        $job = new ProcessGroupBurstJob(
+            app(Apps::class),
+            $this->receiver(),
+            $this->explodingChannel($channel),
+            $headId,
+            $token
+        );
+
+        try {
+            $job->handle();
+            $this->fail('The channel stub must blow up after the agent answered');
+        } catch (RuntimeException) {
+            // The queue would hand this to attempt two.
+        }
+
+        $this->assertSame(1, $this->agentReplyCount($channel), 'The burst answered once before failing');
+
+        $job->handle();
+
+        $this->assertSame(1, $this->agentReplyCount($channel), 'The retry must not answer a second time');
+    }
+
+    /**
+     * A real channel row that throws the first time the burst announces itself — the shape of any
+     * failure between the agent answering and the job finishing.
+     */
+    private function explodingChannel(Channel $channel): Channel
+    {
+        $exploding = new class () extends Channel {
+            public bool $armed = true;
+
+            public function fireWorkflow(
+                string $event,
+                bool $async = true,
+                array $params = []
+            ): ?SyncWorkflowStub {
+                // Only the burst's own announcement, which is the one call that happens after the
+                // agent has already answered. Blowing up on any channel event would land inside the
+                // responder's own catch and never reach the retry.
+                if ($this->armed && $event === WorkflowEnum::AFTER_ADDING_MESSAGE_TO_GROUP_CHANNEL->value) {
+                    $this->armed = false;
+
+                    throw new RuntimeException('workflow fire failed');
+                }
+
+                return null;
+            }
+        };
+
+        $exploding->setRawAttributes($channel->getAttributes(), true);
+        $exploding->exists = true;
+
+        return $exploding;
+    }
+
+    private function agentReplyCount(Channel $channel): int
+    {
+        return $channel->messages()
+            ->get()
+            ->filter(fn (Message $message): bool => (bool) ($message->message['from_ia'] ?? false))
+            ->count();
+    }
+
+    /**
+     * A handler that actually returns a structured answer, so the burst produces a reply message to
+     * count rather than failing inside the agent turn.
+     */
+    private function useStructuredAgent(): void
+    {
+        /** @var Users $user */
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $company->set(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value, $user->getId());
+
+        $this->groupAgent->type->update([
+            'provider' => 'neuron',
+            'handler' => StructuredNeuronAgentStub::class,
+        ]);
     }
 
     /**

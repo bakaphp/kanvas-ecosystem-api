@@ -203,10 +203,6 @@ class RecommendProductsAction
     {
         $excluded = $this->excludedCategories();
 
-        if ($excluded === []) {
-            return false;
-        }
-
         foreach ($result['product']['categories'] ?? [] as $category) {
             if (in_array(IntentLexiconService::normalize((string) ($category['name'] ?? '')), $excluded, true)) {
                 return true;
@@ -221,17 +217,18 @@ class RecommendProductsAction
      */
     private function excludedCategories(): array
     {
-        $configured = $this->app->get(ConfigurationEnum::EXCLUDED_CATEGORIES->value)
-            ?? config('inventory-discovery.excluded_categories', []);
+        $configured = ConfigurationEnum::EXCLUDED_CATEGORIES->listFrom($this->app)
+            ?: (array) config('inventory-discovery.excluded_categories', []);
 
-        if (is_string($configured)) {
-            $configured = json_decode($configured, true);
+        $names = [];
+
+        foreach ($configured as $name) {
+            if (is_string($name) && ($normalized = IntentLexiconService::normalize($name)) !== '') {
+                $names[] = $normalized;
+            }
         }
 
-        return array_values(array_filter(array_map(
-            static fn (mixed $name): string => is_string($name) ? IntentLexiconService::normalize($name) : '',
-            is_array($configured) ? $configured : [],
-        )));
+        return $names;
     }
 
     /**
