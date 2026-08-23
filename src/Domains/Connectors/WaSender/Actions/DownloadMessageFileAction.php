@@ -45,13 +45,14 @@ class DownloadMessageFileAction
 
         $rawMessage = (array) ($this->message->message['raw_data']['message'] ?? []);
         $mediaKey = MessageTypeEnum::mediaKey($rawMessage);
+        $mediaNode = MessageTypeEnum::mediaNode($rawMessage);
 
-        if ($mediaKey === null) {
+        if ($mediaKey === null || $mediaNode === null) {
             throw new Exception('Message carries no downloadable media node');
         }
 
         $this->messageTypeKey = $mediaKey;
-        $this->mediaNode = (array) MessageTypeEnum::unwrap($rawMessage)[$mediaKey];
+        $this->mediaNode = $mediaNode;
     }
 
     public function execute(array $params = []): ?Filesystem

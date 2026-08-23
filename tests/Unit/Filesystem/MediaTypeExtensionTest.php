@@ -7,12 +7,6 @@ namespace Tests\Unit\Filesystem;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Tests\TestCase;
 
-/**
- * WhatsApp hands us a mimetype, never a bare kind, and the old per-connector `match` on
- * 'image'/'video' fell through to `bin` for every real payload. Files were stored as `*.bin` and
- * WordPress — which judges an upload by its filename — refused each one with "no tienes permisos
- * para subir este tipo de archivo", so articles published with no featured image.
- */
 final class MediaTypeExtensionTest extends TestCase
 {
     public function testAMimetypeResolvesToItsRealExtension(): void
@@ -21,6 +15,8 @@ final class MediaTypeExtensionTest extends TestCase
         $this->assertSame('png', MediaTypeEnum::extensionForMime('image/png'));
         $this->assertSame('webp', MediaTypeEnum::extensionForMime('image/webp'));
         $this->assertSame('mp4', MediaTypeEnum::extensionForMime('video/mp4'));
+        $this->assertSame('mov', MediaTypeEnum::extensionForMime('video/quicktime'));
+        $this->assertSame('webm', MediaTypeEnum::extensionForMime('video/webm'));
         $this->assertSame('pdf', MediaTypeEnum::extensionForMime('application/pdf'));
     }
 
@@ -37,7 +33,7 @@ final class MediaTypeExtensionTest extends TestCase
     public function testAnUnmappedSubtypeFallsBackToItsFamily(): void
     {
         $this->assertSame('jpg', MediaTypeEnum::extensionForMime('image/x-something-new'));
-        $this->assertSame('mp4', MediaTypeEnum::extensionForMime('video/quicktime'));
+        $this->assertSame('mp4', MediaTypeEnum::extensionForMime('video/x-unknown-codec'));
         $this->assertSame('bin', MediaTypeEnum::extensionForMime('application/octet-stream'));
     }
 }

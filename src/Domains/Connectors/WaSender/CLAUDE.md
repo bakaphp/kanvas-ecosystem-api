@@ -49,7 +49,7 @@ surface** — a `whatsappConfigureGroups` mutation existed and was reverted; use
 | `burst_mention_idle_seconds` | `8` | |
 | `burst_max_seconds` | `180` | |
 | `burst_jitter_seconds` | `12` | random seconds **added** to the window so replies aren't a metronome; `0` = deterministic |
-| `media_types` | `["whatsapp-image"]` | video is filed and tagged, never sent to the agent |
+| `media_types` | `["whatsapp-image"]` | add `whatsapp-video` to also download the clip itself; the poster frame reaches the agent either way |
 | `own_group_lid` | learned | written by the connector; don't hand-set |
 | `lead_type`, `receiver_id`, `pipeline_id`, `time_threshold_in_seconds` | — | lead path only |
 
@@ -82,6 +82,18 @@ burst**, not once per message.
 
 **Replies are not instant.** 8s for an addressed conversation, 30s otherwise. That delay is the
 feature; it is what keeps "article now, photo 22 seconds later" as one turn.
+
+### Video
+
+No model takes video — `AttachmentDescriptionService::nativeKind()` returns null for `video/*`, so
+the attachment is dropped before the prompt however it is configured. What reaches the agent is the
+**poster frame**: WhatsApp ships a `jpegThumbnail` inside the payload, and `attachVideoPoster()`
+stores it as an image regardless of `media_types`. No extra fetch, and it doubles as the WordPress
+featured image for a video-only post.
+
+Adding `whatsapp-video` to `media_types` additionally downloads the clip and hangs it off the
+message, which is what you want when the article should carry the file — but it does not make the
+model see more than the poster.
 
 ## Workflow events — which entity each carries
 
