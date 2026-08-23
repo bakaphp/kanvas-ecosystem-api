@@ -535,11 +535,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
 
     /**
      * Determine if a user is banned.
+     *
+     * `banned` is a boolean column (0/1); the legacy 'Y' flag it used to hold never
+     * reaches this model, so comparing against it made every user look un-banned.
      */
     #[Override]
     public function isBanned(): bool
     {
-        return ! $this->isActive() && $this->banned === 'Y';
+        return (bool) $this->banned;
     }
 
     /**

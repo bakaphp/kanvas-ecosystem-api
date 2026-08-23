@@ -84,6 +84,17 @@ class ForgotPassword
      */
     public function reset(string $newPassword, string $hashKey): bool
     {
+        /**
+         * resetPassword() blanks user_activation_forgot once a link is used, so an empty
+         * hash matches every already-reset account. MySQL also ignores trailing spaces
+         * when comparing strings, which makes a whitespace-only hash equivalent to ''.
+         * The GraphQL `required` rule rejects both today — this keeps the service safe on
+         * its own, for any other caller.
+         */
+        if (trim($hashKey) === '') {
+            throw new ExceptionsModelNotFoundException('Password reset link has expired, request a new link.');
+        }
+
         try {
             $recoverUser = UsersAssociatedApps::fromApp($this->app)
                 ->notDeleted()

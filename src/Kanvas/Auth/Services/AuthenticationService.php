@@ -47,13 +47,23 @@ class AuthenticationService
         $email = $loginInput->getEmail();
 
         $userAssociatedAppQuery = UsersAssociatedApps::notDeleted()
-            ->where('email', $email)
             ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
             ->where('apps_id', $app->getId());
 
-        if ($displayNameLogin) {
-            $userAssociatedAppQuery->orWhere('displayname', $email);
-        }
+        /**
+         * The identifier match has to stay grouped: an ungrouped orWhere binds looser than
+         * the AND above it, so `displayname = ?` would match rows in any app, any company
+         * and soft-deleted ones alike.
+         */
+        $userAssociatedAppQuery->where(
+            function ($query) use ($email, $displayNameLogin): void {
+                $query->where('email', $email);
+
+                if ($displayNameLogin) {
+                    $query->orWhere('displayname', $email);
+                }
+            }
+        );
 
         $userAssociatedApp = $userAssociatedAppQuery->first();
 
@@ -81,36 +91,45 @@ class AuthenticationService
         }
         $this->loginAttemptsValidation($authentically);
 
-        //password verification
-        if (Hash::check($loginInput->getPassword(), $authentically->password) && $authentically->isActive()) {
-            Password::rehash($loginInput->getPassword(), $authentically);
-            $this->resetLoginTries($authentically);
-
-            $company = $user->getCurrentCompany();
-            if (! $company->isActive()) {
-                $authMessage = $this->app->get(AppSettingsEnums::INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE->getValue()) ?? 'Company is not active, please contact support.';
-
-                throw new AuthenticationException($authMessage);
-            }
-
-            $user->fireWorkflow(
-                WorkflowEnum::USER_LOGIN->value,
-                true,
-                ['company' => $company]
-            );
-
-            return $user;
-        } elseif (! $authentically->isActive()) {
-            $authMessage = $this->app->get(AppSettingsEnums::INACTIVE_ACCOUNT_ERROR_MESSAGE->getValue()) ?? 'User is not active, please contact support.';
-
-            throw new AuthenticationException($authMessage);
-        } elseif ($authentically->isBanned()) {
-            throw new AuthenticationException('User has been banned, please contact support.');
-        } else {
+        /**
+         * Verify the password before any account-state check. Reporting "inactive" or
+         * "banned" to a caller that never proved the password turns login into an
+         * account-state oracle, and gating the state checks behind the password is what
+         * keeps a banned account from logging in on a correct one.
+         */
+        if (! Hash::check($loginInput->getPassword(), $authentically->password)) {
             $this->updateLoginTries($authentically);
 
             throw new AuthenticationException('Invalid email or password.');
         }
+
+        if (! $authentically->isActive()) {
+            $authMessage = $this->app->get(AppSettingsEnums::INACTIVE_ACCOUNT_ERROR_MESSAGE->getValue()) ?? 'User is not active, please contact support.';
+
+            throw new AuthenticationException($authMessage);
+        }
+
+        if ($authentically->isBanned()) {
+            throw new AuthenticationException('User has been banned, please contact support.');
+        }
+
+        Password::rehash($loginInput->getPassword(), $authentically);
+        $this->resetLoginTries($authentically);
+
+        $company = $user->getCurrentCompany();
+        if (! $company->isActive()) {
+            $authMessage = $this->app->get(AppSettingsEnums::INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE->getValue()) ?? 'Company is not active, please contact support.';
+
+            throw new AuthenticationException($authMessage);
+        }
+
+        $user->fireWorkflow(
+            WorkflowEnum::USER_LOGIN->value,
+            true,
+            ['company' => $company]
+        );
+
+        return $user;
     }
 
     /**

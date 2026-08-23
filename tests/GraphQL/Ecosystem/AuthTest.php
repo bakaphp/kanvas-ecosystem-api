@@ -6,6 +6,8 @@ namespace Tests\GraphQL\Ecosystem;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
+use Kanvas\Auth\Exceptions\AuthenticationException;
+use Kanvas\Auth\Services\AuthenticationService;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
@@ -328,6 +330,64 @@ class AuthTest extends TestCase
                 ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
                 ->delete();
         }
+    }
+
+    /**
+     * A banned account must not authenticate even with the right password. The banned
+     * check used to sit in an `elseif` after the success branch, so a correct password
+     * on an active account returned before it was ever evaluated.
+     */
+    public function testBannedUserCannotLoginWithCorrectPassword(): void
+    {
+        $app = app(Apps::class);
+        $email = fake()->unique()->safeEmail();
+        $password = fake()->password(12);
+
+        $this->registerUser($email, $password);
+
+        $profile = Users::getByEmail($email)->getAppProfile($app);
+        $profile->banned = 1;
+        $profile->saveOrFail();
+
+        $this->expectException(AuthenticationException::class);
+
+        new AuthenticationService($app)->login(
+            LoginInput::from([
+                'email' => $email,
+                'password' => $password,
+                'ip' => request()->ip(),
+            ])
+        );
+    }
+
+    /**
+     * resetPassword() blanks user_activation_forgot after use, so an empty hash would
+     * otherwise match every already-reset account in the app.
+     */
+    public function testResetPasswordRejectsBlankHashKey(): void
+    {
+        $app = app(Apps::class);
+
+        $this->expectException(ExceptionsModelNotFoundException::class);
+
+        new ForgotPasswordService($app)->reset('11223344', '   ');
+    }
+
+    private function registerUser(string $email, string $password): void
+    {
+        $this->graphQL(/** @lang GraphQL */ '
+            mutation register($data: RegisterInput!) {
+                register(data: $data) {
+                    user { email }
+                }
+            }
+        ', [
+            'data' => [
+                'email' => $email,
+                'password' => $password,
+                'password_confirmation' => $password,
+            ],
+        ])->assertSuccessful();
     }
 
     public function testForgotPasswordDisplayname(): void

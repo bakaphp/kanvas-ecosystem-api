@@ -325,8 +325,19 @@ return [
     */
 
     'security' => [
-        'max_query_complexity' => \GraphQL\Validator\Rules\QueryComplexity::DISABLED,
-        'max_query_depth' => \GraphQL\Validator\Rules\QueryDepth::DISABLED,
+        /*
+         * Both default to DISABLED so no existing client query starts failing on deploy.
+         * Measure the depth/complexity your real clients send, then set these env vars —
+         * without them a single deeply nested query can pin a worker.
+         */
+        'max_query_complexity' => (int) env(
+            'LIGHTHOUSE_SECURITY_MAX_QUERY_COMPLEXITY',
+            \GraphQL\Validator\Rules\QueryComplexity::DISABLED
+        ),
+        'max_query_depth' => (int) env(
+            'LIGHTHOUSE_SECURITY_MAX_QUERY_DEPTH',
+            \GraphQL\Validator\Rules\QueryDepth::DISABLED
+        ),
         'disable_introspection' => (bool) env('LIGHTHOUSE_SECURITY_DISABLE_INTROSPECTION', false)
             ? \GraphQL\Validator\Rules\DisableIntrospection::ENABLED
             : \GraphQL\Validator\Rules\DisableIntrospection::DISABLED,
@@ -351,9 +362,11 @@ return [
 
         /*
          * Limit the maximum amount of items that clients can request from paginated lists.
-         * Setting this to `null` means the count is unrestricted.
+         * Setting this to `null` means the count is unrestricted — an unbounded `first:`
+         * is a cheap way to make the API pull a whole table into memory. The largest page
+         * any caller in this repo asks for is 250, so 1000 leaves plenty of headroom.
          */
-        'max_count' => null,
+        'max_count' => (int) env('LIGHTHOUSE_PAGINATION_MAX_COUNT', 1000),
     ],
 
     /*
