@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Enums\SemanticProfileStrategyEnum;
 use Kanvas\Inventory\Recommendations\Services\ProductDiscoveryStatusService;
+use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -78,14 +79,14 @@ class ConfigureProductDiscoveryTool extends Tool
                     . 'which runs inside Typesense and needs no API key. Pass "none" to stay keyword-only.',
                 required: false,
             ),
-            new ToolProperty(
+            new ArrayProperty(
                 name: 'excluded_categories',
-                type: PropertyType::ARRAY,
                 description: 'Category names never worth recommending, however well they match — gift wrap, '
                     . 'gift cards, shipping fees, warranties. On a gift catalog "Envoltura" scores highly on '
                     . 'every gift query and is never the gift. Names are matched case- and accent-insensitively. '
                     . 'Pass an empty array to clear.',
                 required: false,
+                items: new ToolProperty(name: 'category', type: PropertyType::STRING, description: 'A category name.'),
             ),
             new ToolProperty(
                 name: 'typesense_api_key',
