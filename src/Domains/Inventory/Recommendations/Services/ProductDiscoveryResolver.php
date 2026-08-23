@@ -36,6 +36,12 @@ class ProductDiscoveryResolver
         );
     }
 
+    /** The one place the index-name rule lives; mirrors Products::searchableAs(). */
+    public static function collectionName(AppInterface $app): string
+    {
+        return (string) config('scout.prefix') . (string) ($app->get('app_custom_product_index') ?? 'product_index');
+    }
+
     public function isOnTypesense(): bool
     {
         $engine = $this->app->get('products_search_engine')

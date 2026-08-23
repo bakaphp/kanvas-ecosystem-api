@@ -61,6 +61,15 @@ class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasStructured
           fits everything matches nothing.
         - Banned openings, in any language: "para quienes buscan", "ideal para quienes", "for those
           who want", "perfect for anyone". They introduce an audience you are about to invent.
+        - NEVER open with "Diseñado para" / "Designed for". Almost every blurb defaulted to it, and
+          the search then matched every one of them against the word "diseño" — a shopper asking for
+          design got gaming mice and hair supplements. Lead with the product, not with who it is for.
+        - Vary the opening. Blurbs are matched as text: when they all share a first phrase, that
+          phrase stops carrying meaning and starts adding noise to every query.
+        - Name the DOMAIN, never a generic person-noun. "jugadores" covers tennis players and
+          gamers, "entusiastas" covers everyone — so a query about a tennis fan returned five gaming
+          mice. Write "videojuegos en PlayStation", "tenis", "cafe de especialidad". The product's
+          own vocabulary is what tells it apart from a product in another category entirely.
 
         When the record gives you NOTHING to differentiate on — no description, no attributes, just a
         name — write ONE short factual sentence stating only what the name tells you, and stop.

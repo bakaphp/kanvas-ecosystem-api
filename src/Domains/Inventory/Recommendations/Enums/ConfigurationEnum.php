@@ -22,7 +22,7 @@ enum ConfigurationEnum: string
     case MAX_RESULTS_PER_GROUP = 'product_discovery_max_results_per_group';
     case EXCLUDED_CATEGORIES = 'product_discovery_excluded_categories';
     case GROUP_BY_TOKENS = 'product_discovery_group_by_tokens';
-    case DEMOTE_UNAVAILABLE = 'product_discovery_demote_unavailable';
+    case UNAVAILABLE_PENALTY = 'product_discovery_unavailable_penalty';
 
     /**
      * A list setting comes back as an array from Redis but as a JSON string when a

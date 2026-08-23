@@ -253,11 +253,7 @@ class RecommendProductsActionTest extends TestCase
 
     public function testPromotesBuyableProductsOverUnavailableOnes(): void
     {
-        $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-        new InventorySetup($app, $user, $company)->run();
+        [$app, $company] = $this->tenantWithChannels();
 
         $unpriced = $this->makeProduct($app, $company, 'Perfume Premium 38');
         $buyable = $this->makeProduct($app, $company, 'Delantal Home Chef');
@@ -275,6 +271,34 @@ class RecommendProductsActionTest extends TestCase
             ['Delantal Home Chef', 'Perfume Premium 38'],
             array_column(array_column($result, 'product'), 'name'),
         );
+    }
+
+    public function testAStrongMatchIsDemotedButNotBuriedForBeingUnavailable(): void
+    {
+        [$app, $company] = $this->tenantWithChannels();
+
+        $best = $this->makeProduct($app, $company, 'Kit Barista Morning Ritual');
+        $weaker = [];
+
+        foreach (range(1, 4) as $i) {
+            $product = $this->makeProduct($app, $company, 'Mando Xbox ' . $i);
+            $this->makeBuyable($app, $company, $product);
+            $weaker[] = $product;
+        }
+
+        // The engine ranked the unpriced product first. A partition would drop it
+        // to last behind four weaker matches; a penalty moves it a few places.
+        $ids = [$best->getId(), ...array_map(fn (Products $p): int => $p->getId(), $weaker)];
+
+        $result = new RecommendProductsAction($app, $company, $this->engineReturning($ids))
+            ->execute('un regalo para alguien que ama el cafe', 5);
+
+        $names = array_column(array_column($result, 'product'), 'name');
+        $position = array_search('Kit Barista Morning Ritual', $names, true);
+
+        $this->assertNotFalse($position);
+        $this->assertGreaterThan(0, $position, 'An unavailable product must lose the top slot.');
+        $this->assertLessThan(4, $position, 'It must not be buried behind every buyable product.');
     }
 
     public function testEmptyQueryShortCircuitsWithoutHittingTheEngine(): void
@@ -403,6 +427,24 @@ class RecommendProductsActionTest extends TestCase
                 return $this->ids;
             }
         };
+    }
+
+    /**
+     * A priced variant needs a default channel and a warehouse, and only the Setup
+     * creates them — a factory company has neither.
+     *
+     * @return array{0: Apps, 1: Companies}
+     */
+    private function tenantWithChannels(): array
+    {
+        $app = app(Apps::class);
+        /** @var Users $user */
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        new InventorySetup($app, $user, $company)->run();
+
+        return [$app, $company];
     }
 
     private function makeBuyable(Apps $app, Companies $company, Products $product): void
