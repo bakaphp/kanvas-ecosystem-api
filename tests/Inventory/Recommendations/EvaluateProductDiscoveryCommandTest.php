@@ -13,22 +13,17 @@ use Tests\TestCase;
 class EvaluateProductDiscoveryCommandTest extends TestCase
 {
     use DatabaseTransactions;
+    use PinsSearchEngine;
 
     protected $connectionsToTransact = [null, 'inventory'];
 
     private array $tempFiles = [];
 
-    private mixed $originalEngine = null;
-
     protected function setUp(): void
     {
         parent::setUp();
 
-        // Recall is asserted against what the SQL path finds. Whichever engine the
-        // app happens to be pointed at otherwise would score a live cluster.
-        $app = app(Apps::class);
-        $this->originalEngine = $app->get('products_search_engine');
-        $app->set('products_search_engine', 'database');
+        $this->pinSearchEngine();
     }
 
     protected function tearDown(): void
@@ -37,11 +32,7 @@ class EvaluateProductDiscoveryCommandTest extends TestCase
             @unlink($file);
         }
 
-        $app = app(Apps::class);
-
-        is_string($this->originalEngine)
-            ? $app->set('products_search_engine', $this->originalEngine)
-            : $app->del('products_search_engine');
+        $this->restoreSearchEngine();
 
         parent::tearDown();
     }

@@ -43,6 +43,7 @@ use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\Products\Observers\ProductsObserver;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
+use Kanvas\Inventory\Recommendations\Enums\AudienceEnum;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum as RecommendationConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Enums\SearchFieldEnum;
 use Kanvas\Inventory\Status\Models\Status;
@@ -271,6 +272,32 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         }
 
         return false;
+    }
+
+    /**
+     * A product with no enrichment yet indexes as `unknown` rather than empty, so
+     * the discovery filter can admit it by name — Typesense has no dependable
+     * "this array is empty" test.
+     *
+     * @return list<string>
+     */
+    public function searchableAudience(): array
+    {
+        $value = $this->getAttributeByName(SearchFieldEnum::AUDIENCE->value)?->value;
+
+        if (is_string($value) && str_starts_with(trim($value), '[')) {
+            $value = json_decode($value, true);
+        }
+
+        $audiences = [];
+
+        foreach (is_array($value) ? $value : [$value] as $name) {
+            if (is_string($name) && ($name = mb_strtolower(trim($name))) !== '') {
+                $audiences[] = $name;
+            }
+        }
+
+        return $audiences === [] ? [AudienceEnum::UNKNOWN->value] : $audiences;
     }
 
     public function searchableAttributes(): array
@@ -666,6 +693,11 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             // unpriced product, which the caller then flags unavailable.
             'price' => $this->lowestChannelPrice() ?? 0.0,
             'in_stock' => $this->hasStockInAnyVariant(),
+            // Flat copy of the enrichment's `audience` attribute. Nested under
+            // `attributes` it cannot be a scalar filter, and this is the one axis
+            // an embedding gets wrong — "for a man" and "para mujeres" are similar
+            // to a vector, not opposite.
+            'audience' => $this->searchableAudience(),
         ];
 
         if ($this->isTypesense()) {
@@ -1240,6 +1272,12 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 [
                     'name' => 'in_stock',
                     'type' => 'bool',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'audience',
+                    'type' => 'string[]',
                     'optional' => true,
                     'facet' => true,
                 ],

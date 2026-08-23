@@ -65,9 +65,10 @@ class DiscoverProductsCommand extends Command
 
         $this->line("<comment>\"{$query}\"</comment>");
         $this->line(sprintf(
-            '  engine=%s  budget=%s  in_stock_only=%s',
+            '  engine=%s  budget=%s  audience=%s  in_stock_only=%s',
             $engine,
             $this->describeBudget($intent),
+            $intent->audience?->value ?? 'any',
             $intent->inStockOnly ? 'yes' : 'no',
         ));
 

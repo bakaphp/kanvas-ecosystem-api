@@ -11,13 +11,20 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Categories\Actions\CreateCategory;
 use Kanvas\Inventory\Categories\DataTransferObject\Categories as CategoriesDto;
 use Kanvas\Inventory\Categories\Models\Categories;
+use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Recommendations\Actions\RecommendProductsAction;
 use Kanvas\Inventory\Recommendations\Contracts\ProductDiscoveryInterface;
 use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Services\ProductDiscoveryResolver;
+use Kanvas\Inventory\Support\Setup as InventorySetup;
+use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsChannels;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
+use Kanvas\Users\Models\Users;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -151,6 +158,54 @@ class RecommendProductsActionTest extends TestCase
         $this->assertContains('Kia Sorento MQ4', $names, 'A distinct product must be promoted over a third duplicate.');
     }
 
+    public function testGroupsAProductFamilyUnderOneCapNotOnePerExactName(): void
+    {
+        $app = app(Apps::class);
+        $company = Companies::factory()->create();
+
+        // Seed catalogs number their variations. Four names, one product as far as
+        // a shopper is concerned — grouping on the whole name gave each its own
+        // budget and the family took the page.
+        $family = [
+            $this->makeProduct($app, $company, 'Perfume Premium 31'),
+            $this->makeProduct($app, $company, 'Perfume Premium 37'),
+            $this->makeProduct($app, $company, 'Perfume Premium 38'),
+            $this->makeProduct($app, $company, 'Perfume Premium 44'),
+        ];
+        $other = $this->makeProduct($app, $company, 'Delantal Home Chef');
+
+        $ids = [...array_map(fn (Products $p): int => $p->getId(), $family), $other->getId()];
+
+        $result = new RecommendProductsAction($app, $company, $this->engineReturning($ids))
+            ->execute('un regalo bonito', 3);
+
+        $names = array_column(array_column($result, 'product'), 'name');
+        $perfumes = array_filter($names, static fn (string $n): bool => str_starts_with($n, 'Perfume'));
+
+        $this->assertCount(2, $perfumes);
+        $this->assertContains('Delantal Home Chef', $names);
+    }
+
+    public function testKeepsDistinctProductsThatShareOnlyTheirSecondWord(): void
+    {
+        $app = app(Apps::class);
+        $company = Companies::factory()->create();
+
+        // "Pulsera Classic" and "Bolso Classic" share a word but are not a family;
+        // grouping must not merge them just because the cap got coarser.
+        $bracelet = $this->makeProduct($app, $company, 'Pulsera Classic 35');
+        $bag = $this->makeProduct($app, $company, 'Bolso Classic 27');
+        $second = $this->makeProduct($app, $company, 'Pulsera Classic 36');
+
+        $result = new RecommendProductsAction(
+            $app,
+            $company,
+            $this->engineReturning([$bracelet->getId(), $second->getId(), $bag->getId()]),
+        )->execute('un regalo para ella', 3);
+
+        $this->assertContains('Bolso Classic 27', array_column(array_column($result, 'product'), 'name'));
+    }
+
     public function testDroppedDuplicatesStillFillThePageWhenNothingElseMatches(): void
     {
         $app = app(Apps::class);
@@ -194,6 +249,32 @@ class RecommendProductsActionTest extends TestCase
         } finally {
             $app->set(ConfigurationEnum::EXCLUDED_CATEGORIES->value, $original);
         }
+    }
+
+    public function testPromotesBuyableProductsOverUnavailableOnes(): void
+    {
+        $app = app(Apps::class);
+        /** @var Users $user */
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        new InventorySetup($app, $user, $company)->run();
+
+        $unpriced = $this->makeProduct($app, $company, 'Perfume Premium 38');
+        $buyable = $this->makeProduct($app, $company, 'Delantal Home Chef');
+        $this->makeBuyable($app, $company, $buyable);
+
+        // The engine ranks the unpriced one first. It stays in the result — a thin
+        // catalogue still has to fill the page — but it loses the top slot.
+        $result = new RecommendProductsAction(
+            $app,
+            $company,
+            $this->engineReturning([$unpriced->getId(), $buyable->getId()]),
+        )->execute('regalo para alguien que cocina');
+
+        $this->assertSame(
+            ['Delantal Home Chef', 'Perfume Premium 38'],
+            array_column(array_column($result, 'product'), 'name'),
+        );
     }
 
     public function testEmptyQueryShortCircuitsWithoutHittingTheEngine(): void
@@ -322,6 +403,43 @@ class RecommendProductsActionTest extends TestCase
                 return $this->ids;
             }
         };
+    }
+
+    private function makeBuyable(Apps $app, Companies $company, Products $product): void
+    {
+        /** @var Variants $variant */
+        $variant = $product->variants()->where('is_deleted', 0)->firstOrFail();
+
+        $warehouse = Warehouses::fromApp($app)->fromCompany($company)->firstOrFail();
+        $channel = Channels::getDefault($company, $app);
+
+        $variantWarehouse = VariantsWarehouses::updateOrCreate(
+            [
+                'products_variants_id' => $variant->getId(),
+                'warehouses_id' => $warehouse->getId(),
+            ],
+            [
+                'quantity' => 5,
+                'price' => 25.00,
+                'sku' => $variant->sku ?? 'SKU-' . fake()->unique()->uuid(),
+                'position' => 1,
+                'is_default' => 1,
+            ],
+        );
+
+        VariantsChannels::updateOrCreate(
+            [
+                'product_variants_warehouse_id' => $variantWarehouse->getId(),
+                'channels_id' => $channel->getId(),
+            ],
+            [
+                'products_variants_id' => $variant->getId(),
+                'warehouses_id' => $warehouse->getId(),
+                'price' => 25.00,
+                'discounted_price' => 0,
+                'is_published' => 1,
+            ],
+        );
     }
 
     private function makeCategory(Apps $app, Companies $company, string $name): Categories

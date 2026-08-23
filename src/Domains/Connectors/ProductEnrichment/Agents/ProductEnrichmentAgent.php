@@ -59,6 +59,15 @@ class ProductEnrichmentAgent extends KanvasLaravelAgent implements HasStructured
         - NEVER write filler that would be true of any product in this category — "moderno y fiable",
           "ideal para el uso diario", "gran calidad", "perfecto para cualquier ocasión". A blurb that
           fits everything matches nothing.
+        - Banned openings, in any language: "para quienes buscan", "ideal para quienes", "for those
+          who want", "perfect for anyone". They introduce an audience you are about to invent.
+
+        When the record gives you NOTHING to differentiate on — no description, no attributes, just a
+        name — write ONE short factual sentence stating only what the name tells you, and stop.
+        Do NOT invent an audience, an occasion, or a reason someone would want it. For a product
+        called "Perfume Premium 38", "Perfume de la gama Premium 38." is the correct and complete
+        answer. A weak blurb that matches only perfume searches is worth far more than a confident
+        one that matches every search in the catalog.
 
         Never invent values outside the allowed lists. Be precise, not exhaustive.
         PROMPT);

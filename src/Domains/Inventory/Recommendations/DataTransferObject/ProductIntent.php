@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Recommendations\DataTransferObject;
 
+use Kanvas\Inventory\Recommendations\Enums\AudienceEnum;
 use Kanvas\Inventory\Recommendations\Services\IntentLexiconService;
 use Spatie\LaravelData\Data;
 
 /**
- * Only the hard numeric constraints. A price ceiling has to be a real filter;
- * recipient, occasion and style are left to the embedding.
+ * The constraints a shopper is never wrong about, and which an embedding cannot
+ * enforce: a budget, and who the gift is for. Occasion and style stay with the
+ * embedding, where being approximately right is good enough.
  */
 class ProductIntent extends Data
 {
@@ -18,6 +20,7 @@ class ProductIntent extends Data
         public readonly ?float $minPrice = null,
         public readonly ?float $maxPrice = null,
         public readonly bool $inStockOnly = false,
+        public readonly ?AudienceEnum $audience = null,
     ) {
     }
 
@@ -43,6 +46,7 @@ class ProductIntent extends Data
             minPrice: $minPrice,
             maxPrice: $maxPrice,
             inStockOnly: $inStockOnly,
+            audience: $lexicon->matchAudience($normalized),
         );
     }
 
