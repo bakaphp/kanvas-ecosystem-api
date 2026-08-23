@@ -68,8 +68,8 @@ class AgentChannelResponderEndToEndTest extends TestCase
         $envelope = $outbound->message['response_json'] ?? null;
 
         $this->assertIsArray($envelope, 'The decoded envelope must be stored alongside the reply text');
-        $this->assertSame('Educación acelera construcción de aulas en El Seibo', $envelope['title']);
-        $this->assertSame(['Nacionales', 'Educación'], $envelope['categories']);
+        $this->assertSame('Education accelerates classroom construction in El Seibo', $envelope['title']);
+        $this->assertSame(['National', 'Education'], $envelope['categories']);
         $this->assertSame('draft', $envelope['status']);
     }
 

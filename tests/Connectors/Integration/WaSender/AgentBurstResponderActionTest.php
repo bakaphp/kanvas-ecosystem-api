@@ -55,7 +55,7 @@ final class AgentBurstResponderActionTest extends TestCase
             'Without response_json the WordPress activity has no article to publish'
         );
         $this->assertSame(
-            'Educación acelera construcción de aulas en El Seibo',
+            'Education accelerates classroom construction in El Seibo',
             $agentMessage->message['response_json']['title']
         );
         $this->assertTrue(
@@ -111,10 +111,9 @@ final class AgentBurstResponderActionTest extends TestCase
     }
 
     /**
-     * A burst carrying two press releases comes back as a fenced JSON LIST. That shape decoded to
-     * nothing, so the reply was filed with the raw JSON as its body and no `response_json` at all —
-     * and the publisher then shipped that dump as the article (prod, El Nuevo Diario). The bare-list
-     * form was worse: the reply text came back empty and the whole agent turn was thrown away.
+     * Two press releases in one burst come back as a fenced JSON LIST, which decoded to nothing: the
+     * reply was filed with the raw JSON as its body and no `response_json`, and the publisher shipped
+     * that dump as the article. Bare-list was worse — empty reply text, whole turn discarded.
      */
     public function testAMultiArticleReplyIsFiledWithItsEnvelopeNotAsAJsonDump(): void
     {
@@ -128,11 +127,11 @@ final class AgentBurstResponderActionTest extends TestCase
 
         $this->assertIsArray($envelope, 'The whole list must survive on the message');
         $this->assertCount(2, $envelope);
-        $this->assertSame('Fundación entrega útiles escolares en Herrera', $envelope[0]['title']);
-        $this->assertSame('Diputado presenta informe de labor legislativa', $envelope[1]['title']);
+        $this->assertSame('Foundation delivers school supplies in Herrera', $envelope[0]['title']);
+        $this->assertSame('Congressman presents his legislative report', $envelope[1]['title']);
 
         $this->assertSame(
-            '<p>Cuerpo de la primera nota.</p>',
+            '<p>First article body.</p>',
             $reply->message['content'],
             'The reply body must be the first article, never the raw JSON'
         );
@@ -216,7 +215,7 @@ final class AgentBurstResponderActionTest extends TestCase
             ->withMessageType($messageType)
             ->create([
                 'message' => [
-                    'content' => 'Rafael Zapata: Educación entregó 12 aulas nuevas en El Seibo esta mañana.',
+                    'content' => 'Rafael Zapata: The education ministry delivered 12 new classrooms in El Seibo this morning.',
                     'from_me' => false,
                     'from_ia' => false,
                     'chat_jid' => self::GROUP_JID,
@@ -279,7 +278,7 @@ final class AgentBurstResponderActionTest extends TestCase
         }
 
         return $responder->execute([
-            'prompt' => 'Rafael Zapata: Educación entregó 12 aulas nuevas en El Seibo esta mañana.',
+            'prompt' => 'Rafael Zapata: The education ministry delivered 12 new classrooms in El Seibo this morning.',
             'group_jid' => self::GROUP_JID,
             'should_reply' => $shouldReply,
             'burst_message_ids' => $burstIds,

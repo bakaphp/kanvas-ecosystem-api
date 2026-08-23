@@ -204,7 +204,7 @@ final class PushMessageToWordPressActionTest extends TestCase
             'content' => '<p>Agents can now post straight to the site.</p>',
             'from_ia' => true,
             'response_json' => [
-                'title' => 'Educación acelera construcción de aulas',
+                'title' => 'Education accelerates classroom construction',
                 'content' => '<p>Agents can now post straight to the site.</p>',
                 'excerpt' => 'Short summary',
                 'status' => 'publish',
@@ -227,7 +227,7 @@ final class PushMessageToWordPressActionTest extends TestCase
 
             $body = $request->data();
 
-            return $body['title'] === 'Educación acelera construcción de aulas'
+            return $body['title'] === 'Education accelerates classroom construction'
                 && $body['excerpt'] === 'Short summary'
                 && $body['status'] === 'publish'
                 && $body['categories'] === [7]
@@ -360,8 +360,8 @@ final class PushMessageToWordPressActionTest extends TestCase
         $this->fakeWordPress();
 
         $articles = [
-            ['title' => 'Primera nota', 'content' => '<p>Cuerpo de la primera.</p>', 'categories' => ['News']],
-            ['title' => 'Segunda nota', 'content' => '<p>Cuerpo de la segunda.</p>'],
+            ['title' => 'First article', 'content' => '<p>First article body.</p>', 'categories' => ['News']],
+            ['title' => 'Second article', 'content' => '<p>Second article body.</p>'],
         ];
 
         $message = $this->makeMessage([
@@ -373,8 +373,8 @@ final class PushMessageToWordPressActionTest extends TestCase
 
         Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
             && str_ends_with($request->url(), '/wp/v2/posts')
-            && $request->data()['title'] === 'Primera nota'
-            && $request->data()['content'] === '<p>Cuerpo de la primera.</p>');
+            && $request->data()['title'] === 'First article'
+            && $request->data()['content'] === '<p>First article body.</p>');
     }
 
     /**
@@ -387,8 +387,8 @@ final class PushMessageToWordPressActionTest extends TestCase
 
         $articles = json_encode(
             [
-                ['title' => 'Primera nota', 'content' => '<p>Cuerpo de la primera.</p>'],
-                ['title' => 'Segunda nota', 'content' => '<p>Cuerpo de la segunda.</p>'],
+                ['title' => 'First article', 'content' => '<p>First article body.</p>'],
+                ['title' => 'Second article', 'content' => '<p>Second article body.</p>'],
             ],
             JSON_UNESCAPED_UNICODE
         );
@@ -399,7 +399,7 @@ final class PushMessageToWordPressActionTest extends TestCase
 
         Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
             && str_ends_with($request->url(), '/wp/v2/posts')
-            && $request->data()['title'] === 'Primera nota');
+            && $request->data()['title'] === 'First article');
     }
 
     public function testRejectsAMessageWithNoContent(): void

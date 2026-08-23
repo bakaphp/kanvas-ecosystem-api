@@ -142,15 +142,15 @@ class ChatHelperTest extends TestCase
     public function testExtractsTheWholeEnvelopeFromAFencedReply(): void
     {
         $reply = "```json\n" . json_encode([
-            'title' => 'Educación acelera construcción de aulas',
+            'title' => 'Education accelerates classroom construction',
             'content' => '<p>Body.</p>',
-            'tags' => ['Educación', 'El Seibo'],
+            'tags' => ['Education', 'María Trinidad Sánchez'],
         ], JSON_UNESCAPED_UNICODE) . "\n```";
 
         $envelope = ChatHelper::extractJsonEnvelope($reply);
 
-        $this->assertSame('Educación acelera construcción de aulas', $envelope['title']);
-        $this->assertSame(['Educación', 'El Seibo'], $envelope['tags']);
+        $this->assertSame('Education accelerates classroom construction', $envelope['title']);
+        $this->assertSame(['Education', 'María Trinidad Sánchez'], $envelope['tags']);
         $this->assertSame('<p>Body.</p>', ChatHelper::extractTextFromResponse($reply));
     }
 
@@ -169,8 +169,8 @@ class ChatHelperTest extends TestCase
         $envelope = ChatHelper::extractJsonEnvelope($this->twoArticles(fenced: true));
 
         $this->assertCount(2, $envelope);
-        $this->assertSame('Primera nota', $envelope[0]['title']);
-        $this->assertSame('Segunda nota', $envelope[1]['title']);
+        $this->assertSame('First article', $envelope[0]['title']);
+        $this->assertSame('Second article', $envelope[1]['title']);
     }
 
     public function testExtractsABareListOfRecordsAsTheEnvelope(): void
@@ -178,7 +178,7 @@ class ChatHelperTest extends TestCase
         $envelope = ChatHelper::extractJsonEnvelope($this->twoArticles(fenced: false));
 
         $this->assertCount(2, $envelope);
-        $this->assertSame('Primera nota', $envelope[0]['title']);
+        $this->assertSame('First article', $envelope[0]['title']);
     }
 
     /**
@@ -189,7 +189,7 @@ class ChatHelperTest extends TestCase
     {
         foreach ([true, false] as $fenced) {
             $this->assertSame(
-                '<p>Cuerpo de la primera.</p>',
+                '<p>First article body.</p>',
                 ChatHelper::extractTextFromResponse($this->twoArticles($fenced))
             );
         }
@@ -202,7 +202,7 @@ class ChatHelperTest extends TestCase
      */
     public function testProseContainingABracketedListIsNotAnEnvelope(): void
     {
-        $prose = 'Los pasos son [1, 2, 3] y nada mas.';
+        $prose = 'The steps are [1, 2, 3] and nothing else.';
 
         $this->assertNull(ChatHelper::extractJsonEnvelope($prose));
         $this->assertSame($prose, ChatHelper::extractTextFromResponse($prose));
@@ -210,7 +210,7 @@ class ChatHelperTest extends TestCase
 
     public function testProseContainingAQuotedListIsNotAnEnvelope(): void
     {
-        $prose = 'Puedes elegir ["azul", "rojo"] cuando quieras.';
+        $prose = 'You can pick ["blue", "red"] whenever you like.';
 
         $this->assertNull(ChatHelper::extractJsonEnvelope($prose));
         $this->assertSame($prose, ChatHelper::extractTextFromResponse($prose));
@@ -220,8 +220,8 @@ class ChatHelperTest extends TestCase
     {
         $json = json_encode(
             [
-                ['title' => 'Primera nota', 'content' => '<p>Cuerpo de la primera.</p>', 'status' => 'draft'],
-                ['title' => 'Segunda nota', 'content' => '<p>Cuerpo de la segunda.</p>', 'status' => 'draft'],
+                ['title' => 'First article', 'content' => '<p>First article body.</p>', 'status' => 'draft'],
+                ['title' => 'Second article', 'content' => '<p>Second article body.</p>', 'status' => 'draft'],
             ],
             JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE
         );

@@ -152,18 +152,15 @@ final class ProcessGroupBurstJobTest extends TestCase
     }
 
     /**
-     * `$tries = 2`, and the burst does work after the agent has already answered — the workflow fire
-     * above all. The token is what makes a burst run once, so it has to survive the retry: claiming
-     * it only on the way out left it armed when something threw mid-run, so the retry re-entered,
-     * ran the agent again and filed a SECOND reply — two replies, two published posts from one
-     * burst (prod 736602 / 736603).
+     * The burst still does work after the agent has answered — the workflow fire above all. Claiming
+     * the token only on the way out left it armed when that threw, so `$tries = 2` re-ran the agent
+     * and filed a second reply: two published posts from one burst (prod 736602 / 736603).
      */
     public function testARetryAfterAMidRunFailureDoesNotFileASecondAgentReply(): void
     {
         Queue::fake();
         $this->useStructuredAgent();
-        // NEVER keeps the reply off the wire; the agent still runs and still files its answer, which
-        // is the thing that duplicated.
+        // NEVER keeps the reply off the wire; the agent still runs and files the answer that duplicated.
         $this->allowGroup(GroupReplyModeEnum::NEVER);
 
         $result = $this->ingestAt(0, $this->groupText('Alex Rivera'));
@@ -235,8 +232,7 @@ final class ProcessGroupBurstJobTest extends TestCase
     }
 
     /**
-     * A handler that actually returns a structured answer, so the burst produces a reply message to
-     * count rather than failing inside the agent turn.
+     * A handler that answers, so the burst produces a reply to count instead of failing mid-turn.
      */
     private function useStructuredAgent(): void
     {
