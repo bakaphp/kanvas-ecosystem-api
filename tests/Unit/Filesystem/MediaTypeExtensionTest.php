@@ -7,12 +7,6 @@ namespace Tests\Unit\Filesystem;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Tests\TestCase;
 
-/**
- * WhatsApp hands us a mimetype, never a bare kind, and the old per-connector `match` on
- * 'image'/'video' fell through to `bin` for every real payload. Files were stored as `*.bin` and
- * WordPress — which judges an upload by its filename — refused each one with "no tienes permisos
- * para subir este tipo de archivo", so articles published with no featured image.
- */
 final class MediaTypeExtensionTest extends TestCase
 {
     public function testAMimetypeResolvesToItsRealExtension(): void
