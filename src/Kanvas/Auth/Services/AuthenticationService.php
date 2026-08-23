@@ -81,6 +81,10 @@ class AuthenticationService
         }
         $this->loginAttemptsValidation($authentically);
 
+        if ($authentically->isBanned()) {
+            throw new AuthenticationException('User has been banned, please contact support.');
+        }
+
         //password verification
         if (Hash::check($loginInput->getPassword(), $authentically->password) && $authentically->isActive()) {
             Password::rehash($loginInput->getPassword(), $authentically);
@@ -104,8 +108,6 @@ class AuthenticationService
             $authMessage = $this->app->get(AppSettingsEnums::INACTIVE_ACCOUNT_ERROR_MESSAGE->getValue()) ?? 'User is not active, please contact support.';
 
             throw new AuthenticationException($authMessage);
-        } elseif ($authentically->isBanned()) {
-            throw new AuthenticationException('User has been banned, please contact support.');
         } else {
             $this->updateLoginTries($authentically);
 

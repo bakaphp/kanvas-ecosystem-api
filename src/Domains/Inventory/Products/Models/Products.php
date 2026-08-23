@@ -401,10 +401,12 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         string $sort = 'asc'
     ): Builder {
         $allowedSorts = ['ASC', 'DESC'];
+        $sort = strtoupper($sort);
 
         if (! in_array($sort, $allowedSorts)) {
             throw new InvalidArgumentException('Invalid sort value');
         }
+
         $query = ProductSortAttributeBuilder::sortProductByAttribute(
             $query,
             $name,

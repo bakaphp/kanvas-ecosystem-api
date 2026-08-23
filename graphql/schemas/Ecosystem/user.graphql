@@ -300,6 +300,7 @@ extend type Mutation {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updatePhotoProfile"
         )
     uploadFileToUser(id: ID!, file: Upload!): User!
+        @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@attachFileToUser"
         )

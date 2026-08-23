@@ -94,6 +94,27 @@ enum MessageTypeEnum: string
     /**
      * The key holding downloadable media, or null when the message carries none.
      */
+    /**
+     * The unwrapped node the media actually hangs off, or null when the payload carries none.
+     *
+     * Callers want the node, not the key — resolving it here keeps them from unwrapping a second
+     * time just to index into the result.
+     *
+     * @return array<string, mixed>|null
+     */
+    public static function mediaNode(array $messageContent): ?array
+    {
+        $content = self::unwrap($messageContent);
+
+        foreach (self::MEDIA_KEYS as $key) {
+            if (isset($content[$key])) {
+                return (array) $content[$key];
+            }
+        }
+
+        return null;
+    }
+
     public static function mediaKey(array $messageContent): ?string
     {
         $content = self::unwrap($messageContent);

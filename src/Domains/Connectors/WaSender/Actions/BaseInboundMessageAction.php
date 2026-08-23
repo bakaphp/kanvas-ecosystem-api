@@ -12,6 +12,7 @@ use Kanvas\Connectors\WaSender\Enums\BurstConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Connectors\WaSender\Jobs\ProcessGroupBurstJob;
 use Kanvas\Connectors\WaSender\Services\GroupBurstService;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -124,17 +125,20 @@ abstract class BaseInboundMessageAction
         $this->armBurstClose($head ?? $message);
     }
 
-    /**
-     * Video is filed so the conversation history is complete, but it is tagged and left
-     * undownloaded — nothing sends it to the agent yet.
-     */
     protected function attachMedia(Message $message, MessageTypeEnum $messageType): void
     {
         if (! MessageTypeEnum::isDocumentType($messageType->value)) {
             return;
         }
 
-        if (! in_array($messageType->value, BurstConfigEnum::MEDIA_TYPES->getList($this->receiver), true)) {
+        // Before the `media_types` gate: the poster is the agent's only view of a video.
+        $this->attachVideoPoster($message, $messageType);
+
+        if (! in_array(
+            $messageType->value,
+            BurstConfigEnum::MEDIA_TYPES->getList($this->receiver),
+            true
+        )) {
             $message->addTag('media-not-processed');
 
             return;
@@ -144,6 +148,38 @@ abstract class BaseInboundMessageAction
             new DownloadMessageFileAction($this->channel, $message)->execute();
         } catch (Throwable $e) {
             // One bad attachment must not sink the burst; the text still reaches the agent.
+            report($e);
+        }
+    }
+
+    /**
+     * No model takes video: `AttachmentDescriptionService::nativeKind()` returns null for `video/*`
+     * and the attachment is dropped before the prompt. WhatsApp ships a poster frame inside the
+     * payload itself, so storing that as an image is the whole of "the agent saw the video" — and
+     * it costs no extra fetch, unlike the 4MB clip beside it.
+     */
+    private function attachVideoPoster(Message $message, MessageTypeEnum $messageType): void
+    {
+        if ($messageType !== MessageTypeEnum::VIDEO) {
+            return;
+        }
+
+        $thumbnail = MessageTypeEnum::mediaNode((array) ($this->messageData['message'] ?? []))['jpegThumbnail'] ?? null;
+
+        if (! is_string($thumbnail) || $thumbnail === '') {
+            return;
+        }
+
+        try {
+            $poster = new FilesystemServices($this->receiver->app, $this->receiver->company)
+                ->createFileSystemFromBase64(
+                    $thumbnail,
+                    'video-poster-' . $this->inbound->messageId . '.jpg',
+                    $this->receiver->user
+                );
+
+            $message->addFile($poster, 'video-poster');
+        } catch (Throwable $e) {
             report($e);
         }
     }
