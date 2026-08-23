@@ -17,6 +17,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
+use Kanvas\Users\Models\Users;
 use ReflectionClass;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -46,7 +47,7 @@ final class IdVerificationEngagementOwnerFallbackTest extends TestCase
 
         $this->assertNull($lead->owner, 'precondition: the lead is unassigned');
 
-        $engagement = $this->invokeCreateEngagement($lead, $this->makePerson($lead));
+        $engagement = $this->invokeCreateEngagement($lead, $this->makePerson($lead, usersId: 0));
 
         $this->assertNotNull($engagement);
         $this->assertSame($lead->users_id, $engagement->users_id);
@@ -60,7 +61,25 @@ final class IdVerificationEngagementOwnerFallbackTest extends TestCase
         $lead->saveQuietly();
         $lead->refresh();
 
-        $this->assertNull($this->invokeCreateEngagement($lead, $this->makePerson($lead)));
+        $this->assertNull($this->invokeCreateEngagement($lead, $this->makePerson($lead, usersId: 0)));
+    }
+
+    /**
+     * A stale users_id pointing at someone outside the app used to reach CreateEngagementAction,
+     * which follows the lead as that user and threw `User doesn't belong to this app` from the
+     * workflow instead of skipping the engagement.
+     */
+    public function testAUserOutsideTheAppIsNotUsedAsTheEngagementOwner(): void
+    {
+        $lead = $this->makeLead();
+        $lead->leads_owner_id = 0;
+        $lead->users_id = 0;
+        $lead->saveQuietly();
+        $lead->refresh();
+
+        $outsider = Users::factory()->create();
+
+        $this->assertNull($this->invokeCreateEngagement($lead, $this->makePerson($lead, $outsider->getId())));
     }
 
     private function makeLead(): Lead
@@ -133,11 +152,12 @@ final class IdVerificationEngagementOwnerFallbackTest extends TestCase
         return $lead;
     }
 
-    private function makePerson(Lead $lead): People
+    private function makePerson(Lead $lead, int $usersId): People
     {
         return People::factory()
             ->withAppId($lead->apps_id)
             ->withCompanyId($lead->companies_id)
+            ->withUserId($usersId)
             ->create([
                 'firstname' => 'Unassigned',
                 'lastname' => 'Buyer',

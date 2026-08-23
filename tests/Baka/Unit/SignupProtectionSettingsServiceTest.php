@@ -4,23 +4,25 @@ declare(strict_types=1);
 
 namespace Tests\Baka\Unit;
 
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\SignupProtectionSettingsService;
+use Tests\Stubs\Auth\InMemorySettingsApp;
 use Tests\TestCase;
-use Tests\Traits\ManagesAppSettings;
 
 class SignupProtectionSettingsServiceTest extends TestCase
 {
-    use ManagesAppSettings;
-
     private function set(string $key, mixed $value): SignupProtectionSettingsService
     {
-        return new SignupProtectionSettingsService($this->setAppSettings([$key => $value]));
+        return new SignupProtectionSettingsService(InMemorySettingsApp::withSettings([$key => $value]));
+    }
+
+    private function settings(): SignupProtectionSettingsService
+    {
+        return new SignupProtectionSettingsService(InMemorySettingsApp::withSettings());
     }
 
     public function testUnsetKeysFallBackToTheDefaults(): void
     {
-        $settings = new SignupProtectionSettingsService(app(Apps::class));
+        $settings = $this->settings();
 
         $this->assertSame(SignupProtectionSettingsService::DEFAULT_PREFIX_LIMIT, $settings->prefixLimit());
         $this->assertSame(SignupProtectionSettingsService::DEFAULT_PREFIX_WINDOW_SECONDS, $settings->prefixWindowSeconds());
@@ -67,7 +69,7 @@ class SignupProtectionSettingsServiceTest extends TestCase
 
         $this->assertSame(
             ['ops@example-corp.com', 'security@example-corp.com'],
-            new SignupProtectionSettingsService(app(Apps::class))->anomalyAlertEmails()
+            $this->settings()->anomalyAlertEmails()
         );
 
         $this->assertSame(
@@ -90,14 +92,14 @@ class SignupProtectionSettingsServiceTest extends TestCase
     {
         config(['kanvas.signup_anomaly.sentry_enabled' => true]);
 
-        $this->assertTrue(new SignupProtectionSettingsService(app(Apps::class))->sentryReportingEnabled());
+        $this->assertTrue($this->settings()->sentryReportingEnabled());
     }
 
     public function testThePlatformSwitchTurnsSentryOffEverywhere(): void
     {
         config(['kanvas.signup_anomaly.sentry_enabled' => false]);
 
-        $this->assertFalse(new SignupProtectionSettingsService(app(Apps::class))->sentryReportingEnabled());
+        $this->assertFalse($this->settings()->sentryReportingEnabled());
     }
 
     public function testAnAppCanOptBackInWhileThePlatformSwitchIsOff(): void
@@ -119,6 +121,6 @@ class SignupProtectionSettingsServiceTest extends TestCase
     {
         config(['kanvas.signup_anomaly.alert_emails' => null]);
 
-        $this->assertSame([], new SignupProtectionSettingsService(app(Apps::class))->anomalyAlertEmails());
+        $this->assertSame([], $this->settings()->anomalyAlertEmails());
     }
 }

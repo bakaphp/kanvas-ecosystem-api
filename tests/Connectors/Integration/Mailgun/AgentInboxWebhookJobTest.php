@@ -254,11 +254,7 @@ final class AgentInboxWebhookJobTest extends TestCase
             ],
         ]);
 
-        $reply = Message::query()
-            ->where('apps_id', $this->kanvasApp->getId())
-            ->whereJsonContains('message->from_ia', true)
-            ->latest('id')
-            ->first();
+        $reply = $this->agentReply();
 
         $this->assertNotNull($reply, 'The agent reply must be persisted');
         $this->assertContains('press-photo.jpg', $reply->files->pluck('name')->all());
@@ -371,11 +367,7 @@ final class AgentInboxWebhookJobTest extends TestCase
             'Message-Id' => '<press-' . Str::random(8) . '@mail.gmail.test>',
         ]);
 
-        $reply = Message::query()
-            ->where('apps_id', $this->kanvasApp->getId())
-            ->whereJsonContains('message->from_ia', true)
-            ->latest('id')
-            ->first();
+        $reply = $this->agentReply();
 
         $this->assertNotNull($reply, 'The agent reply must be persisted');
         // The email body is prose — the record the agent wrote rides alongside it, not inside it.
@@ -491,6 +483,21 @@ final class AgentInboxWebhookJobTest extends TestCase
         }
 
         return $result;
+    }
+
+    /**
+     * `from_ia` alone matches every agent reply in the app, and paratest runs sibling classes
+     * against that same app — the newest one is as likely to be another process's as this test's.
+     * The agent is created per test, so its id is what makes the lookup this test's own.
+     */
+    private function agentReply(): ?Message
+    {
+        return Message::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->whereJsonContains('message->from_ia', true)
+            ->whereJsonContains('message->agent_id', (int) $this->agent->getId())
+            ->latest('id')
+            ->first();
     }
 
     private function inboundMessage(): Message

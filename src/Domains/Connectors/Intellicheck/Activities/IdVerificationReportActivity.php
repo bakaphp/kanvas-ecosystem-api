@@ -17,12 +17,14 @@ use Kanvas\Connectors\Intellicheck\Jobs\AttachDriverLicenseImagesJob;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Services\DriverLicenseVerificationService;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -323,9 +325,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
 
     private function createIdVerificationEngagement(Lead $lead, People $people): ?Engagement
     {
-        // Unassigned leads carry leads_owner_id = 0, so owner is null; the engagement
-        // still needs a real user for the message copy and the lead follow.
-        $user = $lead->owner ?? $lead->user ?? $people->user;
+        $user = $this->resolveEngagementUser($lead, $people);
 
         if ($user === null) {
             return null;
@@ -353,5 +353,24 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         );
 
         return new CreateEngagementAction($engagementData)->execute();
+    }
+
+    private function resolveEngagementUser(Lead $lead, People $people): ?Users
+    {
+        foreach ([$lead->owner, $lead->user, $people->user] as $candidate) {
+            if ($candidate === null) {
+                continue;
+            }
+
+            try {
+                UsersRepository::belongsToThisApp($candidate, $lead->app, $lead->company);
+
+                return $candidate;
+            } catch (ModelNotFoundException) {
+                continue;
+            }
+        }
+
+        return null;
     }
 }
