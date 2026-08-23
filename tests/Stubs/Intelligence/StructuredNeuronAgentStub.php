@@ -17,11 +17,11 @@ class StructuredNeuronAgentStub extends SalesNeuronAgentStub
     public const string ENVELOPE = <<<'JSON'
         ```json
         {
-          "title": "Educación acelera construcción de aulas en El Seibo",
+          "title": "Education accelerates classroom construction in El Seibo",
           "content": "Hola Mundo",
-          "excerpt": "Resumen corto",
-          "categories": ["Nacionales", "Educación"],
-          "tags": ["Educación", "El Seibo"],
+          "excerpt": "Short summary",
+          "categories": ["National", "Education"],
+          "tags": ["Education", "El Seibo"],
           "status": "draft"
         }
         ```

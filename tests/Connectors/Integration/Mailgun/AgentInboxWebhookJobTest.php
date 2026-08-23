@@ -364,10 +364,10 @@ final class AgentInboxWebhookJobTest extends TestCase
             'sender' => $this->user->email,
             'from' => 'Alexander Mateo <' . $this->user->email . '>',
             'subject' => 'NT 08',
-            'stripped-text' => 'Construcción de nuevas aulas para el nuevo año escolar avanzan de manera '
-                . "acelerada en El Seibo y La Romana\n\nSanto Domingo, RD.- El Gobierno, a través de la "
-                . 'Dirección de Infraestructura Escolar (DIE), dispuso acelerar la construcción de decenas '
-                . 'de aulas nuevas en las provincias El Seibo y La Romana.',
+            'stripped-text' => 'Classroom construction for the new school year is moving ahead quickly in '
+                . "El Seibo and La Romana\n\nSanto Domingo, RD.- The government, through the School "
+                . 'Infrastructure Directorate (DIE), ordered work accelerated on dozens of new classrooms '
+                . 'in the El Seibo and La Romana provinces.',
             'Message-Id' => '<press-' . Str::random(8) . '@mail.gmail.test>',
         ]);
 
@@ -391,9 +391,9 @@ final class AgentInboxWebhookJobTest extends TestCase
 
             $body = $request->data();
 
-            return $body['title'] === 'Educación acelera construcción de aulas en El Seibo'
+            return $body['title'] === 'Education accelerates classroom construction in El Seibo'
                 && $body['content'] === 'Hola Mundo'
-                && $body['excerpt'] === 'Resumen corto'
+                && $body['excerpt'] === 'Short summary'
                 && $body['status'] === 'draft'
                 && $body['categories'] === [7, 8]
                 && $body['tags'] === [21, 22];
@@ -536,11 +536,11 @@ final class AgentInboxWebhookJobTest extends TestCase
                 ),
                 str_ends_with($path, '/messages') => Http::response(['id' => '<queued@' . self::DOMAIN . '>']),
                 str_ends_with($path, '/wp/v2/categories') && $isRead => Http::response(
-                    [['id' => $searched === 'Nacionales' ? 7 : 8, 'name' => $searched]]
+                    [['id' => $searched === 'National' ? 7 : 8, 'name' => $searched]]
                 ),
                 str_ends_with($path, '/wp/v2/tags') && $isRead => Http::response([]),
                 str_ends_with($path, '/wp/v2/tags') => Http::response(
-                    ['id' => ($request->data()['name'] ?? '') === 'Educación' ? 21 : 22],
+                    ['id' => ($request->data()['name'] ?? '') === 'Education' ? 21 : 22],
                     201
                 ),
                 str_ends_with($path, '/wp/v2/posts') => Http::response(

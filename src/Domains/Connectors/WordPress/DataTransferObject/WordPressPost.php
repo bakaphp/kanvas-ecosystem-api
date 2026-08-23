@@ -140,7 +140,7 @@ class WordPressPost
     private static function agentEnvelope(array $body): array
     {
         if (is_array($body['response_json'] ?? null)) {
-            return $body['response_json'];
+            return ChatHelper::firstRecord($body['response_json']) ?? [];
         }
 
         foreach (['response_json', 'response_text', 'responseText', 'content'] as $key) {
@@ -153,7 +153,7 @@ class WordPressPost
             $decoded = ChatHelper::extractJsonEnvelope($raw);
 
             if ($decoded !== null) {
-                return $decoded;
+                return ChatHelper::firstRecord($decoded) ?? [];
             }
         }
 

@@ -204,7 +204,7 @@ final class PushMessageToWordPressActionTest extends TestCase
             'content' => '<p>Agents can now post straight to the site.</p>',
             'from_ia' => true,
             'response_json' => [
-                'title' => 'Educación acelera construcción de aulas',
+                'title' => 'Education accelerates classroom construction',
                 'content' => '<p>Agents can now post straight to the site.</p>',
                 'excerpt' => 'Short summary',
                 'status' => 'publish',
@@ -227,7 +227,7 @@ final class PushMessageToWordPressActionTest extends TestCase
 
             $body = $request->data();
 
-            return $body['title'] === 'Educación acelera construcción de aulas'
+            return $body['title'] === 'Education accelerates classroom construction'
                 && $body['excerpt'] === 'Short summary'
                 && $body['status'] === 'publish'
                 && $body['categories'] === [7]
@@ -347,6 +347,59 @@ final class PushMessageToWordPressActionTest extends TestCase
         Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
             && str_ends_with($request->url(), '/wp/v2/posts')
             && $request->data()['status'] === 'pending');
+    }
+
+    /**
+     * A burst carrying two press releases comes back as a LIST of records. The list reached
+     * onlyPostKeys() as numeric keys, matched nothing, and the post fell through to the message's own
+     * `content` — publishing the model's raw JSON as the article body under a title that was its
+     * first 117 characters (prod, El Nuevo Diario).
+     */
+    public function testAListOfArticlesPublishesTheFirstOneNotItsRawJson(): void
+    {
+        $this->fakeWordPress();
+
+        $articles = [
+            ['title' => 'First article', 'content' => '<p>First article body.</p>', 'categories' => ['News']],
+            ['title' => 'Second article', 'content' => '<p>Second article body.</p>'],
+        ];
+
+        $message = $this->makeMessage([
+            'content' => json_encode($articles, JSON_UNESCAPED_UNICODE),
+            'response_json' => $articles,
+        ]);
+
+        new PushMessageToWordPressAction($message)->execute();
+
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
+            && str_ends_with($request->url(), '/wp/v2/posts')
+            && $request->data()['title'] === 'First article'
+            && $request->data()['content'] === '<p>First article body.</p>');
+    }
+
+    /**
+     * The same shape as it reaches us when the envelope was never decoded — the reply text IS the
+     * fenced JSON, which is exactly what the message that surfaced this carried.
+     */
+    public function testAFencedListInTheContentIsReadAsAnEnvelope(): void
+    {
+        $this->fakeWordPress();
+
+        $articles = json_encode(
+            [
+                ['title' => 'First article', 'content' => '<p>First article body.</p>'],
+                ['title' => 'Second article', 'content' => '<p>Second article body.</p>'],
+            ],
+            JSON_UNESCAPED_UNICODE
+        );
+
+        $message = $this->makeMessage(['content' => "```json\n" . $articles . "\n```"]);
+
+        new PushMessageToWordPressAction($message)->execute();
+
+        Http::assertSent(fn (Request $request): bool => $request->method() === 'POST'
+            && str_ends_with($request->url(), '/wp/v2/posts')
+            && $request->data()['title'] === 'First article');
     }
 
     public function testRejectsAMessageWithNoContent(): void

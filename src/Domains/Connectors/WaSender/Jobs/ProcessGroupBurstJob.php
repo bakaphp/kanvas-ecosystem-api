@@ -80,6 +80,11 @@ class ProcessGroupBurstJob implements ShouldQueue
             return;
         }
 
+        // Spent here, not on the way out. With `$tries = 2` a throw after the agent has answered
+        // re-entered with the token still valid and filed a second reply — a second published post.
+        // Deleting only on a match still leaves the burst armed for the winner when a part loses.
+        Cache::forget(self::cacheKey($this->burstHeadId));
+
         $messages = GroupBurstService::messagesFor($this->burstHeadId);
 
         if ($messages->isEmpty()) {
@@ -130,8 +135,6 @@ class ProcessGroupBurstJob implements ShouldQueue
                 'replied' => (bool) ($result['replied'] ?? false),
             ]
         );
-
-        Cache::forget(self::cacheKey($this->burstHeadId));
     }
 
     private function resolveAgent(bool $isDirect): ?Agent

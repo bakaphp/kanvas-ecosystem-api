@@ -198,10 +198,7 @@ class ConfigureProductDiscoveryTool extends Tool
         }
 
         if ($excludedCategories !== null) {
-            $names = array_values(array_filter(array_map(
-                static fn (mixed $name): string => is_string($name) ? trim($name) : '',
-                $excludedCategories,
-            )));
+            $names = array_values(array_filter(array_map('trim', array_filter($excludedCategories, 'is_string'))));
 
             $this->app->set(ConfigurationEnum::EXCLUDED_CATEGORIES->value, $names);
             $applied[ConfigurationEnum::EXCLUDED_CATEGORIES->value] = $names === [] ? 'cleared' : implode(', ', $names);

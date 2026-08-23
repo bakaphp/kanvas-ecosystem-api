@@ -187,7 +187,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                                     $verifiedPeople
                                 );
 
-                                $message = $engagement->message;
+                                $message = $engagement?->message;
                                 if ($message !== null) {
                                     $pdfReport = PdfService::generatePdfFromTemplate(
                                         $app,
@@ -321,8 +321,16 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         return $lead->people;
     }
 
-    private function createIdVerificationEngagement(Lead $lead, People $people): Engagement
+    private function createIdVerificationEngagement(Lead $lead, People $people): ?Engagement
     {
+        // Unassigned leads carry leads_owner_id = 0, so owner is null; the engagement
+        // still needs a real user for the message copy and the lead follow.
+        $user = $lead->owner ?? $lead->user ?? $people->user;
+
+        if ($user === null) {
+            return null;
+        }
+
         $taskId = $lead->get('check_list_status') ?? $lead->company->get('default_checklist_id');
 
         if (is_array($taskId)) {
@@ -332,7 +340,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         $engagementData = new EngagementData(
             app: $lead->app,
             company: $lead->company,
-            user: $lead->owner,
+            user: $user,
             lead: $lead,
             action: ConfigurationEnum::ID_VERIFICATION->value,
             requestId: Str::uuid()->toString(),

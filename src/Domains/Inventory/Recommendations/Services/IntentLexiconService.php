@@ -137,17 +137,11 @@ class IntentLexiconService
      */
     private function tenantTerms(string $bucket): array
     {
-        $lexicon = $this->app->get(ConfigurationEnum::INTENT_LEXICON->value);
+        $lexicon = ConfigurationEnum::INTENT_LEXICON->listFrom($this->app);
 
-        if (is_string($lexicon)) {
-            $lexicon = json_decode($lexicon, true);
-        }
-
-        if (! is_array($lexicon) || ! isset($lexicon[$bucket]) || ! is_array($lexicon[$bucket])) {
-            return [];
-        }
-
-        return array_values($lexicon[$bucket]);
+        return isset($lexicon[$bucket]) && is_array($lexicon[$bucket])
+            ? array_values($lexicon[$bucket])
+            : [];
     }
 
     private function tenantFloat(ConfigurationEnum $key): ?float
