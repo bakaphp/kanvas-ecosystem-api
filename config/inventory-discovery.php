@@ -41,6 +41,36 @@ return [
             'budget',
             'cheap',
         ],
+
+        /*
+         * Who the gift is FOR. A filter, not a ranking signal — an embedding reads
+         * "for a man" and "para mujeres" as similar rather than contradictory.
+         *
+         * Relationship words over bare "man"/"woman": a shopper says "para mi novia"
+         * far more often than "para una mujer". Accents fold before matching, so a
+         * tenant adding "mama" also covers "mamá".
+         */
+        'audience_male' => [
+            'for him', 'boyfriend', 'husband', 'father', 'dad', 'brother',
+            'son', 'uncle', 'man', 'men', 'male',
+        ],
+        'audience_female' => [
+            'for her', 'girlfriend', 'wife', 'mother', 'mom', 'sister',
+            'daughter', 'aunt', 'woman', 'women', 'female',
+        ],
+        'audience_kids' => [
+            'kid', 'kids', 'child', 'children', 'boy', 'girl',
+        ],
+        'audience_baby' => [
+            'baby', 'newborn', 'infant',
+        ],
+        'audience_teen' => [
+            'teen', 'teenager', 'adolescent',
+        ],
+        'audience_senior' => [
+            'senior', 'elderly', 'retiree', 'grandmother', 'grandma',
+            'grandfather', 'grandpa',
+        ],
     ],
 
     /*
@@ -64,6 +94,12 @@ return [
     'typesense_query_by' => 'search_blurb,name,description',
 
     'typesense_query_by_weights' => '3,2,1',
+
+    /*
+     * Leading name tokens forming the per-group cap key. The whole name is too fine:
+     * "Perfume Premium 31/37/38" are three names and one product. 0 = whole name.
+     */
+    'group_by_tokens' => 2,
 
     /*
      * Gift wrapping is the canonical case: it scores highly on a gift query and is

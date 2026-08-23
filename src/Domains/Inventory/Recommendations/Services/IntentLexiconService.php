@@ -6,6 +6,7 @@ namespace Kanvas\Inventory\Recommendations\Services;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Support\Str;
+use Kanvas\Inventory\Recommendations\Enums\AudienceEnum;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 
 /**
@@ -56,31 +57,35 @@ class IntentLexiconService
     }
 
     /**
-     * Both buckets in one globally-ordered map, longest first: "no mas de" (a max)
-     * contains "mas de" (a min), and PCRE takes the first matching alternative —
-     * shorter-first would parse "no mas de 50" as a floor and invert the filter.
-     *
      * @return array<string, string> phrase => bucket
      */
     public function priceDirectives(): array
     {
-        $tagged = [];
+        return $this->directives([self::MAX_PRICE, self::MIN_PRICE]);
+    }
 
-        foreach ([self::MAX_PRICE, self::MIN_PRICE] as $bucket) {
-            foreach ($this->termsFor($bucket) as $term) {
-                $tagged[$term] ??= $bucket;
-            }
+    /**
+     * @param string $normalized a sentence already put through normalize()
+     */
+    public function matchAudience(string $normalized): ?AudienceEnum
+    {
+        $audiences = [];
+
+        foreach (AudienceEnum::matchable() as $audience) {
+            $audiences[$audience->lexiconBucket()] = $audience;
         }
 
-        $terms = array_keys($tagged);
-        $this->sortLongestFirst($terms);
+        $directives = $this->directives(array_keys($audiences));
 
-        $ordered = [];
-        foreach ($terms as $term) {
-            $ordered[$term] = $tagged[$term];
+        if ($directives === []) {
+            return null;
         }
 
-        return $ordered;
+        $alternation = implode('|', array_map('preg_quote', array_keys($directives)));
+
+        return preg_match('/\b(' . $alternation . ')\b/u', $normalized, $matches) === 1
+            ? $audiences[$directives[$matches[1]]]
+            : null;
     }
 
     /**
@@ -112,6 +117,37 @@ class IntentLexiconService
     {
         return $this->tenantFloat(ConfigurationEnum::CHEAP_MAX_PRICE)
             ?? (float) config('inventory-discovery.cheap_max_price', 50.0);
+    }
+
+    /**
+     * Every bucket in one globally-ordered map, longest phrase first: "no mas de"
+     * (a max) contains "mas de" (a min) and "grandmother" contains "mother", and
+     * PCRE takes the first matching alternative — shorter-first would parse
+     * "no mas de 50" as a floor and a grandmother as a mother.
+     *
+     * @param list<string> $buckets
+     *
+     * @return array<string, string> phrase => bucket
+     */
+    private function directives(array $buckets): array
+    {
+        $tagged = [];
+
+        foreach ($buckets as $bucket) {
+            foreach ($this->termsFor($bucket) as $term) {
+                $tagged[$term] ??= $bucket;
+            }
+        }
+
+        $terms = array_keys($tagged);
+        $this->sortLongestFirst($terms);
+
+        $ordered = [];
+        foreach ($terms as $term) {
+            $ordered[$term] = $tagged[$term];
+        }
+
+        return $ordered;
     }
 
     /**

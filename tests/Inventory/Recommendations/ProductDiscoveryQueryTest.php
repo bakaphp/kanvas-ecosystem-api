@@ -25,6 +25,7 @@ use Tests\TestCase;
 class ProductDiscoveryQueryTest extends TestCase
 {
     use DatabaseTransactions;
+    use PinsSearchEngine;
 
     protected $connectionsToTransact = [null, 'inventory'];
 
@@ -40,29 +41,17 @@ class ProductDiscoveryQueryTest extends TestCase
         }
     ';
 
-    private mixed $originalEngine = null;
-
     protected function setUp(): void
     {
         parent::setUp();
 
         Cache::flush();
-
-        // These cases assert what the SQL path returns. Whichever engine the app
-        // happens to be pointed at otherwise would send the query to a live
-        // cluster and the assertions would depend on what is indexed there.
-        $app = app(Apps::class);
-        $this->originalEngine = $app->get('products_search_engine');
-        $app->set('products_search_engine', 'database');
+        $this->pinSearchEngine();
     }
 
     protected function tearDown(): void
     {
-        $app = app(Apps::class);
-
-        is_string($this->originalEngine)
-            ? $app->set('products_search_engine', $this->originalEngine)
-            : $app->del('products_search_engine');
+        $this->restoreSearchEngine();
 
         parent::tearDown();
     }

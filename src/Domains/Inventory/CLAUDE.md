@@ -302,6 +302,33 @@ matching on the product name — see §7.
    - `config.enrichment.facets` — the controlled vocabulary
 4. Backfill: `php artisan kanvas-inventory:backfill-product-enrichment {app} [--company_id=] [--sync]`
 
+### Recipient filtering (`audience`)
+
+Enrichment tags every product with `audience` from a closed vocabulary — `male, female, unisex,
+kids, baby, teen, senior` — and `Products::toSearchableArray()` copies it to a flat, facetable
+`audience` field so `filter_by` can act on it. A product with no enrichment indexes as `unknown`
+rather than empty, because Typesense has no dependable "this array is empty" test.
+
+`ProductIntent` reads the recipient out of the sentence through the same lexicon that handles
+budget phrases, and the filter admits `[<recipient>, unisex, unknown]` — neutral products ride
+along, or a query for a man loses most of a catalog.
+
+**The shipped lexicon is English only.** A Spanish storefront gets nothing from this until it adds
+its own terms to `product_intent_lexicon` (merged, not replacing):
+
+```json
+{
+  "audience_female": ["mujer", "novia", "esposa", "mama", "madre", "hermana", "hija", "tia", "para ella"],
+  "audience_male":   ["hombre", "novio", "esposo", "papa", "padre", "hermano", "hijo", "tio", "para el"],
+  "audience_senior": ["abuela", "abuelo", "suegra", "suegro"],
+  "audience_kids":   ["nino", "nina", "chico", "chica"]
+}
+```
+
+Accents are folded before matching, so `mama` covers `mamá`. Longest match wins, so `grandmother`
+is not read as `mother`. Adding `audience` to an existing collection needs a reindex, not a drop —
+it is an ordinary field, not an embed change.
+
 ### Embeddings (required for cross-language and paraphrase matching)
 
 Without an embedding field the search is lexical only — "a luxury SUV" will not match a Spanish
@@ -328,11 +355,13 @@ reject **every** search with `Field \`embedding\` does not have a vector query i
 | Setting | Default | Effect |
 |---|---|---|
 | `product_discovery_vector_alpha` | `0.75` | Vector vs keyword weight in the hybrid search |
-| `product_discovery_max_results_per_group` | `2` | Max results sharing a product name — stops one model in five colours taking the page |
+| `product_discovery_max_results_per_group` | `2` | Max results sharing a group key — stops one model in five colours taking the page |
+| `product_discovery_group_by_tokens` | `2` | How many leading name tokens form that group key. The whole name is too fine: "Perfume Premium 31/37/38" are three names and one product. `0` groups on the whole name |
+| `product_discovery_demote_unavailable` | `true` | Sorts unpriced / out-of-stock products below buyable ones. Nothing is dropped, so a thin catalog still fills the page |
 | `product_discovery_excluded_categories` | `[]` | Category names dropped from every result, however well they match. Gift wrap is the canonical case: on a gift catalog "Envoltura" scores highly on every gift query and is never the gift. Matched case- and accent-insensitively |
 | `product_semantic_profile_strategy` | `generic` | Who the blurbs are written for — `gift` (buying for someone else, describe the recipient) or `generic` (buying for themselves, describe the need). Changing it invalidates every existing blurb; see below |
 | `product_discovery_cache_ttl` | `1800` | Seconds a non-empty candidate list is cached |
-| `product_intent_lexicon` | — | Tenant-language budget phrases, MERGED over the shipped English (§`config/inventory-discovery.php`) |
+| `product_intent_lexicon` | — | Tenant-language budget AND recipient phrases, MERGED over the shipped English (§`config/inventory-discovery.php`). **A non-English storefront must set the `audience_*` buckets or the recipient filter never fires** |
 | `product_discovery_premium_min_price` / `_cheap_max_price` | config | Price band for vague signals ("de lujo", "barato") |
 
 ### Order of operations
@@ -375,6 +404,17 @@ php artisan kanvas-inventory:evaluate-product-discovery {app} {company} --file=g
 A row with `results_count = 0` is the most useful thing in that table: it is either a catalog gap or
 a blurb that failed to describe what the shopper asked for.
 
+Drafting the judged set is a command, because pruning a list is much faster than building one:
+
+```bash
+php artisan kanvas-inventory:scaffold-golden-set {app} {company} --cases=20 --out=golden.json
+# delete the wrong ids, add anything missing, then
+php artisan kanvas-inventory:evaluate-product-discovery {app} {company} --file=golden.json
+```
+
+Queries come from the impression log, so the set scores what shoppers actually ask. Pass
+`--query="..."` to draft from queries you supply instead.
+
 ---
 
 ## 9. Gotchas
@@ -413,6 +453,20 @@ a blurb that failed to describe what the shopper asked for.
   `generic` to `gift` reopens the gate on every product, so a plain re-run of the backfill rewrites
   the blurbs — no clearing `search_enrichment_hash` by hand. Setting it *after* a catalog is already
   enriched costs a full re-enrichment, so set it before step 4.
+- **An embedding cannot do negation.** "regalo para hombre" and a blurb reading "para mujeres" are
+  SIMILAR to a vector — both are about gifting to a person — not opposite. That is why a Victoria's
+  Secret gift card ranked on a man's query even though its blurb said who it was for. Recipient is
+  enforced as a `filter_by` on the flat `audience` field, never left to ranking. Same reasoning
+  applies to any other axis where being approximately right is actually being wrong.
+- **Do NOT denylist a product that is wrong only in context.** `product_discovery_excluded_categories`
+  is for things that are never the answer — wrap, shipping, warranties. A gift card IS a gift; it was
+  wrong for a *man*, not wrong in general, and excluding it would also break "regalo para mi novia".
+  Contextual wrongness is a filter problem, not a denylist problem.
+- **A blurb the model invented is worse than no blurb.** Seed rows like "Perfume Premium 38" carry
+  no description and no attributes, so the enrichment agent used to invent an audience — "para
+  quienes buscan una fragancia sofisticada, ocasiones especiales" — which matches every gift query
+  equally and floods the page. The prompt now tells it to state only what the name says when there
+  is nothing to differentiate on. Watch for that phrasing in `--explain` output; it is the tell.
 - **Gift wrap outranks the gift.** A "regalo para mi suegra" query matches a gift-wrap blurb almost
   perfectly, because the blurb genuinely is about giving. Nothing in the ranking can tell the
   wrapping from the present — put those categories in `product_discovery_excluded_categories`.

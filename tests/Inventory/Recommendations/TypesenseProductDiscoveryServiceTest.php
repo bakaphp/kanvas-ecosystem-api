@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
+use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Services\IntentLexiconService;
 use Kanvas\Inventory\Recommendations\Services\TypesenseProductDiscoveryService;
 use Mockery;
@@ -72,6 +73,63 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
 
         $filter = $this->capturedSearches[0]['searches'][0]['filter_by'];
         $this->assertStringContainsString('|| price:=0', $filter);
+    }
+
+    public function testFiltersToTheRecipientTheSentenceNames(): void
+    {
+        $service = $this->service($this->response([[10]]));
+
+        $service->search($this->intent('a gift for my girlfriend'), 5);
+
+        $filter = $this->capturedSearches[0]['searches'][0]['filter_by'];
+
+        // Neutral and un-enriched products ride along, or the filter would throw
+        // away most of a catalog to answer a question about gender.
+        $this->assertStringContainsString('audience:[female, unisex, unknown]', $filter);
+    }
+
+    public function testTakesTheLongestRecipientMatchNotTheFirst(): void
+    {
+        $service = $this->service($this->response([[10]]));
+
+        // "grandmother" contains "mother"; a first-match parse reads a query for a
+        // grandmother as one for a mother and filters on the wrong audience.
+        $service->search($this->intent('a gift for my grandmother'), 5);
+
+        $this->assertStringContainsString('audience:[senior,', $this->capturedSearches[0]['searches'][0]['filter_by']);
+    }
+
+    public function testReadsTheRecipientFromTheTenantsOwnLanguage(): void
+    {
+        // Shipped config is English only. A Spanish storefront gets nothing out of
+        // this filter until it adds its own terms — which is the whole point of
+        // the lexicon being merged rather than replaced.
+        $app = app(Apps::class);
+        $original = $app->get(ConfigurationEnum::INTENT_LEXICON->value);
+        $app->set(ConfigurationEnum::INTENT_LEXICON->value, [
+            'audience_female' => ['novia', 'mama', 'suegra'],
+        ]);
+
+        try {
+            $service = $this->service($this->response([[10]]), $app);
+            $service->search($this->intent('un regalo para mi suegra'), 5);
+
+            $this->assertStringContainsString(
+                'audience:[female,',
+                $this->capturedSearches[0]['searches'][0]['filter_by'],
+            );
+        } finally {
+            $app->set(ConfigurationEnum::INTENT_LEXICON->value, $original ?? []);
+        }
+    }
+
+    public function testDoesNotFilterOnAudienceWhenTheSentenceNamesNoOne(): void
+    {
+        $service = $this->service($this->response([[10]]));
+
+        $service->search($this->intent('algo bonito'), 5);
+
+        $this->assertStringNotContainsString('audience:', $this->capturedSearches[0]['searches'][0]['filter_by']);
     }
 
     public function testOmitsTheVectorQueryWhenTheCollectionHasNoEmbeddingField(): void

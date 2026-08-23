@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Search\SearchEngineResolver;
 use Kanvas\Inventory\Recommendations\Contracts\ProductDiscoveryInterface;
 use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
+use Kanvas\Inventory\Recommendations\Enums\AudienceEnum;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Override;
@@ -121,6 +122,15 @@ class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
 
         if ($intent->maxPrice !== null) {
             $filters[] = sprintf('price:<=%s', $intent->maxPrice);
+        }
+
+        if ($intent->audience !== null) {
+            $admitted = [$intent->audience, ...AudienceEnum::alwaysIncluded()];
+
+            $filters[] = sprintf(
+                'audience:[%s]',
+                implode(', ', array_map(static fn (AudienceEnum $a): string => $a->value, $admitted)),
+            );
         }
 
         return implode(' && ', $filters);

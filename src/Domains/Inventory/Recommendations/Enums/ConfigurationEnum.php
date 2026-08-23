@@ -21,6 +21,8 @@ enum ConfigurationEnum: string
     case CACHE_TTL = 'product_discovery_cache_ttl';
     case MAX_RESULTS_PER_GROUP = 'product_discovery_max_results_per_group';
     case EXCLUDED_CATEGORIES = 'product_discovery_excluded_categories';
+    case GROUP_BY_TOKENS = 'product_discovery_group_by_tokens';
+    case DEMOTE_UNAVAILABLE = 'product_discovery_demote_unavailable';
 
     /**
      * A list setting comes back as an array from Redis but as a JSON string when a
