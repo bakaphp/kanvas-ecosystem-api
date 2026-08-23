@@ -8,16 +8,16 @@
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
-            "version": "4.46.3",
+            "version": "4.47.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/algolia/algoliasearch-client-php.git",
-                "reference": "66ffb94de86a45248a7fb31decf9a1ecb4e8c90f"
+                "reference": "d2ad9378c66681536d49f29134717a1d4cd66b6c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/algolia/algoliasearch-client-php/zipball/66ffb94de86a45248a7fb31decf9a1ecb4e8c90f",
-                "reference": "66ffb94de86a45248a7fb31decf9a1ecb4e8c90f",
+                "url": "https://api.github.com/repos/algolia/algoliasearch-client-php/zipball/d2ad9378c66681536d49f29134717a1d4cd66b6c",
+                "reference": "d2ad9378c66681536d49f29134717a1d4cd66b6c",
                 "shasum": ""
             },
             "require": {
@@ -69,9 +69,9 @@
             ],
             "support": {
                 "issues": "https://github.com/algolia/algoliasearch-client-php/issues",
-                "source": "https://github.com/algolia/algoliasearch-client-php/tree/4.46.3"
+                "source": "https://github.com/algolia/algoliasearch-client-php/tree/4.47.0"
             },
-            "time": "2026-07-15T15:15:42+00:00"
+            "time": "2026-08-18T12:43:34+00:00"
         },
         {
             "name": "algolia/scout-extended",
@@ -7516,20 +7516,20 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.16.5",
+            "version": "3.16.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "8c8d27a450eb304ddcc21ac656e462df32bf0888"
+                "reference": "ff91189d5279099db749b830831ed6b384296ace"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/8c8d27a450eb304ddcc21ac656e462df32bf0888",
-                "reference": "8c8d27a450eb304ddcc21ac656e462df32bf0888",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/ff91189d5279099db749b830831ed6b384296ace",
+                "reference": "ff91189d5279099db749b830831ed6b384296ace",
                 "shasum": ""
             },
             "require": {
-                "guzzlehttp/guzzle": "^7.0",
+                "guzzlehttp/guzzle": "^7.0 || ^8.0",
                 "inspector-apm/inspector-php": "^3.18",
                 "php": "^8.1",
                 "psr/http-message": "^1.0|^2.0"
@@ -7538,7 +7538,7 @@
                 "amphp/amp": "^3.1.1",
                 "amphp/http-client": "^5.3",
                 "aws/aws-sdk-php": "^3.209",
-                "elasticsearch/elasticsearch": "^8.0",
+                "elasticsearch/elasticsearch": "^8.0|^9.0",
                 "ext-pdo": "*",
                 "friendsofphp/php-cs-fixer": "^3.75",
                 "google/auth": "^1.49",
@@ -7576,7 +7576,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.16.5"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.16.6"
             },
             "funding": [
                 {
@@ -7584,7 +7584,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-13T08:35:28+00:00"
+            "time": "2026-08-18T01:35:54+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
@@ -18302,16 +18302,16 @@
         },
         {
             "name": "laravel/boost",
-            "version": "v2.5.3",
+            "version": "v2.5.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/boost.git",
-                "reference": "f5f9297225aba9857d014b3140f55a7c50cb1a92"
+                "reference": "778f4c9bfc5c8a92af660a85cd843be8189ffe34"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/boost/zipball/f5f9297225aba9857d014b3140f55a7c50cb1a92",
-                "reference": "f5f9297225aba9857d014b3140f55a7c50cb1a92",
+                "url": "https://api.github.com/repos/laravel/boost/zipball/778f4c9bfc5c8a92af660a85cd843be8189ffe34",
+                "reference": "778f4c9bfc5c8a92af660a85cd843be8189ffe34",
                 "shasum": ""
             },
             "require": {
@@ -18364,7 +18364,7 @@
                 "issues": "https://github.com/laravel/boost/issues",
                 "source": "https://github.com/laravel/boost"
             },
-            "time": "2026-08-07T05:46:02+00:00"
+            "time": "2026-08-18T00:31:54+00:00"
         },
         {
             "name": "laravel/doctor",
@@ -18438,16 +18438,16 @@
         },
         {
             "name": "laravel/mcp",
-            "version": "v0.9.3",
+            "version": "v0.9.4",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/mcp.git",
-                "reference": "534b29f18418673033ec918c5a840b6ce9c08327"
+                "reference": "7ca5b923630118696602d14348cd0466a5e853ec"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/mcp/zipball/534b29f18418673033ec918c5a840b6ce9c08327",
-                "reference": "534b29f18418673033ec918c5a840b6ce9c08327",
+                "url": "https://api.github.com/repos/laravel/mcp/zipball/7ca5b923630118696602d14348cd0466a5e853ec",
+                "reference": "7ca5b923630118696602d14348cd0466a5e853ec",
                 "shasum": ""
             },
             "require": {
@@ -18508,7 +18508,7 @@
                 "issues": "https://github.com/laravel/mcp/issues",
                 "source": "https://github.com/laravel/mcp"
             },
-            "time": "2026-08-10T18:01:31+00:00"
+            "time": "2026-08-13T15:01:07+00:00"
         },
         {
             "name": "laravel/roster",
@@ -18574,16 +18574,16 @@
         },
         {
             "name": "mockery/mockery",
-            "version": "1.6.13",
+            "version": "1.6.14",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mockery/mockery.git",
-                "reference": "9cb54414cdcd2ec5ca292e7ba19dba3a3444885d"
+                "reference": "d5362ead1f26e220e64ade458efa4e997f5a8fc0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mockery/mockery/zipball/9cb54414cdcd2ec5ca292e7ba19dba3a3444885d",
-                "reference": "9cb54414cdcd2ec5ca292e7ba19dba3a3444885d",
+                "url": "https://api.github.com/repos/mockery/mockery/zipball/d5362ead1f26e220e64ade458efa4e997f5a8fc0",
+                "reference": "d5362ead1f26e220e64ade458efa4e997f5a8fc0",
                 "shasum": ""
             },
             "require": {
@@ -18652,7 +18652,7 @@
                 "security": "https://github.com/mockery/mockery/security/advisories",
                 "source": "https://github.com/mockery/mockery"
             },
-            "time": "2026-08-15T03:07:32+00:00"
+            "time": "2026-08-18T20:07:53+00:00"
         },
         {
             "name": "myclabs/deep-copy",
