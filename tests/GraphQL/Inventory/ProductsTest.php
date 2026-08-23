@@ -142,6 +142,95 @@ class ProductsTest extends TestCase
         );
     }
 
+    public function testSortByAttributeIsNotSqlInjectable(): void
+    {
+        $sku = fake()->unique()->uuid();
+        $data = [
+            'name' => fake()->name,
+            'description' => fake()->text,
+            'sku' => $sku,
+            'attributes' => [
+                [
+                    'name' => fake()->name,
+                    'value' => 0,
+                ],
+            ],
+        ];
+        $this->createProduct($data);
+
+        // A quote in the attribute name must be treated as data, not SQL. With the old
+        // string-interpolated selectRaw this breaks out of the literal and the query
+        // fails with a SQL syntax error; parameterized, it is a harmless literal.
+        $payload = "1' OR SLEEP(0)-- -";
+
+        $response = $this->graphQL(
+            '
+            query ($order: ProductAttributeOrderBy) {
+                products(attributeOrderBy: $order) {
+                    data {
+                        id
+                        name
+                    }
+                }
+            }',
+            ['order' => ['name' => $payload, 'sort' => 'ASC', 'format' => 'STRING']]
+        );
+
+        $response->assertSuccessful();
+        $this->assertNull(
+            $response->json('errors'),
+            'attributeOrderBy.name is not parameterized — SQL error leaked: ' . json_encode($response->json('errors'))
+        );
+        $this->assertIsArray($response->json('data.products.data'));
+    }
+
+    public function testSortByVariantAttributeIsNotSqlInjectable(): void
+    {
+        $sku = fake()->unique()->uuid();
+        $attributeName = fake()->name;
+        $data = [
+            'name' => fake()->name,
+            'description' => fake()->text,
+            'sku' => $sku,
+            'variants' => [
+                [
+                    'name' => fake()->name,
+                    'description' => fake()->text,
+                    'sku' => $sku,
+                    'attributes' => [
+                        [
+                            'name' => $attributeName,
+                            'value' => 0,
+                        ],
+                    ],
+                ],
+            ],
+        ];
+        $this->createProduct($data);
+
+        $payload = "1' OR SLEEP(0)-- -";
+
+        $response = $this->graphQL(
+            '
+            query ($order: ProductAttributeOrderBy) {
+                products(variantAttributeOrderBy: $order) {
+                    data {
+                        id
+                        name
+                    }
+                }
+            }',
+            ['order' => ['name' => $payload, 'sort' => 'ASC', 'format' => 'STRING']]
+        );
+
+        $response->assertSuccessful();
+        $this->assertNull(
+            $response->json('errors'),
+            'variantAttributeOrderBy.name is not parameterized — SQL error leaked: ' . json_encode($response->json('errors'))
+        );
+        $this->assertIsArray($response->json('data.products.data'));
+    }
+
     public function testFilterByNearByLocation(): void
     {
         $sku = fake()->unique()->uuid();
