@@ -10,6 +10,7 @@ use Illuminate\Support\Str;
 use Kanvas\Connectors\WaSender\DataTransferObject\InboundMessage;
 use Kanvas\Connectors\WaSender\Enums\BurstConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
+use Kanvas\Connectors\WaSender\Exceptions\WaSenderRefusedException;
 use Kanvas\Connectors\WaSender\Jobs\ProcessGroupBurstJob;
 use Kanvas\Connectors\WaSender\Services\GroupBurstService;
 use Kanvas\Filesystem\Services\FilesystemServices;
@@ -147,7 +148,21 @@ abstract class BaseInboundMessageAction
         try {
             new DownloadMessageFileAction($this->channel, $message)->execute();
         } catch (Throwable $e) {
-            // One bad attachment must not sink the burst; the text still reaches the agent.
+            $this->recordMediaFailure($message, $e);
+        }
+    }
+
+    /**
+     * A refusal is the provider answering, not faulting: a 39MB clip exceeds WaSender's 25MB decrypt
+     * limit and no retry changes that, so reporting it only floods Sentry (KANVAS-ECOSYSTEM-68N).
+     * A missing api key, a network fault or storage still is a fault, and still reports.
+     */
+    private function recordMediaFailure(Message $message, Throwable $e): void
+    {
+        $message->addTag('media-not-downloaded');
+        $message->set('media_download_error', mb_substr($e->getMessage(), 0, 500));
+
+        if (! $e instanceof WaSenderRefusedException) {
             report($e);
         }
     }
