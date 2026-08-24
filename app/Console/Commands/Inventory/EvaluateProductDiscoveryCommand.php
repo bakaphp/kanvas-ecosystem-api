@@ -33,7 +33,8 @@ class EvaluateProductDiscoveryCommand extends Command
                             {--k=10 : Cut-off for recall@k}
                             {--limit= : Results to request per query, defaults to k}
                             {--min-recall= : Exit non-zero when mean recall falls below this (0-1), for CI}
-                            {--show-misses : Print the returned ids for cases that scored zero}';
+                            {--show-misses : Print the returned ids for cases that scored zero}
+                            {--allow-unjudged : Score cases still flagged unjudged, which self-compare and always pass}';
 
     /**
      * @var string
@@ -53,6 +54,19 @@ class EvaluateProductDiscoveryCommand extends Command
 
         if ($cases === []) {
             return self::FAILURE;
+        }
+
+        $unjudged = count(array_filter($cases, static fn (array $case): bool => (bool) ($case['unjudged'] ?? false)));
+
+        if ($unjudged > 0) {
+            $this->error($unjudged . ' of ' . count($cases) . ' case(s) are still marked unjudged.');
+            $this->line('They hold whatever discovery returned when the set was drafted, so scoring them '
+                . 'compares discovery against itself and reports a perfect result. Delete the wrong ids, '
+                . 'then remove the "unjudged" flag. Pass --allow-unjudged to score anyway.');
+
+            if (! $this->option('allow-unjudged')) {
+                return self::FAILURE;
+            }
         }
 
         $k = max(1, (int) $this->option('k'));
@@ -155,7 +169,7 @@ class EvaluateProductDiscoveryCommand extends Command
     }
 
     /**
-     * @return list<array{query: string, relevant_product_ids: list<int>}>
+     * @return list<array{query: string, relevant_product_ids: list<int>, unjudged: bool}>
      */
     private function loadCases(): array
     {
@@ -185,6 +199,7 @@ class EvaluateProductDiscoveryCommand extends Command
             $cases[] = [
                 'query' => (string) $case['query'],
                 'relevant_product_ids' => array_map('intval', $case['relevant_product_ids']),
+                'unjudged' => (bool) ($case['unjudged'] ?? false),
             ];
         }
 

@@ -74,6 +74,33 @@ return [
     ],
 
     /*
+     * Ready-made term sets a storefront can adopt wholesale, written into the
+     * `product_intent_lexicon` app setting by configure_product_discovery. Shipped
+     * config stays English; without one of these a Spanish shopper's "de lujo",
+     * "barato" and "para mi novia" parse as nothing at all.
+     */
+    'intent_lexicon_translations' => [
+        'es' => [
+            'max_price' => ['menos de', 'no mas de', 'hasta', 'maximo', 'por debajo de'],
+            'min_price' => ['mas de', 'desde', 'a partir de', 'por encima de'],
+            'premium' => ['de lujo', 'lujoso', 'caro', 'costoso', 'exclusivo', 'de gama alta'],
+            'cheap' => ['barato', 'economico', 'accesible', 'asequible'],
+            'audience_male' => [
+                'hombre', 'novio', 'esposo', 'marido', 'papa', 'padre', 'hermano',
+                'hijo', 'tio', 'primo', 'amigo', 'jefe', 'companero', 'para el',
+            ],
+            'audience_female' => [
+                'mujer', 'novia', 'esposa', 'mama', 'madre', 'hermana', 'hija',
+                'tia', 'prima', 'amiga', 'jefa', 'companera', 'para ella',
+            ],
+            'audience_kids' => ['nino', 'nina', 'chico', 'chica', 'sobrino', 'sobrina'],
+            'audience_baby' => ['bebe', 'recien nacido'],
+            'audience_teen' => ['adolescente', 'quinceanera'],
+            'audience_senior' => ['abuelo', 'abuela', 'suegro', 'suegra'],
+        ],
+    ],
+
+    /*
      * Dropped before term matching so "regalo para mi esposo" searches the nouns
      * rather than the whole phrase. Only used by the SQL fallback — an engine
      * does its own tokenizing.

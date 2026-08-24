@@ -54,6 +54,31 @@ class EvaluateProductDiscoveryCommandTest extends TestCase
             ->assertExitCode(0);
     }
 
+    public function testRefusesToScoreASetNobodyHasJudged(): void
+    {
+        $product = $this->makeProduct('Reloj de lujo');
+
+        // A scaffolded case holds whatever discovery returned, so scoring it
+        // compares discovery against itself and always reports a perfect result —
+        // the most misleading output this command could produce.
+        $file = $this->goldenSet([
+            ['query' => 'reloj', 'relevant_product_ids' => [$product->getId()], 'unjudged' => true],
+        ]);
+
+        $this->artisan('kanvas-inventory:evaluate-product-discovery', [
+            'app_id' => app(Apps::class)->getId(),
+            'company_id' => $this->company()->getId(),
+            '--file' => $file,
+        ])->assertExitCode(1);
+
+        $this->artisan('kanvas-inventory:evaluate-product-discovery', [
+            'app_id' => app(Apps::class)->getId(),
+            'company_id' => $this->company()->getId(),
+            '--file' => $file,
+            '--allow-unjudged' => true,
+        ])->assertExitCode(0);
+    }
+
     public function testReportsZeroWhenNothingRelevantSurfaces(): void
     {
         $this->makeProduct('Reloj de lujo');

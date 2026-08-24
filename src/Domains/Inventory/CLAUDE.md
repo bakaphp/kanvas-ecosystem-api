@@ -313,9 +313,11 @@ rather than empty, because Typesense has no dependable "this array is empty" tes
 budget phrases, and the filter admits `[<recipient>, unisex, unknown]` — neutral products ride
 along, or a query for a man loses most of a catalog.
 
-**The shipped lexicon is English only.** A Spanish storefront gets nothing from this until it adds
-its own terms to `product_intent_lexicon` (merged, not replacing). Cover friends and coworkers, not
-just family — "para un amigo" is one of the most common gift queries there is:
+**The shipped lexicon is English only**, and that kills budget parsing too — "de lujo" and "barato"
+are as dead as "para mi novia". The fastest fix is `configure_product_discovery(catalog_language: "es")`,
+which writes the shipped Spanish set from `intent_lexicon_translations` into `product_intent_lexicon`.
+To hand-write it, cover friends and coworkers, not just family — "para un amigo" is one of the most
+common gift queries there is:
 
 ```json
 {

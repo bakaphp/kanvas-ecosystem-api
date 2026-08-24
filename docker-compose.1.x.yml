@@ -323,6 +323,14 @@ services:
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=ledger
         --tries=3 --timeout=3750"
+  slack-ingest-queue:
+    <<: *common-queue-settings
+    container_name: slack-ingest-queue
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work
+        --queue=slack-ingest --tries=3 --timeout=3750"
   nervous-system-project-queue:
     <<: *common-queue-settings
     container_name: nervous-system-project-queue

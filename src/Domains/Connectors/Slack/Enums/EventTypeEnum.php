@@ -11,6 +11,9 @@ enum EventTypeEnum: string
     case MESSAGE = 'message';
     case APP_UNINSTALLED = 'app_uninstalled';
     case TOKENS_REVOKED = 'tokens_revoked';
+    case CHANNEL_CREATED = 'channel_created';
+    case MESSAGE_CHANGED = 'message_changed';
+    case MESSAGE_DELETED = 'message_deleted';
 
     public static function isLifecycle(?string $type): bool
     {

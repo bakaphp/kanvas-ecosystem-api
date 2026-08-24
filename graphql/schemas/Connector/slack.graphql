@@ -1,17 +1,12 @@
 input ConnectSlackAgentInput {
     agent_id: ID!
-    "Bot token (xoxb-…) from the app's OAuth & Permissions page. A user token (xoxp-) is rejected."
     bot_token: String!
-    "Signing secret from the app's Basic Information page. Used to verify every inbound event."
     signing_secret: String!
 }
 
 type SlackAgentManifest {
-    "Slack app manifest for this agent. Paste into Slack's 'create from manifest' if the link is blocked."
     manifest_json: String!
-    "Open this: Slack creates the app in the user's own workspace, pre-wired to us. Needs a Slack admin."
     install_url: String!
-    "Where the agent's Slack app posts events. Stable across disconnect/reconnect."
     request_url: String!
 }
 
@@ -24,13 +19,11 @@ type SlackAgentConnection {
 }
 
 extend type Query @guard {
-    "Step 1 — mint the agent's Slack app manifest + install link. Creates the agent's receiver on first call."
     slackAgentManifest(agent_id: ID!): SlackAgentManifest!
         @field(
             resolver: "App\\GraphQL\\Connector\\Slack\\SlackConnectorResolver@manifest"
         )
 
-    "Is this agent currently listening on Slack? null when not connected — use it to render the tile on load."
     slackAgentConnection(agent_id: ID!): SlackAgentConnection
         @field(
             resolver: "App\\GraphQL\\Connector\\Slack\\SlackConnectorResolver@connection"
@@ -38,15 +31,66 @@ extend type Query @guard {
 }
 
 extend type Mutation @guard {
-    "Step 2 — bind the installed Slack app to the agent. Validates the token against Slack (auth.test) and reads back the bot user + team."
     connectSlackAgent(input: ConnectSlackAgentInput!): SlackAgentConnection!
         @field(
             resolver: "App\\GraphQL\\Connector\\Slack\\SlackConnectorResolver@connect"
         )
 
-    "Stop the agent listening on Slack. Keeps the receiver URL so reconnecting doesn't need a new Slack app."
     disconnectSlackAgent(agent_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Connector\\Slack\\SlackConnectorResolver@disconnect"
+        )
+}
+
+type SlackWorkspaceListenerManifest {
+    manifest_json: String!
+    install_url: String!
+    request_url: String!
+}
+
+type SlackWorkspaceListenerStatus {
+    connected: Boolean!
+    team_id: String!
+    team_name: String!
+    bot_user_id: String!
+    request_url: String!
+    channels_joined: Int!
+}
+
+input ConnectSlackWorkspaceListenerInput {
+    bot_token: String!
+    signing_secret: String!
+    channel_deny_list: [String!]
+    ingest_files: Boolean
+}
+
+extend type Query @guardByAdmin {
+    slackWorkspaceListenerManifest: SlackWorkspaceListenerManifest!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Slack\\SlackListenerResolver@manifest"
+        )
+
+    slackWorkspaceListenerStatus: SlackWorkspaceListenerStatus
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Slack\\SlackListenerResolver@status"
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    connectSlackWorkspaceListener(
+        input: ConnectSlackWorkspaceListenerInput!
+    ): SlackWorkspaceListenerStatus!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Slack\\SlackListenerResolver@connect"
+        )
+
+    disconnectSlackWorkspaceListener: Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Slack\\SlackListenerResolver@disconnect"
+        )
+
+    resyncSlackWorkspaceChannels: Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Slack\\SlackListenerResolver@resync"
         )
 }
