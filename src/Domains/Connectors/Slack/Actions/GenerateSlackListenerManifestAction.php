@@ -72,12 +72,12 @@ class GenerateSlackListenerManifestAction
 
     private function manifest(string $requestUrl): array
     {
-        $name = mb_substr(trim($this->company->name) . ' Listener', 0, self::MAX_APP_NAME);
+        $name = mb_substr(trim($this->company->name) . ' Pulse', 0, self::MAX_APP_NAME);
 
         return [
             'display_information' => [
                 'name' => $name,
-                'description' => 'Records workspace conversation into Kanvas. Read-only: it never posts.',
+                'description' => 'Records workspace conversation into Kanvas Nervous System.',
             ],
             'features' => [
                 'bot_user' => [

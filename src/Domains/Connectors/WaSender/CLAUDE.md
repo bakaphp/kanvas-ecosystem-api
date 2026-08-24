@@ -204,6 +204,14 @@ resolves it via `/api/lid-from-phone-number`, caching it on the receiver as `own
 lookup backs off for an hour. In `mention` mode the agent cannot see a mention until that resolves —
 use `always` for a first smoke test rather than concluding detection is broken.
 
+**A provider refusal is not a fault.** `Client` turns any 4xx into `WaSenderRefusedException`, and
+`recordMediaFailure()` skips the Sentry report for it — media over WaSender's **25MB decrypt limit**
+(a 39MB clip 400s every time, KANVAS-ECOSYSTEM-68N), an expired media key, an unsupported type. None
+of it changes on a retry. The message is tagged `media-not-downloaded` with the reason in a
+`media_download_error` custom field, and the burst carries on — for a video the poster already
+reached the agent, so the article still publishes, just without the clip. Everything else — a missing
+api key, a network fault, storage — still reports.
+
 **Our own message never arms a burst.** `messages.upsert` echoes outgoing messages back; bursting one
 would have the agent answer itself forever. It is still filed (history must be complete, and it is
 where the lid is learned).
