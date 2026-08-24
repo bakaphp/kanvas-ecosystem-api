@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Enums\SemanticProfileStrategyEnum;
 use Kanvas\Inventory\Recommendations\Services\ProductDiscoveryStatusService;
+use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -79,6 +80,28 @@ class ConfigureProductDiscoveryTool extends Tool
                 required: false,
             ),
             new ToolProperty(
+                name: 'catalog_language',
+                type: PropertyType::STRING,
+                description: 'Two-letter language the shoppers actually type, e.g. "es". Shipped term '
+                    . 'matching is English ONLY, so on a Spanish storefront "de lujo", "barato" and '
+                    . '"para mi novia" parse as nothing until this is set — budget filters and recipient '
+                    . 'filtering are both silently dead. Adds that language\'s terms alongside the '
+                    . 'English ones rather than replacing them. Omit for an English catalog.',
+                required: false,
+            ),
+            new ArrayProperty(
+                name: 'excluded_categories',
+                description: 'Category names that are NEVER the answer, however well they match — gift '
+                    . 'wrap, shipping fees, warranties, installation. These are transaction mechanics, not '
+                    . 'products anyone wants. Do NOT list something that is merely wrong for one shopper: a '
+                    . 'gift card IS a gift, it was only wrong for a man, and excluding it would break the '
+                    . 'query where it belongs — that is what recipient filtering is for. This is a hard drop '
+                    . 'with no fallback, so a shopper searching the category itself gets nothing. Matched '
+                    . 'case- and accent-insensitively. Empty array clears.',
+                required: false,
+                items: new ToolProperty(name: 'category', type: PropertyType::STRING, description: 'A category name.'),
+            ),
+            new ToolProperty(
                 name: 'typesense_api_key',
                 type: PropertyType::STRING,
                 description: 'Typesense API key, if this app needs its own rather than the platform default.',
@@ -98,8 +121,10 @@ class ConfigureProductDiscoveryTool extends Tool
      */
     public function __invoke(
         ?string $catalog_type = null,
+        ?string $catalog_language = null,
         ?string $index_name = null,
         ?string $embedding_model = null,
+        ?array $excluded_categories = null,
         ?string $typesense_api_key = null,
         ?string $typesense_host = null,
     ): array {
@@ -112,7 +137,15 @@ class ConfigureProductDiscoveryTool extends Tool
         }
 
         try {
-            $applied = $this->apply($catalog_type, $index_name, $embedding_model, $typesense_api_key, $typesense_host);
+            $applied = $this->apply(
+                $catalog_type,
+                $catalog_language,
+                $index_name,
+                $embedding_model,
+                $excluded_categories,
+                $typesense_api_key,
+                $typesense_host,
+            );
             $report = new ProductDiscoveryStatusService($this->app, $this->company)->report();
         } catch (Throwable $e) {
             report($e);
@@ -132,13 +165,26 @@ class ConfigureProductDiscoveryTool extends Tool
                 'php artisan kanvas-inventory:backfill-product-enrichment ' . $this->app->getId() . ' --company_id=' . $this->company->getId(),
                 'php artisan kanvas-inventory:scout-product-index-process ' . $this->app->getId() . ' --action=reindex',
             ],
+            'gotchas' => [
+                'queue' => 'The backfill without --sync only DISPATCHES to the `product-enrichment` queue. '
+                    . 'It reports every product processed either way, so with no worker consuming that queue '
+                    . 'nothing is enriched and the count is a lie. Same for `scout` when SCOUT_QUEUE=true: '
+                    . 'the collection silently stays stale. Check both workers are up, or use --sync.',
+                'schema' => 'Reindexing does NOT add a field to a collection that already exists — Scout '
+                    . 'creates collections but never migrates them. A collection built before a field '
+                    . 'existed will never gain it by reindexing; PATCH /collections/{name} with the field, '
+                    . 'or drop and rebuild. Run check_product_discovery_setup, which reports this.',
+                'config' => 'config/inventory-discovery.php is cached in every container at boot. New '
+                    . 'shipped terms need a config cache refresh and an Octane restart before they load.',
+                'order' => 'Enrich BEFORE reindexing. Indexing an un-enriched catalog builds vectors from '
+                    . 'product names alone, and the results look broken rather than empty.',
+            ],
             'note' => 'Settings written. Enrich BEFORE reindexing — indexing an un-enriched catalog builds '
                 . 'vectors from product names alone and the results look broken. If the collection already '
                 . 'exists without an embedding field it must be dropped and rebuilt; the embed field is '
                 . 'fixed when the collection is created. Then add a workflow rule on Products '
-                . 'created + updated so new products stay enriched. If products were already enriched '
-                . 'under a different catalog_type, their blurbs are written for the wrong reader — clear '
-                . 'their search_enrichment_hash and re-run the backfill.',
+                . 'created + updated so new products stay enriched. Changing catalog_type invalidates every '
+                . 'existing blurb on its own — re-running the backfill rewrites them, no hash clearing needed.',
         ];
     }
 
@@ -147,8 +193,10 @@ class ConfigureProductDiscoveryTool extends Tool
      */
     private function apply(
         ?string $catalogType,
+        ?string $catalogLanguage,
         ?string $indexName,
         ?string $embeddingModel,
+        ?array $excludedCategories,
         ?string $apiKey,
         ?string $host,
     ): array {
@@ -177,6 +225,27 @@ class ConfigureProductDiscoveryTool extends Tool
         } else {
             $this->app->set(ConfigurationEnum::TYPESENSE_QUERY_BY->value, 'search_blurb,name,description');
             $applied[ConfigurationEnum::TYPESENSE_QUERY_BY->value] = 'search_blurb,name,description (keyword only)';
+        }
+
+        $language = mb_strtolower(trim((string) $catalogLanguage));
+        $terms = (array) config('inventory-discovery.intent_lexicon_translations.' . $language, []);
+
+        if ($terms !== []) {
+            // Merged over whatever is already there so a hand-tuned bucket survives.
+            $this->app->set(
+                ConfigurationEnum::INTENT_LEXICON->value,
+                [...ConfigurationEnum::INTENT_LEXICON->listFrom($this->app), ...$terms],
+            );
+            $applied[ConfigurationEnum::INTENT_LEXICON->value] = $language . ' terms (' . count($terms) . ' buckets)';
+        } elseif ($language !== '') {
+            $applied[ConfigurationEnum::INTENT_LEXICON->value] = "no shipped terms for '{$language}' — add them by hand";
+        }
+
+        if ($excludedCategories !== null) {
+            $names = array_values(array_filter(array_map('trim', array_filter($excludedCategories, 'is_string'))));
+
+            $this->app->set(ConfigurationEnum::EXCLUDED_CATEGORIES->value, $names);
+            $applied[ConfigurationEnum::EXCLUDED_CATEGORIES->value] = $names === [] ? 'cleared' : implode(', ', $names);
         }
 
         if ($apiKey !== null && trim($apiKey) !== '' && $host !== null && trim($host) !== '') {

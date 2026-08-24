@@ -11,4 +11,7 @@ namespace Kanvas\Inventory\Recommendations\Enums;
 enum SearchFieldEnum: string
 {
     case BLURB = 'search_blurb';
+
+    /** A product ATTRIBUTE the enrichment writes, not a custom field like the blurb. */
+    case AUDIENCE = 'audience';
 }

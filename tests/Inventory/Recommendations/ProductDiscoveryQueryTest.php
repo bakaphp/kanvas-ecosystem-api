@@ -25,6 +25,7 @@ use Tests\TestCase;
 class ProductDiscoveryQueryTest extends TestCase
 {
     use DatabaseTransactions;
+    use PinsSearchEngine;
 
     protected $connectionsToTransact = [null, 'inventory'];
 
@@ -45,6 +46,14 @@ class ProductDiscoveryQueryTest extends TestCase
         parent::setUp();
 
         Cache::flush();
+        $this->pinSearchEngine();
+    }
+
+    protected function tearDown(): void
+    {
+        $this->restoreSearchEngine();
+
+        parent::tearDown();
     }
 
     public function testReturnsResultsAndAnAttributionUuid(): void

@@ -603,22 +603,29 @@ class Message extends BaseModel
     }
 
     /**
-     * The Typesense `message` field is declared as `object`, but legacy bodies are inconsistent
-     * (plain string, list, or object — see getMessage()). Any non-object shape triggers
-     * "Field `message` has an incorrect type" on import (Sentry KANVAS-ECOSYSTEM-628), so coerce
-     * every body into an object. Cast to stdClass so an empty body encodes as `{}`, not `[]`.
+     * Bodies are inconsistent (plain string, list, or object — see getMessage()) and Typesense
+     * rejects the batch on any shape its collection doesn't hold, so match the collection: the
+     * declared object, or flat text on collections that auto-typed `message` as a string
+     * (Sentry KANVAS-ECOSYSTEM-628). stdClass so an empty body encodes as `{}`, not `[]`.
      */
-    private function normalizeMessageForSearch(): object
+    private function normalizeMessageForSearch(): object|string
     {
-        $message = $this->getMessage(); // always array; [] when the body isn't a JSON object
+        $message = $this->getMessage();
 
         if (array_is_list($message)) {
             $text = $this->contentText();
-
-            return $text !== '' ? (object) ['content' => $text] : (object) [];
+            $message = $text !== '' ? ['content' => $text] : [];
         }
 
-        return (object) $message;
+        // Typesense derives the nested types of an `object` from the first document it indexes, so
+        // a reply whose envelope is a LIST of records collides with the scalar types a single-record
+        // reply established and the import is rejected. Nothing searches it; `message_text` already
+        // carries the prose.
+        unset($message['response_json']);
+
+        return $this->searchIndexRejectsObjectField('message')
+            ? $this->contentText()
+            : (object) $message;
     }
 
     /**

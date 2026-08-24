@@ -15,6 +15,7 @@ use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Services\IntentLexiconService;
 use Kanvas\Inventory\Recommendations\Services\ProductDiscoveryResolver;
 use Kanvas\Inventory\Recommendations\Services\ProductRecommendationPresenterService;
+use Kanvas\Inventory\Recommendations\Services\SearchTermTokenizerService;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Throwable;
 
@@ -28,6 +29,10 @@ class RecommendProductsAction
     private const int DEFAULT_CACHE_TTL = 1800;
     private const int MAX_CANDIDATE_POOL = 60;
     private const int DEFAULT_MAX_PER_GROUP = 2;
+    private const int DEFAULT_GROUP_BY_TOKENS = 2;
+    private const int DEFAULT_UNAVAILABLE_PENALTY = 3;
+
+    private ?SearchTermTokenizerService $tokenizer = null;
 
     public function __construct(
         private readonly AppInterface $app,
@@ -138,11 +143,54 @@ class RecommendProductsAction
             ->sortBy(fn (Products $product): int => $position[$product->getId()] ?? PHP_INT_MAX)
             ->map(fn (Products $product) => $presenter->product($product))
             ->filter()
+            ->filter(fn (array $result): bool => ! $this->isExcludedCategory($result))
             ->filter(fn (array $result): bool => $this->withinBudget($result, $intent))
             ->values()
             ->all();
 
-        return $this->diversify($ranked, $limit);
+        return $this->diversify($this->demoteUnavailable($ranked), $limit);
+    }
+
+    /**
+     * A rank penalty, NOT a partition: sorting every buyable product above every
+     * unbuyable one lets a weak in-stock match leapfrog a near-perfect one. Sorts
+     * are stable in PHP 8, so equal ranks keep the engine's order.
+     *
+     * @param array<int, array{product: array, variants: array}> $ranked
+     *
+     * @return array<int, array{product: array, variants: array}>
+     */
+    private function demoteUnavailable(array $ranked): array
+    {
+        $penalty = $this->unavailablePenalty();
+
+        if ($penalty <= 0) {
+            return $ranked;
+        }
+
+        $scored = [];
+
+        foreach ($ranked as $position => $result) {
+            $scored[] = [
+                'rank' => $position + ($this->hasAvailableVariant($result) ? 0 : $penalty),
+                'result' => $result,
+            ];
+        }
+
+        usort($scored, static fn (array $a, array $b): int => $a['rank'] <=> $b['rank']);
+
+        return array_column($scored, 'result');
+    }
+
+    private function hasAvailableVariant(array $result): bool
+    {
+        foreach ($result['variants'] as $variant) {
+            if ($variant['channel']['is_available'] ?? false) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -166,7 +214,7 @@ class RecommendProductsAction
         $seen = [];
 
         foreach ($ranked as $result) {
-            $key = IntentLexiconService::normalize((string) ($result['product']['name'] ?? ''));
+            $key = $this->groupKey((string) ($result['product']['name'] ?? ''));
             $count = $seen[$key] ?? 0;
 
             if ($key === '' || $count < $maxPerGroup) {
@@ -182,6 +230,24 @@ class RecommendProductsAction
         return array_slice([...$kept, ...$overflow], 0, $limit);
     }
 
+    /**
+     * Grouping on the whole name gives every numbered variation its own budget, so
+     * one product family takes the page. The leading tokens are what a shopper
+     * would call the thing.
+     */
+    private function groupKey(string $name): string
+    {
+        $take = $this->groupByTokens();
+
+        if ($take <= 0) {
+            return IntentLexiconService::normalize($name);
+        }
+
+        $this->tokenizer ??= new SearchTermTokenizerService($this->app);
+
+        return implode(' ', array_slice($this->tokenizer->tokenize($name), 0, $take));
+    }
+
     private function candidatePoolSize(int $limit): int
     {
         return min($limit * 3, self::MAX_CANDIDATE_POOL);
@@ -192,6 +258,58 @@ class RecommendProductsAction
         $max = $this->app->get(ConfigurationEnum::MAX_RESULTS_PER_GROUP->value);
 
         return is_numeric($max) ? (int) $max : self::DEFAULT_MAX_PER_GROUP;
+    }
+
+    private function groupByTokens(): int
+    {
+        $tokens = $this->app->get(ConfigurationEnum::GROUP_BY_TOKENS->value)
+            ?? config('inventory-discovery.group_by_tokens');
+
+        return is_numeric($tokens) ? (int) $tokens : self::DEFAULT_GROUP_BY_TOKENS;
+    }
+
+    private function unavailablePenalty(): int
+    {
+        $penalty = $this->app->get(ConfigurationEnum::UNAVAILABLE_PENALTY->value)
+            ?? config('inventory-discovery.unavailable_penalty');
+
+        return is_numeric($penalty) ? (int) $penalty : self::DEFAULT_UNAVAILABLE_PENALTY;
+    }
+
+    /**
+     * Some categories match well and are never what the shopper meant — gift wrap
+     * on a gift query being the canonical case.
+     */
+    private function isExcludedCategory(array $result): bool
+    {
+        $excluded = $this->excludedCategories();
+
+        foreach ($result['product']['categories'] ?? [] as $category) {
+            if (in_array(IntentLexiconService::normalize((string) ($category['name'] ?? '')), $excluded, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function excludedCategories(): array
+    {
+        $configured = ConfigurationEnum::EXCLUDED_CATEGORIES->listFrom($this->app)
+            ?: (array) config('inventory-discovery.excluded_categories', []);
+
+        $names = [];
+
+        foreach ($configured as $name) {
+            if (is_string($name) && ($normalized = IntentLexiconService::normalize($name)) !== '') {
+                $names[] = $normalized;
+            }
+        }
+
+        return $names;
     }
 
     /**

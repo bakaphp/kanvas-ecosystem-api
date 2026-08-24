@@ -77,6 +77,12 @@ burst**, not once per message.
   loses the head to a part that arrived after it.
 - `ProcessGroupBurstJob` is **debounce-superseded**: every part re-arms a cache token and dispatches a
   fresh delayed copy; only the last one still matches the token when it fires.
+- The winner **spends the token immediately**, before doing any work. The job has `$tries = 2`, so a
+  throw after the agent has answered — the workflow fire is the obvious one — sends it back to the
+  queue; clearing the token at the *end* left it valid, the retry re-ran the agent and filed a second
+  reply, and since each reply publishes its own post that is two articles from one burst (prod
+  736602 / 736603). Deleting only on a token match keeps supersede semantics: an early part still
+  finds a mismatch and leaves the burst armed for the winner.
 - It runs on the **default queue**. If nothing drains that queue the message files and the agent never
   runs — the single most common cause of "it filed but never answered".
 
@@ -92,8 +98,9 @@ stores it as an image regardless of `media_types`. No extra fetch, and it double
 featured image for a video-only post.
 
 Adding `whatsapp-video` to `media_types` additionally downloads the clip and hangs it off the
-message, which is what you want when the article should carry the file — but it does not make the
-model see more than the poster.
+message — but it does not make the model see more than the poster. Downstream it does matter: the
+WordPress publisher leads the post with a player for the clip and keeps the poster as the featured
+image, so a video-only story publishes as a video rather than as a still.
 
 ## Workflow events — which entity each carries
 

@@ -7,11 +7,15 @@ namespace Kanvas\Inventory\Recommendations\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Search\SearchEngineResolver;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Inventory\Recommendations\Contracts\ProductDiscoveryInterface;
 use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
+use Kanvas\Inventory\Recommendations\Enums\AudienceEnum;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
+use Kanvas\Inventory\Recommendations\Enums\SearchFieldEnum;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Override;
+use Throwable;
 use Typesense\Client;
 
 /**
@@ -23,6 +27,9 @@ class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
 {
     /** Rank-fusion dampener; stops the top slot dominating everything below. */
     private const int RRF_K = 60;
+
+    /** Long enough that the schema is not re-fetched per search, short enough that a reindex takes effect on its own. */
+    private const int SCHEMA_CACHE_TTL = 600;
 
     private ?Client $client = null;
 
@@ -123,6 +130,15 @@ class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
             $filters[] = sprintf('price:<=%s', $intent->maxPrice);
         }
 
+        if ($intent->audience !== null && $this->collectionDeclares(SearchFieldEnum::AUDIENCE->value)) {
+            $admitted = [$intent->audience, ...AudienceEnum::alwaysIncluded()];
+
+            $filters[] = sprintf(
+                'audience:[%s]',
+                implode(', ', array_map(static fn (AudienceEnum $a): string => $a->value, $admitted)),
+            );
+        }
+
         return implode(' && ', $filters);
     }
 
@@ -161,7 +177,32 @@ class TypesenseProductDiscoveryService implements ProductDiscoveryInterface
 
     private function collection(): string
     {
-        return (string) config('scout.prefix') . (string) ($this->app->get('app_custom_product_index') ?? 'product_index');
+        return ProductDiscoveryResolver::collectionName($this->app);
+    }
+
+    /**
+     * Scout creates collections but never migrates them, so a field added to the
+     * model schema is absent from every collection built before it — and Typesense
+     * answers a filter on an undeclared field with NOTHING, not with everything.
+     * Checking first costs the feature instead of every result.
+     */
+    private function collectionDeclares(string $field): bool
+    {
+        $collection = $this->collection();
+
+        return Cache::remember(
+            'product-discovery:fields:' . $collection . ':' . $field,
+            self::SCHEMA_CACHE_TTL,
+            function () use ($collection, $field): bool {
+                try {
+                    $schema = $this->client()->collections[$collection]->retrieve();
+                } catch (Throwable) {
+                    return false;
+                }
+
+                return in_array($field, array_column($schema['fields'] ?? [], 'name'), true);
+            },
+        );
     }
 
     private function queryByFields(): string

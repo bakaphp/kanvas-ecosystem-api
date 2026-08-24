@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Slack\Webhooks;
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\Slack\Actions\AgentChannelResponderAction;
 use Kanvas\Connectors\Slack\Actions\CreateMessageFromSlackEventAction;
 use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Slack\Enums\EventTypeEnum;
-use Kanvas\Connectors\Slack\Services\SlackSignatureService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
@@ -19,8 +16,6 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
-use Kanvas\Workflow\Jobs\ProcessWebhookJob;
-use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
 
 #[WorkflowAction(
@@ -29,10 +24,8 @@ use Override;
         . 'and replies IN SLACK. This is the internal-teammate surface — staff talk to the agent where '
         . 'they already work. It keeps one thread per Slack conversation.',
 )]
-class ProcessSlackWebhookJob extends ProcessWebhookJob
+class ProcessSlackWebhookJob extends SlackWebhookJob
 {
-    private const int DEDUPE_TTL_SECONDS = 300;
-
     #[Override]
     public function execute(): array
     {
@@ -40,8 +33,7 @@ class ProcessSlackWebhookJob extends ProcessWebhookJob
         $event = $payload['event'] ?? [];
 
         if (EventTypeEnum::isLifecycle($event['type'] ?? null)) {
-            $this->receiver->is_active = false;
-            $this->receiver->saveOrFail();
+            $this->deactivateReceiver();
 
             return ['message' => 'Slack app uninstalled, receiver deactivated'];
         }
@@ -121,47 +113,6 @@ class ProcessSlackWebhookJob extends ProcessWebhookJob
                 ],
             ]),
         )->execute();
-    }
-
-    #[Override]
-    public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
-    {
-        return SlackSignatureService::isValidRequest($request, $receiver);
-    }
-
-    #[Override]
-    public static function handshakeResponse(Request $request, ReceiverWebhook $receiver): ?array
-    {
-        if ($request->input('type') !== EventTypeEnum::URL_VERIFICATION->value) {
-            return null;
-        }
-
-        return ['challenge' => (string) $request->input('challenge')];
-    }
-
-    /**
-     * Slack redelivers an event when it doesn't see a 200 within 3s, and the retry is a fresh
-     * dispatch — without this the agent answers the same message twice.
-     */
-    private function isFirstDelivery(string $eventId): bool
-    {
-        if ($eventId === '') {
-            return true;
-        }
-
-        return Cache::add('slack:event:' . $eventId, true, self::DEDUPE_TTL_SECONDS);
-    }
-
-    /**
-     * Our own reply comes back as an inbound event. Without this the agent talks to itself forever.
-     */
-    private function isFromBot(array $event): bool
-    {
-        $botUserId = (string) ($this->receiver->configuration[ConfigurationEnum::BOT_USER_ID->value] ?? '');
-
-        return isset($event['bot_id'])
-            || ($event['subtype'] ?? null) === 'bot_message'
-            || ($botUserId !== '' && ($event['user'] ?? null) === $botUserId);
     }
 
     /**

@@ -17,12 +17,14 @@ use Kanvas\Connectors\Intellicheck\Jobs\AttachDriverLicenseImagesJob;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Services\DriverLicenseVerificationService;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -187,7 +189,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                                     $verifiedPeople
                                 );
 
-                                $message = $engagement->message;
+                                $message = $engagement?->message;
                                 if ($message !== null) {
                                     $pdfReport = PdfService::generatePdfFromTemplate(
                                         $app,
@@ -321,8 +323,14 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         return $lead->people;
     }
 
-    private function createIdVerificationEngagement(Lead $lead, People $people): Engagement
+    private function createIdVerificationEngagement(Lead $lead, People $people): ?Engagement
     {
+        $user = $this->resolveEngagementUser($lead, $people);
+
+        if ($user === null) {
+            return null;
+        }
+
         $taskId = $lead->get('check_list_status') ?? $lead->company->get('default_checklist_id');
 
         if (is_array($taskId)) {
@@ -332,7 +340,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         $engagementData = new EngagementData(
             app: $lead->app,
             company: $lead->company,
-            user: $lead->owner,
+            user: $user,
             lead: $lead,
             action: ConfigurationEnum::ID_VERIFICATION->value,
             requestId: Str::uuid()->toString(),
@@ -345,5 +353,24 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         );
 
         return new CreateEngagementAction($engagementData)->execute();
+    }
+
+    private function resolveEngagementUser(Lead $lead, People $people): ?Users
+    {
+        foreach ([$lead->owner, $lead->user, $people->user] as $candidate) {
+            if ($candidate === null) {
+                continue;
+            }
+
+            try {
+                UsersRepository::belongsToThisApp($candidate, $lead->app, $lead->company);
+
+                return $candidate;
+            } catch (ModelNotFoundException) {
+                continue;
+            }
+        }
+
+        return null;
     }
 }

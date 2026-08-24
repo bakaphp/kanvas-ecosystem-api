@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Tests\Inventory\Recommendations;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Recommendations\DataTransferObject\ProductIntent;
+use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Services\IntentLexiconService;
 use Kanvas\Inventory\Recommendations\Services\TypesenseProductDiscoveryService;
 use Mockery;
 use Tests\TestCase;
 use Typesense\Client;
+use Typesense\Collection;
+use Typesense\Collections;
 use Typesense\MultiSearch;
 
 class TypesenseProductDiscoveryServiceTest extends TestCase
@@ -20,6 +24,15 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
     use DatabaseTransactions;
 
     private array $capturedSearches = [];
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // The collection schema is cached per collection+field, so a sibling case
+        // asserting the field is absent would otherwise read this one's answer.
+        Cache::flush();
+    }
 
     public function testSendsEverySearchInOneMultiSearchRoundTrip(): void
     {
@@ -72,6 +85,76 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
 
         $filter = $this->capturedSearches[0]['searches'][0]['filter_by'];
         $this->assertStringContainsString('|| price:=0', $filter);
+    }
+
+    public function testFiltersToTheRecipientTheSentenceNames(): void
+    {
+        $service = $this->service($this->response([[10]]));
+
+        $service->search($this->intent('a gift for my girlfriend'), 5);
+
+        $filter = $this->capturedSearches[0]['searches'][0]['filter_by'];
+
+        // Neutral and un-enriched products ride along, or the filter would throw
+        // away most of a catalog to answer a question about gender.
+        $this->assertStringContainsString('audience:[female, unisex, unknown]', $filter);
+    }
+
+    public function testTakesTheLongestRecipientMatchNotTheFirst(): void
+    {
+        $service = $this->service($this->response([[10]]));
+
+        // "grandmother" contains "mother"; a first-match parse reads a query for a
+        // grandmother as one for a mother and filters on the wrong audience.
+        $service->search($this->intent('a gift for my grandmother'), 5);
+
+        $this->assertStringContainsString('audience:[senior,', $this->capturedSearches[0]['searches'][0]['filter_by']);
+    }
+
+    public function testReadsTheRecipientFromTheTenantsOwnLanguage(): void
+    {
+        // Shipped config is English only. A Spanish storefront gets nothing out of
+        // this filter until it adds its own terms — which is the whole point of
+        // the lexicon being merged rather than replaced.
+        $app = app(Apps::class);
+        $original = $app->get(ConfigurationEnum::INTENT_LEXICON->value);
+        $app->set(ConfigurationEnum::INTENT_LEXICON->value, [
+            'audience_female' => ['novia', 'mama', 'suegra'],
+        ]);
+
+        try {
+            $service = $this->service($this->response([[10]]), $app);
+            $service->search($this->intent('un regalo para mi suegra'), 5);
+
+            $this->assertStringContainsString(
+                'audience:[female,',
+                $this->capturedSearches[0]['searches'][0]['filter_by'],
+            );
+        } finally {
+            $app->set(ConfigurationEnum::INTENT_LEXICON->value, $original ?? []);
+        }
+    }
+
+    public function testSkipsTheAudienceFilterWhenTheCollectionDoesNotDeclareTheField(): void
+    {
+        // Scout creates collections but never migrates them, so a collection built
+        // before the field exists cannot be filtered on it — and Typesense answers
+        // an undeclared field with NOTHING, not with everything.
+        $service = $this->service($this->response([[10]]), collectionFields: ['search_blurb', 'price']);
+
+        $ids = $service->search($this->intent('a gift for my girlfriend'), 5);
+
+        $this->assertStringNotContainsString('audience:', $this->capturedSearches[0]['searches'][0]['filter_by']);
+        $this->assertSame([10], $ids);
+    }
+
+    public function testDoesNotFilterOnAudienceWhenTheSentenceNamesNoOne(): void
+    {
+        $service = $this->service($this->response([[10]]));
+
+        $service->search($this->intent('algo bonito'), 5);
+
+        $this->assertStringNotContainsString('audience:', $this->capturedSearches[0]['searches'][0]['filter_by']);
     }
 
     public function testOmitsTheVectorQueryWhenTheCollectionHasNoEmbeddingField(): void
@@ -157,8 +240,15 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
         ];
     }
 
-    private function service(array $response, ?Apps $app = null, ?Companies $company = null): TypesenseProductDiscoveryService
-    {
+    /**
+     * @param list<string> $collectionFields
+     */
+    private function service(
+        array $response,
+        ?Apps $app = null,
+        ?Companies $company = null,
+        array $collectionFields = ['search_blurb', 'price', 'in_stock', 'audience'],
+    ): TypesenseProductDiscoveryService {
         $multiSearch = Mockery::mock(MultiSearch::class);
         $multiSearch->shouldReceive('perform')
             ->andReturnUsing(function (array $body, array $params) use ($response): array {
@@ -168,8 +258,17 @@ class TypesenseProductDiscoveryServiceTest extends TestCase
                 return $response;
             });
 
+        $collection = Mockery::mock(Collection::class);
+        $collection->shouldReceive('retrieve')->andReturn([
+            'fields' => array_map(static fn (string $name): array => ['name' => $name], $collectionFields),
+        ]);
+
+        $collections = Mockery::mock(Collections::class);
+        $collections->shouldReceive('offsetGet')->andReturn($collection);
+
         $client = Mockery::mock(Client::class);
         $client->multiSearch = $multiSearch;
+        $client->collections = $collections;
 
         return new TypesenseProductDiscoveryService(
             $app ?? app(Apps::class),

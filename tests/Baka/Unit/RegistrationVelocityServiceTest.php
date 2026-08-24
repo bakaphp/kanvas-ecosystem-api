@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Baka\Unit;
 
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Services\RegistrationVelocityService;
+use Tests\Stubs\Auth\InMemorySettingsApp;
 use Tests\TestCase;
 
 class RegistrationVelocityServiceTest extends TestCase
@@ -22,9 +22,12 @@ class RegistrationVelocityServiceTest extends TestCase
         config(['cache.default' => 'array']);
     }
 
-    private function service(): RegistrationVelocityService
+    /**
+     * @param array<string, mixed> $settings
+     */
+    private function service(array $settings = [], int $appId = 1): RegistrationVelocityService
     {
-        return new RegistrationVelocityService(app(Apps::class));
+        return new RegistrationVelocityService(InMemorySettingsApp::withSettings($settings, $appId));
     }
 
     public function testPrefixBurstIsBlockedAfterTheDefaultLimit(): void
@@ -70,54 +73,34 @@ class RegistrationVelocityServiceTest extends TestCase
 
     public function testCountersAreScopedPerApp(): void
     {
-        $app = app(Apps::class);
-        $otherApp = Apps::query()->where('id', '!=', $app->getId())->first();
-
-        if ($otherApp === null) {
-            $this->markTestSkipped('Needs a second app to prove the counters are tenant scoped.');
-        }
-
-        $service = new RegistrationVelocityService($app);
+        $service = $this->service();
 
         for ($i = 0; $i < 6; $i++) {
             $service->violation('dggie_sample' . $i . '@example.com');
         }
 
         $this->assertSame('local_part_prefix_burst', $service->violation('dggie_final@example.com'));
-        $this->assertNull(new RegistrationVelocityService($otherApp)->violation('dggie_final@example.com'));
+        $this->assertNull($this->service(appId: 2)->violation('dggie_final@example.com'));
     }
 
     public function testTheBurstLimitCanBeTightenedFromAppSettings(): void
     {
-        $app = app(Apps::class);
-        $app->set('signup_prefix_burst_limit', 2);
+        $service = $this->service(['signup_prefix_burst_limit' => 2]);
 
-        try {
-            $service = new RegistrationVelocityService($app);
-
-            $this->assertNull($service->violation('dggie_one@example.com'));
-            $this->assertNull($service->violation('dggie_two@example.com'));
-            $this->assertSame('local_part_prefix_burst', $service->violation('dggie_three@example.com'));
-        } finally {
-            $app->del('signup_prefix_burst_limit');
-        }
+        $this->assertNull($service->violation('dggie_one@example.com'));
+        $this->assertNull($service->violation('dggie_two@example.com'));
+        $this->assertSame('local_part_prefix_burst', $service->violation('dggie_three@example.com'));
     }
 
     public function testAZeroLimitDisablesTheRule(): void
     {
-        $app = app(Apps::class);
-        $app->set('signup_prefix_burst_limit', 0);
-        $app->set('signup_mailbox_limit', 0);
+        $service = $this->service([
+            'signup_prefix_burst_limit' => 0,
+            'signup_mailbox_limit' => 0,
+        ]);
 
-        try {
-            $service = new RegistrationVelocityService($app);
-
-            for ($i = 0; $i < 20; $i++) {
-                $this->assertNull($service->violation('dggie_sample' . $i . '@gmail.com'));
-            }
-        } finally {
-            $app->del('signup_prefix_burst_limit');
-            $app->del('signup_mailbox_limit');
+        for ($i = 0; $i < 20; $i++) {
+            $this->assertNull($service->violation('dggie_sample' . $i . '@gmail.com'));
         }
     }
 }

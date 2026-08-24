@@ -41,6 +41,63 @@ return [
             'budget',
             'cheap',
         ],
+
+        /*
+         * Who the gift is FOR. A filter, not a ranking signal — an embedding reads
+         * "for a man" and "para mujeres" as similar rather than contradictory.
+         *
+         * Relationship words over bare "man"/"woman": a shopper says "para mi novia"
+         * far more often than "para una mujer". Accents fold before matching, so a
+         * tenant adding "mama" also covers "mamá".
+         */
+        'audience_male' => [
+            'for him', 'boyfriend', 'husband', 'father', 'dad', 'brother',
+            'son', 'uncle', 'man', 'men', 'male',
+        ],
+        'audience_female' => [
+            'for her', 'girlfriend', 'wife', 'mother', 'mom', 'sister',
+            'daughter', 'aunt', 'woman', 'women', 'female',
+        ],
+        'audience_kids' => [
+            'kid', 'kids', 'child', 'children', 'boy', 'girl',
+        ],
+        'audience_baby' => [
+            'baby', 'newborn', 'infant',
+        ],
+        'audience_teen' => [
+            'teen', 'teenager', 'adolescent',
+        ],
+        'audience_senior' => [
+            'senior', 'elderly', 'retiree', 'grandmother', 'grandma',
+            'grandfather', 'grandpa',
+        ],
+    ],
+
+    /*
+     * Ready-made term sets a storefront can adopt wholesale, written into the
+     * `product_intent_lexicon` app setting by configure_product_discovery. Shipped
+     * config stays English; without one of these a Spanish shopper's "de lujo",
+     * "barato" and "para mi novia" parse as nothing at all.
+     */
+    'intent_lexicon_translations' => [
+        'es' => [
+            'max_price' => ['menos de', 'no mas de', 'hasta', 'maximo', 'por debajo de'],
+            'min_price' => ['mas de', 'desde', 'a partir de', 'por encima de'],
+            'premium' => ['de lujo', 'lujoso', 'caro', 'costoso', 'exclusivo', 'de gama alta'],
+            'cheap' => ['barato', 'economico', 'accesible', 'asequible'],
+            'audience_male' => [
+                'hombre', 'novio', 'esposo', 'marido', 'papa', 'padre', 'hermano',
+                'hijo', 'tio', 'primo', 'amigo', 'jefe', 'companero', 'para el',
+            ],
+            'audience_female' => [
+                'mujer', 'novia', 'esposa', 'mama', 'madre', 'hermana', 'hija',
+                'tia', 'prima', 'amiga', 'jefa', 'companera', 'para ella',
+            ],
+            'audience_kids' => ['nino', 'nina', 'chico', 'chica', 'sobrino', 'sobrina'],
+            'audience_baby' => ['bebe', 'recien nacido'],
+            'audience_teen' => ['adolescente', 'quinceanera'],
+            'audience_senior' => ['abuelo', 'abuela', 'suegro', 'suegra'],
+        ],
     ],
 
     /*
@@ -64,6 +121,25 @@ return [
     'typesense_query_by' => 'search_blurb,name,description',
 
     'typesense_query_by_weights' => '3,2,1',
+
+    /*
+     * Leading name tokens forming the per-group cap key. The whole name is too fine:
+     * "Perfume Premium 31/37/38" are three names and one product. 0 = whole name.
+     */
+    'group_by_tokens' => 2,
+
+    /*
+     * Places an unavailable product drops in the ranking. A penalty, not a
+     * partition: sorting all in-stock products first lets a weak match leapfrog a
+     * strong one. 0 disables; a value past the page size is a hard partition.
+     */
+    'unavailable_penalty' => 3,
+
+    /*
+     * Gift wrapping is the canonical case: it scores highly on a gift query and is
+     * not a gift. Matched on the category name, case-insensitively.
+     */
+    'excluded_categories' => [],
 
     /*
      * Applied only when the sentence carries a vague price signal ("something

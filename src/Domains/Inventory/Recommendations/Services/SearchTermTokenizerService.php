@@ -56,16 +56,9 @@ class SearchTermTokenizerService
             return $this->stopWords;
         }
 
-        $shipped = config('inventory-discovery.stop_words', []);
-        $tenant = $this->app->get(ConfigurationEnum::STOP_WORDS->value);
-
-        if (is_string($tenant)) {
-            $tenant = json_decode($tenant, true);
-        }
-
         $merged = [
-            ...(is_array($shipped) ? $shipped : []),
-            ...(is_array($tenant) ? $tenant : []),
+            ...(array) config('inventory-discovery.stop_words', []),
+            ...ConfigurationEnum::STOP_WORDS->listFrom($this->app),
         ];
 
         return $this->stopWords = array_values(array_unique(array_map(

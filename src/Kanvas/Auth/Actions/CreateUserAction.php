@@ -34,6 +34,9 @@ use Throwable;
 
 class CreateUserAction
 {
+    private const int SPAM_NAME_MIN_LENGTH = 4;
+    private const float SPAM_NAME_UPPERCASE_RATIO = 0.4;
+
     protected Apps $app;
     protected bool $runWorkflow = true;
     protected bool $extraValidation = false;
@@ -182,33 +185,48 @@ class CreateUserAction
             throw new ValidationException($validator);
         }
 
-        if ($this->hasSpamNamePattern($this->data->firstname) || $this->hasSpamNamePattern($this->data->lastname)) {
-            $validator = Validator::make(
-                ['firstname' => $this->data->firstname],
-                ['firstname' => 'required'],
-                ['firstname.required' => 'Registration information appears to be invalid.']
-            );
+        $invalidNameFields = [];
 
-            throw new ValidationException($validator);
+        if ($this->hasSpamNamePattern($this->data->firstname)) {
+            $invalidNameFields['firstname'] = ['Registration information appears to be invalid.'];
+        }
+
+        if ($this->hasSpamNamePattern($this->data->lastname)) {
+            $invalidNameFields['lastname'] = ['Registration information appears to be invalid.'];
+        }
+
+        if ($invalidNameFields !== []) {
+            throw ValidationException::withMessages($invalidNameFields);
         }
     }
 
-    /**
-     * Detects spam registration names with randomized character patterns.
-     */
     private function hasSpamNamePattern(string $name): bool
     {
-        if (empty($name)) {
+        if (trim($name) === '') {
             return true;
         }
 
-        $uppercaseCount = preg_match_all('/[A-Z]/', $name);
+        $letters = preg_replace('/[^a-zA-Z]/', '', $name);
+        $length = strlen($letters);
+
+        // Below this the ratio carries no signal: "So" and "Li" are 50%
+        // uppercase and entirely legitimate surnames.
+        if ($length < self::SPAM_NAME_MIN_LENGTH) {
+            return false;
+        }
+
+        $uppercaseCount = preg_match_all('/[A-Z]/', $letters);
 
         if ($uppercaseCount === false) {
             return false;
         }
 
-        return ($uppercaseCount / strlen($name)) > 0.4;
+        // All-caps is a typing habit ("JOHN SMITH"), not randomized casing.
+        if ($uppercaseCount === $length) {
+            return false;
+        }
+
+        return ($uppercaseCount / $length) > self::SPAM_NAME_UPPERCASE_RATIO;
     }
 
     protected function validatePhoneNumber(): void
