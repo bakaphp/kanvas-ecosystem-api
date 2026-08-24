@@ -6,12 +6,11 @@ namespace Kanvas\Connectors\SalesAssist\Actions;
 
 use Illuminate\Support\Str;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
+use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
-use Kanvas\Intelligence\Agents\Services\GoogleADKService;
-use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
-use NeuronAI\Chat\Messages\UserMessage;
 use Override;
 
 class AIAssistAgentResponderAction extends BaseAgentChannelReplyAction
@@ -23,66 +22,51 @@ class AIAssistAgentResponderAction extends BaseAgentChannelReplyAction
     #[Override]
     public function execute(array $params = []): array
     {
-        if ($this->message->entity() === null) {
+        $entity = $this->message->entity();
+
+        if ($entity === null) {
             throw new ValidationException('No entity found');
         }
 
-        $currentAgent = new $this->agent->type->handler();
-        $currentAgent->setConfiguration(
-            agent: $this->agent,
-            entity: $this->message->entity(),
-            user: $this->message->company->getAiAgentUserOrFail(),
-        );
-
-        $aiAssistAppName = $this->channel->company->get(ConfigurationEnum::ADK_AI_ASSIST_APP_NAME->value)
-            ?? $this->channel->app->get(ConfigurationEnum::ADK_AI_ASSIST_APP_NAME->value)
-            ?? null;
-
-        $aiAssistBaseUrl = $this->channel->company->get(ConfigurationEnum::ADK_AI_ASSIST_BASE_URL->value)
-            ?? $this->channel->app->get(ConfigurationEnum::ADK_AI_ASSIST_BASE_URL->value)
-            ?? null;
-
-        $onChunk = function ($text, $data): void {
-            $this->createMessage(
-                Str::markdown($text),
-                'ai-assist',
-                $this->message,
-                $this->channel
-            );
-        };
-
         $messageConversation = $this->message->message['content'];
 
-        if ($currentAgent instanceof ADKAgent) {
-            $adkService = new GoogleADKService(
-                $this->channel->app,
-                $this->channel->company,
-                $aiAssistAppName,
-                $aiAssistBaseUrl
-            );
+        $responseContent = new AgentChatKernel(
+            agent: $this->agent,
+            session: $this->session,
+            message: $messageConversation,
+            user: $this->message->company->getAiAgentUserOrFail(),
+            currentLead: $entity instanceof Lead ? $entity : null,
+            sourceChannel: $this->channel,
+            sourceMessage: $this->message,
+            persistConversation: false,
+            adkAppName: $this->aiAssistConfig(ConfigurationEnum::ADK_AI_ASSIST_APP_NAME),
+            adkBaseUrl: $this->aiAssistConfig(ConfigurationEnum::ADK_AI_ASSIST_BASE_URL),
+        )->execute();
 
-            $sessionId = $this->session ? $this->session->uuid : $this->channel->slug;
-            $userId = (string) $this->channel->entity_id;
+        $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
-            $adkService->startSession($userId, $sessionId);
-
-            $responseContent = $adkService->chat(
-                $userId,
-                $sessionId,
-                $messageConversation,
-                $onChunk,
-                user: $this->message->user
-            );
-        } else {
-            $question = $currentAgent->chat(new UserMessage($messageConversation));
-            $responseContent = $question->getContent();
-            $responseText = ChatHelper::extractTextFromResponse($responseContent);
-            $onChunk($responseText, []);
-        }
+        $this->createMessage(
+            Str::markdown($responseText),
+            'ai-assist',
+            $this->message,
+            $this->channel
+        );
 
         return [
             'message' => $messageConversation,
             'responseText' => $responseContent,
         ];
+    }
+
+    /**
+     * AI Assist talks to its own ADK app (separate from the customer-facing orchestrator),
+     * so the target is read off the channel's company/app config, not the ADK defaults.
+     */
+    private function aiAssistConfig(ConfigurationEnum $key): ?string
+    {
+        $value = $this->channel->company->get($key->value)
+            ?? $this->channel->app->get($key->value);
+
+        return $value !== null && $value !== '' ? (string) $value : null;
     }
 }

@@ -27,7 +27,10 @@ class PeopleObserver
         //$people->clearLightHouseCacheJob();
 
         try {
-            CheckPeopleDuplicateJob::dispatch(Apps::getById((int) $people->apps_id), $people->getId());
+            CheckPeopleDuplicateJob::dispatch(
+                Apps::getById((int) $people->apps_id),
+                $people->getId()
+            );
         } catch (Throwable $e) {
             report($e);
         }

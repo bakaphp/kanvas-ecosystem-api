@@ -86,7 +86,7 @@ final class CorrectVehiclePlateActionTest extends TestCase
         $this->assertEquals('Placa registrada incorrectamente', $log->properties['reason']);
     }
 
-    public function testItAppendsEvidenceImages(): void
+    public function testItKeepsEvidenceImagesOutOfOrderMetadata(): void
     {
         $app = app(Apps::class);
         $user = Auth::user();
@@ -113,11 +113,17 @@ final class CorrectVehiclePlateActionTest extends TestCase
             )->execute()
         );
 
-        $images = $result->metadata['data']['images'];
-        $this->assertContains('https://s3.example.com/existing.jpg', $images);
-        $this->assertContains('https://s3.example.com/evidence1.jpg', $images);
-        $this->assertContains('https://s3.example.com/evidence2.jpg', $images);
-        $this->assertCount(3, $images);
+        $this->assertEquals(['https://s3.example.com/existing.jpg'], $result->metadata['data']['images']);
+
+        $log = Activity::where('subject_id', $order->id)
+            ->where('subject_type', Order::class)
+            ->where('description', 'correct-plate')
+            ->first();
+
+        $this->assertEquals(
+            ['https://s3.example.com/evidence1.jpg', 'https://s3.example.com/evidence2.jpg'],
+            $log->properties['evidence']
+        );
     }
 
     private function resolveReleasedStatus(Apps $app): OrderStatus

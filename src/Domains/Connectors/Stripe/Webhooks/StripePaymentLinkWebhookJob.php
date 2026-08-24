@@ -14,11 +14,18 @@ use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use NotificationChannels\Expo\ExpoChannel;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Stripe Payment Link Webhook',
+    description: 'Receiver for a paid Stripe payment link: records the purchase against its engagement and '
+        . 'PUSH-NOTIFIES the people involved. It contacts users, so it is not a silent bookkeeping '
+        . 'step.',
+    integration: IntegrationsEnum::STRIPE,
+)]
 class StripePaymentLinkWebhookJob extends ProcessWebhookJob
 {
     #[Override]

@@ -4,12 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Actions;
 
-use Baka\Support\DateHelper;
-use Carbon\Carbon;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Kanvas\Connectors\OCR\DataTransferObjects\DriversLicense;
 use Kanvas\Connectors\SalesAssist\Enums\PeopleCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\ClientCredential;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
@@ -17,12 +14,14 @@ use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Services\ContactService;
 use Kanvas\Connectors\VinSolution\Support\Address;
 use Kanvas\Connectors\VinSolution\Support\Phone;
+use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Models\Contact as CustomerContact;
 use Kanvas\Guild\Customers\Models\People;
-use Throwable;
 
 class PushPeopleAction
 {
+    private const string VIN_SOLUTION_DATE_FORMAT = 'Y-m-d\TH:i:s.u\Z';
+
     protected ClientCredential $vinCredential;
 
     public function __construct(
@@ -270,79 +269,35 @@ class PushPeopleAction
         return $contactAddress;
     }
 
-    /**
-     * Process drivers license data.
-     */
     protected function processDriversLicense(People $people): ?array
     {
-        $driversLicenseData = $people->get(PeopleCustomFieldEnum::DRIVERS_LICENSE->value);
+        $license = $people->getDriverLicense();
 
-        if ($driversLicenseData) {
-            try {
-                $driversLicense = DriversLicense::fromArray($driversLicenseData);
-
-                // Helper function to safely format date
-                $formatDate = function ($dateString) {
-                    if (empty($dateString)) {
-                        return null;
-                    }
-                    $format = DateHelper::detectDateFormat($dateString);
-
-                    return $format ? Carbon::createFromFormat($format, $dateString, 'UTC')->format('Y-m-d\TH:i:s.u\Z') : null;
-                };
-
-                return [
-                    'State' => $driversLicense->state,
-                    'Name' => $driversLicense->firstName,
-                    'LastName' => $driversLicense->lastName,
-                    'PostalCode' => $driversLicense->zipCode,
-                    'Country' => 'USA',
-                    'LicenseID' => $driversLicense->documentNumber,
-                    'DateOfBirth' => $formatDate($driversLicense->birthDate),
-                    'ExpirationDate' => $formatDate($driversLicense->expirationDate),
-                    'IssueDate' => $formatDate($driversLicense->issueDate),
-                    'Sex' => $driversLicense->sex,
-                ];
-            } catch (Throwable $e) {
-                report($e);
-
-                return null;
-            }
-        } elseif ($legacyLicense = $people->get('get_docs_drivers_license')) {
-            try {
-                $birthday = $legacyLicense['birthday']['year'] . '-' . $legacyLicense['birthday']['month'] . '-' . $legacyLicense['birthday']['day'];
-                $expirationDate = $legacyLicense['exp_date']['year'] . '-' . $legacyLicense['exp_date']['month'] . '-' . $legacyLicense['exp_date']['day'];
-
-                $birthDay = Carbon::parse($birthday, 'UTC');
-                $expirationData = Carbon::parse($expirationDate, 'UTC');
-
-                // Extract zip code
-                $zipCode = null;
-                $pattern = '/\b\d{5}(-\d{4})?\b/';
-                if (preg_match($pattern, $legacyLicense['address'], $matches)) {
-                    $zipCode = $matches[0];
-                }
-
-                return [
-                    'State' => $legacyLicense['state'],
-                    'Name' => $people->firstname,
-                    'LastName' => $people->lastname,
-                    'PostalCode' => $zipCode,
-                    'Country' => 'USA',
-                    'LicenseID' => $legacyLicense['license'],
-                    'DateOfBirth' => $birthDay->format('Y-m-d\TH:i:s.u\Z'),
-                    'ExpirationDate' => $expirationData->format('Y-m-d\TH:i:s.u\Z'),
-                    'IssueDate' => null,
-                    'Sex' => null,
-                ];
-            } catch (Throwable $e) {
-                report($e);
-
-                return null;
-            }
+        if ($license === null) {
+            return null;
         }
 
-        return null;
+        return [
+            'State' => $license->state,
+            'Name' => $license->firstname ?? $people->firstname,
+            'LastName' => $license->lastname ?? $people->lastname,
+            'PostalCode' => $this->resolveLicenseZipCode($people, $license),
+            'Country' => 'USA',
+            'LicenseID' => $license->number,
+            'DateOfBirth' => $license->dob?->format(self::VIN_SOLUTION_DATE_FORMAT),
+            'ExpirationDate' => $license->expirationDate?->format(self::VIN_SOLUTION_DATE_FORMAT),
+            'IssueDate' => null,
+            'Sex' => null,
+        ];
+    }
+
+    protected function resolveLicenseZipCode(People $people, DriverLicense $license): ?string
+    {
+        if ($license->address !== null && preg_match('/\b\d{5}(-\d{4})?\b/', $license->address, $matches)) {
+            return $matches[0];
+        }
+
+        return $people->address()->where('is_default', true)->first()?->zip;
     }
 
     /**

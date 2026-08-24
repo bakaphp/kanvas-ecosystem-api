@@ -10,10 +10,16 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteProductPriceAction;
 use Kanvas\Users\Actions\SendUserNotificationAction;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'NetSuite Pull Product Price',
+    description: 'Receiver that refreshes one product\'s price from NetSuite by barcode, then emails a '
+        . 'summary. Prices only — use the stock receiver for quantities.',
+    integration: IntegrationsEnum::NETSUITE,
+)]
 class SyncNetSuiteProductWebhookJob extends ProcessWebhookJob
 {
     #[Override]

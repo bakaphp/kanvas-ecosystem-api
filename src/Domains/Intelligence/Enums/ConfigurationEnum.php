@@ -40,9 +40,14 @@ enum ConfigurationEnum: string
     case FIRST_MESSAGE_ONLY_DURING_OFF_BUSINESS_HOURS = 'ai_agent_first_message_only_during_off_business_hours';
     case AI_ENGAGEMENT_MESSAGE_ONLY_ONE_NOTIFICATION = 'ai_engagement_message_only_one_notification';
     case AI_MODE = 'ai_mode';
+    case SUPPORT_MODE_DELAYED_RESPONSE = 'ai_agent_support_mode_delayed_response';
     case AGENT_AI_MODE = 'agent_ai_mode';
     case AI_ENABLE = 'ai';
     case NOTIFICATION_CHANNELS = 'notification_enabled_channels';
     case FIRST_ENGAGEMENT_NOTIFICATION_CHANNELS = 'first_engagement_notification_channels';
     case ENGAGEMENT_NOTIFICATION_CHANNELS = 'engagement_notification_channels';
+    // When truthy on an app, that app's key may resolve voice agents across
+    // apps (voiceAgentSpec by uuid, ignoring apps_id). Enable ONLY on the
+    // trusted voice-runtime app; every other app-key stays app-scoped.
+    case VOICE_RUNTIME_CROSS_APP = 'kanvas-intelligence-voice-runtime-cross-app';
 }

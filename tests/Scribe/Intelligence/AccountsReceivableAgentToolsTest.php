@@ -6,6 +6,10 @@ namespace Tests\Scribe\Intelligence;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsReceivableAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
@@ -15,6 +19,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
+use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -22,6 +27,8 @@ use Kanvas\Scribe\Invoices\Models\InvoiceLine;
 use Kanvas\Scribe\Invoices\Models\InvoicePaymentAllocation;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
+use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\HasRunKey;
 use Tests\Scribe\ScribeTestCase;
 
 class AccountsReceivableAgentToolsTest extends ScribeTestCase
@@ -194,6 +201,148 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame(0, $allocations);
     }
 
+    public function test_create_ar_invoice_treats_an_explicit_null_push_flag_as_the_default(): void
+    {
+        // The LLM sends `"push_to_acumatica": null` for an omitted optional boolean, which used to
+        // TypeError against a non-nullable `bool $push_to_acumatica = true` (Sentry KANVAS-ECOSYSTEM-67Z).
+        $customer = $this->seedTestOrganization('Null Flag Customer');
+        $customer->set(CustomFieldEnum::CUSTOMER_ID->value, 'C0001001');
+
+        $result = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                customer_name: 'Null Flag Customer',
+                amount: 275.0,
+                memo: 'Null push flag test',
+                push_to_acumatica: null,
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertNotSame('draft', $result['document_status']);
+    }
+
+    public function test_create_ar_invoice_with_push_to_acumatica_false_stops_at_draft(): void
+    {
+        $customer = $this->seedTestOrganization('Pending Invoice Customer');
+        $customer->set(CustomFieldEnum::CUSTOMER_ID->value, 'C0001000');
+
+        $result = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: 'Pending Invoice Customer', amount: 275.0, memo: 'Pending flow test', push_to_acumatica: false);
+
+        $this->assertTrue($result['created']);
+        $this->assertFalse($result['invoice_pushed']);
+        $this->assertSame('draft', $result['document_status']);
+        $this->assertArrayNotHasKey('invoice_ref', $result);
+        $this->assertArrayNotHasKey('acumatica_invoice_id', $result);
+
+        $invoice = Invoice::query()->where('id', $result['invoice_id'])->first();
+        $this->assertSame(InvoiceDocumentStatusEnum::DRAFT, $invoice->document_status);
+    }
+
+    public function test_approve_pending_item_requires_the_configured_approver(): void
+    {
+        $customer = $this->seedTestOrganization('Approval Flow Customer');
+
+        $created = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: 'Approval Flow Customer', amount: 300.0, memo: 'Approval flow test', push_to_acumatica: false);
+
+        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, '');
+
+        $result = new ApprovePendingItemTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(target_type: 'invoice', target_id: (int) $created['invoice_id']);
+
+        $this->assertFalse($result['approved']);
+        $this->assertSame('not_authorized', $result['reason']);
+    }
+
+    public function test_approve_pending_item_approves_a_pending_invoice_and_carries_the_source_email(): void
+    {
+        $customer = $this->seedTestOrganization('Approval Flow Customer 2');
+
+        $created = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                customer_name: 'Approval Flow Customer 2',
+                amount: 300.0,
+                memo: 'Approval flow test',
+                push_to_acumatica: false,
+                source_email_message_id: 'MSG_AR_APR_1',
+                source_attachment_url: 'https://cdn.example.test/invoice-ar-apr-1.pdf',
+                source_attachment_filename: 'invoice-ar-apr-1.pdf',
+            );
+
+        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+
+        $result = new ApprovePendingItemTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(target_type: 'invoice', target_id: (int) $created['invoice_id']);
+
+        $this->assertTrue($result['approved']);
+        $this->assertSame('MSG_AR_APR_1', $result['source_email_message_id']);
+        $this->assertSame('https://cdn.example.test/invoice-ar-apr-1.pdf', $result['source_attachment_url']);
+        $this->assertSame('invoice-ar-apr-1.pdf', $result['source_attachment_filename']);
+        $this->assertSame(static::$cachedUser->email, $result['approved_by']);
+        $this->assertNotEmpty($result['approved_at']);
+
+        $invoice = Invoice::query()->where('id', $created['invoice_id'])->first();
+        $this->assertSame(InvoiceDocumentStatusEnum::ISSUED, $invoice->document_status);
+    }
+
+    public function test_approve_pending_item_reports_not_found_when_nothing_pending(): void
+    {
+        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+
+        $result = new ApprovePendingItemTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(target_type: 'invoice', target_id: 999999999);
+
+        $this->assertFalse($result['approved']);
+        $this->assertSame('not_found', $result['reason']);
+    }
+
+    public function test_approve_pending_item_authorizes_the_conversation_human_not_the_agents_own_identity(): void
+    {
+        $this->seedTestOrganization('Approval Flow Customer 3');
+
+        $created = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: 'Approval Flow Customer 3', amount: 300.0, memo: 'Approval flow test', push_to_acumatica: false);
+
+        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+
+        // Mirrors an @mention/channel turn: setConfiguration() receives the agent's OWN user, distinct
+        // from the human actually approving, exactly like SlackUserResolverService resolving a DM sender.
+        $agentOwnUser = Users::factory()->create(['email' => 'agent-own-user-' . uniqid() . '@internal.test']);
+        $agentType = AgentType::factory()->withAppId($this->kanvasApp->getId())->create(['provider' => 'neuron']);
+        $agentModel = Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['agent_type_id' => $agentType->getId(), 'user_id' => $agentOwnUser->getId()]);
+
+        $handler = new AccountsReceivableAgent();
+        $handler->setConfiguration($agentModel, user: $agentOwnUser);
+        $handler->setConversationHuman(static::$cachedUser);
+
+        $approveTool = null;
+        foreach ($handler->getTools() as $tool) {
+            if ($tool instanceof ApprovePendingItemTool) {
+                $approveTool = $tool;
+
+                break;
+            }
+        }
+
+        $this->assertNotNull($approveTool, 'approve_pending_item must be registered once the conversation human is known.');
+
+        $result = $approveTool->__invoke(target_type: 'invoice', target_id: (int) $created['invoice_id']);
+
+        $this->assertTrue($result['approved'], 'The configured approver must be authorized even when the agent turn is wired with its own identity.');
+        $this->assertSame(static::$cachedUser->email, $result['approved_by']);
+    }
+
     public function test_match_invoices_for_payment_flags_the_exact_invoice(): void
     {
         $customer = $this->seedTestOrganization('Acme Corporation');
@@ -318,5 +467,48 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $this->assertFalse($result['file_attached']);
         $this->assertSame('invoice_not_found', $result['reason']);
+    }
+
+    public function test_find_customer_returns_a_dead_end_message_when_nothing_matches(): void
+    {
+        // A bare count=0 reads as "try again" to the model, which is how the same name got re-queried
+        // until the run budget tripped (Sentry KANVAS-ECOSYSTEM-64Q).
+        $result = new FindCustomerTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(name: 'Nonexistent Customer ' . uniqid());
+
+        $this->assertSame(0, (int) $result['count']);
+        $this->assertArrayHasKey('message', $result);
+        $this->assertStringContainsString('Retrying the same name will not help', $result['message']);
+    }
+
+    /**
+     * AR staff drive these per-record tools once per row over a spreadsheet/remittance, so each must key
+     * its run budget by inputs — otherwise the 11th DISTINCT call in a turn trips NeuronAI's per-tool-name
+     * cap and aborts the whole turn (Sentry KANVAS-ECOSYSTEM-64Q, seen on find_customer mid-Excel).
+     */
+    public function test_ar_per_record_tools_key_their_run_budget_by_inputs(): void
+    {
+        $tools = [
+            new FindCustomerTool(),
+            new FindInvoiceTool(),
+            new MatchInvoicesForPaymentTool(),
+        ];
+
+        foreach ($tools as $tool) {
+            $this->assertInstanceOf(HasRunKey::class, $tool, $tool->getName() . ' must key its run budget by inputs.');
+
+            $tool->setInputs(['name' => 'Industrias San Miguel', 'customer' => 'Industrias San Miguel', 'invoice_number' => 'INV-1']);
+            $keyOne = $tool->getRunKey();
+
+            $tool->setInputs(['name' => 'Acme Corporation', 'customer' => 'Acme Corporation', 'invoice_number' => 'INV-2']);
+            $keyTwo = $tool->getRunKey();
+
+            $tool->setInputs(['name' => 'Industrias San Miguel', 'customer' => 'Industrias San Miguel', 'invoice_number' => 'INV-1']);
+            $keyOneAgain = $tool->getRunKey();
+
+            $this->assertNotEquals($keyOne, $keyTwo, $tool->getName() . ': distinct records must not share a run budget.');
+            $this->assertEquals($keyOneAgain, $keyOne, $tool->getName() . ': identical calls must collapse so a loop is still capped.');
+        }
     }
 }

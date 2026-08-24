@@ -31,7 +31,10 @@ class SyncAgentToolsCommandTest extends TestCase
 
         $neuronTool = $byClass[HandOffTool::class] ?? null;
         $this->assertNotNull($neuronTool, 'Neuron CRM tool should be discovered');
-        $this->assertSame(['neuron'], $neuronTool['frameworks']);
+        // A Neuron tool is deliberately tagged `claude` as well — a hosted Claude agent runs the very
+        // same object through the custom-tool bridge, and the grant UI filters by provider, so without
+        // the second tag it could not be granted any tool. See withHostedFrameworks().
+        $this->assertSame(['neuron', 'claude'], $neuronTool['frameworks']);
         $this->assertSame('crm', $neuronTool['category']);
 
         $accountingTool = $byClass[FindInvoiceTool::class] ?? null;

@@ -13,13 +13,28 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSystemMemberTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleReminderTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Social\CreateMessageTypeTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ListMessageTypesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadChannelWindowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyReceiverTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyWorkflowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateEmailRouteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\ListCompanyWorkflowsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\ListWorkflowOptionsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\UpdateCompanyWorkflowTool;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Services\ProjectContextService;
@@ -163,6 +178,19 @@ class ProjectManagerAgent extends SystemUserAgent
             - You can still add_task / assign_task / update_task_status directly for small, one-off
               steps you want to track yourself, but prefer assigning a plan so the worker owns the
               decomposition.
+            - STAFF AND AUTOMATE WHEN THE WORK NEEDS IT. If no existing member fits a plan, you can
+              hire_agent to create the teammate the work needs, and update_agent_instructions to
+              retune one you hired that is getting something wrong. If work should happen on its own
+              from now on rather than each time you are woken, wire it: list_workflow_options to see
+              what triggers and steps exist, list_company_workflows to check it is not already set
+              up, then create_company_workflow (or create_company_receiver for inbound traffic).
+              Prefer an existing member and an existing workflow over creating a second one.
+            - IF A TOOL REFUSES YOU FOR PERMISSION, DO NOT STOP AND DO NOT RETRY. You may not be
+              allowed to hire or to write automation. When that happens: set the task that needed it
+              to `blocked` with update_nervous_system_task_status, put the tool's exact reason in
+              blocked_reason, @mention the project owner ONCE so an admin can grant it or do it, and
+              then CARRY ON with every other part of the work. One capability you lack must never
+              stall the parts you can still do.
             - HUMAN TASKS START IN TODO. When work belongs to a HUMAN, leave the task in `pending`
               (todo) so they pull it into `in_progress` themselves — that's their signal they've begun.
               Only set a human's task to `in_progress` when the human has actually said they started it.
@@ -305,6 +333,49 @@ class ProjectManagerAgent extends SystemUserAgent
             new UpdateNervousSystemTaskStatusTool()->withContext($app, $company, $user),
             new DeleteNervousSystemTaskTool()->withContext($app, $company, $user),
         ];
+
+        // A project manager that can only assign work to teammates who already exist, through
+        // automation somebody else already wired, stops at the edge of what is already set up. The
+        // rest of this list is what lets it finish the job instead: read what a channel is actually
+        // carrying, hire the teammate the work needs, tell it what to do, and put the automation in
+        // place that wakes it. Everything destructive here authorizes on the HUMAN in the
+        // conversation, never on the PM's own user — see requestingHuman().
+        $requestingHuman = $this->requestingHuman();
+
+        $core[] = new ReadChannelWindowTool()->withContext($app, $company, $user);
+        $core[] = new ListMessageTypesTool()->withContext($app, $company, $user);
+        $core[] = new CreateMessageTypeTool()->withContext($app, $company, $user);
+
+        $core[] = new HireAgentTool($agent)
+            ->withContext($app, $company, $user)
+            ->forRequestingUser($requestingHuman);
+        $core[] = new UpdateAgentInstructionsTool($agent)->withContext($app, $company, $user);
+
+        // A manager whose only lever is the current turn cannot manage across time — "follow up
+        // Friday", "check the deploy in an hour", "nudge the assignee tomorrow". They key on the
+        // HUMAN, not the agent: "remind me" has to land on the person who asked.
+        $scheduleFor = $this->requestingHuman() ?? $agent->user;
+
+        $core[] = new ScheduleReminderTool($agent, $this->session)->withContext($app, $company, $scheduleFor);
+        $core[] = new ScheduleAgentTaskTool($agent, $this->session)->withContext($app, $company, $scheduleFor);
+        $core[] = new ListScheduledActionsTool($this->session)->withContext($app, $company, $scheduleFor);
+        $core[] = new CancelScheduledActionTool($this->session)->withContext($app, $company, $scheduleFor);
+
+        $core[] = new ListWorkflowOptionsTool()->withContext($app, $company, $user);
+        $core[] = new ListCompanyWorkflowsTool()->withContext($app, $company, $user);
+        $core[] = new CreateCompanyWorkflowTool()
+            ->withContext($app, $company, $user)
+            ->forRequestingUser($requestingHuman);
+        $core[] = new UpdateCompanyWorkflowTool()
+            ->withContext($app, $company, $user)
+            ->forRequestingUser($requestingHuman);
+        $core[] = new CreateCompanyReceiverTool()
+            ->withContext($app, $company, $user)
+            ->forRequestingUser($requestingHuman);
+        // The other half of inbound email: a receiver is only a URL until an address forwards to it.
+        $core[] = new CreateEmailRouteTool()
+            ->withContext($app, $company, $user)
+            ->forRequestingUser($requestingHuman);
 
         // identityTools() (from SystemUserAgent) gives the PM who_is_user — correctly pointed at the
         // human it's talking to — plus its own ledger memory, without re-listing them here.

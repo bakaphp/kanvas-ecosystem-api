@@ -146,6 +146,48 @@ class KnowledgeScopeIsolationTest extends TestCase
         $this->assertFalse($companyB->contains(fn (string $c): bool => str_contains($c, 'Alpha refund')));
     }
 
+    public function testOrganizationScopedSearchIncludesAllCompanyEntitiesButNeverAnotherCompany(): void
+    {
+        $this->requireTypesense();
+
+        $appId = $this->kanvasApp->getId();
+        $store = KnowledgeComponents::store($this->kanvasApp);
+        $records = [];
+
+        foreach ([
+            ['id' => 'company-a-lead-55', 'company' => self::COMPANY_A, 'entity' => 55, 'content' => 'Alpha lead wants a sedan.'],
+            ['id' => 'company-a-lead-56', 'company' => self::COMPANY_A, 'entity' => 56, 'content' => 'Alpha lead wants an SUV.'],
+            ['id' => 'company-b-lead-57', 'company' => self::COMPANY_B, 'entity' => 57, 'content' => 'Beta lead wants a truck.'],
+        ] as $row) {
+            $records[] = new KnowledgeDocument(
+                id: $row['id'],
+                content: $row['content'],
+                metadata: [
+                    'apps_id' => $appId,
+                    'companies_id' => $row['company'],
+                    'entity_type' => 'Kanvas\\Guild\\Leads\\Models\\Lead',
+                    'entity_id' => $row['entity'],
+                    'source_type' => 'lead',
+                    'sourceType' => 'lead',
+                    'sourceName' => 'lead:' . $row['entity'],
+                    'embedding' => [0.1, 0.2, 0.3, 0.4],
+                ],
+            );
+        }
+
+        $store->upsert($records);
+        $vector = KnowledgeComponents::embedder($this->kanvasApp)->embed('vehicle interest');
+        $results = collect($store->search(
+            $vector,
+            KnowledgeScope::forOrganization($appId, self::COMPANY_A),
+            10,
+        ))->pluck('content');
+
+        $this->assertTrue($results->contains('Alpha lead wants a sedan.'));
+        $this->assertTrue($results->contains('Alpha lead wants an SUV.'));
+        $this->assertFalse($results->contains('Beta lead wants a truck.'));
+    }
+
     public function testAgentScopedSearchNeverReturnsAnotherAgentsKnowledge(): void
     {
         $this->requireTypesense();

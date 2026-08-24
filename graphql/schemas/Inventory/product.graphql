@@ -140,9 +140,9 @@ input NearByLocationInput {
 }
 
 input ProductAttributeOrderBy {
-    name: String
-    sort: String
-    format: FormatSortAttribute!
+    name: String!
+    sort: String = "ASC"
+    format: FormatSortAttribute! = STRING
 }
 
 input ProductTranslationInput {

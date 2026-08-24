@@ -112,7 +112,7 @@ class ProductImporterAction
                         );
              */
             return $this->product;
-        });
+        }, 3);
     }
 
     protected function createStatus(): ?ModelsStatus

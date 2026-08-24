@@ -151,6 +151,40 @@ services:
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=agent-runtime
         --tries=3 --timeout=3750"
+  product-enrichment-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=product-enrichment
+        --tries=3 --timeout=3750"
+  product-discovery-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=product-discovery
+        --tries=3 --timeout=300"
+        
+  agent-chat-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=agent-chat
+        --tries=1 --timeout=3750"
+
+  broadcasts-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=broadcasts
+        --tries=3 --timeout=60"
 
   ledger-queue:
     <<: *common-queue-settings
@@ -160,6 +194,14 @@ services:
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=ledger
         --tries=3 --timeout=3750"
+  slack-ingest-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work
+        --queue=slack-ingest --tries=3 --timeout=3750"
   nervous-system-project-queue:
     <<: *common-queue-settings
     # REMOVED container_name because replicas > 1

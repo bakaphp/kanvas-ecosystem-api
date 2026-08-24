@@ -17,25 +17,33 @@ class KanvasStatusCommand extends Command
 
     protected $description = 'Health snapshot of Kanvas: databases, redis, queues, failed jobs — is everything good?';
 
-    private const QUEUES = [
+    private const array QUEUES = [
         'default',
         'kanvas-social',
         'notifications',
         'user-interactions',
+        'message',
         'batch-logger',
         'imports',
         'scout',
         'scrapper-queue',
         'sync-shopify-queue',
         'workflow',
-        'agent-runtime',
+        'broadcasts',
         'ledger',
+        'agent-runtime',
+        'agent-chat',
+        'nervous-system-project',
+        'scheduled-actions',
+        'slack-ingest',
+        'product-enrichment',
+        'product-discovery',
         'scribe-aging',
         'scribe-pdf-ingest',
         'lead_follow_ups',
     ];
 
-    private const DATABASE_CONNECTIONS = [
+    private const array DATABASE_CONNECTIONS = [
         'mysql',
         'ecosystem',
         'inventory',

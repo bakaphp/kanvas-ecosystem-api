@@ -16,7 +16,17 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Twilio Agent SMS Responder',
+    description: 'Has an agent read an inbound SMS and REPLY BACK by SMS to the same number. Use it for '
+        . 'inbound texts the company wants answered. Do NOT use it when the agent should read and act '
+        . 'somewhere else — it sends a text to the customer.',
+    integration: IntegrationsEnum::TWILIO,
+    params: [
+        'agent_id' => 'Which agent answers. Falls back to the rule\'s configured agent.',
+        'message' => 'Supplied by the trigger — the inbound SMS. Not something you set.',
+    ],
+)]
 class AgentChannelResponderActivity extends KanvasActivity
 {
     use HandlesSupportModeDelayedResponseTrait;
@@ -38,7 +48,7 @@ class AgentChannelResponderActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::TWILIO,
             additionalParams: $params,
-            integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $defaultAgentId, $allowedChannels, $channelAgentMapping, $params) {
+            integrationOperation: function ($channel, $app, $integrationCompany, $additionalParams) use ($message, $user, $defaultAgentId, $allowedChannels, $channelAgentMapping, $params): array {
                 if (empty($message)) {
                     return [
                         'message' => 'Message or user not found',

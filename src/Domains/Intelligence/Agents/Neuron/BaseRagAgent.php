@@ -24,4 +24,9 @@ class BaseRagAgent extends RAG implements BehavesAsKanvasAgent
             ? $this->knowledgeRagNodes()
             : [];
     }
+
+    protected function usesOrganizationWideKnowledge(): bool
+    {
+        return false;
+    }
 }

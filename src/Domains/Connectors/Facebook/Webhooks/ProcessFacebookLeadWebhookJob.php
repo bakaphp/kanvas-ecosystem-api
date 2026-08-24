@@ -9,7 +9,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Facebook Lead Ads Webhook',
+    description: 'Receiver for Facebook Lead Ads: turns a submitted lead form into a Kanvas lead. Inbound only '
+        . '— it is how leads ARRIVE from Facebook, so it is the start of a funnel, not a step you '
+        . 'attach to an existing record.',
+)]
 class ProcessFacebookLeadWebhookJob extends ProcessWebhookJob
 {
     #[Override]

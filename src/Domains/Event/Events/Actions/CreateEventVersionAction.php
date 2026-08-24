@@ -77,10 +77,12 @@ class CreateEventVersionAction
 
         if ($this->runWorkflow) {
             $eventVersion->fireWorkflow(
-                WorkflowEnum::CREATED->value,
+                WorkflowEnum::EVENT_VERSIONS_WORKFLOW->value,
                 true,
                 [
                     'app' => $this->eventVersion->event->app,
+                    'company' => $this->eventVersion->event->company,
+                    'event_version_change' => WorkflowEnum::CREATED->value,
                 ],
             );
         }

@@ -7,9 +7,17 @@ namespace Kanvas\Connectors\WaSender\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\WaSender\Client;
+use Kanvas\Connectors\WaSender\Traits\FormatsPhoneNumberTrait;
 
+/**
+ * Group directory and membership. Sending into a group goes through MessageService — WaSender's
+ * `/api/send-message` takes a group JID in `to` exactly like a phone number, so a second send path
+ * here would only be a copy that can drift.
+ */
 class GroupService
 {
+    use FormatsPhoneNumberTrait;
+
     protected Client $client;
 
     public function __construct(
@@ -25,33 +33,6 @@ class GroupService
     public function getAllGroups(): array
     {
         return $this->client->get('/api/groups');
-    }
-
-    /**
-     * Send a message to a specific WhatsApp group.
-     *
-     * @param string $groupJid Group ID (e.g., '123456789-987654321@g.us')
-     * @param string $text Text content of the message
-     */
-    public function sendTextMessage(string $groupJid, string $text): array
-    {
-        return $this->client->post('/api/send-message', [
-            'to' => $groupJid,
-            'text' => $text,
-        ]);
-    }
-
-    /**
-     * Send a media message to a specific WhatsApp group.
-     *
-     * @param string $groupJid Group ID (e.g., '123456789-987654321@g.us')
-     * @param array $messageData Message data (text, media, etc.)
-     */
-    public function sendMessage(string $groupJid, array $messageData): array
-    {
-        $data = array_merge(['to' => $groupJid], $messageData);
-
-        return $this->client->post('/api/send-message', $data);
     }
 
     /**
@@ -219,25 +200,5 @@ class GroupService
         // This endpoint might not be documented but is common in WhatsApp APIs
         // Adjust the endpoint as needed based on actual API documentation
         return $this->client->post("/api/groups/{$groupJid}/invite-link", []);
-    }
-
-    /**
-     * Format a phone number to E.164 format (remove all non-numeric characters).
-     *
-     * @param string $phoneNumber Phone number to format
-     * @param string $defaultCountryCode Default country code if not present in phone number
-     * @return string Formatted phone number (without the '+' prefix)
-     */
-    protected function formatPhoneNumber(string $phoneNumber, string $defaultCountryCode = '1'): string
-    {
-        // Remove any non-numeric characters, including the '+' prefix if present
-        $cleaned = preg_replace('/[^0-9]/', '', $phoneNumber);
-
-        // If the number doesn't start with the country code, add it
-        if (! str_starts_with($phoneNumber, '+') && ! str_starts_with($cleaned, $defaultCountryCode)) {
-            $cleaned = $defaultCountryCode . $cleaned;
-        }
-
-        return $cleaned; // Return without '+' prefix as API requires
     }
 }

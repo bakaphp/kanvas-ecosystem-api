@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Common;
 use Kanvas\Connectors\Apollo\Services\CsvExportService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Exporters\RecordExporterRegistry;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -24,6 +25,7 @@ use Throwable;
 #[AgentTool(name: 'Export Records', category: 'common')]
 class ExportRecordsTool extends Tool
 {
+    use DecodesJsonObjectParam;
     use HasKanvasContext;
 
     public function __construct()
@@ -32,6 +34,8 @@ class ExportRecordsTool extends Tool
             name: 'export_records',
             description: 'Generate a downloadable CSV of a list of records and return its file URL + row count. '
                 . 'Use when the user asks to "download", "export", "give me a CSV/file/list" of any of these. '
+                . 'The columns are fixed per record_type; when the user wants their OWN columns, or the rows '
+                . 'come from them rather than from Kanvas, use export_table instead. '
                 . 'record_type and its filters (pass filters as an object): '
                 . new RecordExporterRegistry()->describe() . '.',
         );
@@ -53,21 +57,21 @@ class ExportRecordsTool extends Tool
             ),
             new ToolProperty(
                 name: 'filters',
-                type: PropertyType::OBJECT,
-                description: 'Filter object for the chosen record_type (the record_type list in this tool\'s '
-                    . 'description names the accepted keys per type). Pass {} for no filters.',
+                type: PropertyType::STRING,
+                description: 'A JSON object of filters for the chosen record_type, passed as a string (the '
+                    . 'record_type list in this tool\'s description names the accepted keys per type). '
+                    . 'Omit it, or pass "{}", for no filters.',
                 required: false,
             ),
         ];
     }
 
     /**
-     * @param array<string, mixed>|null $filters
-     *
      * @return array<string, mixed>
      */
-    public function __invoke(string $record_type, ?array $filters = null): array
+    public function __invoke(string $record_type, array|string|null $filters = null): array
     {
+        $filters = $this->decodeJsonObjectParam($filters);
         $registry = new RecordExporterRegistry();
         $exporter = $registry->for($record_type);
 
@@ -77,7 +81,7 @@ class ExportRecordsTool extends Tool
         }
 
         try {
-            $rows = $exporter->rows($this->app, $this->company, $filters ?? []);
+            $rows = $exporter->rows($this->app, $this->company, $filters);
         } catch (Throwable $e) {
             return ['error' => $e->getMessage()];
         }

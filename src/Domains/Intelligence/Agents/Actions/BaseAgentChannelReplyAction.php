@@ -12,6 +12,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
+use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
@@ -27,6 +28,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
 
 /**
  * Shared base for per-connector channel reply actions (WaSender, Mailgun, RespondIO,
@@ -90,32 +92,44 @@ class BaseAgentChannelReplyAction
         $this->dispatchAttachmentDescription($this->message, $this->agent, $this->channel);
     }
 
+    /**
+     * @param string|null $rawResponse the agent's untouched reply, before ChatHelper picked the
+     *                                 outbound text out of it. An agent that answers with a whole
+     *                                 record — a post, a quote, an enrichment — loses every field
+     *                                 but the body once the text is picked, so the decoded envelope
+     *                                 is kept on the message as `response_json` for later activities.
+     */
     protected function createMessage(
         string $text,
         string $to,
         Message $message,
         Channel $channel,
-        ?string $from = null
+        ?string $from = null,
+        ?string $rawResponse = null
     ): Message {
         if (empty($text)) {
-            throw new Exception('Empty message was created');
+            throw new AgentReplySkippedException('Empty message was created');
         }
         $user = $this->channel->company->getAiAgentUser() ?? $message->user;
         $type = $this->getMessageType($message->app);
+        $structuredResponse = $rawResponse !== null ? ChatHelper::extractJsonEnvelope($rawResponse) : null;
         $messageInput = new MessageInput(
             app: $message->app,
             company: $message->company,
             user: $user,
-            message: AiChatMessagePayload::from([
-                'content' => $text,
-                'from_me' => true,
-                'from_ia' => true,
-                'session_id' => $this->session?->uuid,
-                'agent_id' => (int) $this->agent->getId(),
-                'raw_data' => $text,
-                'message_id' => '--',
-                'chat_jid' => $to,
-            ])->toArray(),
+            message: [
+                ...AiChatMessagePayload::from([
+                    'content' => $text,
+                    'from_me' => true,
+                    'from_ia' => true,
+                    'session_id' => $this->session?->uuid,
+                    'agent_id' => (int) $this->agent->getId(),
+                    'raw_data' => $text,
+                    'message_id' => '--',
+                    'chat_jid' => $to,
+                ])->toArray(),
+                ...($structuredResponse !== null ? ['response_json' => $structuredResponse] : []),
+            ],
             is_public: 1,
             tags: [$to],
             type: $type,
@@ -128,6 +142,8 @@ class BaseAgentChannelReplyAction
 
         $newMessage->set('communicationChannel', $this->communicationChannel);
         $newMessage->set('from_number', $from);
+
+        $this->carryForwardAttachments($message, $newMessage);
 
         $entity = $message->entity();
         if ($entity instanceof Model) {
@@ -187,6 +203,24 @@ class BaseAgentChannelReplyAction
         }
 
         return $newMessage;
+    }
+
+    /**
+     * The sender's attachments land on the inbound message, but everything downstream reads the reply
+     * — the WordPress publisher skips inbound messages outright, so an emailed-in photo could never
+     * become a post's featured image. Same Filesystem rows, not copies.
+     *
+     * Must stay ahead of fireWorkflow() so the rules the reply triggers already see the files.
+     */
+    private function carryForwardAttachments(Message $inbound, Message $reply): void
+    {
+        foreach ($inbound->files as $file) {
+            try {
+                $reply->addFile($file, (string) $file->name);
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
     }
 
     protected function companyRequiresHumanApproval(): bool

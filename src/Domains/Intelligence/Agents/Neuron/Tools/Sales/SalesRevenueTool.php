@@ -60,10 +60,25 @@ class SalesRevenueTool extends Tool
             ->when($since !== null && $since !== '', fn ($q) => $q->whereDate('created_at', '>=', $since))
             ->when($until !== null && $until !== '', fn ($q) => $q->whereDate('created_at', '<=', $until));
 
+        $orders = $base()->count();
+
         $result = [
+            'since' => $since !== null && $since !== '' ? $since : 'all-time',
+            'until' => $until !== null && $until !== '' ? $until : 'open-ended',
             'total_revenue' => round((float) $base()->sum('total_gross_amount'), 2),
-            'orders' => $base()->count(),
+            'orders' => $orders,
         ];
+
+        // A bare {revenue: 0, orders: 0} reads to the model as "the call didn't work", and it
+        // retries the identical arguments until Neuron kills the turn with ToolRunsExceededException
+        // (Sentry KANVAS-ECOSYSTEM-682). Saying the zero is final — and where the data actually
+        // starts and ends — turns a retry loop into a single corrected call or a plain answer.
+        if ($orders === 0) {
+            $result['message'] = 'Zero is the complete, correct answer for this range — no booked orders fall in it. '
+                . 'Calling this tool again with the same since/until returns the same zero. Report it as-is, or call '
+                . 'once more with a range inside first_booked_order_date..last_booked_order_date.';
+            $result += $this->bookedOrderDateBounds();
+        }
 
         if ($by_month === true) {
             $result['by_month'] = $base()
@@ -79,5 +94,27 @@ class SalesRevenueTool extends Tool
         }
 
         return $result;
+    }
+
+    /**
+     * The window the tenant actually has booked orders in, so a model that queried an empty range can
+     * correct itself in one call instead of probing dates. Both null when the tenant has no orders at all.
+     *
+     * @return array{first_booked_order_date: string|null, last_booked_order_date: string|null}
+     */
+    private function bookedOrderDateBounds(): array
+    {
+        $bounds = Order::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('is_deleted', false)
+            ->whereNotIn('status', self::EXCLUDED_STATUSES)
+            ->selectRaw('MIN(created_at) as first_at, MAX(created_at) as last_at')
+            ->first();
+
+        return [
+            'first_booked_order_date' => $bounds?->first_at !== null ? substr((string) $bounds->first_at, 0, 10) : null,
+            'last_booked_order_date' => $bounds?->last_at !== null ? substr((string) $bounds->last_at, 0, 10) : null,
+        ];
     }
 }

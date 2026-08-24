@@ -18,7 +18,12 @@ use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'ElevenLabs Call Transcript',
+    description: 'Files the transcript and the voice recording of a finished ElevenLabs call against the lead, '
+        . 'so the call shows up in the conversation history like any other message. Arrives after the '
+        . 'call ends; contacts nobody.',
+)]
 class ProcessElevenLabsTranscriptWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

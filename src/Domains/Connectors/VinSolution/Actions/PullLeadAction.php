@@ -18,6 +18,7 @@ use Kanvas\Connectors\VinSolution\Dealers\Dealer;
 use Kanvas\Connectors\VinSolution\Dealers\User;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
+use Kanvas\Connectors\VinSolution\Exceptions\ContactNotFoundException;
 use Kanvas\Connectors\VinSolution\Exceptions\VinSolutionException;
 use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
@@ -242,6 +243,9 @@ class PullLeadAction
                 $lead->addCoBuyerParticipant($coBuyerPeople);
             }
             //$lead->co_buyer_id = $coBuyerPeople->getId();
+        } catch (ContactNotFoundException) {
+            // The co-buyer VinSolutions points at is gone or belongs to another dealer;
+            // the lead itself is still valid, so there is nothing to report.
         } catch (Throwable $e) {
             report($e);
         }

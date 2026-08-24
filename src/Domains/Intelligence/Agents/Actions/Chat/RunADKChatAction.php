@@ -24,6 +24,8 @@ class RunADKChatAction
         protected readonly Users $user,
         protected readonly ?Channel $sourceChannel = null,
         protected readonly ?SocialMessage $sourceMessage = null,
+        protected readonly ?string $appName = null,
+        protected readonly ?string $baseUrl = null,
     ) {
     }
 
@@ -32,7 +34,12 @@ class RunADKChatAction
         $sessionId = $this->session?->uuid ?? $this->sourceChannel?->slug ?? '';
         $userId = $this->resolveUserId();
 
-        $service = new GoogleADKService($this->agent->app, $this->agent->company);
+        $service = new GoogleADKService(
+            $this->agent->app,
+            $this->agent->company,
+            $this->appName,
+            $this->baseUrl
+        );
         $service->startSession($userId, $sessionId);
 
         $response = $service->chat($userId, $sessionId, $this->message);

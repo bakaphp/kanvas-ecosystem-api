@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -21,6 +22,7 @@ use Throwable;
 #[AgentTool(name: 'Set Person Custom Fields', category: 'crm')]
 class SetPersonCustomFieldsTool extends Tool
 {
+    use DecodesJsonObjectParam;
     use HasKanvasContext;
 
     public function __construct()
@@ -48,20 +50,21 @@ class SetPersonCustomFieldsTool extends Tool
             ),
             new ToolProperty(
                 name: 'custom_fields',
-                type: PropertyType::OBJECT,
-                description: 'Map of custom field name → value, e.g. {"seniority": "director", "source": "referral"}.',
+                type: PropertyType::STRING,
+                description: 'A JSON object mapping custom field name → value, passed as a string. '
+                    . 'For example: {"seniority": "director", "source": "referral"}.',
                 required: true,
             ),
         ];
     }
 
     /**
-     * @param array<string, mixed> $custom_fields
-     *
      * @return array<string, mixed>
      */
-    public function __invoke(int $person_id, array $custom_fields): array
+    public function __invoke(int $person_id, array|string|null $custom_fields = null): array
     {
+        $custom_fields = $this->decodeJsonObjectParam($custom_fields);
+
         if ($custom_fields === []) {
             return ['error' => 'Provide at least one custom field to set.'];
         }

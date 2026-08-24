@@ -161,9 +161,11 @@ class RunNeuronChatAction
                 . 'like me to look into it or handle it a different way.';
         }
 
+        // Any tool can trip the run budget, not just the people lookups this copy used to name —
+        // a reporting tool looping on an empty date range hits it too (KANVAS-ECOSYSTEM-682).
         if ($e instanceof ToolRunsExceededException) {
-            return "I couldn't find a match after a few tries. Could you double-check the name or email "
-                . 'and confirm the person exists, then ask me again?';
+            return 'I kept retrying the same lookup without getting anywhere. Could you narrow it down for me — '
+                . 'an exact name, email, or date range — and ask again?';
         }
 
         return 'I ran into a hiccup processing that. Could you try rephrasing, '

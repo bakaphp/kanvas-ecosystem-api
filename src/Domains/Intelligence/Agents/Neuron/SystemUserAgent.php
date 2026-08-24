@@ -56,6 +56,12 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
 
     private ?Channel $mentionChannel = null;
 
+    #[Override]
+    protected function usesOrganizationWideKnowledge(): bool
+    {
+        return true;
+    }
+
     /**
      * Answering an @mention: read the WHOLE channel this turn, not the per-session store.
      */

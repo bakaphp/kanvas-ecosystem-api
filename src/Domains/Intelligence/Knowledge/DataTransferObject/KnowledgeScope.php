@@ -10,17 +10,19 @@ final readonly class KnowledgeScope
 {
     /**
      * A scope filters the shared knowledge collection down to one tenant, and
-     * optionally one entity. Entity-scoped docs (a Lead and its messages) carry
+     * optionally one entity. Organization-wide reads keep only the tenant pair.
+     * Entity-scoped docs (a Lead and its messages) carry
      * a real entity_type/entity_id; tenant-scoped docs (a company's uploaded
      * policy/FAQ files) carry none and are stored with entity_id = 0.
      *
-     * @param class-string|null $entityType FQCN of the owning model; null = tenant-scoped
+     * @param class-string|null $entityType FQCN of the owning model; null = tenant/organization-scoped
      */
     public function __construct(
         public int $appId,
         public int $companyId,
         public ?string $entityType = null,
         public ?int $entityId = null,
+        public bool $organizationWide = false,
     ) {
     }
 
@@ -46,6 +48,15 @@ final readonly class KnowledgeScope
         return new self(appId: $appId, companyId: $companyId);
     }
 
+    public static function forOrganization(int $appId, int $companyId): self
+    {
+        return new self(
+            appId: $appId,
+            companyId: $companyId,
+            organizationWide: true,
+        );
+    }
+
     public function isEntityScoped(): bool
     {
         return $this->entityType !== null && $this->entityId !== null;
@@ -53,12 +64,17 @@ final readonly class KnowledgeScope
 
     /**
      * Typesense filter_by. companies_id is ALWAYS present — this is what closes
-     * the cross-company leak. A tenant-scoped search pins entity_id = 0 so it
-     * returns only company knowledge, never another entity's indexed rows.
+     * the cross-company leak. Organization-wide reads stop at that tenant pair;
+     * tenant-document searches pin entity_id = 0, and entity searches add both
+     * entity_type and entity_id.
      */
     public function filter(): string
     {
         $filter = sprintf('apps_id:=%d && companies_id:=%d', $this->appId, $this->companyId);
+
+        if ($this->organizationWide) {
+            return $filter;
+        }
 
         if ($this->isEntityScoped()) {
             return $filter . sprintf(

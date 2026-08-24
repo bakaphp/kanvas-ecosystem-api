@@ -23,7 +23,13 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'VinSolution Push Lead Notes',
+    description: 'Copies a message into the lead\'s notes in VinSolutions, so the CRM record shows the '
+        . 'conversation. Writes a note only — it sends nothing to the customer. Pick the version '
+        . 'matching the CRM this company runs; several connectors ship a near-identical step.',
+    integration: IntegrationsEnum::VIN_SOLUTION,
+)]
 class PushLeadNotesActivity extends KanvasActivity
 {
     public $tries = 3;

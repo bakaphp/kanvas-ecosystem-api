@@ -16,7 +16,17 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Mailgun Agent Email Responder',
+    description: 'Has an agent read an inbound EMAIL and reply back by email on the same thread. Use it for '
+        . 'inbound mail the company wants answered. Do NOT use it when the agent should read the mail '
+        . 'and act somewhere else — it sends a reply to the sender.',
+    integration: IntegrationsEnum::MAILGUN,
+    params: [
+        'agent_id' => 'Which agent answers. Falls back to the rule\'s configured agent.',
+        'message' => 'Supplied by the trigger — the inbound email. Not something you set.',
+    ],
+)]
 class AgentChannelResponderActivity extends KanvasActivity
 {
     use HandlesSupportModeDelayedResponseTrait;
@@ -44,6 +54,16 @@ class AgentChannelResponderActivity extends KanvasActivity
                         'message' => 'Message or user not found',
                         'entity' => null,
                     ];
+                }
+
+                // Rules wired to fan every inbound message reach this activity with SMS/WhatsApp
+                // payloads, which have a phone in chat_jid and no sender address. Bail before the
+                // session + LLM spend; the email responder has no recipient to reply to.
+                if (trim((string) ($message->message['from_email'] ?? '')) === '') {
+                    return $this->failWorkflow([
+                        'message' => 'Inbound message has no from_email, not an email message',
+                        'entity' => null,
+                    ]);
                 }
 
                 $chatJid = $message->message['chat_jid'] ?? null;

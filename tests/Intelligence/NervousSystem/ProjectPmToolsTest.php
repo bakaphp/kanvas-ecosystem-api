@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -17,8 +19,10 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CommentOnNervousSystem
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
+use Kanvas\NervousSystem\Capability\Enums\AgentAbilityEnum;
 use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
@@ -40,12 +44,18 @@ use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use ReflectionMethod;
+use ReflectionProperty;
+use Silber\Bouncer\BouncerFacade as Bouncer;
 use Tests\Stubs\Intelligence\CapturingProjectManagerAgentStub;
 use Tests\TestCase;
 
 class ProjectPmToolsTest extends TestCase
 {
-    protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'workflow'];
+    // The property below is inert without this trait — it was declared alone, so nothing this test
+    // wrote was ever rolled back and the rows leaked into every test that ran after it.
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'workflow', 'ecosystem'];
 
     /**
      * @return array{0: Apps, 1: Companies, 2: Users}
@@ -465,6 +475,139 @@ class ProjectPmToolsTest extends TestCase
         $this->assertContains('delete_nervous_system_task', $names);
         $this->assertContains('update_nervous_system_plan', $names);
         $this->assertContains('delete_nervous_system_plan', $names);
+    }
+
+    /**
+     * A PM that can only hand work to teammates who already exist, through automation somebody else
+     * already wired, cannot finish a job end to end — it stops at the edge of what is already set up.
+     */
+    public function testProjectManagerAgentCanStaffAndAutomateTheWork(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $pm = new ProjectManagerAgent();
+        $pm->setConfiguration($agent, null, null, $user);
+
+        $names = array_map(
+            fn (object $tool): string => (string) $tool->getName(),
+            new ReflectionMethod($pm, 'tools')->invoke($pm)
+        );
+
+        foreach ([
+            'hire_agent',
+            'update_agent_instructions',
+            'list_workflow_options',
+            'list_company_workflows',
+            'create_company_workflow',
+            'update_company_workflow',
+            'create_company_receiver',
+            'create_email_route',
+            'read_channel_window',
+            'list_message_types',
+            'create_message_type',
+            // Lost once already: ProjectManagerAgent overrides SystemUserAgent::tools() without
+            // calling parent, which drops these silently — a shorter list, no error.
+            'schedule_reminder',
+            'schedule_agent_task',
+            'list_scheduled_actions',
+            'cancel_scheduled_action',
+        ] as $expected) {
+            $this->assertContains($expected, $names, $expected . ' is missing from the PM toolset.');
+        }
+    }
+
+    /**
+     * An autonomous wake has no human in the turn — the wake jobs run the PM on its own user — so the
+     * agent's own grant is the authorization. Making it an admin to get one capability would grant it
+     * every other one on the way, hence a named ability.
+     */
+    public function testAGrantedAbilityAuthorizesHiringWithoutMakingTheAgentAnAdmin(): void
+    {
+        [$app, , $user] = $this->context();
+        // Its own company: hiring is capped per company, and the shared one accumulates agents across
+        // the suite until every hire here fails on the cap rather than on what it is testing.
+        $company = Companies::factory()->create(['users_id' => $user->getId()]);
+        $agentUser = Users::factory()->create();
+        $agent = $this->makeAgent($app, $company, $agentUser);
+
+        $tool = new HireAgentTool($agent)
+            ->withContext($app, $company, $agentUser)
+            ->forRequestingUser($agentUser);
+
+        $this->assertFalse($agentUser->isAdmin(), 'The premise is an agent that is NOT an administrator.');
+
+        $refused = $tool(
+            name: 'Ungranted ' . fake()->unique()->lexify('?????'),
+            role: 'Worker',
+            instructions: 'Do the thing, or nothing.',
+        );
+
+        $this->assertFalse($refused['hired']);
+        $this->assertStringContainsString('permission', $refused['message']);
+        // The refusal has to tell the model what to do instead, or it retries or abandons the run.
+        $this->assertStringContainsString('blocked', $refused['message']);
+
+        Bouncer::scope()->to(RolesEnums::getScope($app));
+        // Deliberately NOT refreshing Bouncer's cache: a grant made while a worker is running must
+        // take effect without a restart, and the guard is what has to notice.
+        Bouncer::allow($agentUser)->to(AgentAbilityEnum::HIRE_AGENT->value);
+
+        $allowed = $tool(
+            name: 'Granted ' . fake()->unique()->lexify('?????'),
+            role: 'Worker',
+            instructions: 'Do the thing, or nothing.',
+        );
+
+        $this->assertTrue($allowed['hired'], $allowed['message'] ?? '');
+        $this->assertFalse(
+            $agentUser->refresh()->isAdmin(),
+            'The grant must not have made the agent an administrator.'
+        );
+    }
+
+    /**
+     * The PM's own user is usually an admin, so an admin-guarded tool that authorized against it
+     * would hand the PM's rights to whoever is talking to the PM. On the @mention surface the turn's
+     * actor IS the agent's own user, and only the conversation human is the real person.
+     */
+    public function testAdminGuardedPmToolsAuthorizeTheHumanNotThePmItself(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agentUser = Users::factory()->create();
+        $agent = $this->makeAgent($app, $company, $agentUser);
+
+        $pm = new ProjectManagerAgent();
+        $pm->setConfiguration($agent, null, null, $agentUser);
+
+        $this->assertSame(
+            $agentUser->getId(),
+            $pm->requestingHuman()?->getId(),
+            'With nobody identified the actor stands in, which is correct on a user-chat surface.'
+        );
+
+        $pm->setConversationHuman($user);
+
+        $this->assertSame(
+            $user->getId(),
+            $pm->requestingHuman()?->getId(),
+            'Once the human is known it must win over the agent\'s own user.'
+        );
+
+        $hire = array_values(array_filter(
+            new ReflectionMethod($pm, 'tools')->invoke($pm),
+            fn (object $tool): bool => (string) $tool->getName() === 'hire_agent'
+        ));
+
+        $this->assertCount(1, $hire);
+
+        $requesting = new ReflectionProperty($hire[0], 'requestingUser');
+
+        $this->assertSame(
+            $user->getId(),
+            $requesting->getValue($hire[0])?->getId(),
+            'hire_agent must be bound to the conversation human, not the PM\'s own user.'
+        );
     }
 
     public function testInstructionsGroundThePmInItsOwnProject(): void

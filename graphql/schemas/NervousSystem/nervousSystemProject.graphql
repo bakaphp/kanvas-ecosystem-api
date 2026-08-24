@@ -29,7 +29,7 @@ type NervousSystemProject {
     completed_at: DateTime
     workspace: NervousSystemWorkspace @belongsTo(relation: "workspace")
     owner: User! @belongsTo(relation: "owner")
-    pmAgent: AgentAi! @belongsTo(relation: "pmAgent")
+    pmAgent: AgentAi @belongsTo(relation: "pmAgent")
     swarm: AgentSwarm @belongsTo(relation: "swarm")
     parent: NervousSystemProject @belongsTo(relation: "parent")
     children: [NervousSystemProject!]! @hasMany(relation: "children")

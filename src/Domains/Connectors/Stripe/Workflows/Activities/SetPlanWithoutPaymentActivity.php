@@ -14,7 +14,16 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Stripe Start Trial Subscription',
+    description: 'Puts a new company on the app\'s default plan as a free trial, with no card collected. Skips '
+        . 'a company that already has a subscription, so it is safe on repeat signups. This BILLS the '
+        . 'customer once the trial ends.',
+    integration: IntegrationsEnum::STRIPE,
+    params: [
+        'company' => 'Company to subscribe. Defaults to the app company.',
+    ],
+)]
 class SetPlanWithoutPaymentActivity extends KanvasActivity
 {
     public $tries = 5;

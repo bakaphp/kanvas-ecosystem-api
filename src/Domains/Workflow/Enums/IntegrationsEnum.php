@@ -62,6 +62,7 @@ enum IntegrationsEnum: string
     case MERCURY = 'mercury';
     case SALESFORCE = 'salesforce';
     case PIDEV = 'pidev';
+    case WORDPRESS = 'wordpress';
     case UNIVERSAL_SEGUROS = 'universal_seguros';
-    case DEALER_APP_CENTER = 'dealer_app_center';
+    case YUSEN = 'yusen';
 }

@@ -29,6 +29,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Events\ListEventParticipantsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Events\ListEventsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Events\ListParticipantTypesTool;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\HasRunKey;
 use Spatie\LaravelData\DataCollection;
 use Tests\TestCase;
 
@@ -105,6 +106,37 @@ final class EventToolsTest extends TestCase
     {
         $this->assertArrayHasKey('error', $this->tool(new GetEventTool())->__invoke(event_id: 999999999));
         $this->assertArrayHasKey('error', $this->tool(new GetEventVersionTool())->__invoke(version_id: 999999999));
+    }
+
+    /**
+     * Sweeping a calendar means calling these once per edition, so each must key its run budget by inputs —
+     * otherwise the 11th DISTINCT event in a turn trips NeuronAI's per-tool-name cap and aborts the whole
+     * turn (Sentry KANVAS-ECOSYSTEM-64Q).
+     */
+    public function test_per_event_tools_key_their_run_budget_by_inputs(): void
+    {
+        $tools = [
+            new GetEventTool(),
+            new GetEventVersionTool(),
+            new ListEventParticipantsTool(),
+            new GetEventReportTool(),
+        ];
+
+        foreach ($tools as $tool) {
+            $this->assertInstanceOf(HasRunKey::class, $tool, $tool->getName() . ' must key its run budget by inputs.');
+
+            $tool->setInputs(['event_id' => 1, 'version_id' => 1, 'report' => 'inscription_track']);
+            $keyOne = $tool->getRunKey();
+
+            $tool->setInputs(['event_id' => 2, 'version_id' => 2, 'report' => 'inscription_track']);
+            $keyTwo = $tool->getRunKey();
+
+            $tool->setInputs(['event_id' => 1, 'version_id' => 1, 'report' => 'inscription_track']);
+            $keyOneAgain = $tool->getRunKey();
+
+            $this->assertNotEquals($keyOne, $keyTwo, $tool->getName() . ': distinct events must not share a run budget.');
+            $this->assertEquals($keyOneAgain, $keyOne, $tool->getName() . ': identical calls must collapse so a loop is still capped.');
+        }
     }
 
     /**

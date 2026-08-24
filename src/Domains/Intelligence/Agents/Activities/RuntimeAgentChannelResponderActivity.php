@@ -14,7 +14,17 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Runtime Agent Channel Responder',
+    description: 'Has a machine-runtime agent (OpenClaw, Hermes) read a channel message and reply back on that '
+        . 'channel. Only for agents whose type is a hosted/container runtime — an in-process agent will '
+        . 'not respond through this. Do NOT use it for read-and-act work.',
+    integration: IntegrationsEnum::INTERNAL,
+    params: [
+        'agent_id' => 'Which runtime agent answers.',
+        'message' => 'Supplied by the trigger — the message that arrived. Not something you set.',
+    ],
+)]
 class RuntimeAgentChannelResponderActivity extends KanvasActivity
 {
     public function execute(Channel $entity, Apps $app, array $params): array

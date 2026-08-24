@@ -37,20 +37,6 @@ class CreateGoogleCalendarMeetingAction
         $calendarId = $this->resolveCalendarId($config);
         $service = $this->createCalendarService($config);
 
-        if ($this->externalEventId !== null) {
-            try {
-                return $this->formatResult(
-                    $this->findEvent($service, $calendarId, $this->externalEventId),
-                    $calendarId,
-                    $this->sanitizeEmails($this->attendeeEmails),
-                );
-            } catch (Throwable $exception) {
-                if ((int) $exception->getCode() !== 404) {
-                    throw $exception;
-                }
-            }
-        }
-
         $emails = $this->sanitizeEmails($this->attendeeEmails);
 
         $event = new Event([
@@ -84,15 +70,21 @@ class CreateGoogleCalendarMeetingAction
         }
 
         try {
-            $saved = $this->insertEvent($service, $calendarId, $event);
+            $saved = $this->externalEventId !== null
+                ? $this->updateEvent($service, $calendarId, $this->externalEventId, $event)
+                : $this->insertEvent($service, $calendarId, $event);
         } catch (Throwable $exception) {
-            if (! $this->shouldRetryWithoutMeet($exception)) {
+            if ($this->externalEventId !== null && (int) $exception->getCode() === 404) {
+                $saved = $this->insertEvent($service, $calendarId, $event);
+            } elseif (! $this->shouldRetryWithoutMeet($exception)) {
                 throw $exception;
+            } else {
+                $this->withMeetLink = false;
+                unset($event->conferenceData);
+                $saved = $this->externalEventId !== null
+                    ? $this->updateEvent($service, $calendarId, $this->externalEventId, $event)
+                    : $this->insertEvent($service, $calendarId, $event);
             }
-
-            $this->withMeetLink = false;
-            $event->setConferenceData(null);
-            $saved = $this->insertEvent($service, $calendarId, $event);
         }
 
         return $this->formatResult($saved, $calendarId, $emails);
@@ -221,5 +213,17 @@ class CreateGoogleCalendarMeetingAction
     protected function findEvent(Calendar $service, string $calendarId, string $eventId): Event
     {
         return $service->events->get($calendarId, $eventId);
+    }
+
+    protected function updateEvent(Calendar $service, string $calendarId, string $eventId, Event $event): Event
+    {
+        try {
+            return $service->events->update($calendarId, $eventId, $event, [
+                'conferenceDataVersion' => $this->withMeetLink ? 1 : 0,
+                'sendUpdates' => 'all',
+            ]);
+        } catch (Throwable $exception) {
+            throw new RuntimeException('Google Calendar event update failed: ' . $exception->getMessage(), (int) $exception->getCode(), $exception);
+        }
     }
 }

@@ -13,7 +13,13 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Acumatica Push Bill',
+    description: 'Pushes an accounts-payable bill into Acumatica ERP. Outbound one-way write; it does nothing '
+        . 'unless Acumatica writes are enabled for this app, so attaching it to a read-only tenant is a '
+        . 'silent no-op rather than an error.',
+    integration: IntegrationsEnum::ACUMATICA,
+)]
 class PushBillToAcumaticaActivity extends KanvasActivity
 {
     public $tries = 3;

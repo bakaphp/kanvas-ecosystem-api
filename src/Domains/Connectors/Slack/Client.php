@@ -7,9 +7,12 @@ namespace Kanvas\Connectors\Slack;
 use Baka\Http\SafeUrl;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Workflow\Models\ReceiverWebhook;
+use Throwable;
 
 class Client
 {
@@ -39,11 +42,30 @@ class Client
     }
 
     /**
+     * The listener has no agent to hang a token on, so its credentials live on the receiver.
+     */
+    public static function getInstanceByReceiver(ReceiverWebhook $receiver): self
+    {
+        $botToken = (string) ($receiver->configuration[ConfigurationEnum::BOT_TOKEN->value] ?? '');
+
+        if ($botToken === '') {
+            throw new ValidationException(
+                'Receiver ' . (int) $receiver->getId() . ' has no Slack bot token. Connect the listener first.'
+            );
+        }
+
+        return new self($botToken);
+    }
+
+    /**
      * The posted message's `ts`, which doubles as its id for updateMessage() — the
      * placeholder-then-edit pattern an agent turn needs, since it outlives Slack's ack window.
      */
-    public function postMessage(string $channel, string $text, ?string $threadTs = null): string
-    {
+    public function postMessage(
+        string $channel,
+        string $text,
+        ?string $threadTs = null
+    ): string {
         return (string) $this->call('chat.postMessage', array_filter([
             'channel' => $channel,
             'text' => $text,
@@ -51,8 +73,11 @@ class Client
         ]))['ts'];
     }
 
-    public function updateMessage(string $channel, string $ts, string $text): void
-    {
+    public function updateMessage(
+        string $channel,
+        string $ts,
+        string $text
+    ): void {
         $this->call('chat.update', [
             'channel' => $channel,
             'ts' => $ts,
@@ -60,26 +85,53 @@ class Client
         ]);
     }
 
+    public function deleteMessage(string $channel, string $ts): void
+    {
+        $this->call('chat.delete', ['channel' => $channel, 'ts' => $ts]);
+    }
+
     /**
-     * Edit the placeholder message with a reply that may exceed Slack's per-message limit: the first
-     * chunk updates the placeholder, the rest are posted as follow-ups in the same thread. Avoids the
-     * `msg_too_long` failure a long agent reply otherwise triggers on chat.update.
+     * Deliver the finished reply as NEW messages, then drop the placeholder.
+     *
+     * Slack fires no push, sound, badge or unread marker for chat.update, so editing the placeholder
+     * in place made every agent reply land silently — the only ping a user ever got said "working on
+     * it…". Posting the answer is what makes Slack treat it as a real incoming message. Chunking also
+     * keeps a long reply under the per-message byte limit (`msg_too_long`).
+     *
+     * The delete runs last on purpose: if a chunk fails to post, the placeholder is still there for
+     * the caller to overwrite with its failure notice.
      */
-    public function updateMessageWithOverflow(
+    public function replacePlaceholderWithReply(
         string $channel,
-        string $ts,
+        string $placeholderTs,
         string $text,
         ?string $threadTs = null
     ): void {
         $chunks = self::splitText($text);
 
-        $this->updateMessage($channel, $ts, $chunks[0]);
+        $firstTs = $this->postMessage(
+            $channel,
+            $chunks[0],
+            $threadTs
+        );
 
-        // Keep follow-ups in the same thread; when the turn wasn't threaded, hang them off the
-        // placeholder itself so the reply stays a single readable unit.
-        $thread = $threadTs !== null && $threadTs !== '' ? $threadTs : $ts;
+        // Keep follow-ups in the same thread; when the turn wasn't threaded, hang them off the first
+        // chunk so the reply stays a single readable unit.
+        $thread = $threadTs !== null && $threadTs !== '' ? $threadTs : $firstTs;
         foreach (array_slice($chunks, 1) as $chunk) {
-            $this->postMessage($channel, $chunk, $thread);
+            $this->postMessage(
+                $channel,
+                $chunk,
+                $thread
+            );
+        }
+
+        try {
+            $this->deleteMessage($channel, $placeholderTs);
+        } catch (Throwable $e) {
+            // The reply is already delivered; a surviving hourglass is cosmetic. Letting this bubble
+            // would make the caller replace it with a failure notice that isn't true.
+            report($e);
         }
     }
 
@@ -159,6 +211,40 @@ class Client
         return $this->call('users.info', ['user' => $userId])['user'] ?? [];
     }
 
+    /**
+     * Returns one page and its cursor rather than looping internally: this endpoint is rate-limited
+     * hard enough that a full sweep has to be spread over time by the caller.
+     *
+     * @return array{channels: array, next_cursor: string}
+     */
+    public function conversationsList(string $cursor = '', string $types = 'public_channel'): array
+    {
+        $response = $this->call('conversations.list', array_filter([
+            'types' => $types,
+            'exclude_archived' => 'true',
+            'limit' => '200',
+            'cursor' => $cursor === '' ? null : $cursor,
+        ]));
+
+        return [
+            'channels' => (array) ($response['channels'] ?? []),
+            'next_cursor' => (string) ($response['response_metadata']['next_cursor'] ?? ''),
+        ];
+    }
+
+    /**
+     * Public channels only — a bot cannot join a private channel, a human has to invite it.
+     */
+    public function joinConversation(string $channelId): void
+    {
+        $this->call('conversations.join', ['channel' => $channelId]);
+    }
+
+    public function conversationInfo(string $channelId): array
+    {
+        return $this->call('conversations.info', ['channel' => $channelId])['channel'] ?? [];
+    }
+
     public function lookupUserIdByEmail(string $email): ?string
     {
         try {
@@ -180,6 +266,46 @@ class Client
     public function authTest(): array
     {
         return $this->call('auth.test', []);
+    }
+
+    /**
+     * Uploads a file into a channel/DM as a real Slack attachment, via the current 3-step external
+     * upload flow (the old one-shot files.upload was deprecated): reserve an upload URL, PUT the
+     * bytes to it, then complete the upload against the destination channel.
+     */
+    public function uploadFile(
+        string $channel,
+        string $filename,
+        string $contents,
+        ?string $initialComment = null,
+        ?string $threadTs = null,
+    ): void {
+        $reservation = $this->call('files.getUploadURLExternal', [
+            'filename' => $filename,
+            'length' => (string) strlen($contents),
+        ]);
+
+        $uploadUrl = (string) ($reservation['upload_url'] ?? '');
+        $fileId = (string) ($reservation['file_id'] ?? '');
+
+        if ($uploadUrl === '' || $fileId === '') {
+            throw new ValidationException('Slack files.getUploadURLExternal did not return an upload_url/file_id.');
+        }
+
+        $response = Http::timeout(30)
+            ->withBody($contents, 'application/octet-stream')
+            ->post($uploadUrl);
+
+        if (! $response->successful()) {
+            throw new ValidationException('Slack file upload failed with HTTP ' . $response->status() . '.');
+        }
+
+        $this->call('files.completeUploadExternal', array_filter([
+            'files' => json_encode([['id' => $fileId, 'title' => $filename]]),
+            'channel_id' => $channel,
+            'initial_comment' => $initialComment,
+            'thread_ts' => $threadTs,
+        ]));
     }
 
     /**

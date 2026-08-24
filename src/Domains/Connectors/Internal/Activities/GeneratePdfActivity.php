@@ -21,7 +21,17 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Generate PDF From Template',
+    description: 'Renders a PDF from a named template using the record\'s data and attaches it. Both the '
+        . 'template and the file name must be configured on the rule — without either it does nothing '
+        . 'and says so rather than failing.',
+    integration: IntegrationsEnum::INTERNAL,
+    params: [
+        'template_pdf' => 'Name of the blade template to render. Required; without it the step is a no-op.',
+        'pdf_file_name' => 'File name for the generated PDF. Required; without it the step is a no-op.',
+    ],
+)]
 class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public $tries = 3;

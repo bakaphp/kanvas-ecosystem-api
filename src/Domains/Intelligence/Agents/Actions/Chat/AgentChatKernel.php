@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Baka\Support\Str;
-use Baka\Traits\LimitsBroadcastPayload;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -21,7 +20,6 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
-use Nuwave\Lighthouse\Execution\Utils\Subscription;
 use Throwable;
 
 /**
@@ -35,8 +33,6 @@ use Throwable;
  */
 class AgentChatKernel
 {
-    use LimitsBroadcastPayload;
-
     protected ?Message $persistedReply = null;
 
     /**
@@ -60,6 +56,8 @@ class AgentChatKernel
         protected readonly array $documents = [],
         protected readonly array $additionalTools = [],
         protected readonly bool $privateUserTurn = false,
+        protected readonly ?string $adkAppName = null,
+        protected readonly ?string $adkBaseUrl = null,
     ) {
     }
 
@@ -136,6 +134,10 @@ class AgentChatKernel
                 message: $this->message,
                 user: $this->user,
                 images: $this->images,
+                // Forwarded, not dropped: a wake job injects the board toolset here, and a hosted
+                // agent that silently loses it replies "I've marked it done" while the task never
+                // moves.
+                additionalTools: $this->additionalTools,
             )->execute();
         }
 
@@ -181,6 +183,8 @@ class AgentChatKernel
                 user: $this->user,
                 sourceChannel: $this->sourceChannel,
                 sourceMessage: $this->sourceMessage,
+                appName: $this->adkAppName,
+                baseUrl: $this->adkBaseUrl,
             )->execute();
         }
 
@@ -248,18 +252,27 @@ class AgentChatKernel
                 $this->agent,
                 $sessionId,
                 $this->message,
-                $response
+                $response,
+                $this->persistedReply,
             );
 
-            Subscription::broadcast('agentChatResponse', [
-                'agent_id' => $this->agent->getId(),
-                'agent_name' => $this->agent->name,
-                'session_id' => $sessionId,
-                ...$this->limitBroadcastPayloadSet([
-                    'message' => $this->message,
-                    'response' => $response,
-                ]),
-            ]);
+            // The `agentChatResponse` Lighthouse subscription duplicated the event above onto the
+            // same Pusher connection while costing a queued broadcast job per turn plus Redis
+            // subscriber storage, and no client consumed it. Disabled here, in
+            // DeliverScheduledMessageToChannelAction, and in the schema — re-enable all three
+            // together. Needs `Nuwave\Lighthouse\Execution\Utils\Subscription` and the
+            // `Baka\Traits\LimitsBroadcastPayload` trait imported back on this class.
+            //
+            // Subscription::broadcast('agentChatResponse', [
+            //     'agent_id' => $this->agent->getId(),
+            //     'agent_name' => $this->agent->name,
+            //     'session_id' => $sessionId,
+            //     'message_id' => $this->persistedReply?->getId(),
+            //     ...$this->limitBroadcastPayloadSet([
+            //         'message' => $this->message,
+            //         'response' => $response,
+            //     ]),
+            // ]);
         } catch (Throwable $e) {
             report($e);
         }

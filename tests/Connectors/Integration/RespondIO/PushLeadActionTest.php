@@ -23,7 +23,9 @@ final class PushLeadActionTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $app->set(ConfigurationEnum::BEARER_TOKEN->value, 'test-bearer-token');
+        // Company setting takes precedence over the app one, which other tests in the suite
+        // also write — paratest runs them concurrently against the same app row.
+        $company->set(ConfigurationEnum::BEARER_TOKEN->value, 'test-bearer-token');
 
         $people = People::factory()
             ->withAppId($app->getId())
@@ -77,7 +79,9 @@ final class PushLeadActionTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        $app->set(ConfigurationEnum::BEARER_TOKEN->value, 'test-bearer-token');
+        // Company setting takes precedence over the app one, which other tests in the suite
+        // also write — paratest runs them concurrently against the same app row.
+        $company->set(ConfigurationEnum::BEARER_TOKEN->value, 'test-bearer-token');
 
         // People created without ->withContacts() has no phones/emails
         $people = People::factory()

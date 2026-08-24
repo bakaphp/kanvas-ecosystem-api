@@ -14,7 +14,11 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Knp\Snappy\Pdf;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Convert Message Images To PDF',
+    description: 'Merges the images on a message into a single PDF and attaches it. Used where a downstream '
+        . 'system wants one document instead of loose photos.',
+)]
 class ConvertMessageImagesToPdfActivity extends KanvasActivity
 {
     public $tries = 3;

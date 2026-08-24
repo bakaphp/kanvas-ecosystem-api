@@ -15,8 +15,9 @@ use Typesense\Exceptions\ObjectNotFound;
  * — it speaks KnowledgeDocument + KnowledgeScope so both the entity-scoped Lead
  * RAG path and the tenant-scoped company-docs path share one collection shape.
  * Every read/delete is scoped through KnowledgeScope::filter(), which always
- * pins companies_id (closing the cross-company leak) and either an entity or
- * entity_id = 0 (company docs) so the two scopes never see each other's rows.
+ * pins app + company (closing the cross-tenant leak). External agents add an
+ * entity boundary, tenant-document reads pin entity_id = 0, and explicitly
+ * internal organization reads may search every entity inside that company.
  */
 final class TypesenseKnowledgeStore
 {

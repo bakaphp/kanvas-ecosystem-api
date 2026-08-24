@@ -11,7 +11,10 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Sync Lead With Legacy CRM',
+    description: 'Pushes the lead into the legacy SalesAssist CRM so both sides agree. Outbound sync.',
+)]
 class SyncLeadWithLegacyCRMActivity extends KanvasActivity
 {
     public $tries = 3;

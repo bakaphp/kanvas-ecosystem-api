@@ -6,7 +6,6 @@ namespace Kanvas\Inventory\Products\Models;
 
 use Awobaz\Compoships\Compoships;
 use Baka\Support\Arr;
-use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
@@ -33,8 +32,6 @@ use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Contracts\EntityImportFilesystemInterface;
 use Kanvas\Filesystem\Models\FilesystemImports;
-use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
-use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -46,7 +43,11 @@ use Kanvas\Inventory\Products\Factories\ProductFactory;
 use Kanvas\Inventory\Products\Observers\ProductsObserver;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
+use Kanvas\Inventory\Recommendations\Enums\AudienceEnum;
+use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum as RecommendationConfigurationEnum;
+use Kanvas\Inventory\Recommendations\Enums\SearchFieldEnum;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Traits\ResolvesAttributesTrait;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Services\VariantService;
@@ -106,6 +107,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     use HasRating;
     use HasTranslationsDefaultFallback;
     use LogsActivity;
+    use ResolvesAttributesTrait;
 
     protected $table = 'products';
     protected $guarded = [];
@@ -236,6 +238,68 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return $this->mapAttributes($attributes);
     }
 
+    /**
+     * Cheapest priced variant on the default channel, or null when nothing is
+     * priced. A shopper reads a product's price as "from $X", so a "under $50"
+     * filter has to match a product that HAS a variant under $50 — taking the
+     * lowest is what makes that true.
+     */
+    public function lowestChannelPrice(): ?float
+    {
+        $prices = [];
+
+        foreach ($this->variants as $variant) {
+            try {
+                $channelInfo = $variant->getPriceInfoFromDefaultChannel();
+            } catch (Exception) {
+                continue;
+            }
+
+            if ($channelInfo && $channelInfo->price > 0) {
+                $prices[] = (float) $channelInfo->price;
+            }
+        }
+
+        return $prices === [] ? null : min($prices);
+    }
+
+    public function hasStockInAnyVariant(): bool
+    {
+        foreach ($this->variants as $variant) {
+            if ($variant->getTotalQuantity() > 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * A product with no enrichment yet indexes as `unknown` rather than empty, so
+     * the discovery filter can admit it by name — Typesense has no dependable
+     * "this array is empty" test.
+     *
+     * @return list<string>
+     */
+    public function searchableAudience(): array
+    {
+        $value = $this->getAttributeByName(SearchFieldEnum::AUDIENCE->value)?->value;
+
+        if (is_string($value) && str_starts_with(trim($value), '[')) {
+            $value = json_decode($value, true);
+        }
+
+        $audiences = [];
+
+        foreach (is_array($value) ? $value : [$value] as $name) {
+            if (is_string($name) && ($name = mb_strtolower(trim($name))) !== '') {
+                $audiences[] = $name;
+            }
+        }
+
+        return $audiences === [] ? [AudienceEnum::UNKNOWN->value] : $audiences;
+    }
+
     public function searchableAttributes(): array
     {
         return $this->mapAttributes(
@@ -364,10 +428,12 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         string $sort = 'asc'
     ): Builder {
         $allowedSorts = ['ASC', 'DESC'];
+        $sort = strtoupper($sort);
 
         if (! in_array($sort, $allowedSorts)) {
             throw new InvalidArgumentException('Invalid sort value');
         }
+
         $query = ProductSortAttributeBuilder::sortProductByAttribute(
             $query,
             $name,
@@ -585,7 +651,14 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'position' => $category->position,
                 ];
             }),
-            'categories_flat' => $this->categories->flatMap(fn ($category) => [$category->name => 1])->toArray() ?? [],
+            // Keys become Typesense sub-fields (`categories_flat.<name>`), so a blank category name
+            // registers the invalid field `categories_flat.` and the whole import batch is rejected
+            // (Sentry KANVAS-ECOSYSTEM-628).
+            'categories_flat' => $this->categories
+                ->map(fn (Categories $category) => trim((string) $category->name))
+                ->filter(fn (string $name) => $name !== '')
+                ->mapWithKeys(fn (string $name) => [$name => 1])
+                ->all(),
             'variants' => $this->getVariantsData(),
             'status' => [
                 'id' => $this->status->id ?? null,
@@ -607,6 +680,24 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'apps_id' => $this->apps_id,
             'published_at' => $this->published_at,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
+            // Flat, index-friendly discovery fields. search_blurb is the vector
+            // embedding source and price/in_stock are what a budget or
+            // availability filter can act on — a nested custom_fields path can
+            // be neither an `embed.from` source nor a scalar filter.
+            'search_blurb' => (string) ($this->get(SearchFieldEnum::BLURB->value) ?? ''),
+            // Flat alongside the nested `company` object: a scalar filter_by
+            // cannot reach into a nested field without enable_nested_fields.
+            'companies_id' => $this->companies_id,
+            // 0 rather than null for an unknown price: Typesense types the field
+            // as float, and a shopper's "under $50" should still surface an
+            // unpriced product, which the caller then flags unavailable.
+            'price' => $this->lowestChannelPrice() ?? 0.0,
+            'in_stock' => $this->hasStockInAnyVariant(),
+            // Flat copy of the enrichment's `audience` attribute. Nested under
+            // `attributes` it cannot be a scalar filter, and this is the one axis
+            // an embedding gets wrong — "for a man" and "para mujeres" are similar
+            // to a vector, not opposite.
+            'audience' => $this->searchableAudience(),
         ];
 
         if ($this->isTypesense()) {
@@ -641,129 +732,55 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
     protected function fitWithinAlgoliaRecordLimit(array $product): array
     {
-        $limit = $this->algoliaRecordSizeLimit();
-
-        if (Arr::sizeInBytes($product) <= $limit) {
-            return $product;
-        }
-
-        $product['variants'] = $this->stripFromVariants($product['variants'], ['warehouses']);
-        if (Arr::sizeInBytes($product) <= $limit) {
-            return $product;
-        }
-
-        // Shorten the long values in the heavy text buckets, cheapest bucket first. Every key
-        // survives — `attributes` in particular is only ever truncated, never dropped, because the
-        // Algolia facets are built on `attributes.*.quick_spec` and would break if keys vanished.
-        // Short values (a `color`, a `gpu` spec) are already under the threshold and untouched.
-        foreach (['custom_fields', 'translations', 'attributes'] as $bucket) {
-            foreach ([500, 200, 100] as $maxLength) {
-                if (! is_array($product[$bucket] ?? null)) {
-                    continue 2;
-                }
-
-                $product[$bucket] = Arr::truncateStrings($product[$bucket], $maxLength);
-                if (Arr::sizeInBytes($product) <= $limit) {
-                    return $product;
-                }
-            }
-        }
-
-        $product['description'] = Str::limit((string) ($product['description'] ?? ''), 500, '');
-        $product['short_description'] = Str::limit((string) ($product['short_description'] ?? ''), 200, '');
-        if (Arr::sizeInBytes($product) <= $limit) {
-            return $product;
-        }
-
-        // Still over after truncating: shed whole entries, heaviest first, only as many as it takes.
-        // `attributes` is excluded on purpose (see above) — only these two lose keys.
-        foreach (['custom_fields', 'translations'] as $bucket) {
-            $product = $this->dropHeaviestEntries($product, $bucket, $limit);
-            if (Arr::sizeInBytes($product) <= $limit) {
-                return $product;
-            }
-        }
-
-        $product['variants'] = $this->stripFromVariants($product['variants'], ['files']);
-        if (Arr::sizeInBytes($product) <= $limit) {
-            return $product;
-        }
-
-        // Reduce variants to the fields a storefront actually renders before dropping any of them:
-        // partial variant data beats none.
-        $product['variants'] = $this->stripFromVariants(
-            $product['variants'],
-            [
-                'objectID',
-                'products_id',
-                'company',
-                'description',
-                'short_description',
-                'ean',
-                'barcode',
-                'apps_id',
-                'rating',
-            ]
-        );
-        if (Arr::sizeInBytes($product) <= $limit) {
-            return $product;
-        }
-
-        // Extra product images are pure weight once the record is this tight; keep the first.
-        if (count($product['files'] ?? []) > 1) {
-            $product['files'] = array_slice((array) $product['files'], 0, 1);
-            if (Arr::sizeInBytes($product) <= $limit) {
-                return $product;
-            }
-        }
-
-        $droppedVariants = 0;
-        while (! empty($product['variants']) && Arr::sizeInBytes($product) > $limit) {
-            array_pop($product['variants']);
-            $droppedVariants++;
-        }
-
-        if ($droppedVariants > 0) {
-            // Silent variant loss is how an entire tenant ended up indexed with `variants: []`.
-            Log::warning('Algolia record over budget, dropped variants to fit', [
-                'product_id' => $this->id,
-                'apps_id' => $this->apps_id,
-                'companies_id' => $this->companies_id,
-                'dropped_variants' => $droppedVariants,
-                'remaining_variants' => count($product['variants']),
-                'limit' => $limit,
-                'size_without_variants' => Arr::sizeInBytes(Arr::except($product, ['variants'])),
-            ]);
-        }
-
-        return $product;
-    }
-
-    /**
-     * Shed entries from one field, heaviest first, and stop as soon as the record fits.
-     * Wiping the field wholesale would take the cheap entries down with the expensive one.
-     */
-    protected function dropHeaviestEntries(array $product, string $key, int $limit): array
-    {
-        if (! is_array($product[$key] ?? null)) {
-            return $product;
-        }
-
-        $entries = $product[$key];
-        $isList = array_is_list($entries);
-
-        while (! empty($entries) && Arr::sizeInBytes($product) > $limit) {
-            $heaviest = collect($entries)
-                ->map(fn ($value, $entryKey) => Arr::sizeInBytes([$entryKey => $value]))
-                ->sortDesc()
-                ->keys()
-                ->first();
-
-            unset($entries[$heaviest]);
-            $product[$key] = $isList ? array_values($entries) : $entries;
-        }
-
-        return $product;
+        return $this->trimToAlgoliaLimit($product)
+            // Warehouse breakdown is internal stock detail, never shown in search — losing it costs
+            // nothing, so it goes before anything a human would notice.
+            ->trim(fn (array $p) => [...$p, 'variants' => $this->stripFromVariants($p['variants'], ['warehouses'])])
+            // Shorten the long values in the heavy text buckets, cheapest bucket first. Every key
+            // survives — `attributes` in particular is only ever truncated, never dropped, because
+            // the Algolia facets are built on `attributes.*.quick_spec`.
+            ->truncateStrings('custom_fields')
+            ->truncateStrings('translations')
+            ->truncateStrings('attributes')
+            ->limitString('description', 500)
+            ->limitString('short_description', 200)
+            // Still over after truncating: shed whole entries, heaviest first, only as many as it
+            // takes. `attributes` is excluded on purpose (see above) — only these two lose keys.
+            ->dropHeaviestEntries('custom_fields')
+            ->dropHeaviestEntries('translations')
+            ->trim(fn (array $p) => [...$p, 'variants' => $this->stripFromVariants($p['variants'], ['files'])])
+            // Reduce variants to the fields a storefront actually renders before dropping any of
+            // them: partial variant data beats none.
+            ->trim(fn (array $p) => [...$p, 'variants' => $this->stripFromVariants(
+                $p['variants'],
+                [
+                    'objectID',
+                    'products_id',
+                    'company',
+                    'description',
+                    'short_description',
+                    'ean',
+                    'barcode',
+                    'apps_id',
+                    'rating',
+                ]
+            )])
+            // Extra product images are pure weight once the record is this tight; keep the first.
+            ->keepFirst('files', 1)
+            ->popUntilFit(
+                'variants',
+                // Silent variant loss is how an entire tenant ended up indexed with `variants: []`.
+                fn (int $dropped, array $p) => Log::warning('Algolia record over budget, dropped variants to fit', [
+                    'product_id' => $this->id,
+                    'apps_id' => $this->apps_id,
+                    'companies_id' => $this->companies_id,
+                    'dropped_variants' => $dropped,
+                    'remaining_variants' => count($p['variants']),
+                    'limit' => $this->algoliaRecordSizeLimit(),
+                    'size_without_variants' => Arr::sizeInBytes(Arr::except($p, ['variants'])),
+                ])
+            )
+            ->get();
     }
 
     protected function stripFromVariants(mixed $variants, array $keys): array
@@ -828,7 +845,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
 
         if ($isTypesense) {
             $searchQuery->options([
-                'query_by' => 'name,description,translations',
+                'query_by' => 'name,description',
             ]);
         }
 
@@ -887,45 +904,46 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
      */
     public function addAttributes(UserInterface $user, array $attributes): void
     {
+        /**
+         * Resolve every attribute first and write in ascending attribute id, so concurrent
+         * importers take the locks on the shared `attributes` rows in the same order and
+         * can't deadlock against each other.
+         */
+        $resolvedAttributes = [];
+
         foreach ($attributes as $attribute) {
-            if (! isset($attribute['value']) || $attribute['name'] === null) {
+            if (! isset($attribute['value']) || ($attribute['name'] ?? null) === null) {
                 continue; // Skip attributes without a value
             }
 
-            $attributeModel = null;
+            $attributeModel = $this->resolveAttribute($user, $attribute);
 
-            if (isset($attribute['id'])) {
-                $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
-            } else {
-                $attributesDto = AttributesDto::from([
-                    'app' => $this->app,
-                    'user' => $user,
-                    'company' => $this->company,
-                    'name' => $attribute['name'],
-                    'value' => $attribute['value'],
-                    'isVisible' => true,
-                    'isSearchable' => true,
-                    'isFiltrable' => true,
-                    'slug' => Str::slug($attribute['name']),
-                ]);
-                $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
+            if ($attributeModel === null) {
+                continue;
             }
 
-            if ($attributeModel) {
-                (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+            $resolvedAttributes[$attributeModel->getId()] = [
+                'model' => $attributeModel,
+                'value' => $attribute['value'],
+            ];
+        }
 
-                if ($this?->productsType !== null) {
-                    ProductTypeService::addAttributes(
-                        $this->productsType,
-                        $this->user,
+        ksort($resolvedAttributes);
+
+        foreach ($resolvedAttributes as $resolvedAttribute) {
+            new AddAttributeAction($this, $resolvedAttribute['model'], $resolvedAttribute['value'])->execute();
+
+            if ($this->productsType !== null) {
+                ProductTypeService::addAttributes(
+                    $this->productsType,
+                    $this->user,
+                    [
                         [
-                            [
-                                'id' => $attributeModel->getId(),
-                                'value' => $attribute['value'],
-                            ],
-                        ]
-                    );
-                }
+                            'id' => $resolvedAttribute['model']->getId(),
+                            'value' => $resolvedAttribute['value'],
+                        ],
+                    ]
+                );
             }
         }
     }
@@ -1043,6 +1061,33 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     /**
      * The Typesense schema to be created.
      */
+    /**
+     * Which model Typesense should auto-embed with, or null to leave the vector
+     * half off entirely.
+     *
+     * An OpenAI key wins when set. Otherwise a tenant can name one of the models
+     * Typesense ships with (`ts/…`), which run inside the cluster and need no
+     * API key — the only way to get multilingual embeddings without an external
+     * provider, and what makes an ES catalog answer an EN query.
+     */
+    private function resolveEmbeddingModelConfig(): ?array
+    {
+        $openAiKey = $this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->getValue());
+
+        if ($openAiKey) {
+            return [
+                'model_name' => 'openai/text-embedding-3-small',
+                'api_key' => $openAiKey,
+            ];
+        }
+
+        $builtInModel = $this->app->get(RecommendationConfigurationEnum::EMBEDDING_MODEL->value);
+
+        return is_string($builtInModel) && $builtInModel !== ''
+            ? ['model_name' => $builtInModel]
+            : null;
+    }
+
     public function typesenseCollectionSchema(): array
     {
         $schema = [
@@ -1081,13 +1126,18 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'type' => 'object',
                 ],
                 [
+                    // Optional because a product with no categories is normal, and
+                    // Typesense rejects the whole document when a required object[]
+                    // arrives empty — it breaks indexing into any fresh collection.
                     'name' => 'categories',
                     'type' => 'object[]',
-                    'facet' => true,  // Enable faceting on the whole object
+                    'facet' => true,
+                    'optional' => true,
                 ],
                 [
                     'name' => 'variants',
-                    'type' => 'object[]', // Adjust based on what getVariantsData() returns
+                    'type' => 'object[]',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'status',
@@ -1124,6 +1174,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                 [
                     'name' => 'attributes',
                     'type' => 'object',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'custom_fields',
@@ -1199,6 +1250,38 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'type' => 'int64',
                 ],
                 [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                // Discovery fields: the enrichment blurb is what semantic search
+                // matches on, and price/in_stock are the only scalars a budget or
+                // availability filter can act on.
+                [
+                    'name' => 'search_blurb',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'price',
+                    'type' => 'float',
+                    'optional' => true,
+                    'sort' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'in_stock',
+                    'type' => 'bool',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'audience',
+                    'type' => 'string[]',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
                     'name' => 'published_at',
                     'type' => 'string',
                     'optional' => true,
@@ -1212,19 +1295,22 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,  // Enable nested fields support for complex objects
         ];
-        if ($this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->getValue())) {
+        $embeddingModelConfig = $this->resolveEmbeddingModelConfig();
+
+        if ($embeddingModelConfig !== null) {
             $schema['fields'][] = [
                 'name' => 'embedding',
                 'type' => 'float[]',
                 'embed' => [
+                    // The enrichment blurb first: it describes who a product is
+                    // for, in the same register a shopper writes their request,
+                    // which is what the vector half is there to match.
                     'from' => [
+                        'search_blurb',
                         'name',
                         'description',
                     ],
-                    'model_config' => [
-                        'model_name' => 'openai/text-embedding-3-small',
-                        'api_key' => $this->app->get(AppSettingsEnums::OPEN_AI_EMBEDDING_KEY->getValue()),
-                    ],
+                    'model_config' => $embeddingModelConfig,
                 ],
             ];
         }

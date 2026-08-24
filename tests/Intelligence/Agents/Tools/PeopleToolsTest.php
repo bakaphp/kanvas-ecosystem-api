@@ -8,12 +8,16 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Apollo\Services\CsvExportService;
+use Kanvas\Guild\Customers\Contracts\PeopleCandidateSourceInterface;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Search\PeopleSqlCandidateSource;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
+use Kanvas\Intelligence\Agents\Neuron\Exporters\PeopleMatchRecordExporter;
 use Kanvas\Intelligence\Agents\Neuron\Exporters\RecordExporterRegistry;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ExportRecordsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CreatePersonTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPeopleBulkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindPersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetPersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LinkPersonToOrganizationTool;
@@ -25,6 +29,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SetPersonCustomFieldsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TagPersonTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UpdatePersonTool;
 use Kanvas\Users\Models\Users;
+use Tests\Stubs\Intelligence\CapturingCsvExportService;
 use Tests\TestCase;
 
 final class PeopleToolsTest extends TestCase
@@ -103,6 +108,45 @@ final class PeopleToolsTest extends TestCase
         $reloaded = People::getByIdFromCompanyApp($personId, $this->currentCompany, $this->currentApp);
         $this->assertSame('director', $reloaded->get('seniority'));
         $this->assertSame('Renamedcc', $reloaded->lastname);
+    }
+
+    /**
+     * custom_fields is declared as a JSON-object STRING because Gemini rejects an OBJECT
+     * schema with no `properties` — so the string form is what the model actually sends.
+     */
+    public function test_custom_fields_accept_a_json_object_string(): void
+    {
+        $created = $this->tool(new CreatePersonTool())->__invoke(
+            firstname: 'Jsonfielduniq',
+            lastname: 'Contactjs',
+            email: 'json-' . uniqid() . '@x.test',
+            custom_fields: '{"seniority": "manager"}',
+        );
+        $personId = (int) $created['person_id'];
+
+        $setFields = $this->tool(new SetPersonCustomFieldsTool())->__invoke(
+            person_id: $personId,
+            custom_fields: '{"source": "referral", "score": 42}',
+        );
+        $this->assertSame('referral', $setFields['set']['source']);
+
+        /** @var People $reloaded */
+        $reloaded = People::getByIdFromCompanyApp($personId, $this->currentCompany, $this->currentApp);
+        $this->assertSame('manager', $reloaded->get('seniority'));
+        $this->assertSame('referral', $reloaded->get('source'));
+        $this->assertSame(42, $reloaded->get('score'));
+    }
+
+    public function test_set_person_custom_fields_rejects_unparseable_json(): void
+    {
+        $person = $this->makePerson('Badjsonuniq', '');
+
+        $result = $this->tool(new SetPersonCustomFieldsTool())->__invoke(
+            person_id: (int) $person->getId(),
+            custom_fields: 'seniority = director',
+        );
+
+        $this->assertArrayHasKey('error', $result);
     }
 
     public function test_manage_person_contact_adds_and_opts_out(): void
@@ -256,6 +300,129 @@ final class PeopleToolsTest extends TestCase
         $this->assertSame(1, $result['row_count']);
     }
 
+    public function test_export_records_people_match_marks_found_and_missing_in_order(): void
+    {
+        $this->fakeCsvUpload();
+
+        $org = $this->seedOrg('MatchExportUniqOrg');
+        $person = $this->makePerson('Jorgelinauniq', 'Duranuniq');
+        $person->organizations()->attach($org->getId(), ['created_at' => now()]);
+        $email = 'match-' . uniqid() . '@x.test';
+        $person->addEmail($email, 0, 0);
+
+        $rows = new PeopleMatchRecordExporter()->rows(
+            $this->currentApp,
+            $this->currentCompany,
+            ['names' => "Nobodyuniq Herenope\nJorgelinauniq Duranuniq"],
+        );
+
+        $this->assertCount(2, $rows);
+
+        $this->assertSame('Nobodyuniq Herenope', $rows[0][0]);
+        $this->assertSame('No', $rows[0][1]);
+        $this->assertSame('', $rows[0][2]);
+
+        $this->assertSame('Jorgelinauniq Duranuniq', $rows[1][0]);
+        $this->assertSame('Yes', $rows[1][1]);
+        $this->assertSame((int) $person->getId(), $rows[1][2]);
+        $this->assertSame($email, $rows[1][3]);
+        $this->assertSame('MatchExportUniqOrg', $rows[1][5]);
+    }
+
+    public function test_export_records_people_match_returns_a_file_reference(): void
+    {
+        $this->fakeCsvUpload();
+        $this->makePerson('Fileresuniq', 'Matchuniq');
+
+        $result = $this->tool(new ExportRecordsTool())->__invoke(
+            record_type: 'people_match',
+            filters: ['names' => 'Fileresuniq Matchuniq, Ghostuniq Absentuniq'],
+        );
+
+        $this->assertStringStartsWith('https://fake.test/people_match', $result['file_url']);
+        $this->assertSame(2, $result['row_count']);
+    }
+
+    public function test_export_records_people_match_requires_names(): void
+    {
+        $result = $this->tool(new ExportRecordsTool())->__invoke(record_type: 'people_match', filters: []);
+        $this->assertArrayHasKey('error', $result);
+    }
+
+    public function test_export_records_people_match_exports_past_the_term_cap_as_one_file(): void
+    {
+        $this->fakeCsvUpload();
+
+        $names = implode(',', array_map(fn (int $i): string => 'Personuniq Number' . $i, range(1, 101)));
+
+        $result = $this->tool(new ExportRecordsTool())->__invoke(
+            record_type: 'people_match',
+            filters: ['names' => $names],
+        );
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertStringStartsWith('https://fake.test/people_match', $result['file_url']);
+        $this->assertSame(101, $result['row_count']);
+    }
+
+    public function test_export_records_people_match_rejects_more_than_the_export_ceiling(): void
+    {
+        $names = implode(',', array_map(fn (int $i): string => 'Personuniq Number' . $i, range(1, 1001)));
+
+        $result = $this->tool(new ExportRecordsTool())->__invoke(
+            record_type: 'people_match',
+            filters: ['names' => $names],
+        );
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertStringContainsString('batches', $result['error']);
+    }
+
+    public function test_export_records_people_match_agrees_with_find_people_bulk(): void
+    {
+        $person = $this->makePerson('Agreesuniq', 'Matcheruniq');
+        $names = 'Agreesuniq Matcheruniq, Missinguniq Personuniq';
+
+        $chat = $this->tool(new FindPeopleBulkTool())->__invoke(names: $names);
+        $rows = new PeopleMatchRecordExporter()->rows($this->currentApp, $this->currentCompany, ['names' => $names]);
+
+        $this->assertSame(
+            array_map(fn (array $result): bool => $result['found'], $chat['results']),
+            array_map(fn (array $row): bool => $row[1] === 'Yes', $rows),
+        );
+        $this->assertSame((int) $person->getId(), $rows[0][2]);
+    }
+
+    public function test_people_match_survives_a_common_surname_flooding_the_candidate_set(): void
+    {
+        // Fillers first so they hold the lower ids: a prefilter that admits every one-token match
+        // hands the capped, unordered candidate query nothing but fillers, and the person we asked
+        // about comes back "not found" while sitting in the directory.
+        for ($i = 0; $i < 10; $i++) {
+            $this->makePerson('Filleruniq' . $i, 'Floodsurnameuniq');
+        }
+        $target = $this->makePerson('Rarefirstuniq', 'Floodsurnameuniq');
+
+        $exporter = new class () extends PeopleMatchRecordExporter {
+            protected function candidateSource(Apps $app): PeopleCandidateSourceInterface
+            {
+                return new class () extends PeopleSqlCandidateSource {
+                    protected const int BULK_MAX_CANDIDATE_ROWS = 5;
+                };
+            }
+        };
+
+        $rows = $exporter->rows(
+            $this->currentApp,
+            $this->currentCompany,
+            ['names' => 'Rarefirstuniq Floodsurnameuniq'],
+        );
+
+        $this->assertCount(1, $rows);
+        $this->assertSame('Yes', $rows[0][1]);
+        $this->assertSame((int) $target->getId(), $rows[0][2]);
+    }
+
     public function test_export_records_participants_requires_version(): void
     {
         $result = $this->tool(new ExportRecordsTool())->__invoke(record_type: 'event_participants');
@@ -273,7 +440,16 @@ final class PeopleToolsTest extends TestCase
         $types = new RecordExporterRegistry()->types();
 
         $this->assertEqualsCanonicalizing(
-            ['people', 'organizations', 'event_participants', 'products', 'employees', 'orders', 'affiliate_commissions'],
+            [
+                'people',
+                'people_match',
+                'organizations',
+                'event_participants',
+                'products',
+                'employees',
+                'orders',
+                'affiliate_commissions',
+            ],
             $types,
         );
     }
@@ -292,12 +468,7 @@ final class PeopleToolsTest extends TestCase
 
     private function fakeCsvUpload(): void
     {
-        $this->instance(CsvExportService::class, new class () extends CsvExportService {
-            protected function store(Apps $app, Companies $company, Users $user, string $filename, string $content): string
-            {
-                return 'https://fake.test/' . $filename;
-            }
-        });
+        $this->instance(CsvExportService::class, new CapturingCsvExportService());
     }
 
     /**

@@ -10,12 +10,18 @@ use Kanvas\Guild\Customers\Actions\CreateOrUpdatePeopleSubscriptionAction;
 use Kanvas\Guild\Customers\DataTransferObject\PeopleSubscription as PeopleSubscriptionDTO;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Stripe\StripeClient;
 
 // Maybe add action at the of the class name
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Stripe Update Person Subscription',
+    description: 'Receiver that reads the subscription back from Stripe and updates what Kanvas holds for that '
+        . 'person — plan, status, renewal dates. Inbound one-way; the customer is not contacted.',
+    integration: IntegrationsEnum::STRIPE,
+)]
 class UpdatePeopleStripeSubscriptionJob extends ProcessWebhookJob
 {
     public array $data = [];

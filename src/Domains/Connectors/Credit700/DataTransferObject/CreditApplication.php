@@ -52,6 +52,8 @@ class CreditApplication extends Data
 
         $employmentDuration = DateHelper::parseDuration($financial['years_at_current_employment'] ?? '');
 
+        $peopleLicense = $people->getDriverLicense();
+
         $name = trim(($personal['first_name'] ?? '') . ' ' . ($personal['last_name'] ?? ''));
 
         return new self(
@@ -75,8 +77,10 @@ class CreditApplication extends Data
             otherIncomeExplanation: self::nullableString($financial['other_income_source'] ?? null),
             housingType: self::nullableString($housing['residence_type'] ?? null),
             housingPayment: self::nullableFloat($housing['rent'] ?? null),
-            driversLicenseNumber: self::nullableString($personal['drivers_license'] ?? null),
-            driversLicenseState: self::normalizeState($personal['drivers_license_state'] ?? null) ?: null,
+            driversLicenseNumber: self::nullableString($personal['drivers_license'] ?? null)
+                ?? $peopleLicense?->number,
+            driversLicenseState: self::normalizeState($personal['drivers_license_state'] ?? null)
+                ?: $peopleLicense?->state,
         );
     }
 

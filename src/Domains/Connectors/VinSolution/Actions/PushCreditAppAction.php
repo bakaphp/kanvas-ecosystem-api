@@ -13,7 +13,9 @@ use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Exceptions\VinSolutionException;
 use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Services\ContactService;
+use Kanvas\Guild\Customers\Actions\UpdatePeopleDriverLicenseAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Social\Messages\Models\Message;
@@ -47,7 +49,7 @@ class PushCreditAppAction
         $user = Dealer::getUser(
             $vinCompany,
             $vinUserId,
-            $this->app,
+            $this->people->app,
         );
 
         $vinContact = new ContactService(
@@ -55,11 +57,22 @@ class PushCreditAppAction
         );
 
         $contact = $vinContact->getContactByPeople($this->people);
-        $creditApp = CreditApp::fromMessage($this->message);
+        $creditApp = CreditApp::fromMessage($this->message, $this->people);
 
         $contact->addresses = $creditApp->address;
         $contact->personalInformation = $creditApp->personalInformation;
         $contact->licenseData = $creditApp->licenseData;
+
+        // Keep the People row in sync so later integrations read the person, not this form.
+        if (! empty($creditApp->licenseData['LicenseID'])) {
+            new UpdatePeopleDriverLicenseAction(
+                $this->people,
+                new DriverLicense(
+                    number: (string) $creditApp->licenseData['LicenseID'],
+                    state: $creditApp->licenseData['State'] ?? null,
+                ),
+            )->execute();
+        }
 
         $this->people->addDefaultAddress(Address::from([
             'address' => $creditApp->address[0]['StreetAddress'],
@@ -83,7 +96,10 @@ class PushCreditAppAction
             ]));
         }
 
-        $this->people->set(PeopleCustomFieldEnum::CREDIT_APP->value, $creditApp);
+        $this->people->set(
+            PeopleCustomFieldEnum::CREDIT_APP->value,
+            $creditApp->toArray()
+        );
 
         return $contact->update($vinCompany, $user);
     }

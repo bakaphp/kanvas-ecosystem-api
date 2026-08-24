@@ -205,6 +205,28 @@ final class AgentProviderServiceTest extends TestCase
         $this->assertInstanceOf(Gemini::class, AgentProviderService::resolve($agent));
     }
 
+    public function testPassesConfiguredParametersToGemini(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::GEMINI_KEY->value, 'gemini-key');
+
+        $agent = AgentFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId(0)
+            ->create([
+                'config' => [
+                    'llm_provider' => AgentLlmProviderEnum::GEMINI->value,
+                    'model' => 'gemini-model',
+                    'parameters' => ['temperature' => 0.1],
+                ],
+            ]);
+
+        $provider = AgentProviderService::resolve($agent);
+
+        $this->assertInstanceOf(Gemini::class, $provider);
+        $this->assertSame(['temperature' => 0.1], $this->readProp($provider, 'parameters'));
+    }
+
     private function readProp(object $object, string $property): mixed
     {
         return new ReflectionProperty($object, $property)->getValue($object);

@@ -8,12 +8,13 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
 - **Domain-driven design**: Code is organized by domain under `src/Domains/{DomainName}/`
 - **GraphQL API**: Uses Lighthouse PHP framework with schema files in `graphql/schemas/`
 - **PHP 8.4**: Use modern syntax (e.g., `new Foo(...)->execute()` not `(new Foo(...))->execute()`)
-- **Method call formatting**: When a method call has 4 or more arguments, format vertically with one argument per line:
+- **Method formatting — the rule of 4**: When a method **call** or **signature** has **4 or more** arguments/parameters, format vertically with one per line. 3 or fewer stays inline. Applies to our own methods; native functions (`str_replace`, `preg_replace`, ...) stay inline regardless.
   ```php
-  // 3 or fewer args — inline is fine
-  $this->doSomething($a, $b, $c);
+  // 3 or fewer — inline is fine
+  $this->doSomething($a, $b);
+  $this->fetchPeopleCandidates($app, $company, $terms);
 
-  // 4+ args — always vertical
+  // 4+ — always vertical, calls and signatures alike
   $this->uploadImageToEntity(
       $company,
       app(Apps::class),
@@ -21,6 +22,13 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
       $request['file'],
       'photo'
   );
+
+  protected function assembleBulkResults(
+      array $terms,
+      array $candidates,
+      int $maxMatches,
+      callable $present
+  ): array {
   ```
 - **Use PHP 8+ named arguments to skip optional positional `null`s.** When you would otherwise pass `null` for an optional middle parameter just to reach a later one, switch to named arguments instead. The positional `null` is a readability and refactor-safety footgun (rename a parameter or add a new optional in between, every caller silently breaks).
   ```php
@@ -64,6 +72,7 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `src/Domains/Intelligence/FollowUp/CLAUDE.md` — generic-core vs per-entity-executor split for the agent-driven follow-up engine. Recipe for adopting follow-up on a new entity (Deal, Order, etc.).
 - `src/Domains/Guild/Leads/CLAUDE.md` — receiver → lead → email flow: why the email template comes from the **rotation config** (not the job/receiver), the `user-`/`lead-` template-name prefixing, the `notification_mode`/`notification_user_mode` knobs, and how company onboarding differs from the `kanvas:sa-setup-receivers` default.
 - `src/Domains/Inventory/CLAUDE.md` — product search engine (dynamic per-tenant Algolia/Typesense/Meilisearch resolution + precedence), index naming, `shouldBeSearchable` gating, the tenant-aware reindex command, and Typesense Natural Language Search config for the recommendation agent.
+- `app/Console/Commands/Inventory/CLAUDE.md` — what each inventory command does and the order the discovery ones must run in (enrich → index → search → score).
 - `src/Domains/Insurance/CLAUDE.md` — provider-agnostic insurance layer (quote → policy). Why it is a top-level domain rather than Souk/Inventory/a connector, why only 2 direct queries exist and everything else is a workflow activity, and the hybrid generic-vs-connector custom-field split.
 
 ### Where to put new conventions (don't bloat this file)

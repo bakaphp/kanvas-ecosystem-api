@@ -735,9 +735,19 @@ class SendMessageToLeadAction
             );
         }
 
-        if (($phoneNumber->lineTypeIntelligence['type'] ?? null) === 'landline') {
+        $lineType = strtolower((string) ($phoneNumber->lineTypeIntelligence['type'] ?? ''));
+        if ($lineType === 'landline') {
             throw new LeadMissingContactException(
                 sprintf('Lead cellphone number %s is a landline and cannot receive SMS messages', $cellphone)
+            );
+        }
+
+        if ($lineType === 'premium') {
+            throw new LeadMissingContactException(
+                sprintf(
+                    'Lead cellphone number %s is a premium line and cannot receive SMS messages',
+                    $cellphone
+                )
             );
         }
 

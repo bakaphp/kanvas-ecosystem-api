@@ -13,6 +13,8 @@ use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
+use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
 use Kanvas\Scribe\Bills\Actions\ApproveBillAction;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction;
@@ -27,19 +29,23 @@ use Override;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
-/** Creates a one-line AP bill, auto-approves it, and pushes it to Acumatica, bypassing the normal human-approval gate. */
+/** Creates a one-line AP bill and, by default, auto-approves it and pushes it to Acumatica in one step. */
 #[AgentTool(name: 'Create AP Bill', category: 'accounting')]
 class CreateApBillTool extends Tool
 {
     use HasKanvasContext;
+    use StoresApprovalSourceFields;
 
     public function __construct()
     {
         parent::__construct(
             name: 'create_ap_bill',
-            description: 'Creates a one-line AP bill, auto-approves it, and pushes it to Acumatica in one step, '
-                . 'returning the Acumatica bill reference. Bypasses the normal human approval gate — use only '
-                . 'when the user explicitly asks to create a bill this way, never on a whim.',
+            description: 'Creates a one-line AP bill. By default also auto-approves it and pushes it to Acumatica '
+                . 'in one step, returning the Acumatica bill reference — bypassing the normal human approval gate, '
+                . 'so only do this when the user explicitly asks to create a bill this way, never on a whim. Set '
+                . 'push_to_acumatica to false to just create the bill and submit it for approval (status: '
+                . 'pending_approval) without touching Acumatica — this is the default for the standard automatic '
+                . 'invoice-processing flow, where a human approves it later and the push happens separately.',
         );
     }
 
@@ -96,6 +102,38 @@ class CreateApBillTool extends Tool
                 description: 'Currency code. Defaults to USD.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'push_to_acumatica',
+                type: PropertyType::BOOLEAN,
+                description: 'Whether to auto-approve and push this bill to Acumatica immediately. Defaults to '
+                    . 'true. Set to false to just create the bill and submit it for approval (status: '
+                    . 'pending_approval) and stop there — used by the standard automatic invoice-processing '
+                    . 'flow, where a human approves it later and the Acumatica push happens as a separate step.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'source_email_message_id',
+                type: PropertyType::STRING,
+                description: 'The Gmail message_id of the invoice email this bill was created from, when '
+                    . 'created as part of the automatic invoice-email flow. Kept so a later approval (often in '
+                    . 'a separate Slack conversation) can reply in that same email thread with evidence.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'source_attachment_url',
+                type: PropertyType::STRING,
+                description: 'The Kanvas-hosted URL of the invoice PDF (from download_attachment), when created '
+                    . 'as part of the automatic invoice-email flow. Kept so it can be attached to the bill once '
+                    . 'it is actually pushed to Acumatica, at approval time.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'source_attachment_filename',
+                type: PropertyType::STRING,
+                description: 'The file name for source_attachment_url (from download_attachment). Optional — '
+                    . 'defaults to the URL\'s own file name when attached.',
+                required: false,
+            ),
         ];
     }
 
@@ -110,7 +148,12 @@ class CreateApBillTool extends Tool
         string $invoice_number,
         ?string $subaccount = null,
         ?string $currency = null,
+        ?bool $push_to_acumatica = null,
+        ?string $source_email_message_id = null,
+        ?string $source_attachment_url = null,
+        ?string $source_attachment_filename = null,
     ): array {
+        $push_to_acumatica ??= true;
         $app = $this->app;
         $company = $this->company;
 
@@ -187,7 +230,43 @@ class CreateApBillTool extends Tool
             $actingUser,
         )->execute();
 
-        new SubmitBillForApprovalAction($bill, $actingUser)->execute();
+        $bill = new SubmitBillForApprovalAction($bill, $actingUser)->execute();
+
+        $this->storeApprovalSourceFields(
+            $bill,
+            $source_email_message_id,
+            $source_attachment_url,
+            $source_attachment_filename,
+        );
+
+        if (! $push_to_acumatica) {
+            new NotifyApproverAction(
+                $app,
+                "You have an AP bill pending approval:\nVendor: {$vendor->name}\nAmount: {$currency} "
+                    . "{$amount}\nGL: {$gl_account_number}"
+                    . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : '')
+                    . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
+                    . "{$bill->getId()}\" to approve it and push it to Acumatica.",
+                $source_attachment_url,
+                $source_attachment_filename,
+            )->execute();
+
+            return [
+                'created' => true,
+                'pushed' => false,
+                'bill_id' => $bill->getId(),
+                'bill_number' => $bill->bill_number,
+                'document_status' => $bill->document_status->value,
+                'vendor' => $vendor->name,
+                'amount' => $amount,
+                'currency' => $currency,
+                'gl_account' => $gl_account_number,
+                'subaccount' => $subaccount,
+                'memo' => $memo,
+                'next' => 'Bill created and submitted for approval in Kanvas (status: pending_approval). Not '
+                    . 'pushed to Acumatica — that happens separately once a human approves it.',
+            ];
+        }
 
         /** @var Organization $approvalVendor */
         $approvalVendor = Organization::query()->where('id', $bill->vendor_organization_id)->first();

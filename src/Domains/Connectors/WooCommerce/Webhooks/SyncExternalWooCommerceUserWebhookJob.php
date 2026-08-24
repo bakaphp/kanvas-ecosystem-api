@@ -17,7 +17,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'WooCommerce Sync Customer Account',
+    description: 'Receiver that creates or updates the Kanvas user behind a WooCommerce customer, so the same '
+        . 'person is one account on both sides. Creates real user accounts — inbound only.',
+)]
 class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
 {
     #[Override]

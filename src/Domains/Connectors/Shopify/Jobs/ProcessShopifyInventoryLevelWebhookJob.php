@@ -10,11 +10,17 @@ use Kanvas\Connectors\Shopify\Services\ShopifyProductService;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Shopify Inventory Level Webhook',
+    description: 'Receiver for Shopify stock changes: updates the Kanvas warehouse quantity for the variant '
+        . 'Shopify just moved. Inbound one-way, quantities only.',
+    integration: IntegrationsEnum::SHOPIFY,
+)]
 class ProcessShopifyInventoryLevelWebhookJob extends ProcessWebhookJob
 {
     #[Override]

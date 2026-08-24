@@ -15,7 +15,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Reply To Plan Comment',
+    description: 'Has the plan\'s agent answer a comment left on that plan, on the project board. Replies on '
+        . 'the board — not to a customer.',
+)]
 class ReplyToPlanCommentActivity extends KanvasActivity
 {
     public $tries = 1;

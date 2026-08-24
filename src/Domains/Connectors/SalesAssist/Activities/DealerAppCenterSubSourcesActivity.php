@@ -12,7 +12,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist Dealer App Center Sub Sources',
+    description: 'Works out which Dealer App Center sub-source a lead came from and records it, so attribution '
+        . 'reporting is right. Writes a field.',
+)]
 class DealerAppCenterSubSourcesActivity extends KanvasActivity
 {
     public $tries = 3;

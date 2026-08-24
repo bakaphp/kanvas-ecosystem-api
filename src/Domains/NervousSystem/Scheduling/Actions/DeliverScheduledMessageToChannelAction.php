@@ -16,7 +16,6 @@ use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\PostChannelMessageAction;
 use Kanvas\Users\Models\Users;
-use Nuwave\Lighthouse\Execution\Utils\Subscription;
 use Throwable;
 
 /**
@@ -102,9 +101,9 @@ class DeliverScheduledMessageToChannelAction
     }
 
     /**
-     * Push the message into the live in-app chat the same way a normal agent turn does (the
-     * `agentChatResponse` subscription), so it appears without a refresh. Best-effort — a broadcast
-     * outage must never fail the delivery. No-op without an agent/session, where nothing is listening.
+     * Push the message into the live in-app chat the same way a normal agent turn does, so it
+     * appears without a refresh. Best-effort — a broadcast outage must never fail the delivery.
+     * No-op without an agent/session, where nothing is listening.
      */
     private function broadcastToChat(): void
     {
@@ -120,13 +119,16 @@ class DeliverScheduledMessageToChannelAction
                 $this->text
             );
 
-            Subscription::broadcast('agentChatResponse', [
-                'agent_id' => $this->agent->getId(),
-                'agent_name' => $this->agent->name,
-                'session_id' => $this->sessionUuid,
-                'message' => '',
-                'response' => $this->text,
-            ]);
+            // Disabled with the rest of the `agentChatResponse` subscription — see AgentChatKernel.
+            // Needs `Nuwave\Lighthouse\Execution\Utils\Subscription` imported back to revive.
+            //
+            // Subscription::broadcast('agentChatResponse', [
+            //     'agent_id' => $this->agent->getId(),
+            //     'agent_name' => $this->agent->name,
+            //     'session_id' => $this->sessionUuid,
+            //     'message' => '',
+            //     'response' => $this->text,
+            // ]);
         } catch (Throwable $e) {
             report($e);
         }

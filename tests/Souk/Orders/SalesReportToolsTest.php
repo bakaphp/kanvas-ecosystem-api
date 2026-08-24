@@ -91,4 +91,39 @@ class SalesReportToolsTest extends TestCase
         $this->assertGreaterThanOrEqual(1, (int) $result['orders']);
         $this->assertNotEmpty($result['by_month']);
     }
+
+    /**
+     * A bare {total_revenue: 0, orders: 0} reads to the model as "the call failed", so it re-calls the
+     * same arguments until Neuron aborts the turn with ToolRunsExceededException (KANVAS-ECOSYSTEM-682).
+     */
+    public function test_sales_revenue_on_an_empty_range_says_the_zero_is_final_and_shows_the_real_bounds(): void
+    {
+        [$app, $company, $user] = $this->bookedOrder();
+
+        $result = new SalesRevenueTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(since: '1999-01-01', until: '1999-01-02');
+
+        $this->assertSame(0, (int) $result['orders']);
+        $this->assertSame(0.0, (float) $result['total_revenue']);
+        $this->assertSame('1999-01-01', $result['since']);
+        $this->assertSame('1999-01-02', $result['until']);
+        $this->assertStringContainsString('same since/until returns the same zero', $result['message']);
+        $this->assertSame(
+            now()->format('Y-m-d'),
+            $result['last_booked_order_date'],
+            'The bounds let the model correct its range in one call instead of probing dates',
+        );
+    }
+
+    public function test_sales_revenue_with_results_carries_no_retry_message(): void
+    {
+        [$app, $company, $user] = $this->bookedOrder();
+
+        $result = new SalesRevenueTool()->withContext($app, $company, $user)->__invoke();
+
+        $this->assertArrayNotHasKey('message', $result);
+        $this->assertSame('all-time', $result['since']);
+        $this->assertSame('open-ended', $result['until']);
+    }
 }

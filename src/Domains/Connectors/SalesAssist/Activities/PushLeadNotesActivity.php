@@ -27,7 +27,13 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist Push Lead Notes',
+    description: 'Copies a message into the lead\'s notes in the SalesAssist legacy CRM, so the CRM record '
+        . 'shows the conversation. Writes a note only — it sends nothing to the customer. Pick the '
+        . 'version matching the CRM this company runs; several connectors ship a near-identical step.',
+    integration: IntegrationsEnum::SALESASSIST,
+)]
 class PushLeadNotesActivity extends KanvasActivity
 {
     public $tries = 3;

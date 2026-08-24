@@ -181,6 +181,7 @@ input UserChatInput {
     images: [String!]
     files: [String!]
     uploads: [Upload!]
+    async: Boolean
 }
 
 input NeuronChatInput {
@@ -194,8 +195,25 @@ input NeuronChatInput {
 type UserChatResponse {
     response: Mixed!
     session_id: String!
-    message: Message!
-    channel: SocialChannel!
+    """
+    Null when status is `pending` — the turn is on the queue. The broadcast then carries
+    `message_id`; fetch the turn with it (`response` in the payload is dropped whenever the
+    push exceeds Pusher's ~10KB cap, so never rely on it being there).
+    """
+    message: Message
+    """
+    The session's channel. Null only on the very first turn of a brand-new session, which is
+    where the channel gets created; every later turn carries it, pending or not.
+    """
+    channel: SocialChannel
+    "`completed` when the reply is in this response, `pending` when it will be broadcast."
+    status: String!
+    """
+    Broadcast channel to subscribe to for this session, e.g. `agent-chat-141-11569-<uuid>`.
+    Events: `agent.chat.response` and `agent.chat.failed`. Always use this value — the name is
+    keyed on the AGENT's tenant, which for a global agent is not the caller's company.
+    """
+    broadcast_channel: String!
 }
 
 extend type Mutation @guard {
@@ -331,12 +349,18 @@ type AgentAnalytics {
     by_user: [AnalyticsCategoryPoint!]!
 }
 
-extend type Subscription @guard {
-    agentChatResponse(agent_id: ID!, session_id: String!): JSON
-        @subscription(
-            class: "App\\GraphQL\\Intelligence\\Subscriptions\\AgentChatSubscription"
-        )
-}
+# Disabled: `agentChatResponse` duplicated the AgentChatResponseEvent Pusher broadcast onto the same
+# connection while costing a queued broadcast job per turn plus Redis subscriber storage, and no
+# client consumed it. Clients use the `broadcast_channel` returned by aiAgentUserChat instead.
+# To revive, uncomment this AND the two Subscription::broadcast calls (AgentChatKernel,
+# DeliverScheduledMessageToChannelAction). AgentChatSubscription is left in place unused.
+#
+# extend type Subscription @guard {
+#     agentChatResponse(agent_id: ID!, session_id: String!): JSON
+#         @subscription(
+#             class: "App\\GraphQL\\Intelligence\\Subscriptions\\AgentChatSubscription"
+#         )
+# }
 
 extend type Mutation @guardByAppKey {
     setAgentKanvasModule(

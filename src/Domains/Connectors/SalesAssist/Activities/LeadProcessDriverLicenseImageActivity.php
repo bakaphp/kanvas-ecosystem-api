@@ -14,7 +14,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Process Lead Driver Licence Image',
+    description: 'Reads a driver licence image attached to a lead and stores the extracted fields. Extraction '
+        . 'only.',
+)]
 class LeadProcessDriverLicenseImageActivity extends KanvasActivity
 {
     public $tries = 3;

@@ -21,7 +21,12 @@ use Kanvas\Workflow\KanvasActivity;
 /**
  * @todo rename to specific activity is from a message
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'OfferLogix Soft Pull From Message',
+    description: 'Runs a soft credit pull from the details in a message and stores the result. Touches a '
+        . 'credit bureau — only wire it where the customer has consented.',
+    integration: IntegrationsEnum::OFFERLOGIX,
+)]
 class SoftPullActivity extends KanvasActivity
 {
     public function execute(Message $entity, Apps $app, array $params): array

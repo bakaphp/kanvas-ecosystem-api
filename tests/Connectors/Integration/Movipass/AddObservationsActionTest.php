@@ -87,7 +87,7 @@ final class AddObservationsActionTest extends TestCase
         $this->assertEquals('Observación registrada al momento del ingreso', $log->properties['reason']);
     }
 
-    public function testItReplacesExistingObservationAndAppendsEvidence(): void
+    public function testItReplacesExistingObservationAndKeepsEvidenceOutOfOrderImages(): void
     {
         $app = app(Apps::class);
         $user = Auth::user();
@@ -114,9 +114,7 @@ final class AddObservationsActionTest extends TestCase
         );
 
         $this->assertEquals('Observación actualizada', $result->metadata['data']['observations']);
-        $this->assertContains('https://s3.example.com/old.jpg', $result->metadata['data']['images']);
-        $this->assertContains('https://s3.example.com/evidence.jpg', $result->metadata['data']['images']);
-        $this->assertCount(2, $result->metadata['data']['images']);
+        $this->assertEquals(['https://s3.example.com/old.jpg'], $result->metadata['data']['images']);
 
         $log = Activity::where('subject_id', $order->id)
             ->where('subject_type', Order::class)

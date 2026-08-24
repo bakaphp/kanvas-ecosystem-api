@@ -13,6 +13,7 @@ use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -29,6 +30,7 @@ use function Sentry\withScope;
 #[AgentTool(name: 'Create Engagement Page', category: 'crm')]
 class CreateEngagementPageTool extends Tool
 {
+    use DecodesJsonObjectParam;
     use HasKanvasContext;
 
     public function __construct(private readonly Agent $agent)
@@ -62,8 +64,9 @@ class CreateEngagementPageTool extends Tool
             ),
             new ToolProperty(
                 name: 'data',
-                type: PropertyType::OBJECT,
-                description: 'Action-specific page payload. Credit-app and actions without fields may omit data. '
+                type: PropertyType::STRING,
+                description: 'Action-specific page payload, as a JSON object passed in a string. '
+                    . 'Credit-app and actions without fields may omit data. '
                     . 'For view-vehicle, provide product_id as an array of real variant numeric IDs or UUIDs. '
                     . 'You may provide channel_id as an inventory channel numeric ID or UUID; when omitted, the '
                     . 'tool resolves the default published inventory channel shared by the variants. Never invent IDs.',
@@ -73,13 +76,11 @@ class CreateEngagementPageTool extends Tool
     }
 
     /**
-     * @param array<string, mixed>|null $data
-     *
      * @return array<string, mixed>
      */
-    public function __invoke(int $lead_id, string $action, ?array $data = null): array
+    public function __invoke(int $lead_id, string $action, array|string|null $data = null): array
     {
-        $data ??= [];
+        $data = $this->decodeJsonObjectParam($data);
 
         $action = trim($action);
         if ($action === '') {

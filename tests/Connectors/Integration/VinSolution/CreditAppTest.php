@@ -171,6 +171,157 @@ class CreditAppTest extends TestCase
         $this->assertArrayNotHasKey('DateOfBirth', $creditApp->licenseData);
     }
 
+    /**
+     * Real submission shape that crashed in production: the customer never filled the employment
+     * step, so `financial` carries only `income_interval` — no `current_employer_phone`, no
+     * `previous_employer_phone`. Those two were read without a null-coalesce and warned on every
+     * submission.
+     */
+    public function testMinimalFinancialSectionWithoutEmployerPhones(): void
+    {
+        $company = Companies::first();
+        $company->set(ConfigurationEnum::DEFAULT_STATE_KEY->value, 'FL');
+
+        $creditApp = CreditApp::fromMessage(
+            $this->buildMessageFromPayload($this->minimalFinancialPayload(), $company)
+        );
+
+        $this->assertSame('', $creditApp->personalInformation['CurrentEmploymentInformation']['EmployerContactPhone']);
+        $this->assertSame('', $creditApp->personalInformation['PreviousEmploymentInformation']['EmployerContactPhone']);
+
+        $this->assertSame(
+            [
+                [
+                    'AddressId' => 0,
+                    'AddressType' => 'Primary',
+                    'StreetAddress' => '100 Fixture Ave',
+                    'StreetAddress2' => '',
+                    'City' => 'Chicago',
+                    'State' => 'IL',
+                    'PostalCode' => '60644',
+                    'Duration' => '6.0',
+                ],
+            ],
+            $creditApp->address
+        );
+
+        $this->assertSame(
+            [
+                'HousingType' => 'Rent',
+                'DurationYears' => 6,
+                'DurationMonths' => 0,
+                'Expense' => 722.0,
+            ],
+            $creditApp->personalInformation['HousingInformation']
+        );
+
+        // employment_status absent -> Other; the employer address falls back to the company default state
+        $this->assertSame(
+            [
+                'JobTitle' => '',
+                'EmploymentStatusType' => 'Other',
+                'DurationYears' => 0,
+                'DurationMonths' => 0,
+                'EmployerName' => '',
+                'IncomeType' => 'Monthly',
+                'Income' => 0.0,
+                'EmployerContactPhone' => '',
+                'EmployerAddress' => [
+                    'StreetAddress' => '',
+                    'StreetAddress2' => '',
+                    'City' => '',
+                    'State' => 'FL',
+                    'PostalCode' => '',
+                ],
+            ],
+            $creditApp->personalInformation['CurrentEmploymentInformation']
+        );
+    }
+
+    /**
+     * Blank previous_* housing keys must not append a second address — the empty `previous_state`
+     * is a string here, not the {id,name,code} array the populated shape uses.
+     */
+    public function testBlankPreviousAddressKeysDoNotAppendSecondAddress(): void
+    {
+        $creditApp = CreditApp::fromMessage(
+            $this->buildMessageFromPayload($this->minimalFinancialPayload())
+        );
+
+        $this->assertCount(1, $creditApp->address);
+    }
+
+    /**
+     * PushCreditAppAction stores this on People. HasCustomFields::setInRedis only json_encodes
+     * arrays — handing it the Data object sends it to Redis::hSet raw and fatals with
+     * "could not be converted to string", before the VinSolution PUT ever fires.
+     */
+    public function testCreditAppIsStorableAsCustomFieldOnlyAsArray(): void
+    {
+        $company = Companies::first();
+        $creditApp = CreditApp::fromMessage(
+            $this->buildMessageFromPayload($this->minimalFinancialPayload(), $company)
+        );
+
+        $key = 'test_credit_app_storage';
+        $company->set($key, $creditApp->toArray());
+
+        $stored = $company->get($key);
+
+        $this->assertIsArray($stored);
+        $this->assertSame($creditApp->address, $stored['address']);
+        $this->assertSame($creditApp->licenseData, $stored['licenseData']);
+
+        // assertEquals, not assertSame: the Redis json round-trip returns integral floats
+        // (Expense 722.0, Income 0.0) as ints. Harmless here — the VinSolution PUT reads
+        // $creditApp->personalInformation directly, never this stored copy.
+        $this->assertEquals($creditApp->personalInformation, $stored['personalInformation']);
+    }
+
+    /**
+     * Mirrors the production payload that exposed the missing-key warnings: employment step never
+     * filled, blank previous-address keys. PII replaced with synthetic values.
+     */
+    protected function minimalFinancialPayload(): array
+    {
+        return [
+            'visitor_id' => '00000000-0000-0000-0000-000000000000',
+            'verb' => 'credit-app',
+            'status' => 'submitted',
+            'data' => [
+                'form' => [
+                    'personal' => [
+                        'first_name' => 'Test',
+                        'middle_name' => null,
+                        'last_name' => 'Customer',
+                        'dob' => '20-July-1980',
+                        'mobile_number' => '5555550100',
+                        'email' => 'test+customer@example.test',
+                    ],
+                    'housing' => [
+                        'address' => '100 Fixture Ave',
+                        'address_line2' => '',
+                        'state' => ['id' => '3625', 'name' => 'Illinois', 'code' => 'IL'],
+                        'city' => 'Chicago',
+                        'zip_code' => '60644',
+                        'residence_type' => 'Rent',
+                        'rent' => '722',
+                        'time_at_address' => '6.0',
+                        'previous_address' => '',
+                        'previous_address_line2' => '',
+                        'previous_state' => '',
+                        'previous_city' => '',
+                        'previous_zip_code' => '',
+                        'previous_time_at_address' => '',
+                    ],
+                    'financial' => [
+                        'income_interval' => 'Monthly',
+                    ],
+                ],
+            ],
+        ];
+    }
+
     protected function buildMessageFromPayload(array $payload, ?Companies $company = null): Message
     {
         $message = new Message();

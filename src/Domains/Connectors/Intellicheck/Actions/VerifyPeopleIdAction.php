@@ -12,6 +12,7 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Services\DriverLicenseVerificationService;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\PdfService;
@@ -65,32 +66,7 @@ class VerifyPeopleIdAction
                        ],
                    ];
 
-        // Create getDocsDriversLicense data from verification data
-        $getDocsDriversLicense = null;
-        if (isset($verificationData['idcheck']['data'])) {
-            $idCheck = $verificationData['idcheck']['data'];
-            $ocrMatchData = $verificationData['ocr_match']['data'] ?? [];
-
-            $getDocsDriversLicense = [
-                'address' => $ocrMatchData['address'] ?? '',
-                'state' => $idCheck['state'] ?? '',
-                'birthday' => [
-                    'day' => isset($idCheck['dateOfBirth']) ? (int) date('d', strtotime($idCheck['dateOfBirth'])) : 0,
-                    'month' => isset($idCheck['dateOfBirth']) ? (int) date('m', strtotime($idCheck['dateOfBirth'])) : 0,
-                    'year' => isset($idCheck['dateOfBirth']) ? (int) date('Y', strtotime($idCheck['dateOfBirth'])) : 0,
-                ],
-                'license' => $idCheck['dLIDNumberRaw'] ?? '',
-                'exp_date' => [
-                    'day' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('d', strtotime($idCheck['expirationDate'])) : 0,
-                    'month' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('m', strtotime($idCheck['expirationDate'])) : 0,
-                    'year' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('Y', strtotime($idCheck['expirationDate'])) : 0,
-                ],
-                'state_id' => 0,
-                'firstname' => $idCheck['firstName'] ?? '',
-                'middlename' => '',
-                'lastname' => $idCheck['lastName'] ?? '',
-            ];
-        }
+        $getDocsDriversLicense = IdVerificationService::toDriverLicenseScan($verificationData);
 
         $resultsFromIntellicheck = [
             'intelicheck' => $verificationResults['status'] == 'green' || $verificationResults['status'] == 'flag' ? true : false,
@@ -119,6 +95,15 @@ class VerifyPeopleIdAction
                 'id_verification',
                 $resultsFromIntellicheck
             );
+        }
+
+        // The lead field is only a showroom hand-off; persist so direct pushes see it too.
+        if (! empty($getDocsDriversLicense)) {
+            new DriverLicenseVerificationService(
+                $app,
+                $people->company,
+                $lead->user,
+            )->updatePeopleFromDriverLicense($people, $getDocsDriversLicense);
         }
 
         if (! empty($getDocsDriversLicense) && $isLeadPeople) {
@@ -220,6 +205,10 @@ class VerifyPeopleIdAction
 
             $engagement = $this->createEngagement();
 
+            if ($engagement === null) {
+                return;
+            }
+
             $this->processDriverLicenseImages(
                 engagement: $engagement,
                 isIdValid: in_array($reportData['status'], ['green', 'flag']),
@@ -233,8 +222,16 @@ class VerifyPeopleIdAction
         }
     }
 
-    protected function createEngagement(): Engagement
+    protected function createEngagement(): ?Engagement
     {
+        // Unassigned leads carry leads_owner_id = 0, so owner is null; the engagement
+        // still needs a real user for the message copy and the lead follow.
+        $user = $this->lead->owner ?? $this->lead->user;
+
+        if ($user === null) {
+            return null;
+        }
+
         $taskId = $this->lead->get('check_list_status') ?? $this->lead->company->get('default_checklist_id');
 
         if (is_array($taskId)) {
@@ -244,7 +241,7 @@ class VerifyPeopleIdAction
         $engagementData = new DataTransferObjectEngagement(
             app: $this->lead->app,
             company: $this->lead->company,
-            user: $this->lead->owner,
+            user: $user,
             lead: $this->lead,
             action: ConfigurationEnum::ID_VERIFICATION->value,
             requestId: Str::uuid()->toString(),

@@ -23,10 +23,17 @@ use Kanvas\Connectors\VinSolution\Leads\Lead;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist Search CRM For Leads',
+    description: 'Searches the connected CRM for customers matching an email, phone or name and pulls what it '
+        . 'finds into Kanvas as leads. A search-and-import step — it can create several records from '
+        . 'one run, so it is not a per-record action.',
+    integration: IntegrationsEnum::SALESASSIST,
+)]
 class PullPeopleLeadFromSearchActivity extends KanvasActivity
 {
     protected ?Companies $company = null;

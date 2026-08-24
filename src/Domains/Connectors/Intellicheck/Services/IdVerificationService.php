@@ -38,6 +38,49 @@ class IdVerificationService
         return 'Unknown';
     }
 
+    /** Reshapes an Intellicheck response into the `get_docs_drivers_license` scan payload. */
+    public static function toDriverLicenseScan(array $verificationData): ?array
+    {
+        $idCheck = $verificationData['idcheck']['data'] ?? null;
+
+        if (! is_array($idCheck)) {
+            return null;
+        }
+
+        $dateOfBirth = isset($idCheck['dateOfBirth']) ? strtotime((string) $idCheck['dateOfBirth']) : false;
+        $expirationDate = isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate'])
+            ? strtotime((string) $idCheck['expirationDate'])
+            : false;
+
+        return [
+            'address' => $verificationData['ocr_match']['data']['address'] ?? '',
+            'state' => $idCheck['state'] ?? '',
+            'birthday' => self::toDateParts($dateOfBirth),
+            'license' => $idCheck['dLIDNumberRaw'] ?? '',
+            'exp_date' => self::toDateParts($expirationDate),
+            'state_id' => 0,
+            'firstname' => $idCheck['firstName'] ?? '',
+            'middlename' => '',
+            'lastname' => $idCheck['lastName'] ?? '',
+        ];
+    }
+
+    /**
+     * @return array{day: int, month: int, year: int}
+     */
+    private static function toDateParts(int|false $timestamp): array
+    {
+        if ($timestamp === false) {
+            return ['day' => 0, 'month' => 0, 'year' => 0];
+        }
+
+        return [
+            'day' => (int) date('d', $timestamp),
+            'month' => (int) date('m', $timestamp),
+            'year' => (int) date('Y', $timestamp),
+        ];
+    }
+
     public static function processVerificationData(
         array $verificationData,
         string $name,

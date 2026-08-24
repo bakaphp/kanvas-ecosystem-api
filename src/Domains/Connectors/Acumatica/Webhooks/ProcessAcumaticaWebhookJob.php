@@ -9,6 +9,7 @@ use Kanvas\Connectors\Acumatica\Actions\PullInvoicesAction;
 use Kanvas\Connectors\Acumatica\Actions\PullSalesOrdersAction;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
@@ -25,7 +26,15 @@ use Override;
  * Payload: { entity: 'bill'|'invoice'|'salesorder', ref: '<RefNbr / OrderNbr>' }.
  * Receiver config: { acumatica_company_id: <int> }.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Acumatica Inbound Change Webhook',
+    description: 'Receiver for change events POSTed by Acumatica (or an n8n relay): re-pulls the one record '
+        . 'named in the payload so Kanvas catches up without waiting for the scheduled sync. Inbound '
+        . 'only. Re-delivery is harmless — the pull is idempotent. Payload is {entity: '
+        . 'bill|invoice|salesorder, ref: <RefNbr>}; the receiver needs acumatica_company_id in its '
+        . 'config.',
+    integration: IntegrationsEnum::ACUMATICA,
+)]
 class ProcessAcumaticaWebhookJob extends ProcessWebhookJob
 {
     #[Override]

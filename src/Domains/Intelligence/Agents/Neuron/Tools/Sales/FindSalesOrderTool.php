@@ -8,9 +8,11 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FindsTenantRecordForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Souk\Orders\Models\Order;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -19,10 +21,11 @@ use Override;
  * orders; reports found=false when the order isn't in Kanvas.
  */
 #[AgentTool(name: 'Find Sales Order', category: 'commerce')]
-class FindSalesOrderTool extends Tool
+class FindSalesOrderTool extends Tool implements HasRunKey
 {
     use FindsTenantRecordForTool;
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

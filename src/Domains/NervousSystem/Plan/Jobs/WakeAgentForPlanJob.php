@@ -46,6 +46,14 @@ class WakeAgentForPlanJob implements ShouldQueue
     public const string REASON_COMMENT = 'comment';
     public const string REASON_APPROVED = 'approved';
 
+    /**
+     * A delegated task reached a terminal state. The completion rides `$userMessage` rather than
+     * being left for the agent to diff out of its context bundle — `ProjectContextService::plans()`
+     * is scoped `->open()`, so a plan that rolls up complete drops out entirely and the very fact
+     * the agent needs is the one that vanishes.
+     */
+    public const string REASON_TASK_COMPLETED = 'task_completed';
+
     public function __construct(
         public readonly Plan $plan,
         public readonly string $reason,
@@ -157,6 +165,17 @@ class WakeAgentForPlanJob implements ShouldQueue
         if ($this->reason === self::REASON_COMMENT) {
             return sprintf(
                 "[NS:plan_comment] plan_id=%d plan_uuid=%s\n\n%s",
+                $this->plan->id,
+                $this->plan->uuid,
+                (string) $this->userMessage,
+            );
+        }
+
+        if ($this->reason === self::REASON_TASK_COMPLETED) {
+            return sprintf(
+                "[NS:task_completed] plan_id=%d plan_uuid=%s\n\n%s\n\n"
+                . 'Follow up on this: report it to whoever asked, assign any review or next step, '
+                . 'and close the plan if the work is finished.',
                 $this->plan->id,
                 $this->plan->uuid,
                 (string) $this->userMessage,

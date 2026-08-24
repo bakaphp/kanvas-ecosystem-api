@@ -40,8 +40,13 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         $inboundText = AttachmentPromptBuilder::withAttachments($inboundText, $documentUrls);
 
         // Slack was ack'd the moment the event arrived; a turn with tool calls runs 10-30s after
-        // that. Post a placeholder and edit it, so the thread shows the agent working, not silence.
-        $placeholderTs = $client->postMessage($slackChannelId, self::WORKING, $threadTs);
+        // that. Post a placeholder so the thread shows the agent working, not silence. The answer
+        // then replaces it as a fresh post — an edit would notify nobody.
+        $placeholderTs = $client->postMessage(
+            $slackChannelId,
+            self::WORKING,
+            $threadTs
+        );
 
         try {
             $response = new AgentChatKernel(
@@ -73,7 +78,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         if (! $reply->is_locked) {
             try {
-                $client->updateMessageWithOverflow(
+                $client->replacePlaceholderWithReply(
                     $slackChannelId,
                     $placeholderTs,
                     SlackMarkdownService::toMrkdwn($responseText),

@@ -53,7 +53,7 @@ class PaymentMutation
         $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
-            throw new Exception('Payment not found');
+            throw new ValidationException('Payment not found');
         }
 
         // The payment row is created by whoever opened the order (often the corporate actor/system),
@@ -171,7 +171,7 @@ class PaymentMutation
         $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
-            throw new Exception('Payment not found');
+            throw new ValidationException('Payment not found');
         }
 
         if ($payment->status === PaymentStatusEnum::PAID) {
@@ -258,7 +258,7 @@ class PaymentMutation
         $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
-            throw new Exception('Payment not found');
+            throw new ValidationException('Payment not found');
         }
 
         $order = $payment->order;
@@ -376,7 +376,7 @@ class PaymentMutation
         $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
-            throw new Exception('Payment not found');
+            throw new ValidationException('Payment not found');
         }
 
         $order = $payment->order;

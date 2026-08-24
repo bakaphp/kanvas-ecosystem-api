@@ -12,28 +12,45 @@ class EventVersionParticipantObserver
     public function created(EventVersionParticipant $eventVersionParticipant): void
     {
         $eventVersionParticipant->eventVersion->incrementAttendees();
-        $eventVersionParticipant->fireWorkflow(
-            WorkflowEnum::CREATED->value,
-            true,
-        );
+        $this->fireEventVersionWorkflow($eventVersionParticipant, 'participant-added');
     }
 
     public function deleted(EventVersionParticipant $eventVersionParticipant): void
     {
         $eventVersionParticipant->eventVersion->decrementAttendees();
+        $this->fireEventVersionWorkflow($eventVersionParticipant, 'participant-removed');
     }
 
     public function updated(EventVersionParticipant $eventVersionParticipant): void
     {
-        if (! $eventVersionParticipant->isDeleted()) {
-            $eventVersionParticipant->eventVersion->incrementAttendees();
-        } else {
-            $eventVersionParticipant->eventVersion->decrementAttendees();
+        if (! $eventVersionParticipant->wasChanged('is_deleted')) {
+            return;
         }
 
-        $eventVersionParticipant->fireWorkflow(
-            WorkflowEnum::UPDATED->value,
+        $eventVersionParticipant->isDeleted()
+            ? $eventVersionParticipant->eventVersion->decrementAttendees()
+            : $eventVersionParticipant->eventVersion->incrementAttendees();
+
+        $this->fireEventVersionWorkflow(
+            $eventVersionParticipant,
+            $eventVersionParticipant->isDeleted() ? 'participant-removed' : 'participant-added',
+        );
+    }
+
+    protected function fireEventVersionWorkflow(
+        EventVersionParticipant $eventVersionParticipant,
+        string $change,
+    ): void {
+        $eventVersion = $eventVersionParticipant->eventVersion;
+        $eventVersion->fireWorkflow(
+            WorkflowEnum::EVENT_VERSIONS_WORKFLOW->value,
             true,
+            [
+                'app' => $eventVersion->app,
+                'company' => $eventVersion->company,
+                'event_version_change' => $change,
+                'event_version_participant_id' => $eventVersionParticipant->getId(),
+            ],
         );
     }
 }

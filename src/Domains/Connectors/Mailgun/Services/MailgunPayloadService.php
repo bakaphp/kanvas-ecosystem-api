@@ -62,10 +62,11 @@ class MailgunPayloadService
     }
 
     /**
-     * Multipart field names of inline attachments — `content-id-map` maps each content-id referenced
-     * in the body to its field name (e.g. `attachment-1`). These are the signature logos and embedded
-     * images of the mail itself, not things the sender attached: treating them as attachments buries
-     * a real PDF under three corporate logos on every reply.
+     * Multipart field names of images embedded in the body — signature logos and the like, not files
+     * the sender attached. Treating those as attachments buries a real PDF under corporate logos.
+     *
+     * Being in `content-id-map` is not enough: Gmail stamps a Content-ID on every attachment it sends,
+     * embedded or not. Only a `cid:` reference in the HTML body makes one part of the layout.
      *
      * @return array<int, string>
      */
@@ -74,18 +75,30 @@ class MailgunPayloadService
         $map = $this->payload['content-id-map'] ?? null;
 
         if (is_string($map)) {
-            $decoded = json_decode($map, true);
-            $map = is_array($decoded) ? $decoded : [];
+            $map = json_decode($map, true);
         }
 
-        if (! is_array($map)) {
+        $html = (string) ($this->payload['body-html'] ?? '');
+
+        if (! is_array($map) || $html === '') {
             return [];
         }
 
-        return array_values(array_filter(
-            $map,
-            fn (mixed $field): bool => is_string($field) && $field !== ''
-        ));
+        $fields = [];
+
+        foreach ($map as $contentId => $field) {
+            $contentId = is_string($contentId) ? trim($contentId, '<> ') : '';
+
+            if ($contentId !== ''
+                && is_string($field)
+                && $field !== ''
+                && stripos($html, 'cid:' . $contentId) !== false
+            ) {
+                $fields[] = $field;
+            }
+        }
+
+        return array_values(array_unique($fields));
     }
 
     public function inReplyTo(): string

@@ -26,6 +26,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
@@ -37,7 +38,24 @@ use Override;
  * its agent from a workflow rule. Here the receiver *is* the agent's, so the agent is known before
  * the sender is, and an unknown sender can be turned away instead of becoming a lead.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Mailgun Agent Inbox',
+    description: 'Receiver for ONE agent\'s own email address: mail sent to that address reaches that agent, '
+        . 'which reads it and replies by email. This CONTACTS the sender. The receiver belongs to the '
+        . 'agent, so the agent is known before the sender is and an unrecognised sender is turned away '
+        . 'rather than becoming a lead. Use the company lead inbox receiver instead for a shared '
+        . 'address where the agent is chosen by a workflow rule.',
+    integration: IntegrationsEnum::MAILGUN,
+    params: [
+        'agent_id' => 'REQUIRED. Id of the agent that owns this mailbox. Without it nothing is '
+            . 'processed — every delivery answers "Receiver has no agent configured".',
+        'mailbox_address' => 'The address the Mailgun route forwards here, e.g. sofia@mail.example.com.',
+        'capture_files' => 'Stores the email\'s attachments and hangs them off the message, which is '
+            . 'what lets a photo or PDF reach anything downstream. Already on for this receiver; set '
+            . 'it to false only to discard attachments on purpose. There is no backfill — the files '
+            . 'are unrecoverable once the delivery is over.',
+    ],
+)]
 class AgentInboxWebhookJob extends ProcessWebhookJob
 {
     private const int DEDUPE_TTL_SECONDS = 900;
@@ -85,7 +103,11 @@ class AgentInboxWebhookJob extends ProcessWebhookJob
             return ['message' => 'Sender is not known to this company and the mailbox is restricted'];
         }
 
-        $message = new CreateMessageFromAgentInboxAction($this->webhookRequest, $agent, $entity)->execute();
+        $message = new CreateMessageFromAgentInboxAction(
+            $this->webhookRequest,
+            $agent,
+            $entity
+        )->execute();
 
         /** @var Channel $channel */
         $channel = $message->channels()->firstOrFail();
@@ -95,13 +117,24 @@ class AgentInboxWebhookJob extends ProcessWebhookJob
                 $channel,
                 $message,
                 $agent,
-                $this->resolveSession($channel, $message, $agent, $entity),
+                $this->resolveSession(
+                    $channel,
+                    $message,
+                    $agent,
+                    $entity
+                ),
             )->execute();
         } catch (AgentReplySkippedException | ValidationException $e) {
             // Expected control flow — AI switched off for this lead, an already-answered message, an
             // empty turn. Reporting it would bury the real faults in the same feed.
             return ['message' => $e->getMessage()];
         }
+    }
+
+    #[Override]
+    public static function capturesFiles(): bool
+    {
+        return true;
     }
 
     #[Override]

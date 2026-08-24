@@ -98,8 +98,8 @@ class ConvertLeadToDealTool extends Tool
         try {
             $deal = new ConvertLeadToDealAction(
                 lead: $lead,
-                title: $this->blankToNull($title),
-                description: $this->blankToNull($description),
+                title: trim((string) $title) ?: null,
+                description: trim((string) $description) ?: null,
             )->execute();
         } catch (Throwable $e) {
             report($e);
@@ -117,10 +117,5 @@ class ConvertLeadToDealTool extends Tool
             'title' => $deal->title,
             'message' => "Lead {$lead_id} converted to deal '{$deal->title}' (deal_id {$deal->getId()}).",
         ];
-    }
-
-    private function blankToNull(?string $value): ?string
-    {
-        return $value !== null && trim($value) !== '' ? trim($value) : null;
     }
 }

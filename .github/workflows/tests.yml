@@ -185,6 +185,12 @@ jobs:
             processes: 1
           - testsuite: GraphQL-HumanResources
             processes: 1
+          # Six Event tests build a product in setUp. Concurrent inserts into `products`
+          # deadlock on the gap lock that CreateProductAction's `lockForUpdate()` takes over
+          # the non-unique (apps_id, companies_id, slug) index, which surfaces as a 500 from
+          # createProduct. One process, no concurrent inserts, no deadlock.
+          - testsuite: Event
+            processes: 1
     services:
       mysql:
         image: mysql:8.0
@@ -306,6 +312,9 @@ jobs:
 
       - name: Setup Kanvas Agent Tools
         run: php artisan kanvas:nervous-system:sync-tools
+
+      - name: Setup Kanvas Agent Types
+        run: php artisan kanvas:intelligence:sync-agent-types
 
       - name: create .env file
         run: echo '' > .env

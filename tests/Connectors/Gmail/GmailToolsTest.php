@@ -12,6 +12,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReadEmailDetailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReplyToEmailTool;
+use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Tests\TestCase;
 
 class GmailToolsTest extends TestCase
@@ -21,6 +23,7 @@ class GmailToolsTest extends TestCase
     private mixed $originalClientId = null;
     private mixed $originalClientSecret = null;
     private mixed $originalRefreshToken = null;
+    private mixed $originalApproverEmail = null;
 
     protected function setUp(): void
     {
@@ -30,6 +33,7 @@ class GmailToolsTest extends TestCase
         $this->originalClientId = $app->get(ConfigurationEnum::CLIENT_ID->value);
         $this->originalClientSecret = $app->get(ConfigurationEnum::CLIENT_SECRET->value);
         $this->originalRefreshToken = $app->get(ConfigurationEnum::REFRESH_TOKEN->value);
+        $this->originalApproverEmail = $app->get(ApprovalConfigurationEnum::APPROVER_EMAIL->value);
 
         $app->set(ConfigurationEnum::CLIENT_ID->value, '');
         $app->set(ConfigurationEnum::CLIENT_SECRET->value, '');
@@ -42,6 +46,7 @@ class GmailToolsTest extends TestCase
         $app->set(ConfigurationEnum::CLIENT_ID->value, $this->originalClientId);
         $app->set(ConfigurationEnum::CLIENT_SECRET->value, $this->originalClientSecret);
         $app->set(ConfigurationEnum::REFRESH_TOKEN->value, $this->originalRefreshToken);
+        $app->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, $this->originalApproverEmail);
 
         parent::tearDown();
     }
@@ -92,6 +97,19 @@ class GmailToolsTest extends TestCase
 
         $this->assertFalse($result['success']);
         $this->assertSame('mark_read_failed', $result['reason']);
+    }
+
+    public function test_reply_to_email_reports_no_approver_configured_when_missing(): void
+    {
+        [$app, $company] = $this->context();
+        $app->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, '');
+
+        $result = new ReplyToEmailTool()
+            ->withContext($app, $company, static::$cachedUser)
+            ->__invoke(message_id: 'MSG_1', note: 'Approved by Jane Doe on 2026-08-19');
+
+        $this->assertFalse($result['replied']);
+        $this->assertSame('no_approver_configured', $result['reason']);
     }
 
     /**

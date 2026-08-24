@@ -8,14 +8,19 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Enums\AgentChatStatusEnum;
+use Kanvas\Intelligence\Agents\Helpers\AgentChatBroadcastChannel;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
+use Kanvas\Intelligence\Agents\Jobs\ProcessAgentChatTurnJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateUserSessionAction;
@@ -150,13 +155,38 @@ class AgentChatMutation
             $session
         );
 
+        $message = AttachmentPromptBuilder::withAttachments(
+            (string) $input['message'],
+            $mergedFiles,
+        );
+
+        if ($this->shouldRunAsync($input, $app)) {
+            ProcessAgentChatTurnJob::dispatch(
+                app: $app,
+                agent: $agent,
+                session: $session,
+                user: $user,
+                message: $message,
+                images: $mergedImages,
+                documents: $mergedFiles,
+                attachmentIds: array_map(static fn (Filesystem $file): int => $file->getId(), $attachments),
+                currentLeadId: $currentLead?->getId(),
+            );
+
+            return [
+                'response' => '',
+                'session_id' => $session->uuid,
+                'message' => null,
+                'channel' => $session->channel,
+                'status' => AgentChatStatusEnum::PENDING->value,
+                'broadcast_channel' => AgentChatBroadcastChannel::nameFor($agent, $session->uuid),
+            ];
+        }
+
         $processor = new AgentChatKernel(
             agent: $agent,
             session: $session,
-            message: AttachmentPromptBuilder::withAttachments(
-                (string) $input['message'],
-                $mergedFiles,
-            ),
+            message: $message,
             user: $user,
             images: $mergedImages,
             attachments: $attachments,
@@ -173,7 +203,24 @@ class AgentChatMutation
             'session_id' => $session->uuid,
             'message' => $reply,
             'channel' => $reply->channels()->first(),
+            'status' => AgentChatStatusEnum::COMPLETED->value,
+            'broadcast_channel' => AgentChatBroadcastChannel::nameFor($agent, $session->uuid),
         ];
+    }
+
+    /**
+     * Per-request `async` wins so one heavy turn can be forced onto the queue (or opted back out);
+     * otherwise the app-level setting decides.
+     *
+     * @param array<string, mixed> $input
+     */
+    protected function shouldRunAsync(array $input, Apps $app): bool
+    {
+        if (array_key_exists('async', $input) && $input['async'] !== null) {
+            return (bool) $input['async'];
+        }
+
+        return (bool) ($app->get(AppSettingsEnums::AGENT_CHAT_ASYNC->getValue()) ?? false);
     }
 
     /**

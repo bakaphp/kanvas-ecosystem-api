@@ -11,7 +11,13 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Microsoft Sync Mailbox',
+    description: 'Pulls recent mail from the company\'s connected Microsoft mailbox into Kanvas. Inbound '
+        . 'one-way read; it sends nothing and replies to nobody. Runs against the COMPANY, not a lead '
+        . 'or a message.',
+    integration: IntegrationsEnum::MICROSOFT,
+)]
 class SyncMicrosoftEmailActivity extends KanvasActivity
 {
     public $tries = 3;

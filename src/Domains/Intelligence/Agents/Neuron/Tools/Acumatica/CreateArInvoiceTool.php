@@ -5,17 +5,19 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Connectors\Acumatica\Actions\PushInvoiceToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\Traits\PushesInvoiceWithCreditHoldRetry;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
+use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
+use Kanvas\Scribe\Approvals\Actions\RequestApprovalAction;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
-use Kanvas\Scribe\Invoices\Models\Invoice;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,20 +25,25 @@ use Override;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
-/** Creates a one-line AR invoice, issues it, and pushes it to Acumatica — the AR mirror of CreateApBillTool. Stays open; use apply_ar_payment to record a payment against it separately. */
+/** Creates a one-line AR invoice and, by default, issues it and pushes it to Acumatica — the AR mirror of CreateApBillTool. Stays open; use apply_ar_payment to record a payment against it separately. */
 #[AgentTool(name: 'Create AR Invoice', category: 'accounting')]
 class CreateArInvoiceTool extends Tool
 {
     use HasKanvasContext;
+    use PushesInvoiceWithCreditHoldRetry;
+    use StoresApprovalSourceFields;
 
     public function __construct()
     {
         parent::__construct(
             name: 'create_ar_invoice',
-            description: 'Creates a one-line AR invoice for a customer, issues it, and pushes it to Acumatica — '
-                . 'returning the invoice ref. The invoice stays open; use apply_ar_payment separately to record a '
-                . 'payment against it. Bypasses the normal human approval gate — use only when the user explicitly '
-                . 'asks to create an invoice this way, never on a whim.',
+            description: 'Creates a one-line AR invoice for a customer. By default also issues it and pushes it '
+                . 'to Acumatica in one step, returning the invoice ref — bypassing the normal human approval gate, '
+                . 'so only do this when the user explicitly asks to create an invoice this way, never on a whim. '
+                . 'The invoice stays open; use apply_ar_payment separately to record a payment against it. Set '
+                . 'push_to_acumatica to false to just create the invoice (status: draft) and stop there — this is '
+                . 'the default for the standard automatic invoice-processing flow, where a human issues/pushes it '
+                . 'later as a separate step.',
         );
     }
 
@@ -72,6 +79,38 @@ class CreateArInvoiceTool extends Tool
                 description: 'Currency code. Defaults to USD.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'push_to_acumatica',
+                type: PropertyType::BOOLEAN,
+                description: 'Whether to issue and push this invoice to Acumatica immediately. Defaults to true. '
+                    . 'Set to false to just create the invoice (status: draft) and stop there — used by the '
+                    . 'standard automatic invoice-processing flow, where a human issues/pushes it later as a '
+                    . 'separate step.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'source_email_message_id',
+                type: PropertyType::STRING,
+                description: 'The Gmail message_id of the invoice email this invoice was created from, when '
+                    . 'created as part of the automatic invoice-email flow. Kept so a later approval (often in '
+                    . 'a separate Slack conversation) can reply in that same email thread with evidence.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'source_attachment_url',
+                type: PropertyType::STRING,
+                description: 'The Kanvas-hosted URL of the invoice PDF (from download_attachment), when created '
+                    . 'as part of the automatic invoice-email flow. Kept so it can be attached to the invoice '
+                    . 'once it is actually pushed to Acumatica, at approval time.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'source_attachment_filename',
+                type: PropertyType::STRING,
+                description: 'The file name for source_attachment_url (from download_attachment). Optional — '
+                    . 'defaults to the URL\'s own file name when attached.',
+                required: false,
+            ),
         ];
     }
 
@@ -83,7 +122,12 @@ class CreateArInvoiceTool extends Tool
         float $amount,
         string $memo,
         ?string $currency = null,
+        ?bool $push_to_acumatica = null,
+        ?string $source_email_message_id = null,
+        ?string $source_attachment_url = null,
+        ?string $source_attachment_filename = null,
     ): array {
+        $push_to_acumatica ??= true;
         $app = $this->app;
         $company = $this->company;
 
@@ -133,6 +177,47 @@ class CreateArInvoiceTool extends Tool
             $actingUser,
         )->execute();
 
+        $this->storeApprovalSourceFields(
+            $invoice,
+            $source_email_message_id,
+            $source_attachment_url,
+            $source_attachment_filename,
+        );
+
+        if (! $push_to_acumatica) {
+            new RequestApprovalAction(
+                app: $app,
+                company: $company,
+                actionType: 'approve_invoice',
+                targetType: 'invoice',
+                targetId: $invoice->getId(),
+                requestedByUser: $actingUser,
+            )->execute();
+
+            new NotifyApproverAction(
+                $app,
+                "You have an AR invoice pending approval:\nCustomer: {$customer->name}\nAmount: {$currency} "
+                    . "{$amount}\nMemo: {$memo}\nInvoice ID (Kanvas): {$invoice->getId()}\n\nReply "
+                    . "\"approve invoice {$invoice->getId()}\" to approve it and push it to Acumatica.",
+                $source_attachment_url,
+                $source_attachment_filename,
+            )->execute();
+
+            return [
+                'created' => true,
+                'invoice_pushed' => false,
+                'invoice_id' => $invoice->getId(),
+                'invoice_number' => $invoice->invoice_number,
+                'document_status' => $invoice->document_status->value,
+                'customer' => $customer->name,
+                'amount' => $amount,
+                'currency' => $currency,
+                'memo' => $memo,
+                'next' => 'Invoice created in Kanvas (status: draft). Not issued or pushed to Acumatica — that '
+                    . 'happens separately once a human approves it.',
+            ];
+        }
+
         $invoice = new IssueInvoiceAction($invoice, $customer, $actingUser)->execute();
 
         try {
@@ -165,34 +250,5 @@ class CreateArInvoiceTool extends Tool
             'next' => 'Invoice pushed to Acumatica and left open. Use apply_ar_payment with this invoice_id to '
                 . 'record a payment against it.',
         ];
-    }
-
-    private function pushInvoiceWithCreditHoldRetry(Invoice $invoice): string
-    {
-        return $this->retryOnReleaseDisabled(
-            fn (): string => new PushInvoiceToAcumaticaAction($invoice)->execute(),
-        );
-    }
-
-    /** Retries a push a few times on "Release button is disabled" — intermittent on this tenant's Credit Hold check. */
-    private function retryOnReleaseDisabled(callable $push, int $maxAttempts = 3): string
-    {
-        $lastException = null;
-
-        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
-            try {
-                return $push();
-            } catch (AcumaticaWriteException|Throwable $e) {
-                $lastException = $e;
-
-                if (! str_contains($e->getMessage(), 'Release button is disabled') || $attempt === $maxAttempts) {
-                    throw $e;
-                }
-
-                sleep(3);
-            }
-        }
-
-        throw $lastException;
     }
 }

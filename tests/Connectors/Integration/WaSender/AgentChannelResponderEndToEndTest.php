@@ -15,12 +15,14 @@ use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionDto;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
+use Tests\Stubs\Intelligence\StructuredNeuronAgentStub;
 use Tests\TestCase;
 use Throwable;
 
@@ -34,6 +36,47 @@ class AgentChannelResponderEndToEndTest extends TestCase
     use DatabaseTransactions;
 
     public function testInboundWhatsAppTriggersAgentReplyPersistedOnChannel(): void
+    {
+        [$channel, $inbound, $agent, $session] = $this->bootScenario(SalesNeuronAgentStub::class);
+
+        $this->runResponder($channel, $inbound, $agent, $session);
+
+        $outbound = $this->latestAgentReply($channel);
+
+        $this->assertNotNull($outbound, 'Agent reply must be persisted on the channel');
+        $this->assertStringContainsString('Hola Mundo', (string) ($outbound->message['content'] ?? ''));
+        $this->assertSame((string) $session->uuid, (string) ($outbound->message['session_id'] ?? ''));
+        $this->assertArrayNotHasKey('response_json', $outbound->message);
+    }
+
+    /**
+     * An agent that answers with a whole record loses everything but the body once ChatHelper picks
+     * the outbound text out of it — the decoded envelope rides along so a later activity (WordPress
+     * publish, a CRM push) can still see the title, terms and status.
+     */
+    public function testStructuredAgentReplyKeepsItsEnvelopeOnTheMessage(): void
+    {
+        [$channel, $inbound, $agent, $session] = $this->bootScenario(StructuredNeuronAgentStub::class);
+
+        $this->runResponder($channel, $inbound, $agent, $session);
+
+        $outbound = $this->latestAgentReply($channel);
+
+        $this->assertNotNull($outbound, 'Agent reply must be persisted on the channel');
+        $this->assertSame('Hola Mundo', (string) ($outbound->message['content'] ?? ''));
+
+        $envelope = $outbound->message['response_json'] ?? null;
+
+        $this->assertIsArray($envelope, 'The decoded envelope must be stored alongside the reply text');
+        $this->assertSame('Education accelerates classroom construction in El Seibo', $envelope['title']);
+        $this->assertSame(['National', 'Education'], $envelope['categories']);
+        $this->assertSame('draft', $envelope['status']);
+    }
+
+    /**
+     * @return array{0: Channel, 1: Message, 2: Agent, 3: Session}
+     */
+    private function bootScenario(string $handler): array
     {
         Http::fake(); // any outbound HTTP (WaSender send) becomes a no-op
 
@@ -99,13 +142,12 @@ class AgentChannelResponderEndToEndTest extends TestCase
         $inbound = $inbound->fresh();
         $channel->addMessage($inbound);
 
-        // Neuron-handler Agent — FakeNeuronProvider returns "Hola Mundo"
         $agentType = AgentType::factory()
             ->withAppId($app->getId())
             ->create([
                 'name' => 'Sales (Neuron Test)',
                 'provider' => 'neuron',
-                'handler' => SalesNeuronAgentStub::class,
+                'handler' => $handler,
             ]);
 
         $agent = Agent::factory()
@@ -137,10 +179,20 @@ class AgentChannelResponderEndToEndTest extends TestCase
             ])
         )->execute();
 
-        // Drive the action directly (skip executeIntegration wrapper — same approach
-        // as tests/Connectors/Integration/Twilio/AgentChannelResponderActionTest.php).
-        // The outbound WaSender API call may throw in the test env (no real credentials),
-        // but that happens AFTER persistence — which is what we care about.
+        return [$channel, $inbound, $agent, $session];
+    }
+
+    /**
+     * Drives the action directly (skips the executeIntegration wrapper — same approach as
+     * tests/Connectors/Integration/Twilio/AgentChannelResponderActionTest.php). The outbound
+     * WaSender API call may throw without real credentials, but that happens AFTER persistence.
+     */
+    private function runResponder(
+        Channel $channel,
+        Message $inbound,
+        Agent $agent,
+        Session $session
+    ): void {
         $action = new AgentChannelResponderAction(
             $channel,
             $inbound,
@@ -152,13 +204,14 @@ class AgentChannelResponderEndToEndTest extends TestCase
             $action->execute([]);
         } catch (Throwable) {
             // Expected: outbound WaSender API call fails without real credentials.
-            // The agent dispatch + reply persistence ran before that point.
         }
+    }
 
-        // Reply Message persisted on the channel, tagged as agent reply
-        $outbound = Message::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
+    private function latestAgentReply(Channel $channel): ?Message
+    {
+        return Message::query()
+            ->where('apps_id', app(Apps::class)->getId())
+            ->where('companies_id', auth()->user()->getCurrentCompany()->getId())
             ->whereJsonContains('message->from_ia', true)
             ->whereHas(
                 'channels',
@@ -166,9 +219,5 @@ class AgentChannelResponderEndToEndTest extends TestCase
             )
             ->latest('id')
             ->first();
-
-        $this->assertNotNull($outbound, 'Agent reply must be persisted on the channel');
-        $this->assertStringContainsString('Hola Mundo', (string) ($outbound->message['content'] ?? ''));
-        $this->assertSame((string) $session->uuid, (string) ($outbound->message['session_id'] ?? ''));
     }
 }

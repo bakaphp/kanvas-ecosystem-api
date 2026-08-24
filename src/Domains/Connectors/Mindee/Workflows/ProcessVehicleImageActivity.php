@@ -18,7 +18,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Mindee Process Vehicle Image',
+    description: 'Reads a vehicle image on a message through Mindee OCR and stores what it extracts. Vision '
+        . 'extraction only; it writes fields, it does not answer anyone.',
+    integration: IntegrationsEnum::MINDEE,
+)]
 class ProcessVehicleImageActivity extends KanvasActivity
 {
     public $tries = 3;

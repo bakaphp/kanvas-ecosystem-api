@@ -10,6 +10,7 @@ use Kanvas\Connectors\Mailgun\Actions\VerifyMailgunWebhookSignatureAction;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Scribe\PdfIngest\Jobs\ProcessAccountingPdfJob;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
@@ -45,9 +46,23 @@ use Override;
  * Auth: `authenticateRequest()` verifies Mailgun's HMAC signature using the signing key stored
  * on the receiver's app (per `VerifyMailgunWebhookSignatureAction`).
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Mailgun Accounting PDF Inbox',
+    description: 'Receiver for the accounting inbox: every PDF attached to an inbound email becomes its own '
+        . 'draft expense or bill for an operator to approve. One draft per PDF, so a multi-invoice '
+        . 'email is approved piece by piece. Nothing is posted automatically and nobody is contacted. '
+        . 'The receiver config must set scribe_pdf_inbox true, which is what stops other Mailgun routes '
+        . 'from triggering it.',
+    integration: IntegrationsEnum::MAILGUN,
+)]
 class ScribePdfInboundWebhookJob extends ProcessWebhookJob
 {
+    #[Override]
+    public static function capturesFiles(): bool
+    {
+        return true;
+    }
+
     /**
      * @return array<string, mixed>
      */

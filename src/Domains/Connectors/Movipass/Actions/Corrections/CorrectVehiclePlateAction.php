@@ -34,7 +34,6 @@ class CorrectVehiclePlateAction extends BaseOrderCorrectionAction
 
             $this->order->reference = "{$brand} / {$this->newPlate} - #{$this->order->order_number}";
 
-            $this->appendEvidenceImages($this->evidenceUrls);
             $this->order->saveOrFail();
 
             $this->logCorrection(

@@ -24,7 +24,7 @@
         "durable-workflow/workflow": "^1.0.24",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
         "google/apiclient": "^2.19",
-        "google/apiclient-services": "^0.454",
+        "google/apiclient-services": "^0.455",
         "google/cloud-discoveryengine": "^1.1",
         "google/cloud-recommendations-ai": "^0.10.0",
         "guzzlehttp/guzzle": "^7.6",

@@ -13,7 +13,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Mercury Cancel Invoice',
+    description: 'Cancels the invoice\'s counterpart in Mercury. Outbound write to the bank; the customer is '
+        . 'not contacted by Kanvas, but Mercury may stop its own reminders as a result.',
+    integration: IntegrationsEnum::MERCURY,
+)]
 class CancelMercuryInvoiceActivity extends KanvasActivity
 {
     public $tries = 3;

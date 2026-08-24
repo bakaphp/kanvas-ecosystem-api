@@ -30,6 +30,32 @@ final class PortalPaymentProcessorReportingTest extends TestCaseUnit
         );
     }
 
+    /**
+     * The classification helper only helps if every EchoPay catch actually calls it. Guard the
+     * source so a new catch block can't silently reintroduce the unconditional report() that
+     * flooded Sentry with routine declines (KANVAS-ECOSYSTEM-43N).
+     */
+    public function testEveryEchoPayCatchGatesTheReport(): void
+    {
+        $source = file_get_contents(new ReflectionClass(PortalPaymentProcessor::class)->getFileName());
+
+        preg_match_all(
+            '/catch \(EchoPayException \$e\) \{\s*+(?<body>[^\n]*+)/',
+            $source,
+            $matches
+        );
+
+        $this->assertNotEmpty($matches['body'], 'No EchoPayException catch blocks found — did the class move?');
+
+        foreach ($matches['body'] as $firstStatement) {
+            $this->assertSame(
+                'if ($this->isEchoPayGatewayFailure($e)) {',
+                trim($firstStatement),
+                'An EchoPayException catch reports without classifying the failure first.'
+            );
+        }
+    }
+
     public static function echoPayErrorProvider(): array
     {
         return [

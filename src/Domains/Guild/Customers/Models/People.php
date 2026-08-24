@@ -9,6 +9,7 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,6 +24,7 @@ use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
+use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
@@ -52,8 +54,9 @@ use Override;
  * @property string|null $firstname
  * @property string|null $middlename = null
  * @property string|null $lastname
- * @property string $license_number
+ * @property string|null $license_number
  * @property string|null $license_expiration_date
+ * @property string|null $license_state
  * @property string|null $dob = null
  * @property string|null $google_contact_id
  * @property string|null $facebook_contact_id
@@ -826,11 +829,43 @@ class People extends BaseModel
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name,description,translations,firstname,lastname,email,phone', // Use just 'message' instead of 'message.name'
+                'query_by' => 'name,firstname,lastname,email,phone',
             ]);
         }
 
         return $query;
+    }
+
+    public function getDriverLicense(): ?DriverLicense
+    {
+        $legacyScan = $this->get('get_docs_drivers_license');
+        $legacy = is_array($legacyScan) ? DriverLicense::fromScan($legacyScan) : null;
+
+        $number = $this->license_number
+            ?: ($this->get('drivers_license_number') ?: $legacy?->number);
+
+        if (empty($number)) {
+            return null;
+        }
+
+        $state = DriverLicense::normalizeState($this->license_state) ?? $legacy?->state;
+        if ($state === null) {
+            $defaultAddress = $this->address()->where('is_default', true)->first();
+            $state = DriverLicense::normalizeState($defaultAddress?->state);
+        }
+
+        return new DriverLicense(
+            number: (string) $number,
+            state: $state,
+            expirationDate: $this->license_expiration_date
+                ? Carbon::parse($this->license_expiration_date)
+                : $legacy?->expirationDate,
+            dob: $this->dob ? Carbon::parse($this->dob) : $legacy?->dob,
+            firstname: $this->firstname,
+            middlename: $this->middlename,
+            lastname: $this->lastname,
+            address: $legacy?->address,
+        );
     }
 
     /**
@@ -838,42 +873,7 @@ class People extends BaseModel
      */
     public function getDriverLicenseData(): ?array
     {
-        $licenseNumber = null;
-        $licenseState = null;
-
-        if (! empty($this->license_number)) {
-            $licenseNumber = $this->license_number;
-        }
-
-        if (empty($licenseNumber)) {
-            $licenseNumber = $this->get('drivers_license_number');
-        }
-
-        $legacyLicense = $this->get('get_docs_drivers_license');
-        if (! empty($legacyLicense) && is_array($legacyLicense)) {
-            if (empty($licenseNumber) && ! empty($legacyLicense['license'])) {
-                $licenseNumber = $legacyLicense['license'];
-            }
-            if (! empty($legacyLicense['state'])) {
-                $licenseState = $legacyLicense['state'];
-            }
-        }
-
-        if (empty($licenseState)) {
-            $defaultAddress = $this->address()->where('is_default', true)->first();
-            if ($defaultAddress && ! empty($defaultAddress->state)) {
-                $licenseState = $defaultAddress->state;
-            }
-        }
-
-        if (empty($licenseNumber)) {
-            return null;
-        }
-
-        return [
-            'driversLicenseNumber' => $licenseNumber,
-            'driversLicenseState' => $licenseState,
-        ];
+        return $this->getDriverLicense()?->toDriveCentricArray();
     }
 
     public function getPhoto(): ?FilesystemEntities

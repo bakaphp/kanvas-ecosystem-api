@@ -6,11 +6,15 @@ namespace Kanvas\Notifications\Traits;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Notifications\AnonymousNotifiable;
+use Illuminate\Support\Facades\Log;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use NotificationChannels\Expo\ExpoMessage;
 
 trait NotificationExpoTrait
 {
+    private ?array $expoContent = null;
+
     public function toExpo(UserInterface|AnonymousNotifiable $notifiable): ExpoMessage
     {
         $this->toUser = $notifiable instanceof UserInterface ? $notifiable : null;
@@ -19,10 +23,10 @@ trait NotificationExpoTrait
             throw new ValidationException('User not found');
         }
 
-        $content = $this->getPushContent();
+        $content = $this->resolveExpoContent();
 
-        if ($content['title'] === '' && $content['message'] === '') {
-            throw new ValidationException('Push notification has no title or message');
+        if (empty($content['message'])) {
+            throw new ValidationException('Push notification has no message');
         }
 
         $additionalData = $this->getData();
@@ -59,5 +63,31 @@ trait NotificationExpoTrait
         }
 
         return $expoMessage;
+    }
+
+    protected function hasExpoContent(): bool
+    {
+        try {
+            $content = $this->resolveExpoContent();
+        } catch (ModelNotFoundException) {
+            $content = [];
+        }
+
+        if (! empty($content['message'])) {
+            return true;
+        }
+
+        Log::warning('Skipping expo push notification, rendered message is empty', [
+            'notification' => static::class,
+            'apps_id' => $this->app->getId(),
+            'companies_id' => $this->company?->getId(),
+        ]);
+
+        return false;
+    }
+
+    private function resolveExpoContent(): array
+    {
+        return $this->expoContent ??= $this->getPushContent();
     }
 }

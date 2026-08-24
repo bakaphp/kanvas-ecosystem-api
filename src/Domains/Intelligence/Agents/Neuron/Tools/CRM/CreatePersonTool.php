@@ -8,6 +8,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
@@ -25,6 +26,7 @@ use Throwable;
 #[AgentTool(name: 'Create Person', category: 'crm')]
 class CreatePersonTool extends Tool
 {
+    use DecodesJsonObjectParam;
     use HasKanvasContext;
 
     public function __construct()
@@ -64,16 +66,16 @@ class CreatePersonTool extends Tool
             ),
             new ToolProperty(
                 name: 'custom_fields',
-                type: PropertyType::OBJECT,
-                description: 'Optional map of custom field name → value (e.g. {"seniority": "manager"}).',
+                type: PropertyType::STRING,
+                description: 'Optional JSON object mapping custom field name → value, passed as a string. '
+                    . 'For example: {"seniority": "manager"}.',
                 required: false,
             ),
         ];
     }
 
     /**
-     * @param list<string>|null         $tags
-     * @param array<string, mixed>|null $custom_fields
+     * @param list<string>|null $tags
      *
      * @return array<string, mixed>
      */
@@ -85,8 +87,9 @@ class CreatePersonTool extends Tool
         ?string $title = null,
         ?string $organization = null,
         ?array $tags = null,
-        ?array $custom_fields = null,
+        array|string|null $custom_fields = null,
     ): array {
+        $custom_fields = $this->decodeJsonObjectParam($custom_fields);
         $firstname = trim($firstname);
         if ($firstname === '') {
             return ['error' => 'firstname is required.'];
@@ -100,7 +103,7 @@ class CreatePersonTool extends Tool
             $contacts[] = ['value' => trim($phone)];
         }
 
-        $customFields = $custom_fields ?? [];
+        $customFields = $custom_fields;
         if ($title !== null && trim($title) !== '') {
             $customFields['title'] = trim($title);
         }

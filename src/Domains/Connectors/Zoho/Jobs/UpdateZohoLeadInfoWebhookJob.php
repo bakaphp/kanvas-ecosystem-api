@@ -6,10 +6,16 @@ namespace Kanvas\Connectors\Zoho\Jobs;
 
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Zoho Update Lead Info Webhook',
+    description: 'Receiver that applies a Zoho lead-field update to the matching Kanvas lead. Inbound one-way, '
+        . 'fields only — use the status receiver for pipeline movement.',
+    integration: IntegrationsEnum::ZOHO,
+)]
 class UpdateZohoLeadInfoWebhookJob extends ProcessWebhookJob
 {
     #[Override]

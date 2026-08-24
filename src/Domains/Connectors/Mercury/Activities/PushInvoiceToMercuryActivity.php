@@ -13,7 +13,13 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Mercury Push Invoice',
+    description: 'Raises the invoice in Mercury so the bank can collect it. Outbound write — Mercury may email '
+        . 'the customer the invoice itself, so treat this as customer-visible even though Kanvas sends '
+        . 'nothing.',
+    integration: IntegrationsEnum::MERCURY,
+)]
 class PushInvoiceToMercuryActivity extends KanvasActivity
 {
     public $tries = 3;

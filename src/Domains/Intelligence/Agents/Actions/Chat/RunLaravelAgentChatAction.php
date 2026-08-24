@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
+use Kanvas\Intelligence\Agents\Laravel\Contracts\TransformsStructuredOutput;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
@@ -59,7 +60,7 @@ class RunLaravelAgentChatAction
         // ->structured; ->text is empty in JSON mode. Surface the JSON as the
         // reply so the recommendations actually reach the caller instead of "".
         $responseText = $response instanceof StructuredAgentResponse
-            ? $response->toJson()
+            ? $this->resolveStructuredPayload($response)
             : $response->text;
 
         if ($sessionEntity !== null) {
@@ -114,6 +115,22 @@ class RunLaravelAgentChatAction
         }
 
         return $responseText;
+    }
+
+    /**
+     * Agents implementing TransformsStructuredOutput declare a minimal schema and
+     * rebuild the full payload server-side, so the model never spends output
+     * tokens re-emitting rows a tool already handed it.
+     */
+    private function resolveStructuredPayload(StructuredAgentResponse $response): string
+    {
+        if (! $this->handler instanceof TransformsStructuredOutput) {
+            return $response->toJson();
+        }
+
+        return (string) json_encode(
+            $this->handler->transformStructuredOutput($response->toArray()),
+        );
     }
 
     /**

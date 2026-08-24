@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Azul\Webhook;
 
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
@@ -23,7 +24,14 @@ use Override;
  * frontend knows the fingerprinting step is complete and can call
  * startChallenge again with the azulOrderId to proceed to the challenge step.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Azul 3DS Method Notification',
+    description: 'Part of the Azul 3-D Secure card flow, not something to attach by choice: the 3DS server '
+        . 'POSTs here once the browser fingerprint step finishes, and this marks the payment ready for '
+        . 'the challenge step. The URL is built by the payment processor itself — wire it as a receiver '
+        . 'for Azul 3DS and leave it alone.',
+    integration: IntegrationsEnum::AZUL,
+)]
 class AzulMethodNotificationWebhookJob extends ProcessWebhookJob
 {
     #[Override]

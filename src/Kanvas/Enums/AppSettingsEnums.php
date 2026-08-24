@@ -56,6 +56,17 @@ enum AppSettingsEnums implements EnumsInterface
     case REGISTRATION_RATE_LIMIT;
     case VALIDATE_EMAIL_DNS;
     case BLOCKED_EMAIL_DOMAINS;
+    case SIGNUP_PREFIX_BURST_LIMIT;
+    case SIGNUP_PREFIX_BURST_WINDOW;
+    case SIGNUP_MAILBOX_LIMIT;
+    case SIGNUP_MAILBOX_WINDOW;
+    case SIGNUP_ANOMALY_ALERT_EMAILS;
+    case SIGNUP_ANOMALY_MULTIPLIER;
+    case SIGNUP_ANOMALY_FLOOR;
+    case SIGNUP_ANOMALY_BASELINE_DAYS;
+    case SIGNUP_ANOMALY_COOLDOWN;
+    case SIGNUP_ABUSE_SENTRY_ENABLED;
+    case AGENT_CHAT_ASYNC;
 
     #[Override]
     public function getValue(): mixed
@@ -108,6 +119,17 @@ enum AppSettingsEnums implements EnumsInterface
             self::REGISTRATION_RATE_LIMIT => 'registration_rate_limit',
             self::VALIDATE_EMAIL_DNS => 'validate_email_dns',
             self::BLOCKED_EMAIL_DOMAINS => 'blocked_email_domains',
+            self::SIGNUP_PREFIX_BURST_LIMIT => 'signup_prefix_burst_limit',
+            self::SIGNUP_PREFIX_BURST_WINDOW => 'signup_prefix_burst_window',
+            self::SIGNUP_MAILBOX_LIMIT => 'signup_mailbox_limit',
+            self::SIGNUP_MAILBOX_WINDOW => 'signup_mailbox_window',
+            self::SIGNUP_ANOMALY_ALERT_EMAILS => 'signup_anomaly_alert_emails',
+            self::SIGNUP_ANOMALY_MULTIPLIER => 'signup_anomaly_multiplier',
+            self::SIGNUP_ANOMALY_FLOOR => 'signup_anomaly_floor',
+            self::SIGNUP_ANOMALY_BASELINE_DAYS => 'signup_anomaly_baseline_days',
+            self::SIGNUP_ANOMALY_COOLDOWN => 'signup_anomaly_cooldown',
+            self::SIGNUP_ABUSE_SENTRY_ENABLED => 'signup_abuse_sentry_enabled',
+            self::AGENT_CHAT_ASYNC => 'agent_chat_async',
         };
     }
 }

@@ -14,6 +14,7 @@ class EmailDomain
      * Short handles (initials, nicknames) are never flagged.
      */
     public const SPAM_LOCAL_MIN_LENGTH = 10;
+    public const SPAM_SEGMENT_MIN_LENGTH = 8;
 
     /**
      * Known disposable / abuse email domains. These never belong to a real
@@ -100,9 +101,6 @@ class EmailDomain
 
     /**
      * Detect bot-generated, randomized local parts (e.g. `8rhpkhzq6sqwcx3`).
-     * Tuned to be conservative: a long handle with no vowel at all, or one that
-     * is overwhelmingly digits with no human separator, is treated as spam.
-     * Real handles this long virtually always contain a vowel or a separator.
      */
     public static function hasSpamLocalPart(string $email): bool
     {
@@ -111,21 +109,79 @@ class EmailDomain
         }
 
         $local = Str::lower(Str::before($email, '@'));
-        $length = strlen($local);
 
-        if ($length < self::SPAM_LOCAL_MIN_LENGTH) {
+        if (strlen($local) < self::SPAM_LOCAL_MIN_LENGTH) {
             return false;
         }
 
-        $vowelCount = preg_match_all('/[aeiou]/', $local);
-
-        if ($vowelCount === 0) {
+        if (preg_match_all('/[aeiou]/', $local) === 0) {
             return true;
         }
 
-        $digitCount = preg_match_all('/[0-9]/', $local);
-        $hasSeparator = (bool) preg_match('/[._+\-]/', $local);
+        /**
+         * Score each separator-delimited segment on its own. Scoring the whole
+         * string let a single `_` disable the check — which is exactly how the
+         * `dggie_l9pbrxc3ex@gmail.com` campaign got through.
+         */
+        foreach (preg_split('/[._+\-]+/', $local, -1, PREG_SPLIT_NO_EMPTY) as $segment) {
+            if (self::isRandomSegment($segment)) {
+                return true;
+            }
+        }
 
-        return ! $hasSeparator && ($digitCount / $length) > 0.6;
+        return false;
+    }
+
+    /**
+     * Why the address looks like a bot signup, or null when it looks legitimate.
+     * The reason is logged so a false positive traces to the rule that produced
+     * it rather than being guessed at.
+     */
+    public static function spamReason(string $email, array $extraBlocked = []): ?string
+    {
+        if (self::isBlockedDomain($email, $extraBlocked)) {
+            return 'blocked_domain';
+        }
+
+        if (EmailProvider::violatesProviderRules($email)) {
+            return 'impossible_provider_address';
+        }
+
+        if (self::hasSpamLocalPart($email)) {
+            return 'random_local_part';
+        }
+
+        return null;
+    }
+
+    private static function isRandomSegment(string $segment): bool
+    {
+        $length = strlen($segment);
+
+        if ($length < self::SPAM_SEGMENT_MIN_LENGTH) {
+            return false;
+        }
+
+        if (preg_match_all('/[aeiou]/', $segment) === 0) {
+            return true;
+        }
+
+        if ((preg_match_all('/[0-9]/', $segment) / $length) > 0.6) {
+            return true;
+        }
+
+        return self::interiorDigitRuns($segment) >= 2;
+    }
+
+    /**
+     * Digit groups with a letter on both sides. Humans append a number
+     * (`john1985`) or prefix one; generators sprinkle them through the string
+     * (`l9pbrxc3ex`), so two or more interior groups is a machine signature.
+     */
+    private static function interiorDigitRuns(string $segment): int
+    {
+        preg_match_all('/(?<=[a-z])[0-9]+(?=[a-z])/', $segment, $matches);
+
+        return count($matches[0]);
     }
 }

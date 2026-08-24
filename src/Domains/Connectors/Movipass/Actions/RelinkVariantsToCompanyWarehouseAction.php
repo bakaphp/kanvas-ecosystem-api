@@ -20,6 +20,7 @@ use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses as WarehousesDto;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Regions\Services\RegionResolutionService;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -132,6 +133,8 @@ class RelinkVariantsToCompanyWarehouseAction
 
     private function resolveRegion(): Regions
     {
+        // Legacy key first: companies onboarded before the generic default_region_id
+        // only carry movipass_region_id until the backfill command runs.
         $regionId = $this->company->get(CustomFieldEnum::COMPANY_REGION_ID->value);
 
         if (! empty($regionId)) {
@@ -147,7 +150,7 @@ class RelinkVariantsToCompanyWarehouseAction
             }
         }
 
-        return Regions::getDefault($this->company, $this->app)
+        return new RegionResolutionService($this->app)->forCompany($this->company)
             ?? throw new ValidationException(
                 "No region available for company '{$this->company->name}' — cannot provision its warehouse."
             );

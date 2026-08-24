@@ -68,11 +68,6 @@ class SyncAgentTypesCommandTest extends TestCase
         $this->assertSame('Commerce Agent', $meta->name);
         $this->assertSame('neuron', $meta->provider);
         $this->assertStringContainsString('Commerce teammate', (string) $meta->soul);
-        $this->assertLessThanOrEqual(
-            255,
-            strlen((string) $meta->description),
-            'description is stored in a varchar(255) column',
-        );
 
         $discovered = collect(new AgentTypeDiscoveryService()->discover())->keyBy('class');
         $this->assertArrayHasKey(CommerceAgent::class, $discovered->all());
@@ -89,6 +84,32 @@ class SyncAgentTypesCommandTest extends TestCase
                 'apps_id' => 0,
             ],
             'intelligence',
+        );
+    }
+
+    /**
+     * Descriptions are catalog copy an orchestrator reads when picking a teammate, so a column too
+     * narrow for one silently truncates it — or, once MySQL is strict, fails the whole sync. This
+     * replaces a hardcoded varchar(255) bound: it asserts the round-trip instead of the width, so it
+     * stays honest whatever the column becomes.
+     */
+    public function testTheLongestDescriptionSurvivesTheRoundTrip(): void
+    {
+        $longest = collect(new AgentTypeDiscoveryService()->discover())
+            ->sortByDesc(fn (array $entry): int => strlen((string) $entry['description']))
+            ->first();
+
+        $this->artisan('kanvas:intelligence:sync-agent-types')->assertSuccessful();
+
+        $stored = AgentType::query()
+            ->where('handler', $longest['class'])
+            ->where('apps_id', 0)
+            ->value('description');
+
+        $this->assertSame(
+            $longest['description'],
+            $stored,
+            $longest['name'] . ' description was altered on the way into agent_types',
         );
     }
 

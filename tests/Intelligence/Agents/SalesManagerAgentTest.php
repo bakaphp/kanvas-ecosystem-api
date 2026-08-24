@@ -49,6 +49,9 @@ class SalesManagerAgentTest extends TestCase
             'get_batch_history',
             'reassign_lead_owner',
             'send_batch_message',
+            'add_lead_note',
+            'upload_file_to_lead',
+            'upload_file_to_message',
         ] as $expected) {
             $this->assertContains($expected, $names, "Polly should expose {$expected}");
         }

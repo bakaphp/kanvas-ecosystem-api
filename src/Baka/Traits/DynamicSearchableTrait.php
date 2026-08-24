@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Baka\Traits;
 
 use BadMethodCallException;
+use Baka\Search\RecordSizeTrimmer;
 use Baka\Search\SearchEngineResolver;
+use Baka\Search\TypesenseCollectionInspector;
 use Kanvas\Apps\Models\Apps;
 use Laravel\Scout\Engines\TypesenseEngine;
 use Laravel\Scout\Searchable;
@@ -57,6 +59,21 @@ trait DynamicSearchableTrait
         return $this->resolvedEngineName() === 'algolia';
     }
 
+    public function searchIndexRejectsObjectField(string $field): bool
+    {
+        if (! $this->isTypesense()) {
+            return false;
+        }
+
+        $app = $this->app ?? app(Apps::class);
+
+        return TypesenseCollectionInspector::rejectsObjectField(
+            $app,
+            $this->searchableAs(),
+            $field
+        );
+    }
+
     /**
      * Byte budget a record must fit in before the model's trimming cascade kicks in.
      * Resolution order: per-app setting → scout config → 9500 (Algolia's 10k cap minus headroom).
@@ -69,6 +86,17 @@ trait DynamicSearchableTrait
             ?? config('scout.algolia.record_size_limit', 9500));
 
         return $limit > 0 ? $limit : 9500;
+    }
+
+    /**
+     * Entry point for a model's trimming cascade — see RecordSizeTrimmer.
+     */
+    public function trimToAlgoliaLimit(array $record): RecordSizeTrimmer
+    {
+        return RecordSizeTrimmer::make(
+            $record,
+            $this->algoliaRecordSizeLimit()
+        );
     }
 
     protected function resolvedEngineName(): string

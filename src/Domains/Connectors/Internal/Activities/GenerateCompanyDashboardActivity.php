@@ -20,7 +20,13 @@ use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
 
-#[WorkflowAction]
+// Named explicitly because the catalog row predates the attribute and is referenced by this name;
+// letting the sync fall back to the class basename would rename it out from under those callers.
+#[WorkflowAction(
+    name: 'Generate Company Dashboard',
+    description: 'Builds the company dashboard snapshot — totals for leads, people, products and '
+        . 'users — and returns it. Reads only; safe to attach to any trigger.',
+)]
 class GenerateCompanyDashboardActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

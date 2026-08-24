@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Mailgun;
 
+use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -15,6 +16,10 @@ use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mailgun\Enums\MailboxAccessEnum;
 use Kanvas\Connectors\Mailgun\Enums\ReceiverConfigurationEnum;
 use Kanvas\Connectors\Mailgun\Webhooks\AgentInboxWebhookJob;
+use Kanvas\Connectors\WordPress\Actions\PushMessageToWordPressAction;
+use Kanvas\Connectors\WordPress\Activities\PushMessageToWordPressActivity;
+use Kanvas\Connectors\WordPress\DataTransferObject\WordPressPost;
+use Kanvas\Connectors\WordPress\Enums\ConfigurationEnum as WordPressConfigurationEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -24,13 +29,19 @@ use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use Kanvas\Workflow\Models\StoredWorkflow;
 use Kanvas\Workflow\Models\WorkflowAction;
+use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
+use Tests\Stubs\Intelligence\StructuredNeuronAgentStub;
 use Tests\TestCase;
 
 final class AgentInboxWebhookJobTest extends TestCase
 {
+    use HasIntegrationCompany;
+
     private const string DOMAIN = 'agents.kanvas.test';
 
     private Apps $kanvasApp;
@@ -153,8 +164,11 @@ final class AgentInboxWebhookJobTest extends TestCase
             'sender' => $this->user->email,
             'subject' => 'The signed contract',
             'stripped-text' => 'Here is the contract, can you summarize it?',
-            // Mailgun maps each content-id referenced in the body to its multipart field.
+            // Mailgun maps each content-id to its multipart field; the body referencing that id as
+            // `cid:` is what makes it part of the layout rather than something the sender attached.
             'content-id-map' => json_encode(['<logo@corp>' => 'attachment-2']),
+            'body-html' => '<p>Here is the contract, can you summarize it?</p>'
+                . '<img src="cid:logo@corp" alt="Corp">',
             'uploaded_files' => [
                 [
                     'filesystem_id' => $this->uploadFile(UploadedFile::fake()->create('contract.pdf', 12, 'application/pdf')),
@@ -185,6 +199,70 @@ final class AgentInboxWebhookJobTest extends TestCase
         // Stored as a document, not an image — what any later reader (caption backfill, a tool, the
         // UI) keys off to decide how to open it.
         $this->assertNotEmpty($message->attachmentUrls()['documents']);
+    }
+
+    /**
+     * Gmail stamps a Content-ID on EVERY attachment it sends, so `content-id-map` alone said "inline"
+     * about a photo a newsroom had deliberately attached and the file was dropped on the floor — no
+     * exception, nothing in Sentry, just a post with no image. Only a `cid:` reference in the body
+     * makes one inline.
+     */
+    public function testAnAttachmentGmailGaveAContentIdToIsStillKept(): void
+    {
+        $this->fakeMailgun();
+
+        $this->deliver([
+            'sender' => $this->user->email,
+            'subject' => 'Press release with photo',
+            'stripped-text' => 'The minister confirmed the reform will continue. Photo attached.',
+            // Gmail's `f_…` id for a plain attached file, and a body that never references it.
+            'content-id-map' => json_encode(['<f_mt3wwiwb0>' => 'attachment-1']),
+            'body-html' => '<div dir="ltr"><p>The minister confirmed the reform will continue.</p></div>',
+            'uploaded_files' => [
+                [
+                    'filesystem_id' => $this->uploadFile(UploadedFile::fake()->image('press-photo.jpg')),
+                    'name' => 'press-photo.jpg',
+                    'field' => 'attachment-1',
+                ],
+            ],
+        ]);
+
+        $this->assertContains('press-photo.jpg', $this->inboundMessage()->files->pluck('name')->all());
+    }
+
+    /**
+     * The publisher skips inbound messages by design, so the post is built from the agent's reply —
+     * which owned no files at all. The newsroom's photo has to ride across for it to ever become a
+     * featured image.
+     */
+    public function testTheAgentsReplyInheritsTheEmailsPhotoForTheWordPressPost(): void
+    {
+        $this->fakeMailgunAndWordPress();
+        $this->useStructuredAgent();
+
+        $this->deliver([
+            'sender' => $this->user->email,
+            'subject' => 'Press release with photo',
+            'stripped-text' => 'The minister confirmed the reform will continue. Photo attached.',
+            'Message-Id' => '<photo-' . Str::random(8) . '@mail.gmail.test>',
+            'uploaded_files' => [
+                [
+                    'filesystem_id' => $this->uploadFile(UploadedFile::fake()->image('press-photo.jpg')),
+                    'name' => 'press-photo.jpg',
+                    'field' => 'attachment-1',
+                ],
+            ],
+        ]);
+
+        $reply = $this->agentReply();
+
+        $this->assertNotNull($reply, 'The agent reply must be persisted');
+        $this->assertContains('press-photo.jpg', $reply->files->pluck('name')->all());
+
+        $featured = WordPressPost::fromMessage($reply)->featuredImageUrl;
+
+        $this->assertNotNull($featured, 'The carried-forward photo must become the post featured image');
+        $this->assertContains($featured, $reply->attachmentUrls()['images']);
     }
 
     public function testAStrangerIsTurnedAwayWhenTheMailboxIsRestricted(): void
@@ -265,6 +343,119 @@ final class AgentInboxWebhookJobTest extends TestCase
     }
 
     /**
+     * The newsroom flow: a press release is emailed to the agent's address, the agent rewrites it as
+     * a post, and the WordPress connector publishes THAT — not the email it came from.
+     *
+     * The publish is driven directly rather than through the workflow rule; the rule dispatch is
+     * covered by PushMessageToWordPressActivityTest. What this proves is the hand-off: the reply
+     * text stays prose for the email while the record survives on the message.
+     */
+    public function testAPressReleaseEmailedToTheAgentBecomesAWordPressPost(): void
+    {
+        $this->fakeMailgunAndWordPress();
+        $this->useStructuredAgent();
+        $this->configureWordPress();
+
+        $this->deliver([
+            'sender' => $this->user->email,
+            'from' => 'Alexander Mateo <' . $this->user->email . '>',
+            'subject' => 'NT 08',
+            'stripped-text' => 'Classroom construction for the new school year is moving ahead quickly in '
+                . "El Seibo and La Romana\n\nSanto Domingo, RD.- The government, through the School "
+                . 'Infrastructure Directorate (DIE), ordered work accelerated on dozens of new classrooms '
+                . 'in the El Seibo and La Romana provinces.',
+            'Message-Id' => '<press-' . Str::random(8) . '@mail.gmail.test>',
+        ]);
+
+        $reply = $this->agentReply();
+
+        $this->assertNotNull($reply, 'The agent reply must be persisted');
+        // The email body is prose — the record the agent wrote rides alongside it, not inside it.
+        $this->assertSame('Hola Mundo', (string) $reply->message['content']);
+        $this->assertIsArray($reply->message['response_json'] ?? null);
+
+        new PushMessageToWordPressAction($reply)->execute();
+
+        Http::assertSent(function ($request): bool {
+            if ($request->method() !== 'POST' || ! str_ends_with($request->url(), '/wp/v2/posts')) {
+                return false;
+            }
+
+            $body = $request->data();
+
+            return $body['title'] === 'Education accelerates classroom construction in El Seibo'
+                && $body['content'] === 'Hola Mundo'
+                && $body['excerpt'] === 'Short summary'
+                && $body['status'] === 'draft'
+                && $body['categories'] === [7, 8]
+                && $body['tags'] === [21, 22];
+        });
+    }
+
+    /**
+     * The inbound email carries the same `mailgun-email` type as the reply, so only the direction
+     * flag keeps the press release itself from being published as a post.
+     */
+    public function testTheInboundEmailItselfIsNotPublished(): void
+    {
+        $this->fakeMailgunAndWordPress();
+        $this->useStructuredAgent();
+        $this->configureWordPress();
+        $this->setIntegration(
+            $this->kanvasApp,
+            IntegrationsEnum::WORDPRESS,
+            'Kanvas\\Connectors\\WordPress\\Handlers\\WordPressHandler',
+            $this->company,
+            $this->user
+        );
+
+        $this->deliver([
+            'sender' => $this->user->email,
+            'subject' => 'NT 09',
+            'stripped-text' => 'Construcción de nuevas aulas para el nuevo año escolar',
+            'Message-Id' => '<press-' . Str::random(8) . '@mail.gmail.test>',
+        ]);
+
+        $inbound = Message::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->whereJsonContains('message->from_email', $this->user->email)
+            ->latest('id')
+            ->first();
+
+        $activity = new PushMessageToWordPressActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        );
+
+        $result = $activity->execute($inbound, $this->kanvasApp, []);
+
+        $this->assertStringContainsString('Inbound message', $result['message']);
+        Http::assertNotSent(fn ($request): bool => str_contains($request->url(), '/wp/v2/posts'));
+    }
+
+    private function useStructuredAgent(): void
+    {
+        $agentType = AgentType::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->create([
+                'provider' => 'neuron',
+                'handler' => StructuredNeuronAgentStub::class,
+            ]);
+
+        $this->agent->agent_type_id = $agentType->getId();
+        $this->agent->saveOrFail();
+    }
+
+    private function configureWordPress(): void
+    {
+        $this->company->set(WordPressConfigurationEnum::SITE_URL->value, 'https://example.com');
+        $this->company->set(WordPressConfigurationEnum::USERNAME->value, 'editor');
+        $this->company->set(WordPressConfigurationEnum::APPLICATION_PASSWORD->value, 'abcd efgh ijkl mnop');
+    }
+
+    /**
      * @param array<string, mixed> $payload
      *
      * @return array<string, mixed>
@@ -294,6 +485,30 @@ final class AgentInboxWebhookJobTest extends TestCase
         return $result;
     }
 
+    /**
+     * `from_ia` alone matches every agent reply in the app, and paratest runs sibling classes
+     * against that same app — the newest one is as likely to be another process's as this test's.
+     * The agent is created per test, so its id is what makes the lookup this test's own.
+     */
+    private function agentReply(): ?Message
+    {
+        return Message::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->whereJsonContains('message->from_ia', true)
+            ->whereJsonContains('message->agent_id', (int) $this->agent->getId())
+            ->latest('id')
+            ->first();
+    }
+
+    private function inboundMessage(): Message
+    {
+        return Message::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->whereJsonContains('message->from_email', $this->user->email)
+            ->latest('id')
+            ->firstOrFail();
+    }
+
     private function uploadFile(UploadedFile $file): int
     {
         return new FilesystemServices($this->kanvasApp, $this->company)
@@ -308,5 +523,45 @@ final class AgentInboxWebhookJobTest extends TestCase
             'api.mailgun.net/v3/*/messages' => Http::response(['id' => '<queued@' . self::DOMAIN . '>']),
             '*' => Http::response([]),
         ]);
+    }
+
+    /**
+     * Mailgun plus a wp/v2 site on one fake, because the publish runs inside the same delivery.
+     * Categories resolve by search; tags come back empty so they take the create branch.
+     */
+    private function fakeMailgunAndWordPress(): void
+    {
+        Http::fake(function (ClientRequest $request) {
+            $url = $request->url();
+            $path = (string) parse_url($url, PHP_URL_PATH);
+            $isRead = $request->method() === 'GET';
+            $searched = urldecode((string) ($request->data()['search'] ?? ''));
+
+            return match (true) {
+                str_contains($url, 'api.mailgun.net/v3/domains/') => Http::response(
+                    ['domain' => ['name' => self::DOMAIN]]
+                ),
+                str_ends_with($path, '/messages') => Http::response(['id' => '<queued@' . self::DOMAIN . '>']),
+                str_ends_with($path, '/wp/v2/categories') && $isRead => Http::response(
+                    [['id' => $searched === 'National' ? 7 : 8, 'name' => $searched]]
+                ),
+                str_ends_with($path, '/wp/v2/tags') && $isRead => Http::response([]),
+                str_ends_with($path, '/wp/v2/tags') => Http::response(
+                    ['id' => ($request->data()['name'] ?? '') === 'Education' ? 21 : 22],
+                    201
+                ),
+                str_ends_with($path, '/wp/v2/posts') => Http::response(
+                    [
+                        'id' => 101,
+                        'link' => 'https://example.com/?p=101',
+                        'status' => 'draft',
+                        'categories' => [7, 8],
+                        'tags' => [21, 22],
+                    ],
+                    201
+                ),
+                default => Http::response([]),
+            };
+        });
     }
 }

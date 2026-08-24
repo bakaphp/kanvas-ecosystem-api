@@ -11,12 +11,14 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
 use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
+use Kanvas\Intelligence\Agents\Actions\Voice\ConfigureAgentInboundWebhookAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentDTO;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\Intelligence\Agents\Models\AgentType as AgentTypeModel;
+use Kanvas\Intelligence\Agents\Repositories\AgentsRepository;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Repositories\UsersRepository;
 
@@ -60,7 +62,7 @@ class AgentManagementMutation
             identity: $input['identity'] ?? null,
             userContext: $input['user_context'] ?? null,
             toolsConfig: $input['tools_config'] ?? null,
-            voiceConfig: $input['voice_config'] ?? null,
+            voiceConfig: $this->normalizeVoiceConfigPhone($input['voice_config'] ?? null),
             tools: isset($input['tool_ids']) ? $this->resolveTools($input['tool_ids'], $app) : null,
             parentAgent: $parentAgent,
             createdBy: auth()->user(),
@@ -79,6 +81,10 @@ class AgentManagementMutation
         }
 
         new RebuildAgentToolInstructionsAction($agent, $app)->execute();
+
+        // Best-effort: point the agent's Twilio number at the inbound webhook.
+        // Never throws — inbound wiring must not block creating the agent.
+        new ConfigureAgentInboundWebhookAction($agent, $app)->execute();
 
         return $agent;
     }
@@ -121,7 +127,7 @@ class AgentManagementMutation
             identity: $input['identity'] ?? null,
             userContext: $input['user_context'] ?? null,
             toolsConfig: $input['tools_config'] ?? null,
-            voiceConfig: $input['voice_config'] ?? null,
+            voiceConfig: $this->normalizeVoiceConfigPhone($input['voice_config'] ?? null),
             parentAgent: $parentAgent,
             isSubAgent: (bool) ($input['is_sub_agent'] ?? false),
             agentLlmConfig: $llmConfig,
@@ -138,6 +144,10 @@ class AgentManagementMutation
         }
 
         new RebuildAgentToolInstructionsAction($agent, $app)->execute();
+
+        // Best-effort: (re)point the agent's Twilio number at the inbound webhook
+        // when its number changes. Never throws — must not block the update.
+        new ConfigureAgentInboundWebhookAction($agent, $app)->execute();
 
         return $agent->refresh();
     }
@@ -160,6 +170,24 @@ class AgentManagementMutation
         }
 
         return AgentLlmConfig::getByIdFromCompanyApp((int) $input['agent_llm_config_id'], $company, $app);
+    }
+
+    /**
+     * Canonicalize the per-agent phone number inside voice_config on save, so the
+     * stored value is a clean E.164 caller id — valid for Twilio outbound and an
+     * exact match for inbound number routing. Non-array input passes through.
+     */
+    private function normalizeVoiceConfigPhone(mixed $voiceConfig): mixed
+    {
+        if (
+            is_array($voiceConfig)
+            && isset($voiceConfig['phone_number'])
+            && is_string($voiceConfig['phone_number'])
+        ) {
+            $voiceConfig['phone_number'] = AgentsRepository::cleanPhoneNumber($voiceConfig['phone_number']);
+        }
+
+        return $voiceConfig;
     }
 
     /**

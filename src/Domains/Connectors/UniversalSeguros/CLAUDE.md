@@ -80,6 +80,8 @@ The `integrations` row (name `universal_seguros`, `apps_id=0`) is seeded by
 `database/migrations/Workflow/2026_06_29_120000_add_universal_seguros_integration.php`. Its `config`
 describes the setup fields: `environment`, `client_id`, `client_secret`, `scopes`,
 `insurer_companies_id`. `IntegrationsEnum::UNIVERSAL_SEGUROS = 'universal_seguros'`.
+That `config` is descriptive only — `BaseIntegration` hands `setup()` the raw `$data`, so a
+field the handler reads works whether or not it is listed there (`verify_ssl` is one).
 
 `insurer_companies_id` is **Universal's own company in Kanvas** — the owner of the seeded
 catalog Products. Setup refuses without it rather than seeding them under the aliado by
@@ -123,6 +125,23 @@ Cross-field rules they enforce and the doc omits:
 - `esCeroKm: true` is only accepted when `anio` is the current year, the previous one or the next.
 
 ## Gotchas / open items
+
+- **`cURL error 60` on QA is Universal's TLS, not ours.** Since their 2026-07-23 reissue,
+  `qa.universal.com.do` serves a chain terminating in `GoDaddy TLS Root CA - R1` (created
+  Aug 2025). That root is **not in Mozilla's store** — checked against `curl.se/ca/cacert.pem`
+  dated 2026-08-13, which ships only `Go Daddy Root Certificate Authority - G2`. So it fails on
+  Debian/Alpine/Java/Python/Node alike; it *looks* fine in a browser because Windows and macOS
+  trust it (Microsoft's program has it) and Schannel chases AIA. **Prod is unaffected** —
+  `api.universal.com.do` and `idp.universal.com.do` chain to DigiCert Global Root G2 and verify
+  cleanly from the container. The fix is theirs: reissue QA under the same CA as prod, or serve
+  a cross-signed chain to the G2 root.
+
+  Meanwhile `ConfigurationEnum::VERIFY_SSL` (`universal_seguros_verify_ssl`, also `verify_ssl`
+  in the `integrationCompany` setup payload) turns Guzzle's peer verification off **per
+  company**. Unset/absent/garbage ⇒ verification stays **on** — it only goes off on an explicit
+  falsy value. Set it on the QA aliado company only; a prod company with this off is
+  MITM-able on a flow carrying policy and cardholder-adjacent data. Revert it the moment
+  Universal fixes QA. Regression: `tests/Connectors/UniversalSeguros/ClientSslVerificationTest.php`.
 
 - **"Campo no obligatorio" means OMIT the key, not send `null`.** Their deserialiser throws a
   bare `500 "Ha ocurrido un error desconocido"` on at least one explicit null —

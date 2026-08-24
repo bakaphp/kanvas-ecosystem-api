@@ -48,3 +48,18 @@ docs/
 app/Console/Commands/Inventory/SeedVehicleProductsCommand.php
 app/Console/Commands/local/
 src/Baka/Search/KanvasDatabaseEngine.php
+
+# Acumatica local SQL backups (never commit real ERP data)
+/storage/acumatica-bak/*
+!/storage/acumatica-bak/.gitkeep
+
+# Local scratch: tinker/debug one-off scripts
+/storage/tinker/
+
+# Local scratch artifacts dropped in storage during debugging
+/storage/*.php
+/storage/*.sqlite
+/storage/*.HEIC
+/storage/certificados_renombrados_PA/
+/storage/framework/testing/
+.claude/settings.json

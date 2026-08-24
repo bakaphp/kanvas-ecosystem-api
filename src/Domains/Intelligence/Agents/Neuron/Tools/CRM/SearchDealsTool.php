@@ -31,10 +31,12 @@ class SearchDealsTool extends Tool implements HasRunKey
     {
         parent::__construct(
             name: 'search_deals',
-            description: 'Find deals by (partial) contact name, email, phone, or deal title. Use this whenever you '
-                . 'need to locate a deal but do not have its deal_id — e.g. "find the deal for Ana", "which deal is '
-                . 'this email on", "look up deals for Acme". Returns deal_id, title, contact, owner, pipeline stage '
-                . 'and status so you can act on the right one. Filter by status (open/closed/all) and by owner.',
+            description: 'Find deals for ONE contact by (partial) name, email, phone, or deal title. Use this whenever '
+                . 'you need to locate a deal but do not have its deal_id — e.g. "find the deal for Ana", "which deal '
+                . 'is this email on", "look up deals for Acme". Returns deal_id, title, contact, owner, pipeline stage '
+                . 'and status so you can act on the right one. Filter by status (open/closed/all) and by owner. '
+                . 'For MORE THAN ONE name — a spreadsheet column, a CSV, any list — use find_deals_bulk instead and '
+                . 'pass every name in a single call; do not call this tool once per row.',
         );
     }
 

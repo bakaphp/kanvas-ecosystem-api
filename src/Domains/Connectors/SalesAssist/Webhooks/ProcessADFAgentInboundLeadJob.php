@@ -18,6 +18,7 @@ use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDTO;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kiwilan\XmlReader\XmlReader;
@@ -28,7 +29,14 @@ use Spatie\LaravelData\DataCollection;
  * @todo this is tied right now to Dealer Socket
  * we have to make this agonistic
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'ADF Agent Lead Receiver',
+    description: 'Receiver that parses an inbound ADF XML lead, creates the person and the lead, and hands it '
+        . 'to the agent flow so it can be worked. The agent-facing counterpart of the plain ADF '
+        . 'receiver — that one records the lead, this one starts work on it. Currently shaped around '
+        . 'DealerSocket\'s ADF dialect.',
+    integration: IntegrationsEnum::SALESASSIST,
+)]
 class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
 {
     #[Override]

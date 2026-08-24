@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
@@ -24,6 +25,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReadEmailDetailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReplyToEmailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\CreateGoogleSheetTabTool;
@@ -66,7 +68,7 @@ class AccountsReceivableAgent extends SystemUserAgent
     #[Override]
     protected function tools(): array
     {
-        return array_merge(parent::tools(), $this->addToolContext([
+        $tools = array_merge(parent::tools(), $this->addToolContext([
             new QueryDataFreshnessTool(),
             new QueryArAgingTool(),
             new ListOverdueInvoicesTool(),
@@ -97,7 +99,16 @@ class AccountsReceivableAgent extends SystemUserAgent
             new DownloadAttachmentTool(),
             new ExtractInvoiceDataTool(),
             new MarkEmailAsReadTool(),
+            new ReplyToEmailTool(),
         ]));
+
+        // approve_pending_item must authorize against the real human, not actingUser() (the agent itself on @mention/channel surfaces).
+        $requestingHuman = $this->requestingHuman();
+        if ($requestingHuman !== null && $this->app !== null && $this->company !== null) {
+            $tools[] = new ApprovePendingItemTool()->withContext($this->app, $this->company, $requestingHuman);
+        }
+
+        return $tools;
     }
 
     #[Override]
@@ -122,7 +133,9 @@ class AccountsReceivableAgent extends SystemUserAgent
             '- "Send a sample" / "give a reviewer a free unit" → first find_product to turn the product NAME into a SKU, then create_sample_order (customer email+name, SKU, qty). If the customer email is missing, ask for it — it is a real shipment. It creates a $0 DRAFT in Kanvas; tell the user it pushes to the ERP only after a human approves it.',
             '- If asked about a PURCHASE order or a vendor BILL, say that is Accounts Payable, not your area.',
             '- "Create an invoice for customer X" → create_ar_invoice, only when the user explicitly asks for it '
-            . '— it writes straight to Acumatica, bypassing human approval.',
+            . '— by default it writes straight to Acumatica, bypassing human approval. Pass push_to_acumatica: '
+            . 'false only when you specifically want it to stop at draft instead (e.g. the automatic '
+            . 'invoice-email flow below).',
             '- "Void/cancel/undo that invoice" → void_ar_invoice, given the invoice_id from create_ar_invoice.',
             '- "Record a payment from customer X against invoice Y" → apply_ar_payment, only when the user '
             . 'explicitly asks to record a real payment. Needs the invoice_id, amount, and a payment reference.',
@@ -143,19 +156,49 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'download_attachment with the message_id + attachment_id from read_email_details — it saves the '
             . 'file to Kanvas and returns a filesystem_id/url. The real vendor/total/dates are inside the PDF, '
             . 'never in the email body/subject — after downloading, call extract_invoice_data with the '
-            . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet). '
-            . 'To get an emailed invoice into Acumatica: download_attachment first, then pass its returned url '
-            . 'straight into attach_invoice_file\'s file_url — no need to re-download or re-host it anywhere.',
-            '- Whenever you process an invoice email end-to-end (found via list_emails, read, downloaded, and '
-            . 'extracted with extract_invoice_data), ALWAYS log it in the default invoice-tracking sheet as a '
-            . 'standard step — do not wait to be asked. Call write_google_sheet with range "Invoices!A1" and a '
-            . 'row of [invoice_number, vendor_name, total, "Pending"] (omit sheet_url_or_id to use the default '
-            . 'sheet), then after the invoice is created and pushed, call update_google_sheet_cell to flip that '
-            . 'row\'s status column to "Approved". Do this even when the user only asked you to create the invoice. '
-            . 'Only after ALL of that succeeds (sheet logged, invoice created and pushed), call '
-            . 'mark_email_as_read on the message_id — this is what stops the same invoice from showing up again '
-            . 'next time you search "has:attachment is:unread". Never mark it read before every step succeeds, '
-            . 'so a failed run can still be found and retried.',
+            . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet).',
+            '- When you process an invoice email end-to-end, follow this exact order every time, without being '
+            . 'asked — this is a standard step of processing an invoice email, not a separate favor: '
+            . '(1) list_emails → read_email_details → download_attachment → extract_invoice_data, to get the '
+            . 'real vendor/total/dates and the file\'s url. '
+            . '(2) create_ar_invoice with push_to_acumatica: false, source_email_message_id set to that '
+            . 'email\'s message_id, and source_attachment_url/source_attachment_filename set to the file\'s '
+            . 'url/filename from step 1 — using that real data. This creates the Kanvas invoice (status: '
+            . 'draft), giving you the Kanvas invoice_id. Do NOT issue or push to Acumatica in this flow — a '
+            . 'human approves it later and the push happens as a separate, later step, not something you do '
+            . 'here. Skip attach_invoice_file too — it requires the invoice to already be pushed to Acumatica, '
+            . 'which hasn\'t happened yet; the file gets attached automatically at approval time instead. '
+            . '(3) write_google_sheet to log the row — range "Invoices!A1", omit sheet_url_or_id to use the '
+            . 'default sheet — with the ID invoice column set to the Kanvas invoice_id from step 2 (NOT the '
+            . 'customer\'s own invoice number), then [vendor_name, total, "Pending"]. '
+            . '(4) mark_email_as_read on the message_id — only now, after both steps above succeeded, so a '
+            . 'failed run can still be found and retried on the next "has:attachment is:unread" search. '
+            . '(5) In your final reply, always give the complete breakdown of everything that happened so far: '
+            . 'Kanvas invoice_id, customer, invoice number, amount, GL account, subaccount, memo, and status '
+            . '(draft in Kanvas / "Pending" in the sheet) — never a short summary. There is no Acumatica '
+            . 'reference yet at this stage — say so plainly rather than leaving it out; the push to Acumatica '
+            . 'happens later, once a human approves the invoice.',
+            '- When the configured approver says to approve a pending invoice (e.g. "approve invoice '
+            . '2044") → approve_pending_item with target_type: "invoice" and the target_id they gave you. If it '
+            . 'reports not_authorized, tell them plainly only the configured approver can do this — never try '
+            . 'to work around it. On success with pushed: true, do all of the following before your final '
+            . 'reply, in order: '
+            . '(1) add_invoice_note on that invoice_id with the evidence text "Approved by {approved_by} on '
+            . '{approved_at}". '
+            . '(2) If the result included a source_attachment_url, call attach_invoice_file with that '
+            . 'invoice_id, file_url, and file_name — the invoice PDF can only be attached now that the invoice '
+            . 'is actually pushed to Acumatica. Skip this step silently when there is no source_attachment_url. '
+            . '(3) If the result included a source_email_message_id, call reply_to_email with that '
+            . 'message_id and the same evidence text plus the invoice reference (e.g. "Approved by '
+            . '{approved_by} on {approved_at} — Invoice #{invoice_number}, Acumatica ref {reference}."), so it '
+            . 'lands as an internal note in the original invoice thread. Skip this step silently when there is '
+            . 'no source_email_message_id — not every invoice comes from an email. '
+            . '(4) read_google_sheet to find the row whose column A (ID invoice) matches this invoice_id — never '
+            . 'guess the row. Then update_google_sheet_cell three times on that row: column D (Status) to '
+            . '"Approved", column E (Approved Date) to approved_at, and column F (Approved By) to approved_by '
+            . '(the approver\'s email). '
+            . '(5) Reply with the complete breakdown: invoice_id, customer, approved_by, approved_at, and the '
+            . 'new Acumatica reference.',
             '- Lead with the headline, then the top 3-5 items. Be honest about freshness.',
         ]);
     }

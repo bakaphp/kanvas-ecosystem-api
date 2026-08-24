@@ -14,6 +14,7 @@ use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
+use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Customers\Models\Address as ModelsAddress;
 use Kanvas\Guild\Customers\Models\Contact as ModelsContact;
@@ -55,6 +56,7 @@ class PeopleManagementMutation
             'organization' => $data['organization'] ?? null,
             'license_number' => $data['license_number'] ?? null,
             'license_expiration_date' => $data['license_expiration_date'] ?? null,
+            'license_state' => DriverLicense::normalizeState($data['license_state'] ?? null),
             'people_type_id' => isset($data['people_type_id']) ? (int) $data['people_type_id'] : null,
         ]);
 
@@ -103,6 +105,7 @@ class PeopleManagementMutation
             'organization' => $data['organization'] ?? null,
             'license_number' => $data['license_number'] ?? null,
             'license_expiration_date' => $data['license_expiration_date'] ?? null,
+            'license_state' => DriverLicense::normalizeState($data['license_state'] ?? null),
             'people_type_id' => isset($data['people_type_id']) ? (int) $data['people_type_id'] : null,
         ]);
 

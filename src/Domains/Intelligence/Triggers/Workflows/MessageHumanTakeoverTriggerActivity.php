@@ -19,7 +19,11 @@ use Kanvas\Workflow\KanvasActivity;
  * Activity that triggers a human takeover workflow when a message
  * has from_human flag set to true and the entity is a Lead.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Message Human Takeover Trigger',
+    description: 'Detects that a human has stepped into a conversation and turns the agent off for it, so the '
+        . 'agent stops replying over the top of a colleague.',
+)]
 class MessageHumanTakeoverTriggerActivity extends KanvasActivity
 {
     public $tries = 3;

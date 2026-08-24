@@ -20,7 +20,22 @@ use Kanvas\Workflow\KanvasActivity;
  * to get an agent reply on any non-connector channel. Routes through AgentChatKernel (Neuron/Laravel/
  * ADK all work). Rule is_async = 0 runs it inline (blocking).
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Internal Agent Channel Responder',
+    description: 'Has an agent read a message on an INTERNAL Kanvas channel and reply back on that same '
+        . 'channel. Use it for channels that are not a connector — internal chat, an app\'s own '
+        . 'conversation. Do NOT use it when the agent should read and act somewhere else; use Run Agent '
+        . 'On Record for that.',
+    integration: IntegrationsEnum::INTERNAL,
+    params: [
+        'agent_id' => 'Which agent answers. Also read from the channel slug or metadata when omitted.',
+        'message' => 'Supplied by the trigger — the message that arrived. Not something you set.',
+        'filterByChannel' => 'true to answer only on the chat ids listed in channelId. Default false, meaning '
+            . 'every channel matched by the rule is answered.',
+        'channelId' => 'Chat ids the agent may answer on, used when filterByChannel is true.',
+        'channelAgentMapping' => 'Map of chat id to agent id, when different channels need different agents.',
+    ],
+)]
 class MessageAgentChannelResponderActivity extends KanvasActivity
 {
     public function execute(Channel $entity, Apps $app, array $params): array

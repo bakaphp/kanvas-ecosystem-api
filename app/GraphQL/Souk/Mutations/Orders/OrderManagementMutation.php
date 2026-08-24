@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Souk\Mutations\Orders;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\IPInfo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Inventory\Regions\Models\Regions as InventoryRegions;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
+use Kanvas\Regions\Services\RegionResolutionService;
 use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
@@ -82,6 +85,25 @@ class OrderManagementMutation
         );
     }
 
+    /**
+     * RegionMiddleware binds the request's region (X-Kanvas-Region header / geo-ip) on
+     * multi-country apps; without it fall back to the company's configured default.
+     */
+    private function resolveOrderRegion(Apps $app, CompanyInterface $company): Regions
+    {
+        $region = app()->bound(InventoryRegions::class)
+            ? app(InventoryRegions::class)
+            : new RegionResolutionService($app)->forCompany($company);
+
+        if (! $region instanceof Regions) {
+            throw new ValidationException(
+                'No default region configured for company ' . $company->getId() . ', set a default region before creating orders'
+            );
+        }
+
+        return $region;
+    }
+
     private function handleCreateOrderFromCart(array $request, string $actionClass): array
     {
         $user = auth()->user();
@@ -89,7 +111,7 @@ class OrderManagementMutation
         $app = app(Apps::class);
         $company = B2BConfigurationService::getConfiguredB2BCompany($app, $user->getCurrentCompany());
 
-        $region = Regions::getDefault($company, $app);
+        $region = $this->resolveOrderRegion($app, $company);
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(
             $app,
@@ -219,7 +241,7 @@ class OrderManagementMutation
             throw new ValidationException('Extended reservation is not allowed');
         }
 
-        $region = Regions::getDefault($company, $app);
+        $region = $this->resolveOrderRegion($app, $company);
         $orderCustomer = OrderCustomer::from($request['input']['customer']);
         $createPeople = new CreatePeopleFromUserAction(
             $app,

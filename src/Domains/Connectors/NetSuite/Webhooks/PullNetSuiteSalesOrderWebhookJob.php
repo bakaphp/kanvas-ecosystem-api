@@ -8,10 +8,16 @@ use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\ProcessNetSuiteSalesOrderAction;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'NetSuite Pull Sales Order',
+    description: 'Receiver that pulls a NetSuite sales order into Kanvas, creating or updating the order and '
+        . 'its products. Inbound one-way — the opposite direction to the push-order step.',
+    integration: IntegrationsEnum::NETSUITE,
+)]
 class PullNetSuiteSalesOrderWebhookJob extends ProcessWebhookJob
 {
     #[Override]

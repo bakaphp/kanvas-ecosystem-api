@@ -15,7 +15,14 @@ use Override;
 use Throwable;
 use Twilio\TwiML\VoiceResponse;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'ElevenLabs Call Staff By Role',
+    description: 'One of the endpoints an ElevenLabs VOICE agent calls back into Kanvas mid-call. These are '
+        . 'wired as that agent\'s server-side tools, not chosen as workflow steps — the caller on the '
+        . 'phone triggers them. This one PLACES OUTBOUND CALLS to the staff holding a named role — '
+        . 'everyone in that role with a phone number on file. It rings real people, so keep the role '
+        . 'narrow.',
+)]
 class ProcessElevenLabsCallUsersByRoleWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

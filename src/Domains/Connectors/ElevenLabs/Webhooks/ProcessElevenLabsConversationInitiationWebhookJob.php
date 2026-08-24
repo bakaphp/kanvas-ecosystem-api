@@ -12,7 +12,14 @@ use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'ElevenLabs Conversation Initiation',
+    description: 'One of the endpoints an ElevenLabs VOICE agent calls back into Kanvas mid-call. These are '
+        . 'wired as that agent\'s server-side tools, not chosen as workflow steps — the caller on the '
+        . 'phone triggers them. This one runs at the START of every call and hands the voice agent its '
+        . 'opening context — who is calling, the company name and language, whether it is inside '
+        . 'working hours, and any lead already open. Read-only.',
+)]
 class ProcessElevenLabsConversationInitiationWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

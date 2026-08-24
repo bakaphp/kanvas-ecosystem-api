@@ -16,12 +16,15 @@ use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Intellicheck\Jobs\AttachDriverLicenseImagesJob;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Services\DriverLicenseVerificationService;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -77,31 +80,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         ],
                     ];
 
-                    $getDocsDriversLicense = null;
-                    if (isset($verificationData['idcheck']['data'])) {
-                        $idCheck = $verificationData['idcheck']['data'];
-                        $ocrMatchData = $verificationData['ocr_match']['data'] ?? [];
-
-                        $getDocsDriversLicense = [
-                            'address' => $ocrMatchData['address'] ?? '',
-                            'state' => $idCheck['state'] ?? '',
-                            'birthday' => [
-                                'day' => isset($idCheck['dateOfBirth']) ? (int) date('d', strtotime($idCheck['dateOfBirth'])) : 0,
-                                'month' => isset($idCheck['dateOfBirth']) ? (int) date('m', strtotime($idCheck['dateOfBirth'])) : 0,
-                                'year' => isset($idCheck['dateOfBirth']) ? (int) date('Y', strtotime($idCheck['dateOfBirth'])) : 0,
-                            ],
-                            'license' => $idCheck['dLIDNumberRaw'] ?? '',
-                            'exp_date' => [
-                                'day' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('d', strtotime($idCheck['expirationDate'])) : 0,
-                                'month' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('m', strtotime($idCheck['expirationDate'])) : 0,
-                                'year' => isset($idCheck['expirationDate']) && is_numeric($idCheck['expirationDate']) ? (int) date('Y', strtotime($idCheck['expirationDate'])) : 0,
-                            ],
-                            'state_id' => 0,
-                            'firstname' => $idCheck['firstName'] ?? '',
-                            'middlename' => '',
-                            'lastname' => $idCheck['lastName'] ?? '',
-                        ];
-                    }
+                    $getDocsDriversLicense = IdVerificationService::toDriverLicenseScan($verificationData);
 
                     $resultsFromIntellicheck = [
                         'intelicheck' => $verificationResults['status'] == 'green' || $verificationResults['status'] == 'flag' ? true : false,
@@ -128,6 +107,13 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                         $verifiedPeople->set('id_verification', $resultsFromIntellicheck);
 
                         if (! empty($getDocsDriversLicense)) {
+                            // Persist before dropping the custom field below.
+                            new DriverLicenseVerificationService(
+                                $lead->app,
+                                $verifiedPeople->company,
+                                $lead->user,
+                            )->updatePeopleFromDriverLicense($verifiedPeople, $getDocsDriversLicense);
+
                             $verifiedPeople->del('get_docs_drivers_license');
                         }
                     }
@@ -203,7 +189,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
                                     $verifiedPeople
                                 );
 
-                                $message = $engagement->message;
+                                $message = $engagement?->message;
                                 if ($message !== null) {
                                     $pdfReport = PdfService::generatePdfFromTemplate(
                                         $app,
@@ -337,8 +323,14 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         return $lead->people;
     }
 
-    private function createIdVerificationEngagement(Lead $lead, People $people): Engagement
+    private function createIdVerificationEngagement(Lead $lead, People $people): ?Engagement
     {
+        $user = $this->resolveEngagementUser($lead, $people);
+
+        if ($user === null) {
+            return null;
+        }
+
         $taskId = $lead->get('check_list_status') ?? $lead->company->get('default_checklist_id');
 
         if (is_array($taskId)) {
@@ -348,7 +340,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         $engagementData = new EngagementData(
             app: $lead->app,
             company: $lead->company,
-            user: $lead->owner,
+            user: $user,
             lead: $lead,
             action: ConfigurationEnum::ID_VERIFICATION->value,
             requestId: Str::uuid()->toString(),
@@ -361,5 +353,24 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         );
 
         return new CreateEngagementAction($engagementData)->execute();
+    }
+
+    private function resolveEngagementUser(Lead $lead, People $people): ?Users
+    {
+        foreach ([$lead->owner, $lead->user, $people->user] as $candidate) {
+            if ($candidate === null) {
+                continue;
+            }
+
+            try {
+                UsersRepository::belongsToThisApp($candidate, $lead->app, $lead->company);
+
+                return $candidate;
+            } catch (ModelNotFoundException) {
+                continue;
+            }
+        }
+
+        return null;
     }
 }

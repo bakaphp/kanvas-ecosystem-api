@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Actions;
 
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\DataTransferObject\People;
@@ -26,25 +27,49 @@ class SyncPeopleByThirdPartyCustomFieldAction
             throw new ValidationException('People Missing Custom Fields Key and Value to find reference');
         }
 
-        $lockKey = 'people_sync:' . $this->people->app->getId() . $this->people->branch->company->getId() . ':' . $customFieldKeys[0] . ':' . $customFieldValues[0];
+        $company = $this->people->branch->company;
+        $customFieldKey = (string) $customFieldKeys[0];
+        $customFieldValue = (string) $customFieldValues[0];
+        $lockKey = 'people_sync:' . $this->people->app->getId() . $company->getId() . ':' . $customFieldKey . ':' . $customFieldValue;
 
-        return Cache::lock($lockKey, 10)->block(5, function () use ($customFieldKeys, $customFieldValues) {
-            $people = ModelsPeople::getByCustomField(
-                $customFieldKeys[0],
-                $customFieldValues[0],
-                $this->people->branch->company,
-            );
+        try {
+            // Wait longer than the lock TTL so a slow holder either finishes or has its
+            // lock expire inside our window — otherwise every waiter times out on a
+            // create/update that legitimately takes more than the wait.
+            return Cache::lock($lockKey, 10)
+                ->block(11, fn (): ModelsPeople => $this->sync($customFieldKey, $customFieldValue));
+        } catch (LockTimeoutException $e) {
+            // The concurrent sync owns the canonical people record for this reference.
+            // Yield to it instead of surfacing a 500; only rethrow if it isn't there yet.
+            /** @var ModelsPeople|null $people */
+            $people = ModelsPeople::getByCustomField($customFieldKey, $customFieldValue, $company);
 
             if ($people !== null) {
-                $this->people->id = $people->getId();
-                $createPeople = new UpdatePeopleAction($people, $this->people);
-            } else {
-                $createPeople = new CreatePeopleAction($this->people);
+                return $people;
             }
 
-            $createPeople->runWorkflow = $this->people->runWorkflow ?? true;
+            throw $e;
+        }
+    }
 
-            return $createPeople->execute();
-        });
+    private function sync(string $customFieldKey, string $customFieldValue): ModelsPeople
+    {
+        /** @var ModelsPeople|null $people */
+        $people = ModelsPeople::getByCustomField(
+            $customFieldKey,
+            $customFieldValue,
+            $this->people->branch->company,
+        );
+
+        if ($people !== null) {
+            $this->people->id = $people->getId();
+            $createPeople = new UpdatePeopleAction($people, $this->people);
+        } else {
+            $createPeople = new CreatePeopleAction($this->people);
+        }
+
+        $createPeople->runWorkflow = $this->people->runWorkflow ?? true;
+
+        return $createPeople->execute();
     }
 }

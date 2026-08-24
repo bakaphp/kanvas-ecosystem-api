@@ -26,6 +26,7 @@ class LeadReceiverManagement
             'isDefault' => $request['input']['is_default'],
             'rotation' => $rotation,
             'source' => $request['input']['source_name'],
+            'notificationEmail' => $request['input']['notification_email'] ?? null,
             'lead_sources_id' => $request['input']['lead_sources_id'],
             'lead_types_id' => $request['input']['lead_types_id'],
             'template' => key_exists('template', $request['input']) ? $request['input']['template'] : '',
@@ -36,6 +37,7 @@ class LeadReceiverManagement
 
     public function update(mixed $root, array $request): LeadReceiverModel
     {
+        $leadReceiver = LeadReceiverModel::getById($request['id'], app(Apps::class));
         $rotation = key_exists('rotations_id', $request['input']) ? LeadRotation::getById($request['input']['rotations_id']) : null;
         $dto = LeadReceiver::from([
             'branch' => auth()->user()->getCurrentBranch(),
@@ -46,11 +48,13 @@ class LeadReceiverManagement
             'isDefault' => $request['input']['is_default'],
             'rotation' => $rotation,
             'source' => $request['input']['source_name'],
+            'notificationEmail' => key_exists('notification_email', $request['input'])
+                ? $request['input']['notification_email']
+                : $leadReceiver->notification_email,
             'lead_sources_id' => $request['input']['lead_sources_id'],
             'lead_types_id' => $request['input']['lead_types_id'],
             'template' => key_exists('template', $request['input']) ? $request['input']['template'] : null,
         ]);
-        $leadReceiver = LeadReceiverModel::getById($request['id'], app(Apps::class));
 
         return (new UpdateLeadReceiverAction($leadReceiver, $dto))->execute();
     }

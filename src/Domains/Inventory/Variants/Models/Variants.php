@@ -8,7 +8,6 @@ use Awobaz\Compoships\Compoships;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
-use Baka\Support\Arr;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -30,15 +29,13 @@ use Kanvas\Activities\Contracts\ActivityLogInterface;
 use Kanvas\Activities\Models\Activity;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
-use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
-use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
-use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Traits\ResolvesAttributesTrait;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
@@ -101,12 +98,12 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     use HasTranslationsDefaultFallback;
     use HasWallet;
     use LogsActivity;
+    use ResolvesAttributesTrait;
 
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
     public $translatable = ['name','description','short_description','html_description'];
 
     protected $table = 'products_variants';
-    protected $touches = ['attributes'];
     protected $fillable = [
         'users_id',
         'products_id',
@@ -383,44 +380,47 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
      */
     public function addAttributes(UserInterface $user, array $attributes): void
     {
+        /**
+         * Resolve every attribute first and write in ascending attribute id, so concurrent
+         * importers take the locks on the shared `attributes` rows in the same order and
+         * can't deadlock against each other.
+         */
+        $resolvedAttributes = [];
+
         foreach ($attributes as $attribute) {
-            if (! isset($attribute['value']) || $attribute['name'] === null) {
+            if (! isset($attribute['value']) || ($attribute['name'] ?? null) === null) {
                 continue;
             }
 
-            if (isset($attribute['id'])) {
-                $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
-            } elseif (! empty($attribute['name'])) {
-                $attributesDto = AttributesDto::from([
-                    'app' => app(Apps::class),
-                    'user' => $user,
-                    'company' => $this->company,
-                    'name' => $attribute['name'],
-                    'value' => $attribute['value'],
-                    'isVisible' => true,
-                    'isSearchable' => true,
-                    'isFiltrable' => true,
-                    'slug' => Str::slug($attribute['name']),
-                ]);
-                $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
+            $attributeModel = $this->resolveAttribute($user, $attribute);
+
+            if ($attributeModel === null) {
+                continue;
             }
 
-            if ($attributeModel) {
-                (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+            $resolvedAttributes[$attributeModel->getId()] = [
+                'model' => $attributeModel,
+                'value' => $attribute['value'],
+            ];
+        }
 
-                if ($this->product?->productsType) {
-                    ProductTypeService::addAttributes(
-                        $this->product->productsType,
-                        $this->user,
+        ksort($resolvedAttributes);
+
+        foreach ($resolvedAttributes as $resolvedAttribute) {
+            new AddAttributeAction($this, $resolvedAttribute['model'], $resolvedAttribute['value'])->execute();
+
+            if ($this->product?->productsType) {
+                ProductTypeService::addAttributes(
+                    $this->product->productsType,
+                    $this->user,
+                    [
                         [
-                            [
-                                'id' => $attributeModel->getId(),
-                                'value' => $attribute['value'],
-                            ],
+                            'id' => $resolvedAttribute['model']->getId(),
+                            'value' => $resolvedAttribute['value'],
                         ],
-                        toVariant: true
-                    );
-                }
+                    ],
+                    toVariant: true
+                );
             }
         }
     }
@@ -495,6 +495,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             'short_description' => null, //$this->short_description,
             'attributes' => [],
             'apps_id' => $this->apps_id,
+            'created_at' => $this->created_at?->timestamp ?? 0,
             'rating' => (float) $this->rating,
         ];
         $attributes = $this->searchableAttributes();
@@ -525,27 +526,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
      */
     protected function fitWithinAlgoliaRecordLimit(array $variant): array
     {
-        $limit = $this->algoliaRecordSizeLimit();
-
-        if (Arr::sizeInBytes($variant) <= $limit) {
-            return $variant;
-        }
-
-        // Warehouse breakdown is internal stock detail, never shown in search.
-        $variant['warehouses'] = [];
-        if (Arr::sizeInBytes($variant) <= $limit) {
-            return $variant;
-        }
-
-        $variant['attributes'] = [];
-        if (Arr::sizeInBytes($variant) <= $limit) {
-            return $variant;
-        }
-
-        // Last resort: give up the images.
-        $variant['files'] = [];
-
-        return $variant;
+        return $this->trimToAlgoliaLimit($variant)
+            // Warehouse breakdown is internal stock detail, never shown in search.
+            ->trim(fn (array $v) => [...$v, 'warehouses' => []])
+            ->trim(fn (array $v) => [...$v, 'attributes' => []])
+            // Last resort: give up the images.
+            ->trim(fn (array $v) => [...$v, 'files' => []])
+            ->get();
     }
 
     public function toSearchableArraySummary(): array
@@ -772,6 +759,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 [
                     'name' => 'files',
                     'type' => 'object[]',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'company',
@@ -794,11 +782,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                     'name' => 'ean',
                     'type' => 'string',
                     'facet' => true,
+                    'optional' => true,
                 ],
                 [
                     'name' => 'barcode',
                     'type' => 'string',
                     'facet' => true,
+                    'optional' => true,
                 ],
                 [
                     'name' => 'status',
@@ -828,6 +818,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 [
                     'name' => 'attributes',
                     'type' => 'object',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'apps_id',
@@ -851,7 +842,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 ],
             ],
             'default_sorting_field' => 'created_at',
-            'enable_nested_fields' => true,  // Enable nested fields support for complex objects
+            'enable_nested_fields' => true,
         ];
     }
 

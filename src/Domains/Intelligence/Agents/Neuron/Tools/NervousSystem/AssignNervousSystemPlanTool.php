@@ -123,6 +123,10 @@ class AssignNervousSystemPlanTool extends Tool implements HasRunKey
             ];
         }
 
+        // Reported, never enforced: these are the REGISTRY grants only — an agent also carries its
+        // handler class's baseline, so an empty list does not mean it can do nothing.
+        $grantedTools = $agent->selectedTools()->pluck('name')->all();
+
         // Only an executor agent auto-runs. A non-executor (remote/container/Lead-context) is recorded
         // as owner but not woken here — its own runtime drives it, or the PM @mentions it.
         $autoRun = $agent->canExecuteBoardWork();
@@ -138,6 +142,7 @@ class AssignNervousSystemPlanTool extends Tool implements HasRunKey
                 'agent_id' => $agent->getId(),
                 'name' => $agent->name,
                 'auto_run' => $autoRun,
+                'agent_tools' => $grantedTools,
                 'already_assigned' => true,
                 'message' => 'This plan is ALREADY assigned to this agent — assignment is complete. Do '
                     . 'NOT call assign again for this plan; move on.',
@@ -158,6 +163,12 @@ class AssignNervousSystemPlanTool extends Tool implements HasRunKey
             'agent_id' => $agent->getId(),
             'name' => $agent->name,
             'auto_run' => $autoRun,
+            'agent_tools' => $grantedTools,
+            ...($grantedTools === [] ? ['warning' => sprintf(
+                '%s has no tools granted to it beyond its built-in ones. If this plan needs Kanvas '
+                . 'work it cannot do, grant what it is missing rather than waiting for it to block.',
+                $agent->name,
+            )] : []),
             'message' => $autoRun
                 ? 'Assigned. The agent will auto-run this plan. Assignment is complete — do not assign again.'
                 : 'Assigned as owner (this agent does not auto-run). Assignment is complete — do not assign '

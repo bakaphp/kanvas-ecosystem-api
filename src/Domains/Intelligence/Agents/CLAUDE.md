@@ -168,8 +168,15 @@ public function execute(array $params = []): array
     )->execute();
     $responseText = ChatHelper::extractTextFromResponse($responseContent);
 
-    // 4. Persist outbound exactly once via base class
-    $messageResponse = $this->createMessage($responseText, $to, $this->message, $this->channel);
+    // 4. Persist outbound exactly once via base class. Pass rawResponse so an agent that answered
+    //    with a whole record (a post, a quote) keeps its structure — see below.
+    $messageResponse = $this->createMessage(
+        $responseText,
+        $to,
+        $this->message,
+        $this->channel,
+        rawResponse: $responseContent
+    );
 
     // 5. Send via connector client only if not locked (support-mode + human-takeover)
     if (! $messageResponse->is_locked) {
@@ -179,6 +186,26 @@ public function execute(array $params = []): array
     return ['response' => $responseText, /* ... */];
 }
 ```
+
+### `rawResponse` → `response_json` — the reply text is lossy
+
+`ChatHelper::extractTextFromResponse()` SELECTS one field out of the agent's JSON envelope (never
+concatenates — see its docblock for why). That is right for the channel: the customer gets prose, not
+a JSON dump. But an agent that answers with a whole **record** — a blog post, a quote, an enrichment —
+loses every field but the body, and nothing downstream can recover it.
+
+Passing `rawResponse: $responseContent` to `createMessage()` stores the decoded envelope on the
+outbound message as `response_json`, next to the text that was actually sent. Consumers read
+`$message->getMessage()['response_json']`; its **presence** is the signal that the agent replied with
+structure, so no consumer has to type-check or know about ```` ```json ```` fences.
+
+Keep it connector-agnostic: the responder records *that* the agent answered with structure, never what
+some downstream feature wants to do with it. A responder writing a `wordpress` key would be backwards
+— see [`Connectors/WordPress/CLAUDE.md`](../../Connectors/WordPress/CLAUDE.md) for the consumer side.
+
+Wired today on **Mailgun** and **WaSender**; the remaining responders (RespondIO, Twilio, Microsoft,
+Slack, SalesAssist) still drop the envelope — add the argument when one of them needs it, the
+parameter is optional and changes nothing for a plain-text agent.
 
 Connectors set two protected props on their class:
 - `$messageTypeVerb` — e.g. `'whatsapp'`, `'mailgun-email'`, `'respondio-text'`, `'twilio-sms'` (used by `createMessage()` for the outbound's `MessageType`)
@@ -360,10 +387,27 @@ There is no approved path for a free-text external recipient.
 - Optional params use **nullable typed defaults** (`?string $cc = null`) — the Neuron base normalizes a
   missing optional to `null` before `__invoke`, so a non-nullable default would `TypeError`. This matches the
   root `no-non-nullable-defaults` rule; normalize inside the body (`$cc ?? ''`, `trim()`).
-- LLM-facing params are **scalar** (STRING/INTEGER/BOOLEAN/NUMBER). Neuron's `ToolProperty` can't emit JSON-schema
-  `items`, so don't expose ARRAY params to strict providers — take a comma-separated STRING and split it
-  (see `send_email`'s `cc`). Domain enums stay **internal** (filtering/dispatch); expose their allowed values
-  as free STRING with the options named in the description.
+- LLM-facing params are **scalar** (STRING/INTEGER/BOOLEAN/NUMBER) by default — a comma-separated STRING you
+  split is usually enough (see `send_email`'s `cc`). Domain enums stay **internal** (filtering/dispatch);
+  expose their allowed values as free STRING with the options named in the description.
+- **Never declare a bare `ToolProperty(type: PropertyType::ARRAY)` or `::OBJECT`.** Gemini rejects the
+  *entire* request — every tool in the turn, not just the offender — for both shapes, because
+  `ToolProperty::getJsonSchema()` emits neither `items` nor `properties`:
+  - `properties[x].items: missing field` for a bare ARRAY (Sentry KANVAS-ECOSYSTEM-606)
+  - `properties[x].properties: should be non-empty for OBJECT type` for a bare OBJECT
+
+  A list of records → `ArrayProperty` (always emits `items`) with an `ObjectProperty` item, see
+  [`CreateArCreditMemoTool`](Neuron/Tools/Acumatica/CreateArCreditMemoTool.php). A list of scalars →
+  `ArrayProperty` with a `ToolProperty` item, see [`CreatePersonTool`](Neuron/Tools/CRM/CreatePersonTool.php)'s
+  `tags`. A **free-form key→value map** can't be expressed at all (Gemini has no `additionalProperties`) —
+  declare it as STRING carrying a JSON object and decode with
+  [`DecodesJsonObjectParam`](Neuron/Tools/Traits/DecodesJsonObjectParam.php), which still accepts a real
+  array so nothing breaks if a provider hands back structured input.
+
+  Guarded by [`AgentToolProviderPayloadTest`](../../../../tests/Intelligence/NervousSystem/AgentToolProviderPayloadTest.php),
+  which maps **every** Neuron tool through the real Gemini/Anthropic/OpenAI `ToolMapper`s and validates the
+  emitted schema. It also carries an opt-in live check (`GEMINI_API_KEY`) that sends the full tool payload to
+  Gemini — the only test that proves the real API accepts it.
 - Normalize manually in `__invoke`: `trim()` everything, treat empty string as absent, clamp numerics
   (`max(1, min($limit ?? 50, 200))`), re-validate required scalars for blank-after-trim.
 
@@ -372,7 +416,8 @@ There is no approved path for a free-text external recipient.
 NeuronAI caps every tool at `getMaxRuns()` (default 10) runs **per turn**, counted per *key*. The default
 key is the tool **name**, so *all* calls to one tool share a single budget — 11 distinct calls in a turn
 (an 11-row CSV import, an org chart, a batch of messages) throw `ToolRunsExceededException` and abort the
-whole turn. This is the recurring Sentry KANVAS-ECOSYSTEM-621.
+whole turn. This is the recurring Sentry KANVAS-ECOSYSTEM-621 / KANVAS-ECOSYSTEM-64Q — it is **not** an HR
+problem, 64Q was `find_customer` resolving names row-by-row out of a user's Excel.
 
 **Any tool the agent can call once-per-item over a list — every entity-scoped `find`/`get`/`create`/`update`/`send`
 that acts on a single record identified by its inputs — MUST key its budget by inputs:**
@@ -398,7 +443,15 @@ expensive/rate-limited external call, a destructive bulk op. There the per-name 
 throttle: keep the default, or set an explicit low `getMaxRuns()` with a one-line reason. `List*`/`Search*`
 tools that return many rows in **one** call don't loop, so they don't need it.
 
-Reference/coverage: [`HumanResourcesAgentToolsTest::testBulkCreateToolsBudgetRunsPerInputsNotPerToolName`](../../../../tests/GraphQL/HumanResources/HumanResourcesAgentToolsTest.php).
+A `find_*` tool that returns an empty result set should also say the retry is pointless (`message` on
+`count: 0`, see `find_customer` / `find_vendor`). A bare `count: 0` reads as "try again" and the model
+re-calls with the same arguments until the budget trips — same crash, different cause.
+
+Reference/coverage: [`HumanResourcesAgentToolsTest::testBulkCreateToolsBudgetRunsPerInputsNotPerToolName`](../../../../tests/GraphQL/HumanResources/HumanResourcesAgentToolsTest.php),
+plus the per-domain equivalents in [`AccountsReceivableAgentToolsTest`](../../../../tests/Scribe/Intelligence/AccountsReceivableAgentToolsTest.php),
+[`AccountsPayableAgentToolsTest`](../../../../tests/Scribe/Intelligence/AccountsPayableAgentToolsTest.php),
+[`EventToolsTest`](../../../../tests/Intelligence/Agents/Tools/EventToolsTest.php) and
+[`FindProductToolTest`](../../../../tests/Souk/Orders/FindProductToolTest.php).
 
 ## Don't break
 
@@ -416,5 +469,5 @@ Reference/coverage: [`HumanResourcesAgentToolsTest::testBulkCreateToolsBudgetRun
 - [`Actions/Chat/AgentChatKernel.php`](Actions/Chat/AgentChatKernel.php) — the kernel's own class docblock explains the routing logic in 7 lines
 - [`Actions/BaseAgentChannelReplyAction.php`](Actions/BaseAgentChannelReplyAction.php) — base class docblock explains the connector-side contract
 - [`Neuron/Tools/CRM/SendEmailTool.php`](Neuron/Tools/CRM/SendEmailTool.php) — reference for tool authoring: resolve-or-error, entity-derived recipient, and the allowlist-filtered `cc` (destination-safety) pattern. Traits it leans on live in [`Neuron/Tools/Traits/`](Neuron/Tools/Traits/).
-- Product recommendation tools (`Laravel/Tools/Inventory/{ProductRecommendationLookupTool,TypesenseProductRecommendationTool}.php`) — SQL/Algolia hybrid vs Typesense NL search, identical `{product, variants[]}` output shape. How the search engine is resolved, configured per app, and indexed (incl. Typesense Natural Language Search) is documented in [`src/Domains/Inventory/CLAUDE.md`](../../Inventory/CLAUDE.md).
+- Product recommendation tool (`Laravel/Tools/Inventory/ProductRecommendationLookupTool.php`) — a thin pass-through to `RecommendProductsAction`; the search backend is resolved per tenant behind it. Pass the shopper's sentence verbatim. Pipeline and configuration: [`src/Domains/Inventory/CLAUDE.md`](../../Inventory/CLAUDE.md).
 - Existing end-to-end tests in [`tests/Connectors/Integration/{WaSender,Mailgun,RespondIO,Twilio}/AgentChannelResponderEndToEndTest.php`](../../../../tests/Connectors/Integration/) — copy-paste shape when adding a new connector

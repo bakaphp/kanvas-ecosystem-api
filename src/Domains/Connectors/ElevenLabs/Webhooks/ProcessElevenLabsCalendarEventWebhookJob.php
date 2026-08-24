@@ -17,7 +17,13 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'ElevenLabs Book Calendar Event',
+    description: 'One of the endpoints an ElevenLabs VOICE agent calls back into Kanvas mid-call. These are '
+        . 'wired as that agent\'s server-side tools, not chosen as workflow steps — the caller on the '
+        . 'phone triggers them. This one BOOKS an appointment for the caller. It writes a real event, '
+        . 'so it is not a lookup — the caller ends up on somebody\'s calendar.',
+)]
 class ProcessElevenLabsCalendarEventWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

@@ -15,7 +15,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'OFAC Screening',
+    description: 'Screens the person behind a message against the OFAC sanctions list and records the result. '
+        . 'A compliance check — it flags, it does not block or reply.',
+    integration: IntegrationsEnum::OFAC,
+)]
 class OfacScreeningActivity extends KanvasActivity
 {
     public $tries = 3;

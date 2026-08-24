@@ -15,7 +15,14 @@ use Throwable;
 
 use function Sentry\captureException;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Shopify Sync Product',
+    description: 'Pushes the product and its variants to Shopify so the storefront matches Kanvas. Outbound '
+        . 'one-way. This is the plain version — the with-integration variant additionally records each '
+        . 'attempt in the integration history, which is what you want when a tenant needs an audit '
+        . 'trail of syncs.',
+    integration: IntegrationsEnum::SHOPIFY,
+)]
 class SyncProductWithShopifyActivity extends KanvasActivity
 {
     //public $queue = ConfigEnum::ACTIVITY_QUEUE->value;

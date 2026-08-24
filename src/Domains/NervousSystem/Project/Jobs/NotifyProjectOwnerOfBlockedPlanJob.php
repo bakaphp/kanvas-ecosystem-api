@@ -68,7 +68,7 @@ class NotifyProjectOwnerOfBlockedPlanJob implements ShouldQueue
         }
 
         // Alert is FROM the PM (the orchestrator), addressed to the owner.
-        $author = $project->pmAgent->user ?? $owner;
+        $author = $project->pmAgent?->user ?? $owner;
         $handle = $this->ownerHandle($project);
         $mention = $handle !== null ? $handle . ' ' : '';
 

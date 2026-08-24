@@ -29,6 +29,7 @@ use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Laravel\Ai\Enums\Lab;
+use Laravel\Ai\Exceptions\FailoverableException;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 
 use function Laravel\Ai\agent;
@@ -44,6 +45,19 @@ class CreateMessageFollowUpAction
     protected ?Message $createdMessage = null;
 
     private const int MAX_RETRY_ATTEMPTS = 3;
+
+    private const string PRIMARY_MODEL = 'gemini-2.5-pro';
+
+    /**
+     * Fallback legs in preference order. The chain must cross providers: laravel/ai keys the list
+     * by provider, so two Gemini entries collapse into one and a "try a sibling model" leg is not
+     * expressible. Each entry names its own model because the `model:` argument is ignored as soon
+     * as `provider` is an array.
+     */
+    private const array FALLBACK_MODELS = [
+        Lab::OpenAI->value => 'gpt-4o',
+        Lab::Anthropic->value => 'claude-sonnet-4',
+    ];
 
     public function __construct(
         protected ModelsLead $lead,
@@ -312,24 +326,64 @@ class CreateMessageFollowUpAction
             . "\n\nYour new message MUST be meaningfully different from every message above — a different angle, wording, and call to action. A greeting-only variation of a previous message is NOT acceptable.";
     }
 
+    /**
+     * @return array<string, string>
+     */
+    private static function providerFailoverChain(): array
+    {
+        $chain = [Lab::Gemini->value => self::PRIMARY_MODEL];
+
+        // Only advertise a leg we can actually authenticate against. An unconfigured key throws a
+        // credential error that laravel/ai does not treat as failoverable, which would replace a
+        // recoverable overload with a hard stop.
+        foreach (self::FALLBACK_MODELS as $provider => $model) {
+            if (! empty(config("ai.providers.{$provider}.key"))) {
+                $chain[$provider] = $model;
+
+                break;
+            }
+        }
+
+        return $chain;
+    }
+
     private function generateResponseWithRetry(string $prompt): array
     {
+        $lastFailover = null;
+
         for ($attempt = 1; $attempt <= self::MAX_RETRY_ATTEMPTS; $attempt++) {
-            /** @var StructuredAgentResponse $response */
-            $response = agent(
-                schema: fn ($schema) => [
-                    'message' => $schema->string()->description('Message for the lead')->required(),
-                    'should_respond' => $schema->boolean()->description('Confirmation if must sent message')->required(),
-                ],
-            )->prompt(
-                $prompt,
-                provider: Lab::Gemini,
-                model: 'gemini-2.5-pro',
-                timeout: 220,
-            );
+            try {
+                /** @var StructuredAgentResponse $response */
+                $response = agent(
+                    schema: fn ($schema) => [
+                        'message' => $schema->string()->description('Message for the lead')->required(),
+                        'should_respond' => $schema->boolean()->description('Confirmation if must sent message')->required(),
+                    ],
+                )->prompt(
+                    $prompt,
+                    provider: self::providerFailoverChain(),
+                    timeout: 220,
+                );
+            } catch (FailoverableException $e) {
+                // Only reachable once every model in the chain is overloaded or rate-limited.
+                // Without this catch the throw escaped the loop entirely, so an overload spike
+                // burned the lead's touch on a single attempt (Sentry KANVAS-ECOSYSTEM-5FV).
+                $lastFailover = $e;
+
+                if ($attempt < self::MAX_RETRY_ATTEMPTS) {
+                    sleep(2 ** $attempt);
+                }
+
+                continue;
+            }
+
             if (! empty($response->structured)) {
                 return $response->structured;
             }
+        }
+
+        if ($lastFailover !== null) {
+            throw $lastFailover;
         }
 
         throw new Exception(
