@@ -40,6 +40,7 @@ class PullPropertyAction
             description: (string) ($this->payload['Brand__c'] ?? ''),
             productsType: $productType,
             slug: 'sf-location-' . $this->salesforceId,
+            sku: 'sf-location-' . $this->salesforceId,
             attributes: $this->mapAttributes(),
         );
 
