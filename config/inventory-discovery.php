@@ -102,6 +102,13 @@ return [
     'group_by_tokens' => 2,
 
     /*
+     * Places an unavailable product drops in the ranking. A penalty, not a
+     * partition: sorting all in-stock products first lets a weak match leapfrog a
+     * strong one. 0 disables; a value past the page size is a hard partition.
+     */
+    'unavailable_penalty' => 3,
+
+    /*
      * Gift wrapping is the canonical case: it scores highly on a gift query and is
      * not a gift. Matched on the category name, case-insensitively.
      */

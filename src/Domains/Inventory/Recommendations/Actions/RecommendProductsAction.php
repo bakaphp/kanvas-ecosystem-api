@@ -30,6 +30,7 @@ class RecommendProductsAction
     private const int MAX_CANDIDATE_POOL = 60;
     private const int DEFAULT_MAX_PER_GROUP = 2;
     private const int DEFAULT_GROUP_BY_TOKENS = 2;
+    private const int DEFAULT_UNAVAILABLE_PENALTY = 3;
 
     private ?SearchTermTokenizerService $tokenizer = null;
 
@@ -151,8 +152,9 @@ class RecommendProductsAction
     }
 
     /**
-     * A product nobody can buy still answers the question, so it stays — but it
-     * loses its claim on the page to anything actually purchasable.
+     * A rank penalty, NOT a partition: sorting every buyable product above every
+     * unbuyable one lets a weak in-stock match leapfrog a near-perfect one. Sorts
+     * are stable in PHP 8, so equal ranks keep the engine's order.
      *
      * @param array<int, array{product: array, variants: array}> $ranked
      *
@@ -160,24 +162,24 @@ class RecommendProductsAction
      */
     private function demoteUnavailable(array $ranked): array
     {
-        if (! $this->demotesUnavailable()) {
+        $penalty = $this->unavailablePenalty();
+
+        if ($penalty <= 0) {
             return $ranked;
         }
 
-        $available = [];
-        $unavailable = [];
+        $scored = [];
 
-        foreach ($ranked as $result) {
-            if ($this->hasAvailableVariant($result)) {
-                $available[] = $result;
-
-                continue;
-            }
-
-            $unavailable[] = $result;
+        foreach ($ranked as $position => $result) {
+            $scored[] = [
+                'rank' => $position + ($this->hasAvailableVariant($result) ? 0 : $penalty),
+                'result' => $result,
+            ];
         }
 
-        return [...$available, ...$unavailable];
+        usort($scored, static fn (array $a, array $b): int => $a['rank'] <=> $b['rank']);
+
+        return array_column($scored, 'result');
     }
 
     private function hasAvailableVariant(array $result): bool
@@ -266,11 +268,12 @@ class RecommendProductsAction
         return is_numeric($tokens) ? (int) $tokens : self::DEFAULT_GROUP_BY_TOKENS;
     }
 
-    private function demotesUnavailable(): bool
+    private function unavailablePenalty(): int
     {
-        $demote = $this->app->get(ConfigurationEnum::DEMOTE_UNAVAILABLE->value);
+        $penalty = $this->app->get(ConfigurationEnum::UNAVAILABLE_PENALTY->value)
+            ?? config('inventory-discovery.unavailable_penalty');
 
-        return $demote === null ? true : (bool) $demote;
+        return is_numeric($penalty) ? (int) $penalty : self::DEFAULT_UNAVAILABLE_PENALTY;
     }
 
     /**

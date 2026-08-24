@@ -314,20 +314,35 @@ budget phrases, and the filter admits `[<recipient>, unisex, unknown]` — neutr
 along, or a query for a man loses most of a catalog.
 
 **The shipped lexicon is English only.** A Spanish storefront gets nothing from this until it adds
-its own terms to `product_intent_lexicon` (merged, not replacing):
+its own terms to `product_intent_lexicon` (merged, not replacing). Cover friends and coworkers, not
+just family — "para un amigo" is one of the most common gift queries there is:
 
 ```json
 {
-  "audience_female": ["mujer", "novia", "esposa", "mama", "madre", "hermana", "hija", "tia", "para ella"],
-  "audience_male":   ["hombre", "novio", "esposo", "papa", "padre", "hermano", "hijo", "tio", "para el"],
+  "audience_female": ["mujer", "novia", "esposa", "mama", "madre", "hermana", "hija", "tia", "prima", "amiga", "jefa", "companera", "para ella"],
+  "audience_male":   ["hombre", "novio", "esposo", "papa", "padre", "hermano", "hijo", "tio", "primo", "amigo", "jefe", "companero", "para el"],
   "audience_senior": ["abuela", "abuelo", "suegra", "suegro"],
   "audience_kids":   ["nino", "nina", "chico", "chica"]
 }
 ```
 
 Accents are folded before matching, so `mama` covers `mamá`. Longest match wins, so `grandmother`
-is not read as `mother`. Adding `audience` to an existing collection needs a reindex, not a drop —
-it is an ordinary field, not an embed change.
+is not read as `mother`.
+
+⚠️ **Reindexing does NOT add the field to an existing collection.** Scout's
+`getOrCreateCollectionFromModel()` returns early when the collection exists and never applies a
+changed schema, so a collection built before `audience` existed will never gain it — the reindex
+pushes a value Typesense ignores. Patch it in place (no drop, no re-embedding):
+
+```bash
+curl -X PATCH -H "X-TYPESENSE-API-KEY: $KEY" -H 'Content-Type: application/json' \
+  "$HOST/collections/<prefix><index>" \
+  -d '{"fields":[{"name":"audience","type":"string[]","optional":true,"facet":true}]}'
+```
+
+Discovery checks whether the collection declares the field (cached 10 min) and skips the clause when
+it does not, so a missing field costs the feature rather than every result. `check_product_discovery_setup`
+reports it with this command as the fix.
 
 ### Embeddings (required for cross-language and paraphrase matching)
 
@@ -357,7 +372,7 @@ reject **every** search with `Field \`embedding\` does not have a vector query i
 | `product_discovery_vector_alpha` | `0.75` | Vector vs keyword weight in the hybrid search |
 | `product_discovery_max_results_per_group` | `2` | Max results sharing a group key — stops one model in five colours taking the page |
 | `product_discovery_group_by_tokens` | `2` | How many leading name tokens form that group key. The whole name is too fine: "Perfume Premium 31/37/38" are three names and one product. `0` groups on the whole name |
-| `product_discovery_demote_unavailable` | `true` | Sorts unpriced / out-of-stock products below buyable ones. Nothing is dropped, so a thin catalog still fills the page |
+| `product_discovery_unavailable_penalty` | `3` | Places an unpriced / out-of-stock product drops. A penalty, not a partition — sorting all buyable products first lets a weak match leapfrog a strong one. `0` disables; a value past the page size is a hard partition |
 | `product_discovery_excluded_categories` | `[]` | Category names dropped from every result, however well they match. Gift wrap is the canonical case: on a gift catalog "Envoltura" scores highly on every gift query and is never the gift. Matched case- and accent-insensitively |
 | `product_semantic_profile_strategy` | `generic` | Who the blurbs are written for — `gift` (buying for someone else, describe the recipient) or `generic` (buying for themselves, describe the need). Changing it invalidates every existing blurb; see below |
 | `product_discovery_cache_ttl` | `1800` | Seconds a non-empty candidate list is cached |
@@ -462,6 +477,10 @@ Queries come from the impression log, so the set scores what shoppers actually a
   is for things that are never the answer — wrap, shipping, warranties. A gift card IS a gift; it was
   wrong for a *man*, not wrong in general, and excluding it would also break "regalo para mi novia".
   Contextual wrongness is a filter problem, not a denylist problem.
+- **Formulaic blurb openings poison the keyword half.** Nearly every blurb opened "Diseñado
+  para…", so a shopper asking for *diseño* got gaming mice and hair supplements — the stem matched
+  the opening, not the meaning. The prompt now bans that opening and asks for varied ones. When one
+  phrase appears in every blurb it stops carrying meaning and starts adding noise to every query.
 - **A blurb the model invented is worse than no blurb.** Seed rows like "Perfume Premium 38" carry
   no description and no attributes, so the enrichment agent used to invent an audience — "para
   quienes buscan una fragancia sofisticada, ocasiones especiales" — which matches every gift query

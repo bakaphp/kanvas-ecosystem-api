@@ -107,7 +107,7 @@ class ProductDiscoveryStatusService
      */
     private function collectionCheck(): array
     {
-        $name = (string) config('scout.prefix') . (string) ($this->app->get('app_custom_product_index') ?? 'product_index');
+        $name = ProductDiscoveryResolver::collectionName($this->app);
 
         try {
             $collection = SearchEngineResolver::getTypesenseClient(
@@ -135,6 +135,17 @@ class ProductDiscoveryStatusService
                 false,
                 "'{$name}': {$docs} docs, missing " . implode(', ', $missing),
                 'this collection predates the discovery fields — DROP it and reindex, or every search fails',
+            );
+        }
+
+        // Reindexing alone does NOT add a field to a collection that already exists.
+        if (! in_array(SearchFieldEnum::AUDIENCE->value, $fields, true)) {
+            return $this->check(
+                'collection',
+                false,
+                "'{$name}': {$docs} docs, no audience field — recipient filtering is off",
+                'PATCH the collection to add it (reindexing will NOT): '
+                    . "curl -X PATCH \$HOST/collections/{$name} -d '{\"fields\":[{\"name\":\"audience\",\"type\":\"string[]\",\"optional\":true,\"facet\":true}]}'",
             );
         }
 
