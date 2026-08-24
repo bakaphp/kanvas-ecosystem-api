@@ -27,13 +27,11 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 
 /**
- * Writes one Slack event into Kanvas. The listener twin of CreateMessageFromSlackEventAction, minus
- * everything that talks back: no agent, no session, no "ask an admin to invite you" reply, no
- * ai-agent category on the channel.
+ * The listener twin of CreateMessageFromSlackEventAction, minus everything that talks back: no
+ * agent, no session, no "ask an admin to invite you" reply, no ai-agent category on the channel.
  *
- * A message whose speaker has no Kanvas account is still recorded — attributed to the company's AI
- * user, with the raw slack_user kept on the payload. The agent path drops those because it has
- * nobody to answer as; dropping them here would put holes in the very corpus this exists to build.
+ * A speaker with no Kanvas account is still recorded, attributed to the receiver's own user with
+ * the raw slack_user kept on the payload — dropping those would put holes in the corpus.
  */
 class CreateMessageFromSlackListenerEventAction
 {
@@ -64,7 +62,7 @@ class CreateMessageFromSlackListenerEventAction
 
         $message = $this->writeMessage(
             $this->resolveChannel($slackChannelId),
-            $speaker ?? $receiver->company->getAiAgentUserOrFail(),
+            $speaker ?? $receiver->user,
             $this->messagePayload($text, $slackChannelId, $speaker !== null),
         );
 
@@ -166,12 +164,12 @@ class CreateMessageFromSlackListenerEventAction
     }
 
     /**
-     * The room belongs to the workspace, not to whoever happened to speak in it first.
+     * Owned by the listener's own user — a room outlives whoever happened to speak in it first.
      */
     private function resolveChannel(string $slackChannelId): Channel
     {
         $receiver = $this->webhookRequest->receiverWebhook;
-        $owner = $receiver->company->getAiAgentUserOrFail();
+        $owner = $receiver->user;
 
         return new CreateChannelAction(
             new ChannelDto(

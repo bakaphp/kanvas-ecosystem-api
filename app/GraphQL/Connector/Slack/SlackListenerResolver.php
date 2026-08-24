@@ -27,7 +27,7 @@ class SlackListenerResolver
         /** @var Companies $company */
         $company = $ctx->company;
 
-        return new GenerateSlackListenerManifestAction($ctx->app, $company)->execute();
+        return new GenerateSlackListenerManifestAction($ctx->app, $company, $ctx->user)->execute();
     }
 
     /**
@@ -54,6 +54,7 @@ class SlackListenerResolver
         return new ConnectSlackListenerAction(
             app: $ctx->app,
             company: $company,
+            user: $ctx->user,
             botToken: (string) $input['bot_token'],
             signingSecret: (string) $input['signing_secret'],
             channelDenyList: array_values(array_map('strval', (array) ($input['channel_deny_list'] ?? []))),

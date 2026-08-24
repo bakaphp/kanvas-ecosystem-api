@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Slack\Actions;
 use Baka\Contracts\AppInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Slack\Services\SlackListenerReceiverService;
+use Kanvas\Users\Models\Users;
 
 /**
  * The customer creates the app in their own workspace — see GenerateSlackManifestAction for why we
@@ -44,6 +45,7 @@ class GenerateSlackListenerManifestAction
     public function __construct(
         private readonly AppInterface $app,
         private readonly Companies $company,
+        private readonly Users $user,
     ) {
     }
 
@@ -55,7 +57,7 @@ class GenerateSlackListenerManifestAction
         $receiver = new SlackListenerReceiverService()->forCompany(
             $this->app,
             $this->company,
-            $this->company->getAiAgentUserOrFail(),
+            $this->user,
         );
 
         $requestUrl = $receiver->getUrl();

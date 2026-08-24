@@ -14,7 +14,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Slack\Jobs\JoinChannelJob;
 use Kanvas\Connectors\Slack\Webhooks\ProcessSlackListenerWebhookJob;
-use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
@@ -45,9 +44,6 @@ final class ProcessSlackListenerWebhookJobTest extends TestCase
         $this->kanvasApp = app(Apps::class);
         $this->user = auth()->user();
         $this->company = $this->user->getCurrentCompany();
-
-        // A speaker with no Kanvas account is attributed to the company's AI user.
-        $this->company->set(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value, $this->user->getId());
 
         $action = WorkflowAction::firstOrCreate(
             ['model_name' => ProcessSlackListenerWebhookJob::class],
