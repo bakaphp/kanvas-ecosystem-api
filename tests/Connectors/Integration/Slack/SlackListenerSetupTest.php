@@ -18,6 +18,7 @@ use Kanvas\Connectors\Slack\Services\SlackListenerStatusService;
 use Kanvas\Connectors\Slack\Webhooks\ProcessSlackListenerWebhookJob;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\WorkflowAction;
 use Tests\TestCase;
 
@@ -25,15 +26,15 @@ final class SlackListenerSetupTest extends TestCase
 {
     private Apps $kanvasApp;
     private Companies $company;
+    private Users $user;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->kanvasApp = app(Apps::class);
-        $user = auth()->user();
-        $this->company = $user->getCurrentCompany();
-        $this->company->set(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value, $user->getId());
+        $this->user = auth()->user();
+        $this->company = $this->user->getCurrentCompany();
 
         WorkflowAction::firstOrCreate(
             ['model_name' => ProcessSlackListenerWebhookJob::class],
@@ -78,6 +79,22 @@ final class SlackListenerSetupTest extends TestCase
         $this->assertStringContainsString(urlencode($first['request_url']), $first['install_url']);
     }
 
+    /**
+     * There is no agent in the listener, so setup must never depend on the ai-agent-user-id config —
+     * nothing in the codebase sets that key and an admin has no way to reach it.
+     */
+    public function testSetupWorksForACompanyWithNoAiAgentUserConfigured(): void
+    {
+        $this->company->del(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value);
+
+        $manifest = $this->manifest();
+
+        $this->assertStringContainsString('/v1/receiver/', $manifest['request_url']);
+
+        $receiver = new SlackListenerReceiverService()->findForCompany($this->kanvasApp, $this->company);
+        $this->assertSame($this->user->getId(), $receiver->users_id);
+    }
+
     public function testAUserTokenIsRejectedUpFront(): void
     {
         $this->expectException(ValidationException::class);
@@ -85,6 +102,7 @@ final class SlackListenerSetupTest extends TestCase
         new ConnectSlackListenerAction(
             app: $this->kanvasApp,
             company: $this->company,
+            user: $this->user,
             botToken: 'xoxp-a-user-token',
             signingSecret: 'shhh',
         )->execute();
@@ -105,6 +123,7 @@ final class SlackListenerSetupTest extends TestCase
         $result = new ConnectSlackListenerAction(
             app: $this->kanvasApp,
             company: $this->company,
+            user: $this->user,
             botToken: 'xoxb-real-token',
             signingSecret: 'shhh',
             channelDenyList: ['C666'],
@@ -135,6 +154,7 @@ final class SlackListenerSetupTest extends TestCase
         new ConnectSlackListenerAction(
             app: $this->kanvasApp,
             company: $this->company,
+            user: $this->user,
             botToken: 'xoxb-real-token',
             signingSecret: 'shhh',
         )->execute();
@@ -159,6 +179,6 @@ final class SlackListenerSetupTest extends TestCase
      */
     private function manifest(): array
     {
-        return new GenerateSlackListenerManifestAction($this->kanvasApp, $this->company)->execute();
+        return new GenerateSlackListenerManifestAction($this->kanvasApp, $this->company, $this->user)->execute();
     }
 }

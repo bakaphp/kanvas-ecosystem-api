@@ -11,6 +11,7 @@ use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Slack\Jobs\JoinAllPublicChannelsJob;
 use Kanvas\Connectors\Slack\Services\SlackListenerReceiverService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Users\Models\Users;
 
 /**
  * auth.test doubles as the only real validation — a bad token is rejected here rather than
@@ -24,6 +25,7 @@ class ConnectSlackListenerAction
     public function __construct(
         private readonly AppInterface $app,
         private readonly Companies $company,
+        private readonly Users $user,
         private readonly string $botToken,
         private readonly string $signingSecret,
         private readonly array $channelDenyList = [],
@@ -45,7 +47,7 @@ class ConnectSlackListenerAction
         $receiver = new SlackListenerReceiverService()->forCompany(
             $this->app,
             $this->company,
-            $this->company->getAiAgentUserOrFail(),
+            $this->user,
         );
 
         $receiver->configuration = [
