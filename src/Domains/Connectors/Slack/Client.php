@@ -7,9 +7,11 @@ namespace Kanvas\Connectors\Slack;
 use Baka\Http\SafeUrl;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 use Throwable;
 
 class Client
@@ -33,6 +35,22 @@ class Client
         if ($botToken === '') {
             throw new ValidationException(
                 'Agent ' . (int) $agent->getId() . ' has no Slack bot token. Connect the agent to Slack first.'
+            );
+        }
+
+        return new self($botToken);
+    }
+
+    /**
+     * The listener has no agent to hang a token on, so its credentials live on the receiver.
+     */
+    public static function getInstanceByReceiver(ReceiverWebhook $receiver): self
+    {
+        $botToken = (string) ($receiver->configuration[ConfigurationEnum::BOT_TOKEN->value] ?? '');
+
+        if ($botToken === '') {
+            throw new ValidationException(
+                'Receiver ' . (int) $receiver->getId() . ' has no Slack bot token. Connect the listener first.'
             );
         }
 
@@ -191,6 +209,40 @@ class Client
     public function userInfo(string $userId): array
     {
         return $this->call('users.info', ['user' => $userId])['user'] ?? [];
+    }
+
+    /**
+     * Returns one page and its cursor rather than looping internally: this endpoint is rate-limited
+     * hard enough that a full sweep has to be spread over time by the caller.
+     *
+     * @return array{channels: array, next_cursor: string}
+     */
+    public function conversationsList(string $cursor = '', string $types = 'public_channel'): array
+    {
+        $response = $this->call('conversations.list', array_filter([
+            'types' => $types,
+            'exclude_archived' => 'true',
+            'limit' => '200',
+            'cursor' => $cursor === '' ? null : $cursor,
+        ]));
+
+        return [
+            'channels' => (array) ($response['channels'] ?? []),
+            'next_cursor' => (string) ($response['response_metadata']['next_cursor'] ?? ''),
+        ];
+    }
+
+    /**
+     * Public channels only — a bot cannot join a private channel, a human has to invite it.
+     */
+    public function joinConversation(string $channelId): void
+    {
+        $this->call('conversations.join', ['channel' => $channelId]);
+    }
+
+    public function conversationInfo(string $channelId): array
+    {
+        return $this->call('conversations.info', ['channel' => $channelId])['channel'] ?? [];
     }
 
     public function lookupUserIdByEmail(string $email): ?string

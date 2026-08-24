@@ -55,7 +55,7 @@ class ScaffoldGoldenSetCommandTest extends TestCase
 
         $this->assertSame('Reloj de lujo elegante', $written['cases'][0]['query']);
         $this->assertContains($product->getId(), $written['cases'][0]['relevant_product_ids']);
-        $this->assertStringContainsString('UNJUDGED', $written['cases'][0]['note']);
+        $this->assertTrue($written['cases'][0]['unjudged'], 'Scaffolded cases must be flagged so evaluate refuses to score them.');
     }
 
     public function testKeepsAQueryThatReturnsNothing(): void

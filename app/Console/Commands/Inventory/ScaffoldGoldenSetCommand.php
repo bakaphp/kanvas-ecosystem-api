@@ -69,7 +69,10 @@ class ScaffoldGoldenSetCommand extends Command
             $cases[] = [
                 'query' => $query,
                 'relevant_product_ids' => $ids,
-                'note' => 'UNJUDGED — delete the ids that are wrong for this query, add any that are missing.',
+                // Machine-readable so the evaluate command can refuse to score a
+                // file nobody has judged: it would report a perfect result.
+                'unjudged' => true,
+                'note' => 'Delete the ids that are wrong for this query, add any that are missing, then remove "unjudged".',
             ];
 
             $this->line(sprintf('  %-60s %d result(s)', mb_strimwidth($query, 0, 58, '…'), count($ids)));

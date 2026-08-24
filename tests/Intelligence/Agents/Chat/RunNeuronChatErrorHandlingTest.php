@@ -31,7 +31,7 @@ class RunNeuronChatErrorHandlingTest extends TestCase
     {
         $response = $this->runChatWithThrowingHandler($this->uniqueConstraintViolation());
 
-        $this->assertStringContainsString("It looks like that already exists", $response);
+        $this->assertStringContainsString('It looks like that already exists', $response);
         $this->assertStringNotContainsString('UniqueConstraintViolationException', $response);
         $this->assertStringNotContainsString('rds.amazonaws.com', $response);
         $this->assertStringNotContainsString('bills_vendor_number_uq', $response);
@@ -78,7 +78,7 @@ class RunNeuronChatErrorHandlingTest extends TestCase
             "insert into bills (bill_number, apps_id, companies_id) values ('1498', 31, 9659)",
             [],
             new PDOException(
-                "SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry "
+                'SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '
                 . "'31-9659-148291-1498-MDF' for key 'bills.bills_vendor_number_uq' "
                 . '(Connection: accounting, Host: prod-kanvas-niche-cluster-cvyag02o4s55.us-east-1.rds.amazonaws.com, Port: 3306)'
             ),

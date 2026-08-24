@@ -27,11 +27,14 @@ class CheckProductDiscoverySetupTool extends Tool
             name: 'check_product_discovery_setup',
             description: 'Report whether natural-language product discovery is fully configured for this '
                 . 'company, and what is missing. Checks the search engine, Typesense credentials and '
-                . 'collection, whether the collection has an embedding field, the enrichment agent, how '
-                . 'many products actually have a search blurb, and whether a workflow rule keeps them '
-                . 'fresh. Returns a fix for every failed check. Run this BEFORE configuring anything and '
-                . 'again afterwards — several steps only work in the right order, so a partial setup '
-                . 'looks fine and quietly falls back to keyword matching.',
+                . 'collection, whether the collection declares the embedding and audience fields, the '
+                . 'enrichment agent, how many products actually have a search blurb, and whether a '
+                . 'workflow rule keeps them fresh. Returns a fix for every failed check. Run this BEFORE '
+                . 'configuring anything and again afterwards — several steps only work in the right order, '
+                . 'so a partial setup looks fine and quietly falls back to keyword matching. It is also '
+                . 'the first thing to run when discovery returns NOTHING: a filter on a field the '
+                . 'collection does not declare matches zero products rather than being ignored, and that '
+                . 'reads as an empty catalog.',
         );
     }
 
