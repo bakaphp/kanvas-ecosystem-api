@@ -87,6 +87,26 @@ final class SalesforceApiClient
         $this->send('delete', "/services/data/{$this->apiVersion}/sobjects/{$sobject}/{$id}", allowNotFound: true);
     }
 
+    /**
+     * @return array{sobjects: list<array{name: string, label: string, custom: bool, keyPrefix: ?string}>}
+     */
+    public function describeGlobal(): array
+    {
+        $response = $this->send('get', "/services/data/{$this->apiVersion}/sobjects/");
+
+        return $response->json() ?? [];
+    }
+
+    /**
+     * @return array{fields: list<array<string, mixed>>}
+     */
+    public function describeObject(string $sobject): array
+    {
+        $response = $this->send('get', "/services/data/{$this->apiVersion}/sobjects/{$sobject}/describe");
+
+        return $response->json() ?? [];
+    }
+
     private function send(
         string $method,
         string $path,
