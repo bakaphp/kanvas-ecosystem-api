@@ -64,6 +64,20 @@ type VoiceAgentByNumber {
     agent_id: String!
 }
 
+type VoiceAgentLeadContext {
+    lead_id: Int
+    name: String
+    status: String
+    stage: String
+    owner: String
+    vehicle_interest: String
+    context_info: String
+    "True when we already know this number (has a lead, or a prior contact)."
+    is_returning: Boolean
+    "Short natural-language block (who + recent history) for the LLM."
+    summary: String
+}
+
 extend type Query @guardByAppKey {
     voiceAgentSpec(uuid: String!): VoiceAgentSpec!
         @field(
@@ -73,6 +87,11 @@ extend type Query @guardByAppKey {
     voiceAgentByNumber(phone_number: String!): VoiceAgentByNumber
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentByNumberQuery"
+        )
+    "Outbound: resolve the lead for a dialed number and return compact context. Null if none."
+    voiceAgentLeadContext(agent_uuid: String!, phone: String!): VoiceAgentLeadContext
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentLeadContextQuery"
         )
 }
 
