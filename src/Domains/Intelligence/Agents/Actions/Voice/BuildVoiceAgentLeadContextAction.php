@@ -151,8 +151,8 @@ class BuildVoiceAgentLeadContextAction
             'context_info' => null,
             'is_returning' => true,
             'summary' => $name !== null
-                ? "Ya conocemos a este contacto: {$name}. Aún no hay un lead abierto; ya ha contactado antes."
-                : 'Este número ya ha contactado antes, pero todavía no tenemos su nombre.',
+                ? "We already know this contact: {$name}. There's no open lead yet; they've reached out before."
+                : "This number has reached out before, but we don't have their name yet.",
         ];
     }
 
@@ -192,21 +192,21 @@ class BuildVoiceAgentLeadContextAction
     {
         $lines = [];
         $lines[] = $c['name'] !== null
-            ? "Estás llamando a {$c['name']}."
-            : 'Estás llamando a un cliente.';
+            ? "You're speaking with {$c['name']}."
+            : "You're speaking with a customer.";
 
         $state = trim(($c['status'] ?? '') . ' / ' . ($c['stage'] ?? ''), ' /');
         if ($state !== '') {
-            $lines[] = "Estado: {$state}.";
+            $lines[] = "Status: {$state}.";
         }
         if ($c['owner'] !== null) {
-            $lines[] = "Vendedor asignado: {$c['owner']}.";
+            $lines[] = "Assigned salesperson: {$c['owner']}.";
         }
         if ($c['vehicle_interest'] !== null) {
-            $lines[] = "Interés: {$c['vehicle_interest']}.";
+            $lines[] = "Interest: {$c['vehicle_interest']}.";
         }
         if ($c['context_info'] !== null) {
-            $lines[] = "Contexto del lead: {$c['context_info']}";
+            $lines[] = "Lead context: {$c['context_info']}";
         }
 
         return implode("\n", $lines);
