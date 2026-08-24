@@ -22,6 +22,9 @@ class WordPressMediaService
     private array $uploaded = [];
 
     /** @var array<string, string> */
+    private array $sourceUrls = [];
+
+    /** @var array<string, string> */
     private array $failures = [];
 
     /**
@@ -62,7 +65,19 @@ class WordPressMediaService
             return $this->fail($url, $e->getMessage());
         }
 
+        if (is_string($media['source_url'] ?? null)) {
+            $this->sourceUrls[$url] = $media['source_url'];
+        }
+
         return $this->uploaded[$url] = (int) $media['id'];
+    }
+
+    /**
+     * Where the file ended up on the site — an id alone lets WP attach it, never render it.
+     */
+    public function sourceUrl(string $url): ?string
+    {
+        return $this->sourceUrls[$url] ?? null;
     }
 
     /**

@@ -617,6 +617,12 @@ class Message extends BaseModel
             $message = $text !== '' ? ['content' => $text] : [];
         }
 
+        // Typesense derives the nested types of an `object` from the first document it indexes, so
+        // a reply whose envelope is a LIST of records collides with the scalar types a single-record
+        // reply established and the import is rejected. Nothing searches it; `message_text` already
+        // carries the prose.
+        unset($message['response_json']);
+
         return $this->searchIndexRejectsObjectField('message')
             ? $this->contentText()
             : (object) $message;

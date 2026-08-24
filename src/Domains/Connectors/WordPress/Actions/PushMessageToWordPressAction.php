@@ -59,6 +59,7 @@ class PushMessageToWordPressAction
             $terms->resolveIds(WordPressTermService::CATEGORY_TAXONOMY, $post->categories),
             $terms->resolveIds(WordPressTermService::TAG_TAXONOMY, $post->tags),
             $featuredMediaId,
+            $this->uploadedVideo($media, $post->videoUrl),
         );
 
         $existingPostId = $this->existingPostId($client);
@@ -88,6 +89,24 @@ class PushMessageToWordPressAction
             'attachments' => $attachmentIds,
             'media_failures' => $media->failures(),
         ];
+    }
+
+    /**
+     * Both halves must land: no id, or a site that withheld the url, means the post ships as it would
+     * have without the clip rather than with a `<video src="">`.
+     *
+     * @return array{id: int, url: string}|null
+     */
+    private function uploadedVideo(WordPressMediaService $media, ?string $videoUrl): ?array
+    {
+        if ($videoUrl === null) {
+            return null;
+        }
+
+        $id = $media->upload($videoUrl);
+        $url = $media->sourceUrl($videoUrl);
+
+        return $id !== null && $url !== null ? ['id' => $id, 'url' => $url] : null;
     }
 
     /**

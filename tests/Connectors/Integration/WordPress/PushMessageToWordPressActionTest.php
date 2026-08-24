@@ -9,11 +9,13 @@ use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\WordPress\Actions\PushMessageToWordPressAction;
+use Kanvas\Connectors\WordPress\DataTransferObject\WordPressPost;
 use Kanvas\Connectors\WordPress\Enums\ConfigurationEnum;
 use Kanvas\Connectors\WordPress\Enums\CustomFieldEnum;
 use Kanvas\Connectors\WordPress\RestClient;
 use Kanvas\Connectors\WordPress\Services\WordPressMediaService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Social\Messages\Models\Message;
 use ReflectionMethod;
 use Tests\TestCase;
@@ -511,6 +513,89 @@ final class PushMessageToWordPressActionTest extends TestCase
             'categories' => [7],
             'tags' => [21, 22],
         ];
+    }
+
+    /**
+     * attachmentUrls() sorts a clip into `documents` next to PDFs, so it was uploaded to the media
+     * library and never rendered — the post led with a still of a video nobody could play.
+     */
+    public function testAVideoLeadsThePostWhileThePosterStaysTheFeaturedImage(): void
+    {
+        $message = $this->makeMessage(['content' => '<p>Body.</p>']);
+        $poster = $this->attachFile($message, 'poster.jpg');
+        $clip = $this->attachFile($message, 'clip.mp4');
+
+        $post = WordPressPost::fromMessage($message->refresh());
+
+        $this->assertSame($clip, $post->videoUrl);
+        $this->assertSame($poster, $post->featuredImageUrl, 'Archives need an image thumbnail, not the clip');
+
+        $payload = $post->toPayload(
+            [],
+            [],
+            55,
+            ['id' => 77, 'url' => 'https://example.com/wp-content/uploads/clip.mp4']
+        );
+
+        $this->assertStringStartsWith('<!-- wp:video {"id":77} -->', $payload['content']);
+        $this->assertStringContainsString(
+            '<video controls src="https://example.com/wp-content/uploads/clip.mp4">',
+            $payload['content']
+        );
+        $this->assertStringEndsWith('<p>Body.</p>', $payload['content'], 'The article keeps its body below the player');
+        $this->assertSame(55, $payload['featured_media']);
+    }
+
+    public function testAPostWithNoVideoCarriesNoPlayer(): void
+    {
+        $post = WordPressPost::fromMessage($this->makeMessage(['content' => '<p>Body.</p>']));
+
+        $this->assertNull($post->videoUrl);
+        $this->assertSame(
+            '<p>Body.</p>',
+            $post->toPayload([], [], null)['content']
+        );
+    }
+
+    /**
+     * A player pointing at nothing is worse than none — the post would ship `<video src="">`.
+     */
+    public function testNoPlayerIsEmbeddedWhenTheSiteWithheldTheMediaUrl(): void
+    {
+        $media = new class (new RestClient(app(Apps::class), $this->company())) extends WordPressMediaService {
+            public function upload(string $url): ?int
+            {
+                return 77;
+            }
+
+            public function sourceUrl(string $url): ?string
+            {
+                return null;
+            }
+        };
+
+        $uploadedVideo = new ReflectionMethod(PushMessageToWordPressAction::class, 'uploadedVideo');
+
+        $this->assertNull(
+            $uploadedVideo->invoke(
+                new PushMessageToWordPressAction($this->makeMessage(['content' => '<p>Body.</p>'])),
+                $media,
+                'https://cdn.example.test/clip.mp4'
+            )
+        );
+    }
+
+    private function attachFile(Message $message, string $name): string
+    {
+        $file = new FilesystemServices($message->app, $message->company)->createFileSystemFromBase64(
+            base64_encode((string) file_get_contents(__DIR__ . '/../../../../public/favicon.ico')),
+            $name,
+            auth()->user()
+        );
+
+        $message->addFile($file, $name);
+
+        return (string) $file->url;
     }
 
     private function makeMessage(array $body): Message

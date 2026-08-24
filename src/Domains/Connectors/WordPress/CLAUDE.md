@@ -56,6 +56,14 @@ message is also doing chat duty. Every field is optional.
 - `featured_image` / `attachments` — URLs. They're fetched through `SafeUrlFetcher` (SSRF-guarded)
   and uploaded to the media library. A URL that can't be fetched is reported in `media_failures`
   and does not sink the post.
+- `video` — a URL, uploaded like the rest but also **embedded as a `wp:video` block at the top of the
+  content**, so the post leads with the player. Uploading alone is not enough: an attachment with no
+  block is filed in the media library and never rendered. The poster frame stays `featured_media` —
+  that is what archives and social cards read, and no theme can render an mp4 as a thumbnail. The
+  block is emitted only when the upload returns both an id and a `source_url`; otherwise the post
+  ships as it would have without the clip rather than with a `<video src="">`.
+  Post **format** is left alone — wp/v2 rejects `format: "video"` on a theme that does not declare
+  post-format support, so set it explicitly in the message or rule when the theme has it.
 - `meta` — only keys the site has registered with `show_in_rest` will stick.
 
 ### Fallbacks when the body omits a field
@@ -68,6 +76,7 @@ message is also doing chat duty. Every field is optional.
 | `categories` | the message's Kanvas categories (`HasCategoriesTrait`) |
 | `tags` | the message's Kanvas tags (`HasTagsTrait`) |
 | `featured_image` | first image in `$message->files` |
+| `video` | first video in `$message->files` |
 | `attachments` | the remaining `$message->files` |
 | `status` / `author_id` / default terms | the connector configuration |
 
