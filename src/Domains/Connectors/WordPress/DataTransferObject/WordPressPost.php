@@ -30,6 +30,7 @@ class WordPressPost
         public readonly array $categories = [],
         public readonly array $tags = [],
         public readonly ?string $featuredImageUrl = null,
+        public readonly ?string $videoUrl = null,
         public readonly array $attachmentUrls = [],
         public readonly array $meta = [],
         public readonly ?string $commentStatus = null,
@@ -87,6 +88,7 @@ class WordPressPost
             categories: self::terms($data['categories'] ?? null) ?: $message->categories->pluck('name')->all(),
             tags: self::terms($data['tags'] ?? null) ?: $message->tags->pluck('name')->all(),
             featuredImageUrl: $featuredImage,
+            videoUrl: self::string($data['video'] ?? null) ?? self::firstVideoUrl($message),
             attachmentUrls: self::terms($data['attachments'] ?? null) ?: $remainingFiles,
             meta: is_array($data['meta'] ?? null) ? $data['meta'] : [],
             commentStatus: self::string($data['comment_status'] ?? null),
@@ -97,10 +99,14 @@ class WordPressPost
         );
     }
 
+    /**
+     * @param array{id: int, url: string}|null $video the clip as WordPress now hosts it
+     */
     public function toPayload(
         array $categoryIds,
         array $tagIds,
-        ?int $featuredMediaId
+        ?int $featuredMediaId,
+        ?array $video = null
     ): array {
         $optional = [
             'excerpt' => $this->excerpt,
@@ -120,7 +126,7 @@ class WordPressPost
 
         return [
             'title' => $this->title,
-            'content' => $this->content,
+            'content' => $video !== null ? self::videoBlock($video) . $this->content : $this->content,
             'status' => $this->status->value,
             // An unset field must be absent, not sent empty — WP treats an empty value as "clear
             // this", which would wipe terms and meta on an update.
@@ -161,6 +167,33 @@ class WordPressPost
     }
 
     /**
+     * A Gutenberg block rather than a shortcode: its inner HTML is a plain `<figure><video>`, so a
+     * classic theme renders it too.
+     *
+     * @param array{id: int, url: string} $video
+     */
+    private static function videoBlock(array $video): string
+    {
+        return '<!-- wp:video {"id":' . $video['id'] . '} -->'
+            . '<figure class="wp-block-video"><video controls src="' . htmlspecialchars($video['url'], ENT_QUOTES) . '"></video></figure>'
+            . '<!-- /wp:video -->';
+    }
+
+    /**
+     * Read off the files directly — attachmentUrls() buckets a clip into `documents` alongside PDFs.
+     */
+    private static function firstVideoUrl(Message $message): ?string
+    {
+        foreach ($message->files as $file) {
+            if ($file->mediaType()->isVideo() && (string) $file->url !== '') {
+                return (string) $file->url;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Message bodies carry chat/agent bookkeeping alongside the post fields — take only what wp/v2
      * understands so an unrelated key can never reach the site.
      */
@@ -177,6 +210,7 @@ class WordPressPost
             'categories',
             'tags',
             'featured_image',
+            'video',
             'attachments',
             'meta',
             'comment_status',

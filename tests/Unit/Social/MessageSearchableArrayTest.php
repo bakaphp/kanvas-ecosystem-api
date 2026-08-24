@@ -135,6 +135,30 @@ class MessageSearchableArrayTest extends TestCaseUnit
         return $message;
     }
 
+    /**
+     * Regression: `message` is declared `object`, so Typesense types every nested key from the first
+     * document it indexes. An envelope holding a LIST of records then collides with the scalar types
+     * a single-record reply established — "field inside an array of objects must be an array type as
+     * well" — and the import is rejected.
+     */
+    public function testTheAgentEnvelopeIsKeptOutOfTheSearchPayload(): void
+    {
+        $body = json_encode([
+            'content' => 'The reply that was sent.',
+            'from_ia' => true,
+            'response_json' => [
+                ['title' => 'First article', 'status' => 'draft'],
+                ['title' => 'Second article', 'status' => 'draft'],
+            ],
+        ]);
+
+        $data = $this->searchableMessageFor((string) $body);
+
+        $this->assertObjectNotHasProperty('response_json', $data['message']);
+        $this->assertSame('The reply that was sent.', $data['message']->content);
+        $this->assertSame('The reply that was sent.', $data['message_text']);
+    }
+
     private function searchableMessageFor(string $rawMessage): array
     {
         return $this->searchableMessageModel($rawMessage)->toSearchableArray();

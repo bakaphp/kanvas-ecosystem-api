@@ -98,8 +98,9 @@ stores it as an image regardless of `media_types`. No extra fetch, and it double
 featured image for a video-only post.
 
 Adding `whatsapp-video` to `media_types` additionally downloads the clip and hangs it off the
-message, which is what you want when the article should carry the file — but it does not make the
-model see more than the poster.
+message — but it does not make the model see more than the poster. Downstream it does matter: the
+WordPress publisher leads the post with a player for the clip and keeps the poster as the featured
+image, so a video-only story publishes as a video rather than as a still.
 
 ## Workflow events — which entity each carries
 
