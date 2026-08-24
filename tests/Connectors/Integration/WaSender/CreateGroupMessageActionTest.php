@@ -7,15 +7,19 @@ namespace Tests\Connectors\Integration\WaSender;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\WaSender\Actions\CreateGroupMessageAction;
 use Kanvas\Connectors\WaSender\DataTransferObject\InboundMessage;
 use Kanvas\Connectors\WaSender\Enums\BurstConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
+use Kanvas\Connectors\WaSender\Exceptions\WaSenderRefusedException;
 use Kanvas\Connectors\WaSender\Services\GroupBurstService;
 use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Models\Channel;
@@ -24,7 +28,10 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Kanvas\Workflow\Models\WorkflowAction;
+use ReflectionClass;
+use ReflectionMethod;
 use Tests\TestCase;
+use Throwable;
 
 /**
  * PR2: a group thread files silently against a Channel — no Lead anywhere — each speaker gets
@@ -389,6 +396,57 @@ final class CreateGroupMessageActionTest extends TestCase
             GroupConfigEnum::ALLOWED_GROUP_JIDS->value => [self::GROUP_JID],
         ];
         $receiver->saveOrFail();
+    }
+
+    /**
+     * A 39MB clip 400s against WaSender's 25MB decrypt limit every time — an answer, not a fault, and
+     * it was reported 12 times in two days (KANVAS-ECOSYSTEM-68N). The skip stays visible on the
+     * message instead.
+     */
+    public function testMediaTheProviderRefusesIsFlaggedWithoutReachingSentry(): void
+    {
+        Exceptions::fake();
+
+        $message = $this->recordFailure(new WaSenderRefusedException(
+            'Decrypted media size (38.89 MB) exceeds the 25 MB storage limit.',
+            400
+        ));
+
+        Exceptions::assertNothingReported();
+        $this->assertTrue($message->tags()->where('name', 'media-not-downloaded')->exists());
+        $this->assertStringContainsString(
+            'exceeds the 25 MB storage limit',
+            (string) $message->get('media_download_error')
+        );
+    }
+
+    /**
+     * A missing api key is a genuine misconfiguration, so it must not be swallowed along with the
+     * provider's refusals.
+     */
+    public function testAMediaFailureThatIsNotAProviderRefusalStillReports(): void
+    {
+        Exceptions::fake();
+
+        $this->recordFailure(new ValidationException('Wasender configuration is missing'));
+
+        Exceptions::assertReported(fn (ValidationException $e): bool => $e->getMessage() === 'Wasender configuration is missing');
+    }
+
+    private function recordFailure(Throwable $failure): Message
+    {
+        $message = Message::factory()
+            ->withAppId(app(Apps::class)->getId())
+            ->withCompanyId(auth()->user()->getCurrentCompany()->getId())
+            ->create(['message' => ['content' => 'clip caption']]);
+
+        // Classification reads only the message — a real constructor would drag in a receiver, a
+        // channel and a decoded payload none of it touches.
+        $action = new ReflectionClass(CreateGroupMessageAction::class)->newInstanceWithoutConstructor();
+
+        new ReflectionMethod($action, 'recordMediaFailure')->invoke($action, $message, $failure);
+
+        return $message;
     }
 
     private function ingestAt(string $time, array $messageData): array
