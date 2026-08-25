@@ -64,6 +64,7 @@ Big task-shaped recipes have been moved to skills under `.claude/skills/`. They 
 - **`kanvas-crud`** — Build a new domain CRUD (DTO + Create/Update Actions + GraphQL Mutation + schema + tests). Use when scaffolding a new entity under `src/Domains/{Domain}/{Entity}/`.
 - **`kanvas-connector`** — Build a new external-service integration under `src/Domains/Connectors/{ConnectorName}/` (Handler + Client + DTO + Enums + Webhook job + Workflow activity + GraphQL setup mutation + `integrations` row). Use when adding/editing any connector. Includes the Octane "never cache SDK in static" rule and the "AgentRuntime is a primary domain not a connector" foot-guns.
 - **`kanvas-search`** — Add `@search` to a list query with proper multi-tenant `search()` override. Use when adding `search: String @search`, choosing between `DatabaseSearchableTrait` and `DynamicSearchableTrait`, or auditing tenant scoping.
+- **`kanvas-backend-review`** — Pre-PR cleanup pass: duplicated methods, overly complex logic, unnecessary comments, and violations of the conventions on this page (rule of 4, named arguments, no inline FQCNs, `overwriteAppService`). Fixes what it finds and reports the diff. Use before pushing, or when asked to review/clean up backend code.
 
 Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `tests/CLAUDE.md` — Docker test commands, `RefreshDatabase` ban, Bouncer setup, AppKey-guarded test pattern.
