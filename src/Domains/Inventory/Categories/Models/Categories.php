@@ -38,6 +38,8 @@ class Categories extends BaseModel
 
     protected $table = 'categories';
     protected $guarded = [];
+    protected $withCount = ['activeProducts'];
+    protected ?int $totalProducts = null;
 
     public $translatable = ['name'];
 
@@ -75,6 +77,17 @@ class Categories extends BaseModel
         return $this->belongsToMany(Products::class, 'products_categories', 'categories_id', 'products_id');
     }
 
+    /**
+     * Exists so `$withCount` can carry the filters — `$withCount` is a plain property, it
+     * cannot hold the constraint closure that `withCount(['products' => fn ...])` would take.
+     */
+    public function activeProducts(): BelongsToMany
+    {
+        return $this->products()
+            ->where('products.is_deleted', 0)
+            ->where('products_categories.is_deleted', 0);
+    }
+
     public function categoryEntities(): HasMany
     {
         return $this->hasMany(CategoryEntity::class, 'categories_id');
@@ -91,26 +104,18 @@ class Categories extends BaseModel
     }
 
     /**
-     * Get the total amount of products of a product type.
+     * Counted live instead of from a cached `total_products` custom field: products are
+     * attached/detached through the pivot's query builder (`ProductsCategories` is not an
+     * `AsPivot`, so `belongsToMany` never sets `using()`), which fires no model event —
+     * any cached counter freezes at whatever it held the first time it was written.
+     *
+     * The count normally rides along on the row via `$withCount`, so resolving this field
+     * over a list costs no extra query; the fallback only fires on a model built outside
+     * `newQuery()` (`make()`, `newFromBuilder()` with a hand-rolled select).
      */
     public function getTotalProducts(): int
     {
-        if (! $totalProducts = $this->get('total_products')) {
-            return (int) $this->setTotalProducts();
-        }
-
-        return (int) $totalProducts;
-    }
-
-    /**
-     * Set the total amount of products of a product categories.
-     */
-    public function setTotalProducts(): int
-    {
-        $total = ProductsCategories::where('categories_id', $this->getId())
-                ->where('is_deleted', 0)
-                ->count();
-
-        return (int) $total;
+        return $this->totalProducts ??= (int) ($this->active_products_count
+            ?? $this->activeProducts()->count());
     }
 }
