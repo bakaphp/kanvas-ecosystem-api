@@ -7,6 +7,7 @@ Per-connector `CLAUDE.md` (load when working in that connector's tree):
 - [`WordPress/CLAUDE.md`](WordPress/CLAUDE.md) — publishing a Message as a wp/v2 post: the message body post structure + fallbacks, Application Password setup through the generic `integrationCompany` mutation, and why the scraper `Client` and the `RestClient` are unrelated.
 - [`UniversalSeguros/CLAUDE.md`](UniversalSeguros/CLAUDE.md) — auto-insurance SDK + its `Providers/UniversalSegurosProvider` implementation of the `Kanvas\Insurance` contracts. Per-product emit scopes, QA chassis blocker, problem+json error shape.
 - [`WaSender/CLAUDE.md`](WaSender/CLAUDE.md) — inbound WhatsApp: the three conversation shapes (lead DM / assistant DM / group) and how they route, the full `receiver_webhooks.configuration` key table, burst debouncing, which entity each workflow event carries (and why group traffic must never hit the DM event), and the lid-addressing + `slug`-vs-`uuid` foot-guns.
+- [`Yusen/CLAUDE.md`](Yusen/CLAUDE.md) — 3PL Item Balance XML → discrepancy report: the exact POST Yusen makes (multipart vs raw body), why the connector writes no stock (a per-source warehouse double-counts `Variants::setTotalQuantity()`), the lot-summing assumption and its `multi_record_items` tripwire, and the synthetic-fixture rule.
 
 ## Hard rules specific to this tree
 

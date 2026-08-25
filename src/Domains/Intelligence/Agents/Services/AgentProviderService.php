@@ -8,26 +8,26 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasAnthropic;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasDeepseek;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGemini;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasGrok;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasMistral;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOllama;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAI;
+use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAILike;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use NeuronAI\HttpClient\GuzzleHttpClient;
 use NeuronAI\Providers\AIProviderInterface;
-use NeuronAI\Providers\Anthropic\Anthropic;
-use NeuronAI\Providers\Deepseek\Deepseek;
-use NeuronAI\Providers\Gemini\Gemini;
-use NeuronAI\Providers\Mistral\Mistral;
-use NeuronAI\Providers\Ollama\Ollama;
-use NeuronAI\Providers\OpenAI\OpenAI;
-use NeuronAI\Providers\OpenAILike;
-use NeuronAI\Providers\XAI\Grok;
 
 class AgentProviderService
 {
     private const array KEYED_PROVIDER_CLASSES = [
-        AgentLlmProviderEnum::ANTHROPIC->value => Anthropic::class,
-        AgentLlmProviderEnum::OPENAI->value => OpenAI::class,
-        AgentLlmProviderEnum::MISTRAL->value => Mistral::class,
-        AgentLlmProviderEnum::DEEPSEEK->value => Deepseek::class,
-        AgentLlmProviderEnum::XAI->value => Grok::class,
+        AgentLlmProviderEnum::ANTHROPIC->value => KanvasAnthropic::class,
+        AgentLlmProviderEnum::OPENAI->value => KanvasOpenAI::class,
+        AgentLlmProviderEnum::MISTRAL->value => KanvasMistral::class,
+        AgentLlmProviderEnum::DEEPSEEK->value => KanvasDeepseek::class,
+        AgentLlmProviderEnum::XAI->value => KanvasGrok::class,
     ];
 
     public static function resolve(Agent $agent): AIProviderInterface
@@ -44,7 +44,7 @@ class AgentProviderService
         );
 
         if ($provider === AgentLlmProviderEnum::OPENAI_LIKE) {
-            return new OpenAILike(
+            return new KanvasOpenAILike(
                 baseUri: self::requireBaseUri($source, $agent),
                 key: (string) ($source['key'] ?? $app->get(ConfigurationEnum::AI_PROVIDER_KEY->value) ?? ''),
                 model: $model,
@@ -55,7 +55,7 @@ class AgentProviderService
 
         // Ollama authenticates by URL, not an API key — base_uri carries the host.
         if ($provider === AgentLlmProviderEnum::OLLAMA) {
-            return new Ollama(
+            return new KanvasOllama(
                 url: self::requireBaseUri($source, $agent),
                 model: $model,
                 parameters: $parameters,
@@ -64,7 +64,7 @@ class AgentProviderService
         }
 
         if ($provider === AgentLlmProviderEnum::GEMINI) {
-            return new Gemini(
+            return new KanvasGemini(
                 key: self::requireKey($source, $agent, $provider),
                 model: $model,
                 parameters: $parameters,

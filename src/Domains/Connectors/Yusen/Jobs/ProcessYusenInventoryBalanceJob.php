@@ -18,6 +18,7 @@ use Kanvas\Connectors\Yusen\Actions\SendYusenDiscrepancyReportAction;
 use Kanvas\Connectors\Yusen\Services\InventoryBalanceXmlParser;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Throwable;
 
 /**
@@ -47,6 +48,7 @@ class ProcessYusenInventoryBalanceJob implements ShouldQueue
         public readonly ?int $filesystemId = null,
         public readonly ?string $rawXml = null,
         public readonly ?string $fileName = null,
+        public readonly ?int $receiverWebhookCallId = null,
     ) {
     }
 
@@ -82,8 +84,35 @@ class ProcessYusenInventoryBalanceJob implements ShouldQueue
 
         $report = ['file_name' => $this->fileName] + $report;
         $report['notified_users'] = $this->mail($report);
+        $report = $this->trimForStorage($report);
 
-        return $this->trimForStorage($report);
+        $this->recordOnReceiverCall($report);
+
+        return $report;
+    }
+
+    /**
+     * The receiver row is where an operator goes to see what a delivery did, so the report has to
+     * end up there. Merged rather than replaced so the webhook's own `dispatched` / `source` stay
+     * readable next to it.
+     *
+     * @param array<string, mixed> $report
+     */
+    private function recordOnReceiverCall(array $report): void
+    {
+        if ($this->receiverWebhookCallId === null) {
+            return;
+        }
+
+        try {
+            $call = ReceiverWebhookCall::find($this->receiverWebhookCallId);
+
+            $call?->update([
+                'results' => array_merge((array) ($call->results ?? []), $report),
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**

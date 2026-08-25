@@ -79,6 +79,26 @@ final class SubmitCreditApplicationTest extends TestCase
         $this->assertSame('IL', $application->driversLicenseState);
     }
 
+    /**
+     * The form textarea reaches us with the line break half-decoded, so the raw value is
+     * "350 Monon Blvdhex0d;Hex0a;Apt 315" — that must never go out to the bureau as-is.
+     */
+    public function testFromFormFlattensAMangledMultiLineStreet(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+
+        $formData = $this->formData();
+        $formData['housing']['address'] = '350 Monon Blvdhex0d;Hex0a;Apt 315';
+
+        $this->assertSame(
+            '350 Monon Blvd Apt 315',
+            CreditApplication::from($formData, $people)->address
+        );
+    }
+
     public function testSubmitToRouteOneSendsSaveOnlyPayload(): void
     {
         $app = app(Apps::class);

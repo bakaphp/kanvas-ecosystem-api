@@ -49,20 +49,6 @@ class YusenHandler extends BaseIntegration
             );
         }
 
-        if (isset($this->data['report_users'])) {
-            $users = $this->data['report_users'];
-
-            if (is_string($users)) {
-                $users = json_decode($users, true);
-            }
-
-            if (! is_array($users)) {
-                throw new ValidationException('report_users must be a list of user ids');
-            }
-
-            $this->company->set(ConfigurationEnum::REPORT_USERS->value, array_values(array_map('intval', $users)));
-        }
-
         if (isset($this->data['reconcile_with_netsuite'])) {
             $this->company->set(
                 ConfigurationEnum::RECONCILE_WITH_NETSUITE->value,
