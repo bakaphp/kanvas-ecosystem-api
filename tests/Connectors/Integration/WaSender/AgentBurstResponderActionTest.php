@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\WaSender;
 
+use ErrorException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
@@ -20,6 +21,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
 use Tests\Stubs\Intelligence\MultiRecordNeuronAgentStub;
+use Tests\Stubs\Intelligence\PartlessNeuronAgentStub;
 use Tests\Stubs\Intelligence\StructuredNeuronAgentStub;
 use Tests\TestCase;
 
@@ -135,6 +137,33 @@ final class AgentBurstResponderActionTest extends TestCase
             $reply->message['content'],
             'The reply body must be the first article, never the raw JSON'
         );
+    }
+
+    /**
+     * A silent reply has no reader, so the humanized apology is only ever filed — and the publisher
+     * shipped "I ran into a hiccup processing that" as the article (KANVAS-ECOSYSTEM-691).
+     */
+    public function testASilentBurstFilesNothingWhenTheAgentTurnFails(): void
+    {
+        try {
+            $this->runBurst(shouldReply: false, handler: PartlessNeuronAgentStub::class);
+            $this->fail('The failed turn must reach the caller');
+        } catch (ErrorException) {
+            // ProcessGroupBurstJob::runAgent is what reports it.
+        }
+
+        $this->assertNull($this->latestAgentMessage(), 'A failed silent turn must publish nothing');
+    }
+
+    /**
+     * The same failure with a reader on the other end: they get the apology rather than silence.
+     */
+    public function testAnAddressedBurstStillAnswersWithTheHumanizedFallback(): void
+    {
+        $result = $this->runBurst(shouldReply: true, handler: PartlessNeuronAgentStub::class);
+
+        $this->assertStringContainsString('I ran into a hiccup processing that', (string) $result['response']);
+        $this->assertCount(1, self::$sent);
     }
 
     /**
