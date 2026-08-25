@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
 use Baka\Support\Str;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -59,6 +60,15 @@ class CaptureVoiceCallerAction
      */
     public function execute(): array
     {
+        // Cross-app: the agent may live in a different app than the app-key the
+        // voice runtime authenticated with. Bind the agent's app as the current
+        // app so downstream app-scoped queries resolve against it — notably
+        // CreateLeadAction re-resolving the People by id, whose getById scopes
+        // fromApp(app(Apps::class)). Restore afterward so nothing leaks into the
+        // rest of the request (same pattern as TenantAware*Searchable jobs).
+        $previousApp = app(Apps::class);
+        app()->instance(Apps::class, $this->agent->app);
+
         try {
             $company = $this->agent->companies_id > 0
                 ? Companies::find($this->agent->companies_id)
@@ -123,6 +133,8 @@ class CaptureVoiceCallerAction
             ]);
 
             return ['status' => 'error', 'message' => "I couldn't save the caller details just now."];
+        } finally {
+            app()->instance(Apps::class, $previousApp);
         }
     }
 
