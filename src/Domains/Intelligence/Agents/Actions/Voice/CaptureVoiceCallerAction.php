@@ -173,10 +173,21 @@ class CaptureVoiceCallerAction
 
     private function createLeadFromPeople(People $people, mixed $user): Lead
     {
-        $leadType = LeadType::fromApp($people->app)
-            ->fromCompany($people->company)
-            ->where('name', 'Warm')
-            ->firstOrFail();
+        // Self-provision the "Warm" type if the company lacks it (it's a seeded
+        // default, but older/incomplete companies may not have it) — same
+        // create-if-missing pattern the Reynolds/Elead connectors use, so capture
+        // never hard-fails on a missing lead type.
+        $leadType = LeadType::firstOrCreate(
+            [
+                'apps_id' => $people->app->getId(),
+                'companies_id' => $people->company->getId(),
+                'name' => 'Warm',
+            ],
+            [
+                'description' => 'Warm',
+                'is_active' => 1,
+            ],
+        );
 
         $leadSource = new CreateLeadSourceAction(
             new LeadSource($people->app, $people->company, $leadType->getId(), 'voice', true, 'voice')
