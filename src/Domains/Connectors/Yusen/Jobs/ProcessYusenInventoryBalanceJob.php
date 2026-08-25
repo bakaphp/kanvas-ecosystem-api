@@ -48,12 +48,6 @@ class ProcessYusenInventoryBalanceJob implements ShouldQueue
         public readonly ?int $filesystemId = null,
         public readonly ?string $rawXml = null,
         public readonly ?string $fileName = null,
-        /**
-         * The receiver call that triggered this, so the finished report can be written back onto
-         * it. `ProcessWebhookJob` only ever stores what the *webhook* returned — by the time this
-         * runs, that row says `dispatched: true` and nothing else, which is not what an operator
-         * opening the receiver log is looking for.
-         */
         public readonly ?int $receiverWebhookCallId = null,
     ) {
     }

@@ -66,8 +66,6 @@ class SalesManagerAgent extends SystemUserAgent
         $core[] = new GetLeadAnalyticsTool()->withContext($app, $company, $user);
         $core[] = new GetSalesSummaryTool()->withContext($app, $company, $user);
         $core[] = new SearchLeadsTool()->withContext($app, $company, $user);
-        // The write tools below tell the model to source lead_id "from search_leads or get_lead_ref";
-        // without this the model calls a tool it wasn't given and the turn dies (KANVAS-ECOSYSTEM-675).
         $core[] = new LeadRefTool()->withContext($app, $company, $user);
         $core[] = new FindLeadsByTraitsTool()->withContext($app, $company, $user);
         $core[] = new GetBatchHistoryTool()->withContext($app, $company, $user);
