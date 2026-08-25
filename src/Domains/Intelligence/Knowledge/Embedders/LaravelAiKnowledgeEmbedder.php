@@ -26,6 +26,9 @@ use Override;
  */
 final class LaravelAiKnowledgeEmbedder implements KnowledgeEmbedder
 {
+    /** Gemini rejects BatchEmbedContentsRequest payloads larger than 100 items. */
+    private const MAX_BATCH_SIZE = 90;
+
     private const DEFAULT_PROVIDER = 'gemini';
 
     private const DEFAULT_MODELS = [
@@ -55,10 +58,16 @@ final class LaravelAiKnowledgeEmbedder implements KnowledgeEmbedder
             return [];
         }
 
-        $embeddings = Embeddings::for(array_values($texts))
-            ->dimensions($this->dimension())
-            ->generate(provider: $this->providerName(), model: $this->model())
-            ->embeddings;
+        $embeddings = [];
+        foreach (array_chunk(array_values($texts), self::MAX_BATCH_SIZE) as $batch) {
+            $embeddings = array_merge(
+                $embeddings,
+                Embeddings::for($batch)
+                    ->dimensions($this->dimension())
+                    ->generate(provider: $this->providerName(), model: $this->model())
+                    ->embeddings,
+            );
+        }
 
         return array_map(static fn (array $vector): array => array_values($vector), $embeddings);
     }
