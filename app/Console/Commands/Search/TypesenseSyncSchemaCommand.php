@@ -55,18 +55,16 @@ class TypesenseSyncSchemaCommand extends Command
                 continue;
             }
 
-            $target = $this->collectionIdentity($app, $model);
-
-            // Apps that resolve to the same collection on the same server would otherwise be
-            // reported — and PATCHed — once per app.
-            if (isset($seen[$target])) {
-                continue;
-            }
-
-            $seen[$target] = true;
-
             try {
-                $altered += $this->syncApp($app, $model, $dryRun);
+                $reconciler = TypesenseSchemaReconciler::forApp($app);
+                $target = $reconciler->target($model);
+
+                if (isset($seen[$target])) {
+                    continue;
+                }
+
+                $seen[$target] = true;
+                $altered += $this->syncApp($app, $model, $reconciler);
             } catch (Throwable $e) {
                 $this->error("app {$app->getId()}: " . $e->getMessage());
             }
@@ -79,59 +77,40 @@ class TypesenseSyncSchemaCommand extends Command
         return self::SUCCESS;
     }
 
-    private function syncApp(Apps $app, Model $model, bool $dryRun): int
+    private function syncApp(Apps $app, Model $model, TypesenseSchemaReconciler $reconciler): int
     {
-        $reconciler = TypesenseSchemaReconciler::forApp($app);
         $wideningOnly = ! $this->option('all');
 
-        if ($dryRun) {
-            $drift = $reconciler->drift($model);
-
-            if ($wideningOnly) {
-                $drift = array_values(array_filter($drift, fn (array $field) => $field['widening']));
-            }
-
+        if ((bool) $this->option('dry-run')) {
+            $drift = $reconciler->drift($model, $wideningOnly);
             $failed = [];
         } else {
             ['altered' => $drift, 'failed' => $failed] = $reconciler->reconcile($model, $wideningOnly);
         }
 
+        $collection = $model->searchableAs();
+
         foreach ($drift as $field) {
-            $this->line($this->describe($app, $model, $field));
+            $this->line($this->describe($app, $collection, $field));
         }
 
         foreach ($failed as $field) {
-            $this->error($this->describe($app, $model, $field) . ' — ' . $field['error']);
+            $this->error($this->describe($app, $collection, $field) . ' — ' . (string) $field['error']);
         }
 
         return count($drift);
     }
 
-    private function describe(Apps $app, Model $model, array $field): string
+    private function describe(Apps $app, string $collection, array $field): string
     {
         return sprintf(
             'app %d / %s: %s %s -> %s',
             $app->getId(),
-            $model->searchableAs(),
+            $collection,
             $field['name'],
             $field['from'],
             $field['to'],
         );
-    }
-
-    /**
-     * Which collection, on which server — the two apps-level settings SearchEngineResolver actually
-     * builds the client from.
-     */
-    private function collectionIdentity(Apps $app, Model $model): string
-    {
-        $settings = $app->get('typesense_search_settings') ?? [];
-
-        return (string) json_encode([
-            $model->searchableAs(),
-            $settings['typesense_api_key'] ?? config('scout.typesense.api_key'),
-            $settings['typesense_nodes'] ?? config('scout.typesense.nodes'),
-        ]);
     }
 
     private function indexesIntoTypesense(Apps $app, Model $model): bool

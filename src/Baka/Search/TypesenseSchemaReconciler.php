@@ -36,21 +36,34 @@ class TypesenseSchemaReconciler
     public function __construct(
         private readonly Apps $app,
         private readonly TypesenseClient $client,
+        private readonly array $settings = [],
     ) {
     }
 
     public static function forApp(Apps $app): self
     {
-        return new self(
-            $app,
-            SearchEngineResolver::getTypesenseClient($app->get('typesense_search_settings') ?? []),
-        );
+        $settings = $app->get('typesense_search_settings') ?? [];
+
+        return new self($app, SearchEngineResolver::getTypesenseClient($settings), $settings);
+    }
+
+    /**
+     * Which collection, on which server. Apps often share one index, so a caller sweeping every app
+     * needs this to avoid reconciling the same collection once per app.
+     */
+    public function target(Model $model): string
+    {
+        return (string) json_encode([
+            $model->searchableAs(),
+            $this->settings['typesense_api_key'] ?? config('scout.typesense.api_key'),
+            $this->settings['typesense_nodes'] ?? config('scout.typesense.nodes'),
+        ]);
     }
 
     /**
      * @return list<array{name: string, from: string, to: string, widening: bool}>
      */
-    public function drift(Model $model): array
+    public function drift(Model $model, bool $wideningOnly = false): array
     {
         $live = $this->liveSchema($model->searchableAs());
 
@@ -58,21 +71,22 @@ class TypesenseSchemaReconciler
             return [];
         }
 
+        /** @var list<array{name: string, type: string}> $liveFields */
+        $liveFields = $live['fields'] ?? [];
+
         // Keyed by name into a list, because a half-applied alter can leave the same field twice
         // under two types — collapsing to one would hide exactly the breakage worth repairing.
         $liveTypes = [];
-        foreach ((array) ($live['fields'] ?? []) as $liveField) {
-            $liveField = (array) $liveField;
-            $liveTypes[(string) $liveField['name']][] = (string) $liveField['type'];
+        foreach ($liveFields as $liveField) {
+            $liveTypes[$liveField['name']][] = $liveField['type'];
         }
 
         $protected = ['id', $live['default_sorting_field'] ?? null];
         $drift = [];
 
-        foreach ((array) ($model->typesenseCollectionSchema()['fields'] ?? []) as $field) {
-            $field = (array) $field;
-            $name = isset($field['name']) ? (string) $field['name'] : null;
-            $declared = isset($field['type']) ? (string) $field['type'] : null;
+        foreach ($this->declaredFields($model) as $field) {
+            $name = $field['name'] ?? null;
+            $declared = $field['type'] ?? null;
 
             if ($name === null || $declared === null || in_array($name, $protected, true)) {
                 continue;
@@ -86,11 +100,17 @@ class TypesenseSchemaReconciler
                 continue;
             }
 
+            $widening = $this->isWidening($current, $declared);
+
+            if ($wideningOnly && ! $widening) {
+                continue;
+            }
+
             $drift[] = [
                 'name' => $name,
                 'from' => implode(' + ', $current),
                 'to' => $declared,
-                'widening' => $this->isWidening($current, $declared),
+                'widening' => $widening,
             ];
         }
 
@@ -102,14 +122,9 @@ class TypesenseSchemaReconciler
      */
     public function reconcile(Model $model, bool $wideningOnly = true): array
     {
-        $drift = $this->drift($model);
-
-        if ($wideningOnly) {
-            $drift = array_values(array_filter($drift, fn (array $field) => $field['widening']));
-        }
-
+        $drift = $this->drift($model, $wideningOnly);
         $collection = $model->searchableAs();
-        $declaredFields = array_column($model->typesenseCollectionSchema()['fields'] ?? [], null, 'name');
+        $declaredFields = array_column($this->declaredFields($model), null, 'name');
 
         $altered = [];
         $failed = [];
@@ -138,6 +153,14 @@ class TypesenseSchemaReconciler
         }
 
         return ['altered' => $altered, 'failed' => $failed];
+    }
+
+    /**
+     * @return list<array{name?: string, type?: string}>
+     */
+    private function declaredFields(Model $model): array
+    {
+        return $model->typesenseCollectionSchema()['fields'] ?? [];
     }
 
     /**

@@ -199,6 +199,7 @@ final class TypesenseSchemaReconcilerTest extends TestCase
         $reconciler = $this->reconciler($collection);
 
         $this->assertFalse($reconciler->drift($this->model())[0]['widening']);
+        $this->assertSame([], $reconciler->drift($this->model(), wideningOnly: true));
         $this->assertSame(['altered' => [], 'failed' => []], $reconciler->reconcile($this->model()));
     }
 
