@@ -17,7 +17,7 @@ use Kanvas\Intelligence\Agents\Repositories\AgentsRepository;
 class VoiceAgentCallerMutation
 {
     /**
-     * @param array{agent_uuid: string, phone: string, name?: string|null, interest?: string|null, interested?: bool|null} $args
+     * @param array{agent_uuid: string, phone: string, name?: string|null, interest?: string|null, interested?: bool|null, direction?: string|null} $args
      *
      * @return array<string, mixed>
      */
@@ -32,6 +32,7 @@ class VoiceAgentCallerMutation
             $args['name'] ?? null,
             $args['interest'] ?? null,
             (bool) ($args['interested'] ?? false),
+            $args['direction'] ?? null,
         )->execute();
     }
 }

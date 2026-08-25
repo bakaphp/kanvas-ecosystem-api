@@ -50,6 +50,7 @@ class CaptureVoiceCallerAction
         private readonly ?string $name = null,
         private readonly ?string $interest = null,
         private readonly bool $interested = false,
+        private readonly ?string $direction = null,
     ) {
     }
 
@@ -82,10 +83,16 @@ class CaptureVoiceCallerAction
                 $people->set('voice_interest', $this->interest);
             }
 
-            // Promote on repeat OR clear intent; reuse an active lead if present.
+            // Promote to a lead when there's no active lead yet. OUTBOUND (we
+            // dialed them) requires clear intent — placing the call isn't itself
+            // a qualifying signal. INBOUND keeps the "repeat OR intent" rule: a
+            // second call counts even without stated intent.
             $lead = LeadsRepository::getPeopleActiveLead($people);
             $createdLead = false;
-            if ($lead === null && ($isReturning || $this->interested)) {
+            $qualifies = $this->direction === 'outbound'
+                ? $this->interested
+                : ($isReturning || $this->interested);
+            if ($lead === null && $qualifies) {
                 $lead = $this->createLeadFromPeople($people, $user);
                 $createdLead = true;
             }
