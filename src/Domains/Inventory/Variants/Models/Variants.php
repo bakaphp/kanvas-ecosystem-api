@@ -806,6 +806,16 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                     'optional' => true,
                 ],
                 [
+                    'name' => 'warehouses.price',
+                    'type' => 'float[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'channels.price',
+                    'type' => 'float[]',
+                    'optional' => true,
+                ],
+                [
                     'name' => 'description',
                     'type' => 'string',
                     'optional' => true,
