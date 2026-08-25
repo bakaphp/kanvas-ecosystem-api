@@ -724,6 +724,31 @@ class Order extends BaseModel implements PayableInterface
                     'optional' => true,
                 ],
                 [
+                    'name' => 'items.unit_price_net_amount',
+                    'type' => 'float[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'items.unit_price_gross_amount',
+                    'type' => 'float[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'items.quantity',
+                    'type' => 'float[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'items.quantity_fulfilled',
+                    'type' => 'float[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'items.tax_rate',
+                    'type' => 'float[]',
+                    'optional' => true,
+                ],
+                [
                     'name' => 'people',
                     'type' => 'object',
                     'optional' => true,
