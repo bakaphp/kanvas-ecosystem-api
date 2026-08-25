@@ -58,6 +58,7 @@ class AgentChatKernel
         protected readonly bool $privateUserTurn = false,
         protected readonly ?string $adkAppName = null,
         protected readonly ?string $adkBaseUrl = null,
+        protected readonly bool $fallbackOnFailure = true,
     ) {
     }
 
@@ -221,7 +222,8 @@ class AgentChatKernel
             app: $this->agent->app,
             user: $this->user,
             handler: $handler,
-            media: $this->nativeMedia()
+            media: $this->nativeMedia(),
+            fallbackOnFailure: $this->fallbackOnFailure,
         )->execute();
     }
 

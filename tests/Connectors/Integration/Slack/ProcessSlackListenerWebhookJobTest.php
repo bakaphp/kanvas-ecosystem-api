@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\Slack;
 
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -98,16 +99,104 @@ final class ProcessSlackListenerWebhookJobTest extends TestCase
 
     public function testMessageIsStillRecordedWhenTheSpeakerHasNoKanvasAccount(): void
     {
+        // A speaker id of its own: SlackUserResolverService caches email by slack user id, so
+        // reusing the shared one would just read whatever an earlier test resolved.
+        $slackUserId = 'U' . strtoupper(Str::random(7));
         $this->fakeSlackApi(email: 'nobody-' . Str::random(6) . '@example.com');
 
-        $result = $this->dispatch($this->messageEvent(['text' => 'a contractor speaking']));
+        $result = $this->dispatch($this->messageEvent([
+            'user' => $slackUserId,
+            'text' => 'a contractor speaking',
+        ]));
 
         $this->assertSame('Ingested', $result['message']);
 
         $message = $this->messagesOn(self::SLACK_CHANNEL)->firstOrFail();
         $this->assertFalse($message->message['slack_speaker_resolved']);
         // The raw Slack id survives so the row can be re-attributed once the person is invited.
-        $this->assertSame('U0001', $message->message['slack_user']);
+        $this->assertSame($slackUserId, $message->message['slack_user']);
+    }
+
+    public function testTheChannelIsNamedAfterTheRealSlackChannel(): void
+    {
+        $this->fakeSlackApi(channelName: 'engineering', channelPurpose: 'Where the build happens');
+
+        $this->dispatch($this->messageEvent(['text' => 'deploying now']));
+
+        $channel = $this->channelFor(self::SLACK_CHANNEL);
+        $this->assertSame('#engineering', $channel->name);
+        $this->assertSame('Where the build happens', $channel->description);
+    }
+
+    /**
+     * Rows created before the name was resolvable keep the raw id, and CreateChannelAction only
+     * writes name/description on insert — so the ingest path has to heal them as traffic flows.
+     */
+    public function testAChannelStillNamedByRawIdIsHealedOnTheNextMessage(): void
+    {
+        $this->fakeSlackApi();
+        $this->dispatch($this->messageEvent(['text' => 'first message']));
+
+        $channel = $this->channelFor(self::SLACK_CHANNEL);
+        $channel->name = 'Slack ' . self::SLACK_CHANNEL;
+        $channel->description = 'Slack workspace conversation ' . self::SLACK_CHANNEL;
+        $channel->saveOrFail();
+
+        $this->forgetChannelCache(self::SLACK_CHANNEL);
+        $this->fakeSlackApi(channelName: 'general');
+        $this->dispatch($this->messageEvent(['text' => 'second message']));
+
+        $this->assertSame('#general', $this->channelFor(self::SLACK_CHANNEL)->name);
+    }
+
+    /**
+     * A rate-limited conversations.info must never stomp a good name back to the raw id.
+     */
+    public function testAFailedLookupLeavesTheExistingNameAlone(): void
+    {
+        $this->fakeSlackApi(channelName: 'general');
+        $this->dispatch($this->messageEvent(['text' => 'first message']));
+
+        $this->forgetChannelCache(self::SLACK_CHANNEL);
+        Http::fake([
+            'slack.com/api/conversations.info' => Http::response(['ok' => false, 'error' => 'ratelimited']),
+            'slack.com/api/users.info' => Http::response([
+                'ok' => true,
+                'user' => ['profile' => ['email' => $this->user->email]],
+            ]),
+            'slack.com/api/*' => Http::response(['ok' => true]),
+        ]);
+        $this->dispatch($this->messageEvent(['text' => 'second message']));
+
+        $this->assertSame('#general', $this->channelFor(self::SLACK_CHANNEL)->name);
+    }
+
+    /**
+     * Slack sends a stub file object for anything the app can't read directly. It is an ordinary
+     * outcome, so the message must still land and nothing may be thrown or reported.
+     */
+    public function testAFileSlackWontLetUsDownloadIsSkippedNotReported(): void
+    {
+        $this->fakeSlackApi();
+        $this->receiver->configuration = [
+            ...$this->receiver->configuration,
+            ConfigurationEnum::INGEST_FILES->value => true,
+        ];
+        $this->receiver->saveOrFail();
+
+        $result = $this->dispatch($this->messageEvent([
+            'text' => 'here is the mockup',
+            'files' => [[
+                'id' => 'F0BSA6JLEA1',
+                'filetype' => 'png',
+                'file_access' => 'check_file_info',
+                'user' => null,
+            ]],
+        ]));
+
+        $this->assertSame('Ingested', $result['message']);
+        $this->assertSame('here is the mockup', $this->messagesOn(self::SLACK_CHANNEL)->firstOrFail()->message['content']);
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'files.slack.com'));
     }
 
     public function testDuplicateEventIsIgnored(): void
@@ -239,15 +328,46 @@ final class ProcessSlackListenerWebhookJobTest extends TestCase
         $this->assertSame(['challenge' => 'abc123'], $response);
     }
 
-    private function fakeSlackApi(?string $email = null): void
-    {
+    private function fakeSlackApi(
+        ?string $email = null,
+        ?string $channelName = null,
+        ?string $channelPurpose = null,
+    ): void {
         Http::fake([
             'slack.com/api/users.info' => Http::response([
                 'ok' => true,
                 'user' => ['profile' => ['email' => $email ?? $this->user->email]],
             ]),
+            'slack.com/api/conversations.info' => Http::response([
+                'ok' => true,
+                'channel' => [
+                    'id' => self::SLACK_CHANNEL,
+                    'name' => $channelName ?? 'general',
+                    'purpose' => ['value' => $channelPurpose ?? ''],
+                ],
+            ]),
             'slack.com/api/*' => Http::response(['ok' => true]),
         ]);
+    }
+
+    /**
+     * Targeted, never Cache::flush() — flushing wipes the cached Apps/config the test bootstrap
+     * relies on, and every later test in the process dies on a null app id.
+     */
+    private function forgetChannelCache(string $slackChannelId): void
+    {
+        Cache::forget(
+            'slack:channel-info:' . $this->kanvasApp->getId() . ':' . $this->company->getId()
+            . ':' . $this->teamId . ':' . $slackChannelId
+        );
+    }
+
+    private function channelFor(string $slackChannelId): Channel
+    {
+        return Channel::where(
+            'slug',
+            'slack-' . strtolower($this->teamId . '-' . $slackChannelId)
+        )->firstOrFail();
     }
 
     /**

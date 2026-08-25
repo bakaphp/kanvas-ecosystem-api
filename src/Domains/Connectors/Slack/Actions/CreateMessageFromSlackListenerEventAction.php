@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Slack\Actions;
 use Kanvas\Connectors\Slack\Client;
 use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Slack\Exceptions\SlackIdentityUnavailableException;
+use Kanvas\Connectors\Slack\Services\SlackChannelResolverService;
 use Kanvas\Connectors\Slack\Services\SlackFileAttachmentService;
 use Kanvas\Connectors\Slack\Services\SlackMarkdownService;
 use Kanvas\Connectors\Slack\Services\SlackUserResolverService;
@@ -61,7 +62,7 @@ class CreateMessageFromSlackListenerEventAction
         $slackChannelId = (string) ($this->event['channel'] ?? '');
 
         $message = $this->writeMessage(
-            $this->resolveChannel($slackChannelId),
+            $this->resolveChannel($client, $slackChannelId),
             $speaker ?? $receiver->user,
             $this->messagePayload($text, $slackChannelId, $speaker !== null),
         );
@@ -164,28 +165,56 @@ class CreateMessageFromSlackListenerEventAction
     }
 
     /**
-     * Owned by the listener's own user — a room outlives whoever happened to speak in it first.
+     * Keyed on the immutable Slack id, so renaming a channel updates this row instead of forking one.
      */
-    private function resolveChannel(string $slackChannelId): Channel
+    private function resolveChannel(Client $client, string $slackChannelId): Channel
     {
         $receiver = $this->webhookRequest->receiverWebhook;
         $owner = $receiver->user;
 
-        return new CreateChannelAction(
+        $info = new SlackChannelResolverService(
+            $client,
+            $receiver->app,
+            $receiver->company,
+            $this->teamId(),
+        )->resolve($slackChannelId);
+
+        $channel = new CreateChannelAction(
             new ChannelDto(
                 apps: $receiver->app,
                 companies: $receiver->company,
                 users: $owner,
                 entity_id: $owner->getId(),
                 entity_namespace: Users::class,
-                name: 'Slack ' . $slackChannelId,
-                description: 'Slack workspace conversation ' . $slackChannelId,
+                name: $info['name'] ?? 'Slack ' . $slackChannelId,
+                description: $info['description'] ?? 'Slack workspace conversation ' . $slackChannelId,
                 slug: SessionChannelService::createChannelSlug(
                     'slack',
                     $this->teamId() . '-' . $slackChannelId
                 ),
             ),
         )->execute();
+
+        if ($info !== null) {
+            $this->syncChannelNaming($channel, $info);
+        }
+
+        return $channel;
+    }
+
+    /**
+     * CreateChannelAction only writes name/description on insert, so a row created before the name
+     * was resolvable — or renamed in Slack since — keeps the stale value forever.
+     */
+    private function syncChannelNaming(Channel $channel, array $info): void
+    {
+        if ($channel->name === $info['name'] && $channel->description === $info['description']) {
+            return;
+        }
+
+        $channel->name = $info['name'];
+        $channel->description = $info['description'];
+        $channel->saveOrFail();
     }
 
     private function teamId(): string

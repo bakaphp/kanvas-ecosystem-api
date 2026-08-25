@@ -46,7 +46,13 @@ class RunNeuronChatAction
         protected readonly Apps $app,
         protected readonly Users $user,
         protected readonly mixed $handler,
-        protected readonly array $media = []
+        protected readonly array $media = [],
+        /**
+         * Prose answers a failed turn only when a human reads it. A caller whose reply feeds a
+         * pipeline wants the exception — the newsroom published the apology as an article once
+         * already (KANVAS-ECOSYSTEM-691).
+         */
+        protected readonly bool $fallbackOnFailure = true,
     ) {
     }
 
@@ -105,8 +111,6 @@ class RunNeuronChatAction
                 }
             }
         } catch (Throwable $e) {
-            report($e);
-
             $fallback = $this->humanizedFallback($e);
 
             if (! $selfRecords) {
@@ -120,6 +124,13 @@ class RunNeuronChatAction
                     usage: ['error' => $e::class, 'message' => $e->getMessage()],
                 );
             }
+
+            // The caller reports what it rethrows, so the turn is never counted twice.
+            if (! $this->fallbackOnFailure) {
+                throw $e;
+            }
+
+            report($e);
 
             return $fallback;
         }
