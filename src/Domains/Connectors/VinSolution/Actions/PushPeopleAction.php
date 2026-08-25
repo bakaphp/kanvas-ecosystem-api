@@ -297,7 +297,7 @@ class PushPeopleAction
             return $matches[0];
         }
 
-        return $people->address()->where('is_default', true)->first()?->zip;
+        return $people->getDefaultAddress()?->zip;
     }
 
     /**

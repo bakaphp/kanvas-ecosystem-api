@@ -7,11 +7,14 @@ namespace Kanvas\Intelligence\Tools\Traits\Guild;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
+use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationData;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
@@ -30,6 +33,7 @@ trait CreatesLeadTrait
         int $leadTypeId = 0,
         int $leadSourceId = 0,
         ?int $organizationId = null,
+        ?string $organizationName = null,
         bool $isPublished = true,
     ): array {
         // Wrap the full body — including `$company->defaultBranch`, DTO
@@ -45,6 +49,25 @@ trait CreatesLeadTrait
                         . 'Cannot create a lead until the tenant has a default companies_branches row.',
                 ];
             }
+
+            // organization_id is LLM-supplied, so it can be hallucinated or belong to another
+            // tenant. Resolve it before anything is written; a foreign id must fail the call, not
+            // land on the lead row.
+            $organization = null;
+            if ($organizationId !== null) {
+                try {
+                    /** @var Organization $organization */
+                    $organization = Organization::getByIdFromCompanyApp($organizationId, $company, $app);
+                } catch (ModelNotFoundException) {
+                    return [
+                        'error' => "Organization {$organizationId} does not exist for this company. "
+                            . 'Do not invent an organization_id. Look it up first, or pass organization_name '
+                            . 'and the organization will be created if it is new.',
+                    ];
+                }
+            }
+
+            $newOrganizationName = trim((string) $organizationName);
 
             $contacts = [];
             if (filled($email)) {
@@ -74,20 +97,36 @@ trait CreatesLeadTrait
                 description: $description,
                 type_id: $leadTypeId,
                 source_id: $leadSourceId,
+                // Name-only path: CreateLeadAction find-or-creates the org, stamps it on the lead,
+                // AND adds the person to it. The id path can't go through here — see below.
+                organization: $organization === null && $newOrganizationName !== ''
+                    ? new OrganizationData(
+                        company: $company,
+                        user: $user,
+                        app: $app,
+                        name: $newOrganizationName,
+                    )
+                    : null,
             );
 
             $lead = new CreateLeadAction($leadData)->execute();
 
-            $dirty = [];
-            if ($organizationId !== null) {
-                $dirty['organization_id'] = $organizationId;
+            // An id names ONE exact organization, and CreateLeadAction resolves by normalized name —
+            // which would land on a same-named sibling. Link it here instead, doing what the action
+            // does for the name path: stamp the lead and make the person a member.
+            if ($organization !== null) {
+                $lead->organization_id = $organization->getId();
             }
+
             if (! $isPublished) {
-                $dirty['is_published'] = 0;
+                $lead->is_published = 0;
             }
-            if (! empty($dirty)) {
-                $lead->fill($dirty)->save();
+
+            if ($lead->isDirty()) {
+                $lead->saveOrFail();
             }
+
+            $organization?->addPeople($lead->people);
         } catch (Throwable $e) {
             return [
                 'error' => $e::class,
@@ -98,6 +137,7 @@ trait CreatesLeadTrait
         return [
             'lead_id' => $lead->getId(),
             'title' => $lead->title,
+            'people_id' => $lead->people_id,
             'organization_id' => $lead->organization_id,
             'message' => "Lead '{$lead->title}' created successfully.",
         ];

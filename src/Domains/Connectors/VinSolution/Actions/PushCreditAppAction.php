@@ -93,6 +93,7 @@ class PushCreditAppAction
                 'zip' => $creditApp->address[1]['PostalCode'],
                 'duration' => $creditApp->address[1]['Duration'],
                 'address_type_id' => AddressType::getByName(AddressEnum::PREVIOUS_HOME->value)->getId(),
+                'is_default' => false,
             ]));
         }
 

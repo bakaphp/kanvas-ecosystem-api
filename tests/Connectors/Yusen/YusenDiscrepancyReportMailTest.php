@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Yusen;
 
+use Bouncer;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Yusen\Actions\SendYusenDiscrepancyReportAction;
-use Kanvas\Connectors\Yusen\Enums\ConfigurationEnum;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
+/**
+ * Recipients come from the Managers role, not a configured list of ids, so these drive the role
+ * assignment rather than a custom field.
+ */
 class YusenDiscrepancyReportMailTest extends TestCase
 {
     use DatabaseTransactions;
@@ -21,6 +27,7 @@ class YusenDiscrepancyReportMailTest extends TestCase
 
     private Apps $kanvasApp;
     private Users $user;
+    private Companies $kanvasCompany;
 
     protected function setUp(): void
     {
@@ -30,27 +37,32 @@ class YusenDiscrepancyReportMailTest extends TestCase
         /** @var Users $user */
         $user = auth()->user();
         $this->user = $user;
+        $this->kanvasCompany = Companies::getById($user->getCurrentCompany()->getId());
+
+        Bouncer::scope()->to(RolesEnums::getScope($this->kanvasApp));
     }
 
-    public function testStaysSilentWhenNobodyAskedForTheReport(): void
+    protected function tearDown(): void
+    {
+        Bouncer::scope()->to(RolesEnums::getScope($this->kanvasApp));
+        Bouncer::retract(RolesEnums::MANAGER->value)->from($this->user);
+
+        parent::tearDown();
+    }
+
+    public function testStaysSilentWhenTheCompanyHasNoManagers(): void
     {
         Notification::fake();
-
-        $this->user->getCurrentCompany()->set(ConfigurationEnum::REPORT_USERS->value, []);
 
         $this->assertSame([], $this->send($this->report(3)));
 
         Notification::assertNothingSent();
     }
 
-    public function testNotifiesEveryConfiguredRecipient(): void
+    public function testNotifiesTheCompanyManagers(): void
     {
         Notification::fake();
-
-        $this->user->getCurrentCompany()->set(
-            ConfigurationEnum::REPORT_USERS->value,
-            [$this->user->getId()]
-        );
+        $this->makeManager();
 
         $notified = $this->send($this->report(3));
 
@@ -58,47 +70,27 @@ class YusenDiscrepancyReportMailTest extends TestCase
         Notification::assertSentTo($this->user, Blank::class);
     }
 
-    public function testSkipsARecipientWhoNoLongerExists(): void
-    {
-        Notification::fake();
-
-        $this->user->getCurrentCompany()->set(
-            ConfigurationEnum::REPORT_USERS->value,
-            [$this->user->getId(), 99999999]
-        );
-
-        // A recipient removed from the company must not stop the rest of the list.
-        $this->assertSame([$this->user->getId()], $this->send($this->report(1)));
-    }
-
     public function testSubjectSaysWhenThereIsNothingWrong(): void
     {
         Notification::fake();
-
-        $this->user->getCurrentCompany()->set(
-            ConfigurationEnum::REPORT_USERS->value,
-            [$this->user->getId()]
-        );
+        $this->makeManager();
 
         $this->send($this->report(0));
 
         Notification::assertSentTo(
             $this->user,
             Blank::class,
-            function (Blank $notification): bool {
-                return str_contains($this->subjectOf($notification), 'no discrepancies');
-            }
+            fn (Blank $notification): bool => str_contains(
+                (string) ($notification->getData()['subject'] ?? ''),
+                'no discrepancies'
+            )
         );
     }
 
     public function testLeadsWithTheBiggestGapsAndCapsTheList(): void
     {
         Notification::fake();
-
-        $this->user->getCurrentCompany()->set(
-            ConfigurationEnum::REPORT_USERS->value,
-            [$this->user->getId()]
-        );
+        $this->makeManager();
 
         $rows = [];
 
@@ -119,13 +111,19 @@ class YusenDiscrepancyReportMailTest extends TestCase
             $this->user,
             Blank::class,
             function (Blank $notification): bool {
-                $mailed = $this->dataOf($notification)['rows'];
+                $mailed = $notification->getData()['rows'];
 
                 return count($mailed) === 25
                     && $mailed[0]['item'] === 'ITEM40'
                     && $mailed[24]['item'] === 'ITEM16';
             }
         );
+    }
+
+    private function makeManager(): void
+    {
+        Bouncer::scope()->to(RolesEnums::getScope($this->kanvasApp));
+        Bouncer::assign(RolesEnums::MANAGER->value)->to($this->user);
     }
 
     /**
@@ -135,7 +133,7 @@ class YusenDiscrepancyReportMailTest extends TestCase
     {
         return new SendYusenDiscrepancyReportAction(
             $this->kanvasApp,
-            $this->user->getCurrentCompany(),
+            $this->kanvasCompany,
             $report,
         )->execute();
     }
@@ -154,18 +152,5 @@ class YusenDiscrepancyReportMailTest extends TestCase
             'by_type' => ['QUANTITY_MISMATCH' => $discrepancies],
             'rows' => [],
         ];
-    }
-
-    private function subjectOf(Blank $notification): string
-    {
-        return (string) ($this->dataOf($notification)['subject'] ?? '');
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function dataOf(Blank $notification): array
-    {
-        return $notification->getData();
     }
 }

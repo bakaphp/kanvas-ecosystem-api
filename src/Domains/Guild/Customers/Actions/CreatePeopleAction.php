@@ -189,6 +189,8 @@ class CreatePeopleAction
         if (! empty($addressesToAdd)) {
             $people->address()->saveMany($addressesToAdd);
         }
+
+        $people->ensureDefaultAddress();
     }
 
     protected function checkIfPeopleExist(CompanyInterface $company): void

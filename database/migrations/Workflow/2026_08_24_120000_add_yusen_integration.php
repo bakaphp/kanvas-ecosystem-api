@@ -29,7 +29,6 @@ return new class () extends Migration {
             'match_field' => ['type' => 'text', 'required' => false],
             'quantity_tolerance' => ['type' => 'text', 'required' => false],
             'reconcile_with_netsuite' => ['type' => 'text', 'required' => false],
-            'report_users' => ['type' => 'text', 'required' => false],
         ];
 
         DB::connection('workflow')->table('integrations')->insert([

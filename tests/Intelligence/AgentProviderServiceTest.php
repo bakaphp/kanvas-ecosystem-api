@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
 use Kanvas\Intelligence\Agents\Factories\AgentLlmConfigFactory;
+use Kanvas\Intelligence\Agents\Neuron\Providers\RecoversUnknownToolCalls;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use NeuronAI\Providers\Anthropic\Anthropic;
@@ -152,6 +153,47 @@ final class AgentProviderServiceTest extends TestCase
                 $expectedClass,
                 AgentProviderService::resolve($agent),
                 "provider {$providerEnum->value} should build {$expectedClass}"
+            );
+        }
+    }
+
+    /**
+     * A provider built without the recovery trait turns a hallucinated tool name into a dead turn
+     * plus a Sentry error (KANVAS-ECOSYSTEM-675), so no provider may be wired here without it.
+     */
+    public function testEveryProviderTheServiceBuildsRecoversFromUnknownToolCalls(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $app->set(ConfigurationEnum::AI_PROVIDER_BASE_URI->value, 'https://box.example/v1');
+        $app->set(ConfigurationEnum::GEMINI_KEY->value, 'gemini-key');
+
+        foreach (AgentLlmProviderEnum::cases() as $providerEnum) {
+            $cfg = AgentLlmConfigFactory::new()
+                ->withAppId($app->getId())
+                ->withCompanyId($company->getId())
+                ->create([
+                    'provider' => $providerEnum->value,
+                    'base_uri' => 'https://box.example/v1',
+                    'api_key' => 'test-key',
+                ]);
+
+            $agent = AgentFactory::new()
+                ->withAppId($app->getId())
+                ->withCompanyId($company->getId())
+                ->create(['agent_llm_config_id' => $cfg->getId(), 'config' => []]);
+
+            $provider = AgentProviderService::resolve($agent);
+
+            $this->assertContains(
+                RecoversUnknownToolCalls::class,
+                class_uses_recursive($provider),
+                sprintf(
+                    'provider %s builds %s, which cannot recover from an unknown tool call',
+                    $providerEnum->value,
+                    $provider::class
+                )
             );
         }
     }

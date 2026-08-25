@@ -15,6 +15,7 @@ use NetSuite\Classes\ItemSearchBasic;
 use NetSuite\Classes\LocationSearchBasic;
 use NetSuite\Classes\PricingSearchBasic;
 use NetSuite\Classes\RecordRef;
+use NetSuite\Classes\SearchMoreWithIdRequest;
 use NetSuite\Classes\SearchMultiSelectField;
 use NetSuite\Classes\SearchRequest;
 use NetSuite\Classes\SearchStringField;
@@ -60,7 +61,7 @@ class NetSuiteProductSearchService
         $priceLevelField = new SearchMultiSelectField();
         $priceLevelField->operator = 'anyOf';
         $plRef = new RecordRef();
-        $plRef->internalId = "1"; // e.g. "5" for “Online Price” etc.
+        $plRef->internalId = '1'; // e.g. "5" for “Online Price” etc.
 
         $priceLevelField->searchValue = [$plRef];
         $pricingBasic->priceLevel = $priceLevelField;
@@ -122,7 +123,7 @@ class NetSuiteProductSearchService
 
         if ($searchId && $totalPages > 1) {
             for ($pageIndex = $currentPage + 1; $pageIndex <= $totalPages; $pageIndex++) {
-                $searchMoreRequest = new \NetSuite\Classes\SearchMoreWithIdRequest();
+                $searchMoreRequest = new SearchMoreWithIdRequest();
                 $searchMoreRequest->searchId = $searchId;
                 $searchMoreRequest->pageIndex = $pageIndex;
 
@@ -161,6 +162,7 @@ class NetSuiteProductSearchService
                 'moq' => $this->getCustomFieldFromSearchRow($result, CustomFieldEnum::NET_SUITE_MOQ_CUSTOM_FIELD->value),
             ];
         }
+
         return $products;
     }
 

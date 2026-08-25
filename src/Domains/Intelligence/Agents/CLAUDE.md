@@ -413,6 +413,33 @@ There is no approved path for a free-text external recipient.
 - Normalize manually in `__invoke`: `trim()` everything, treat empty string as absent, clamp numerics
   (`max(1, min($limit ?? 50, 200))`), re-validate required scalars for blank-after-trim.
 
+### A description that names another tool is a dependency — grant it or don't name it
+
+Tool descriptions are prompt text, and the model obeys them. `AddLeadNoteTool` says "the ID of the lead
+(from search_leads or **get_lead_ref**)", so an agent holding that tool but not `LeadRefTool` calls a
+name it was never given. Neuron's `findTool()` throws while *parsing the response*, before any tool
+runs, so the whole turn dies and the person gets the generic "I ran into a hiccup" apology
+(KANVAS-ECOSYSTEM-675 — Polly in Slack).
+
+**When you add a tool to an agent's `tools()`, add the tools its description points at too** — or, if
+the pointer is only correct for *some* agents, keep the prose but accept it will be recovered at
+runtime rather than satisfied. The names a toolset dangles are easy to check:
+
+```php
+// descriptions of the agent's own tools + their properties, matched against its own tool names
+preg_match_all('/\b(?:get|search|find|create|update|set|add|send|list|upload|cancel|reschedule|reassign|stop|read)_[a-z0-9_]+\b/', $allDescriptions, $m);
+array_diff(array_unique($m[0]), $toolNames);   // → names the model is told about but cannot call
+```
+
+The crash itself is now contained: every provider `AgentProviderService` builds uses
+[`RecoversUnknownToolCalls`](Neuron/Providers/RecoversUnknownToolCalls.php), which answers an unknown
+name with a stand-in tool whose result names the tools the agent *does* have, so the model
+self-corrects on the next round instead of the turn dying. **That is a safety net, not a licence** — a
+dangling reference still burns a round-trip and pushes the model toward a capability it doesn't have.
+`ReceptionistAgent` currently dangles `set_lead_status`, `set_lead_custom_fields`, `find_crm_records`,
+`list_people`, `create_organization`; `SalesManagerAgent` dangles `find_leads_bulk`,
+`update_lead_description`, `create_message`. Each is a grant-or-reword decision nobody has made yet.
+
 ### Run budget — key per-item tools by inputs (`TrackByInputs`)
 
 NeuronAI caps every tool at `getMaxRuns()` (default 10) runs **per turn**, counted per *key*. The default

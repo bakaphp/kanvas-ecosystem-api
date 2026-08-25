@@ -80,7 +80,7 @@ class People extends BaseModel
     use SoftDeletesTrait;
     use UuidTrait;
 
-    public const DELETED_AT = 'is_deleted';
+    public const string DELETED_AT = 'is_deleted';
 
     protected $table = 'peoples';
     protected $guarded = [];
@@ -326,7 +326,7 @@ class People extends BaseModel
     {
         $typeId = $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->app)->getId();
 
-        return Address::updateOrCreate(
+        $stored = Address::updateOrCreate(
             [
                 'peoples_id' => $this->id,
                 'address' => $address->address,
@@ -338,8 +338,15 @@ class People extends BaseModel
             [
                 'address_2' => $address->address_2,
                 'address_type_id' => $typeId, // @todo move to search
+                'is_default' => (int) $address->is_default,
             ]
         );
+
+        // Keeps "a person with addresses has exactly one current address" true structurally, so
+        // a guest checkout or an ID scan that only ever calls addAddress() still resolves.
+        $this->ensureDefaultAddress();
+
+        return $stored->refresh();
     }
 
     public function addDefaultAddress(DataTransferObjectAddress $address): Address
@@ -347,6 +354,39 @@ class People extends BaseModel
         $address = $this->addAddress($address);
         $address->is_default = 1;
         $address->saveOrFail();
+
+        // A person has exactly one current address; leaving stale defaults behind makes
+        // readers resolve the oldest row (usually a previous home) as the current one.
+        $this->address()
+            ->where('id', '!=', $address->getKey())
+            ->where('is_default', 1)
+            ->update(['is_default' => 0]);
+
+        return $address;
+    }
+
+    public function getDefaultAddress(): ?Address
+    {
+        /** @var Address|null $address */
+        $address = $this->address()->where('is_default', 1)->orderByDesc('id')->first()
+            ?? $this->address()->orderByDesc('id')->first();
+
+        return $address;
+    }
+
+    /**
+     * `is_default` is opt-in on both the DTO and the column, so a person whose addresses all
+     * arrived through `addAddress()` would otherwise carry no current address at all. Persists
+     * the fallback `getDefaultAddress()` already resolves to.
+     */
+    public function ensureDefaultAddress(): ?Address
+    {
+        $address = $this->getDefaultAddress();
+
+        if ($address !== null && ! $address->is_default) {
+            $address->is_default = 1;
+            $address->saveOrFail();
+        }
 
         return $address;
     }
@@ -850,8 +890,7 @@ class People extends BaseModel
 
         $state = DriverLicense::normalizeState($this->license_state) ?? $legacy?->state;
         if ($state === null) {
-            $defaultAddress = $this->address()->where('is_default', true)->first();
-            $state = DriverLicense::normalizeState($defaultAddress?->state);
+            $state = DriverLicense::normalizeState($this->getDefaultAddress()?->state);
         }
 
         return new DriverLicense(
