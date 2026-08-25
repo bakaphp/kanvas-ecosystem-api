@@ -112,6 +112,15 @@ class CaptureVoiceCallerAction
             ];
         } catch (Throwable $e) {
             captureException($e);
+            // Log the real reason — the spoken message below is deliberately
+            // generic, so without this the actual failure is only in Sentry.
+            logger()->error('captureVoiceLead failed', [
+                'phone' => $this->phone,
+                'agent_id' => $this->agent->getId(),
+                'direction' => $this->direction,
+                'exception' => $e->getMessage(),
+                'at' => $e->getFile() . ':' . $e->getLine(),
+            ]);
 
             return ['status' => 'error', 'message' => "I couldn't save the caller details just now."];
         }
