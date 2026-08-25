@@ -81,7 +81,7 @@ class PushVehicleToDealerAction
         config([
             'database.connections.dealer' => array_merge(
                 config('database.connections.mysql'),
-                ['database' => env('DB_DEALER_DATABASE', 'mydealer')],
+                ['database' => config('database.dealer_database_name')],
             ),
         ]);
 

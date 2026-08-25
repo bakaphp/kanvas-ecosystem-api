@@ -19,6 +19,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Dealer Database Name
+    |--------------------------------------------------------------------------
+    |
+    | dealer-api's `mydealer` database lives on the same MySQL server as Kanvas's
+    | own `mysql` connection — only the database name differs, so this is read
+    | into the connection built at runtime by
+    | Kanvas\Connectors\DealerAppCenter\Actions\PushVehicleToDealerAction::resolveDealerConnection().
+    |
+    */
+
+    'dealer_database_name' => env('DB_DEALER_DATABASE', 'mydealer'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Database Connections
     |--------------------------------------------------------------------------
     |
