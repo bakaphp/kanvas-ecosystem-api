@@ -1140,6 +1140,21 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'optional' => true,
                 ],
                 [
+                    'name' => 'variants.warehouses.price',
+                    'type' => 'float[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'variants.channels.price',
+                    'type' => 'float[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'variants.rating',
+                    'type' => 'float[]',
+                    'optional' => true,
+                ],
+                [
                     'name' => 'status',
                     'type' => 'object',
                     'optional' => true,
@@ -1198,6 +1213,14 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
                     'type' => 'object',
                     'optional' => true,
                     'facet' => true,
+                ],
+                // buildB2bGlobalPrices() names its keys after the company id, so the children
+                // can't be listed one by one — a regex field types them all as float up front and
+                // keeps a whole 100.00 (encoded `100`) from locking them to int64.
+                [
+                    'name' => 'prices\\..*',
+                    'type' => 'float',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'translations',

@@ -134,6 +134,8 @@ new AgentChatKernel(
 
 **`persistConversation` (default `true`):** when `true`, the kernel runs `PersistChatTurnToSocialAction` and exposes the reply via `persistedReply()`. When `false` (connector path), persistence is left to the caller — the connector's `BaseAgentChannelReplyAction::createMessage()` writes the reply with the right message-type verb, channel tagging, and fires `MarkLeadMessagesAsRespondedAction` + `NotifyLeadStakeholdersService`.
 
+**`fallbackOnFailure` (default `true`):** a failed turn normally comes back as prose — `RunNeuronChatAction::humanizedFallback()` returns "I ran into a hiccup processing that…" so the person on the other end sees something. That is only right when a **human reads the reply**. A caller whose reply feeds a pipeline must pass `false` and handle the exception: the newsroom burst publishes whatever the agent writes, so a Gemini response with no `parts` was filed as the reply and shipped as an article titled "I ran into a hiccup processing that" (KANVAS-ECOSYSTEM-691). `AgentBurstResponderAction` keys it on whether it will actually speak — `fallbackOnFailure: $shouldReply`. When it is `false` the action rethrows without `report()`, so the caller reports once rather than twice.
+
 **`sourceChannel` / `sourceMessage` (connector path AND any other rollup caller):**
 - ADK uses them to compute its remote `userId` exactly the way `ADKAgent::chat()` does today (preserves remote session identity — without this, ADK conversations silently fork to a different memory key).
 - Neuron uses `sourceChannel !== null` as the signal to **skip `setThreadId`** — channel agents thread by entity (Lead/People), not by per-channel session, so cross-channel rollup works (the design intent of `SalesAssistKanvasMessageHistory`).

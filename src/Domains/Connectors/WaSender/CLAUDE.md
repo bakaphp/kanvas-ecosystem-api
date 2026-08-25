@@ -143,6 +143,12 @@ channel history distinguishes it from one WhatsApp actually received.
 `sendText()` is the single call that reaches WhatsApp, isolated so tests can capture what would go on
 the wire — the client is Guzzle-backed, so `Http::fake()` does **not** intercept it.
 
+**A failed agent turn files nothing when the reply is silent.** The kernel normally converts a failure
+into prose, which is right for a reader and wrong for a publisher — the apology becomes the article.
+The responder passes `fallbackOnFailure: $shouldReply`, so an addressed conversation still gets "I ran
+into a hiccup processing that" and a silent group produces no message at all. The burst is lost; the
+press release is still in the group and in Kanvas to re-run.
+
 ## Staying inside WhatsApp's automation limits
 
 WaSender is an unofficial (Baileys-style) client. Accounts get restricted for "spam, automated or bulk

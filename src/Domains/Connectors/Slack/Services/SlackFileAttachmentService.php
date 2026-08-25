@@ -22,7 +22,7 @@ class SlackFileAttachmentService
         }
 
         foreach ($files as $file) {
-            if (! is_array($file)) {
+            if (! is_array($file) || ! self::isDownloadable($file)) {
                 continue;
             }
 
@@ -32,5 +32,15 @@ class SlackFileAttachmentService
                 report($e);
             }
         }
+    }
+
+    /**
+     * Slack sends a stub object with no url_private for files the app cannot read directly (Slack
+     * Connect, file-access limits). An ordinary outcome, so it is skipped rather than reported —
+     * throwing filed one Sentry event per message carrying one (KANVAS-ECOSYSTEM-693).
+     */
+    private static function isDownloadable(array $file): bool
+    {
+        return trim((string) ($file['url_private_download'] ?? $file['url_private'] ?? '')) !== '';
     }
 }

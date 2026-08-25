@@ -46,7 +46,23 @@ class RunNeuronChatErrorHandlingTest extends TestCase
         $this->assertStringNotContainsString('Gemini returned STOP', $response);
     }
 
-    private function runChatWithThrowingHandler(Throwable $exception): string
+    /**
+     * The prose only helps when a human reads it. A caller that files the reply for a pipeline —
+     * the newsroom publishes what the agent writes — would otherwise publish "I ran into a hiccup
+     * processing that" as an article (KANVAS-ECOSYSTEM-691, Gemini answering with no `parts`).
+     */
+    public function testAFailureIsRaisedInsteadOfHumanizedWhenTheCallerOptsOut(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Gemini returned STOP with no parts');
+
+        $this->runChatWithThrowingHandler(
+            new RuntimeException('Gemini returned STOP with no parts'),
+            fallbackOnFailure: false
+        );
+    }
+
+    private function runChatWithThrowingHandler(Throwable $exception, bool $fallbackOnFailure = true): string
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -68,6 +84,7 @@ class RunNeuronChatErrorHandlingTest extends TestCase
             app: $app,
             user: $user,
             handler: new ThrowingNeuronHandlerStub($exception),
+            fallbackOnFailure: $fallbackOnFailure,
         )->execute();
     }
 

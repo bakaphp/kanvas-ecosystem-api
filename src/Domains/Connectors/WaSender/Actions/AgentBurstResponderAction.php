@@ -60,6 +60,8 @@ class AgentBurstResponderAction extends BaseAgentChannelReplyAction
             sourceChannel: $this->channel,
             sourceMessage: $this->message,
             persistConversation: false,
+            // A withheld reply has no reader to apologise to, only a publisher to mislead.
+            fallbackOnFailure: $shouldReply,
         )->execute();
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
