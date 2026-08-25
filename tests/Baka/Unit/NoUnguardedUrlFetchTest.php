@@ -35,6 +35,8 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         'src/Baka/Discovery/AttributeClassDiscovery.php',
         // CLI: reads a local JSON file argument.
         'app/Console/Commands/Ecosystem/ImportEmailTemplatesCommand.php',
+        // CLI: reads a local Item Balance XML file argument.
+        'app/Console/Commands/Connectors/Yusen/YusenInventoryReportCommand.php',
         // CLI: operates on local temp files.
         'app/Console/Commands/Connectors/ScrapperApi/CleanScrapperImageCommand.php',
         // CLI: reads a local agent-type definition file.
