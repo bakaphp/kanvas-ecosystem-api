@@ -1,6 +1,6 @@
 # PHP / Laravel smells worth flagging
 
-Concrete patterns for the three review categories, with the reasoning behind each so you can recognise variants rather than pattern-match on these exact shapes.
+Concrete patterns for three of the four review categories — duplication, complexity, comments — with the reasoning behind each so you can recognise variants rather than pattern-match on these exact shapes.
 
 Because this skill *fixes* what it finds, the last section — [things that look like smells but usually are not](#things-that-look-like-smells-but-usually-are-not) — carries as much weight as the rest. A false positive here is not a wasted line in a report; it is an unwanted edit in someone's working tree.
 
@@ -10,6 +10,8 @@ Because this skill *fixes* what it finds, the last section — [things that look
 - [Overly complex logic](#overly-complex-logic)
 - [Unnecessary comments](#unnecessary-comments)
 - [Things that look like smells but usually are not](#things-that-look-like-smells-but-usually-are-not)
+
+The fourth review category — violations of the repo's own `CLAUDE.md` rules — has its own page: `kanvas-conventions.md`.
 
 ---
 
@@ -221,4 +223,4 @@ Flagging these erodes trust in the whole review:
 - **Tests** — duplication in test setup is frequently the right call; explicit beats DRY in a test. Only flag test code when the user asked for it.
 - **Interface implementations** — identical method signatures across implementors is the point of the interface.
 - **Migrations and generated files** — out of scope.
-- **Style and formatting** — php-cs-fixer and PHPStan handle these. Do not spend review lines on spacing, import order, or strict-type declarations unless they are the actual bug.
+- **Style the fixer already owns** — spacing, brace placement, import *order*, trailing commas, strict-type declarations. php-cs-fixer runs on every edit; re-flagging its output wastes review lines. This exemption does **not** cover the rules in `kanvas-conventions.md` — the rule of 4, named arguments, and inline FQCNs look like style but no tool checks them, which is exactly why they survive into review.
