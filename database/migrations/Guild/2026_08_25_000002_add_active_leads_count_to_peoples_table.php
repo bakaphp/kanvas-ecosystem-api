@@ -10,8 +10,8 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Counter cache for "does this person have an open lead, anywhere" — replaces
  * a per-request correlated EXISTS/NOT EXISTS pair with a stored column
- * maintained by LeadActiveLeadsCounterObserver on Lead create/status-change/
- * soft-delete/reassign/hard-delete.
+ * maintained by LeadObserver::syncActiveLeadsCount() on Lead create/status-
+ * change/soft-delete/reassign/hard-delete.
  *
  * "Open" mirrors Lead::isOpen() (the `status` column, status < 2) — not
  * leads_status_id, which the frontend and other Lead helpers define
@@ -21,7 +21,7 @@ return new class () extends Migration {
     public function up(): void
     {
         Schema::connection('crm')->table('peoples', function (Blueprint $table) {
-            $table->unsignedInteger('active_leads_count')->default(0)->index()->after('is_deleted');
+            $table->unsignedInteger('active_leads_count')->default(0)->index();
         });
 
         DB::connection('crm')->statement('
