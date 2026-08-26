@@ -218,9 +218,9 @@ class LeadObserver
 
     /**
      * Maintains the active_leads_count counter cache on People. "Counted"
-     * mirrors Lead::isOpen() (status < 2) — not leads_status_id, which the
-     * frontend and other Lead helpers (isActive(), close()/open()) define
-     * inconsistently.
+     * mirrors Lead::hasOpenLeadStatus() (leads_status_id IN (1, 2), the two
+     * SalesAssist-active statuses) — NOT Lead::isOpen()'s `status` int
+     * column, which no app code writes and is stuck at its DB default.
      */
     private function syncActiveLeadsCount(Lead $lead): void
     {
@@ -252,12 +252,12 @@ class LeadObserver
 
     private function isCounted(Lead $lead): bool
     {
-        return $lead->isOpen() && ! (bool) $lead->is_deleted;
+        return $lead->hasOpenLeadStatus() && ! (bool) $lead->is_deleted;
     }
 
     private function wasCounted(Lead $lead): bool
     {
-        return (int) ($lead->getOriginal('status') ?? 0) < 2
+        return in_array((int) $lead->getOriginal('leads_status_id'), [1, 2], true)
             && ! (bool) $lead->getOriginal('is_deleted');
     }
 

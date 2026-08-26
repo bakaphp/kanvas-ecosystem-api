@@ -13,9 +13,9 @@ use Illuminate\Support\Facades\Schema;
  * maintained by LeadObserver::syncActiveLeadsCount() on Lead create/status-
  * change/soft-delete/reassign/hard-delete.
  *
- * "Open" mirrors Lead::isOpen() (the `status` column, status < 2) — not
- * leads_status_id, which the frontend and other Lead helpers define
- * inconsistently.
+ * "Open" mirrors Lead::hasOpenLeadStatus() (leads_status_id IN (1, 2), the
+ * two SalesAssist-active statuses) — NOT the `status` int column, which no
+ * app code ever writes.
  */
 return new class () extends Migration {
     public function up(): void
@@ -29,7 +29,7 @@ return new class () extends Migration {
             SET active_leads_count = (
                 SELECT COUNT(*) FROM leads l
                 WHERE l.people_id = p.id
-                  AND l.status < 2
+                  AND l.leads_status_id IN (1, 2)
                   AND l.is_deleted = 0
             )
         ');
