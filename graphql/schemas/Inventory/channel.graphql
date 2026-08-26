@@ -11,6 +11,11 @@ type Channel {
     slug: String!
     is_default: Boolean!
     is_published: Boolean!
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
 }
 
 input CreateChannelInput {

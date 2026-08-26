@@ -32,6 +32,13 @@ class YusenHandler extends BaseIntegration
             );
         }
 
+        if (isset($this->data['netsuite_location_id'])) {
+            $this->company->set(
+                ConfigurationEnum::NETSUITE_LOCATION_ID->value,
+                (string) $this->data['netsuite_location_id']
+            );
+        }
+
         if (isset($this->data['match_field'])) {
             $matchField = (string) $this->data['match_field'];
 
