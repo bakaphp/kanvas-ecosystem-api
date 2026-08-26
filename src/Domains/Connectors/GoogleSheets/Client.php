@@ -41,6 +41,11 @@ class Client
             $googleClient->setAuthConfig($decoded);
             $googleClient->addScope(GoogleSheetsService::SPREADSHEETS);
 
+            $impersonateUser = trim((string) ($app->get(ConfigurationEnum::IMPERSONATE_USER->value) ?? ''));
+            if ($impersonateUser !== '') {
+                $googleClient->setSubject($impersonateUser);
+            }
+
             return new GoogleSheetsService($googleClient);
         } catch (Throwable $e) {
             throw new ValidationException('Could not authenticate with Google Sheets: ' . $e->getMessage());
