@@ -10,8 +10,11 @@ use Baka\Users\Contracts\UserInterface;
 use Exception;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteLocationWarehouseService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteProductSearchService;
+use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
+use Kanvas\Inventory\Variants\DataTransferObject\VariantsWarehouses as VariantsWarehousesDto;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
 /**
  * Pulls stock from NetSuite into every Kanvas warehouse that mirrors a NetSuite location.
@@ -39,7 +42,7 @@ class PullNetSuiteProductStockAction
         $this->locationService = new NetSuiteLocationWarehouseService($app, $mainAppCompany);
     }
 
-    public function execute(string|int $savedSearchID = 576, ?array $barcodeFilter = null): array
+    public function execute(string|int $savedSearchID = 576, ?array $barcodeFilter = null, bool $createMissing = false): array
     {
         $warehouseLocations = $this->locationService->map();
 
@@ -59,6 +62,7 @@ class PullNetSuiteProductStockAction
             'not_found_in_kanvas' => 0,
             'not_found_in_netsuite' => 0,
             'not_in_warehouse' => 0,
+            'created' => 0,
             'update_failed' => 0,
         ];
 
@@ -68,6 +72,7 @@ class PullNetSuiteProductStockAction
                 $locationId,
                 $savedSearchID,
                 $barcodeFilter,
+                $createMissing,
             );
 
             $locations[] = $result;
@@ -94,7 +99,9 @@ class PullNetSuiteProductStockAction
         string $locationId,
         string|int $savedSearchID,
         ?array $barcodeFilter,
+        bool $createMissing,
     ): array {
+        $warehouse = Warehouses::getByIdFromCompanyApp($warehouseId, $this->mainAppCompany, $this->app);
         $products = $this->searchService->searchByLocation($locationId, $savedSearchID);
 
         $netsuiteIndex = [];
@@ -132,6 +139,7 @@ class PullNetSuiteProductStockAction
             'not_found_in_kanvas' => [],
             'not_found_in_netsuite' => [],
             'not_in_warehouse' => [],
+            'created' => [],
             'update_failed' => [],
         ];
 
@@ -155,18 +163,16 @@ class PullNetSuiteProductStockAction
                 continue;
             }
 
-            $variantWarehouse = VariantsWarehouses::query()
-                ->where('products_variants_id', $variant->getId())
-                ->where('warehouses_id', $warehouseId)
-                ->first();
+            $variantWarehouse = $this->resolveVariantWarehouse($variant, $warehouse, $createMissing);
 
-            // The variant isn't stocked in this warehouse yet. Reported rather than created: a new
-            // warehouse would otherwise silently gain a row for every SKU in the catalog on its
-            // first sync.
             if (! $variantWarehouse) {
                 $results['not_in_warehouse'][] = $barcode;
 
                 continue;
+            }
+
+            if ($variantWarehouse->wasRecentlyCreated) {
+                $results['created'][] = $barcode;
             }
 
             try {
@@ -182,5 +188,44 @@ class PullNetSuiteProductStockAction
         }
 
         return $results;
+    }
+
+    /**
+     * The row is only created on request. A warehouse mapped to the wrong location would otherwise
+     * gain a row for every SKU in the catalog on its first sync, which is not something you can
+     * undo by fixing the mapping — hence opt-in rather than default.
+     */
+    protected function resolveVariantWarehouse(Variants $variant, Warehouses $warehouse, bool $createMissing): ?VariantsWarehouses
+    {
+        $variantWarehouse = VariantsWarehouses::query()
+            ->where('products_variants_id', $variant->getId())
+            ->where('warehouses_id', $warehouse->getId())
+            ->first();
+
+        if ($variantWarehouse !== null || ! $createMissing) {
+            return $variantWarehouse;
+        }
+
+        // Price comes from wherever the variant is already stocked: a new warehouse holds the same
+        // goods, and a row created at 0.00 would read as free everywhere price is surfaced. The
+        // default warehouse wins so a variant stocked in several places seeds the same price twice.
+        $reference = VariantsWarehouses::query()
+            ->where('products_variants_id', $variant->getId())
+            ->notDeleted()
+            ->orderByDesc('is_default')
+            ->first();
+
+        return new AddToWarehouseAction(
+            $variant,
+            $warehouse,
+            new VariantsWarehousesDto(
+                variant: $variant,
+                warehouse: $warehouse,
+                quantity: 0,
+                price: (float) ($reference?->price ?? 0),
+                sku: (string) $variant->sku,
+                status_id: $reference?->status_id,
+            )
+        )->execute();
     }
 }
