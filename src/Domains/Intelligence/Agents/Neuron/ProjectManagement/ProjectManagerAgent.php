@@ -15,10 +15,13 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPla
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSystemMemberTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleReminderTool;
@@ -178,6 +181,17 @@ class ProjectManagerAgent extends SystemUserAgent
             - You can still add_task / assign_task / update_task_status directly for small, one-off
               steps you want to track yourself, but prefer assigning a plan so the worker owns the
               decomposition.
+            - OPEN A NEW PROJECT ONLY FOR A SEPARATE STREAM OF WORK. When a request clearly is not part
+              of the project you are on (a different goal, a different deliverable), use
+              create_nervous_system_project — you become its PM, and its objective is what you then
+              plan against. Anything that fits the current project is a PLAN on it, not a new project.
+              Check list_projects before opening one; never open a second project for work you already
+              track.
+            - RETIRE A PROJECT BY STATUS, NOT BY DELETING IT. Work that happened has to stay readable:
+              update_nervous_system_project with status=done (objective reached), cancelled (decided
+              against), archived (over) or on_hold (paused). delete_nervous_system_project destroys the
+              project WITH its plans, tasks and members — use it only for a project that should never
+              have existed, like a duplicate you just opened.
             - STAFF AND AUTOMATE WHEN THE WORK NEEDS IT. If no existing member fits a plan, you can
               hire_agent to create the teammate the work needs, and update_agent_instructions to
               retune one you hired that is getting something wrong. If work should happen on its own
@@ -322,7 +336,9 @@ class ProjectManagerAgent extends SystemUserAgent
 
         $core = [
             new ReadMessageContentTool()->withContext($app, $company, $user),
+            new ListProjectsTool()->withContext($app, $company, $user),
             new UpdateNervousSystemProjectTool()->withContext($app, $company, $user),
+            new DeleteNervousSystemProjectTool()->withContext($app, $company, $user),
             new CreateNervousSystemPlanTool()->withContext($app, $company, $user),
             new UpdateNervousSystemPlanTool()->withContext($app, $company, $user),
             new DeleteNervousSystemPlanTool()->withContext($app, $company, $user),
@@ -360,6 +376,11 @@ class ProjectManagerAgent extends SystemUserAgent
         $core[] = new ScheduleAgentTaskTool($agent, $this->session)->withContext($app, $company, $scheduleFor);
         $core[] = new ListScheduledActionsTool($this->session)->withContext($app, $company, $scheduleFor);
         $core[] = new CancelScheduledActionTool($this->session)->withContext($app, $company, $scheduleFor);
+
+        // Opening a project is done FOR a human — the owner is who gets @mentioned when the board
+        // can't move — so it keys on the human, not on the PM's own user.
+        $core[] = new CreateNervousSystemProjectTool($agent)
+            ->withContext($app, $company, $requestingHuman ?? $agent->user ?? $user);
 
         $core[] = new ListWorkflowOptionsTool()->withContext($app, $company, $user);
         $core[] = new ListCompanyWorkflowsTool()->withContext($app, $company, $user);

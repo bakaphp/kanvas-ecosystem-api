@@ -6,11 +6,11 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesProjectForTool;
 use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
-use Kanvas\NervousSystem\Project\Models\Project;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -27,6 +27,7 @@ use Override;
 class CreateNervousSystemPlanTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use ResolvesProjectForTool;
     use TrackByInputs;
 
     public function __construct()
@@ -71,15 +72,10 @@ class CreateNervousSystemPlanTool extends Tool implements HasRunKey
      */
     public function __invoke(int $project_id, string $title, ?string $description = null): array
     {
-        $project = Project::query()
-            ->where('id', $project_id)
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->first();
+        $project = $this->resolveProjectOrError($project_id);
 
-        if ($project === null) {
-            return ['error' => "Project {$project_id} was not found."];
+        if (is_array($project)) {
+            return $project;
         }
 
         // Idempotency: repeated wakes must not recreate a plan that already exists. Reuse an open
