@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Variants;
 
+use App\GraphQL\Concerns\SyncsEntityRelatedInput;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
@@ -31,6 +32,8 @@ use Kanvas\Languages\Models\Languages;
 
 class Variants
 {
+    use SyncsEntityRelatedInput;
+
     /**
      * create.
      */
@@ -94,6 +97,9 @@ class Variants
                 );
             }
         }
+
+        self::syncTagsAndReindex($variantModel, $req['input']);
+
         $variantModel->products->searchable();
 
         return $variantModel;
@@ -125,6 +131,9 @@ class Variants
         if (isset($req['input']['channels'])) {
             ChannelService::updateChannelVariant($variantModel, $req['input']['channels']);
         }
+
+        self::syncTagsAndReindex($variantModel, $req['input']);
+
         $variantModel->products->searchable();
 
         return $variantModel;
@@ -311,5 +320,19 @@ class Variants
         $variantAttribute->save();
 
         return $variantAttribute;
+    }
+
+    /**
+     * Attaching tags doesn't touch the variant row, so Scout's save hook never fires —
+     * re-index by hand or the tags never reach the variant document.
+     */
+    private static function syncTagsAndReindex(VariantModel $variant, array $input): void
+    {
+        if (! array_key_exists('tags', $input)) {
+            return;
+        }
+
+        self::syncTags($variant, $input);
+        $variant->searchable();
     }
 }

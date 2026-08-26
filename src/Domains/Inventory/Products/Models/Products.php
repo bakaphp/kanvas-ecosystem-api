@@ -1020,8 +1020,8 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         // into N+1 channel/warehouse/status reads while building the search payload. Summary path
         // only renders channels.
         $eagerLoad = $useSummary
-            ? ['channels']
-            : ['channels', 'variantWarehouses.warehouse', 'variantWarehouses.status', 'status'];
+            ? ['channels', 'tags']
+            : ['channels', 'variantWarehouses.warehouse', 'variantWarehouses.status', 'status', 'tags'];
 
         // Bound peak memory by streaming the variants in small batches instead of materialising
         // up to PRODUCT_VARIANTS_SEARCH_LIMIT models at once — the Scout indexer was OOMing at
