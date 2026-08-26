@@ -13,8 +13,9 @@ use Kanvas\Guild\Leads\Models\Lead;
 /**
  * Drift-repair tool for peoples.active_leads_count. The migration that adds
  * the column backfills it once; this command recomputes it from Lead rows
- * for whenever a bulk write (e.g. DB::table('leads')->update(...)) bypasses
- * LeadActiveLeadsCounterObserver and leaves the counter stale.
+ * for whenever a bulk write (e.g. DB::table('leads')->update(...), or
+ * MergePeopleAction's raw SQL people_id rewrite) bypasses
+ * LeadObserver::syncActiveLeadsCount() and leaves the counter stale.
  */
 class RecalculateActiveLeadsCountCommand extends Command
 {

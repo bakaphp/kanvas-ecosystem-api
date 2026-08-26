@@ -180,6 +180,8 @@ class LeadObserver
 
     public function deleted(Lead $lead): void
     {
+        // Runs first so the counter update still applies even if anything
+        // below this line fails.
         if ($lead->people_id && $this->isCounted($lead)) {
             $this->adjustActiveLeadsCount((int) $lead->people_id, -1);
         }
