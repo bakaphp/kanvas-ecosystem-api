@@ -155,6 +155,7 @@ extend type Query @guard {
                     "firstname"
                     "lastname"
                     "people_types_id"
+                    "active_leads_count"
                 ]
             )
         hasPeopleType: _
@@ -190,27 +191,6 @@ extend type Query @guard {
                     "leads_sources_id"
                     "leads_types_id"
                 ]
-            )
-        """
-        Person has at least one lead matching every condition given EXCEPT leads_status_id,
-        but none of those matching leads also satisfy the leads_status_id condition.
-        Example: { AND: [{ column: LEADS_OWNER_ID, operator: EQ, value: $ownerId }, { column: LEADS_STATUS_ID, operator: IN, value: [1, 2] }] }
-        means "has a lead owned by $ownerId, and none of those are status 1 or 2."
-        """
-        doesntHaveLeads: _
-            @whereHasConditions(
-                relation: "leads"
-                columns: [
-                    "id"
-                    "name"
-                    "uuid"
-                    "leads_receivers_id"
-                    "leads_owner_id"
-                    "leads_status_id"
-                    "leads_sources_id"
-                    "leads_types_id"
-                ]
-                handler: "App\\GraphQL\\Guild\\Handlers\\DoesntHaveLeadHandler"
             )
         hasOrders: _
             @whereHasConditions(
