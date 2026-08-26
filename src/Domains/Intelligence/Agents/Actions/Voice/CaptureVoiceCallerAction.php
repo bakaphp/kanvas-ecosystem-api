@@ -250,7 +250,7 @@ class CaptureVoiceCallerAction
             app: $people->app,
             branch: $people->company->defaultBranch,
             user: $user,
-            title: $people->name . ' Voice Opp',
+            title: $this->leadTitle($people),
             pipeline_stage_id: 0,
             people: new PeopleDto(
                 $people->app,
@@ -267,11 +267,51 @@ class CaptureVoiceCallerAction
             type_id: $leadType->getId(),
             source_id: $leadSource->getId(),
             receiver_id: $leadReceiver->getId(),
+            description: $this->leadDescription(),
         );
 
         $lead = new CreateLeadAction($leadData)->execute();
         $lead->addTags(['voice-agent']);
 
         return $lead;
+    }
+
+    /**
+     * A scannable lead title: who + how they came in + what they want, e.g.
+     * "Rafael Lopez — Outbound voice call — interested in a 2024 Camry".
+     * Falls back to the phone when we don't have a real name yet, and omits the
+     * interest clause when none was captured.
+     */
+    private function leadTitle(People $people): string
+    {
+        $who = trim((string) $people->name);
+        if ($who === '' || preg_match('/^[\d\s+()\-]+$/', $who) === 1) {
+            $who = $this->phone;
+        }
+
+        $direction = $this->direction === 'outbound' ? 'Outbound' : 'Inbound';
+
+        $parts = array_filter([
+            $who,
+            $direction . ' voice call',
+            ($this->interest !== null && $this->interest !== '') ? trim($this->interest) : null,
+        ]);
+
+        return implode(' — ', $parts);
+    }
+
+    /**
+     * Human-facing lead description for the CRM: how the lead came in plus the
+     * interest the agent captured (when any).
+     */
+    private function leadDescription(): string
+    {
+        $direction = $this->direction === 'outbound' ? 'Outbound' : 'Inbound';
+        $parts = ["{$direction} voice call captured by the AI agent."];
+        if ($this->interest !== null && trim($this->interest) !== '') {
+            $parts[] = 'Interest: ' . trim($this->interest);
+        }
+
+        return implode(' ', $parts);
     }
 }

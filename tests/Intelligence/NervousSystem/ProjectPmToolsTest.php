@@ -17,7 +17,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPla
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CommentOnNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
@@ -41,6 +43,7 @@ use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use Kanvas\NervousSystem\Project\Jobs\WakeWorkerForPlanJob;
 use Kanvas\NervousSystem\Project\Models\Project;
+use Kanvas\NervousSystem\Project\Models\ProjectMember;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use ReflectionMethod;
@@ -467,7 +470,11 @@ class ProjectPmToolsTest extends TestCase
 
         $names = array_map(fn (object $tool): string => (string) $tool->getName(), $tools);
 
+        // Full project CRUD: the PM opens, reads, moves and retires its own boards.
+        $this->assertContains('create_nervous_system_project', $names);
+        $this->assertContains('list_projects', $names);
         $this->assertContains('update_nervous_system_project', $names);
+        $this->assertContains('delete_nervous_system_project', $names);
         $this->assertContains('create_nervous_system_plan', $names);
         $this->assertContains('add_nervous_system_task', $names);
         $this->assertContains('assign_nervous_system_task', $names);
@@ -786,5 +793,171 @@ class ProjectPmToolsTest extends TestCase
             1,
             (int) Task::query()->withTrashed()->where('id', $task->id)->value('is_deleted'),
         );
+    }
+
+    public function testCreateProjectToolOpensProjectManagedByTheCallingAgent(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agentUser = Users::factory()->create();
+        $agent = $this->makeAgent($app, $company, $agentUser);
+
+        $tool = new CreateNervousSystemProjectTool($agent)->withContext($app, $company, $user);
+        $result = $tool(
+            title: 'Q3 website relaunch',
+            objective: 'New marketing site live by September 30.',
+            description: 'Redesign plus migration.',
+        );
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertSame((int) $agent->getId(), (int) $result['pm_agent_id']);
+        $this->assertSame('active', $result['status']);
+
+        /** @var Project $project */
+        $project = Project::query()->where('id', $result['project_id'])->firstOrFail();
+        $this->assertSame((int) $agent->getId(), (int) $project->agent_id);
+        $this->assertSame((int) $user->getId(), (int) $project->users_id);
+        $this->assertSame('New marketing site live by September 30.', $project->objective);
+
+        // A board with no roster has nobody to assign to and nobody to @mention.
+        $members = ProjectMember::query()->where('project_id', $project->getId())->get();
+        $this->assertTrue($members->contains(fn (ProjectMember $m): bool => (int) $m->agent_id === (int) $agent->getId()));
+        $this->assertTrue($members->contains(
+            fn (ProjectMember $m): bool => $m->agent_id === null && (int) $m->users_id === (int) $user->getId(),
+        ));
+    }
+
+    /**
+     * On an autonomous wake the acting user IS the PM's own user — recording it as a human member
+     * would invent a person the PM then tries to @mention.
+     */
+    public function testCreateProjectToolDoesNotAddThePmsOwnUserAsAHumanMember(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $tool = new CreateNervousSystemProjectTool($agent)->withContext($app, $company, $user);
+        $result = $tool(title: 'Self-run project', objective: 'Keep the lights on.');
+
+        $members = ProjectMember::query()->where('project_id', $result['project_id'])->get();
+        $this->assertCount(1, $members);
+        $this->assertSame((int) $agent->getId(), (int) $members->first()->agent_id);
+    }
+
+    /**
+     * A project the PM opens is one it intends to work — starting it as a draft leaves a board nobody
+     * is driving. Draft stays reachable, but has to be asked for.
+     */
+    public function testCreateProjectToolStartsActiveUnlessAStatusIsAskedFor(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $tool = new CreateNervousSystemProjectTool($agent)->withContext($app, $company, $user);
+
+        $this->assertSame('active', $tool('Objectiveless project')['status']);
+        $this->assertSame('draft', $tool(title: 'Not started yet', status: 'draft')['status']);
+        $this->assertSame('active', $tool(title: 'Aliased status', status: 'in_progress')['status']);
+    }
+
+    public function testCreateProjectToolRejectsAnUnknownStatusInsteadOfThrowing(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $result = new CreateNervousSystemProjectTool($agent)
+            ->withContext($app, $company, $user)(title: 'Bad status', status: 'wibble');
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertSame(0, Project::query()->where('title', 'Bad status')->count());
+    }
+
+    public function testUpdateProjectToolMovesDeadlineAndPriorityAndCanClearTheDeadline(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        $tool = new UpdateNervousSystemProjectTool()->withContext($app, $company, $user);
+
+        $set = $tool((int) $project->id, deadline_at: '2026-09-30', priority: 7);
+        $this->assertSame('2026-09-30', $set['deadline_at']);
+        $this->assertSame(7, (int) $set['priority']);
+
+        // Without a typeable "clear" value the model can only ever push a deadline forward.
+        $cleared = $tool((int) $project->id, deadline_at: 'none');
+        $this->assertNull($cleared['deadline_at']);
+        $this->assertNull($project->refresh()->deadline_at);
+        $this->assertSame(7, (int) $project->priority);
+    }
+
+    public function testDeleteProjectToolRemovesProjectAndCascades(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+        /** @var Task $task */
+        $task = $plan->tasks()->firstOrFail();
+
+        $result = new DeleteNervousSystemProjectTool()
+            ->withContext($app, $company, $user)((int) $project->id);
+
+        $this->assertTrue($result['deleted']);
+        $this->assertSame(1, (int) $result['plans_deleted']);
+        $this->assertSame(1, (int) Project::query()->withTrashed()->where('id', $project->id)->value('is_deleted'));
+        $this->assertSame(1, (int) Plan::query()->withTrashed()->where('id', $plan->id)->value('is_deleted'));
+        $this->assertSame(1, (int) Task::query()->withTrashed()->where('id', $task->id)->value('is_deleted'));
+    }
+
+    public function testDeleteProjectToolReturnsErrorForUnknownIdInsteadOfThrowing(): void
+    {
+        [$app, $company, $user] = $this->context();
+
+        $result = new DeleteNervousSystemProjectTool()->withContext($app, $company, $user)(999999999);
+
+        $this->assertArrayHasKey('error', $result);
+    }
+
+    /**
+     * A project carries a channel, a webhook and a heartbeat, so a duplicate is not a stray row —
+     * it is a second agent loop woken forever.
+     */
+    public function testCreateProjectToolIsIdempotent(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $tool = new CreateNervousSystemProjectTool($agent)->withContext($app, $company, $user);
+        $first = $tool(title: 'Same title project', objective: 'Ship it.');
+        $second = $tool(title: 'Same title project', objective: 'Ship it again.');
+
+        $this->assertSame((int) $first['project_id'], (int) $second['project_id']);
+        $this->assertTrue($second['reused'] ?? false);
+    }
+
+    public function testCreateProjectToolCanHandThePmRoleToAnotherAgent(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+        $hired = $this->makeAgent($app, $company, Users::factory()->create());
+
+        $result = new CreateNervousSystemProjectTool($agent)
+            ->withContext($app, $company, $user)(title: 'Delegated project', agent_id: (int) $hired->getId());
+
+        $this->assertSame((int) $hired->getId(), (int) $result['pm_agent_id']);
+        $this->assertSame(
+            (int) $hired->getId(),
+            (int) Project::query()->where('id', $result['project_id'])->value('agent_id'),
+        );
+    }
+
+    public function testCreateProjectToolReturnsErrorForUnknownAgentInsteadOfThrowing(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $result = new CreateNervousSystemProjectTool($agent)
+            ->withContext($app, $company, $user)(title: 'Bad owner', agent_id: 999999999);
+
+        $this->assertArrayHasKey('error', $result);
+        $this->assertSame(0, Project::query()->where('title', 'Bad owner')->count());
     }
 }

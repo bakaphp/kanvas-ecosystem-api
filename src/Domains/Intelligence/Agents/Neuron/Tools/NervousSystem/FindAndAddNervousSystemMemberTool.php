@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesProjectForTool;
 use Kanvas\NervousSystem\Project\Actions\AddProjectMemberAction;
 use Kanvas\NervousSystem\Project\Enums\ProjectMemberRoleEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
@@ -31,6 +32,7 @@ use Throwable;
 class FindAndAddNervousSystemMemberTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use ResolvesProjectForTool;
     use TrackByInputs;
 
     public function __construct()
@@ -77,15 +79,10 @@ class FindAndAddNervousSystemMemberTool extends Tool implements HasRunKey
      */
     public function __invoke(int $project_id, string $name, ?string $role = null): array
     {
-        $project = Project::query()
-            ->where('id', $project_id)
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->first();
+        $project = $this->resolveProjectOrError($project_id);
 
-        if ($project === null) {
-            return ['error' => "Project {$project_id} was not found."];
+        if (is_array($project)) {
+            return $project;
         }
 
         $memberRole = ProjectMemberRoleEnum::tryFrom((string) $role) ?? ProjectMemberRoleEnum::CONTRIBUTOR;

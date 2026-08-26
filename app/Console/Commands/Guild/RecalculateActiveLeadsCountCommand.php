@@ -27,7 +27,7 @@ class RecalculateActiveLeadsCountCommand extends Command
                             {--chunk=500 : People per chunk}
                             {--dry-run : Report what would change without writing}';
 
-    protected $description = 'Recompute peoples.active_leads_count from leads (status < 2, not deleted)';
+    protected $description = 'Recompute peoples.active_leads_count from leads (leads_status_id IN (1, 2), not deleted)';
 
     public function handle(): int
     {
@@ -68,7 +68,7 @@ class RecalculateActiveLeadsCountCommand extends Command
 
             $actualCounts = Lead::query()
                 ->whereIn('people_id', $people->pluck('id'))
-                ->isOpen()
+                ->hasOpenLeadStatus()
                 ->where('is_deleted', 0)
                 ->selectRaw('people_id, COUNT(*) as total')
                 ->groupBy('people_id')
