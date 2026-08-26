@@ -28,7 +28,7 @@ class ImportVendorApproversCommand extends Command
         $app = Apps::getById((int) $this->argument('apps_id'));
         $company = Companies::getById((int) $this->argument('company_id'));
 
-        $import = new class implements ToArray {
+        $import = new class () implements ToArray {
             public function array(array $array): void
             {
             }
