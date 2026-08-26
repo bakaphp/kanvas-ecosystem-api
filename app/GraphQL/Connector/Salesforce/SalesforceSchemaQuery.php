@@ -6,6 +6,7 @@ namespace App\GraphQL\Connector\Salesforce;
 
 use App\GraphQL\Concerns\ResolvesActingContext;
 use Kanvas\Connectors\Salesforce\Client;
+use Kanvas\Connectors\Salesforce\Services\SalesforceApiClient;
 use Kanvas\Exceptions\ValidationException;
 
 class SalesforceSchemaQuery
@@ -17,8 +18,7 @@ class SalesforceSchemaQuery
      */
     public function objects(mixed $root, array $request): array
     {
-        $ctx = $this->actingContext();
-        $client = Client::getInstance($ctx->app, $ctx->company);
+        $client = $this->client();
 
         $objects = $client->describeGlobal()['sobjects'] ?? [];
 
@@ -46,8 +46,7 @@ class SalesforceSchemaQuery
      */
     public function fields(mixed $root, array $request): array
     {
-        $ctx = $this->actingContext();
-        $client = Client::getInstance($ctx->app, $ctx->company);
+        $client = $this->client();
 
         $objectName = $this->assertValidObjectName((string) $request['object_name']);
         $fields = $client->describeObject($objectName)['fields'] ?? [];
@@ -68,8 +67,7 @@ class SalesforceSchemaQuery
      */
     public function records(mixed $root, array $request): array
     {
-        $ctx = $this->actingContext();
-        $client = Client::getInstance($ctx->app, $ctx->company);
+        $client = $this->client();
 
         $objectName = $this->assertValidObjectName((string) $request['object_name']);
         $limit = min((int) ($request['limit'] ?? 50), 200);
@@ -89,6 +87,13 @@ class SalesforceSchemaQuery
             ],
             $result['records'] ?? [],
         );
+    }
+
+    private function client(): SalesforceApiClient
+    {
+        $ctx = $this->actingContext();
+
+        return Client::getInstance($ctx->app, $ctx->company);
     }
 
     private function assertValidObjectName(string $objectName): string
