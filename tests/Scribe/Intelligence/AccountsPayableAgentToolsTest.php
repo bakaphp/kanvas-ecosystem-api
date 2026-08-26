@@ -21,7 +21,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
-use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
+use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
@@ -344,7 +344,9 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
     public function test_approve_pending_item_requires_the_configured_approver(): void
     {
-        $this->seedTestOrganization('Windwalk Games Corp');
+        $vendor = $this->seedTestOrganization('Windwalk Games Corp');
+        $vendor->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, 'someone-else-' . uniqid() . '@example.test');
+
         $accountCode = (string) Account::query()
             ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
             ->value('account_number');
@@ -360,8 +362,6 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 push_to_acumatica: false,
             );
 
-        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, '');
-
         $result = new ApprovePendingItemTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(target_type: 'bill', target_id: (int) $created['bill_id']);
@@ -370,9 +370,37 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame('not_authorized', $result['reason']);
     }
 
-    public function test_approve_pending_item_approves_a_pending_bill_and_carries_the_source_email(): void
+    public function test_approve_pending_item_reports_no_approver_configured_when_the_vendor_has_none(): void
     {
         $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $created = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Approval flow test',
+                invoice_number: 'APR-1B',
+                push_to_acumatica: false,
+            );
+
+        $result = new ApprovePendingItemTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(target_type: 'bill', target_id: (int) $created['bill_id']);
+
+        $this->assertFalse($result['approved']);
+        $this->assertSame('no_approver_configured', $result['reason']);
+    }
+
+    public function test_approve_pending_item_approves_a_pending_bill_and_carries_the_source_email(): void
+    {
+        $vendor = $this->seedTestOrganization('Windwalk Games Corp');
+        $vendor->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+
         $accountCode = (string) Account::query()
             ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
             ->value('account_number');
@@ -391,8 +419,6 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 source_attachment_filename: 'invoice-apr-2.pdf',
             );
 
-        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
-
         $result = new ApprovePendingItemTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(target_type: 'bill', target_id: (int) $created['bill_id']);
@@ -410,8 +436,6 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
     public function test_approve_pending_item_reports_not_found_when_nothing_pending(): void
     {
-        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
-
         $result = new ApprovePendingItemTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(target_type: 'bill', target_id: 999999999);
@@ -422,7 +446,9 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
     public function test_approve_pending_item_authorizes_the_conversation_human_not_the_agents_own_identity(): void
     {
-        $this->seedTestOrganization('Windwalk Games Corp');
+        $vendor = $this->seedTestOrganization('Windwalk Games Corp');
+        $vendor->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+
         $accountCode = (string) Account::query()
             ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
             ->value('account_number');
@@ -437,8 +463,6 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 invoice_number: 'APR-3',
                 push_to_acumatica: false,
             );
-
-        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
 
         // Mirrors an @mention/channel turn: setConfiguration() receives the agent's OWN user, distinct
         // from the human actually approving, exactly like SlackUserResolverService resolving a DM sender.

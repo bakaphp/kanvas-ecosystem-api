@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\VerifiesApprovalAuthority;
 use Kanvas\Scribe\Approvals\Actions\ResolveApprovalAction;
+use Kanvas\Scribe\Approvals\Actions\ResolveApproverEmailAction;
 use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use NeuronAI\Tools\PropertyType;
@@ -37,9 +38,9 @@ class ApprovePendingItemTool extends Tool
             description: 'Approves a pending item in the approval queue (e.g. a bill left pending by '
                 . 'create_ap_bill, or an invoice left pending by create_ar_invoice) and carries out its action — '
                 . 'for a bill/invoice, that means approving it in Kanvas and pushing it to Acumatica. Works for '
-                . 'any approval type in the queue, not just invoices. Only the configured approver may call this '
-                . '— call it only when that specific person explicitly asks to approve something, never on your '
-                . 'own initiative or on behalf of anyone else.',
+                . 'any approval type in the queue, not just invoices. Only the approver configured on that '
+                . 'specific record\'s vendor/customer may call this — call it only when that specific person '
+                . 'explicitly asks to approve something, never on your own initiative or on behalf of anyone else.',
         );
     }
 
@@ -71,14 +72,6 @@ class ApprovePendingItemTool extends Tool
      */
     public function __invoke(string $target_type, int $target_id): array
     {
-        if (! $this->isAuthorizedApprover()) {
-            return [
-                'approved' => false,
-                'reason' => 'not_authorized',
-                'message' => 'Only the configured approver can approve this.',
-            ];
-        }
-
         $item = ApprovalQueueItem::query()
             ->where('apps_id', $this->app->getId())
             ->where('companies_id', $this->company->getId())
@@ -93,6 +86,24 @@ class ApprovePendingItemTool extends Tool
                 'approved' => false,
                 'reason' => 'not_found',
                 'message' => "No pending approval found for {$target_type} {$target_id}.",
+            ];
+        }
+
+        $approverEmail = new ResolveApproverEmailAction($target_type, $target_id)->execute();
+
+        if ($approverEmail === null) {
+            return [
+                'approved' => false,
+                'reason' => 'no_approver_configured',
+                'message' => "No approver email is configured on this {$target_type}'s vendor/customer.",
+            ];
+        }
+
+        if (! $this->isAuthorizedApprover($approverEmail)) {
+            return [
+                'approved' => false,
+                'reason' => 'not_authorized',
+                'message' => 'Only the approver configured for this vendor/customer can approve this.',
             ];
         }
 
