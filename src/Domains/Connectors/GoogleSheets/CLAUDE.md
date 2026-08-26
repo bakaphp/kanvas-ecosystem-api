@@ -113,13 +113,32 @@ The service account can only touch a spreadsheet that has been explicitly shared
 Without this, every call fails with a permission error from the Sheets API — the credentials
 being configured correctly is not enough on its own.
 
-### Alternative: domain-wide delegation (when the tenant's Workspace blocks external sharing)
+### Diagnosing a blocked share
 
-Some Workspace tenants block sharing files with any account outside the org (Trust Rules, or a
-plan that doesn't support adding new Trust Rules) — the service account's email is external, so
-the share in the section above fails there no matter what. The fix is **domain-wide
-delegation**: the service account impersonates a real internal user instead of acting as itself,
-so no external share is ever needed.
+If sharing the sheet with the service account's email fails with something like *"Policy set by
+the administrators of [org] prohibits the sharing of items with [service account], because it is
+not a Google Account in a compatible allowlisted domain"* — the tenant's Workspace has one of two
+sharing restrictions in play. Check **Admin Console → Apps → Google Workspace → Drive and Docs →
+Sharing settings**:
+
+- **"Sharing outside of [org]" is set to `Off`, or set to `Allowlisted domains` but the service
+  account's domain (`....iam.gserviceaccount.com`) isn't in that list** — a super-admin adds it
+  there. This alone sometimes isn't enough if the org has also adopted Trust Rules (next point).
+- **The domain shows an "Incompatible with allowlisted domains" warning even after being added**
+  — this means the org has migrated Drive sharing enforcement to **Trust Rules**
+  (`Admin Console → Rules → Trust rules`), which override the classic domain allowlist entirely.
+  The fix is a Trust Rule (scoped to the relevant Org Unit) that allows sharing with anyone in
+  allowlisted domains — not just adding the domain to the old list, which no longer has any
+  effect once Trust Rules govern that org.
+- **"Create rule" for a new Trust Rule is greyed out even for a super-admin** — Trust Rule
+  *creation* is gated behind the Workspace edition/add-on, separate from being able to view
+  existing rules. If upgrading the plan isn't an option, domain-wide delegation below sidesteps
+  the whole sharing-policy question, since it never shares anything externally in the first place.
+
+### Alternative: domain-wide delegation (when direct sharing can't be unblocked)
+
+The fix for any of the above is **domain-wide delegation**: the service account impersonates a
+real internal user instead of acting as itself, so no external share is ever needed.
 
 1. In [Google Cloud Console](https://console.cloud.google.com/) → **IAM & Admin → Service
    Accounts** → open the service account → copy its **OAuth2 Client ID** (a numeric id, distinct
@@ -196,7 +215,7 @@ column A (ID invoice) — column **D** (Status) → `"Approved"`, column **E** (
 | 3 | `gmail-refresh-token` (scope `gmail.modify` — covers reading AND sending) | Settings → Key Configurations | Gmail |
 | 4 | `google-sheets-credentials` | Settings → Key Configurations | GoogleSheets |
 | 5 | `google-sheets-default-invoice-tracker` | Settings → Key Configurations | GoogleSheets |
-| 6 | Sheet shared as Editor with the service account's `client_email` | Google Sheets UI, per-sheet | GoogleSheets |
+| 6 | Sheet shared as Editor with the service account's `client_email` — **or**, if the tenant's Workspace blocks that, `google-sheets-impersonate-user` set + domain-wide delegation authorized (see below) | Google Sheets UI, per-sheet — or Settings → Key Configurations | GoogleSheets |
 | 7 | Sheet has columns A–F as ID invoice / vendor / total / Status / Approved Date / Approved By | Google Sheets UI, per-sheet | GoogleSheets |
 | 8–10 | The 3 approval-queue keys (who can approve, their Slack id, the notifier agent's id) | Settings → Key Configurations | see `Scribe/Approvals/CLAUDE.md` |
 | 11 | Acumatica credentials (see that connector's own docs) | Settings → Key Configurations | Acumatica |
