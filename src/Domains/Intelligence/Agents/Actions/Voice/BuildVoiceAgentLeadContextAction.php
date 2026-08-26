@@ -120,9 +120,12 @@ class BuildVoiceAgentLeadContextAction
         $context = [
             'lead_id' => $lead->getId(),
             'name' => $name !== '' ? $name : null,
-            'status' => $lead->status?->name,
-            'stage' => $lead->stage?->name,
-            'owner' => $lead->owner?->displayname,
+            // Guard with is_object: these relations resolve to the raw FK int
+            // (e.g. 0) when unset — a voice-captured lead has status/stage/owner
+            // of 0 — and ?-> only guards null, so ?->name on an int throws.
+            'status' => is_object($lead->status) ? $lead->status->name : null,
+            'stage' => is_object($lead->stage) ? $lead->stage->name : null,
+            'owner' => is_object($lead->owner) ? $lead->owner->displayname : null,
             'vehicle_interest' => $vehicle !== '' ? $vehicle : null,
             'context_info' => $contextInfo !== '' ? $contextInfo : null,
             'is_returning' => true,
