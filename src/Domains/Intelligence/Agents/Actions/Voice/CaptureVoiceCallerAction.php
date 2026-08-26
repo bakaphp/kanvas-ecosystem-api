@@ -54,6 +54,9 @@ class CaptureVoiceCallerAction
         private readonly ?string $interest = null,
         private readonly bool $interested = false,
         private readonly ?string $direction = null,
+        private readonly ?string $summary = null,
+        private readonly bool $wantsAppointment = false,
+        private readonly ?string $appointmentPreference = null,
     ) {
     }
 
@@ -102,6 +105,12 @@ class CaptureVoiceCallerAction
             if ($this->interest !== null && $this->interest !== '') {
                 $people->set('voice_interest', $this->interest);
             }
+            if ($this->wantsAppointment) {
+                $people->set('voice_wants_appointment', '1');
+                if ($this->appointmentPreference !== null && $this->appointmentPreference !== '') {
+                    $people->set('voice_appointment_preference', $this->appointmentPreference);
+                }
+            }
 
             // Promote to a lead when there's no active lead yet. OUTBOUND (we
             // dialed them) requires clear intent — placing the call isn't itself
@@ -116,8 +125,9 @@ class CaptureVoiceCallerAction
                 $lead = $this->createLeadFromPeople($people, $user);
                 $createdLead = true;
             }
-            if ($lead !== null && $this->interest !== null && $this->interest !== '') {
-                $lead->set(ConfigurationEnum::LEAD_CONTEXT_INFO->value, $this->interest);
+            $contextInfo = $this->buildContextInfo();
+            if ($lead !== null && $contextInfo !== '') {
+                $lead->set(ConfigurationEnum::LEAD_CONTEXT_INFO->value, $contextInfo);
             }
 
             return [
@@ -311,7 +321,39 @@ class CaptureVoiceCallerAction
         if ($this->interest !== null && trim($this->interest) !== '') {
             $parts[] = 'Interest: ' . trim($this->interest);
         }
+        if ($this->summary !== null && trim($this->summary) !== '') {
+            $parts[] = trim($this->summary);
+        }
+        if ($this->wantsAppointment) {
+            $parts[] = $this->appointmentNote();
+        }
 
         return implode(' ', $parts);
+    }
+
+    /**
+     * The AI-facing lead context, round-tripped via LEAD_CONTEXT_INFO and read
+     * back on the next call: the caller's interest, the agent's call summary, and
+     * any appointment request. Empty string when nothing was captured.
+     */
+    private function buildContextInfo(): string
+    {
+        $lines = array_filter([
+            ($this->interest !== null && trim($this->interest) !== '') ? 'Interest: ' . trim($this->interest) : null,
+            ($this->summary !== null && trim($this->summary) !== '') ? trim($this->summary) : null,
+            $this->wantsAppointment ? $this->appointmentNote() : null,
+        ]);
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * A one-line appointment note including the caller's time preference, if any.
+     */
+    private function appointmentNote(): string
+    {
+        $pref = trim((string) $this->appointmentPreference);
+
+        return $pref !== '' ? "Wants an appointment: {$pref}." : 'Wants an appointment.';
     }
 }
