@@ -102,7 +102,7 @@ The sheet still needs the service account shared as Editor on it (see below) —
 saves the agent from needing the URL repeated in every message. Without this key set, the agent
 falls back to asking for a sheet link when it needs to log something.
 
-### Per-sheet sharing (always required, cannot be automated)
+### Per-sheet sharing (default path)
 
 The service account can only touch a spreadsheet that has been explicitly shared with it. For
 **every** sheet an agent needs to read or write:
@@ -112,6 +112,30 @@ The service account can only touch a spreadsheet that has been explicitly shared
 
 Without this, every call fails with a permission error from the Sheets API — the credentials
 being configured correctly is not enough on its own.
+
+### Alternative: domain-wide delegation (when the tenant's Workspace blocks external sharing)
+
+Some Workspace tenants block sharing files with any account outside the org (Trust Rules, or a
+plan that doesn't support adding new Trust Rules) — the service account's email is external, so
+the share in the section above fails there no matter what. The fix is **domain-wide
+delegation**: the service account impersonates a real internal user instead of acting as itself,
+so no external share is ever needed.
+
+1. In [Google Cloud Console](https://console.cloud.google.com/) → **IAM & Admin → Service
+   Accounts** → open the service account → copy its **OAuth2 Client ID** (a numeric id, distinct
+   from its email).
+2. A Workspace super-admin goes to `admin.google.com` → **Security → Access and data control →
+   API Controls → Domain-wide Delegation → Add new** → paste that Client ID → scope
+   `https://www.googleapis.com/auth/spreadsheets` → **Authorize**.
+3. Set `google-sheets-impersonate-user` (`ConfigurationEnum::IMPERSONATE_USER`) to a real
+   Workspace email that already has normal (internal) access to the target sheet(s) — `Client`
+   calls `Google\Client::setSubject()` with it, so every API call is made *as that person*, not
+   as the service account.
+4. The sheet itself is **not** shared with the service account at all under this path — it only
+   needs to be a sheet the impersonated user can already open normally.
+
+This key is optional and additive — leave it unset and the connector behaves exactly as before
+(the direct-share model above).
 
 ## Security note
 
