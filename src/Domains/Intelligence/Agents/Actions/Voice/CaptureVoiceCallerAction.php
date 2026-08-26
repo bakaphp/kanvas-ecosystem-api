@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Voice;
 
 use Baka\Support\Str;
+use Bouncer;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
@@ -68,6 +70,14 @@ class CaptureVoiceCallerAction
         // rest of the request (same pattern as TenantAware*Searchable jobs).
         $previousApp = app(Apps::class);
         app()->instance(Apps::class, $this->agent->app);
+
+        // Same reason, for RBAC: Role is a Bouncer model with a global scope that
+        // filters by the ACTIVE scope, which is the runtime's app-key app. Lead
+        // creation fires LeadObserver -> CreateChannelAction, which looks up the
+        // "Admin" role for the agent's app; under the wrong scope that role is
+        // hidden and firstOrFail throws. Point Bouncer at the agent's app scope.
+        $previousScope = Bouncer::scope()->get();
+        Bouncer::scope()->to(RolesEnums::getScope($this->agent->app));
 
         try {
             $company = $this->agent->companies_id > 0
@@ -134,6 +144,7 @@ class CaptureVoiceCallerAction
 
             return ['status' => 'error', 'message' => "I couldn't save the caller details just now."];
         } finally {
+            Bouncer::scope()->to($previousScope);
             app()->instance(Apps::class, $previousApp);
         }
     }
