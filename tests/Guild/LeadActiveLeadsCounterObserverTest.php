@@ -197,28 +197,10 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
         $this->createLead($current, leadsStatusId: 1);
         $this->createLead($past, leadsStatusId: 3);
 
-        $raw = $this->graphQL(
-            'query($marker: Mixed!) {
-                peoples(
-                    where: {
-                        AND: [
-                            { column: FIRSTNAME, operator: LIKE, value: $marker }
-                            { column: ACTIVE_LEADS_COUNT, operator: GT, value: 0 }
-                        ]
-                    }
-                ) {
-                    data { id }
-                }
-            }',
-            ['marker' => $marker . '%'],
-        )->assertOk()->json();
-
-        $ids = array_map(
-            fn (array $row) => (int) $row['id'],
-            $raw['data']['peoples']['data'] ?? [],
+        $this->assertSame(
+            [$current->getId()],
+            $this->fetchIdsByActiveLeadsCount($marker, isCurrent: true),
         );
-
-        $this->assertSame([$current->getId()], $ids);
     }
 
     public function testPastCustomersQueryReturnsOnlyPeopleWithoutAnOpenLead(): void
@@ -229,28 +211,10 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
         $this->createLead($current, leadsStatusId: 2);
         $this->createLead($past, leadsStatusId: 3);
 
-        $raw = $this->graphQL(
-            'query($marker: Mixed!) {
-                peoples(
-                    where: {
-                        AND: [
-                            { column: FIRSTNAME, operator: LIKE, value: $marker }
-                            { column: ACTIVE_LEADS_COUNT, operator: EQ, value: 0 }
-                        ]
-                    }
-                ) {
-                    data { id }
-                }
-            }',
-            ['marker' => $marker . '%'],
-        )->assertOk()->json();
-
-        $ids = array_map(
-            fn (array $row) => (int) $row['id'],
-            $raw['data']['peoples']['data'] ?? [],
+        $this->assertSame(
+            [$past->getId()],
+            $this->fetchIdsByActiveLeadsCount($marker, isCurrent: false),
         );
-
-        $this->assertSame([$past->getId()], $ids);
     }
 
     public function testPersonWithOnlyClosedLeadsMovesFromCurrentToPastAfterStatusChange(): void

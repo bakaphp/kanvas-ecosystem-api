@@ -327,14 +327,16 @@ class Lead extends BaseModel implements EventResourceInterface
      * This hardcodes the known global seed ids as a stopgap — replace with a
      * real category lookup once `leads_status` gets that column.
      */
+    public const array OPEN_LEADS_STATUS_IDS = [1, 2];
+
     public function hasOpenLeadStatus(): bool
     {
-        return in_array((int) $this->getAttributeValue('leads_status_id'), [1, 2], true);
+        return in_array((int) $this->getAttributeValue('leads_status_id'), self::OPEN_LEADS_STATUS_IDS, true);
     }
 
     public function scopeHasOpenLeadStatus(Builder $query): Builder
     {
-        return $query->whereIn('leads_status_id', [1, 2]);
+        return $query->whereIn('leads_status_id', self::OPEN_LEADS_STATUS_IDS);
     }
 
     public function isActive(): bool
