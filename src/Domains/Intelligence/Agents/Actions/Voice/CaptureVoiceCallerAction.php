@@ -250,7 +250,7 @@ class CaptureVoiceCallerAction
             app: $people->app,
             branch: $people->company->defaultBranch,
             user: $user,
-            title: $people->name . ' Voice Opp',
+            title: $this->leadTitle($people),
             pipeline_stage_id: 0,
             people: new PeopleDto(
                 $people->app,
@@ -273,5 +273,29 @@ class CaptureVoiceCallerAction
         $lead->addTags(['voice-agent']);
 
         return $lead;
+    }
+
+    /**
+     * A scannable lead title: who + how they came in + what they want, e.g.
+     * "Rafael Lopez — Outbound voice call — interested in a 2024 Camry".
+     * Falls back to the phone when we don't have a real name yet, and omits the
+     * interest clause when none was captured.
+     */
+    private function leadTitle(People $people): string
+    {
+        $who = trim((string) $people->name);
+        if ($who === '' || preg_match('/^[\d\s+()\-]+$/', $who) === 1) {
+            $who = $this->phone;
+        }
+
+        $direction = $this->direction === 'outbound' ? 'Outbound' : 'Inbound';
+
+        $parts = array_filter([
+            $who,
+            $direction . ' voice call',
+            ($this->interest !== null && $this->interest !== '') ? trim($this->interest) : null,
+        ]);
+
+        return implode(' — ', $parts);
     }
 }
