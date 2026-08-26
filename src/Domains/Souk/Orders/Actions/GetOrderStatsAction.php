@@ -32,7 +32,14 @@ class GetOrderStatsAction
         protected ?string $userEmail = null,
         protected array $excludeStates = [],
         protected OrderStatsExcludeModeEnum $excludeMode = OrderStatsExcludeModeEnum::CURRENT,
+        protected ?int $variantId = null,
     ) {
+        if ($this->variantId) {
+            $this->productVariantIds = collect([$this->variantId]);
+
+            return;
+        }
+
         if ($this->productId) {
             $this->productVariantIds = DB::connection('inventory')
                 ->table('products_variants')

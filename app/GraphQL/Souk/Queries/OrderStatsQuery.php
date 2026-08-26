@@ -31,6 +31,7 @@ class OrderStatsQuery
         $productTypeSlugs = $input['productTypeSlugs'] ?? [];
         $orderTypeNames = $input['orderTypeNames'] ?? [];
         $productId = isset($input['productId']) ? (int) $input['productId'] : null;
+        $variantId = isset($input['variantId']) ? (int) $input['variantId'] : null;
         $date = $input['date'] ?? null;
         $startDate = $input['startDate'] ?? null;
         $endDate = $input['endDate'] ?? null;
@@ -55,7 +56,8 @@ class OrderStatsQuery
             $providers,
             $userEmail,
             $excludeStates,
-            $excludeMode
+            $excludeMode,
+            $variantId
         )->execute(
             $date,
             $startDate,
