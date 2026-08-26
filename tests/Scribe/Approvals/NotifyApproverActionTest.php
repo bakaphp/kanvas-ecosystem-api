@@ -20,10 +20,11 @@ class NotifyApproverActionTest extends TestCase
 {
     use DatabaseTransactions;
 
+    private const string APPROVER_EMAIL = 'approver@example.test';
+
     private Apps $kanvasApp;
     private Companies $company;
     private Users $user;
-    private mixed $originalSlackUserId = null;
     private mixed $originalNotifierAgentId = null;
 
     protected function setUp(): void
@@ -36,15 +37,12 @@ class NotifyApproverActionTest extends TestCase
 
         // HasCustomFields writes through Redis, which DatabaseTransactions never rolls back —
         // save/restore explicitly so a value set here can't leak into the next test in the run.
-        $this->originalSlackUserId = $this->kanvasApp->get(ApprovalConfigurationEnum::APPROVER_SLACK_USER_ID->value);
         $this->originalNotifierAgentId = $this->kanvasApp->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value);
-        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_SLACK_USER_ID->value, '');
         $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, '');
     }
 
     protected function tearDown(): void
     {
-        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_SLACK_USER_ID->value, $this->originalSlackUserId);
         $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, $this->originalNotifierAgentId);
 
         parent::tearDown();
@@ -52,14 +50,15 @@ class NotifyApproverActionTest extends TestCase
 
     public function test_it_uploads_the_pdf_as_a_real_attachment_when_a_url_is_present(): void
     {
-        $this->configureApprover();
+        $this->configureNotifierAgent();
         $this->fakeSlackAndAttachment();
 
         new NotifyApproverAction(
-            $this->kanvasApp,
-            'You have an AP bill pending approval',
-            'https://cdn.example.test/invoice-4521.pdf',
-            'invoice-4521.pdf',
+            app: $this->kanvasApp,
+            text: 'You have an AP bill pending approval',
+            approverEmail: self::APPROVER_EMAIL,
+            attachmentUrl: 'https://cdn.example.test/invoice-4521.pdf',
+            attachmentFilename: 'invoice-4521.pdf',
         )->execute();
 
         Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'files.getUploadURLExternal'));
@@ -69,10 +68,10 @@ class NotifyApproverActionTest extends TestCase
 
     public function test_it_sends_a_plain_message_when_there_is_no_attachment(): void
     {
-        $this->configureApprover();
+        $this->configureNotifierAgent();
         $this->fakeSlackAndAttachment();
 
-        new NotifyApproverAction($this->kanvasApp, 'You have an AP bill pending approval')->execute();
+        new NotifyApproverAction($this->kanvasApp, 'You have an AP bill pending approval', self::APPROVER_EMAIL)->execute();
 
         Http::assertSent(
             fn (Request $request): bool => str_contains($request->url(), 'chat.postMessage')
@@ -83,17 +82,19 @@ class NotifyApproverActionTest extends TestCase
 
     public function test_it_falls_back_to_a_plain_message_when_the_upload_fails(): void
     {
-        $this->configureApprover();
+        $this->configureNotifierAgent();
         Http::fake([
+            'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
             'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
             'cdn.example.test/*' => Http::response('', 404),
             'slack.com/api/chat.postMessage' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
         ]);
 
         new NotifyApproverAction(
-            $this->kanvasApp,
-            'You have an AP bill pending approval',
-            'https://cdn.example.test/invoice-4521.pdf',
+            app: $this->kanvasApp,
+            text: 'You have an AP bill pending approval',
+            approverEmail: self::APPROVER_EMAIL,
+            attachmentUrl: 'https://cdn.example.test/invoice-4521.pdf',
         )->execute();
 
         Http::assertSent(
@@ -102,8 +103,9 @@ class NotifyApproverActionTest extends TestCase
         );
     }
 
-    public function test_it_does_nothing_when_slack_is_not_configured(): void
+    public function test_it_does_nothing_when_the_approver_email_is_missing(): void
     {
+        $this->configureNotifierAgent();
         Http::fake();
 
         new NotifyApproverAction($this->kanvasApp, 'You have an AP bill pending approval')->execute();
@@ -111,7 +113,28 @@ class NotifyApproverActionTest extends TestCase
         Http::assertNothingSent();
     }
 
-    private function configureApprover(): void
+    public function test_it_does_nothing_when_slack_is_not_configured(): void
+    {
+        Http::fake();
+
+        new NotifyApproverAction($this->kanvasApp, 'You have an AP bill pending approval', self::APPROVER_EMAIL)->execute();
+
+        Http::assertNothingSent();
+    }
+
+    public function test_it_does_nothing_when_the_email_does_not_match_a_slack_workspace_member(): void
+    {
+        $this->configureNotifierAgent();
+        Http::fake([
+            'slack.com/api/users.lookupByEmail' => Http::response(['ok' => false, 'error' => 'users_not_found']),
+        ]);
+
+        new NotifyApproverAction($this->kanvasApp, 'You have an AP bill pending approval', self::APPROVER_EMAIL)->execute();
+
+        Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'conversations.open'));
+    }
+
+    private function configureNotifierAgent(): void
     {
         $agent = Agent::factory()
             ->withAppId($this->kanvasApp->getId())
@@ -119,13 +142,13 @@ class NotifyApproverActionTest extends TestCase
             ->create(['name' => 'Apex', 'user_id' => $this->user->getId()]);
         $agent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test-token');
 
-        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_SLACK_USER_ID->value, 'U123');
         $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, (string) $agent->getId());
     }
 
     private function fakeSlackAndAttachment(): void
     {
         Http::fake([
+            'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
             'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
             'cdn.example.test/*' => Http::response('%PDF-1.4 fake bytes', 200),
             'slack.com/api/files.getUploadURLExternal' => Http::response([

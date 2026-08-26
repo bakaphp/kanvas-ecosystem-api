@@ -14,6 +14,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
 use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
 use Kanvas\Scribe\Approvals\Actions\RequestApprovalAction;
+use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
@@ -194,13 +195,16 @@ class CreateArInvoiceTool extends Tool
                 requestedByUser: $actingUser,
             )->execute();
 
+            $approverEmail = trim((string) $customer->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, ''));
+
             new NotifyApproverAction(
-                $app,
-                "You have an AR invoice pending approval:\nCustomer: {$customer->name}\nAmount: {$currency} "
+                app: $app,
+                text: "You have an AR invoice pending approval:\nCustomer: {$customer->name}\nAmount: {$currency} "
                     . "{$amount}\nMemo: {$memo}\nInvoice ID (Kanvas): {$invoice->getId()}\n\nReply "
                     . "\"approve invoice {$invoice->getId()}\" to approve it and push it to Acumatica.",
-                $source_attachment_url,
-                $source_attachment_filename,
+                approverEmail: $approverEmail !== '' ? $approverEmail : null,
+                attachmentUrl: $source_attachment_url,
+                attachmentFilename: $source_attachment_filename,
             )->execute();
 
             return [
@@ -213,8 +217,12 @@ class CreateArInvoiceTool extends Tool
                 'amount' => $amount,
                 'currency' => $currency,
                 'memo' => $memo,
-                'next' => 'Invoice created in Kanvas (status: draft). Not issued or pushed to Acumatica — that '
-                    . 'happens separately once a human approves it.',
+                'next' => $approverEmail !== ''
+                    ? 'Invoice created in Kanvas (status: draft). Not issued or pushed to Acumatica — that '
+                        . 'happens separately once a human approves it.'
+                    : 'Invoice created in Kanvas, but customer "' . $customer->name . '" has no approver email '
+                        . 'configured — nobody can approve it and no notification was sent. Tell the user to '
+                        . 'have an admin set that customer\'s approver email.',
             ];
         }
 
