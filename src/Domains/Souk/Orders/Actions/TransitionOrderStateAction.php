@@ -56,7 +56,6 @@ class TransitionOrderStateAction
         try {
             $transitioned = false;
 
-            // must be `commerce`: on the default connection lockForUpdate and both writes run in autocommit
             DB::connection('commerce')->transaction(function () use ($orderStatusTransitions, $currentOrderStatus, $customDate, &$transitioned) {
                 // Lock the order row to prevent concurrent transitions
                 $locked = Order::lockForUpdate()->find($this->order->id);
