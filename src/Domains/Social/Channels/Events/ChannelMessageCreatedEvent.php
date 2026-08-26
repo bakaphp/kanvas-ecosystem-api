@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Channels\Events;
 
+use Baka\Support\Str;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
@@ -53,9 +54,11 @@ class ChannelMessageCreatedEvent implements ShouldBroadcast
     #[Override]
     public function broadcastOn(): array
     {
+        $appPrefix = 'app-' . $this->channel->apps_id;
+
         $channels = [
-            new Channel('app-' . $this->channel->apps_id . '-new-message-channel-' . $this->channel->slug . '-' . $this->channel->id),
-            new Channel('app-' . $this->channel->apps_id . $this->channel->slug),
+            new Channel(Str::sanitizeChannelName($appPrefix . '-new-message-channel-' . $this->channel->slug . '-' . $this->channel->id)),
+            new Channel(Str::sanitizeChannelName($appPrefix . $this->channel->slug)),
         ];
 
         if (! empty($this->channel->entity_namespace)) {
