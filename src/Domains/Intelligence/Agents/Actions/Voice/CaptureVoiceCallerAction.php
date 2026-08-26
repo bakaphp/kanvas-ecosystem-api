@@ -267,6 +267,7 @@ class CaptureVoiceCallerAction
             type_id: $leadType->getId(),
             source_id: $leadSource->getId(),
             receiver_id: $leadReceiver->getId(),
+            description: $this->leadDescription(),
         );
 
         $lead = new CreateLeadAction($leadData)->execute();
@@ -297,5 +298,20 @@ class CaptureVoiceCallerAction
         ]);
 
         return implode(' — ', $parts);
+    }
+
+    /**
+     * Human-facing lead description for the CRM: how the lead came in plus the
+     * interest the agent captured (when any).
+     */
+    private function leadDescription(): string
+    {
+        $direction = $this->direction === 'outbound' ? 'Outbound' : 'Inbound';
+        $parts = ["{$direction} voice call captured by the AI agent."];
+        if ($this->interest !== null && trim($this->interest) !== '') {
+            $parts[] = 'Interest: ' . trim($this->interest);
+        }
+
+        return implode(' ', $parts);
     }
 }
