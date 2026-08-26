@@ -45,26 +45,26 @@ class OrderStatsQuery
         $excludeMode = OrderStatsExcludeModeEnum::from(strtolower($input['excludeMode'] ?? 'current'));
 
         $orderStats = new GetOrderStatsAction(
-            $app,
-            $initialStates,
-            $finalStates,
-            $currentCountStates,
-            $productTypeSlugs,
-            $orderTypeNames,
-            $productId,
-            $providerCompanyIds,
-            $providers,
-            $userEmail,
-            $excludeStates,
-            $excludeMode,
-            $variantId
+            app: $app,
+            initialStates: $initialStates,
+            finalStates: $finalStates,
+            currentCountStates: $currentCountStates,
+            productTypeSlugs: $productTypeSlugs,
+            orderTypeNames: $orderTypeNames,
+            productId: $productId,
+            variantId: $variantId,
+            providerCompanyIds: $providerCompanyIds,
+            providers: $providers,
+            userEmail: $userEmail,
+            excludeStates: $excludeStates,
+            excludeMode: $excludeMode,
         )->execute(
-            $date,
-            $startDate,
-            $endDate,
-            $baseDate,
-            $timezone,
-            $groupBy
+            date: $date,
+            startDate: $startDate,
+            endDate: $endDate,
+            baseDate: $baseDate,
+            timezone: $timezone,
+            groupBy: $groupBy,
         );
 
         return $orderStats;

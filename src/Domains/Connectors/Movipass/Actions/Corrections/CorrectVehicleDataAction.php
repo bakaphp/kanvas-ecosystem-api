@@ -36,7 +36,7 @@ class CorrectVehicleDataAction extends BaseOrderCorrectionAction
             $changes = [];
 
             foreach (self::EDITABLE_FIELDS as $input => $metadataKey) {
-                if (! array_key_exists($input, $this->vehicleData)) {
+                if (! isset($this->vehicleData[$input]) || ! is_scalar($this->vehicleData[$input])) {
                     continue;
                 }
 
@@ -59,7 +59,6 @@ class CorrectVehicleDataAction extends BaseOrderCorrectionAction
 
             $this->order->metadata = $metadata;
 
-            // reference embeds the brand, and UpdateOrderAction never touches it — keep it in sync here
             if (isset($changes['vehicleBrand'])) {
                 $plate = $metadata['data']['vehiclePlate'] ?? '';
                 $this->order->reference = "{$changes['vehicleBrand']['new']} / {$plate} - #{$this->order->order_number}";

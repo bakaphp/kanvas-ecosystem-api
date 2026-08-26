@@ -27,12 +27,12 @@ class GetOrderStatsAction
         protected array $productTypeSlugs = [],
         protected array $orderTypeNames = [],
         protected ?int $productId = null,
+        protected ?int $variantId = null,
         protected array $providerCompanyIds = [],
         protected array $providers = [],
         protected ?string $userEmail = null,
         protected array $excludeStates = [],
         protected OrderStatsExcludeModeEnum $excludeMode = OrderStatsExcludeModeEnum::CURRENT,
-        protected ?int $variantId = null,
     ) {
         if ($this->variantId) {
             $this->productVariantIds = collect([$this->variantId]);
