@@ -198,13 +198,13 @@ class CreateArInvoiceTool extends Tool
             $approverEmail = trim((string) $customer->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, ''));
 
             new NotifyApproverAction(
-                $app,
-                "You have an AR invoice pending approval:\nCustomer: {$customer->name}\nAmount: {$currency} "
+                app: $app,
+                text: "You have an AR invoice pending approval:\nCustomer: {$customer->name}\nAmount: {$currency} "
                     . "{$amount}\nMemo: {$memo}\nInvoice ID (Kanvas): {$invoice->getId()}\n\nReply "
                     . "\"approve invoice {$invoice->getId()}\" to approve it and push it to Acumatica.",
-                $approverEmail !== '' ? $approverEmail : null,
-                $source_attachment_url,
-                $source_attachment_filename,
+                approverEmail: $approverEmail !== '' ? $approverEmail : null,
+                attachmentUrl: $source_attachment_url,
+                attachmentFilename: $source_attachment_filename,
             )->execute();
 
             return [

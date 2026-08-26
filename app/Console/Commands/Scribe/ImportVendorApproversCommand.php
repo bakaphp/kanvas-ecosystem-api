@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Scribe;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -19,6 +20,8 @@ use Maatwebsite\Excel\Facades\Excel;
  */
 class ImportVendorApproversCommand extends Command
 {
+    use KanvasJobsTrait;
+
     protected $signature = 'scribe:import-vendor-approvers {apps_id} {company_id} {file}';
 
     protected $description = 'Sets the ap_approver_email custom field on vendor Organizations from a Vendor Name / Approver Email spreadsheet';
@@ -26,6 +29,8 @@ class ImportVendorApproversCommand extends Command
     public function handle(): void
     {
         $app = Apps::getById((int) $this->argument('apps_id'));
+        $this->overwriteAppService($app);
+
         $company = Companies::getById((int) $this->argument('company_id'));
 
         $import = new class () implements ToArray {

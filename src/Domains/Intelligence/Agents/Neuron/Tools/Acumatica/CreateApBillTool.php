@@ -244,15 +244,15 @@ class CreateApBillTool extends Tool
             $approverEmail = trim((string) $vendor->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, ''));
 
             new NotifyApproverAction(
-                $app,
-                "You have an AP bill pending approval:\nVendor: {$vendor->name}\nAmount: {$currency} "
+                app: $app,
+                text: "You have an AP bill pending approval:\nVendor: {$vendor->name}\nAmount: {$currency} "
                     . "{$amount}\nGL: {$gl_account_number}"
                     . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : '')
                     . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
                     . "{$bill->getId()}\" to approve it and push it to Acumatica.",
-                $approverEmail !== '' ? $approverEmail : null,
-                $source_attachment_url,
-                $source_attachment_filename,
+                approverEmail: $approverEmail !== '' ? $approverEmail : null,
+                attachmentUrl: $source_attachment_url,
+                attachmentFilename: $source_attachment_filename,
             )->execute();
 
             return [
