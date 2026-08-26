@@ -1,0 +1,36 @@
+type SalesforceObjectSummary {
+    name: String!
+    label: String!
+    custom: Boolean!
+}
+
+type SalesforceFieldSummary {
+    name: String!
+    label: String!
+    type: String!
+    custom: Boolean!
+}
+
+type SalesforceRecordSummary {
+    id: String!
+    name: String!
+}
+
+extend type Query @guard {
+    salesforceObjects(search: String): [SalesforceObjectSummary!]!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Salesforce\\SalesforceSchemaQuery@objects"
+        )
+    salesforceObjectFields(object_name: String!): [SalesforceFieldSummary!]!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Salesforce\\SalesforceSchemaQuery@fields"
+        )
+    salesforceRecords(
+        object_name: String!
+        search: String
+        limit: Int
+    ): [SalesforceRecordSummary!]!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Salesforce\\SalesforceSchemaQuery@records"
+        )
+}
