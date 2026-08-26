@@ -54,11 +54,11 @@ class NotifyApproverActionTest extends TestCase
         $this->fakeSlackAndAttachment();
 
         new NotifyApproverAction(
-            $this->kanvasApp,
-            'You have an AP bill pending approval',
-            self::APPROVER_EMAIL,
-            'https://cdn.example.test/invoice-4521.pdf',
-            'invoice-4521.pdf',
+            app: $this->kanvasApp,
+            text: 'You have an AP bill pending approval',
+            approverEmail: self::APPROVER_EMAIL,
+            attachmentUrl: 'https://cdn.example.test/invoice-4521.pdf',
+            attachmentFilename: 'invoice-4521.pdf',
         )->execute();
 
         Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'files.getUploadURLExternal'));
@@ -91,10 +91,10 @@ class NotifyApproverActionTest extends TestCase
         ]);
 
         new NotifyApproverAction(
-            $this->kanvasApp,
-            'You have an AP bill pending approval',
-            self::APPROVER_EMAIL,
-            'https://cdn.example.test/invoice-4521.pdf',
+            app: $this->kanvasApp,
+            text: 'You have an AP bill pending approval',
+            approverEmail: self::APPROVER_EMAIL,
+            attachmentUrl: 'https://cdn.example.test/invoice-4521.pdf',
         )->execute();
 
         Http::assertSent(
