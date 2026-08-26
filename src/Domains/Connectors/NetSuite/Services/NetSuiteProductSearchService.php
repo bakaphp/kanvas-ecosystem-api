@@ -77,6 +77,40 @@ class NetSuiteProductSearchService
     }
 
     /**
+     * Every item's stock at one inventory location.
+     *
+     * The location join is what makes NetSuite return `locationQuantityAvailable` at all — a
+     * saved search on its own comes back with a null quantity on every row, whatever its id.
+     * This is the same shape as searchProductByItemNumber() minus the item filter, so one call
+     * covers the catalog instead of one SOAP round-trip per SKU.
+     *
+     * Note the figure is quantity *available* (on hand minus committed), not on hand.
+     */
+    public function searchByLocation(
+        string|int $locationId,
+        string|int $savedSearchId = '574'
+    ): array {
+        $search = new ItemSearchAdvanced();
+        $search->savedSearchId = (string) $savedSearchId;
+
+        $locationBasic = new LocationSearchBasic();
+        $internalIdField = new SearchMultiSelectField();
+        $internalIdField->operator = 'anyOf';
+        $internalIdRef = new RecordRef();
+        $internalIdRef->internalId = (string) $locationId;
+        $internalIdField->searchValue = [$internalIdRef];
+        $locationBasic->internalId = $internalIdField;
+
+        $itemSearch = new ItemSearch();
+        $itemSearch->basic = new ItemSearchBasic();
+        $itemSearch->inventoryLocationJoin = $locationBasic;
+
+        $search->criteria = $itemSearch;
+
+        return $this->executeAdvancedSearch($search);
+    }
+
+    /**
      * Search using a saved search with custom criteria.
      */
     public function searchWithSavedSearch(

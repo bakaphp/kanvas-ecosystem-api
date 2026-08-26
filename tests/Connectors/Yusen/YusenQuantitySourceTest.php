@@ -102,6 +102,38 @@ class YusenQuantitySourceTest extends TestCase
         $this->assertNull($this->rowFor($report, '9990000000045'));
     }
 
+    public function testASourceThatKnowsNothingIsNotTreatedAsZero(): void
+    {
+        // Regression: NetSuite's saved search returned rows with a null quantity and the source
+        // coerced them to 0, so every item read as a full mismatch. A source with no answer must
+        // fail loudly into source_errors, not invent zeroes.
+        $report = $this->runWith([
+            $this->source('netsuite', [], throws: 'saved search returned no locationQuantityAvailable'),
+        ]);
+
+        $this->assertSame([], $report['by_source']);
+        $this->assertSame(0, $report['total_discrepancies']);
+        $this->assertStringContainsString(
+            'locationQuantityAvailable',
+            $report['source_errors']['netsuite']
+        );
+    }
+
+    public function testASourceReportingZeroIsComparedNotSkipped(): void
+    {
+        // NetSuite omits the quantity rather than sending 0 when a location has nothing
+        // available. That is a real answer — Yusen holding 1,000 of something the ERP has none
+        // of is the single most important row in the report and must not be dropped.
+        $report = $this->runWith([$this->source('netsuite', ['9990000000045' => 0.0])]);
+
+        $row = $this->rowFor($report, '9990000000045');
+
+        $this->assertSame(DiscrepancyTypeEnum::QUANTITY_MISMATCH->value, $row['type']);
+        $this->assertSame(1000.0, $row['yusen_quantity']);
+        $this->assertSame(0.0, $row['compared_quantity']);
+        $this->assertSame(1000.0, $row['difference']);
+    }
+
     private function runWith(array $sources): array
     {
         $balance = new InventoryBalanceXmlParser()->parseFile(__DIR__ . '/fixtures/item-balance.xml');

@@ -8,72 +8,141 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Exception;
-use Kanvas\Connectors\NetSuite\Services\NetSuiteCustomerService;
+use Kanvas\Connectors\NetSuite\Services\NetSuiteLocationWarehouseService;
 use Kanvas\Connectors\NetSuite\Services\NetSuiteProductSearchService;
-use Kanvas\Connectors\NetSuite\Services\NetSuiteProductService;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsWarehouses;
 
+/**
+ * Pulls stock from NetSuite into every Kanvas warehouse that mirrors a NetSuite location.
+ *
+ * One search per mapped location, not one per item: `searchByLocation()` returns the whole catalog
+ * for a location in a single call, and every NetSuite call queues through a small shared
+ * concurrency semaphore (`NET_SUITE_MAX_CONCURRENT_REQUESTS`, default 2). A tenant with five
+ * warehouses costs five calls, not five times the catalog.
+ *
+ * The location join is mandatory. Without it NetSuite returns `locationQuantityAvailable` as null
+ * on every row, and this action used to coerce that to `0` — writing zeroes over real stock across
+ * the catalog. It now refuses to write when a search comes back with no quantities at all.
+ */
 class PullNetSuiteProductStockAction
 {
-    protected NetSuiteCustomerService $service;
-    protected NetSuiteProductService $productService;
     protected NetSuiteProductSearchService $searchService;
-    protected bool $shouldUseLegacySearch = false;
+    protected NetSuiteLocationWarehouseService $locationService;
 
     public function __construct(
         protected AppInterface $app,
         protected CompanyInterface $mainAppCompany,
         protected UserInterface $user
     ) {
-        $this->service = new NetSuiteCustomerService($app, $mainAppCompany);
         $this->searchService = new NetSuiteProductSearchService($app, $mainAppCompany);
+        $this->locationService = new NetSuiteLocationWarehouseService($app, $mainAppCompany);
     }
 
     public function execute(string|int $savedSearchID = 576, ?array $barcodeFilter = null): array
     {
-        $products = $this->searchService->searchWithSavedSearch($savedSearchID);
+        $warehouseLocations = $this->locationService->map();
 
-        if (count($products) === 0) {
-            return [];
-        }
-
-        if (empty($products)) {
+        if ($warehouseLocations === []) {
             return [
                 'company' => $this->mainAppCompany->getId(),
                 'app' => $this->app->getId(),
-                'error' => 'Products not found',
+                'error' => 'No warehouse is mapped to a NetSuite location. Set NET_SUITE_LOCATION_ID '
+                    . 'on the warehouse, or NET_SUITE_DEFAULT_WAREHOUSE on the company.',
                 'searchId' => $savedSearchID,
-                'savedSearchTotal' => count($products),
-                'processed' => 0,
-                'not_found_in_kanvas' => 0,
-                'not_found_in_netsuite' => 0,
             ];
         }
 
-        // Index NetSuite products by itemId for fast lookup
-        $netsuiteIndex = [];
-        foreach ($products as $product) {
-            $netsuiteIndex[$product['itemId']] = $product;
-        }
-
-        $results = [
-            "processed" => [],
-            "not_found_in_kanvas" => [],
-            "not_found_in_netsuite" => [],
-            "update_failed" => []
+        $locations = [];
+        $totals = [
+            'processed' => 0,
+            'not_found_in_kanvas' => 0,
+            'not_found_in_netsuite' => 0,
+            'not_in_warehouse' => 0,
+            'update_failed' => 0,
         ];
 
-        // Determine which products to process
-        $productsToProcess = $barcodeFilter ?? array_keys($netsuiteIndex);
+        foreach ($warehouseLocations as $warehouseId => $locationId) {
+            $result = $this->syncLocation(
+                $warehouseId,
+                $locationId,
+                $savedSearchID,
+                $barcodeFilter,
+            );
 
-        foreach ($productsToProcess as $barcode) {
-            // Check if product exists in NetSuite results
-            if (! isset($netsuiteIndex[$barcode])) {
-                $results["not_found_in_netsuite"][] = $barcode;
+            $locations[] = $result;
+
+            foreach (array_keys($totals) as $key) {
+                $totals[$key] += is_array($result[$key] ?? null) ? count($result[$key]) : 0;
+            }
+        }
+
+        return [
+            'company' => $this->mainAppCompany->getId(),
+            'searchId' => $savedSearchID,
+            'locations' => $locations,
+            ...$totals,
+        ];
+    }
+
+    /**
+     * @param array<array-key, mixed>|null $barcodeFilter
+     * @return array<string, mixed>
+     */
+    private function syncLocation(
+        int $warehouseId,
+        string $locationId,
+        string|int $savedSearchID,
+        ?array $barcodeFilter,
+    ): array {
+        $products = $this->searchService->searchByLocation($locationId, $savedSearchID);
+
+        $netsuiteIndex = [];
+        $withoutQuantity = 0;
+
+        foreach ($products as $product) {
+            if (! is_array($product) || ! isset($product['itemId'])) {
                 continue;
             }
 
-            $netsuiteVariant = $netsuiteIndex[$barcode];
+            $netsuiteIndex[(string) $product['itemId']] = $product;
+
+            if (! isset($product['quantityAvailable'])) {
+                $withoutQuantity++;
+            }
+        }
+
+        // Every row missing a quantity means the search returned no stock column at all, not that
+        // the location is empty. Writing that would zero the catalog, so nothing is written.
+        if ($netsuiteIndex !== [] && $withoutQuantity === count($netsuiteIndex)) {
+            return [
+                'warehouses_id' => $warehouseId,
+                'location_id' => $locationId,
+                'error' => 'Saved search ' . $savedSearchID . ' returned ' . count($netsuiteIndex)
+                    . ' rows at location ' . $locationId . ' with no locationQuantityAvailable on any '
+                    . 'of them. Nothing written.',
+            ];
+        }
+
+        $results = [
+            'warehouses_id' => $warehouseId,
+            'location_id' => $locationId,
+            'savedSearchTotal' => count($netsuiteIndex),
+            'processed' => [],
+            'not_found_in_kanvas' => [],
+            'not_found_in_netsuite' => [],
+            'not_in_warehouse' => [],
+            'update_failed' => [],
+        ];
+
+        foreach ($barcodeFilter ?? array_keys($netsuiteIndex) as $barcode) {
+            $barcode = (string) $barcode;
+
+            if (! isset($netsuiteIndex[$barcode])) {
+                $results['not_found_in_netsuite'][] = $barcode;
+
+                continue;
+            }
 
             $variant = Variants::fromApp($this->app)
                 ->fromCompany($this->mainAppCompany)
@@ -81,42 +150,37 @@ class PullNetSuiteProductStockAction
                 ->first();
 
             if (! $variant) {
-                $results["not_found_in_kanvas"][] = $barcode;
+                $results['not_found_in_kanvas'][] = $barcode;
+
                 continue;
             }
 
-            $variantWarehouse = $variant->variantWarehouses()->first();
+            $variantWarehouse = VariantsWarehouses::query()
+                ->where('products_variants_id', $variant->getId())
+                ->where('warehouses_id', $warehouseId)
+                ->first();
 
+            // The variant isn't stocked in this warehouse yet. Reported rather than created: a new
+            // warehouse would otherwise silently gain a row for every SKU in the catalog on its
+            // first sync.
             if (! $variantWarehouse) {
-                $results["not_found_in_kanvas"][] = $barcode;
+                $results['not_in_warehouse'][] = $barcode;
+
                 continue;
             }
 
             try {
-                $variantWarehouse->quantity = $netsuiteVariant['quantityAvailable'] ?? 0;
+                $variantWarehouse->quantity = (int) ($netsuiteIndex[$barcode]['quantityAvailable'] ?? 0);
                 $variantWarehouse->saveOrFail();
-                $results["processed"][] = $barcode;
+                $results['processed'][] = $barcode;
             } catch (Exception $e) {
-                $results["update_failed"][] = [
+                $results['update_failed'][] = [
                     'barcode' => $barcode,
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ];
             }
         }
 
-        return [
-            'company' => $this->mainAppCompany->getId(),
-            'searchId' => $savedSearchID,
-            'savedSearchTotal' => count($products),
-            'totalToProcess' => count($productsToProcess),
-            'processed' => count($results["processed"]),
-            'processedList' => $results["processed"],
-            'not_found_in_kanvas' => count($results["not_found_in_kanvas"]),
-            'not_found_in_kanvas_list' => $results["not_found_in_kanvas"],
-            'not_found_in_netsuite' => count($results["not_found_in_netsuite"]),
-            'not_found_in_netsuite_list' => $results["not_found_in_netsuite"],
-            'update_failed' => count($results["update_failed"]),
-            'update_failed_list' => $results["update_failed"],
-        ];
+        return $results;
     }
 }

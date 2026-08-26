@@ -37,7 +37,18 @@ class YusenSettings
 
     public function netSuiteSavedSearchId(): string
     {
-        return (string) ($this->raw(ConfigurationEnum::NETSUITE_SAVED_SEARCH_ID) ?? '576');
+        return (string) ($this->raw(ConfigurationEnum::NETSUITE_SAVED_SEARCH_ID) ?? '574');
+    }
+
+    /**
+     * NetSuite's internal id for the location Yusen actually holds. Without it NetSuite returns a
+     * null quantity on every row — the location join is what makes it answer at all.
+     */
+    public function netSuiteLocationId(): ?string
+    {
+        $value = $this->raw(ConfigurationEnum::NETSUITE_LOCATION_ID);
+
+        return $value !== null && $value !== '' ? (string) $value : null;
     }
 
     public function quantityTolerance(): float

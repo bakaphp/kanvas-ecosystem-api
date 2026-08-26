@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Observers;
 
 use Baka\Support\Str;
 use Kanvas\Guild\Customers\Actions\CreatePeopleByEmailAction;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Events\LeadCompanyUpdateEvent;
 use Kanvas\Guild\Leads\Events\LeadUpdateEvent;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -100,6 +101,10 @@ class LeadObserver
 
     public function created(Lead $lead): void
     {
+        if ($lead->people_id && $this->isCounted($lead)) {
+            $this->adjustActiveLeadsCount((int) $lead->people_id, +1);
+        }
+
         if ($lead->user) {
             (
                 new CreateChannelAction(
@@ -148,6 +153,8 @@ class LeadObserver
 
     public function updated(Lead $lead): void
     {
+        $this->syncActiveLeadsCount($lead);
+
         //Subscription::broadcast('leadUpdate', $lead, true);
         LeadUpdateEvent::dispatch($lead);
         LeadCompanyUpdateEvent::dispatch($lead);
@@ -173,6 +180,12 @@ class LeadObserver
 
     public function deleted(Lead $lead): void
     {
+        // Runs first so the counter update still applies even if anything
+        // below this line fails.
+        if ($lead->people_id && $this->isCounted($lead)) {
+            $this->adjustActiveLeadsCount((int) $lead->people_id, -1);
+        }
+
         //delete social channel related to this lead
         $channel = $lead->getSocialChannel();
 
@@ -201,5 +214,61 @@ class LeadObserver
         }
 
         KnowledgeIndexRequested::dispatch(KnowledgeEntity::fromModel($lead));
+    }
+
+    /**
+     * Maintains the active_leads_count counter cache on People. "Counted"
+     * mirrors Lead::isOpen() (status < 2) — not leads_status_id, which the
+     * frontend and other Lead helpers (isActive(), close()/open()) define
+     * inconsistently.
+     */
+    private function syncActiveLeadsCount(Lead $lead): void
+    {
+        $originalPeopleId = $lead->getOriginal('people_id') ? (int) $lead->getOriginal('people_id') : null;
+        $currentPeopleId = $lead->people_id ? (int) $lead->people_id : null;
+        $wasCounted = $this->wasCounted($lead);
+        $isCounted = $this->isCounted($lead);
+
+        if ($originalPeopleId === $currentPeopleId) {
+            if ($wasCounted === $isCounted) {
+                return;
+            }
+
+            if ($currentPeopleId !== null) {
+                $this->adjustActiveLeadsCount($currentPeopleId, $isCounted ? +1 : -1);
+            }
+
+            return;
+        }
+
+        if ($wasCounted && $originalPeopleId !== null) {
+            $this->adjustActiveLeadsCount($originalPeopleId, -1);
+        }
+
+        if ($isCounted && $currentPeopleId !== null) {
+            $this->adjustActiveLeadsCount($currentPeopleId, +1);
+        }
+    }
+
+    private function isCounted(Lead $lead): bool
+    {
+        return $lead->isOpen() && ! (bool) $lead->is_deleted;
+    }
+
+    private function wasCounted(Lead $lead): bool
+    {
+        return (int) ($lead->getOriginal('status') ?? 0) < 2
+            && ! (bool) $lead->getOriginal('is_deleted');
+    }
+
+    private function adjustActiveLeadsCount(int $peopleId, int $delta): void
+    {
+        $query = People::where('id', $peopleId);
+
+        if ($delta < 0) {
+            $query->where('active_leads_count', '>', 0);
+        }
+
+        $query->increment('active_leads_count', $delta);
     }
 }

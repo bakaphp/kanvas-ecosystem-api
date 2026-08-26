@@ -20,6 +20,7 @@ type People {
     updated_at: DateTime
     first_message_at: DateTime
     last_message_at: DateTime
+    active_leads_count: Int!
     photo: Filesystem @method(name: "getPhoto")
     employment_history: [PeopleEmploymentHistory!]
         @hasMany(relation: "employmentHistory")
@@ -155,6 +156,7 @@ extend type Query @guard {
                     "firstname"
                     "lastname"
                     "people_types_id"
+                    "active_leads_count"
                 ]
             )
         hasPeopleType: _

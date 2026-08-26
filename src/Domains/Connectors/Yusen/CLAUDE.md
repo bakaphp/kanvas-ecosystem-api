@@ -149,13 +149,65 @@ count is a different kind of fact. It belongs in the movement ledger
 idempotency and history for free. **Do not reintroduce a warehouse write or a private snapshot
 table.**
 
+### NetSuite only returns stock when the search is joined to a location
+
+Verified 2026-08-26 against app 18 / company 9091, SKU `4511338003374`:
+
+| Call | `quantityAvailable` |
+|---|---|
+| `searchWithSavedSearch('576')` | null |
+| `searchWithSavedSearch('574')` | null |
+| `searchProductByItemNumber(sku, 4, '574')` — Aero | null |
+| `searchProductByItemNumber(sku, 7, '574')` — **Yusen** | **1221** |
+
+The saved search id is not the variable; the **inventory-location join** is. `searchWithSavedSearch`
+sets only `basic`, so it can never carry one. `searchByLocation($locationId, $savedSearchId)` was
+added to `NetSuiteProductSearchService` for this — same shape as `searchProductByItemNumber` minus
+the item filter, so one call covers the catalog instead of one SOAP round-trip per SKU.
+
+Set `yusen_netsuite_location_id` (7 for Yusen on app 18) or the source refuses to run rather than
+comparing against nulls.
+
+**`quantityAvailable` is available, not on hand.** Aero returns the field *absent* because all 741
+of its on-hand is committed — NetSuite omits the element rather than sending `0`. Since
+`searchByLocation` always joins a location, an absent value on a returned row means **zero
+available**, and is compared as `0`; it is not missing data. The one shape that does mean
+misconfiguration is *every* row absent, which throws into `source_errors`.
+
+That leaves a live semantic question: the report compares Yusen's physical count against NetSuite's
+**available**, so a fully-committed location reads as 0 and every unit Yusen holds shows as a
+discrepancy. If on-hand is the right basis, the fix is a saved-search column
+(`locationQuantityOnHand`), not code here.
+
+### Absent quantity means zero available; only an all-absent result means broken
+
+`quantityAvailable` maps from `locationQuantityAvailable`, which is only populated when the search
+carries an inventory-location join. Without the join it is null on *every* row, and a blanket
+`?? 0` turns "NetSuite didn't say" into "NetSuite says zero" — reporting the whole catalog as
+missing stock. With the join, an absent value is a genuine zero and is compared as such. The
+source distinguishes the two by proportion: all rows absent is misconfiguration and throws;
+some rows absent is normal.
+
+**`PullNetSuiteProductStockAction` still has the original `?? 0`** and it *writes*:
+`$variantWarehouse->quantity = $netsuiteVariant['quantityAvailable'] ?? 0`. Against a saved search
+without the location join that zeroes real stock. Not fixed here — flagged.
+
 ### `SKU/Quantity` is per-record, so lot rows sum
 
 One item can arrive on several `<Inventory>` records (different lots/receipts) and we add them up,
-de-duplicating by `InternalID`. If Yusen ever repeats an *item-level* total on every lot row
-instead, that silently double-counts. `multi_record_items` counts items that arrived on more than
-one record and is logged whenever non-zero — that is the tripwire. Confirm the semantics with
-Yusen before trusting a file where it is high.
+de-duplicating by `InternalID`. `multi_record_items` counts items that arrived on more than one
+record and is logged whenever non-zero.
+
+**Unresolved as of 2026-08-26: `SKU/Quantity` is not the per-item on-hand in real files.** In the
+2026-08-21 drop, `4511338003374` and `4511338007044` — two different SKUs — both carried
+`Quantity 30424` with byte-identical `TotalValue`, `TotalVolume` and `TotalWeight`, each on a
+single record (`recordCount = 1`, so not a summing artifact). `AllocatedQty` and `InTransitQty`
+*do* differ per item (360 vs 180), so the per-record fields are sound and only the quantity/total
+block is suspect. NetSuite shows 1,233 on hand at the Yusen location for the first of those.
+
+Note this defeats the `multi_record_items` tripwire, which only catches a value repeated across
+*lots of one item*, not across *different items*. **Do not trust `QUANTITY_MISMATCH` rows until
+Yusen confirms which element carries the on-hand count for a record.**
 
 ### Adding a comparison source is one class
 
@@ -192,7 +244,8 @@ Company-first, app-second (`YusenSettings`).
 |---|---|
 | `yusen_primary_warehouse_id` | Warehouse the Kanvas leg compares against. Falls back to the company's default warehouse. |
 | `yusen_match_field` | `barcode` (default) or `sku` — which variant column `<Item>` matches |
-| `yusen_netsuite_saved_search_id` | Defaults to `576`, the same saved search `PullNetSuiteProductStockAction` uses |
+| `yusen_netsuite_saved_search_id` | Defaults to `574` |
+| `yusen_netsuite_location_id` | NetSuite internal id of the location Yusen holds (7 on app 18). Required — no location, no stock. |
 | `yusen_quantity_tolerance` | Absolute units tolerated before a delta counts (default 0) |
 | `yusen_reconcile_with_netsuite` | Toggle the NetSuite leg (default true) |
 
