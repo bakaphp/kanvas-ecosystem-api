@@ -23,17 +23,20 @@ class ClientTest extends TestCase
      * clobbers a real credential.
      */
     private mixed $originalCredentials = null;
+    private mixed $originalImpersonateUser = null;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->originalCredentials = app(Apps::class)->get(ConfigurationEnum::GOOGLE_SHEETS_CREDENTIALS->value);
+        $this->originalImpersonateUser = app(Apps::class)->get(ConfigurationEnum::IMPERSONATE_USER->value);
     }
 
     protected function tearDown(): void
     {
         app(Apps::class)->set(ConfigurationEnum::GOOGLE_SHEETS_CREDENTIALS->value, $this->originalCredentials);
+        app(Apps::class)->set(ConfigurationEnum::IMPERSONATE_USER->value, $this->originalImpersonateUser);
 
         parent::tearDown();
     }
@@ -74,6 +77,28 @@ class ClientTest extends TestCase
         $service = Client::getInstance($app);
 
         $this->assertNotNull($service->spreadsheets_values);
+    }
+
+    public function test_impersonates_the_configured_user_via_domain_wide_delegation(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::GOOGLE_SHEETS_CREDENTIALS->value, $this->fakeServiceAccountJson());
+        $app->set(ConfigurationEnum::IMPERSONATE_USER->value, 'apex@nzxt.com');
+
+        $service = Client::getInstance($app);
+
+        $this->assertSame('apex@nzxt.com', $service->getClient()->getConfig('subject'));
+    }
+
+    public function test_does_not_impersonate_anyone_when_the_key_is_left_unset(): void
+    {
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::GOOGLE_SHEETS_CREDENTIALS->value, $this->fakeServiceAccountJson());
+        $app->set(ConfigurationEnum::IMPERSONATE_USER->value, '');
+
+        $service = Client::getInstance($app);
+
+        $this->assertNull($service->getClient()->getConfig('subject'));
     }
 
     public function test_throws_a_clear_error_when_nothing_is_configured(): void
