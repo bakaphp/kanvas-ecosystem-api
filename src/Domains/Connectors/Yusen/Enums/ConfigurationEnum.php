@@ -11,5 +11,4 @@ enum ConfigurationEnum: string
     case NETSUITE_SAVED_SEARCH_ID = 'yusen_netsuite_saved_search_id';
     case QUANTITY_TOLERANCE = 'yusen_quantity_tolerance';
     case RECONCILE_WITH_NETSUITE = 'yusen_reconcile_with_netsuite';
-    case REPORT_USERS = 'yusen_report_users';
 }

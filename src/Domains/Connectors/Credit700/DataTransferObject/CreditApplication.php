@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Credit700\DataTransferObject;
 
 use Baka\Support\DateHelper;
 use Baka\Traits\ScalarCoercionTrait;
+use Kanvas\Guild\Customers\DataTransferObject\Address as AddressData;
 use Kanvas\Guild\Customers\Models\People;
 use Spatie\LaravelData\Data;
 
@@ -59,7 +60,7 @@ class CreditApplication extends Data
         return new self(
             name: $name !== '' ? $name : $people->getName(),
             ssn: (string) ($personal['ssn'] ?? ''),
-            address: (string) ($housing['address'] ?? ''),
+            address: self::normalizeStreet($housing['address'] ?? ''),
             city: self::normalizeCity($housing['city'] ?? null),
             state: self::normalizeState($housing['state'] ?? null),
             zip: self::normalizeZip($housing['zip_code'] ?? ''),
@@ -114,5 +115,10 @@ class CreditApplication extends Data
     private static function normalizeZip(mixed $zip): string
     {
         return (string) preg_replace('/[^0-9\-]/', '', (string) $zip);
+    }
+
+    private static function normalizeStreet(mixed $street): string
+    {
+        return AddressData::flattenStreet($street);
     }
 }

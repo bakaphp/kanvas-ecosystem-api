@@ -55,6 +55,7 @@ class YusenInventoryBalanceWebhookJob extends ProcessWebhookJob
             $upload['id'] ?? null,
             $rawXml,
             $upload['name'] ?? null,
+            $this->webhookRequest->getId(),
         );
 
         return [

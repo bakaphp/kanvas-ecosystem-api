@@ -50,23 +50,6 @@ class YusenSettings
         return (bool) ($this->raw(ConfigurationEnum::RECONCILE_WITH_NETSUITE) ?? true);
     }
 
-    /**
-     * User ids that receive the emailed report. Empty means nobody asked for it, and the run
-     * stays silent rather than guessing at a recipient.
-     *
-     * @return array<int, int>
-     */
-    public function reportUsers(): array
-    {
-        $users = $this->raw(ConfigurationEnum::REPORT_USERS);
-
-        if (is_string($users)) {
-            $users = json_decode($users, true);
-        }
-
-        return is_array($users) ? array_values(array_map('intval', $users)) : [];
-    }
-
     private function raw(ConfigurationEnum $key): mixed
     {
         return $this->company->get($key->value) ?? $this->app->get($key->value);

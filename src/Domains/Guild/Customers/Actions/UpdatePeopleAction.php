@@ -157,5 +157,7 @@ class UpdatePeopleAction
         if (! empty($keepIds)) {
             $this->people->address()->whereNotIn('id', $keepIds)->delete();
         }
+
+        $this->people->ensureDefaultAddress();
     }
 }

@@ -45,6 +45,9 @@ class SalesManagerAgentTest extends TestCase
             'get_lead_analytics',
             'get_sales_summary',
             'search_leads',
+            // Four of Polly's own write tools tell the model to source lead_id from get_lead_ref;
+            // without it the model calls a tool it doesn't have (KANVAS-ECOSYSTEM-675).
+            'get_lead_ref',
             'find_leads_by_traits',
             'get_batch_history',
             'reassign_lead_owner',

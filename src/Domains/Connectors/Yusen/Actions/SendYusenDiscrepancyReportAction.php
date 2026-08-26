@@ -4,20 +4,23 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Yusen\Actions;
 
-use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
+use Illuminate\Support\Facades\Log;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Yusen\Services\YusenSettings;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 
 /**
- * Mails the discrepancy report to the people who asked for it.
+ * Mails the discrepancy report to the company's managers.
  *
  * Without this the report is computed and then only reachable by reading
  * `receiver_webhook_calls.results` out of the database, which is not a report anybody receives.
+ *
+ * Recipients come from the Managers role rather than a per-company list of user ids: a custom
+ * field goes stale the moment somebody joins or leaves, and nobody remembers to update it.
  */
 class SendYusenDiscrepancyReportAction
 {
@@ -41,13 +44,65 @@ class SendYusenDiscrepancyReportAction
      */
     public function execute(): array
     {
-        $recipients = new YusenSettings($this->app, $this->company)->reportUsers();
+        $recipients = $this->managers();
 
         if ($recipients === []) {
             return [];
         }
 
-        $data = [
+        $notification = new Blank(
+            self::TEMPLATE,
+            $this->mailData(),
+            ['mail'],
+            $this->company,
+        );
+
+        $notification->setSubject($this->subject());
+
+        $notified = [];
+
+        foreach ($recipients as $manager) {
+            $manager->notify($notification);
+            $notified[] = $manager->getId();
+        }
+
+        return $notified;
+    }
+
+    /**
+     * @return array<int, Users>
+     */
+    private function managers(): array
+    {
+        try {
+            return UsersRepository::getCompanyAppUserByRole(
+                $this->company,
+                $this->app,
+                RolesEnums::MANAGER->value,
+            )
+                ->notDeleted()
+                ->whereNotNull('users.email')
+                ->where('users.email', '!=', '')
+                ->get()
+                ->all();
+        } catch (ModelNotFoundException) {
+            // The role isn't bootstrapped for this app. Not a fault worth reporting — the company
+            // simply has nobody to tell yet, and the report still lands on the webhook call.
+            Log::info('Yusen.DiscrepancyReport — Managers role not set up for this app, nobody notified', [
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->company->getId(),
+            ]);
+
+            return [];
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function mailData(): array
+    {
+        return [
             'subject' => $this->subject(),
             'company' => $this->company->name,
             'file_name' => $this->report['file_name'] ?? null,
@@ -61,35 +116,6 @@ class SendYusenDiscrepancyReportAction
             'source_errors' => $this->report['source_errors'] ?? [],
             'rows' => $this->worstRows(),
         ];
-
-        $notified = [];
-
-        foreach ($recipients as $userId) {
-            try {
-                $user = Users::getById((int) $userId);
-                UsersRepository::belongsToThisApp($user, $this->app, $this->company);
-
-                $user->notify(
-                    new Blank(
-                        self::TEMPLATE,
-                        $data,
-                        ['mail'],
-                        $user,
-                    )
-                );
-
-                $notified[] = $user->getId();
-            } catch (ModelNotFoundException | EloquentModelNotFoundException) {
-                // A recipient removed from the company shouldn't stop the rest of the list.
-                //
-                // Both types are caught because `Users::getById()` means to convert Eloquent's
-                // into Kanvas's but doesn't — its catch names the Kanvas class while
-                // `firstOrFail()` throws Eloquent's, so the raw one escapes.
-                continue;
-            }
-        }
-
-        return $notified;
     }
 
     private function subject(): string

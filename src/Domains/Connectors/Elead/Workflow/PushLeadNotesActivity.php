@@ -18,6 +18,7 @@ use Kanvas\Connectors\Elead\Actions\ProcessDriversLicenseAction;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\DataTransferObject\Address as AddressDto;
+use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
@@ -210,7 +211,7 @@ class PushLeadNotesActivity extends KanvasActivity
         ]));
 
         if (isset($result['data']['previousAddressStreet']) && ! empty($result['data']['previousAddressStreet'])) {
-            $previousHomeType = AddressType::getByName('Previous Home');
+            $previousHomeType = AddressType::getByName(AddressTypeEnum::PREVIOUS_HOME->value);
 
             $people->addAddress(AddressDto::from([
                 'address' => $result['data']['previousAddressStreet'],
@@ -218,6 +219,7 @@ class PushLeadNotesActivity extends KanvasActivity
                 'state' => $messageData['data']['form']['housing']['previous_state']['code'] ?? '',
                 'zip' => $result['data']['previousAddressZipCode'],
                 'address_type_id' => $previousHomeType->getId(),
+                'is_default' => false,
             ]));
         }
     }

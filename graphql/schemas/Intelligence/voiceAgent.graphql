@@ -117,4 +117,9 @@ extend type Mutation @guardByAppKey {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\VoiceAgentToolMutation@run"
         )
+    "Data plane: capture the caller behind a phone as a contact, promoting to a lead on repeat or clear intent (outbound requires intent). Phone/direction come from the runtime, not the LLM."
+    captureVoiceLead(agent_uuid: String!, phone: String!, name: String, interest: String, interested: Boolean, direction: String): Mixed
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\VoiceAgentCallerMutation@capture"
+        )
 }

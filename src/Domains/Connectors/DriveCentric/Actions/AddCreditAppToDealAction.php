@@ -224,6 +224,7 @@ class AddCreditAppToDealAction
                 'zip' => $formData['housing']['previous_zip_code'] ?? null,
                 'duration' => $formData['housing']['previous_time_at_address'] ?? 0,
                 'address_type_id' => AddressType::getByName(AddressTypeEnum::PREVIOUS_HOME->value, $people->app)?->getId(),
+                'is_default' => false,
             ]);
 
             $people->addAddress($previousAddressDto);

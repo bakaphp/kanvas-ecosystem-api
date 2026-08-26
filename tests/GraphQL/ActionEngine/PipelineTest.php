@@ -25,6 +25,7 @@ class PipelineTest extends TestCase
                     stages {
                         id
                         name
+                        slug
                         weight
                     }
                 }
@@ -105,6 +106,22 @@ class PipelineTest extends TestCase
         $this->assertNotEmpty($pipeline['name']);
         $this->assertNotEmpty($pipeline['slug']);
         $this->assertCount(3, $pipeline['stages']);
+    }
+
+    public function testCreateActionPipelineUsesDefaultStages(): void
+    {
+        $pipeline = $this->createPipeline();
+
+        $stages = collect($pipeline['stages'])->sortBy('weight')->values();
+
+        $this->assertSame(
+            [
+                ['name' => 'shared', 'slug' => 'sent'],
+                ['name' => 'read', 'slug' => 'opened'],
+                ['name' => 'submitted', 'slug' => 'submitted'],
+            ],
+            $stages->map(fn (array $stage) => ['name' => $stage['name'], 'slug' => $stage['slug']])->all()
+        );
     }
 
     public function testUpdateActionPipeline(): void

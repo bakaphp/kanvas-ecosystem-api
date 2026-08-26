@@ -33,7 +33,7 @@ class SavePeopleToIPlusAction
 
         $company = $this->people->company;
         $branchLocationId = $company->branch->get(ConfigurationEnum::COMPANY_BRANCH_ID->value);
-        $address = $this->people->address()?->count() ? $this->people->address()->first() : null;
+        $address = $this->people->getDefaultAddress();
         $clientData = [
             'companiaID' => $company->get(ConfigurationEnum::COMPANY_ID->value),
             'contrasena' => Str::random(10),

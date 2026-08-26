@@ -38,6 +38,8 @@ class Categories extends BaseModel
 
     protected $table = 'categories';
     protected $guarded = [];
+    protected $withCount = ['activeProducts'];
+    protected ?int $totalProducts = null;
 
     public $translatable = ['name'];
 
@@ -75,6 +77,13 @@ class Categories extends BaseModel
         return $this->belongsToMany(Products::class, 'products_categories', 'categories_id', 'products_id');
     }
 
+    public function activeProducts(): BelongsToMany
+    {
+        return $this->products()
+            ->where('products.is_deleted', 0)
+            ->where('products_categories.is_deleted', 0);
+    }
+
     public function categoryEntities(): HasMany
     {
         return $this->hasMany(CategoryEntity::class, 'categories_id');
@@ -90,27 +99,9 @@ class Categories extends BaseModel
              ->get();
     }
 
-    /**
-     * Get the total amount of products of a product type.
-     */
     public function getTotalProducts(): int
     {
-        if (! $totalProducts = $this->get('total_products')) {
-            return (int) $this->setTotalProducts();
-        }
-
-        return (int) $totalProducts;
-    }
-
-    /**
-     * Set the total amount of products of a product categories.
-     */
-    public function setTotalProducts(): int
-    {
-        $total = ProductsCategories::where('categories_id', $this->getId())
-                ->where('is_deleted', 0)
-                ->count();
-
-        return (int) $total;
+        return $this->totalProducts ??= (int) ($this->active_products_count
+            ?? $this->activeProducts()->count());
     }
 }

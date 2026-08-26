@@ -12,6 +12,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetBatchHistoryTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetLeadAnalyticsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetMessageUsageReportTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetSalesSummaryTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReassignLeadOwnerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SearchLeadsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendBatchMessageTool;
@@ -65,6 +66,7 @@ class SalesManagerAgent extends SystemUserAgent
         $core[] = new GetLeadAnalyticsTool()->withContext($app, $company, $user);
         $core[] = new GetSalesSummaryTool()->withContext($app, $company, $user);
         $core[] = new SearchLeadsTool()->withContext($app, $company, $user);
+        $core[] = new LeadRefTool()->withContext($app, $company, $user);
         $core[] = new FindLeadsByTraitsTool()->withContext($app, $company, $user);
         $core[] = new GetBatchHistoryTool()->withContext($app, $company, $user);
         $core[] = new ReassignLeadOwnerTool()->withContext($app, $company, $user);
