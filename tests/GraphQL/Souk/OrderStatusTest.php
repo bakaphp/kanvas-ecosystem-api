@@ -476,4 +476,82 @@ class OrderStatusTest extends OrderBase
         $finalCurrentTransition = $order->getCurrentTransition();
         $this->assertEquals('paid', $finalCurrentTransition->toStatus->slug, 'Final current transition should be to paid status');
     }
+
+    public function testTransitionClosesEveryOpenHistoryRow(): void
+    {
+        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+
+        $variantResponse = $this->createVariant(
+            productId: $productResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']],
+        )->json()['data']['createVariant'];
+
+        $this->addVariantToChannel(
+            variantId: $variantResponse['id'],
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']],
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: $variantResponse['id'],
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $order = $this->createOrderFromCart(
+            variantId: $variantResponse['id'],
+            quantity: 1,
+            metadata: ['data' => []],
+            currency: 'DOP',
+            orderType: $this->orderTypeName
+        );
+
+        $initial = OrderTransitionHistory::where('order_id', $order->id)
+            ->where('is_current', true)
+            ->firstOrFail();
+
+        // reproduce what the pre-fix race left behind: two intervals flagged current at once
+        $ghost = $initial->replicate();
+        $ghost->save();
+
+        $this->assertEquals(
+            2,
+            OrderTransitionHistory::where('order_id', $order->id)->where('is_current', true)->count()
+        );
+
+        $this->graphQL('
+            mutation transitionOrderStatus($input: TransitionOrderStatusInput!) {
+                transitionOrderStatus(input: $input) {
+                    message
+                }
+            }
+        ', [
+            'input' => [
+                'order_id' => $order->id,
+                'status_slug' => 'pending',
+            ],
+        ], [], [
+            'X-Kanvas-Location' => $this->company->branch->uuid,
+            'X-Kanvas-App' => $this->apps->key,
+        ]);
+
+        $stillOpen = OrderTransitionHistory::where('order_id', $order->id)
+            ->where('is_current', true)
+            ->get();
+
+        $this->assertCount(1, $stillOpen);
+        $this->assertEquals('pending', $stillOpen->first()->toStatus->slug);
+
+        foreach ([$initial->id, $ghost->id] as $closedId) {
+            $closed = OrderTransitionHistory::findOrFail($closedId);
+
+            $this->assertFalse((bool) $closed->is_current);
+            $this->assertNotNull($closed->ended_at);
+            $this->assertEquals(
+                $stillOpen->first()->changed_at->toDateTimeString(),
+                $closed->ended_at->toDateTimeString(),
+                'the closing instant must match the new row so the intervals stay contiguous'
+            );
+        }
+    }
 }
