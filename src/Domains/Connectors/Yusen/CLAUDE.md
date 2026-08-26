@@ -206,6 +206,15 @@ php artisan kanvas:workflow-sync-actions          # registers the receiver actio
 Then create the receiver (`kanvas:create-receiver-workflow`, choosing
 **Yusen Inventory Balance Receiver**), set it `run_async`, and hand Yusen the URL.
 
+### The email pivots the report; the report itself stays per-source
+
+`rows` in the report is one entry per (item, source) — that is what the comparison produces and
+what the receiver log should keep. It makes a bad table though: when Kanvas and NetSuite both
+disagree with Yusen, the same SKU appears twice with identical numbers, and 289 "discrepancies"
+turns out to be ~145 items counted twice. `SendYusenDiscrepancyReportAction::itemsWorstFirst()`
+pivots to one row per item with a column per source for the mail only. Keep that split — don't
+pivot the underlying report.
+
 ### Recipients are the Managers role, not a config field
 
 `UsersRepository::getCompanyAppUserByRole($company, $app, RolesEnums::MANAGER->value)`. A
@@ -220,9 +229,11 @@ silently resolves to nobody for almost every app.
 If the role isn't bootstrapped for the app, the send logs and returns — no Sentry noise, and the
 report still lands on the webhook call.
 
-**The `yusen-discrepancy-report` email template row must exist**, same as Apollo's
-`apollo-daily-report`. Without it the send throws — caught and reported to Sentry, so the report
-still lands on the webhook call, but nobody gets mail.
+No email-template row to create: the body is a Blade file in the repo
+(`resources/views/emails/connectors/yusen/discrepancy-report.blade.php`), rendered by
+`YusenDiscrepancyReportNotification`, following `DailyLearningDigestNotification`. A DB template
+would mean the connector silently sends nothing until somebody creates the row, and the markup
+would sit outside code review.
 
 Backfill a file that arrived out of band:
 
