@@ -17,7 +17,7 @@ use Override;
 /**
  * Fires a follow-up for a single lead on demand by delegating to the
  * notification-engagement command scoped to that lead. The command keeps the
- * engine auto-selection (ManlyHonda / V2 / V1) and all skip conditions; the
+ * engine selection (ManlyHonda or the current follow-up engine) and all skip conditions; the
  * only relaxation is the "minutes since last message" time gate, which the
  * command bypasses non-destructively when --ignore-time is set (no message
  * timestamps are rewritten).
@@ -50,8 +50,6 @@ class TriggerLeadFollowUpActivity extends KanvasActivity implements WorkflowActi
                     '--company_id' => $entity->companies_id,
                     '--lead_id' => $entity->getId(),
                     '--ignore-time' => (int) ($params['ignore_time'] ?? 1),
-                    '--ignore-have-follow-up' => (int) ($params['ignore_have_follow_up'] ?? 1),
-                    '--ignore-first-message' => (int) ($params['ignore_first_message'] ?? 1),
                     '--template' => $params['template'] ?? null,
                 ]);
 
