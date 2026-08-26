@@ -257,7 +257,7 @@ class LeadObserver
 
     private function wasCounted(Lead $lead): bool
     {
-        return in_array((int) $lead->getOriginal('leads_status_id'), [1, 2], true)
+        return in_array((int) $lead->getOriginal('leads_status_id'), Lead::OPEN_LEADS_STATUS_IDS, true)
             && ! (bool) $lead->getOriginal('is_deleted');
     }
 
