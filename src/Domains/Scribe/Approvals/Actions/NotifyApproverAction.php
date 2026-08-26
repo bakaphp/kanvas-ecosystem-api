@@ -12,15 +12,18 @@ use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Throwable;
 
 /**
- * Best-effort Slack DM to the configured approver when something lands in the approval queue.
- * Silently does nothing when Slack isn't configured, and never lets a Slack failure block the
- * record it's notifying about — that record is already safely created by the time this runs.
+ * Best-effort Slack DM to the approver — resolved by looking up their email in Slack, since each
+ * vendor/customer has its own approver rather than one fixed for the whole app. Silently does
+ * nothing when Slack isn't configured or the email doesn't match a Slack workspace member, and
+ * never lets a Slack failure block the record it's notifying about — that record is already
+ * safely created by the time this runs.
  */
 class NotifyApproverAction
 {
     public function __construct(
         protected readonly Apps $app,
         protected readonly string $text,
+        protected readonly ?string $approverEmail = null,
         protected readonly ?string $attachmentUrl = null,
         protected readonly ?string $attachmentFilename = null,
     ) {
@@ -28,10 +31,9 @@ class NotifyApproverAction
 
     public function execute(): void
     {
-        $slackUserId = (string) ($this->app->get(ApprovalConfigurationEnum::APPROVER_SLACK_USER_ID->value) ?? '');
         $agentId = (string) ($this->app->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value) ?? '');
 
-        if ($slackUserId === '' || $agentId === '') {
+        if ($this->approverEmail === null || trim($this->approverEmail) === '' || $agentId === '') {
             return;
         }
 
@@ -43,6 +45,12 @@ class NotifyApproverAction
             }
 
             $client = SlackClient::getInstanceByAgent($agent);
+            $slackUserId = $client->lookupUserIdByEmail($this->approverEmail);
+
+            if ($slackUserId === null) {
+                return;
+            }
+
             $dmChannel = $client->openDirectMessageChannel($slackUserId);
 
             if ($this->tryUploadAttachment($client, $dmChannel)) {

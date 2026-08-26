@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
 use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
+use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Bills\Actions\ApproveBillAction;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction;
@@ -240,6 +241,8 @@ class CreateApBillTool extends Tool
         );
 
         if (! $push_to_acumatica) {
+            $approverEmail = trim((string) $vendor->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, ''));
+
             new NotifyApproverAction(
                 $app,
                 "You have an AP bill pending approval:\nVendor: {$vendor->name}\nAmount: {$currency} "
@@ -247,6 +250,7 @@ class CreateApBillTool extends Tool
                     . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : '')
                     . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
                     . "{$bill->getId()}\" to approve it and push it to Acumatica.",
+                $approverEmail !== '' ? $approverEmail : null,
                 $source_attachment_url,
                 $source_attachment_filename,
             )->execute();
@@ -263,8 +267,12 @@ class CreateApBillTool extends Tool
                 'gl_account' => $gl_account_number,
                 'subaccount' => $subaccount,
                 'memo' => $memo,
-                'next' => 'Bill created and submitted for approval in Kanvas (status: pending_approval). Not '
-                    . 'pushed to Acumatica — that happens separately once a human approves it.',
+                'next' => $approverEmail !== ''
+                    ? 'Bill created and submitted for approval in Kanvas (status: pending_approval). Not pushed '
+                        . 'to Acumatica — that happens separately once a human approves it.'
+                    : 'Bill created and submitted for approval, but vendor "' . $vendor->name . '" has no '
+                        . 'approver email configured — nobody can approve it and no notification was sent. Tell '
+                        . 'the user to have an admin set that vendor\'s approver email.',
             ];
         }
 

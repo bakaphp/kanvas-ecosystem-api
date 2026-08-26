@@ -19,7 +19,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
-use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
+use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -243,12 +243,11 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
     public function test_approve_pending_item_requires_the_configured_approver(): void
     {
         $customer = $this->seedTestOrganization('Approval Flow Customer');
+        $customer->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, 'someone-else-' . uniqid() . '@example.test');
 
         $created = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(customer_name: 'Approval Flow Customer', amount: 300.0, memo: 'Approval flow test', push_to_acumatica: false);
-
-        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, '');
 
         $result = new ApprovePendingItemTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -258,9 +257,26 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame('not_authorized', $result['reason']);
     }
 
+    public function test_approve_pending_item_reports_no_approver_configured_when_the_customer_has_none(): void
+    {
+        $this->seedTestOrganization('Approval Flow Customer 1B');
+
+        $created = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: 'Approval Flow Customer 1B', amount: 300.0, memo: 'Approval flow test', push_to_acumatica: false);
+
+        $result = new ApprovePendingItemTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(target_type: 'invoice', target_id: (int) $created['invoice_id']);
+
+        $this->assertFalse($result['approved']);
+        $this->assertSame('no_approver_configured', $result['reason']);
+    }
+
     public function test_approve_pending_item_approves_a_pending_invoice_and_carries_the_source_email(): void
     {
         $customer = $this->seedTestOrganization('Approval Flow Customer 2');
+        $customer->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
 
         $created = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -273,8 +289,6 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
                 source_attachment_url: 'https://cdn.example.test/invoice-ar-apr-1.pdf',
                 source_attachment_filename: 'invoice-ar-apr-1.pdf',
             );
-
-        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
 
         $result = new ApprovePendingItemTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
@@ -293,8 +307,6 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
     public function test_approve_pending_item_reports_not_found_when_nothing_pending(): void
     {
-        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
-
         $result = new ApprovePendingItemTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(target_type: 'invoice', target_id: 999999999);
@@ -305,13 +317,12 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
     public function test_approve_pending_item_authorizes_the_conversation_human_not_the_agents_own_identity(): void
     {
-        $this->seedTestOrganization('Approval Flow Customer 3');
+        $customer = $this->seedTestOrganization('Approval Flow Customer 3');
+        $customer->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
 
         $created = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(customer_name: 'Approval Flow Customer 3', amount: 300.0, memo: 'Approval flow test', push_to_acumatica: false);
-
-        $this->kanvasApp->set(ApprovalConfigurationEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
 
         // Mirrors an @mention/channel turn: setConfiguration() receives the agent's OWN user, distinct
         // from the human actually approving, exactly like SlackUserResolverService resolving a DM sender.
