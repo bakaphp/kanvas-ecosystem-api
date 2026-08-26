@@ -314,6 +314,16 @@ class Lead extends BaseModel implements EventResourceInterface
         return (int) ($this->getAttributeValue('status') ?? 0) < 2;
     }
 
+    /**
+     * Query-side counterpart to isOpen() — same `status < 2` rule, kept in
+     * one place so bulk queries (e.g. RecalculateActiveLeadsCountCommand)
+     * can't drift from the instance check.
+     */
+    public function scopeIsOpen(Builder $query): Builder
+    {
+        return $query->where('status', '<', 2);
+    }
+
     public function isActive(): bool
     {
         $statusName = strtolower($this->status()->firstOrFail()->name);

@@ -67,7 +67,7 @@ class RecalculateActiveLeadsCountCommand extends Command
 
             $actualCounts = Lead::query()
                 ->whereIn('people_id', $people->pluck('id'))
-                ->where('status', '<', 2)
+                ->isOpen()
                 ->where('is_deleted', 0)
                 ->selectRaw('people_id, COUNT(*) as total')
                 ->groupBy('people_id')
