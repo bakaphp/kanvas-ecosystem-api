@@ -56,9 +56,7 @@ class TransitionOrderStateAction
         try {
             $transitioned = false;
 
-            // orders and their history live on `commerce`, so a default-connection transaction would
-            // leave lockForUpdate and both writes in autocommit — concurrent transitions then race
-            // and each leaves its own is_current row open
+            // must be `commerce`: on the default connection lockForUpdate and both writes run in autocommit
             DB::connection('commerce')->transaction(function () use ($orderStatusTransitions, $currentOrderStatus, $customDate, &$transitioned) {
                 // Lock the order row to prevent concurrent transitions
                 $locked = Order::lockForUpdate()->find($this->order->id);
@@ -69,8 +67,6 @@ class TransitionOrderStateAction
 
                 $transitioned = true;
 
-                // close every open row, not just the first — orders already carrying more than one
-                // would otherwise keep an open interval forever
                 $openTransitions = OrderTransitionHistory::where('order_id', $this->order->id)
                     ->where('is_current', true)
                     ->get();
@@ -94,8 +90,6 @@ class TransitionOrderStateAction
 
                 $this->order->updateQuietly($attributes);
 
-                // Insert into order_transitions_history — same instant the previous row closed, so the
-                // intervals stay contiguous and a cutoff can never fall in a gap between them
                 OrderTransitionHistory::create([
                     'apps_id' => $this->order->apps_id,
                     'companies_id' => $this->order->companies_id,
