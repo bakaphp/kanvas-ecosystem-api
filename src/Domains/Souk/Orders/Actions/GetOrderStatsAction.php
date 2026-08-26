@@ -210,6 +210,14 @@ class GetOrderStatsAction
         $bindings = [$this->app->getId(), $cutoffs->last()];
         $filters = '';
 
+        // Raw SQL, so the Order soft-delete scope does not apply. Unconditional:
+        // nesting this in an optional filter block would disable it silently.
+        $filters .= ' AND EXISTS (
+            SELECT 1 FROM orders
+            WHERE orders.id = history.order_id
+              AND orders.is_deleted = 0
+        )';
+
         if (! empty($this->orderTypeNames)) {
             $filters .= ' AND EXISTS (
                 SELECT 1 FROM orders
@@ -364,6 +372,8 @@ class GetOrderStatsAction
 
         $entries = OrderTransitionHistory::query()
             ->when(! empty($this->excludeStates), $applyExclusion)
+            // Unconditional so the Order soft-delete scope always applies.
+            ->whereHas('order')
             ->selectRaw("COUNT(DISTINCT order_id) as count, DATE(CONVERT_TZ(changed_at, 'UTC', ?)) as date", [$timezone])
             ->whereBetween('changed_at', [$start, $end])
             ->groupBy('date')
@@ -399,6 +409,8 @@ class GetOrderStatsAction
 
         $exits = OrderTransitionHistory::query()
             ->when(! empty($this->excludeStates), $applyExclusion)
+            // Unconditional so the Order soft-delete scope always applies.
+            ->whereHas('order')
             ->selectRaw("COUNT(DISTINCT order_id) as count, DATE(CONVERT_TZ(changed_at, 'UTC', ?)) as date", [$timezone])
             ->whereBetween('changed_at', [$start, $end])
             ->groupBy('date')

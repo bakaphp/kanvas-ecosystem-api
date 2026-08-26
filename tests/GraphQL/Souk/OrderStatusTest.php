@@ -510,9 +510,14 @@ class OrderStatusTest extends OrderBase
             ->where('is_current', true)
             ->firstOrFail();
 
-        // reproduce what the pre-fix race left behind: two intervals flagged current at once
+        // the race left two rows flagged current, the 2025 import left rows open without the flag
         $ghost = $initial->replicate();
         $ghost->save();
+
+        $unflaggedGhost = $initial->replicate();
+        $unflaggedGhost->is_current = false;
+        $unflaggedGhost->ended_at = null;
+        $unflaggedGhost->save();
 
         $this->assertEquals(
             2,
@@ -542,7 +547,16 @@ class OrderStatusTest extends OrderBase
         $this->assertCount(1, $stillOpen);
         $this->assertEquals('pending', $stillOpen->first()->toStatus->slug);
 
-        foreach ([$initial->id, $ghost->id] as $closedId) {
+        $this->assertEquals(
+            0,
+            OrderTransitionHistory::where('order_id', $order->id)
+                ->whereNull('ended_at')
+                ->where('id', '!=', $stillOpen->first()->id)
+                ->count(),
+            'no interval may stay open behind the current one, flagged or not'
+        );
+
+        foreach ([$initial->id, $ghost->id, $unflaggedGhost->id] as $closedId) {
             $closed = OrderTransitionHistory::findOrFail($closedId);
 
             $this->assertFalse((bool) $closed->is_current);

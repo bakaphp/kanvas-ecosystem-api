@@ -67,7 +67,9 @@ class TransitionOrderStateAction
                 $transitioned = true;
 
                 $openTransitions = OrderTransitionHistory::where('order_id', $this->order->id)
-                    ->where('is_current', true)
+                    ->where(
+                        fn ($query) => $query->whereNull('ended_at')->orWhere('is_current', true)
+                    )
                     ->get();
 
                 $closedAt = $customDate ? Carbon::parse($customDate) : Carbon::now();
