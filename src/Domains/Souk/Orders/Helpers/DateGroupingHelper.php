@@ -13,6 +13,10 @@ class DateGroupingHelper
     /**
      * Aggregate ordersInPeriod daily data into week/month buckets.
      * Returns the same array shape as the input for backward compatibility.
+     *
+     * Unlike turnover, this is a stock series — each day already holds how many orders were sitting
+     * in the queried states at that day's cutoff. A bucket is therefore its closing day, not the sum
+     * of its days: summing would report order-days (340 in custody every day of July → 10,540).
      */
     public static function groupOrdersInPeriod(array $periodData, DateGroupByEnum $groupBy, string $timezone): array
     {
@@ -21,23 +25,12 @@ class DateGroupingHelper
         );
 
         $grouped = $data->map(function (Collection $items, string $periodKey) {
-            $totalCount = $items->sum('count');
-
-            $mergedStates = [];
-            foreach ($items as $item) {
-                foreach ($item['states'] as $stateEntry) {
-                    $slug = $stateEntry['state'] ?? 'Unknown';
-                    $mergedStates[$slug] = ($mergedStates[$slug] ?? 0) + $stateEntry['count'];
-                }
-            }
+            $closingDay = $items->sortBy('date')->last();
 
             return [
                 'date' => $periodKey,
-                'count' => $totalCount,
-                'states' => collect($mergedStates)->map(fn (int $count, string $state) => [
-                    'state' => $state,
-                    'count' => $count,
-                ])->values()->toArray(),
+                'count' => $closingDay['count'],
+                'states' => $closingDay['states'],
             ];
         })->values();
 
