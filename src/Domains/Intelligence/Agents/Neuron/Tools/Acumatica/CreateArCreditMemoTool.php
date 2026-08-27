@@ -13,6 +13,7 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
@@ -158,6 +159,7 @@ class CreateArCreditMemoTool extends Tool
 
         /** @var Organization $customer */
         $customer = $match->organization;
+        $customerDisplayName = trim((string) $customer->get(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, '')) ?: $customer->name;
 
         $lineData = [];
         foreach ($lines as $line) {
@@ -224,7 +226,7 @@ class CreateArCreditMemoTool extends Tool
                 'pushed' => false,
                 'credit_memo_id' => $creditNote->getId(),
                 'credit_memo_number' => $creditNote->invoice_number,
-                'customer' => $customer->name,
+                'customer' => $customerDisplayName,
                 'reason' => 'push_failed',
                 'message' => 'Credit memo was issued in Kanvas but the push to Acumatica failed: '
                     . $e->getMessage() . '. It needs manual attention — it will not auto-retry.',
@@ -236,7 +238,7 @@ class CreateArCreditMemoTool extends Tool
             'pushed' => true,
             'credit_memo_id' => $creditNote->getId(),
             'credit_memo_number' => $creditNote->invoice_number,
-            'customer' => $customer->name,
+            'customer' => $customerDisplayName,
             'amount' => (float) $creditNote->total_native,
             'currency' => $currency,
             'credit_memo_ref' => $reference,

@@ -191,6 +191,7 @@ class CreateApBillTool extends Tool
 
         /** @var Organization $vendor */
         $vendor = $match->organization;
+        $vendorDisplayName = trim((string) $vendor->get(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, '')) ?: $vendor->name;
 
         $account = Account::query()
             ->where('apps_id', $app->getId())
@@ -248,7 +249,7 @@ class CreateApBillTool extends Tool
 
             new NotifyApproverAction(
                 app: $app,
-                text: "You have an AP bill pending approval:\nVendor: {$vendor->name}\nAmount: {$currency} "
+                text: "You have an AP bill pending approval:\nVendor: {$vendorDisplayName}\nAmount: {$currency} "
                     . "{$amount}\nGL: {$gl_account_number}"
                     . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : '')
                     . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
@@ -264,7 +265,7 @@ class CreateApBillTool extends Tool
                 'bill_id' => $bill->getId(),
                 'bill_number' => $bill->bill_number,
                 'document_status' => $bill->document_status->value,
-                'vendor' => $vendor->name,
+                'vendor' => $vendorDisplayName,
                 'amount' => $amount,
                 'currency' => $currency,
                 'gl_account' => $gl_account_number,
@@ -273,7 +274,7 @@ class CreateApBillTool extends Tool
                 'next' => $approverEmail !== ''
                     ? 'Bill created and submitted for approval in Kanvas (status: pending_approval). Not pushed '
                         . 'to Acumatica — that happens separately once a human approves it.'
-                    : 'Bill created and submitted for approval, but vendor "' . $vendor->name . '" has no '
+                    : 'Bill created and submitted for approval, but vendor "' . $vendorDisplayName . '" has no '
                         . 'approver email configured — nobody can approve it and no notification was sent. Tell '
                         . 'the user to have an admin set that vendor\'s approver email.',
             ];
@@ -306,7 +307,7 @@ class CreateApBillTool extends Tool
             'bill_id' => $bill->getId(),
             'bill_number' => $bill->bill_number,
             'document_status' => $bill->document_status->value,
-            'vendor' => $vendor->name,
+            'vendor' => $vendorDisplayName,
             'amount' => $amount,
             'currency' => $currency,
             'gl_account' => $gl_account_number,
