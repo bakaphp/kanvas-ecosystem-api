@@ -53,14 +53,9 @@ class LeadConfigurationServiceV2Test extends TestCase
         return $lead;
     }
 
-    public function testIsV2EnabledReturnsTrueWhenFlagSet(): void
-    {
-        $this->assertTrue(new LeadConfigurationService(true)->isV2Enabled(auth()->user()->getCurrentCompany()));
-    }
-
     public function testGetAiModeKeyReturnsGenericAiModeForEveryLeadType(): void
     {
-        $service = new LeadConfigurationService(true);
+        $service = new LeadConfigurationService();
 
         foreach (['Internet', 'Showroom', 'Phone'] as $typeName) {
             $lead = $this->createLead($typeName);
@@ -75,7 +70,7 @@ class LeadConfigurationServiceV2Test extends TestCase
 
     public function testGetFollowUpModeKeyReturnsGenericAiFollowUpForEveryLeadType(): void
     {
-        $service = new LeadConfigurationService(true);
+        $service = new LeadConfigurationService();
 
         foreach (['Internet', 'Showroom', 'Phone'] as $typeName) {
             $lead = $this->createLead($typeName);
@@ -92,14 +87,14 @@ class LeadConfigurationServiceV2Test extends TestCase
     {
         $lead = $this->createLead('Internet', ['internet_ai_mode_open_default' => 'FULL_ON']);
 
-        $this->assertEquals('internet_ai_mode_open_default', new LeadConfigurationService(true)->getAiModeDefaultKey($lead, true));
+        $this->assertEquals('internet_ai_mode_open_default', new LeadConfigurationService()->getAiModeDefaultKey($lead, true));
     }
 
     public function testGetAiModeDefaultKeyReturnsClosedKeyWhenClosed(): void
     {
         $lead = $this->createLead('Internet', ['internet_ai_mode_closed_default' => 'SUPPORT']);
 
-        $this->assertEquals('internet_ai_mode_closed_default', new LeadConfigurationService(true)->getAiModeDefaultKey($lead, false));
+        $this->assertEquals('internet_ai_mode_closed_default', new LeadConfigurationService()->getAiModeDefaultKey($lead, false));
     }
 
     public function testGetAiModeDefaultKeyResolvesPrefixFromConfigKeys(): void
@@ -111,7 +106,7 @@ class LeadConfigurationServiceV2Test extends TestCase
             'custom-channel' => 'custom-channel_ai_mode_open_default',
         ];
 
-        $service = new LeadConfigurationService(true);
+        $service = new LeadConfigurationService();
 
         foreach ($cases as $prefix => $expectedKey) {
             $lead = $this->createLead('Type-' . $prefix, [$expectedKey => 'FULL_ON']);
@@ -130,7 +125,7 @@ class LeadConfigurationServiceV2Test extends TestCase
 
         $this->assertEquals(
             'ai_mode_open_default',
-            new LeadConfigurationService(true)->getAiModeDefaultKey($lead, true)
+            new LeadConfigurationService()->getAiModeDefaultKey($lead, true)
         );
     }
 
@@ -138,7 +133,7 @@ class LeadConfigurationServiceV2Test extends TestCase
     {
         $lead = $this->createLead('Internet', ['internet_con_fu_active_default' => 1]);
 
-        $this->assertEquals('internet_con_fu_active_default', new LeadConfigurationService(true)->getFollowUpDefaultKey($lead));
+        $this->assertEquals('internet_con_fu_active_default', new LeadConfigurationService()->getFollowUpDefaultKey($lead));
     }
 
     public function testGetFollowUpDefaultKeyResolvesPrefixFromConfigKeys(): void
@@ -149,7 +144,7 @@ class LeadConfigurationServiceV2Test extends TestCase
             'phone' => 'phone_con_fu_active_default',
         ];
 
-        $service = new LeadConfigurationService(true);
+        $service = new LeadConfigurationService();
 
         foreach ($cases as $prefix => $expectedKey) {
             $lead = $this->createLead('Type-' . $prefix, [$expectedKey => 1]);
@@ -170,7 +165,7 @@ class LeadConfigurationServiceV2Test extends TestCase
             'phone' => 'phone_first_fu_active_default',
         ];
 
-        $service = new LeadConfigurationService(true);
+        $service = new LeadConfigurationService();
 
         foreach ($cases as $prefix => $expectedKey) {
             $lead = $this->createLead('Type-' . $prefix, [$expectedKey => true]);
@@ -191,7 +186,7 @@ class LeadConfigurationServiceV2Test extends TestCase
             'phone' => 'phone_con_fu_active_default',
         ];
 
-        $service = new LeadConfigurationService(true);
+        $service = new LeadConfigurationService();
 
         foreach ($cases as $prefix => $expectedKey) {
             $lead = $this->createLead('Type-' . $prefix, [$expectedKey => 1]);
@@ -212,7 +207,7 @@ class LeadConfigurationServiceV2Test extends TestCase
             'phone' => 'phone_con_fu_cns_default',
         ];
 
-        $service = new LeadConfigurationService(true);
+        $service = new LeadConfigurationService();
 
         foreach ($cases as $prefix => $expectedKey) {
             $lead = $this->createLead('Type-' . $prefix, [$expectedKey => 0]);
@@ -233,7 +228,7 @@ class LeadConfigurationServiceV2Test extends TestCase
             'phone' => 'phone_con_fu_closed-sold_default',
         ];
 
-        $service = new LeadConfigurationService(true);
+        $service = new LeadConfigurationService();
 
         foreach ($cases as $prefix => $expectedKey) {
             $lead = $this->createLead('Type-' . $prefix, [$expectedKey => 0]);
@@ -254,7 +249,7 @@ class LeadConfigurationServiceV2Test extends TestCase
             'internet_first_fu_active_default' => true,
         ]);
 
-        $result = new LeadConfigurationService(true)->getAllDefaultKeys($lead, true);
+        $result = new LeadConfigurationService()->getAllDefaultKeys($lead, true);
 
         $this->assertEquals('internet_ai_mode_open_default', $result['ai_mode']['key']);
         $this->assertEquals('full_on', $result['ai_mode']['value']);
@@ -268,7 +263,7 @@ class LeadConfigurationServiceV2Test extends TestCase
     {
         $lead = $this->createLead('Internet', ['internet_ai_mode_closed_default' => 'SUPPORT']);
 
-        $result = new LeadConfigurationService(true)->getAllDefaultKeys($lead, false);
+        $result = new LeadConfigurationService()->getAllDefaultKeys($lead, false);
 
         $this->assertEquals('internet_ai_mode_closed_default', $result['ai_mode']['key']);
     }
@@ -277,7 +272,7 @@ class LeadConfigurationServiceV2Test extends TestCase
     {
         $lead = $this->createLead('Internet', ['internet_con_fu_active_default' => 1]);
 
-        $result = new LeadConfigurationService(true)->getAllDefaultKeys($lead);
+        $result = new LeadConfigurationService()->getAllDefaultKeys($lead);
 
         $this->assertEquals('internet_con_fu_active_default', $result['follow_up']['key']);
     }
