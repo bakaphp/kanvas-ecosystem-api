@@ -1,6 +1,7 @@
 <?php
 
 use Kanvas\AccessControlList\Models\Role;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\UsersLists\Models\UserList as ModelUserList;
 use Kanvas\Users\Models\Users;
@@ -162,6 +163,9 @@ return [
         'host' => env('MEILISEARCH_HOST', 'http://localhost:7700'),
         'key' => env('MEILISEARCH_KEY', null),
         'index-settings' => [
+            Variants::class => [
+                'filterableAttributes' => ['apps_id', 'company.id'],
+            ],
            Message::class => [
                 'filterableAttributes' => ['apps_id'],
                 'sortableAttributes' => ['created_at','updated_at'],

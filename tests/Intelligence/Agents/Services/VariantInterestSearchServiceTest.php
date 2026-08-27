@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Agents\Services;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Services\VariantInterestSearchService;
 use Kanvas\Intelligence\Agents\Services\VariantSearchService;
 use Mockery;

@@ -9,8 +9,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\BatchRecipientResolverService;
-use Kanvas\Intelligence\Agents\Services\LeadTraits\LeadBaseFilter;
 use Kanvas\Intelligence\Agents\Services\LeadTraits\CommunicationLeadFilter;
+use Kanvas\Intelligence\Agents\Services\LeadTraits\LeadBaseFilter;
 use Kanvas\Intelligence\Agents\Services\LeadTraits\VariantInterestLeadFilter;
 
 class FindLeadsByTraitsService

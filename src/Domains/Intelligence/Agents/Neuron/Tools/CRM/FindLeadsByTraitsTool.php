@@ -112,10 +112,24 @@ class FindLeadsByTraitsTool extends Tool implements HasRunKey
         ?int $limit = null,
     ): array {
         return $this->finder->execute($this->app, $this->company, compact(
-            'status', 'source', 'stage', 'salesperson', 'rooftop', 'created_after', 'created_before',
-            'no_update_since_days', 'variant_query', 'variant_attributes', 'minimum_variant_price',
-            'maximum_variant_price', 'engagement_action', 'engagement_completion', 'channel', 'limit',
-            'communication_state', 'customer_waiting_since_days',
+            'status',
+            'source',
+            'stage',
+            'salesperson',
+            'rooftop',
+            'created_after',
+            'created_before',
+            'no_update_since_days',
+            'variant_query',
+            'variant_attributes',
+            'minimum_variant_price',
+            'maximum_variant_price',
+            'engagement_action',
+            'engagement_completion',
+            'channel',
+            'limit',
+            'communication_state',
+            'customer_waiting_since_days',
         ));
     }
 }
