@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsAttributes;
+use Laravel\Scout\Builder as ScoutBuilder;
 
 class VariantSearchService
 {
@@ -16,11 +17,12 @@ class VariantSearchService
      */
     public function search(Apps $app, Companies $company, string $keyword, int $limit = 20): array
     {
-        $variants = Variants::search($keyword)
-            ->where('apps_id', $app->getId())
-            ->where('company.id', $company->getId())
-            ->take($limit)
-            ->get();
+        $search = Variants::traitSearch($keyword);
+        $search->model->setRelation('app', $app);
+
+        $this->scopeSearch($search, $app, $company);
+
+        $variants = $search->take($limit)->get();
 
         $variants->load([
             'product',
@@ -46,6 +48,24 @@ class VariantSearchService
                 ->filter(fn (string $value, string $name): bool => $name !== '' && $value !== '')
                 ->all(),
         ])->toArray();
+    }
+
+    private function scopeSearch(ScoutBuilder $search, Apps $app, Companies $company): void
+    {
+        if ($search->model->isTypesense()) {
+            $search
+                ->where('apps_id', $app->getId())
+                ->where('company.id', $company->getId())
+                ->options([
+                    'query_by' => 'name,sku,ean,barcode,description,short_description',
+                ]);
+
+            return;
+        }
+
+        $search->query(fn ($query) => $query
+            ->where('apps_id', $app->getId())
+            ->whereRelation('product', 'companies_id', $company->getId()));
     }
 
     private function stringValue(mixed $value): string
