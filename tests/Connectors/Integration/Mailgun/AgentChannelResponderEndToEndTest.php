@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Mailgun\Actions\AgentChannelResponderAction;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -23,6 +24,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
+use ReflectionMethod;
 use ReflectionProperty;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
@@ -200,6 +202,54 @@ class AgentChannelResponderEndToEndTest extends TestCase
             ->exists();
 
         $this->assertFalse($outbound, 'No agent reply should be persisted for a non-email inbound');
+    }
+
+    // Regression: without this marker the agent had no way to know a new attachment existed and reused an older one's summary from chat history instead.
+    public function testCurrentAttachmentIsSurfacedAsAnExplicitMarker(): void
+    {
+        ['channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
+            $this->seedInboundEmailScenario();
+
+        $filesystem = $this->makeFilesystemRow('02_VATIT_INV2607GB30K00006851.pdf');
+        $inbound->addFile($filesystem, 'attachment-1');
+        $inbound = $inbound->fresh();
+
+        $action = new AgentChannelResponderAction($channel, $inbound, $agent, $session);
+        $markers = new ReflectionMethod($action, 'currentAttachmentMarkers')->invoke($action);
+
+        $this->assertStringContainsString('filesystem_id: ' . $filesystem->getId(), $markers);
+        $this->assertStringContainsString('"02_VATIT_INV2607GB30K00006851.pdf"', $markers);
+    }
+
+    public function testNoAttachmentMarkerWhenNothingIsAttached(): void
+    {
+        ['channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
+            $this->seedInboundEmailScenario();
+
+        $action = new AgentChannelResponderAction($channel, $inbound, $agent, $session);
+        $markers = new ReflectionMethod($action, 'currentAttachmentMarkers')->invoke($action);
+
+        $this->assertSame('', $markers);
+    }
+
+    private function makeFilesystemRow(string $name): Filesystem
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $row = new Filesystem();
+        $row->apps_id = $app->getId();
+        $row->companies_id = $company->getId();
+        $row->users_id = $user->getId();
+        $row->name = $name;
+        $row->path = 'test/' . $name;
+        $row->url = 'https://example.test/' . $name;
+        $row->size = '12345';
+        $row->file_type = 'pdf';
+        $row->save();
+
+        return $row;
     }
 
     /**
