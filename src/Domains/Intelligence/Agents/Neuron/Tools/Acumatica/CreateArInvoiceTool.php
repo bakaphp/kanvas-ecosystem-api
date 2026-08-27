@@ -221,11 +221,13 @@ class CreateArInvoiceTool extends Tool
                 'amount' => $amount,
                 'currency' => $currency,
                 'memo' => $memo,
+                'approved_by_flag' => $approverEmail !== '' ? '' : 'NOT IN APPROVER LIST',
                 'next' => $approverEmail !== ''
                     ? 'Invoice created in Kanvas (status: draft). Not issued or pushed to Acumatica — that '
                         . 'happens separately once a human approves it.'
                     : 'Invoice created in Kanvas, but customer "' . $customerDisplayName . '" has no approver email '
-                        . 'configured — nobody can approve it and no notification was sent. Tell the user to '
+                        . 'configured — nobody can approve it and no notification was sent. Write approved_by_flag '
+                        . 'into the sheet\'s Approved By column so this is visible there too, and tell the user to '
                         . 'have an admin set that customer\'s approver email.',
             ];
         }

@@ -342,6 +342,30 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $this->assertTrue($result['created']);
         $this->assertSame('Penner + Partner WP StB mbB', $result['vendor']);
+        $this->assertSame('', $result['approved_by_flag']);
+    }
+
+    public function test_create_ap_bill_flags_the_sheet_row_when_the_vendor_has_no_approver_configured(): void
+    {
+        $this->seedTestOrganization('No Approver Vendor Corp');
+
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'No Approver Vendor Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'No approver test',
+                invoice_number: 'NOAPP-1',
+                push_to_acumatica: false,
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertSame('NOT IN APPROVER LIST', $result['approved_by_flag']);
     }
 
     public function test_create_ap_bill_treats_an_explicit_null_push_flag_as_the_default(): void

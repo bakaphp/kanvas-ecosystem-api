@@ -235,9 +235,23 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame('draft', $result['document_status']);
         $this->assertArrayNotHasKey('invoice_ref', $result);
         $this->assertArrayNotHasKey('acumatica_invoice_id', $result);
+        $this->assertSame('NOT IN APPROVER LIST', $result['approved_by_flag']);
 
         $invoice = Invoice::query()->where('id', $result['invoice_id'])->first();
         $this->assertSame(InvoiceDocumentStatusEnum::DRAFT, $invoice->document_status);
+    }
+
+    public function test_create_ar_invoice_leaves_the_approved_by_flag_blank_when_an_approver_is_configured(): void
+    {
+        $customer = $this->seedTestOrganization('Flagged Invoice Customer');
+        $customer->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, 'approver-' . uniqid() . '@example.test');
+
+        $result = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: 'Flagged Invoice Customer', amount: 275.0, memo: 'Has approver test', push_to_acumatica: false);
+
+        $this->assertTrue($result['created']);
+        $this->assertSame('', $result['approved_by_flag']);
     }
 
     public function test_approve_pending_item_requires_the_configured_approver(): void
