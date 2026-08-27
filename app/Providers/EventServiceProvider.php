@@ -22,6 +22,7 @@ use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Listeners\QueueChannelKnowledgeIndexListener;
 use Kanvas\Intelligence\Agents\Neuron\RAG\Listeners\QueueKnowledgeIndexListener;
 use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
+use Kanvas\Intelligence\Knowledge\Listeners\QueueVariantInterestReindexListener;
 use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
@@ -33,6 +34,7 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Regions\Observers\RegionObserver;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Observers\StatusObserver;
+use Kanvas\Inventory\Variants\Events\VariantSearchDocumentChanged;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Observers\WarehouseObserver;
@@ -96,6 +98,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         KnowledgeIndexRequested::class => [
             QueueKnowledgeIndexListener::class,
+        ],
+        VariantSearchDocumentChanged::class => [
+            QueueVariantInterestReindexListener::class,
         ],
         MessageMentionsStoredEvent::class => [
             RespondToAgentMentionListener::class,

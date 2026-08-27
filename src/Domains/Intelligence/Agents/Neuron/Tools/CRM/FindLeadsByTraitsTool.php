@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
-use Illuminate\Support\Carbon;
-use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Services\BatchRecipientResolverService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Users\Models\Users;
+use Kanvas\Intelligence\Agents\Services\FindLeadsByTraitsService;
+use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -26,7 +23,7 @@ use Override;
  *
  * Company-wide, internal-teammate capability (managers), not the customer-facing surface. v1 filters
  * the reliable structured traits only (source, status, stage, salesperson, rooftop, dates,
- * staleness); vehicle make/model/price filtering is a planned follow-up.
+ * staleness and generic product/variant interests.
  */
 #[AgentTool(name: 'Find Leads By Traits', category: 'crm')]
 class FindLeadsByTraitsTool extends Tool implements HasRunKey
@@ -35,14 +32,23 @@ class FindLeadsByTraitsTool extends Tool implements HasRunKey
     use TrackByInputs;
 
     public function __construct(
-        private readonly BatchRecipientResolverService $resolver = new BatchRecipientResolverService(),
+        private readonly FindLeadsByTraitsService $finder = new FindLeadsByTraitsService(),
     ) {
         parent::__construct(
             name: 'find_leads_by_traits',
             description: 'Find a group of leads that share traits and build a reviewable batch-outreach recipient '
-                . 'list. Use for "find leads from the last 14 days with no appointment set", "show me open leads for '
-                . 'rep Ana at the downtown store", "leads with no activity in 7 days". Filters: status, source, stage, '
-                . 'salesperson, rooftop/store, created date range, and days-since-last-update. Returns the eligible '
+                . 'list. Use for "find all leads interested in a RAV4 who have not responded in 7 days", "find customers '
+                . 'looking for used trucks under $30k", "find all leads interested in a 2025 Tacoma", "RAV4 leads who '
+                . 'can receive SMS", "internet leads from the last 14 days", and "leads assigned to Alex with no contact '
+                . 'in 3 days". Product interests are generic: resolve matching inventory variants by text, searchable '
+                . 'attributes and price, then require an exact lead-to-variant interest relation. Filters also include '
+                . 'engagement progress: use action "trade-in" or "credit-app" with completion "incomplete" for '
+                . '"trade-in not submitted" and "incomplete credit applications". '
+                . 'Engagement results are authoritative: never substitute lead titles, messages, RAG snippets or '
+                . 'keyword matches when this structured filter returns zero. '
+                . 'Communication filters use the latest structured message sender: awaiting_team_response means the '
+                . 'last communication is from the customer; never_replied means outbound exists but no customer message exists. '
+                . 'status, source, stage, salesperson, rooftop/store, created dates and days-since-last-update. Returns the eligible '
                 . 'recipients plus the leads that were excluded (opted-out, do-not-contact, no contact info, duplicate) '
                 . 'with reasons. THIS DOES NOT SEND ANYTHING — it is the review step. After the manager confirms the '
                 . 'list and the message, call send_batch_message with the eligible lead_ids.',
@@ -64,6 +70,19 @@ class FindLeadsByTraitsTool extends Tool implements HasRunKey
             new ToolProperty(name: 'created_after', type: PropertyType::STRING, description: 'Only leads created on/after this date (YYYY-MM-DD).', required: false),
             new ToolProperty(name: 'created_before', type: PropertyType::STRING, description: 'Only leads created on/before this date (YYYY-MM-DD).', required: false),
             new ToolProperty(name: 'no_update_since_days', type: PropertyType::INTEGER, description: 'Only leads with no record activity in at least this many days (proxy for "no response since").', required: false),
+            new ToolProperty(name: 'variant_query', type: PropertyType::STRING, description: 'Product or variant text, SKU, EAN or barcode, e.g. "RAV4", "2025 Tacoma", or "truck".', required: false),
+            new ArrayProperty(
+                name: 'variant_attributes',
+                description: 'Exact searchable variant attributes written as name:value, e.g. ["condition:used", "body_type:truck"]. Generic across apps; do not assume automotive fields.',
+                required: false,
+                items: new ToolProperty(name: 'attribute', type: PropertyType::STRING, description: 'One searchable attribute as name:value.'),
+            ),
+            new ToolProperty(name: 'minimum_variant_price', type: PropertyType::NUMBER, description: 'Minimum recorded price when the lead expressed interest.', required: false),
+            new ToolProperty(name: 'maximum_variant_price', type: PropertyType::NUMBER, description: 'Maximum recorded price when the lead expressed interest, e.g. 30000.', required: false),
+            new ToolProperty(name: 'engagement_action', type: PropertyType::STRING, description: 'Engagement action or alias, e.g. trade-in, add-trade, credit-app, get-docs, or esign-docs.', required: false),
+            new ToolProperty(name: 'engagement_completion', type: PropertyType::STRING, description: 'Engagement state: started, incomplete, submitted, or missing. Incomplete means the latest state for an engagement entity is not submitted.', required: false),
+            new ToolProperty(name: 'communication_state', type: PropertyType::STRING, description: 'Communication state: awaiting_team_response, responded, never_replied, or no_messages.', required: false),
+            new ToolProperty(name: 'customer_waiting_since_days', type: PropertyType::INTEGER, description: 'For awaiting_team_response, require the latest inbound customer message to be at least this many days old.', required: false),
             new ToolProperty(name: 'channel', type: PropertyType::STRING, description: 'Channel the batch will use: sms (default) or email. Determines which contacts must be deliverable.', required: false),
             new ToolProperty(name: 'limit', type: PropertyType::INTEGER, description: 'Max candidate leads to evaluate, most recently updated first. Default 100, max 500.', required: false),
         ];
@@ -81,101 +100,22 @@ class FindLeadsByTraitsTool extends Tool implements HasRunKey
         ?string $created_after = null,
         ?string $created_before = null,
         ?int $no_update_since_days = null,
+        ?string $variant_query = null,
+        ?array $variant_attributes = null,
+        ?float $minimum_variant_price = null,
+        ?float $maximum_variant_price = null,
+        ?string $engagement_action = null,
+        ?string $engagement_completion = null,
+        ?string $communication_state = null,
+        ?int $customer_waiting_since_days = null,
         ?string $channel = null,
         ?int $limit = null,
     ): array {
-        $status = strtolower(trim((string) $status)) ?: 'open';
-        $channel = strtolower(trim((string) $channel)) ?: 'sms';
-        if (! in_array($channel, ['sms', 'email'], true)) {
-            return ['status' => 'error', 'message' => 'Invalid channel. Use "sms" or "email".'];
-        }
-        $limit = max(1, min(500, $limit ?? 100));
-
-        $query = Lead::query()
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->when($status === 'open', fn ($q) => $q->where(fn ($s) => $s->whereNull('status')->orWhere('status', '<', 2)))
-            ->when($status === 'closed', fn ($q) => $q->where('status', '>=', 2));
-
-        $criteria = ['status' => $status, 'channel' => $channel];
-
-        if (($source = trim((string) $source)) !== '') {
-            $query->whereHas('source', fn ($q) => $q->where('name', 'like', "%{$source}%"));
-            $criteria['source'] = $source;
-        }
-
-        if (($stage = trim((string) $stage)) !== '') {
-            $query->whereHas('stage', fn ($q) => $q->where('name', 'like', "%{$stage}%"));
-            $criteria['stage'] = $stage;
-        }
-
-        if (($salesperson = trim((string) $salesperson)) !== '') {
-            // owner is a Users relation on the ecosystem connection — resolve ids first (whereHas would
-            // cross-join a different DB), mirroring SearchLeadsTool.
-            $ownerIds = Users::query()
-                ->where(fn ($o) => $o->where('firstname', 'like', "%{$salesperson}%")
-                    ->orWhere('lastname', 'like', "%{$salesperson}%")
-                    ->orWhere('email', 'like', "%{$salesperson}%"))
-                ->pluck('id');
-            $query->whereIn('leads_owner_id', $ownerIds);
-            $criteria['salesperson'] = $salesperson;
-        }
-
-        if (($rooftop = trim((string) $rooftop)) !== '') {
-            $branchIds = CompaniesBranches::query()
-                ->where('companies_id', $this->company->getId())
-                ->where('name', 'like', "%{$rooftop}%")
-                ->pluck('id');
-            $query->whereIn('companies_branches_id', $branchIds);
-            $criteria['rooftop'] = $rooftop;
-        }
-
-        if (($created_after = trim((string) $created_after)) !== '') {
-            $query->where('created_at', '>=', Carbon::parse($created_after)->startOfDay());
-            $criteria['created_after'] = $created_after;
-        }
-
-        if (($created_before = trim((string) $created_before)) !== '') {
-            $query->where('created_at', '<=', Carbon::parse($created_before)->endOfDay());
-            $criteria['created_before'] = $created_before;
-        }
-
-        if ($no_update_since_days !== null && $no_update_since_days > 0) {
-            $query->where('updated_at', '<=', Carbon::now()->subDays($no_update_since_days));
-            $criteria['no_update_since_days'] = $no_update_since_days;
-        }
-
-        $leads = $query
-            ->with(['people', 'owner', 'stage'])
-            ->orderByDesc('updated_at')
-            ->limit($limit)
-            ->get();
-
-        $resolved = $this->resolver->resolve($leads, $channel);
-
-        $excludedReasons = [];
-        foreach ($resolved['excluded'] as $row) {
-            $reason = (string) $row['compliance_status'];
-            $excludedReasons[$reason] = ($excludedReasons[$reason] ?? 0) + 1;
-        }
-
-        return [
-            'status' => 'success',
-            'interpreted_criteria' => $criteria,
-            'summary' => [
-                'candidates_evaluated' => $resolved['total_candidates'],
-                'eligible' => $resolved['eligible_count'],
-                'excluded' => $resolved['excluded_count'],
-                'excluded_reasons' => $excludedReasons,
-                'capped' => $leads->count() === $limit,
-            ],
-            'recipients' => $resolved['eligible'],
-            'excluded_sample' => array_slice($resolved['excluded'], 0, 25),
-            'note' => 'This is a REVIEW list — nothing has been sent. Show the manager the interpreted_criteria and '
-                . 'the recipient count, let them remove anyone, then only on explicit confirmation call '
-                . 'send_batch_message (or schedule_batch_message) with the confirmed eligible lead_ids. The send tool '
-                . 're-checks eligibility, so already-excluded leads cannot be messaged even if passed.',
-        ];
+        return $this->finder->execute($this->app, $this->company, compact(
+            'status', 'source', 'stage', 'salesperson', 'rooftop', 'created_after', 'created_before',
+            'no_update_since_days', 'variant_query', 'variant_attributes', 'minimum_variant_price',
+            'maximum_variant_price', 'engagement_action', 'engagement_completion', 'channel', 'limit',
+            'communication_state', 'customer_waiting_since_days',
+        ));
     }
 }

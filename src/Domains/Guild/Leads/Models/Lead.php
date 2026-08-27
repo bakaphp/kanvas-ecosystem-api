@@ -24,6 +24,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadFilterEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Factories\LeadFactory;
+use Kanvas\Guild\Leads\Services\LeadVariantInterestProjectionService;
 use Kanvas\Guild\LeadSubSources\Models\LeadSubSource;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -98,6 +99,11 @@ class Lead extends BaseModel implements EventResourceInterface
     public function people(): BelongsTo
     {
         return $this->belongsTo(People::class, 'people_id', 'id');
+    }
+
+    public function variantInterests(): HasMany
+    {
+        return $this->hasMany(LeadVariantInterest::class, 'leads_id');
     }
 
     #[Override]
@@ -448,6 +454,7 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function toSearchableArray(): array
     {
+        $variantInterests = app(LeadVariantInterestProjectionService::class)->build($this);
         $lead = [
             'objectID' => "Kanvas\Guild\Leads\Models\Lead::{$this->id}",
             'id' => (string) $this->id,
@@ -477,6 +484,8 @@ class Lead extends BaseModel implements EventResourceInterface
             'created_at' => $this->created_at ? $this->created_at->timestamp : null,
             'updated_at' => $this->updated_at ? $this->updated_at->timestamp : null,
             'people' => $this->people ? $this->people->toSearchableArray() : null,
+            'variant_interests' => $variantInterests['items'],
+            'variant_search_text' => $variantInterests['search_text'],
         ];
 
         return $lead;
@@ -668,6 +677,16 @@ class Lead extends BaseModel implements EventResourceInterface
                     'type' => 'int64',
                     'optional' => true,
                 ],
+                [
+                    'name' => 'variant_interests',
+                    'type' => 'object[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'variant_search_text',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
             ],
             'default_sorting_field' => 'created_at',
             'enable_nested_fields' => true,
@@ -687,7 +706,17 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function searchQueryBy(): string
     {
-        return 'title,firstname,lastname,email,description';
+        return 'title,firstname,lastname,email,description,variant_search_text';
+    }
+
+    protected function makeAllSearchableUsing(Builder $query): Builder
+    {
+        return $query->with([
+            'people',
+            'variantInterests.variant.product',
+            'variantInterests.variant.channels',
+            'variantInterests.variant.variantAttributes.attribute',
+        ]);
     }
 
     public function startShowRoom(): void
