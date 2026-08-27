@@ -111,10 +111,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             return '';
         }
 
-        $lines = $files->map(
-            fn ($file) => "[Attached file on this message — filesystem_id: {$file->id}, filename: \"{$file->name}\"]"
-        );
-
-        return "\n\n" . $lines->implode("\n");
+        return "\n\n" . $files
+            ->map(static fn ($file) => "[Attached file on this message — filesystem_id: {$file->id}, filename: \"{$file->name}\"]")
+            ->implode("\n");
     }
 }
