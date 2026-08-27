@@ -319,6 +319,31 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame(BillDocumentStatusEnum::PENDING_APPROVAL, $bill->document_status);
     }
 
+    public function test_create_ap_bill_reports_the_approver_sheets_vendor_spelling_not_the_organizations_own_name(): void
+    {
+        $vendor = $this->seedTestOrganization('GmbH-PENNER + PARTNER GBR');
+        $vendor->set(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, 'Penner + Partner WP StB mbB');
+        $vendor->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, 'fanny.peng@example.test');
+
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Penner + Partner WP StB mbB',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Display name test',
+                invoice_number: 'DISP-1',
+                push_to_acumatica: false,
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertSame('Penner + Partner WP StB mbB', $result['vendor']);
+    }
+
     public function test_create_ap_bill_treats_an_explicit_null_push_flag_as_the_default(): void
     {
         // The LLM sends `"push_to_acumatica": null` for an omitted optional boolean, which used to

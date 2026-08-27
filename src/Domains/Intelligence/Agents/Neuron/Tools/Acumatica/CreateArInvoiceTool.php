@@ -157,6 +157,7 @@ class CreateArInvoiceTool extends Tool
 
         /** @var Organization $customer */
         $customer = $match->organization;
+        $customerDisplayName = trim((string) $customer->get(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, '')) ?: $customer->name;
 
         $currency = $currency !== null && trim($currency) !== '' ? strtoupper(trim($currency)) : 'USD';
         $actingUser = $this->user;
@@ -202,7 +203,7 @@ class CreateArInvoiceTool extends Tool
 
             new NotifyApproverAction(
                 app: $app,
-                text: "You have an AR invoice pending approval:\nCustomer: {$customer->name}\nAmount: {$currency} "
+                text: "You have an AR invoice pending approval:\nCustomer: {$customerDisplayName}\nAmount: {$currency} "
                     . "{$amount}\nMemo: {$memo}\nInvoice ID (Kanvas): {$invoice->getId()}\n\nReply "
                     . "\"approve invoice {$invoice->getId()}\" to approve it and push it to Acumatica.",
                 approverEmail: $approverEmail !== '' ? $approverEmail : null,
@@ -216,14 +217,14 @@ class CreateArInvoiceTool extends Tool
                 'invoice_id' => $invoice->getId(),
                 'invoice_number' => $invoice->invoice_number,
                 'document_status' => $invoice->document_status->value,
-                'customer' => $customer->name,
+                'customer' => $customerDisplayName,
                 'amount' => $amount,
                 'currency' => $currency,
                 'memo' => $memo,
                 'next' => $approverEmail !== ''
                     ? 'Invoice created in Kanvas (status: draft). Not issued or pushed to Acumatica — that '
                         . 'happens separately once a human approves it.'
-                    : 'Invoice created in Kanvas, but customer "' . $customer->name . '" has no approver email '
+                    : 'Invoice created in Kanvas, but customer "' . $customerDisplayName . '" has no approver email '
                         . 'configured — nobody can approve it and no notification was sent. Tell the user to '
                         . 'have an admin set that customer\'s approver email.',
             ];
@@ -252,7 +253,7 @@ class CreateArInvoiceTool extends Tool
             'invoice_pushed' => true,
             'invoice_id' => $invoice->getId(),
             'document_status' => $invoice->fresh()->document_status->value,
-            'customer' => $customer->name,
+            'customer' => $customerDisplayName,
             'amount' => $amount,
             'currency' => $currency,
             'memo' => $memo,
