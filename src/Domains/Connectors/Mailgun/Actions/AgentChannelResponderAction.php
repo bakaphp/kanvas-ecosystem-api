@@ -56,9 +56,9 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         $channelId = $this->hijackMessagePhone($fromEmail);
 
-        // Attachments are persisted to the message at ingest, deliberately NOT fed to the model
-        // here: an inbound email is a stored artifact, and pushing every PDF/image through the LLM
-        // on arrival is a token bill nobody asked for. The caption backfill still runs.
+        // Bytes stay out of the model (token cost); the filesystem_id marker still goes in, or the model has nothing to ground a reply in and reuses an older attachment from its own chat history.
+        $messageConversation .= $this->currentAttachmentMarkers();
+
         $responseContent = new AgentChatKernel(
             agent: $this->agent,
             session: $this->session,
@@ -100,5 +100,21 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             'responseText' => $responseContent,
             'response' => $responseText,
         ];
+    }
+
+    // One line per file attached to THIS message, so the model can call extract_invoice_data(filesystem_id) itself; empty when nothing was attached.
+    private function currentAttachmentMarkers(): string
+    {
+        $files = $this->message->files;
+
+        if ($files->isEmpty()) {
+            return '';
+        }
+
+        $lines = $files->map(
+            fn ($file) => "[Attached file on this message — filesystem_id: {$file->id}, filename: \"{$file->name}\"]"
+        );
+
+        return "\n\n" . $lines->implode("\n");
     }
 }
