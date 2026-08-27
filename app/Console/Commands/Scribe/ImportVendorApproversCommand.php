@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Maatwebsite\Excel\Concerns\ToArray;
 use Maatwebsite\Excel\Facades\Excel;
@@ -53,6 +54,7 @@ class ImportVendorApproversCommand extends Command
 
         $updated = 0;
         $unmatched = [];
+        $ambiguous = [];
         $noEmail = [];
 
         foreach (array_slice($rows, $headerIndex + 1) as $row) {
@@ -69,16 +71,21 @@ class ImportVendorApproversCommand extends Command
                 continue;
             }
 
-            $organization = $this->findOrganization($app, $company, $vendorName);
+            $match = OrganizationVendorMatcherService::match($app, $company, $vendorName);
 
-            if ($organization === null) {
-                $unmatched[] = $vendorName;
+            if (! $match->isMatched()) {
+                if ($match->candidates !== []) {
+                    $names = implode(', ', array_map(static fn (Organization $o): string => $o->name, $match->candidates));
+                    $ambiguous[] = "{$vendorName} (candidates: {$names})";
+                } else {
+                    $unmatched[] = $vendorName;
+                }
 
                 continue;
             }
 
-            $organization->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, $approverEmail);
-            $this->info("{$vendorName} -> {$approverEmail}");
+            $match->organization->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, $approverEmail);
+            $this->info("{$vendorName} -> {$match->organization->name} -> {$approverEmail}");
             $updated++;
         }
 
@@ -88,19 +95,13 @@ class ImportVendorApproversCommand extends Command
             $this->warn('No approver email in the sheet (skipped): ' . implode(', ', $noEmail));
         }
 
+        if ($ambiguous !== []) {
+            $this->warn('Multiple vendor Organizations could match (skipped, resolve manually): ' . implode('; ', $ambiguous));
+        }
+
         if ($unmatched !== []) {
             $this->warn('No matching vendor Organization found (skipped): ' . implode(', ', $unmatched));
         }
-    }
-
-    private function findOrganization(Apps $app, Companies $company, string $vendorName): ?Organization
-    {
-        $query = Organization::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId());
-
-        return (clone $query)->where('name', $vendorName)->first()
-            ?? $query->where('name', 'like', '%' . $vendorName . '%')->first();
     }
 
     /**

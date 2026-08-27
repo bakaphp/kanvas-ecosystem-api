@@ -35,6 +35,12 @@ final class OrganizationNameNormalizerServiceTest extends TestCase
             'lone suffix word kept' => ['SA', 'SA'],
             'empty stays empty' => ['', ''],
             'multiword name with no suffix' => ['Banco Popular Dominicano', 'Banco Popular Dominicano'],
+            'GmbH stripped' => ['Muster GmbH', 'Muster'],
+            'mbB stripped' => ['Penner + Partner WP StB mbB', 'Penner + Partner WP StB'],
+            'GbR stripped' => ['Schmidt & Weber GbR', 'Schmidt & Weber'],
+            'GmbH & Co KG stripped' => ['Muster GmbH & Co. KG', 'Muster'],
+            'AG stripped' => ['Beispiel AG', 'Beispiel'],
+            'e.V. stripped' => ['Musterverein e.V.', 'Musterverein'],
         ];
     }
 }
