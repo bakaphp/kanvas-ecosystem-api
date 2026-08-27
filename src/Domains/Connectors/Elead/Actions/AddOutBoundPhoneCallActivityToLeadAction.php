@@ -126,6 +126,7 @@ class AddOutBoundPhoneCallActivityToLeadAction
                 'lead_name' => $this->lead->people->name,
                 'lead_id' => $this->lead->getId(),
                 'people_id' => $this->lead->people->getId(),
+                'branch_id' => $this->lead->companies_branches_id,
             ],
             via: ['sms', 'push', 'expo', 'mail', 'database'],
             entity: $this->lead
