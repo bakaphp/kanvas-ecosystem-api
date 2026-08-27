@@ -11,6 +11,7 @@ use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
@@ -174,20 +175,22 @@ class CreateApBillTool extends Tool
             ];
         }
 
-        $vendor = Organization::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_deleted', false)
-            ->where('name', 'like', '%' . trim($vendor_name) . '%')
-            ->first();
+        $match = OrganizationVendorMatcherService::match($app, $company, $vendor_name);
 
-        if ($vendor === null) {
+        if (! $match->isMatched()) {
             return [
                 'created' => false,
-                'reason' => 'vendor_not_found',
-                'message' => "No vendor organization matching \"{$vendor_name}\" for this app/company.",
+                'reason' => $match->candidates !== [] ? 'vendor_ambiguous' : 'vendor_not_found',
+                'message' => $match->candidates !== []
+                    ? "\"{$vendor_name}\" could match more than one vendor: "
+                        . implode(', ', array_map(static fn (Organization $o): string => $o->name, $match->candidates))
+                        . '. Call find_vendor to see Acumatica codes and confirm the right one with the user.'
+                    : "No vendor organization matching \"{$vendor_name}\" for this app/company.",
             ];
         }
+
+        /** @var Organization $vendor */
+        $vendor = $match->organization;
 
         $account = Account::query()
             ->where('apps_id', $app->getId())

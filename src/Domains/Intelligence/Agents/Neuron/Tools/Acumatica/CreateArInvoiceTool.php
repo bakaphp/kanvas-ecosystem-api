@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\Traits\PushesInvoiceWithCreditHoldRetry;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
@@ -140,20 +141,22 @@ class CreateArInvoiceTool extends Tool
             ];
         }
 
-        $customer = Organization::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_deleted', false)
-            ->where('name', 'like', '%' . trim($customer_name) . '%')
-            ->first();
+        $match = OrganizationVendorMatcherService::match($app, $company, $customer_name);
 
-        if ($customer === null) {
+        if (! $match->isMatched()) {
             return [
                 'created' => false,
-                'reason' => 'customer_not_found',
-                'message' => "No customer organization matching \"{$customer_name}\" for this app/company.",
+                'reason' => $match->candidates !== [] ? 'customer_ambiguous' : 'customer_not_found',
+                'message' => $match->candidates !== []
+                    ? "\"{$customer_name}\" could match more than one customer: "
+                        . implode(', ', array_map(static fn (Organization $o): string => $o->name, $match->candidates))
+                        . '. Call find_customer to see Acumatica codes and confirm the right one with the user.'
+                    : "No customer organization matching \"{$customer_name}\" for this app/company.",
             ];
         }
+
+        /** @var Organization $customer */
+        $customer = $match->organization;
 
         $currency = $currency !== null && trim($currency) !== '' ? strtoupper(trim($currency)) : 'USD';
         $actingUser = $this->user;
