@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\Traits\PushesInvoiceWithCreditHoldRetry;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
@@ -140,20 +141,23 @@ class CreateArInvoiceTool extends Tool
             ];
         }
 
-        $customer = Organization::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_deleted', false)
-            ->where('name', 'like', '%' . trim($customer_name) . '%')
-            ->first();
+        $match = OrganizationVendorMatcherService::match($app, $company, $customer_name);
 
-        if ($customer === null) {
+        if (! $match->isMatched()) {
             return [
                 'created' => false,
-                'reason' => 'customer_not_found',
-                'message' => "No customer organization matching \"{$customer_name}\" for this app/company.",
+                'reason' => $match->candidates !== [] ? 'customer_ambiguous' : 'customer_not_found',
+                'message' => $match->candidates !== []
+                    ? "\"{$customer_name}\" could match more than one customer: "
+                        . implode(', ', array_map(static fn (Organization $o): string => $o->name, $match->candidates))
+                        . '. Call find_customer to see Acumatica codes and confirm the right one with the user.'
+                    : "No customer organization matching \"{$customer_name}\" for this app/company.",
             ];
         }
+
+        /** @var Organization $customer */
+        $customer = $match->organization;
+        $customerDisplayName = trim((string) $customer->get(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, '')) ?: $customer->name;
 
         $currency = $currency !== null && trim($currency) !== '' ? strtoupper(trim($currency)) : 'USD';
         $actingUser = $this->user;
@@ -199,7 +203,7 @@ class CreateArInvoiceTool extends Tool
 
             new NotifyApproverAction(
                 app: $app,
-                text: "You have an AR invoice pending approval:\nCustomer: {$customer->name}\nAmount: {$currency} "
+                text: "You have an AR invoice pending approval:\nCustomer: {$customerDisplayName}\nAmount: {$currency} "
                     . "{$amount}\nMemo: {$memo}\nInvoice ID (Kanvas): {$invoice->getId()}\n\nReply "
                     . "\"approve invoice {$invoice->getId()}\" to approve it and push it to Acumatica.",
                 approverEmail: $approverEmail !== '' ? $approverEmail : null,
@@ -213,15 +217,17 @@ class CreateArInvoiceTool extends Tool
                 'invoice_id' => $invoice->getId(),
                 'invoice_number' => $invoice->invoice_number,
                 'document_status' => $invoice->document_status->value,
-                'customer' => $customer->name,
+                'customer' => $customerDisplayName,
                 'amount' => $amount,
                 'currency' => $currency,
                 'memo' => $memo,
+                'approved_by_flag' => $approverEmail !== '' ? '' : 'NOT IN APPROVER LIST',
                 'next' => $approverEmail !== ''
                     ? 'Invoice created in Kanvas (status: draft). Not issued or pushed to Acumatica — that '
                         . 'happens separately once a human approves it.'
-                    : 'Invoice created in Kanvas, but customer "' . $customer->name . '" has no approver email '
-                        . 'configured — nobody can approve it and no notification was sent. Tell the user to '
+                    : 'Invoice created in Kanvas, but customer "' . $customerDisplayName . '" has no approver email '
+                        . 'configured — nobody can approve it and no notification was sent. Write approved_by_flag '
+                        . 'into the sheet\'s Approved By column so this is visible there too, and tell the user to '
                         . 'have an admin set that customer\'s approver email.',
             ];
         }
@@ -249,7 +255,7 @@ class CreateArInvoiceTool extends Tool
             'invoice_pushed' => true,
             'invoice_id' => $invoice->getId(),
             'document_status' => $invoice->fresh()->document_status->value,
-            'customer' => $customer->name,
+            'customer' => $customerDisplayName,
             'amount' => $amount,
             'currency' => $currency,
             'memo' => $memo,

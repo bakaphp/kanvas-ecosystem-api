@@ -11,6 +11,7 @@ use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
@@ -174,20 +175,23 @@ class CreateApBillTool extends Tool
             ];
         }
 
-        $vendor = Organization::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_deleted', false)
-            ->where('name', 'like', '%' . trim($vendor_name) . '%')
-            ->first();
+        $match = OrganizationVendorMatcherService::match($app, $company, $vendor_name);
 
-        if ($vendor === null) {
+        if (! $match->isMatched()) {
             return [
                 'created' => false,
-                'reason' => 'vendor_not_found',
-                'message' => "No vendor organization matching \"{$vendor_name}\" for this app/company.",
+                'reason' => $match->candidates !== [] ? 'vendor_ambiguous' : 'vendor_not_found',
+                'message' => $match->candidates !== []
+                    ? "\"{$vendor_name}\" could match more than one vendor: "
+                        . implode(', ', array_map(static fn (Organization $o): string => $o->name, $match->candidates))
+                        . '. Call find_vendor to see Acumatica codes and confirm the right one with the user.'
+                    : "No vendor organization matching \"{$vendor_name}\" for this app/company.",
             ];
         }
+
+        /** @var Organization $vendor */
+        $vendor = $match->organization;
+        $vendorDisplayName = trim((string) $vendor->get(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, '')) ?: $vendor->name;
 
         $account = Account::query()
             ->where('apps_id', $app->getId())
@@ -245,7 +249,7 @@ class CreateApBillTool extends Tool
 
             new NotifyApproverAction(
                 app: $app,
-                text: "You have an AP bill pending approval:\nVendor: {$vendor->name}\nAmount: {$currency} "
+                text: "You have an AP bill pending approval:\nVendor: {$vendorDisplayName}\nAmount: {$currency} "
                     . "{$amount}\nGL: {$gl_account_number}"
                     . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : '')
                     . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
@@ -261,18 +265,20 @@ class CreateApBillTool extends Tool
                 'bill_id' => $bill->getId(),
                 'bill_number' => $bill->bill_number,
                 'document_status' => $bill->document_status->value,
-                'vendor' => $vendor->name,
+                'vendor' => $vendorDisplayName,
                 'amount' => $amount,
                 'currency' => $currency,
                 'gl_account' => $gl_account_number,
                 'subaccount' => $subaccount,
                 'memo' => $memo,
+                'approved_by_flag' => $approverEmail !== '' ? '' : 'NOT IN APPROVER LIST',
                 'next' => $approverEmail !== ''
                     ? 'Bill created and submitted for approval in Kanvas (status: pending_approval). Not pushed '
                         . 'to Acumatica — that happens separately once a human approves it.'
-                    : 'Bill created and submitted for approval, but vendor "' . $vendor->name . '" has no '
-                        . 'approver email configured — nobody can approve it and no notification was sent. Tell '
-                        . 'the user to have an admin set that vendor\'s approver email.',
+                    : 'Bill created and submitted for approval, but vendor "' . $vendorDisplayName . '" has no '
+                        . 'approver email configured — nobody can approve it and no notification was sent. Write '
+                        . 'approved_by_flag into the sheet\'s Approved By column so this is visible there too, '
+                        . 'and tell the user to have an admin set that vendor\'s approver email.',
             ];
         }
 
@@ -303,7 +309,7 @@ class CreateApBillTool extends Tool
             'bill_id' => $bill->getId(),
             'bill_number' => $bill->bill_number,
             'document_status' => $bill->document_status->value,
-            'vendor' => $vendor->name,
+            'vendor' => $vendorDisplayName,
             'amount' => $amount,
             'currency' => $currency,
             'gl_account' => $gl_account_number,

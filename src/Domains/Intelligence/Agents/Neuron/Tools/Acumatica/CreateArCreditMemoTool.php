@@ -10,8 +10,10 @@ use Kanvas\Connectors\Acumatica\Actions\PushInvoiceToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
@@ -141,21 +143,23 @@ class CreateArCreditMemoTool extends Tool
             ];
         }
 
-        /** @var Organization|null $customer */
-        $customer = Organization::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_deleted', false)
-            ->where('name', 'like', '%' . trim($customer_name) . '%')
-            ->first();
+        $match = OrganizationVendorMatcherService::match($app, $company, $customer_name);
 
-        if ($customer === null) {
+        if (! $match->isMatched()) {
             return [
                 'created' => false,
-                'reason' => 'customer_not_found',
-                'message' => "No customer organization matching \"{$customer_name}\" for this app/company.",
+                'reason' => $match->candidates !== [] ? 'customer_ambiguous' : 'customer_not_found',
+                'message' => $match->candidates !== []
+                    ? "\"{$customer_name}\" could match more than one customer: "
+                        . implode(', ', array_map(static fn (Organization $o): string => $o->name, $match->candidates))
+                        . '. Call find_customer to see Acumatica codes and confirm the right one with the user.'
+                    : "No customer organization matching \"{$customer_name}\" for this app/company.",
             ];
         }
+
+        /** @var Organization $customer */
+        $customer = $match->organization;
+        $customerDisplayName = trim((string) $customer->get(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, '')) ?: $customer->name;
 
         $lineData = [];
         foreach ($lines as $line) {
@@ -222,7 +226,7 @@ class CreateArCreditMemoTool extends Tool
                 'pushed' => false,
                 'credit_memo_id' => $creditNote->getId(),
                 'credit_memo_number' => $creditNote->invoice_number,
-                'customer' => $customer->name,
+                'customer' => $customerDisplayName,
                 'reason' => 'push_failed',
                 'message' => 'Credit memo was issued in Kanvas but the push to Acumatica failed: '
                     . $e->getMessage() . '. It needs manual attention — it will not auto-retry.',
@@ -234,7 +238,7 @@ class CreateArCreditMemoTool extends Tool
             'pushed' => true,
             'credit_memo_id' => $creditNote->getId(),
             'credit_memo_number' => $creditNote->invoice_number,
-            'customer' => $customer->name,
+            'customer' => $customerDisplayName,
             'amount' => (float) $creditNote->total_native,
             'currency' => $currency,
             'credit_memo_ref' => $reference,
