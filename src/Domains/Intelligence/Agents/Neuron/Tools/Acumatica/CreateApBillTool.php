@@ -271,12 +271,14 @@ class CreateApBillTool extends Tool
                 'gl_account' => $gl_account_number,
                 'subaccount' => $subaccount,
                 'memo' => $memo,
+                'approved_by_flag' => $approverEmail !== '' ? '' : 'NOT IN APPROVER LIST',
                 'next' => $approverEmail !== ''
                     ? 'Bill created and submitted for approval in Kanvas (status: pending_approval). Not pushed '
                         . 'to Acumatica — that happens separately once a human approves it.'
                     : 'Bill created and submitted for approval, but vendor "' . $vendorDisplayName . '" has no '
-                        . 'approver email configured — nobody can approve it and no notification was sent. Tell '
-                        . 'the user to have an admin set that vendor\'s approver email.',
+                        . 'approver email configured — nobody can approve it and no notification was sent. Write '
+                        . 'approved_by_flag into the sheet\'s Approved By column so this is visible there too, '
+                        . 'and tell the user to have an admin set that vendor\'s approver email.',
             ];
         }
 
