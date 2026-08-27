@@ -25,7 +25,7 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\Intelligence\Agents\Models\AgentSwarmMember;
-use phpseclib3\Exception\NoKeyLoadedException;
+use phpseclib4\Exception\NoKeyLoadedException;
 use Tests\TestCase;
 
 class AgentRuntimeAgentActionsTest extends TestCase
