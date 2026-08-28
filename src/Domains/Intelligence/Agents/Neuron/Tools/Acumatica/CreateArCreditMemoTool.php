@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
 
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Acumatica\Actions\PushInvoiceToAcumaticaAction;
@@ -227,6 +228,7 @@ class CreateArCreditMemoTool extends Tool
                 'credit_memo_id' => $creditNote->getId(),
                 'credit_memo_number' => $creditNote->invoice_number,
                 'customer' => $customerDisplayName,
+                'processed_at' => Carbon::now()->toDateTimeString(),
                 'reason' => 'push_failed',
                 'message' => 'Credit memo was issued in Kanvas but the push to Acumatica failed: '
                     . $e->getMessage() . '. It needs manual attention — it will not auto-retry.',
@@ -243,8 +245,11 @@ class CreateArCreditMemoTool extends Tool
             'currency' => $currency,
             'credit_memo_ref' => $reference,
             'acumatica_invoice_id' => (string) $creditNote->get(AcumaticaCustomFieldEnum::INVOICE_ID->value, ''),
-            'next' => 'Pushed to Acumatica as a Credit Memo. credit_memo_ref is the ERP reference. Use '
-                . 'add_invoice_note / attach_invoice_file if you need to attach the request form or manager approval.',
+            'processed_at' => Carbon::now()->toDateTimeString(),
+            'next' => 'Pushed to Acumatica as a Credit Memo. credit_memo_ref is the ERP reference. processed_at '
+                . 'is the exact time this ran — copy it verbatim if logging this to a sheet, never invent a '
+                . 'timestamp yourself. Use add_invoice_note / attach_invoice_file if you need to attach the '
+                . 'request form or manager approval.',
         ];
     }
 

@@ -11,7 +11,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
-use Maatwebsite\Excel\Concerns\ToArray;
+use Kanvas\Support\Excel\NullExcelImport;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
@@ -35,13 +35,7 @@ class ImportVendorApproversCommand extends Command
 
         $company = Companies::getById((int) $this->argument('company_id'));
 
-        $import = new class () implements ToArray {
-            public function array(array $array): void
-            {
-            }
-        };
-
-        $rows = Excel::toArray($import, $this->argument('file'))[0] ?? [];
+        $rows = Excel::toArray(new NullExcelImport(), $this->argument('file'))[0] ?? [];
 
         $header = $this->findHeaderRow($rows);
 
