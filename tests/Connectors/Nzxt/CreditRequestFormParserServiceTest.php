@@ -26,8 +26,8 @@ final class CreditRequestFormParserServiceTest extends TestCase
     public function test_parses_a_real_shaped_credit_request_form(): void
     {
         $result = new CreditRequestFormParserService()->parse($this->writeSampleForm([
-            ['Promotion Discount -41045', 'SKU-1000', 'Test Product A', 6, 30],
-            ['Promotion Discount -41045', 'SKU-2000', 'Test Product B', 107, 4],
+            ['Promotion Discount -99001', 'SKU-1000', 'Test Product A', 6, 30],
+            ['Promotion Discount -99001', 'SKU-2000', 'Test Product B', 107, 4],
         ]));
 
         $this->assertSame('Test Customer Co', $result['customer_name']);
@@ -35,7 +35,7 @@ final class CreditRequestFormParserServiceTest extends TestCase
         $this->assertSame('Test Region - USD', $result['tenant']);
         $this->assertSame('Test Campaign Q1 2026 (01/01-31/01)', $result['request_reference_no']);
         $this->assertCount(2, $result['lines']);
-        $this->assertSame('41045', $result['lines'][0]['control_account_number']);
+        $this->assertSame('99001', $result['lines'][0]['control_account_number']);
         $this->assertSame(180.0, $result['lines'][0]['amount']);
         $this->assertSame(428.0, $result['lines'][1]['amount']);
         $this->assertSame(608.0, $result['total']);
@@ -44,12 +44,12 @@ final class CreditRequestFormParserServiceTest extends TestCase
     public function test_extracts_the_account_number_from_varied_label_formats(): void
     {
         $result = new CreditRequestFormParserService()->parse($this->writeSampleForm([
-            ['MDF-72300', 'SKU-1', 'Widget', 2, 10],
-            ['Price Protection- 41052', 'SKU-2', 'Gadget', 1, 5],
+            ['ABC-88002', 'SKU-1', 'Widget', 2, 10],
+            ['Test Discount- 77003', 'SKU-2', 'Gadget', 1, 5],
         ]));
 
-        $this->assertSame('72300', $result['lines'][0]['control_account_number']);
-        $this->assertSame('41052', $result['lines'][1]['control_account_number']);
+        $this->assertSame('88002', $result['lines'][0]['control_account_number']);
+        $this->assertSame('77003', $result['lines'][1]['control_account_number']);
     }
 
     public function test_throws_when_the_form_is_missing_required_labels(): void
