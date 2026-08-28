@@ -22,6 +22,7 @@ class FilesystemMapper extends Data
         public array $mapping,
         public array $configuration = [],
         public bool $is_default = false,
+        public bool $has_header = false,
         public ?string $description = null,
     ) {
     }
@@ -40,10 +41,11 @@ class FilesystemMapper extends Data
             systemModule: $systemModule,
             name: $data['name'],
             description: $data['description'] ?? null,
-            header: $data['header'] ?? $data['file_header'],
+            header: $data['header'] ?? $data['file_header'] ?? [],
             mapping: $data['mapping'],
             configuration: json_decode(json_encode($data['configuration'] ?? []), true),
-            is_default: $data['is_default'] ?? false
+            is_default: $data['is_default'] ?? false,
+            has_header: (bool) ($data['has_header'] ?? false),
         );
     }
 }
