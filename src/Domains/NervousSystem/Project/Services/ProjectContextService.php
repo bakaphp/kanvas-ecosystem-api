@@ -214,13 +214,7 @@ class ProjectContextService
             ->get();
     }
 
-    /**
-     * What the task actually produced, for tasks that produced something.
-     *
-     * `RunTaskWorkerJob` records the worker's answer on the task, and the bundle used to carry only
-     * `status`. So the PM could see that a task was done and nothing about the result — the S3 URL its
-     * own worker had written was in the database, unreachable, while the PM explained its absence.
-     */
+    /** What the task actually produced, for tasks that produced something. */
     private function taskResult(Task $task): ?string
     {
         return $task->workerSummaryExcerpt(self::TASK_RESULT_CHAR_CAP);

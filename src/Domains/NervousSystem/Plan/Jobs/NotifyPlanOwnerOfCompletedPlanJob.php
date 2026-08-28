@@ -92,9 +92,7 @@ class NotifyPlanOwnerOfCompletedPlanJob implements ShouldQueue
             'plan_done',
         );
 
-        // The conversation gets the ANSWER, not just the fact it finished. That is where the work was
-        // asked for, so the results belong there — otherwise the person is told it is done and still
-        // has to go and look for what it produced. The board and the notification keep the short form.
+        // The conversation gets the ANSWER; the board and the notification keep the short form.
         $this->alsoPostToOriginConversation($plan, $body . $this->resultsDigest($plan), 'plan-done-alert');
 
         // The mention above can be dropped for an agent-classified user; this reaches the person
@@ -106,13 +104,7 @@ class NotifyPlanOwnerOfCompletedPlanJob implements ShouldQueue
         );
     }
 
-    /**
-     * What each finished task actually returned, for the conversation copy.
-     *
-     * `RunTaskWorkerJob` records the worker's own answer on the task. Reporting only that a plan
-     * finished, when the numbers are sitting right there, sends the person off to find them — the same
-     * dead end as the file whose URL was on a task nobody could read.
-     */
+    /** What each finished task actually returned, for the conversation copy. */
     private function resultsDigest(Plan $plan): string
     {
         $results = $plan->tasks()
@@ -136,10 +128,7 @@ class NotifyPlanOwnerOfCompletedPlanJob implements ShouldQueue
         return $results->isEmpty() ? '' : "\n\n" . $results->implode("\n");
     }
 
-    /**
-     * Enough for the reader to recognise the work without opening it — the task titles, not their
-     * output. A count alone ("3 tasks done") names nothing they asked for.
-     */
+    /** The task titles, so the reader recognises the work — "3 tasks done" names nothing. */
     private function whatGotDone(Plan $plan): string
     {
         $tasks = $plan->tasks()

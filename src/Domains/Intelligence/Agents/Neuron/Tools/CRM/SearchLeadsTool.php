@@ -23,12 +23,9 @@ use Override;
  * by design — an internal-teammate capability, NOT for the customer-facing prospect surface (a
  * prospect must never be able to search other prospects; see Agents/CLAUDE.md audience rule).
  *
- * It also answers questions ABOUT the book, not only about one lead. An agent asked to audit which
- * leads were missing an email reported that it could not, and was right three times over: the query
- * term was required, so there was no way to ask about all leads; the result carried a contact NAME but
- * no address, so a returned row could not be judged; and nothing filtered on absence. Hence
- * `missing_contact`, an optional query, and a `total_matching` that ignores `limit` — "how many" is
- * the usual question, and paging 2,000 rows to count them is not an answer.
+ * It also answers questions ABOUT the book, not only about one lead — hence `missing_contact`, an
+ * optional query, and a `total_matching` that ignores `limit`, since "how many" is the usual question
+ * and paging 2,000 rows to count them is not an answer.
  */
 #[AgentTool(name: 'Search Leads', category: 'crm')]
 class SearchLeadsTool extends Tool implements HasRunKey

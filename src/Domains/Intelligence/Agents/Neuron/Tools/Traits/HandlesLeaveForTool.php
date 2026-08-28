@@ -27,6 +27,10 @@ use Kanvas\Users\Models\Users;
  */
 trait HandlesLeaveForTool
 {
+    // Composed, not required of hosts: leave lookups resolve the employee first, so a tool that took
+    // only this trait had methods that fatal on resolveEmployeeOrError().
+    use ResolvesEmployeeForTool;
+
     private ?Employee $actingEmployee = null;
     private bool $actingEmployeeResolved = false;
 

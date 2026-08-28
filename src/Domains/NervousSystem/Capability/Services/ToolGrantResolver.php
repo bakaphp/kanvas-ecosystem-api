@@ -11,14 +11,10 @@ use Kanvas\NervousSystem\Capability\Models\Tool;
 /**
  * Turns catalog tool names into rows an agent can actually be given.
  *
- * Hiring used to be bounded by what the HIRING agent held, on the reasoning that a hire holding more
- * than its hirer launders a permission nobody approved. That reading does not survive contact with an
- * orchestrator: a project manager's whole job is to staff work it cannot do itself, and grants here
- * are purely additive — nothing in the system says an agent is *forbidden* a tool, only that it was
- * never given one. So the guard blocked every useful hire while preventing no real escalation, and
- * every request for an ungranted capability dead-ended at a human.
+ * A hire may hold tools its hirer does not: an orchestrator's job is to staff work it cannot do
+ * itself, and grants here are additive — nothing marks an agent *forbidden* a tool, only ungranted.
  *
- * Three checks replace it, each failing at grant time rather than at run time:
+ * Three checks bound it, each failing at grant time rather than at run time:
  *  - **Runtime match.** `Create Lead` exists twice, once for Laravel and once for Neuron. Granting the
  *    wrong row is invisible — `CapabilityProvider::getActiveTools()` filters by framework, so the hire
  *    comes up holding nothing and neither end reports an error.
@@ -31,9 +27,8 @@ use Kanvas\NervousSystem\Capability\Models\Tool;
 class ToolGrantResolver
 {
     /**
-     * Tools that reshape the agent fabric itself. Keeping these with a human is what bounds fan-out
-     * once hiring is no longer bounded by the hirer's own toolset — an agent that could pass on
-     * hiring could staff an org chart from one instruction.
+     * Tools that reshape the agent fabric itself, kept with a human — this is what bounds fan-out,
+     * since an agent able to pass on hiring could staff an org chart from one instruction.
      *
      * Matched on handler class, not label: the label is editable catalog data, the class is what runs.
      *

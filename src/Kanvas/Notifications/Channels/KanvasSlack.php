@@ -13,16 +13,9 @@ use Throwable;
 /**
  * Deliver a notification as a Slack DM.
  *
- * Slack was reachable before this only from inside an agent's turn, through `send_slack_direct_message`
- * — so anything that finished asynchronously could reach a person by mail, push or the in-app list,
- * but never on the surface they actually watch. Posting a Message into a Slack-backed channel does
- * not help: nothing pushes outbound on message creation, so the row is written and stops there.
- *
- * The bot token lives on an AGENT (`AgentChannelTokenEnum::SLACK_BOT_TOKEN`), not on the app, so a
- * notification has to say which agent is speaking. `toSlack()` returns that alongside the text; a
- * notification with no agent connected to Slack simply does not deliver here, which is why this
- * channel stays silent rather than throwing — a plan that finished must not be un-finished by a
- * missing integration.
+ * The bot token lives on an AGENT (`AgentChannelTokenEnum::SLACK_BOT_TOKEN`), not on the app, so
+ * `toSlack()` must name which agent is speaking. No connected agent means no delivery — silently,
+ * because a plan that finished must not be un-finished by a missing integration.
  */
 class KanvasSlack
 {

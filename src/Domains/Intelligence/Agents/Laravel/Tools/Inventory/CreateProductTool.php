@@ -11,7 +11,6 @@ use Kanvas\Intelligence\Agents\Laravel\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HandlesToolRequest;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\ManagesCatalogProducts;
-use Kanvas\Intelligence\Agents\Traits\ManagesCatalogVariants;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
@@ -26,7 +25,6 @@ class CreateProductTool implements KanvasToolInterface
     use HandlesToolRequest;
     use HasKanvasContext;
     use ManagesCatalogProducts;
-    use ManagesCatalogVariants;
 
     public function name(): string
     {

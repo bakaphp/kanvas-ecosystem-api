@@ -22,17 +22,14 @@ use Throwable;
 /**
  * Bring a teammate agent into existence: its own user, its own instructions, its own tools.
  *
- * **The hire is equipped from the catalog, not from the hirer's own toolset.** It used to be the
- * latter, to stop an agent laundering a capability it had been denied — but nothing in this system
- * denies a tool, it only ever grants one, so the guard blocked an orchestrator from staffing any work
- * it could not already do itself. That is most of what an orchestrator is for, and every such request
- * dead-ended at a human. `ToolGrantResolver` holds what replaced it.
+ * **The hire is equipped from the catalog, not from the hirer's own toolset** — see
+ * `ToolGrantResolver` for what bounds that instead.
  *
- * Three limits remain, each structural rather than advisory:
+ * Three limits, each structural rather than advisory:
  *  - **A human authorises it.** Hiring mints a real user account and ongoing model spend, so it needs
  *    an identified admin in the conversation, not the agent's own (usually admin) user.
  *  - **Nothing that re-equips agents is delegable.** Hiring and re-toolings stay with a human, which
- *    is what keeps fan-out bounded now that the toolset no longer does.
+ *    is what keeps fan-out bounded.
  *  - **A headcount cap**, because hiring is unbounded fan-out by construction.
  */
 #[AgentTool(name: 'Hire Agent', category: 'nervous_system')]

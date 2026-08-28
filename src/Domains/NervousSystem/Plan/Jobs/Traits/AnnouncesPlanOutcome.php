@@ -12,21 +12,11 @@ use Kanvas\Users\Models\Users;
 use Throwable;
 
 /**
- * How a plan's terminal state reaches a person, shared by the done and blocked alerts.
- *
- * The two jobs differ only in what they say. Both have to solve the same two problems to be heard at
- * all — that a name in the text notifies nobody, and that the plan's own Activities channel has no
- * subscribers — so keeping one copy is what stops those answers drifting apart.
+ * The three places a plan's outcome is announced, shared by the done and blocked alerts.
  */
 trait AnnouncesPlanOutcome
 {
-    /**
-     * The plan's own board — its permanent record, addressed to whoever owns it.
-     *
-     * Alongside `alsoPostToOriginConversation()` and `notifyTheAsker()`, so an outcome's three
-     * destinations read as three calls. Keeping this one inline in each job while the other two were
-     * trait calls made the board look like the only place anything was sent.
-     */
+    /** The plan's own board — its permanent record, addressed to whoever owns it. */
     protected function postToPlanBoard(
         Plan $plan,
         string $body,
@@ -55,12 +45,8 @@ trait AnnouncesPlanOutcome
     }
 
     /**
-     * Also say it where the plan was asked for.
-     *
-     * The Activities channel is the plan's own record, created with the plan and subscribed to by
-     * nobody, so a report that lands only there reaches no one. When the plan came out of a
-     * conversation, that is where a person is actually listening — and the mention notifies from
-     * there just the same, next to the request they made.
+     * Also say it where the plan was asked for. The Activities channel has no subscribers, so a report
+     * that lands only there reaches no one.
      */
     protected function alsoPostToOriginConversation(Plan $plan, string $body, string $verb): void
     {
@@ -110,15 +96,10 @@ trait AnnouncesPlanOutcome
     }
 
     /**
-     * Tell the person who asked, without going through the @mention pipeline.
+     * Tell the person who asked, bypassing the @mention pipeline.
      *
-     * The mention is how the message reads in-channel; it is not a reliable way to reach anyone.
-     * `NotifyMentionedUsersListener` drops any mention that resolves to an agent user — correct, since
-     * agents are woken rather than notified — and an agent may share a human's account, so a real
-     * person can be classified as a bot and silently skipped. Ten agents sit on user 2 today.
-     *
-     * Notifying the recorded asker directly avoids the whole question. It costs no model tokens: this
-     * is a mail/push record, not an agent turn.
+     * `NotifyMentionedUsersListener` drops mentions resolving to an agent user, and agents share human
+     * accounts — ten sit on user 2 — so a real person gets classified as a bot and silently skipped.
      */
     protected function notifyTheAsker(Plan $plan, string $title, string $message): void
     {

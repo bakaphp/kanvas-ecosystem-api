@@ -21,9 +21,8 @@ use Kanvas\NervousSystem\Plan\Models\Task;
 /**
  * Tell the person who owns a project-less plan that it is blocked.
  *
- * A plan in a project has a PM watching it. One created on its own has nobody, and the escalation
- * used to be gated on `project_id !== null` — so the blocks that most needed a human were the ones
- * nobody heard about.
+ * A plan in a project has a PM watching it; one created on its own has nobody, so it is the plans
+ * least supervised that most need this.
  */
 class NotifyPlanOwnerOfBlockedPlanJob implements ShouldQueue
 {

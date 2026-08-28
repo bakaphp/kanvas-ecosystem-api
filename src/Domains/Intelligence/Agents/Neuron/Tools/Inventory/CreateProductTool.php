@@ -8,7 +8,6 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\ManagesCatalogProducts;
-use Kanvas\Intelligence\Agents\Traits\ManagesCatalogVariants;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -27,7 +26,6 @@ class CreateProductTool extends Tool implements HasRunKey
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ManagesCatalogProducts;
-    use ManagesCatalogVariants;
     use TrackByInputs;
 
     public function __construct()

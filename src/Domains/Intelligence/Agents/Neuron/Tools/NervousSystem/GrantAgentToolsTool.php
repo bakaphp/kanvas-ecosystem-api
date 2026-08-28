@@ -21,15 +21,13 @@ use Throwable;
 /**
  * Give an existing teammate a tool it does not have yet.
  *
- * The counterpart to hiring, and not optional next to it: hiring refuses a duplicate name, so an
- * agent hired without the right tools could otherwise never be corrected — the only fix would be a
- * human in the admin UI, which is the dead end the whole capability path exists to remove. It also
- * covers the commoner case, where the agent for the job already exists and is simply short one tool.
+ * The counterpart to hiring: hiring refuses a duplicate name, so an agent hired under-equipped could
+ * otherwise never be corrected. It also covers the commoner case — the right agent exists and is
+ * simply short one tool.
  *
- * `update_agent_instructions` deliberately changes only what an agent is TOLD. This changes what it
- * can TOUCH, so it carries the guards that go with widening a grant: an identified admin authorises
- * it, the target must be on the caller's own team, and no agent may equip ITSELF — self-granting is
- * how an agent works around a boundary nobody agreed to move.
+ * `update_agent_instructions` changes only what an agent is TOLD; this changes what it can TOUCH, so
+ * it carries the guards for widening a grant: an admin authorises it, the target must be on the
+ * caller's team, and no agent may equip ITSELF.
  */
 #[AgentTool(name: 'Grant Agent Tools', category: 'nervous_system')]
 class GrantAgentToolsTool extends Tool

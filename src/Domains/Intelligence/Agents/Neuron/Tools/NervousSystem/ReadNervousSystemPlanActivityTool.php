@@ -21,15 +21,9 @@ use Override;
 /**
  * Read what actually happened on a plan: the comments its workers left, and what each task produced.
  *
- * The per-turn context bundle answers "what is going on" — open plans, task statuses, the last handful
- * of messages. It cannot answer "what did that produce", because it is bounded: ten messages, a
- * handful of plans, a truncated result. Someone asking about a specific plan is asking past that
- * boundary, and the orchestrator had no way to go and look.
- *
- * The consequence was worse than a missing answer. Asked for a file its own worker had generated
- * minutes earlier, the PM did not say it could not see it — it explained, fluently, why no link
- * existed. The URL was on the task the whole time. An agent with no way to check will narrate instead,
- * so the fix is a way to check.
+ * The per-turn context bundle is bounded — ten messages, a handful of plans, a truncated result — so
+ * a question about one specific plan asks past it. An agent with no way to check does not say "I
+ * can't see it"; it narrates a plausible reason instead. This is the way to check.
  */
 #[AgentTool(name: 'Read Plan Activity', category: 'nervous_system')]
 class ReadNervousSystemPlanActivityTool extends Tool implements HasRunKey

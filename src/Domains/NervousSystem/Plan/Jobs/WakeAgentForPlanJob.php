@@ -209,14 +209,11 @@ class WakeAgentForPlanJob implements ShouldQueue
     /**
      * What is already on the board, named.
      *
-     * A wake used to carry the verdict and nothing else, so an agent deciding what to do next had no
-     * account of its own prior turns unless it thought to go and list them. It re-decomposed instead:
-     * one plan came back with "Count leads missing email" and "Audit leads missing email" as separate
-     * tasks, three checks filed twice across three wakes. Re-wording is exactly how a duplicate escapes
-     * a title check, so the fix is to show the agent its own board rather than to police the writes.
+     * Without it an agent re-decomposes work it cannot see: one plan filed "Count leads missing email"
+     * and "Audit leads missing email" as separate tasks. Re-wording is how a duplicate escapes a title
+     * check, so the fix is showing the board rather than policing the writes.
      *
-     * Blocked reasons are included because they are the ones worth not rediscovering — a task blocked
-     * for a missing tool will block again for the same reason.
+     * Blocked reasons are included because a task blocked for a missing tool will block again.
      */
     private function taskInventory(): string
     {

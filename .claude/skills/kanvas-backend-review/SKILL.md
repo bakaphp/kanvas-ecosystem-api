@@ -73,6 +73,12 @@ Read `references/php-laravel-smells.md` for the concrete patterns, examples, and
 
 **Unnecessary comments.** Comments restating the code, commented-out code, empty docblocks adding nothing beyond the signature, stale comments describing behaviour that has since changed, `TODO`s with no owner or ticket, decorative `// --- Section ---` dividers.
 
+The distinction that catches the most, and the one to apply first: **why the code is shaped this way stays; how it used to be shaped goes.** A comment naming a constraint a reader cannot recover — an anti-loop guard in another file, a provider quirk, an ordering that looks arbitrary — earns its place permanently. A comment narrating the change that produced the code ("this used to be inline", "the bundle previously carried only status", "before this, X was unreachable") is a commit message that escaped into the source: it ages badly, it grows every time someone edits nearby, and `git log -p` already has it.
+
+The tell is tense and subject. Present tense about the code is usually load-bearing; past tense about the codebase is usually changelog. Grep the diff for `used to`, `previously`, `before this`, `no longer`, `had been` and read each hit — most are a paragraph that should be one clause, and the incident behind them is worth keeping only as the reason the guard exists, never as its history.
+
+Watch this most closely on code that was itself written to fix something. The rationale is fresh, it feels essential, and it is the easiest place to leave three paragraphs where one line does the work.
+
 **Convention violations.** What `CLAUDE.md` mandates and the fixer does not check. The rule of 4 — any call or signature with 4+ arguments goes one per line, 3 or fewer stays inline, native functions exempt — is the most-violated one, so check every call in the diff including `new Foo(...)` and test arrange blocks. Then: positional `null`s that should be named arguments; inline FQCNs in code, docblocks, and `catch` blocks; `(new Foo(...))->x()` instead of PHP 8.4's `new Foo(...)->x()`; `findOrFail()` where a `getByIdFromCompanyApp()` belongs; a job or command missing `overwriteAppService()`; a Spatie `Data` DTO stored on a queued job; a model passed alongside relationships it already carries; `'array'` casts where `Baka\Casts\Json` belongs; an unguarded fetch of a user-influenced URL; a workflow activity throwing on an expected skip; new Actions or resolvers shipped without tests.
 
 ## Step 4 — Fix it

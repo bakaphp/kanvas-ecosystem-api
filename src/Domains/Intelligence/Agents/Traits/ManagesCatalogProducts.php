@@ -18,8 +18,11 @@ use Throwable;
 
 /**
  * Shared body of the create/update/delete product tools, on both the Neuron and the Laravel-AI side.
- * Host needs either framework's HasKanvasContext; createCatalogProduct also needs
- * ManagesCatalogVariants, because price and stock land on the default variant it creates.
+ * Host needs either framework's HasKanvasContext.
+ *
+ * Composes ManagesCatalogVariants rather than asking hosts to: createCatalogProduct stocks the default
+ * variant it just created, so a host that took only this trait had a createCatalogProduct that fatals
+ * on setCatalogVariantStock. A docblock cannot enforce that; a use statement can.
  *
  * Creation goes through CreateProductAction, which also lays down the default variant and fires the
  * catalog workflow. Update deliberately does NOT go through UpdateProductAction: that action carries
@@ -31,6 +34,7 @@ use Throwable;
  */
 trait ManagesCatalogProducts
 {
+    use ManagesCatalogVariants;
     use NormalizesCatalogAttributes;
     use ResolvesCatalogEntities;
 
