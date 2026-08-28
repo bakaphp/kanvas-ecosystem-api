@@ -10,9 +10,11 @@ Holds business logic tied to NZXT's own exact document formats — not generic K
 
 ## Adding another client's credit-request format
 
-`ExtractCreditRequestFormTool` (`src/Domains/Intelligence/Agents/Neuron/Tools/Accounting/`) depends only on `CreditRequestFormParserInterface`, never on this class directly. When a different client needs its own credit-request document parsed:
+`ExtractCreditRequestFormTool` (`src/Domains/Intelligence/Agents/Neuron/Tools/Accounting/`) never depends on this class directly — it calls `Kanvas\Scribe\Invoices\Services\CreditRequestFormParserFactory::forApp($app)`, which picks the right parser per tenant (a plain `match`, same shape as `AgentRuntimeProviderFactory` — no DI container binding). When a different client needs its own credit-request document parsed:
 
-1. Build `Connectors/{Client}/Services/CreditRequestFormParserService.php` implementing the same interface.
-2. Resolve the right one per tenant — bind the interface to the client's implementation (e.g. via `app()->bind()` in a tenant-aware provider, or extend `ExtractCreditRequestFormTool::parser()` to pick by app/company) rather than editing NZXT's parser to branch on client.
+1. Add a case to `Kanvas\Scribe\Invoices\Enums\CreditRequestFormClientEnum` (e.g. `OTHER_CLIENT = 'other_client'`).
+2. Build `Connectors/{Client}/Services/CreditRequestFormParserService.php` implementing `CreditRequestFormParserInterface`.
+3. Add a matching arm to `CreditRequestFormParserFactory::forClient()`.
+4. Set that tenant's app config `credit-request-form-client` (`ConfigurationEnum::CREDIT_REQUEST_FORM_CLIENT`) to the new enum value — NZXT's apps stay on the default and are unaffected.
 
 Never add a second client's label/layout knowledge into this NZXT-specific class — that's exactly the coupling this module exists to avoid.
