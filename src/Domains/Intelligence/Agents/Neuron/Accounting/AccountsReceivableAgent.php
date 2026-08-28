@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractCreditRequestFormTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
@@ -98,6 +99,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new ReadEmailDetailsTool(),
             new DownloadAttachmentTool(),
             new ExtractInvoiceDataTool(),
+            new ExtractCreditRequestFormTool(),
             new MarkEmailAsReadTool(),
             new ReplyToEmailTool(),
         ]));
@@ -143,6 +145,27 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'only on explicit request. Not tied to any invoice — needs the customer name, a reference (e.g. '
             . 'the Credit Request Form\'s Request Reference No), and one or more lines with a Control Acct# and '
             . 'amount each.',
+            '- A Credit Request Form (CNR) is an Excel file, not a PDF — Sales emails it (often with a manager\'s '
+            . 'approval already given in the same email/thread, e.g. "Both approved by me"). One email can '
+            . 'carry MORE THAN ONE CNR attachment, and each one is a SEPARATE credit memo — process each file '
+            . 'independently, never combine them into one. When you get one, either from a Gmail email '
+            . '(list_emails → read_email_details → download_attachment) or from a `[Attached file...]` marker '
+            . 'on the direct-inbox path, call extract_credit_request_form(filesystem_id) — never read the '
+            . 'customer/reference/line amounts off the email body yourself; the form is the source of truth. '
+            . 'There is no approval gate for this flow (a sales manager\'s approval already happened upstream, '
+            . 'evidenced by the request email itself) — process it straight through: '
+            . '(1) extract_credit_request_form(filesystem_id) for EACH attached form, giving you customer_name, '
+            . 'request_reference_no, and lines (already shaped for create_ar_credit_memo\'s own lines param). '
+            . '(2) create_ar_credit_memo with that customer_name, invoice_number: the request_reference_no, and '
+            . 'lines verbatim from step 1 — this issues the credit memo and pushes it to Acumatica in the same '
+            . 'call, giving you the credit_memo_id and credit_memo_ref. '
+            . '(3) attach_invoice_file with that credit_memo_id and the file_url/file_name step 1 already '
+            . 'returned — the CNR form itself becomes the attached evidence on the Acumatica document. '
+            . '(4) If step 1 went through Gmail, mark_email_as_read on the message_id once every form in the '
+            . 'email has been processed. Not applicable on the direct-inbox path — skip it silently. '
+            . '(5) In your final reply, give the complete breakdown for EACH credit memo separately: Kanvas '
+            . 'credit_memo_id, request_reference_no, customer, amount, and the Acumatica credit_memo_ref — never '
+            . 'a combined total across multiple forms.',
             '- "Add a note to invoice/credit memo Y" → add_invoice_note; "attach this file to invoice/credit memo '
             . 'Y" → attach_invoice_file. Both require the document to already be pushed to Acumatica.',
             '- "Read/check this Google Sheet" → read_google_sheet, given the URL the user shared. "Add these '
