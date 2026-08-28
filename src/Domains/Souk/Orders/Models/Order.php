@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Carbon;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\B2BSettingsEnums;
 use Kanvas\Companies\Models\Companies;
@@ -103,6 +105,7 @@ use Spatie\LaravelData\DataCollection;
 #[ObservedBy(OrderObserver::class)]
 class Order extends BaseModel implements PayableInterface
 {
+    use HasAdminLink;
     use UuidTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
@@ -131,6 +134,12 @@ class Order extends BaseModel implements PayableInterface
         'metadata' => Json::class,
         'private_metadata' => Json::class,
     ];
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::ORDER;
+    }
 
     public function region(): BelongsTo
     {

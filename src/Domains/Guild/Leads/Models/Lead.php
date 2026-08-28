@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -76,6 +78,7 @@ use Throwable;
  */
 class Lead extends BaseModel implements EventResourceInterface
 {
+    use HasAdminLink;
     use UuidTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
@@ -104,6 +107,12 @@ class Lead extends BaseModel implements EventResourceInterface
     public function getGraphTypeName(): string
     {
         return 'Lead';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::LEAD;
     }
 
     public function participants(): HasMany

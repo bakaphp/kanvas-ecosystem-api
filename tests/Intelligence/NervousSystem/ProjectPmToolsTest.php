@@ -490,6 +490,27 @@ class ProjectPmToolsTest extends TestCase
     }
 
     /**
+     * A PM reports on records people then have to go find. The link tool is baseline rather than a
+     * grant for the same reason the capability tools are: an agent that has to be granted it is an
+     * agent that hands back a bare id on the day nobody remembered to.
+     */
+    public function testProjectManagerAgentCanBuildAdminLinks(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $pm = new ProjectManagerAgent();
+        $pm->setConfiguration($agent, null, null, $user);
+
+        $names = array_map(
+            fn (object $tool): string => (string) $tool->getName(),
+            new ReflectionMethod($pm, 'tools')->invoke($pm)
+        );
+
+        $this->assertContains('build_admin_link', $names);
+    }
+
+    /**
      * A PM that can only hand work to teammates who already exist, through automation somebody else
      * already wired, cannot finish a job end to end — it stops at the edge of what is already set up.
      */

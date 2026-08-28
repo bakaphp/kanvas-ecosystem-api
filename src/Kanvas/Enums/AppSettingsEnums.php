@@ -67,6 +67,7 @@ enum AppSettingsEnums implements EnumsInterface
     case SIGNUP_ANOMALY_COOLDOWN;
     case SIGNUP_ABUSE_SENTRY_ENABLED;
     case AGENT_CHAT_ASYNC;
+    case ADMIN_URL;
 
     #[Override]
     public function getValue(): mixed
@@ -130,6 +131,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::SIGNUP_ANOMALY_COOLDOWN => 'signup_anomaly_cooldown',
             self::SIGNUP_ABUSE_SENTRY_ENABLED => 'signup_abuse_sentry_enabled',
             self::AGENT_CHAT_ASYNC => 'agent_chat_async',
+            self::ADMIN_URL => 'admin_url',
         };
     }
 }
