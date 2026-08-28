@@ -12,15 +12,23 @@ use Tests\TestCase;
 
 final class CreditRequestFormParserServiceTest extends TestCase
 {
+    private ?string $tempPath = null;
+
+    protected function tearDown(): void
+    {
+        if ($this->tempPath !== null && file_exists($this->tempPath)) {
+            unlink($this->tempPath);
+        }
+
+        parent::tearDown();
+    }
+
     public function test_parses_a_real_shaped_credit_request_form(): void
     {
-        $path = $this->writeSampleForm([
+        $result = CreditRequestFormParserService::parse($this->writeSampleForm([
             ['Promotion Discount -41045', 'CM-H92FW-R1', 'NZXT H9 Flow RGB (2025) - All White', 6, 30],
             ['Promotion Discount -41045', 'RL-KR280-B1', 'NZXT Kraken 280 Black RGB', 107, 4],
-        ]);
-
-        $result = CreditRequestFormParserService::parse($path);
-        unlink($path);
+        ]));
 
         $this->assertSame('Proshop', $result['customer_name']);
         $this->assertSame('EMEA', $result['region']);
@@ -35,13 +43,10 @@ final class CreditRequestFormParserServiceTest extends TestCase
 
     public function test_extracts_the_account_number_from_varied_label_formats(): void
     {
-        $path = $this->writeSampleForm([
+        $result = CreditRequestFormParserService::parse($this->writeSampleForm([
             ['MDF-72300', 'SKU-1', 'Widget', 2, 10],
             ['Price Protection- 41052', 'SKU-2', 'Gadget', 1, 5],
-        ]);
-
-        $result = CreditRequestFormParserService::parse($path);
-        unlink($path);
+        ]));
 
         $this->assertSame('72300', $result['lines'][0]['control_account_number']);
         $this->assertSame('41052', $result['lines'][1]['control_account_number']);
@@ -51,16 +56,12 @@ final class CreditRequestFormParserServiceTest extends TestCase
     {
         $spreadsheet = new Spreadsheet();
         $spreadsheet->getActiveSheet()->setCellValue('A1', 'Not a credit request form');
-        $path = sys_get_temp_dir() . '/cnr_test_invalid_' . uniqid() . '.xlsx';
-        new Xlsx($spreadsheet)->save($path);
+        $this->tempPath = sys_get_temp_dir() . '/cnr_test_invalid_' . uniqid() . '.xlsx';
+        new Xlsx($spreadsheet)->save($this->tempPath);
 
         $this->expectException(RuntimeException::class);
 
-        try {
-            CreditRequestFormParserService::parse($path);
-        } finally {
-            unlink($path);
-        }
+        CreditRequestFormParserService::parse($this->tempPath);
     }
 
     /**
@@ -106,9 +107,9 @@ final class CreditRequestFormParserServiceTest extends TestCase
         $sheet->setCellValue("E{$row}", 'Total');
         $sheet->setCellValue("F{$row}", '=SUM(F20:F' . ($row - 1) . ')');
 
-        $path = sys_get_temp_dir() . '/cnr_test_' . uniqid() . '.xlsx';
-        new Xlsx($spreadsheet)->save($path);
+        $this->tempPath = sys_get_temp_dir() . '/cnr_test_' . uniqid() . '.xlsx';
+        new Xlsx($spreadsheet)->save($this->tempPath);
 
-        return $path;
+        return $this->tempPath;
     }
 }
