@@ -16,9 +16,20 @@ use Throwable;
 /**
  * Maps a catalog tool back to the connector it needs, and answers whether that connector is set up.
  *
- * An explicit list rather than attribute discovery: there are a handful of these, adding one is a
- * single line, and a reader can see the whole set at once. If it grows past ~15, move it to an
- * `AttributeClassDiscovery` subclass the way the tool catalog does.
+ * **Direction of travel: this class should go away, and `integration_companies` should be the single
+ * source.** That row is written by `IntegrationsMutation`, which validates the config and runs the
+ * connector's own `setup()` before stamping ACTIVE or FAILED — so it records a connection that was
+ * actually proven, per company. This class only checks that an app-level config key is non-empty,
+ * which proves nothing about whether it authenticates, and answers for a whole app rather than for
+ * the company asking.
+ *
+ * It still exists because the two cover nearly disjoint sets. Of 27 integrations only `tavily` and
+ * `jina` have both; the other 25 have only a row, and `GoogleSheets` and `FinancialModelingPrep` have
+ * only a provider here — they are configured by app key directly and never pass through the setup
+ * mutation, so nothing would answer for them today.
+ *
+ * So: do not add a fifth provider to work around a missing integration row. Give the connector a real
+ * `integrations` row and a handler `setup()`, which is the shape everything is meant to converge on.
  */
 class ConnectorReadinessService
 {
