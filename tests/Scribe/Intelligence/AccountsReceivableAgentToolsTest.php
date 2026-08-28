@@ -461,6 +461,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $this->assertTrue($result['created']);
         $this->assertSame('Proshop Rebate QA Customer', $result['customer']);
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $result['processed_at']);
 
         /** @var Invoice $creditNote */
         $creditNote = Invoice::query()->where('id', $result['credit_memo_id'])->firstOrFail();
