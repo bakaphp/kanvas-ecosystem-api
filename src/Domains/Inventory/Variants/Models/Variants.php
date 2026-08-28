@@ -27,6 +27,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Activities\Contracts\ActivityLogInterface;
 use Kanvas\Activities\Models\Activity;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -81,6 +83,7 @@ use Spatie\Activitylog\Support\LogOptions;
 #[ObservedBy(VariantObserver::class)]
 class Variants extends BaseModel implements EntityIntegrationInterface, ProductInterface, ActivityLogInterface
 {
+    use HasAdminLink;
     use SlugTrait;
     use UuidTrait;
     use SocialInteractionsTrait;
@@ -140,6 +143,12 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     public function getGraphTypeName(): string
     {
         return 'Variant';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::PRODUCT_VARIANT;
     }
 
     public static function searchableIndex(): string

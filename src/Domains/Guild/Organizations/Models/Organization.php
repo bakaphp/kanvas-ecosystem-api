@@ -15,6 +15,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Models\FilesystemEntities;
@@ -53,6 +55,7 @@ use Override;
 #[ObservedBy([OrganizationObserver::class])]
 class Organization extends BaseModel implements BillableInterface, PayeeInterface
 {
+    use HasAdminLink;
     use BillableTrait;
     use CanUseWorkflow;
     use DatabaseSearchableTrait;
@@ -68,6 +71,12 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     public function getGraphTypeName(): string
     {
         return 'Organization';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::ORGANIZATION;
     }
 
     public function leads(): HasMany

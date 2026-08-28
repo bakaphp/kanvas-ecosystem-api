@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Config;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Workflow\Factories\ReceiverWebhookFactory;
@@ -36,6 +38,7 @@ use Override;
  */
 class ReceiverWebhook extends BaseModel
 {
+    use HasAdminLink;
     use UuidTrait;
     use HasFactory;
     use DynamicSearchableTrait {
@@ -63,6 +66,12 @@ class ReceiverWebhook extends BaseModel
         'run_async' => 'boolean',
         'is_deleted' => 'boolean',
     ];
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::WORKFLOW_RECEIVER;
+    }
 
     public function action(): BelongsTo
     {

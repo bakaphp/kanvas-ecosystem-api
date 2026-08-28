@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -67,6 +69,7 @@ use Override;
  */
 class People extends BaseModel
 {
+    use HasAdminLink;
     use CanUseWorkflow;
     use CascadeSoftDeletes;
     use DynamicSearchableTrait {
@@ -104,6 +107,12 @@ class People extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'People';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::PEOPLE;
     }
 
     public function address(): HasMany

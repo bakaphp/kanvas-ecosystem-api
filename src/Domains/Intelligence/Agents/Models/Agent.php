@@ -20,6 +20,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ModelNotFoundException;
@@ -72,6 +74,7 @@ use Override;
 #[ObservedBy(AgentObserver::class)]
 class Agent extends BaseModel
 {
+    use HasAdminLink;
     use AsTree;
     use CanUseWorkflow;
     use CascadeSoftDeletes;
@@ -140,6 +143,12 @@ class Agent extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'AgentAi';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::AGENT;
     }
 
     #[Override]
