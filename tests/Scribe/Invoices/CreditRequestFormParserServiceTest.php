@@ -26,14 +26,14 @@ final class CreditRequestFormParserServiceTest extends TestCase
     public function test_parses_a_real_shaped_credit_request_form(): void
     {
         $result = CreditRequestFormParserService::parse($this->writeSampleForm([
-            ['Promotion Discount -41045', 'CM-H92FW-R1', 'NZXT H9 Flow RGB (2025) - All White', 6, 30],
-            ['Promotion Discount -41045', 'RL-KR280-B1', 'NZXT Kraken 280 Black RGB', 107, 4],
+            ['Promotion Discount -41045', 'SKU-1000', 'Test Product A', 6, 30],
+            ['Promotion Discount -41045', 'SKU-2000', 'Test Product B', 107, 4],
         ]));
 
-        $this->assertSame('Proshop', $result['customer_name']);
+        $this->assertSame('Test Customer Co', $result['customer_name']);
         $this->assertSame('EMEA', $result['region']);
-        $this->assertSame('Germany- USD', $result['tenant']);
-        $this->assertSame('Proshop Overstock May 2026 Sell-Out (20/04-17/05)', $result['request_reference_no']);
+        $this->assertSame('Test Region - USD', $result['tenant']);
+        $this->assertSame('Test Campaign Q1 2026 (01/01-31/01)', $result['request_reference_no']);
         $this->assertCount(2, $result['lines']);
         $this->assertSame('41045', $result['lines'][0]['control_account_number']);
         $this->assertSame(180.0, $result['lines'][0]['amount']);
@@ -72,20 +72,20 @@ final class CreditRequestFormParserServiceTest extends TestCase
         $spreadsheet = new Spreadsheet();
         $sheet = $spreadsheet->getActiveSheet();
 
-        $sheet->setCellValue('A1', 'NZXT');
+        $sheet->setCellValue('A1', 'Acme Co');
         $sheet->setCellValue('A4', 'Credit Request  Form');
         $sheet->setCellValue('A9', 'Customer Name:');
-        $sheet->setCellValue('B9', 'Proshop');
+        $sheet->setCellValue('B9', 'Test Customer Co');
         $sheet->setCellValue('D9', 'Request  Date: ');
         $sheet->setCellValue('E9', '2026-06-01');
         $sheet->setCellValue('A11', 'Region:');
         $sheet->setCellValue('B11', 'EMEA');
         $sheet->setCellValue('A13', 'Tenant: ');
-        $sheet->setCellValue('B13', 'Germany- USD');
+        $sheet->setCellValue('B13', 'Test Region - USD');
         $sheet->setCellValue('A15', 'Sales Name: ');
-        $sheet->setCellValue('B15', 'Philip Bakhramov');
+        $sheet->setCellValue('B15', 'Test Sales Rep');
         $sheet->setCellValue('D15', 'Request Reference No:');
-        $sheet->setCellValue('E15', 'Proshop Overstock May 2026 Sell-Out (20/04-17/05)');
+        $sheet->setCellValue('E15', 'Test Campaign Q1 2026 (01/01-31/01)');
         $sheet->setCellValue('A18', 'Control Acct#');
         $sheet->setCellValue('F18', 'Amount');
         $sheet->setCellValue('B19', 'Product  number');
