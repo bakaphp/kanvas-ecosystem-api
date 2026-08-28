@@ -31,6 +31,7 @@ class OrderStatsQuery
         $productTypeSlugs = $input['productTypeSlugs'] ?? [];
         $orderTypeNames = $input['orderTypeNames'] ?? [];
         $productId = isset($input['productId']) ? (int) $input['productId'] : null;
+        $variantId = isset($input['variantId']) ? (int) $input['variantId'] : null;
         $date = $input['date'] ?? null;
         $startDate = $input['startDate'] ?? null;
         $endDate = $input['endDate'] ?? null;
@@ -44,25 +45,26 @@ class OrderStatsQuery
         $excludeMode = OrderStatsExcludeModeEnum::from(strtolower($input['excludeMode'] ?? 'current'));
 
         $orderStats = new GetOrderStatsAction(
-            $app,
-            $initialStates,
-            $finalStates,
-            $currentCountStates,
-            $productTypeSlugs,
-            $orderTypeNames,
-            $productId,
-            $providerCompanyIds,
-            $providers,
-            $userEmail,
-            $excludeStates,
-            $excludeMode
+            app: $app,
+            initialStates: $initialStates,
+            finalStates: $finalStates,
+            currentCountStates: $currentCountStates,
+            productTypeSlugs: $productTypeSlugs,
+            orderTypeNames: $orderTypeNames,
+            productId: $productId,
+            variantId: $variantId,
+            providerCompanyIds: $providerCompanyIds,
+            providers: $providers,
+            userEmail: $userEmail,
+            excludeStates: $excludeStates,
+            excludeMode: $excludeMode,
         )->execute(
-            $date,
-            $startDate,
-            $endDate,
-            $baseDate,
-            $timezone,
-            $groupBy
+            date: $date,
+            startDate: $startDate,
+            endDate: $endDate,
+            baseDate: $baseDate,
+            timezone: $timezone,
+            groupBy: $groupBy,
         );
 
         return $orderStats;
