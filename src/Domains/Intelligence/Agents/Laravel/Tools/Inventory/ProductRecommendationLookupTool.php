@@ -29,6 +29,11 @@ class ProductRecommendationLookupTool implements KanvasToolInterface
 
     private const int DEFAULT_LIMIT = 8;
 
+    public function name(): string
+    {
+        return 'product_recommendation_lookup';
+    }
+
     #[Override]
     public function description(): Stringable|string
     {

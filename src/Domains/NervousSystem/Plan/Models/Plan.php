@@ -296,6 +296,18 @@ class Plan extends BaseModel implements HandlesAgentMention
         return (string) $this->id;
     }
 
+    /**
+     * The channel the plan was asked for in, when there was one.
+     *
+     * Distinct from `socialChannels`, which are the channels the plan OWNS. This one belongs to a
+     * conversation that existed first and outlives the plan — it is where a person is actually
+     * listening, so it is where the outcome has to be reported.
+     */
+    public function originChannel(): BelongsTo
+    {
+        return $this->belongsTo(Channel::class, 'origin_channel_id');
+    }
+
     public function socialChannels(): HasMany
     {
         return $this->hasMany(Channel::class, 'entity_id', 'string_id')

@@ -313,6 +313,13 @@ jobs:
       - name: Setup Kanvas Agent Tools
         run: php artisan kanvas:nervous-system:sync-tools
 
+      # Asserts the sync produced a complete catalog. Runs against a database built from this
+      # commit, so any difference means discovery skipped a class (wrong base class, missing
+      # attribute) rather than historical drift — a tool with no catalog row makes
+      # capability_lookup answer "nobody has built this" about something that exists.
+      - name: Check Agent Tool catalog matches the code
+        run: php artisan kanvas:nervous-system:check-tool-drift
+
       - name: Setup Kanvas Agent Types
         run: php artisan kanvas:intelligence:sync-agent-types
 

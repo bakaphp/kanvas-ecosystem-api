@@ -11,20 +11,22 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
-use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
+use Illuminate\Support\Str;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\Traits\AnnouncesPlanOutcome;
 use Kanvas\NervousSystem\Plan\Models\Plan;
-use Throwable;
+use Kanvas\NervousSystem\Plan\Models\Task;
 
 /**
  * Tell the person who owns a project-less plan that it is blocked.
  *
- * A plan in a project has a PM watching it. One created on its own has nobody, and the escalation
- * used to be gated on `project_id !== null` — so the blocks that most needed a human were the ones
- * nobody heard about.
+ * A plan in a project has a PM watching it; one created on its own has nobody, so it is the plans
+ * least supervised that most need this.
  */
 class NotifyPlanOwnerOfBlockedPlanJob implements ShouldQueue
 {
+    use AnnouncesPlanOutcome;
     use Dispatchable;
     use InteractsWithQueue;
     use KanvasJobsTrait;
@@ -32,6 +34,9 @@ class NotifyPlanOwnerOfBlockedPlanJob implements ShouldQueue
     use SerializesModels;
 
     private const int THROTTLE_MINUTES = 30;
+
+    /** Enough to see the shape of the blockage without pasting the whole board into an alert. */
+    private const int REASON_TASKS = 3;
 
     public function __construct(
         public readonly Plan $plan,
@@ -60,43 +65,59 @@ class NotifyPlanOwnerOfBlockedPlanJob implements ShouldQueue
             return;
         }
 
-        try {
-            new PostPlanActivityMessageAction(
-                plan: $plan,
-                content: sprintf(
-                    '%s⚠️ This plan is BLOCKED: %s Take it over, hand it to someone who can do it, or '
-                    . 'grant the assignee what it is missing.',
-                    $this->mentionFor($plan) ?? '',
-                    trim((string) $plan->error_message) !== ''
-                        ? trim((string) $plan->error_message)
-                        : 'no reason was recorded — read the plan\'s comments for what the assignee said.',
-                ),
-                author: $plan->agent?->user ?? $owner,
-                verb: 'plan-blocked-alert',
-                extraPayload: ['alert' => 'plan_blocked', 'plan_id' => $plan->getId()],
-            )->execute();
-        } catch (Throwable $e) {
-            report($e);
-        }
+        // No mention here — each destination addresses a different person; see the done alert.
+        $body = sprintf(
+            '⚠️ This plan is BLOCKED: %s Take it over, hand it to someone who can do it, or '
+            . 'grant the assignee what it is missing.',
+            $this->whyBlocked($plan),
+        );
+
+        $this->postToPlanBoard(
+            $plan,
+            $body,
+            'plan-blocked-alert',
+            'plan_blocked',
+        );
+
+        $this->alsoPostToOriginConversation($plan, $body, 'plan-blocked-alert');
+
+        // The mention above can be dropped for an agent-classified user; this reaches the person
+        // who asked regardless, and costs no model tokens.
+        $this->notifyTheAsker($plan, 'Needs you', sprintf('%s is blocked: %s', $plan->title, $this->whyBlocked($plan)));
     }
 
     /**
-     * Mentioning is what actually notifies — a name in the text does nothing.
+     * Why it stopped, in the assignee's own words.
+     *
+     * `error_message` is only set when something wrote it, and the worker path does not — it records
+     * the reason on the TASK it blocked. So a plan blocked by its own tasks reported "no reason was
+     * recorded" while every task carried a precise one ("search_leads does not expose email fields"),
+     * which turns an alert that could have been acted on into one that only says go and look.
      */
-    private function mentionFor(Plan $plan): ?string
+    private function whyBlocked(Plan $plan): string
     {
-        $owner = $plan->user;
+        $recorded = trim((string) $plan->error_message);
 
-        if ($owner === null) {
-            return null;
+        if ($recorded !== '') {
+            return $recorded;
         }
 
-        try {
-            $displayname = trim($owner->getAppProfile($plan->app)->displayname);
-        } catch (Throwable) {
-            return null;
-        }
+        $reasons = $plan->tasks()
+            ->where('is_deleted', 0)
+            ->where('status', TaskStatusEnum::BLOCKED->value)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (Task $task): bool => trim((string) $task->blocked_reason) !== '')
+            ->take(self::REASON_TASKS)
+            ->map(fn (Task $task): string => sprintf(
+                '"%s" — %s',
+                Str::limit($task->title, 60),
+                Str::limit(trim((string) $task->blocked_reason), 200),
+            ));
 
-        return $displayname !== '' ? '@' . $displayname . ' ' : null;
+        return $reasons->isEmpty()
+            ? 'no reason was recorded — read the plan\'s comments for what the assignee said.'
+            : $reasons->implode(' ');
     }
 }

@@ -32,6 +32,7 @@ use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\WakeAgentForPlanJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
@@ -127,7 +128,7 @@ class ProjectPmToolsTest extends TestCase
 
     public function testAssignRefusesAgentThatAlreadyBlockedButAllowsAnother(): void
     {
-        Bus::fake([WakeWorkerForPlanJob::class]);
+        Bus::fake([WakeAgentForPlanJob::class]);
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
         $blocker = $project->pmAgent;
@@ -226,7 +227,7 @@ class ProjectPmToolsTest extends TestCase
 
     public function testAssignPlanToAgentIsIdempotentAndDoesNotReDispatch(): void
     {
-        Bus::fake([WakeWorkerForPlanJob::class]);
+        Bus::fake([WakeAgentForPlanJob::class]);
 
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
@@ -238,11 +239,15 @@ class ProjectPmToolsTest extends TestCase
         $first = $tool(plan_id: (int) $plan->id, agent_id: (int) $executor->getId());
         $this->assertArrayNotHasKey('already_assigned', $first);
 
-        // Repeat: no-op, flagged already_assigned, and the worker is NOT dispatched a second time.
+        // Repeat: no-op, flagged already_assigned, and the agent is NOT woken a second time.
         $second = $tool(plan_id: (int) $plan->id, agent_id: (int) $executor->getId());
         $this->assertTrue($second['already_assigned'] ?? false);
 
-        Bus::assertDispatchedTimes(WakeWorkerForPlanJob::class, 1);
+        // Assignment now broadcasts ASSIGNED and the wake listener starts the continuation loop, so
+        // the work runs through the task band and the CODE records each result. It used to
+        // hand-dispatch WakeWorkerForPlanJob, where marking tasks done was the agent's own job — and
+        // an agent that answered but forgot the status write left no error at all.
+        Bus::assertDispatchedTimes(WakeAgentForPlanJob::class, 1);
     }
 
     public function testAssignPlanToNonMemberUserIsRefused(): void

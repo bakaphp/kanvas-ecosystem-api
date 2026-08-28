@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Kanvas\HumanResources\Employees\Models\Employee;
 use Kanvas\HumanResources\Models\BaseModel;
+use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Override;
 
 /**
@@ -25,6 +26,8 @@ use Override;
  */
 class LeaveBalance extends BaseModel
 {
+    use EmitsLedgerEventsForEntity;
+
     protected $table = 'hr_leave_balances';
     protected $guarded = [];
 
@@ -43,6 +46,11 @@ class LeaveBalance extends BaseModel
         $databaseName = DB::connection($this->connection)->getDatabaseName();
 
         return $databaseName . '.hr_leave_balances';
+    }
+
+    protected function sourceDomainForLedger(): string
+    {
+        return 'HumanResources';
     }
 
     public function getAvailableDaysAttribute(): float

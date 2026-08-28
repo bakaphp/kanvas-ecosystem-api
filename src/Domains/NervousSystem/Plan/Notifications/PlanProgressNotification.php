@@ -22,6 +22,8 @@ class PlanProgressNotification extends Notification
      * @param array<string, mixed> $metadata
      * @param list<string> $via
      */
+    private readonly Plan $planForSlack;
+
     public function __construct(
         Plan $plan,
         string $title,
@@ -29,6 +31,7 @@ class PlanProgressNotification extends Notification
         array $metadata = [],
         array $via = ['mail', 'push'],
     ) {
+        $this->planForSlack = $plan;
         $fromUser = $plan->agent?->user ?? $plan->user;
 
         $data = [
@@ -69,6 +72,24 @@ class PlanProgressNotification extends Notification
             'subtitle' => '',
             'apps_id' => $this->app->getId(),
             'data' => $this->getData(),
+        ];
+    }
+
+    /**
+     * Slack identifies the sender by the bot token, which lives on an AGENT rather than the app — so
+     * the plan's own agent is what speaks here. A plan whose agent was never connected to Slack
+     * returns none, and the channel stays quiet instead of failing the notification.
+     *
+     * @return array<string, mixed>
+     */
+    public function toSlack(UserInterface|AnonymousNotifiable $notifiable): array
+    {
+        $title = trim((string) ($this->data['title'] ?? ''));
+        $message = trim((string) ($this->data['message'] ?? ''));
+
+        return [
+            'agent' => $this->planForSlack->agent,
+            'text' => $title !== '' ? '*' . $title . '*\n' . $message : $message,
         ];
     }
 

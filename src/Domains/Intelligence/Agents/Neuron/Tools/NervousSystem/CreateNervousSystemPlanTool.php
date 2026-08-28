@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesProjectForTool;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
@@ -30,8 +31,9 @@ class CreateNervousSystemPlanTool extends Tool implements HasRunKey
     use ResolvesProjectForTool;
     use TrackByInputs;
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly ?Session $session = null,
+    ) {
         parent::__construct(
             name: 'create_nervous_system_plan',
             description: 'Create a plan (a group of tasks / an epic) under a project. Use this to turn the '
@@ -112,6 +114,16 @@ class CreateNervousSystemPlanTool extends Tool implements HasRunKey
         )->execute();
 
         $plan->project_id = $project->getId();
+        // Where it was asked for, so the outcome can be reported back into that conversation instead
+        // of only onto the plan's own Activities channel, which nobody is subscribed to.
+        $plan->origin_channel_id = $this->session?->channel_id;
+
+        // And by whom. `users_id` is the plan's OWNER, which on agent-created work is another agent,
+        // so it is never a route to a person. The session records the human who was actually talking.
+        $sessionUser = $this->session?->user;
+        $plan->origin_users_id = is_array($sessionUser) && isset($sessionUser['id'])
+            ? (int) $sessionUser['id']
+            : null;
         $plan->saveQuietly();
 
         $project->recomputeCompletionPct();

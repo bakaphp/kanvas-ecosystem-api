@@ -18,6 +18,11 @@ class VariantSearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;
 
+    public function name(): string
+    {
+        return 'variant_search';
+    }
+
     #[Override]
     public function description(): Stringable|string
     {

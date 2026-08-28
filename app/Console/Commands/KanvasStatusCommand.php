@@ -33,6 +33,7 @@ class KanvasStatusCommand extends Command
         'ledger',
         'agent-runtime',
         'agent-chat',
+        'agent-task-worker',
         'nervous-system-project',
         'scheduled-actions',
         'slack-ingest',

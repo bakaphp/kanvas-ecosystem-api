@@ -160,6 +160,16 @@ class Employee extends BaseModel
     }
 
     /**
+     * Whether this employee is somewhere up the reporting line from $employee. Shared by the leave
+     * approval paths — the GraphQL resolver and the agent tool must not each carry their own idea of
+     * who is allowed to approve whose time off.
+     */
+    public function manages(self $employee): bool
+    {
+        return $this->descendants()->where('id', $employee->getId())->exists();
+    }
+
+    /**
      * Relationship visibility: admins see all; an employee sees themselves + their reporting
      * subtree (AsTree descendants over manager_employee_id); non-employees see nothing.
      */

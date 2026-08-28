@@ -14,6 +14,7 @@ use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Variants\Actions\DeleteVariantsAction;
+use Kanvas\Inventory\Variants\Actions\RemoveAttributeAction;
 use Kanvas\Inventory\Variants\Actions\UpdateVariantsAction;
 use Kanvas\Inventory\Variants\DataTransferObject\Translate as VariantTranslateDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
@@ -118,7 +119,7 @@ class Variants
         $variant = VariantsRepository::getById((int) $req['id'], $company);
         $req['input']['products_id'] = $variant->product->getId();
         $variantDto = VariantDto::viaRequest($req['input'], auth()->user());
-        $variantModel = (new UpdateVariantsAction($variant, $variantDto, auth()->user()))->execute();
+        $variantModel = new UpdateVariantsAction($variant, $variantDto, auth()->user())->execute();
 
         if (isset($req['input']['attributes'])) {
             $variantModel->addAttributes(auth()->user(), $req['input']['attributes']);
@@ -151,7 +152,7 @@ class Variants
             auth()->user()
         );
 
-        return (new DeleteVariantsAction($variant, auth()->user()))->execute();
+        return new DeleteVariantsAction($variant, auth()->user())->execute();
     }
 
     /**
@@ -168,7 +169,11 @@ class Variants
         }
         $variantWarehouses = VariantsWarehouses::viaRequest($variant, $warehouse, $req['input']);
 
-        (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
+        new AddToWarehouse(
+            $variant,
+            $warehouse,
+            $variantWarehouses
+        )->execute();
 
         return $variant;
     }
@@ -209,23 +214,17 @@ class Variants
         $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
 
         $attribute = AttributesRepository::getById((int) $req['attributes_id']);
-        (new AddAttributeAction($variant, $attribute, $req['input']['value']))->execute();
+        new AddAttributeAction($variant, $attribute, $req['input']['value'])->execute();
 
         return $variant;
     }
 
-    /**
-     * @todo Remove and use softdelete.
-     * removeAttribute.
-     */
     public function removeAttribute(mixed $root, array $req): VariantModel
     {
         $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
-
         $attribute = AttributesRepository::getById((int) $req['attributes_id']);
-        $variant->attributes()->detach($attribute);
 
-        return $variant;
+        return new RemoveAttributeAction($variant, $attribute)->execute();
     }
 
     /**

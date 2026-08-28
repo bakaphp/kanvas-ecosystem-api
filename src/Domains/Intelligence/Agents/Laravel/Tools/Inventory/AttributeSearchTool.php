@@ -7,9 +7,9 @@ namespace Kanvas\Intelligence\Agents\Laravel\Tools\Inventory;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
+use Kanvas\Intelligence\Agents\Laravel\Traits\HandlesToolRequest;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
-use Kanvas\Inventory\Attributes\Models\Attributes;
-use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
+use Kanvas\Intelligence\Agents\Traits\ListsCatalogReferenceData;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
@@ -17,57 +17,34 @@ use Stringable;
 #[AgentTool(name: 'Attribute Search', category: 'inventory')]
 class AttributeSearchTool implements KanvasToolInterface
 {
+    use HandlesToolRequest;
     use HasKanvasContext;
+    use ListsCatalogReferenceData;
+
+    public function name(): string
+    {
+        return 'attribute_search';
+    }
 
     #[Override]
     public function description(): Stringable|string
     {
-        return 'List and search product attributes. Returns attribute name, type, whether it is filterable/searchable,
-                and its default allowed values. Use this to discover which attributes exist and what values are valid for each one.';
+        return 'Search the product attributes this company can use — the spec fields like Colour, Size or '
+            . 'Material — and see which values each one allows. Use this before set_product_attributes or '
+            . 'set_variant_attributes to reuse an existing attribute name and its allowed values rather than '
+            . 'inventing a new near-duplicate. A company can have thousands, so search by keyword.';
     }
 
     #[Override]
     public function handle(Request $request): Stringable|string
     {
-        $keyword = (string) $request->string('keyword');
-        $allowCrossCompany = (bool) $this->app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
-
-        $query = Attributes::fromApp($this->app)
-            ->notDeleted()
-            ->with(['attributeType', 'defaultValues'])
-            ->orderBy('name');
-
-        if (! $allowCrossCompany) {
-            $query->whereIn('companies_id', [0, $this->company->getId()]);
-        }
-
-        if ($keyword !== '') {
-            $query->where('name', 'like', '%' . $keyword . '%');
-        }
-
-        $attributes = $query->limit(20)->get();
-
-        if ($attributes->isEmpty()) {
-            return $keyword !== ''
-                ? "No attributes found matching '{$keyword}'."
-                : 'No attributes found for this company.';
-        }
-
-        $results = $attributes->map(fn (Attributes $attribute) => [
-            'id' => $attribute->getId(),
-            'name' => $attribute->name,
-            'slug' => $attribute->slug,
-            'type' => $attribute->attributeType?->name,
-            'is_filterable' => (bool) $attribute->is_filterable,
-            'is_searchable' => (bool) $attribute->is_searchable,
-            'allowed_values' => $attribute->defaultValues
-                ->pluck('value')
-                ->filter()
-                ->values()
-                ->toArray(),
-        ]);
-
-        return $results->toJson(JSON_PRETTY_PRINT);
+        return (string) json_encode(
+            $this->listCatalogAttributes(
+                $this->nullableString($request, 'keyword'),
+                $this->nullableInt($request, 'limit'),
+            ),
+            JSON_PRETTY_PRINT
+        );
     }
 
     #[Override]
@@ -76,7 +53,10 @@ class AttributeSearchTool implements KanvasToolInterface
         return [
             'keyword' => $schema
                 ->string()
-                ->description('Optional keyword to filter attributes by name. Leave empty to list all attributes.'),
+                ->description('Text to match against the attribute name. Leave empty to see the first page.'),
+            'limit' => $schema
+                ->integer()
+                ->description('How many to return. Defaults to 25, maximum 100.'),
         ];
     }
 }

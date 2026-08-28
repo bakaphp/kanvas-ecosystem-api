@@ -41,16 +41,34 @@ class TavilyWebResearchTool implements KanvasToolInterface
     #[Override]
     public function handle(Request $request): Stringable|string
     {
-        $query = (string) $request->string('query');
+        $query = trim((string) $request->string('query'));
 
-        try {
-            $client = new Client($this->app);
-            $result = $client->search($query);
-        } catch (Throwable $e) {
-            return json_encode(['error' => $e->getMessage()]);
+        if ($query === '') {
+            return (string) json_encode(['error' => 'The query was empty. Pass the question you want answered.']);
         }
 
-        return json_encode(['result' => $result]);
+        try {
+            $response = new Client($this->app)->search(
+                $query,
+                ['max_results' => max(1, min($request->integer('max_results') ?: 5, 20))],
+            );
+        } catch (Throwable $e) {
+            return (string) json_encode(['error' => $e->getMessage()]);
+        }
+
+        // Sources stay as discrete records rather than one concatenated blob: a model that can see
+        // which claim came from which URL cites it, and one that gets a wall of text does not.
+        return (string) json_encode([
+            'answer' => $response['answer'] ?? null,
+            'results' => array_map(
+                fn (array $result): array => [
+                    'title' => $result['title'] ?? '',
+                    'url' => $result['url'] ?? '',
+                    'content' => $result['content'] ?? '',
+                ],
+                $response['results'] ?? [],
+            ),
+        ]);
     }
 
     #[Override]
@@ -61,6 +79,9 @@ class TavilyWebResearchTool implements KanvasToolInterface
                 ->string()
                 ->description('Full research question or query. Be specific: include the company name and exactly what information you need (e.g. "real estate properties owned or leased by Saks Global, addresses and square footage").')
                 ->required(),
+            'max_results' => $schema
+                ->integer()
+                ->description('How many sources to return, 1-20. Defaults to 5.'),
         ];
     }
 }
