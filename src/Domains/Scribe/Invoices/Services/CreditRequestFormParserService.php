@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Invoices\Services;
 
-use Maatwebsite\Excel\Concerns\ToArray;
+use Kanvas\Support\Excel\NullExcelImport;
 use Maatwebsite\Excel\Facades\Excel;
 use RuntimeException;
 
@@ -16,13 +16,7 @@ class CreditRequestFormParserService
      */
     public static function parse(string $localFilePath): array
     {
-        $dumper = new class () implements ToArray {
-            public function array(array $array): void
-            {
-            }
-        };
-
-        $rows = (Excel::toArray($dumper, $localFilePath))[0] ?? [];
+        $rows = (Excel::toArray(new NullExcelImport(), $localFilePath))[0] ?? [];
 
         $customerName = self::findLabelValue($rows, 'Customer Name');
         $requestReferenceNo = self::findLabelValue($rows, 'Request Reference No');
