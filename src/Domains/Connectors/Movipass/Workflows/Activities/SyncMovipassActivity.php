@@ -9,6 +9,7 @@ use Baka\Helpers\GenerateQrCode;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Movipass\Actions\ApplyFreeParkingTierAction;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
@@ -74,7 +75,11 @@ class SyncMovipassActivity extends KanvasActivity implements WorkflowActivityInt
                         ],
                     ];
 
-                    if ($order->metadata['data']['is_manual'] ?? false) {
+                    // Applied before the transition: GetSlotAvailabilityAction filters on end_at,
+                    // so the STATUS_TRANSITION recalculation needs the free window already persisted.
+                    $isFreeTier = new ApplyFreeParkingTierAction($order)->execute();
+
+                    if ($isFreeTier || ($order->metadata['data']['is_manual'] ?? false)) {
                         $order->transitionToStatus(
                             $order->user,
                             MovipassOrderStatusEnum::ACTIVE->value
