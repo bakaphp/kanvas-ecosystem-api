@@ -9,6 +9,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Bouncer;
 use Illuminate\Console\Command;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Enums\MovipassRolesEnum;
 
@@ -184,6 +185,10 @@ class SetupRolesCommand extends Command
         ];
 
         Bouncer::scope()->to(RolesEnums::getScope($app));
+
+        // disallow() throws when the role is absent from the scope, unlike allow() which creates it
+        $existingRoles = Role::query()->pluck('name')->all();
+
         foreach ($abilities as $ability => $roles) {
             foreach ($roles as $roleName) {
                 Bouncer::allow($roleName->value)->to($ability);
@@ -191,9 +196,11 @@ class SetupRolesCommand extends Command
 
             // Bouncer::allow is additive-only, so a role dropped from an ability keeps the grant unless revoked here
             foreach (MovipassRolesEnum::cases() as $movipassRole) {
-                if (! in_array($movipassRole, $roles, true)) {
-                    Bouncer::disallow($movipassRole->value)->to($ability);
+                if (in_array($movipassRole, $roles, true) || ! in_array($movipassRole->value, $existingRoles, true)) {
+                    continue;
                 }
+
+                Bouncer::disallow($movipassRole->value)->to($ability);
             }
         }
 
