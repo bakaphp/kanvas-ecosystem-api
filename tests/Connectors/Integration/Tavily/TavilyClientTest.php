@@ -30,6 +30,7 @@ final class TavilyClientTest extends TestCase
         $blankApp = \Mockery::mock(Apps::class);
         $blankApp->allows('get')->andReturnNull();
         $blankApp->allows('getAttribute')->andReturnNull();
+        $blankApp->allows('getId')->andReturn(1);
 
         $this->expectException(ValidationException::class);
 
@@ -62,6 +63,7 @@ final class TavilyClientTest extends TestCase
         $blankApp = \Mockery::mock(Apps::class);
         $blankApp->allows('get')->andReturnNull();
         $blankApp->allows('getAttribute')->andReturnNull();
+        $blankApp->allows('getId')->andReturn(1);
 
         $company = static::$cachedUser->getCurrentCompany();
         $tool = (new TavilyWebResearchTool())->withContext($blankApp, $company);
@@ -77,7 +79,7 @@ final class TavilyClientTest extends TestCase
     /**
      * Integration test — requires TAVILY_API_KEY env var or app config.
      */
-    public function testClientSearchReturnsStringResult(): void
+    public function testClientSearchReturnsTheDecodedPayload(): void
     {
         $apiKey = env('TAVILY_API_KEY') ?: $this->kanvasApp->get(ConfigurationEnum::TAVILY_API_KEY->value);
 
@@ -88,10 +90,13 @@ final class TavilyClientTest extends TestCase
         $this->kanvasApp->set(ConfigurationEnum::TAVILY_API_KEY->value, $apiKey);
 
         $client = new Client($this->kanvasApp);
-        $result = $client->search('What is the headquarters address of Apple Inc?', 3);
+        $result = $client->search(
+            'What is the headquarters address of Apple Inc?',
+            ['max_results' => 3],
+        );
 
-        $this->assertIsString($result);
-        $this->assertNotEmpty($result);
+        $this->assertIsArray($result['results']);
+        $this->assertNotEmpty($result['results']);
     }
 
     /**
@@ -115,8 +120,8 @@ final class TavilyClientTest extends TestCase
             true
         );
 
-        $this->assertArrayHasKey('result', $result);
-        $this->assertIsString($result['result']);
-        $this->assertNotEmpty($result['result']);
+        $this->assertArrayHasKey('results', $result);
+        $this->assertNotEmpty($result['results']);
+        $this->assertArrayHasKey('url', $result['results'][0]);
     }
 }

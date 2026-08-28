@@ -12,6 +12,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\NervousSystem\Capability\Enums\AgentAbilityEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool as CapabilityTool;
+use Kanvas\NervousSystem\Capability\Services\ToolGrantResolver;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,14 +22,18 @@ use Throwable;
 /**
  * Bring a teammate agent into existence: its own user, its own instructions, its own tools.
  *
- * Three limits, each structural rather than advisory:
- *  - **No privilege escalation.** The hire can only be granted tools the hiring agent already holds.
- *    Without that, an agent denied a capability could create a child that has it and call the child —
- *    laundering a permission nobody approved.
+ * **The hire is equipped from the catalog, not from the hirer's own toolset.** It used to be the
+ * latter, to stop an agent laundering a capability it had been denied — but nothing in this system
+ * denies a tool, it only ever grants one, so the guard blocked an orchestrator from staffing any work
+ * it could not already do itself. That is most of what an orchestrator is for, and every such request
+ * dead-ended at a human. `ToolGrantResolver` holds what replaced it.
+ *
+ * Three limits remain, each structural rather than advisory:
  *  - **A human authorises it.** Hiring mints a real user account and ongoing model spend, so it needs
  *    an identified admin in the conversation, not the agent's own (usually admin) user.
- *  - **A headcount cap**, because hiring is unbounded fan-out by construction: an agent that can hire
- *    can hire something that hires.
+ *  - **Nothing that re-equips agents is delegable.** Hiring and re-toolings stay with a human, which
+ *    is what keeps fan-out bounded now that the toolset no longer does.
+ *  - **A headcount cap**, because hiring is unbounded fan-out by construction.
  */
 #[AgentTool(name: 'Hire Agent', category: 'nervous_system')]
 class HireAgentTool extends Tool
@@ -44,12 +49,14 @@ class HireAgentTool extends Tool
         parent::__construct(
             name: 'hire_agent',
             description: 'Create a new teammate agent for this company when the work needs someone who does '
-                . 'not exist yet — a writer, a researcher, a reviewer. Admin only. You must give it complete '
-                . 'instructions describing its job, and you can only pass on tools YOU already hold — if you '
-                . 'name one you do not have, the call is refused and your own tools are listed back to you. '
-                . 'It gets its own identity, so its work is attributed to it and not to you, and you can '
-                . 'retune its instructions later. Check first whether an existing agent already does this '
-                . 'job — retune that one instead of hiring a duplicate.',
+                . 'not exist yet — a writer, a researcher, someone to run an import. Admin only. This is how '
+                . 'you get work done that YOUR OWN tools cannot do: you can grant the hire ANY tool in the '
+                . 'catalog, including ones you do not hold yourself, so a capability you lack is a reason to '
+                . 'hire rather than a reason to stop. Look the tools up with capability_lookup first and pass '
+                . 'their exact names. You must give it complete instructions describing its job. It gets its '
+                . 'own identity, so its work is attributed to it and not to you, and you can retune it later. '
+                . 'Check first whether an existing agent already does this job — assign the work to that one '
+                . 'instead of hiring a duplicate.',
         );
     }
 
@@ -83,9 +90,10 @@ class HireAgentTool extends Tool
             new ToolProperty(
                 name: 'tools',
                 type: PropertyType::STRING,
-                description: 'Comma-separated tool names to grant it, e.g. "Read Channel Window, Create '
-                    . 'Message". Only tools you hold yourself are allowed; anything else is refused and '
-                    . 'listed back to you. Grant the minimum the job needs.',
+                description: 'Comma-separated catalog tool names to grant it, e.g. "Create Lead, Send Email". '
+                    . 'Any tool in the catalog is allowed, whether or not you hold it — use capability_lookup '
+                    . 'to get the exact names. Grant everything the job needs and nothing more; an agent '
+                    . 'hired without the tools for its job can do nothing at all.',
                 required: false,
             ),
             new ToolProperty(
@@ -118,8 +126,8 @@ class HireAgentTool extends Tool
         }
 
         if ($this->hiringAgent === null) {
-            return $this->error('This tool does not know which agent is calling it, so it cannot check '
-                . 'which tools may be passed on.');
+            return $this->error('This tool does not know which agent is calling it, so the hire could not '
+                . 'be linked back to a hirer.');
         }
 
         $headcount = Agent::query()
@@ -137,16 +145,23 @@ class HireAgentTool extends Tool
             ));
         }
 
-        $grants = $this->resolveGrants($tools);
-
-        if (isset($grants['error'])) {
-            return $this->error($grants['error'], ['your_tools' => $this->ownToolNames()]);
-        }
-
         $agentType = $this->genericAgentType();
 
         if ($agentType === null) {
             return $this->error('No generic agent type is available to build on. Tell the admin.');
+        }
+
+        // Resolved against the runtime the hire will actually run on, so a tool that exists only for
+        // another framework is refused here rather than granted and silently filtered out at startup.
+        $resolver = new ToolGrantResolver($this->app);
+        $grants = $resolver->resolve($tools, $agentType->provider);
+
+        if ($grants['refused'] !== []) {
+            return $this->error(
+                'Nothing was hired. These tools could not be granted: ' . $resolver->describeRefusals($grants['refused'])
+                    . ' Call hire_agent again with the rest, or fix the names.',
+                ['refused' => $grants['refused']],
+            );
         }
 
         try {
@@ -175,72 +190,6 @@ class HireAgentTool extends Tool
                 . 'It does nothing until something reaches it — assign it a task, or point a workflow at it '
                 . 'with its agent_id.',
         ];
-    }
-
-    /**
-     * The escalation guard: a hire can hold no tool its hirer does not already hold.
-     *
-     * @return array{tools: list<CapabilityTool>, error?: string}
-     */
-    private function resolveGrants(?string $tools): array
-    {
-        $requested = array_values(array_filter(array_map('trim', explode(',', (string) $tools))));
-
-        if ($requested === []) {
-            return ['tools' => []];
-        }
-
-        $own = $this->ownTools();
-        $ownByName = [];
-
-        foreach ($own as $tool) {
-            $ownByName[mb_strtolower($tool->name)] = $tool;
-        }
-
-        $granted = [];
-        $refused = [];
-
-        foreach ($requested as $name) {
-            $key = mb_strtolower($name);
-
-            if (isset($ownByName[$key])) {
-                $granted[] = $ownByName[$key];
-
-                continue;
-            }
-
-            $refused[] = $name;
-        }
-
-        if ($refused !== []) {
-            return [
-                'tools' => [],
-                'error' => sprintf(
-                    'You cannot pass on %s — you do not hold %s yourself. An agent can only grant what it '
-                    . 'already has; ask an admin to grant it to you first.',
-                    sprintf('"%s"', implode('", "', $refused)),
-                    count($refused) === 1 ? 'it' : 'them'
-                ),
-            ];
-        }
-
-        return ['tools' => $granted];
-    }
-
-    /**
-     * @return list<CapabilityTool>
-     */
-    private function ownTools(): array
-    {
-        return $this->hiringAgent->selectedTools()->get()->all();
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function ownToolNames(): array
-    {
-        return array_map(fn (CapabilityTool $tool): string => $tool->name, $this->ownTools());
     }
 
     /**

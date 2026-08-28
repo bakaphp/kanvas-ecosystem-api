@@ -19,6 +19,7 @@ use App\Console\Commands\NervousSystem\Metrics\SyncModelPricingCommand;
 use App\Console\Commands\NervousSystem\Plans\DetectStalledPlanTasksCommand;
 use App\Console\Commands\NervousSystem\Plans\NudgeInactivePlansCommand;
 use App\Console\Commands\NervousSystem\Plans\ProjectHeartbeatCommand;
+use App\Console\Commands\NervousSystem\Plans\SweepStaleIntakeCommand;
 use App\Console\Commands\NervousSystem\Plans\SyncKanbanDeploymentsCommand;
 use App\Console\Commands\NervousSystem\Scheduling\SweepScheduledActionsCommand;
 use Illuminate\Console\Scheduling\Schedule;
@@ -51,6 +52,8 @@ final class NervousSystemSchedule
      *   06:04 NY   RecordAgentDailyCycles       ← daily-learning pipeline
      *   06:30 NY   SummarizeAgentDailyLearning  ← 26min buffer for record
      *   07:30 NY   SendDailyLearningDigest      ← 60min buffer for queue
+     *   08:00 NY   NudgeInactivePlans
+     *   08:15 NY   SweepStaleIntake             (+15min after the nudge)
      *
      * Daily-learning pipeline buffers depend on:
      *  - RecordAgentDailyCycles finishing in <26min for all active agents
@@ -95,6 +98,18 @@ final class NervousSystemSchedule
         // action posts a comment / notifies a human; the action's own ledger guard prevents re-nudging.
         $schedule->command(NudgeInactivePlansCommand::class)
             ->dailyAt('08:00')
+            ->timezone('America/New_York')
+            ->withoutOverlapping()
+            ->onOneServer();
+
+        // Unanswered intake — chase the owner, and after three unanswered rounds cancel the plan.
+        // A plan parked in INTAKE looks like work in progress, so leaving it there is worse than
+        // never having created it. Staggered 15min after the inactive-plan nudge so an owner with
+        // both a silent plan and a silent intake gets two separate pings rather than one pile.
+        // Daily rather than hourly because the action's own 24h window guard means a finer cadence
+        // would re-scan without ever chasing sooner.
+        $schedule->command(SweepStaleIntakeCommand::class)
+            ->dailyAt('08:15')
             ->timezone('America/New_York')
             ->withoutOverlapping()
             ->onOneServer();

@@ -11,19 +11,26 @@ shares a link to — e.g. an invoice tracking list a team keeps outside Kanvas.
 | `write_google_sheet(range, values, sheet_url_or_id?)` | Appends one or more new rows after the last row of data — never overwrites. `values` is a JSON-encoded string (e.g. `'[["1498","Vendor",250.00,"Pending"]]'`), not a native array — see note below. |
 | `update_google_sheet_cell(range, value, sheet_url_or_id?)` | Overwrites a specific cell in place, e.g. flipping a status column to "Approved". |
 | `clear_google_sheet_range(range, sheet_url_or_id?)` | Wipes the values in a cell/row/range without deleting the row itself — the safe alternative to a structural delete. |
-| `create_google_sheet_tab(title, sheet_url_or_id?)` | Adds a brand-new sheet/tab to the document, without touching any existing tab. |
+| `create_google_sheet_tab(title, sheet_url_or_id)` | Adds a tab to an EXISTING document, without touching any existing tab. **Does not create a spreadsheet**, and unlike the other four it will NOT fall back to the default sheet — see below. |
 
 All five accept either a full Sheets URL or a bare spreadsheet id — the id is extracted with a
 regex (`SpreadsheetUrlParser::extractId()`), never asked of the LLM directly. `write_google_sheet`
 and `update_google_sheet_cell` also accept live formulas (e.g. `"=SUM(C2:C10)"`) as cell values —
 `valueInputOption: USER_ENTERED` interprets them exactly as if typed by hand.
 
-**`sheet_url_or_id` is optional on all five tools.** Omitting it falls back to the app's default
-invoice-tracking sheet (`ConfigurationEnum::DEFAULT_INVOICE_SHEET`, key
+**`sheet_url_or_id` is optional on the four content tools** (read / write / update / clear). Omitting it
+falls back to the app's default invoice-tracking sheet (`ConfigurationEnum::DEFAULT_INVOICE_SHEET`, key
 `google-sheets-default-invoice-tracker`) via `ResolvesSpreadsheetIdForTool::resolveSpreadsheetId()`.
 This is what lets Apex/Arc log every processed invoice to a standing sheet automatically (per
 their agent guidance) without the user having to paste a link every time. If neither an explicit
 URL nor a default is available, the tool returns `reason: 'no_sheet_configured'`.
+
+**`create_google_sheet_tab` opts out of that fallback** — it passes `allowDefault: false` and returns
+`reason: 'sheet_reference_required'` when no sheet is named. The default exists so "log this invoice"
+works without pasting a link, which is a safe guess for an append and an unsafe one for a structural
+write. The tool's name is also the closest match an LLM has for "create a new Google Sheet" — no tool
+does that — so without the opt-out the plausible outcome of that request was a surprise tab on a live
+AP document. Its description states the negative fact explicitly for the same reason.
 
 **Why `values` is a JSON string, not `PropertyType::ARRAY`:** NeuronAI's `ToolProperty::getJsonSchema()`
 never emits an `items` sub-schema for array-type parameters. Gemini's function-calling schema

@@ -101,6 +101,32 @@ services:
             - "-c"
             - "php artisan config:cache && php artisan queue:work
               --queue=agent-chat --tries=1 --timeout=3750"
+    # Replicated, and no container_name, because a single `queue:work` is one process: it takes the
+    # next job only when the current one returns. A plan's task band is dispatched as one Bus::batch
+    # precisely so its tasks run at once, and with one consumer they ran strictly end-to-end instead
+    # (19s, then 12s, then 27s, each starting on the previous one's last second). The replica count is
+    # the real parallelism ceiling for a band.
+    agent-task-worker-queue:
+        <<: *common-queue-settings
+        deploy:
+            replicas: 3
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && php artisan queue:work
+              --queue=agent-task-worker --tries=1 --timeout=3750"
+    # Every Kanvas notification lands here — the base Notification does `onQueue('notifications')` in
+    # its constructor, so mail, push and in-app all route to this one queue. The other two compose
+    # files have had this worker all along; this file did not, so locally nothing consumed it and no
+    # notification had been delivered since July. Nothing errored: they were queued and never read.
+    queue-notifications:
+        <<: *common-queue-settings
+        container_name: queue-notifications
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && php artisan queue:work
+              --queue=notifications --tries=3 --timeout=3750"
     broadcasts-queue:
         <<: *common-queue-settings
         container_name: broadcasts-queue
@@ -212,7 +238,12 @@ services:
     mysql:
         container_name: mysql${APP_CONTAINER_NAME}
         image: "mysql:8.3.0"
-        command: --innodb_strict_mode=0 --innodb_log_file_size=512M
+        # max_connections is raised off MySQL's default 151 because this stack does not fit in it: ~17
+        # queue containers each hold a pool per domain database (ecosystem, intelligence, social, crm,
+        # inventory, commerce), which is ~120 connections before anything runs. The suite then fails on
+        # whichever query happens to ask next, so it surfaces as unrelated errors — a null app name, a
+        # duplicate-email collision — rather than as "out of connections".
+        command: --innodb_strict_mode=0 --innodb_log_file_size=512M --max_connections=500
         ports:
             - "${FORWARD_DB_PORT:-3306}:3306"
         environment:

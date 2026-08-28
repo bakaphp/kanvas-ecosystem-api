@@ -37,7 +37,11 @@ class DispatchLongTaskTool extends Tool
                 . 'in its own sandbox — multi-file code changes, data migrations, audits over many records, '
                 . 'or generated documents. Use this when the work would take more than a couple of minutes '
                 . 'or produces a file rather than an answer. It returns a task id IMMEDIATELY; the work is '
-                . 'NOT done when this returns. Do not use it for questions you can answer directly.',
+                . 'NOT done when this returns. Do not use it for questions you can answer directly. '
+                . 'This is the right choice over a plain repository coding job when the work needs to read live '
+                . 'Kanvas data while it runs, should be graded against acceptance criteria (see rubric), spans '
+                . 'more than one repository, or has to hand back a file. For a narrow change inside one '
+                . 'repository, a plain coding job is cheaper.',
         );
     }
 

@@ -123,90 +123,78 @@ Never commit, stage, or push. Leave everything in the working tree so the develo
 
 ## Step 5 — Report what you did
 
-The report is a changelog written to be read once, quickly, by someone about to push. Past tense, numbered continuously across sections, and — the part that makes it worth reading — each entry says why the change mattered, not just what moved.
+The report is skimmed once, in a terminal, by someone with a hand on `git push`. **Compact is the point.** One line per finding, grouped by category, then a list of every file you touched that they can click straight into. Prose paragraphs in a review report are a sign the reasoning belongs in the code or in a comment, not here.
 
-Match this shape and this voice:
+Hard rules:
+
+- **One line per finding.** `symbol()` — what changed and its consequence, same breath. If you cannot name the consequence in a few words, it was not a finding; drop it rather than padding it.
+- **Two lines only for a bug you uncovered.** That is the one thing worth expanding, and it gets a bold `**Bug:**` so it cannot be skimmed past.
+- **Number continuously across all sections**, so "fix 7" is unambiguous when they reply.
+- **Skip empty categories**, but when you checked one and it was clean, say so in a single line with a count — "Checked all 31 inline comments; none restate the code." Silence reads as skipped.
+- **Mechanical convention fixes collapse into one numbered line** with counts. Only a convention violation with a real consequence — a missing `overwriteAppService()`, a queued Spatie DTO, a tenant-scope leak — earns its own entry.
+- **Every file you touched gets a clickable link**, repo-relative, in a closing `Files` section with a 3–6 word note each. Use `[Name.php](src/path/Name.php)`, or `[Name.php:212](src/path/Name.php#L212)` when one line is the whole story. This is how they review it — do not make them dig the paths out of the prose above.
+- **Verification is one line of numbers.** Never a check you did not run.
+- **Rejected is one line each, two entries max.** It is the section that earns trust in the rest; more than two and it stops being read.
+
+The shape:
 
 ```
-Review done. Found and fixed 12 real issues — plus one thing about your git state you should know before pushing.
+Reviewed 19 files, fixed 12 issues. Found one real bug (#2). Also: your enum change is already committed.
 
-⚠️ Your enum change is already committed
-`case YUSEN = 'yusen';` landed in commit `4c07ff355 "update agent pulse"` (Aug 24, 16:10) — swept into an
-unrelated commit by a parallel session. Not a problem, but only the 19 untracked files are left to push.
+⚠️ `case YUSEN = 'yusen';` landed in `4c07ff355 "update agent pulse"` — swept in by a parallel session.
+Only the 19 untracked files are left to push.
 
-## Duplicate methods
+**Duplicates**
+1. `describe()` / `variantId()` — same `load()` + isset dance; collapsed behind one `variant()` accessor.
+2. `resolveFilesystemId()` / `resolveFileName()` — merged.
+   **Bug:** one took the first `.xml`, the other the first file of any type — an email with a signature
+   image attached reported the wrong filename against the processed file's contents.
+3. `missingType()` → `DiscrepancyTypeEnum::missingFor()` — mapping now lives beside the cases it maps to.
 
-1. `describe()` / `variantId()` both did `load()` + `isset(...) ? ... : null`. Collapsed behind one private
-   `variant()` accessor.
-2. `resolveFilesystemId()` / `resolveFileName()` both looped `uploadedFiles()`. Merged — and this was hiding a
-   bug: `resolveFilesystemId` picked the first `.xml`, `resolveFileName` picked the first file of any type. An
-   email with a signature image attached would report the wrong filename against the processed file's contents.
-3. `missingType()` moved onto the enum as `DiscrepancyTypeEnum::missingFor()` — the mapping now lives beside
-   the cases it maps to.
+**Complexity**
+4. `diff()` / `summarize()` took the concrete `KanvasWarehouseQuantitySource`, undercutting the
+   source-agnostic claim — `variant_id` is stamped in `withVariantIds()` now, and variants resolve only for
+   rows that make the report.
+5. `warehouseId()` re-queried on every call, up to 3× — memoized.
+6. `load()` hydrated full models to read two columns — now `select(['id','name',$matchField])`.
 
-## Unnecessary complexity
+**Comments**
+Checked all 31 inline comments; none restate the code — they are Manhattan quirks and test arithmetic.
+7. Stale docblock pointing at a deleted GraphQL mutation — removed.
+8. `#[WorkflowAction]` description contradicted itself ("writes it" / "writes no stock") — agents read this
+   to pick workflow steps, so a contradictory one is worse than none.
+9. Added one: `str()` / `float()` taking `mixed` looks defensive but is load-bearing — `$missing->child`
+   returns `null` where a direct missing child returns an empty element.
 
-4. `KanvasWarehouseQuantitySource` leaked through the comparator: `diff()` and `summarize()` both took the
-   concrete class, undercutting the "source-agnostic" claim. `variant_id` is now stamped post-hoc in
-   `withVariantIds()`. Side benefit: it resolved a variant for every balance line before; now only for rows
-   that make the report.
-5. `warehouseId()` re-queried on every call (up to 3×, each a DB hit when `primary_warehouse_id` is unset).
-   Memoized.
-6. `load()` held full Eloquent models for every variant. On a six-figure catalog that is a lot of hydrated
-   models to answer "id and name". Now `select(['id','name',$matchField])` into plain arrays.
+**Conventions** — root `CLAUDE.md` + `src/Domains/Connectors/CLAUDE.md`
+10. `ProcessYusenInventoryBalanceJob::handle()` never called `overwriteAppService($this->app)` — would
+    resolve roles against the previous job's Bouncer scope and exit clean having done nothing.
+11. `InventoryDiscrepancyReport::build()` took `$app`/`$company` the report already carries — a caller could
+    pass a company disagreeing with the report's own. Derived from the entity now.
+12. Mechanical: 4 inline FQCNs imported, 7 calls + 2 signatures to the rule of 4, 3 positional `null`s →
+    named arguments.
 
-## Comments
+**Files** — 6 changed
+- [ProcessYusenInventoryBalanceJob.php](src/Domains/Connectors/Yusen/Jobs/ProcessYusenInventoryBalanceJob.php) — overwriteAppService, FQCN imports
+- [InventoryDiscrepancyReport.php](src/Domains/Connectors/Yusen/Services/InventoryDiscrepancyReport.php) — derives app/company, rule of 4
+- [InventoryBalanceLine.php](src/Domains/Connectors/Yusen/DataTransferObject/InventoryBalanceLine.php) — merged accessors (#1)
+- [YusenWebhook.php:212](src/Domains/Connectors/Yusen/Webhooks/YusenWebhook.php#L212) — file-resolution bug (#2)
+- [DiscrepancyTypeEnum.php](src/Domains/Connectors/Yusen/Enums/DiscrepancyTypeEnum.php) — absorbed the mapping
+- [KanvasWarehouseQuantitySource.php](src/Domains/Connectors/Yusen/Sources/KanvasWarehouseQuantitySource.php) — memoized, column select
 
-I checked all 31 inline comments — none restate the code. They are external-system quirks (Manhattan re-sends
-on ack timeout, `readOuterXml` namespace behaviour), non-obvious perf choices, or test arithmetic. Two fixes:
+**Verified** — 21/21 Yusen tests green, coverage test green, schema valid, cs-fixer clean.
 
-7. A stale docblock said the full report is "what the GraphQL mutation returns" — that mutation is deleted.
-8. The `#[WorkflowAction]` description said "Parses the count, writes it and reports..." while the same
-   sentence ended "it writes no stock." That description is what agents read when picking a workflow step, so
-   a contradictory one is worse than none.
-
-9. Added one comment: `str()`/`float()` take `mixed`, which looks like pointless defensiveness. It isn't —
-   `$missing->child` returns `null` while a direct missing child returns an empty element, so the guard is
-   load-bearing if `<SKU>` is ever absent.
-
-## Conventions
-
-Checked against root `CLAUDE.md` plus `src/Domains/Connectors/CLAUDE.md`, which both apply to this tree.
-
-10. `ProcessYusenInventoryBalanceJob::handle()` never called `overwriteAppService($this->app)`. The worker
-    keeps the previous job's Bouncer scope, so this would have resolved roles against whatever app ran last —
-    the failure mode is a swallowed `ModelNotFoundException` and a job that exits clean having done nothing.
-11. `InventoryDiscrepancyReport::build()` took the report *and* `$app` / `$company`, which the report already
-    carries. A caller could pass a company that disagrees with the report's own. Now derived from the entity.
-12. Four `catch (\Throwable $e)` blocks used inline FQCNs. Imported.
-
-Also reformatted 7 calls and 2 signatures to the rule of 4 (`describeFrom()`, the two `assemble*` helpers, and
-the `new InventoryBalanceLine(...)` construction in the parser), and swapped three positional `null`s in
-`setConfiguration()` for named arguments.
-
-## Verified
-
-21/21 Yusen tests green after every step, coverage test green, schema valid, cs-fixer clean.
-
-## Considered and rejected
-
-Folding `InventoryBalanceLine::describeFrom()` into the constructor to delete a 4-param method. It works, but
-it changes "first non-null across records" to "whatever the first record had" — a real behaviour change to
-save one small method. Not worth it.
+**Rejected** — folding `describeFrom()` into the constructor: turns "first non-null across records" into
+"whatever the first record had", a behaviour change to delete one small method.
 ```
 
-What makes that report work, and what to preserve when yours looks different:
+What to preserve when yours looks different:
 
-- **Open with the count and the surprise.** One sentence: how many real issues, plus anything about the repo state or a bug found that the developer needs before pushing. Lead with the thing that changes what they do next.
-- **Name symbols, not just line numbers.** `resolveFilesystemId()` is what they remember writing; `Webhook.php:212` is something they have to go look up. Give the path when the symbol is ambiguous, otherwise trust the name.
-- **Every entry earns its place with a consequence.** "Merged two loops" is bookkeeping. "Merged two loops — and this was hiding a bug where an email with a signature image would report the wrong filename" is why they are reading. If you cannot say why a change mattered, it probably didn't, and it should not be in the list.
-- **Report what you checked and left, not only what you changed.** "I checked all 31 inline comments — none restate the code" is worth more than silence: it tells them the category is genuinely clean rather than skipped. Counts make that credible.
-- **Adding a comment is a legitimate finding.** When code looks like pointless defensiveness but is load-bearing, verify why and write the comment. Say what you verified.
-- **Note side effects you did not go looking for** — a refactor that also cut per-row work, a dead field now surfaced usefully.
-- **Close with what you rejected and why.** This is the section that earns trust in everything above it: it shows the line you were holding. One or two, with the real reason.
-- **Cite the rule and the file it lives in.** "rule of 4, root `CLAUDE.md`" lets the developer argue with the rule in the right place if they disagree. Count the mechanical convention fixes in one closing line; give the ones with a consequence — a missing `overwriteAppService()`, a queued Spatie DTO — their own numbered entry.
-- **Verification is numbers, not adjectives.** "21/21 tests green, schema valid, cs-fixer clean" — never claim a check you did not run.
-- Sweep genuinely trivial items into one closing line of their section ("also dropped a dead `$label` param and some redundant `(string)` casts") rather than numbering them.
-- If the code was already clean, say so in two sentences and change nothing. A no-op pass is a legitimate outcome and much better than inventing work.
+- **Open with the count and the surprise.** One sentence: how many files, how many fixes, plus any bug found or repo-state problem that changes what they do next.
+- **Name symbols, not line numbers.** `resolveFilesystemId()` is what they remember writing. Line numbers go in the file links, where they are clickable.
+- **Every entry names a consequence.** "Merged two loops" is bookkeeping. "Merged two loops — one took the first `.xml`, the other any file" is why they are reading.
+- **Note side effects you did not go looking for** — a refactor that also cut per-row work — but inline, on the same line, not as its own entry.
+- **Cite the rule's home file** on convention entries so they can argue with the rule in the right place.
+- If the code was already clean, say so in two sentences with the file list and change nothing. A no-op pass is a legitimate outcome, and much better than inventing work.
 
-Nothing is committed, so `git checkout -- <file>` is the developer's undo on any change they disagree with. Offer to revert specific ones if they push back.
+Nothing is committed, so `git checkout -- <file>` is their undo on any single change. Offer to revert specific ones if they push back.

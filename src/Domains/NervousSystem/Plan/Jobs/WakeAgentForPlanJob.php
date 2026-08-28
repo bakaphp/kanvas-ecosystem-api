@@ -14,8 +14,15 @@ use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Actions\DispatchTaskBandAction;
+use Kanvas\NervousSystem\Plan\Actions\PlanContinuationAction;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
+use Kanvas\NervousSystem\Plan\Actions\VerifyPlanAction;
+use Kanvas\NervousSystem\Plan\DataTransferObject\ContinuationDecision;
+use Kanvas\NervousSystem\Plan\Enums\ContinuationDecisionEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\NervousSystem\Plan\Support\PlanLoopSettings;
 use Kanvas\Social\Messages\Models\Message;
 use Throwable;
 
@@ -54,6 +61,16 @@ class WakeAgentForPlanJob implements ShouldQueue
      */
     public const string REASON_TASK_COMPLETED = 'task_completed';
 
+    /**
+     * A finished task was put back to `pending` — someone wants it done again, usually because the
+     * first attempt failed for a reason that has since been fixed. Distinct from completion because
+     * the instruction is the opposite: run the work, do not report and close out.
+     */
+    public const string REASON_TASK_REOPENED = 'task_reopened';
+
+    /** Enough to see a board, short of pasting a long plan into every wake. */
+    private const int INVENTORY_LIMIT = 30;
+
     public function __construct(
         public readonly Plan $plan,
         public readonly string $reason,
@@ -75,7 +92,36 @@ class WakeAgentForPlanJob implements ShouldQueue
         }
 
         $session = $this->resolveSession();
-        $message = $this->buildMessage();
+
+        // Counted before the turn, not after: a turn that crashes still consumed a re-entry, and a
+        // plan that crashes every time is exactly what the budget exists to stop.
+        $this->plan->increment('wake_count');
+        $this->plan->refresh();
+
+        $decision = PlanLoopSettings::continuationEnabled($agent)
+            ? new PlanContinuationAction($this->plan)->execute()
+            : null;
+
+        if ($decision !== null) {
+            $this->plan->emitLedgerEvent('plan.continuation.decided', payload: $decision->toLedgerPayload());
+
+            // DISPATCH and VERIFY are the two verdicts the loop can act on by itself; the rest are
+            // states a human or the agent's own reply resolves. Acting here rather than asking the
+            // agent to is the difference between a decision and a suggestion.
+            if ($decision->verdict === ContinuationDecisionEnum::DISPATCH) {
+                new DispatchTaskBandAction($this->plan)->execute();
+            }
+
+            if ($decision->verdict === ContinuationDecisionEnum::VERIFY) {
+                new VerifyPlanAction($this->plan)->execute();
+
+                // Verification settles the plan itself — DONE on a pass, BLOCKED on anything else — so
+                // there is nothing left for this turn to tell the agent to do.
+                return;
+            }
+        }
+
+        $message = $this->buildMessage($decision);
 
         $startedAt = microtime(true);
 
@@ -160,11 +206,93 @@ class WakeAgentForPlanJob implements ShouldQueue
         return $session;
     }
 
-    protected function buildMessage(): string
+    /**
+     * What is already on the board, named.
+     *
+     * A wake used to carry the verdict and nothing else, so an agent deciding what to do next had no
+     * account of its own prior turns unless it thought to go and list them. It re-decomposed instead:
+     * one plan came back with "Count leads missing email" and "Audit leads missing email" as separate
+     * tasks, three checks filed twice across three wakes. Re-wording is exactly how a duplicate escapes
+     * a title check, so the fix is to show the agent its own board rather than to police the writes.
+     *
+     * Blocked reasons are included because they are the ones worth not rediscovering — a task blocked
+     * for a missing tool will block again for the same reason.
+     */
+    private function taskInventory(): string
     {
+        $tasks = $this->plan->tasks()
+            ->where('is_deleted', 0)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->limit(self::INVENTORY_LIMIT)
+            ->get();
+
+        if ($tasks->isEmpty()) {
+            return '';
+        }
+
+        $lines = $tasks->map(static function (Task $task): string {
+            $line = sprintf('  #%d seq=%d [%s] %s', $task->getId(), $task->sequence, $task->status, $task->title);
+
+            return $task->blocked_reason !== null && $task->blocked_reason !== ''
+                ? $line . ' — blocked: ' . Str::limit($task->blocked_reason, 160)
+                : $line;
+        })->implode("\n");
+
+        return sprintf(
+            "\nTasks already on this plan — do NOT create these again, in any wording:\n%s\n",
+            $lines,
+        );
+    }
+
+    protected function buildMessage(?ContinuationDecision $decision = null): string
+    {
+        // When the loop is on, the verdict IS the instruction. The prose branches below stay for
+        // agents that have not been switched over — running both would give the agent two sets of
+        // orders, which is how it ends up following neither.
+        if ($decision !== null) {
+            $header = sprintf(
+                '[NS:continuation] plan_id=%d plan_uuid=%s verdict=%s',
+                $this->plan->id,
+                $this->plan->uuid,
+                $decision->verdict->value,
+            );
+
+            $state = sprintf(
+                "Plan state: %s\n%s%s",
+                $decision->reason,
+                $this->taskInventory(),
+                $decision->verdict->instruction(),
+            );
+
+            // A human comment is a question addressed to the agent, so it leads. Putting the verdict
+            // first would have the agent answer the board instead of the person who just asked it
+            // something — the state is context for the reply, not a replacement for it.
+            if ($this->reason === self::REASON_COMMENT && $this->userMessage !== null && $this->userMessage !== '') {
+                return sprintf("%s\n\n%s\n\n---\n%s", $header, $this->userMessage, $state);
+            }
+
+            return $this->userMessage !== null && $this->userMessage !== ''
+                ? sprintf("%s\n\n%s\n\nWhat just happened: %s", $header, $state, $this->userMessage)
+                : sprintf("%s\n\n%s", $header, $state);
+        }
+
         if ($this->reason === self::REASON_COMMENT) {
             return sprintf(
                 "[NS:plan_comment] plan_id=%d plan_uuid=%s\n\n%s",
+                $this->plan->id,
+                $this->plan->uuid,
+                (string) $this->userMessage,
+            );
+        }
+
+        if ($this->reason === self::REASON_TASK_REOPENED) {
+            return sprintf(
+                "[NS:task_reopened] plan_id=%d plan_uuid=%s\n\n%s\n\n"
+                . 'A task on this plan was reset to pending, which means someone wants it RUN AGAIN — '
+                . 'whatever blocked it the first time is expected to be fixed now. Do the work or '
+                . 'dispatch it to the assignee. Do not report it as already finished, and do not wait '
+                . 'for anything else to pick it up: nothing else will.',
                 $this->plan->id,
                 $this->plan->uuid,
                 (string) $this->userMessage,

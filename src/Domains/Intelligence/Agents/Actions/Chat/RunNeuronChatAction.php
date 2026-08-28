@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Baka\Http\SafeUrlFetcher;
 use finfo;
+use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
@@ -179,8 +180,41 @@ class RunNeuronChatAction
                 . 'an exact name, email, or date range — and ask again?';
         }
 
+        // Nothing about the request was wrong, so telling the person to rephrase sends them to fix
+        // something that is not broken — and inviting a hand-off escalates a wait to a human. The
+        // model was busy; the only useful instruction is to ask again.
+        if ($this->isProviderOverloaded($e)) {
+            return 'The AI service is overloaded right now — that is on their side, not yours. '
+                . 'Ask me the same thing again in a moment and it should go through.';
+        }
+
         return 'I ran into a hiccup processing that. Could you try rephrasing, '
             . 'or let me know if you want me to hand off to a human?';
+    }
+
+    /**
+     * A transient fault at the model provider rather than a fault in the request.
+     *
+     * Keyed on the HTTP status, because the provider's prose varies and is truncated by the time it
+     * reaches a log ("This model is currently experiencing high demand"). 429 is a rate limit; every
+     * 5xx covers the rest — Gemini's 503 and Anthropic's 529 alike — and the same request would
+     * survive a retry in all of them.
+     */
+    private function isProviderOverloaded(Throwable $e): bool
+    {
+        for ($current = $e; $current !== null; $current = $current->getPrevious()) {
+            if (! $current instanceof RequestException || ! $current->hasResponse()) {
+                continue;
+            }
+
+            $status = $current->getResponse()->getStatusCode();
+
+            if ($status === 429 || $status >= 500) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function isDuplicateEntryError(Throwable $e): bool

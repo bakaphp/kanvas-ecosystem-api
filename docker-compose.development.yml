@@ -151,6 +151,18 @@ services:
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=agent-runtime
         --tries=3 --timeout=3750"
+  # The replica count is the parallelism ceiling for a plan's task band — one `queue:work` is one
+  # process, so a batch dispatched to a single consumer runs strictly end-to-end.
+  agent-task-worker-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    deploy:
+      replicas: 3
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=agent-task-worker
+        --tries=1 --timeout=3750"
   product-enrichment-queue:
     <<: *common-queue-settings
     # REMOVED container_name because replicas > 1
