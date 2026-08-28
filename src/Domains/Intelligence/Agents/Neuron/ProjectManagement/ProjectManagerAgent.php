@@ -9,6 +9,9 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\CapabilityLookupTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ListActiveIntegrationsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ReportCapabilityGapTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
@@ -20,9 +23,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPla
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSystemMemberTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GrantAgentToolsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleReminderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
@@ -102,6 +107,14 @@ class ProjectManagerAgent extends SystemUserAgent
             messages/events. Any triggering content (a meeting transcript, an email, an @mention) is
             included above the Context.
 
+            NEVER EXPLAIN AWAY SOMETHING YOU CANNOT SEE. The Context bundle is a summary — capped
+            messages, recent plans, truncated results. It is NOT the record. When someone asks what a
+            plan or a task produced — a file, a link, a count, a document — call read_plan_activity
+            with that plan_id and quote what the worker actually reported. Do this BEFORE saying
+            anything was not produced, was a duplicate, or cannot be found. Saying "I don't see it" is
+            acceptable only after you have looked; inventing a reason for its absence is never
+            acceptable, and a plausible-sounding explanation is worse than admitting you did not check.
+
             NOTIFYING A HUMAN: humans are NOT watching the channel — the only way to get a person's
             attention (an approval, a decision, missing info, a sign-off) is to @mention them using
             the exact `handle` shown for that member (e.g. "@jsmith, can you approve the budget?").
@@ -174,10 +187,18 @@ class ProjectManagerAgent extends SystemUserAgent
             - HANDLE BLOCKED PLANS. A worker that can't do its plan will set it `blocked` and comment
               WHY (usually a missing capability/tool — e.g. it can't write code or change a database).
               When you see a blocked plan, read the reason: reassign it to a member whose description
-              actually fits (or find_and_add one), and if NO capable agent exists, @mention the owner
-              to bring in a human or a capable agent. Don't just re-assign it to the same agent that
-              couldn't do it. A board agent can organize work but cannot perform engineering / external
-              actions it has no tool for — route that to a human or a capable runtime agent.
+              actually fits (or find_and_add one). If the blocker is a MISSING TOOL, that is a staffing
+              problem and it is yours to solve — capability_lookup the capability, then grant_agent_tools
+              to the agent that is already right for the work, or hire_agent with those tools when no
+              agent fits. Only @mention the owner when the capability does not exist in the catalog at
+              all. Don't just re-assign it to the same agent that couldn't do it.
+            - DECIDE WHAT RUNS TOGETHER — nobody will tell you. Every time you break work into tasks,
+              ask of each one: does this need another task's OUTPUT before it can start? If no, give it
+              the SAME sequence number as its siblings and they run at the same time. If yes, give it a
+              higher number so it waits. Three independent counts are sequence 1, 1, 1 and finish in
+              the time of the slowest; the same three at 1, 2, 3 take the sum, for no reason. Omitting
+              sequence makes every task wait for the one before it, so silence is the slow answer —
+              never leave it to chance because the person asking did not use the word "parallel".
             - You can still add_task / assign_task / update_task_status directly for small, one-off
               steps you want to track yourself, but prefer assigning a plan so the worker owns the
               decomposition.
@@ -194,7 +215,11 @@ class ProjectManagerAgent extends SystemUserAgent
               have existed, like a duplicate you just opened.
             - STAFF AND AUTOMATE WHEN THE WORK NEEDS IT. If no existing member fits a plan, you can
               hire_agent to create the teammate the work needs, and update_agent_instructions to
-              retune one you hired that is getting something wrong. If work should happen on its own
+              retune one you hired that is getting something wrong. YOU DO NOT HAVE TO HOLD A TOOL TO
+              GIVE IT TO SOMEONE: you can hire an agent with ANY tool in the catalog, or
+              grant_agent_tools to a teammate that is missing one. So "I don't have that capability" is
+              never a finished answer and never a reason to ask a human for a grant — look it up, then
+              staff it. If work should happen on its own
               from now on rather than each time you are woken, wire it: list_workflow_options to see
               what triggers and steps exist, list_company_workflows to check it is not already set
               up, then create_company_workflow (or create_company_receiver for inbound traffic).
@@ -339,7 +364,7 @@ class ProjectManagerAgent extends SystemUserAgent
             new ListProjectsTool()->withContext($app, $company, $user),
             new UpdateNervousSystemProjectTool()->withContext($app, $company, $user),
             new DeleteNervousSystemProjectTool()->withContext($app, $company, $user),
-            new CreateNervousSystemPlanTool()->withContext($app, $company, $user),
+            new CreateNervousSystemPlanTool($this->session)->withContext($app, $company, $user),
             new UpdateNervousSystemPlanTool()->withContext($app, $company, $user),
             new DeleteNervousSystemPlanTool()->withContext($app, $company, $user),
             new AssignNervousSystemPlanTool()->withContext($app, $company, $user),
@@ -347,6 +372,7 @@ class ProjectManagerAgent extends SystemUserAgent
             new AddNervousSystemTaskTool()->withContext($app, $company, $user),
             new AssignNervousSystemTaskTool()->withContext($app, $company, $user),
             new UpdateNervousSystemTaskStatusTool()->withContext($app, $company, $user),
+            new ReadNervousSystemPlanActivityTool()->withContext($app, $company, $user),
             new DeleteNervousSystemTaskTool()->withContext($app, $company, $user),
         ];
 
@@ -362,7 +388,19 @@ class ProjectManagerAgent extends SystemUserAgent
         $core[] = new ListMessageTypesTool()->withContext($app, $company, $user);
         $core[] = new CreateMessageTypeTool()->withContext($app, $company, $user);
 
+        // Baseline rather than a per-agent grant, deliberately. These are reasoning hygiene, not a
+        // domain capability: the lookup exists to stop the PM substituting a tool whose name merely
+        // fits, and the gap report is the only correct thing to do when nothing does. An agent that
+        // has to be granted them is an agent that reaches for the near-match on the day nobody
+        // remembered to.
+        $core[] = new CapabilityLookupTool($agent);
+        $core[] = new ListActiveIntegrationsTool()->withContext($app, $company, $user);
+        $core[] = new ReportCapabilityGapTool($agent);
+
         $core[] = new HireAgentTool($agent)
+            ->withContext($app, $company, $user)
+            ->forRequestingUser($requestingHuman);
+        $core[] = new GrantAgentToolsTool($agent)
             ->withContext($app, $company, $user)
             ->forRequestingUser($requestingHuman);
         $core[] = new UpdateAgentInstructionsTool($agent)->withContext($app, $company, $user);

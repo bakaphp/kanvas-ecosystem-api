@@ -9,6 +9,7 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\OrganizationNameNormalizerService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -26,6 +27,7 @@ use Override;
 class FindCustomerTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use ReportsToolOutcome;
     use TrackByInputs;
 
     public function __construct()
@@ -93,9 +95,14 @@ class FindCustomerTool extends Tool implements HasRunKey
 
         if ($matches->isEmpty()) {
             // Without an explicit dead-end the model re-calls with the same name until the run budget
-            // trips and the whole turn aborts (Sentry KANVAS-ECOSYSTEM-64Q).
-            $result['message'] = 'No customer matched that name. Retrying the same name will not help — try a '
-                . 'shorter distinctive fragment, or tell the user it is not in the synced data.';
+            // trips and the whole turn aborts (Sentry KANVAS-ECOSYSTEM-64Q). NOT_FOUND rather than NOOP:
+            // a different name genuinely might match, so the generic guidance to search differently is
+            // the right one — the override only says what "differently" means here.
+            return $this->notFound(
+                $result,
+                'No customer matched that name. Try a shorter distinctive fragment, or tell the user it is '
+                    . 'not in the synced data.',
+            );
         }
 
         return $result;

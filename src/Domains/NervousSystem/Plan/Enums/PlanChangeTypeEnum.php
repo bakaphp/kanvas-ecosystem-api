@@ -14,6 +14,9 @@ enum PlanChangeTypeEnum: string
     case CREATED = 'created';
     case UPDATED = 'updated';
     case APPROVED = 'approved';
+
+    /** A plan gained an executing agent — the moment its work should start. */
+    case ASSIGNED = 'assigned';
     case REJECTED = 'rejected';
     case DELETED = 'deleted';
     case TASK_ADDED = 'task_added';

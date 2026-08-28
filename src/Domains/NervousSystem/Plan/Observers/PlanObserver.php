@@ -6,6 +6,7 @@ namespace Kanvas\NervousSystem\Plan\Observers;
 
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfBlockedPlanJob;
+use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfCompletedPlanJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Jobs\NotifyProjectOwnerOfBlockedPlanJob;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -36,7 +37,20 @@ class PlanObserver
 
     public function updated(Plan $plan): void
     {
-        if (! $plan->wasChanged('status') || $plan->status !== PlanStatusEnum::BLOCKED->value) {
+        if (! $plan->wasChanged('status')) {
+            return;
+        }
+
+        // Success needs telling as much as failure does. Unlike a block it goes to the plan's OWNER
+        // even when a project exists: the PM is who finished the work, so routing "it's done" to the
+        // PM tells the one person who already knows.
+        if ($plan->status === PlanStatusEnum::DONE->value) {
+            NotifyPlanOwnerOfCompletedPlanJob::dispatch($plan)->delay(now()->addSeconds(45));
+
+            return;
+        }
+
+        if ($plan->status !== PlanStatusEnum::BLOCKED->value) {
             return;
         }
 

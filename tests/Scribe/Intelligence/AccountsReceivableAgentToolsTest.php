@@ -6,6 +6,7 @@ namespace Tests\Scribe\Intelligence;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
+use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsReceivableAgent;
@@ -503,8 +504,8 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             ->__invoke(name: 'Nonexistent Customer ' . uniqid());
 
         $this->assertSame(0, (int) $result['count']);
-        $this->assertArrayHasKey('message', $result);
-        $this->assertStringContainsString('Retrying the same name will not help', $result['message']);
+        $this->assertSame(ToolOutcomeEnum::NOT_FOUND->value, $result['outcome']);
+        $this->assertStringContainsString('Repeating this exact call will not find anything', $result['note']);
     }
 
     /**

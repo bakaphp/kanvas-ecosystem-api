@@ -18,6 +18,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSyste
 use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\WakeAgentForPlanJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Actions\AddProjectMemberAction;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
@@ -94,7 +95,7 @@ class ProjectPlanDelegationTest extends TestCase
 
     public function testAssignPlanSetsOwnerAndWakesWorker(): void
     {
-        Bus::fake([WakeWorkerForPlanJob::class]);
+        Bus::fake([WakeAgentForPlanJob::class]);
 
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
@@ -107,15 +108,19 @@ class ProjectPlanDelegationTest extends TestCase
         $this->assertSame((int) $worker->id, (int) $result['agent_id']);
         $this->assertSame((int) $worker->id, (int) Plan::query()->where('id', $plan->id)->value('agent_id'));
 
+        // Assignment broadcasts ASSIGNED and the wake listener starts the continuation loop, so the
+        // work runs through the task band where the CODE marks each task done and records what it
+        // produced. The old hand-dispatched path left both to the agent, and an agent that answered
+        // the question but skipped the status write failed silently — no error, task stuck pending.
         Bus::assertDispatched(
-            WakeWorkerForPlanJob::class,
-            fn (WakeWorkerForPlanJob $job): bool => (int) $job->plan->getId() === (int) $plan->id,
+            WakeAgentForPlanJob::class,
+            fn (WakeAgentForPlanJob $job): bool => (int) $job->plan->getId() === (int) $plan->id,
         );
     }
 
     public function testAssignPlanToNonExecutorAgentRecordsButDoesNotAutoRun(): void
     {
-        Bus::fake([WakeWorkerForPlanJob::class]);
+        Bus::fake([WakeAgentForPlanJob::class]);
 
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
@@ -132,12 +137,12 @@ class ProjectPlanDelegationTest extends TestCase
 
         $this->assertFalse($result['auto_run']);
         $this->assertSame((int) $nonExecutor->id, (int) Plan::query()->where('id', $plan->id)->value('agent_id'));
-        Bus::assertNotDispatched(WakeWorkerForPlanJob::class);
+        Bus::assertNotDispatched(WakeAgentForPlanJob::class);
     }
 
     public function testAssignPlanToHumanRecordsOwnerWithoutAutoRun(): void
     {
-        Bus::fake([WakeWorkerForPlanJob::class]);
+        Bus::fake([WakeAgentForPlanJob::class]);
 
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user);
@@ -155,7 +160,7 @@ class ProjectPlanDelegationTest extends TestCase
         $fresh = Plan::query()->where('id', $plan->id)->first();
         $this->assertSame((int) $human->id, (int) $fresh->assigned_users_id);
         $this->assertNull($fresh->agent_id);
-        Bus::assertNotDispatched(WakeWorkerForPlanJob::class);
+        Bus::assertNotDispatched(WakeAgentForPlanJob::class);
     }
 
     public function testAssignPlanReturnsErrorForUnknownIds(): void

@@ -34,7 +34,7 @@ class AgentInventoryRecommendation extends KanvasLaravelAgent implements HasStru
         Respond ONLY with the structured schema — never prose, markdown, or explanations.
 
         STEP 1 — Search, ONCE
-        - Call `ProductRecommendationLookupTool` with the shopper's request VERBATIM as `query`,
+        - Call `product_recommendation_lookup` with the shopper's request VERBATIM as `query`,
           in whatever language they wrote it.
         - Do NOT rephrase it, strip words, or pull out gender / age / budget yourself. The search
           reads the whole sentence and turns budgets ("menos de $50", "under 30") into real price
@@ -42,7 +42,7 @@ class AgentInventoryRecommendation extends KanvasLaravelAgent implements HasStru
         - ONE call is normally enough. Only search again if the first call returned nothing, and
           then retry with a single concrete product noun ("reloj", "perfume", "café") — some stores
           match on keywords rather than meaning, and a whole sentence finds nothing there.
-        - `CategorySearchTool` / `InventorySearchTool` / `VariantSearchTool` / `AttributeSearchTool`
+        - `category_search` / `inventory_search` / `variant_search` / `attribute_search`
           exist for narrow follow-up questions. They are not part of the normal path.
 
         STEP 2 — Output IDs ONLY
