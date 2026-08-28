@@ -12,17 +12,21 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Salesforce\Actions\PullPropertyAction;
-use Kanvas\Connectors\Salesforce\Actions\PullPropertyContactAction;
 use Kanvas\Connectors\Salesforce\Client;
 use Kanvas\Connectors\Salesforce\Services\SalesforceApiClient;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Actions\ApplyFilesystemMapperAction;
+use Kanvas\Filesystem\Models\FilesystemMapper;
 use RuntimeException;
 use Throwable;
 
 /**
- * Test-only import: pulls Location__c (+ its primary Location_Contact__c) from Salesforce into
- * Kanvas Products, using GAGroup's field names hardcoded. This is the fixture for validating the
- * Product+Attributes mapping before building the real per-tenant field mapper.
+ * Test-only import: pulls Location__c (+ its primary Location_Contact__c) from Salesforce —
+ * GAGroup's field names, hardcoded here as this command's fixture, are how this SOQL is built.
+ * The Salesforce-agnostic part — turning a raw record into a Kanvas Product/People — is not
+ * hardcoded: it runs through the Company's configured `salesforce_property_mapper_id`
+ * `FilesystemMapper` via `ApplyFilesystemMapperAction`, so a different tenant only needs a
+ * different mapper, not a different command.
  *
  * The per-record upsert runs inside a queued closure (not a dedicated Job class) so this
  * GAGroup-only fixture doesn't grow a permanent class in the shared Salesforce connector — the
@@ -45,6 +49,14 @@ class ImportSalesforcePropertiesCommand extends Command
         /** @var Companies $company */
         $company = Companies::getById((int) $this->argument('company_id'));
         $user = $company->user;
+
+        $mapperId = (int) ($company->get('salesforce_property_mapper_id') ?? 0);
+        if ($mapperId === 0) {
+            throw new ValidationException(
+                'Company ' . $company->getId() . ' has no salesforce_property_mapper_id custom field set.',
+            );
+        }
+        $mapper = FilesystemMapper::getByIdFromCompanyApp($mapperId, $company, $app);
 
         $client = Client::getInstance($app, $company);
 
@@ -82,7 +94,7 @@ class ImportSalesforcePropertiesCommand extends Command
                 . 'FROM Location_Contact__c WHERE Primary_Location_Contact__c = true',
         );
 
-        dispatch(function () use ($app, $company, $user, $properties, $contacts): void {
+        dispatch(function () use ($app, $company, $user, $mapper, $properties, $contacts): void {
             App::scoped(Apps::class, fn () => $app);
             Bouncer::scope()->to(RolesEnums::getScope($app));
 
@@ -93,6 +105,9 @@ class ImportSalesforcePropertiesCommand extends Command
                     $contactsByLocationId[$locationId] = $contact;
                 }
             }
+
+            $configuration = is_array($mapper->configuration) ? $mapper->configuration : [];
+            $links = $configuration['links'] ?? [];
 
             $total = count($properties);
             $processed = 0;
@@ -105,24 +120,26 @@ class ImportSalesforcePropertiesCommand extends Command
                         throw new RuntimeException('Salesforce record is missing an Id');
                     }
 
-                    $product = new PullPropertyAction(
+                    $correlatedRecords = [];
+                    $contact = $contactsByLocationId[$salesforceId] ?? null;
+                    if ($contact !== null) {
+                        foreach ($links as $link) {
+                            $linkedMapperId = (int) ($link['mapper_id'] ?? 0);
+                            if ($linkedMapperId !== 0) {
+                                $correlatedRecords[$linkedMapperId] = $contact;
+                            }
+                        }
+                    }
+
+                    new ApplyFilesystemMapperAction(
                         $app,
                         $company,
                         $user,
-                        $property,
+                        $mapper,
                         $salesforceId,
+                        $property,
+                        $correlatedRecords,
                     )->execute();
-
-                    $contact = $contactsByLocationId[$salesforceId] ?? null;
-                    if ($contact !== null) {
-                        new PullPropertyContactAction(
-                            $app,
-                            $company,
-                            $product,
-                            $contact,
-                            (string) $contact['Id'],
-                        )->execute();
-                    }
 
                     $processed++;
                 } catch (Throwable $e) {
