@@ -854,6 +854,30 @@ A plain non-fail early `return ['message' => ..., 'entity' => null]` (status sta
 
 `SilentWorkflowException` (records FAILED, skips `report()`) still exists for the case where the skip signal must originate *deep* in a call stack you don't want to unwind by hand — but prefer the local `try/catch → failWorkflow` in the activity when the throw site is one call away.
 
+### Broadcast Channel Names Built From User Data Must Be Sanitized
+
+Pusher rejects a channel name containing anything outside `[A-Za-z0-9_\-=@,.;]`, or longer than 164
+chars, with `PusherException: Invalid channel name` — thrown at broadcast time, inside the queue
+worker or mid-request. A name built purely from ids is always safe; one that interpolates a **slug,
+email, or any other user-controlled string** is not. `Str::sanitizeEmail()` only rewrites `@` and `.`,
+so a plus-addressed sender (`ap+caf_=x@example.com`) reaches the broadcaster with its `+` intact.
+
+```php
+use Baka\Support\Str;
+
+// WRONG — an email-derived channel slug throws at broadcast time
+new Channel('app-' . $channel->apps_id . '-new-message-channel-' . $channel->slug);
+
+// CORRECT
+new Channel(Str::sanitizeChannelName('app-' . $channel->apps_id . '-new-message-channel-' . $channel->slug));
+```
+
+Sanitize where the name is **assembled**, not at the broadcast — when a helper hands the same name to
+clients (`AgentChatBroadcastChannel::nameFor()` feeds both `broadcastOn()` and the `broadcast_channel`
+the `userChat` mutation returns), sanitizing anywhere else desyncs publisher from subscriber. Never fix
+this in the slug generator itself: channel slugs are dedup keys for Sessions and Social channels, so
+changing them forks every existing conversation.
+
 ### Code Style
 - **No section separator comments** — do not add `// --- SectionName ---`, `# --- SectionName ---`, or similar decorative dividers in code, tests, or schema files. Test methods and code sections are self-documenting by their names. If a file grows too large, split it into separate files instead.
 - **Comment why, not what.** Class/method docblocks and inline comments exist to capture decisions a reader can't recover from the code itself — gotchas, "why this weird approach", invariants, external constraints. Code that's self-evident from the names + body should carry no doc. If you find yourself paraphrasing the signature ("Fetch the X from Y" on a method called `fetchXFromY`), delete the comment and let the names do the work. The first design instinct should be to make the code clear enough not to need a comment; reach for the comment only when the design can't be simplified further.
