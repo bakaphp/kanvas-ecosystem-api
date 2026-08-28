@@ -416,6 +416,12 @@ class CreateEngagementAction
             'ip_address' => IPInfo::getClientIp(),
         ];
 
+        //MessageInput::fromArray looks up the parent whenever the key exists, so only set it when there is one
+        $parentMessageId = $this->engagementData->parentEngagement?->message_id;
+        if ($parentMessageId !== null) {
+            $messageInput['parent_id'] = $parentMessageId;
+        }
+
         $messageTypeDto = MessageTypeInput::from([
             'apps_id' => $this->app->getId(),
             'name' => $this->actionSlug,
