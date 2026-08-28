@@ -5,17 +5,18 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Baka\Http\SafeUrlFetcher;
+use Kanvas\Connectors\Nzxt\Services\CreditRequestFormParserService;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Scribe\Invoices\Services\CreditRequestFormParserService;
+use Kanvas\Scribe\Invoices\Contracts\CreditRequestFormParserInterface;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-/** Reads a Credit Request Form (CNR) already saved in Kanvas and parses it into the fields create_ar_credit_memo needs — a fixed Excel template, read directly rather than guessed from the email body. */
+/** Reads a client's credit-request document already saved in Kanvas and parses it into the fields create_ar_credit_memo needs, via CreditRequestFormParserInterface — the concrete parser (today: NZXT's CNR Excel template) is client-specific, this tool is not. */
 #[AgentTool(name: 'Extract Credit Request Form', category: 'accounting')]
 class ExtractCreditRequestFormTool extends Tool
 {
@@ -72,7 +73,7 @@ class ExtractCreditRequestFormTool extends Tool
 
         try {
             file_put_contents($tempPath, SafeUrlFetcher::fetch((string) $file->url));
-            $parsed = CreditRequestFormParserService::parse($tempPath);
+            $parsed = $this->parser()->parse($tempPath);
         } catch (Throwable $e) {
             return [
                 'success' => false,
@@ -91,5 +92,12 @@ class ExtractCreditRequestFormTool extends Tool
             'file_url' => $file->url,
             'file_name' => $file->name,
         ];
+    }
+
+    private function parser(): CreditRequestFormParserInterface
+    {
+        return app()->bound(CreditRequestFormParserInterface::class)
+            ? app(CreditRequestFormParserInterface::class)
+            : new CreditRequestFormParserService();
     }
 }

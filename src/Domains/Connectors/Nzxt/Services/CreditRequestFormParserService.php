@@ -2,24 +2,24 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Scribe\Invoices\Services;
+namespace Kanvas\Connectors\Nzxt\Services;
 
+use Kanvas\Scribe\Invoices\Contracts\CreditRequestFormParserInterface;
 use Kanvas\Support\Excel\NullExcelImport;
 use Maatwebsite\Excel\Facades\Excel;
+use Override;
 use RuntimeException;
 
 // Parses NZXT's "Credit Request Form" (CNR) — a fixed-layout Excel template — by label/column position rather than AI extraction, since it's a known template, not a free-form scanned document.
-class CreditRequestFormParserService
+class CreditRequestFormParserService implements CreditRequestFormParserInterface
 {
-    /**
-     * @return array{customer_name: string, region: ?string, tenant: ?string, request_reference_no: string, lines: list<array{control_account_number: string, description: string, amount: float}>, total: float}
-     */
-    public static function parse(string $localFilePath): array
+    #[Override]
+    public function parse(string $localFilePath): array
     {
         $rows = (Excel::toArray(new NullExcelImport(), $localFilePath))[0] ?? [];
 
-        $customerName = self::findLabelValue($rows, 'Customer Name');
-        $requestReferenceNo = self::findLabelValue($rows, 'Request Reference No');
+        $customerName = $this->findLabelValue($rows, 'Customer Name');
+        $requestReferenceNo = $this->findLabelValue($rows, 'Request Reference No');
 
         if ($customerName === null || $requestReferenceNo === null) {
             throw new RuntimeException(
@@ -27,12 +27,12 @@ class CreditRequestFormParserService
             );
         }
 
-        $lines = self::parseLines($rows);
+        $lines = $this->parseLines($rows);
 
         return [
             'customer_name' => $customerName,
-            'region' => self::findLabelValue($rows, 'Region'),
-            'tenant' => self::findLabelValue($rows, 'Tenant'),
+            'region' => $this->findLabelValue($rows, 'Region'),
+            'tenant' => $this->findLabelValue($rows, 'Tenant'),
             'request_reference_no' => $requestReferenceNo,
             'lines' => $lines,
             'total' => round(array_sum(array_column($lines, 'amount')), 2),
@@ -40,7 +40,7 @@ class CreditRequestFormParserService
     }
 
     // A row can carry a second label/value pair further right (e.g. "Request Date:" beside "Customer Name:"), so every cell is checked, not just column A.
-    private static function findLabelValue(array $rows, string $label): ?string
+    private function findLabelValue(array $rows, string $label): ?string
     {
         $needle = mb_strtolower(rtrim($label, ": \t"));
 
@@ -63,7 +63,7 @@ class CreditRequestFormParserService
     /**
      * @return list<array{control_account_number: string, description: string, amount: float}>
      */
-    private static function parseLines(array $rows): array
+    private function parseLines(array $rows): array
     {
         $headerRow = null;
         foreach ($rows as $index => $row) {
@@ -90,7 +90,7 @@ class CreditRequestFormParserService
                 break;
             }
 
-            $accountNumber = self::extractAccountNumber($controlAcct);
+            $accountNumber = $this->extractAccountNumber($controlAcct);
             if ($accountNumber === null) {
                 continue;
             }
@@ -109,7 +109,7 @@ class CreditRequestFormParserService
     }
 
     // The account number rides as a trailing "-41045"-style suffix on the label itself (e.g. "Promotion Discount -41045", "MDF-72300").
-    private static function extractAccountNumber(string $controlAcct): ?string
+    private function extractAccountNumber(string $controlAcct): ?string
     {
         return preg_match('/-\s*(\d{4,6})\s*$/', trim($controlAcct), $matches) === 1 ? $matches[1] : null;
     }

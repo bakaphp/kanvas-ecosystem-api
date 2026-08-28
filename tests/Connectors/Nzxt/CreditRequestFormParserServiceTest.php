@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Tests\Scribe\Invoices;
+namespace Tests\Connectors\Nzxt;
 
-use Kanvas\Scribe\Invoices\Services\CreditRequestFormParserService;
+use Kanvas\Connectors\Nzxt\Services\CreditRequestFormParserService;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use RuntimeException;
@@ -25,7 +25,7 @@ final class CreditRequestFormParserServiceTest extends TestCase
 
     public function test_parses_a_real_shaped_credit_request_form(): void
     {
-        $result = CreditRequestFormParserService::parse($this->writeSampleForm([
+        $result = new CreditRequestFormParserService()->parse($this->writeSampleForm([
             ['Promotion Discount -41045', 'SKU-1000', 'Test Product A', 6, 30],
             ['Promotion Discount -41045', 'SKU-2000', 'Test Product B', 107, 4],
         ]));
@@ -43,7 +43,7 @@ final class CreditRequestFormParserServiceTest extends TestCase
 
     public function test_extracts_the_account_number_from_varied_label_formats(): void
     {
-        $result = CreditRequestFormParserService::parse($this->writeSampleForm([
+        $result = new CreditRequestFormParserService()->parse($this->writeSampleForm([
             ['MDF-72300', 'SKU-1', 'Widget', 2, 10],
             ['Price Protection- 41052', 'SKU-2', 'Gadget', 1, 5],
         ]));
@@ -61,7 +61,7 @@ final class CreditRequestFormParserServiceTest extends TestCase
 
         $this->expectException(RuntimeException::class);
 
-        CreditRequestFormParserService::parse($this->tempPath);
+        new CreditRequestFormParserService()->parse($this->tempPath);
     }
 
     /**
