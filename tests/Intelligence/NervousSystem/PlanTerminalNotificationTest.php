@@ -14,6 +14,7 @@ use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfBlockedPlanJob;
 use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfCompletedPlanJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
+use Kanvas\Users\Models\Users;
 use ReflectionMethod;
 use Tests\TestCase;
 use Tests\Traits\MakesPlans;
@@ -161,15 +162,11 @@ class PlanTerminalNotificationTest extends TestCase
         Notification::fake();
 
         $plan = $this->makePlan(['status' => PlanStatusEnum::DONE->value]);
-        $plan->origin_users_id = static::$cachedUser->getId();
-        $plan->saveQuietly();
+        $asker = $this->humanAsker($plan);
 
         new NotifyPlanOwnerOfCompletedPlanJob($plan)->handle();
 
-        Notification::assertSentTo(
-            static::$cachedUser,
-            PlanProgressNotification::class,
-        );
+        Notification::assertSentTo($asker, PlanProgressNotification::class);
     }
 
     /** A plan from a cron or a workflow has no asker, and must not invent one. */
@@ -191,12 +188,15 @@ class PlanTerminalNotificationTest extends TestCase
         Notification::fake();
 
         $plan = $this->makePlan(['status' => PlanStatusEnum::DONE->value]);
-        $plan->origin_users_id = $plan->agent?->user?->getId();
+        $agentUser = $plan->agent?->user;
+        $plan->origin_users_id = $agentUser?->getId();
         $plan->saveQuietly();
 
         new NotifyPlanOwnerOfCompletedPlanJob($plan)->handle();
 
-        Notification::assertNotSentTo(static::$cachedUser, PlanProgressNotification::class);
+        // Asserted against the agent's OWN user — the subject of the guard — rather than whoever the
+        // suite happens to be authenticated as.
+        Notification::assertNotSentTo($agentUser, PlanProgressNotification::class);
     }
 
     /** Blocked has to reach the asker too — that is the one they must act on. */
@@ -205,12 +205,11 @@ class PlanTerminalNotificationTest extends TestCase
         Notification::fake();
 
         $plan = $this->makePlan(['status' => PlanStatusEnum::BLOCKED->value]);
-        $plan->origin_users_id = static::$cachedUser->getId();
-        $plan->saveQuietly();
+        $asker = $this->humanAsker($plan);
 
         new NotifyPlanOwnerOfBlockedPlanJob($plan)->handle();
 
-        Notification::assertSentTo(static::$cachedUser, PlanProgressNotification::class);
+        Notification::assertSentTo($asker, PlanProgressNotification::class);
     }
 
     /**
@@ -221,17 +220,12 @@ class PlanTerminalNotificationTest extends TestCase
     public function test_the_conversation_copy_is_addressed_to_the_asker_not_the_plan_owner(): void
     {
         $plan = $this->makePlan(['status' => PlanStatusEnum::DONE->value]);
-
-        // The real shape: an agent owns the plan, a human asked for it.
-        $plan->users_id = $plan->agent?->user?->getId();
-        $plan->origin_users_id = static::$cachedUser->getId();
-        $plan->saveQuietly();
-        $plan->refresh();
+        $expected = $this->humanAsker($plan);
 
         $job = new NotifyPlanOwnerOfCompletedPlanJob($plan);
 
         $asker = new ReflectionMethod($job, 'asker')->invoke($job, $plan);
-        $this->assertSame(static::$cachedUser->getId(), $asker?->getId());
+        $this->assertSame($expected->getId(), $asker?->getId());
         $this->assertNotSame($asker?->getId(), $plan->user?->getId(), 'Owner and asker must differ.');
 
         $mentionForAsker = new ReflectionMethod($job, 'mentionFor')->invoke($job, $plan, $asker);
@@ -297,6 +291,27 @@ class PlanTerminalNotificationTest extends TestCase
         $job = new NotifyPlanOwnerOfCompletedPlanJob($plan->refresh());
 
         $this->assertSame('', new ReflectionMethod($job, 'resultsDigest')->invoke($job, $plan));
+    }
+
+    /**
+     * A human asker distinct from the plan's owner.
+     *
+     * Created explicitly rather than reused from the suite's authenticated user: `AgentFactory` pins
+     * every agent to `user_id => 1`, and on CI the authenticated user IS user 1 — so "the agent's
+     * user" and "the person who asked" collapse into one, and the guard that skips notifying an
+     * agent about its own plan correctly fires on what was meant to be a human.
+     */
+    private function humanAsker(Plan $plan): Users
+    {
+        $asker = Users::factory()->create();
+
+        // The real shape: an agent owns the plan, a human asked for it.
+        $plan->users_id = $plan->agent?->user?->getId();
+        $plan->origin_users_id = $asker->getId();
+        $plan->saveQuietly();
+        $plan->refresh();
+
+        return $asker;
     }
 
     private function whyBlocked(Plan $plan): string
