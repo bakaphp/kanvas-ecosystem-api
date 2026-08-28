@@ -37,6 +37,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTas
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\CreateMessageTypeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ListMessageTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadChannelWindowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\BuildAdminLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyReceiverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyWorkflowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateEmailRouteTool;
@@ -396,6 +397,10 @@ class ProjectManagerAgent extends SystemUserAgent
         $core[] = new CapabilityLookupTool($agent);
         $core[] = new ListActiveIntegrationsTool()->withContext($app, $company, $user);
         $core[] = new ReportCapabilityGapTool($agent);
+
+        // Baseline for the same reason: a PM reports on records people then have to go find, and
+        // handing back "project 12" costs the reader a search that a link does not.
+        $core[] = new BuildAdminLinkTool()->withContext($app, $company, $user);
 
         $core[] = new HireAgentTool($agent)
             ->withContext($app, $company, $user)

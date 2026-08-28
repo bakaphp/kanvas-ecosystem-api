@@ -25,6 +25,8 @@ use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Kanvas\Activities\Contracts\ActivityLogInterface;
 use Kanvas\Activities\Models\Activity;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -89,6 +91,7 @@ use Spatie\Activitylog\Support\LogOptions;
 #[ObservedBy(ProductsObserver::class)]
 class Products extends BaseModel implements EntityIntegrationInterface, EntityImportFilesystemInterface, ActivityLogInterface
 {
+    use HasAdminLink;
     use UuidTrait;
     use SlugTrait;
     use LikableTrait;
@@ -125,6 +128,12 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public function getGraphTypeName(): string
     {
         return 'Product';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::PRODUCT;
     }
 
     #[Override]
