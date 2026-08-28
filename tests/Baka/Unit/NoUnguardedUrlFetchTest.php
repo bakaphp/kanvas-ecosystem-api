@@ -56,6 +56,9 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         'src/Domains/Connectors/Google/Actions/CreateGoogleCalendarMeetingAction.php',
         // CLI: reads a local golden-set JSON file from the --file option, gated by is_readable().
         'app/Console/Commands/Inventory/EvaluateProductDiscoveryCommand.php',
+        // Reads the local PHP source of a reflected tool class (ReflectionClass::getFileName()) to
+        // tokenise its description argument, gated by is_readable().
+        'src/Domains/Intelligence/Agents/Services/AgentToolDiscoveryService.php',
     ];
 
     public function testNoUnguardedRemoteUrlFetch(): void
