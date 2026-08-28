@@ -20,9 +20,9 @@ use Kanvas\NervousSystem\Capability\Models\Tool;
  * have it, the platform has it but you were not granted it, we own it and this tenant has not
  * configured it, nobody has built it.
  *
- * The third of those is the one that was previously indistinguishable from the fourth — "we have no
- * Odoo integration" and "we have one and nobody filled in the API key" look identical from inside a
- * toolset, and only one of them is a roadmap item.
+ * The third and fourth are the pair worth separating: "we have no Odoo integration" and "we have one
+ * and nobody filled in the API key" look identical from inside a toolset, and only one of them is a
+ * roadmap item.
  */
 class CapabilityLookupService
 {
@@ -105,8 +105,9 @@ class CapabilityLookupService
             return $this->emptyResult(
                 $topic,
                 "No Kanvas tool matches \"{$topic}\". Do NOT substitute a tool whose name merely sounds "
-                    . 'similar — that is how the wrong record gets changed. Tell the user this is not something '
-                    . 'the platform can do yet, and say what you searched for.',
+                    . 'similar — that is how the wrong record gets changed. Before calling it impossible, run '
+                    . 'list_active_integrations: this search covers TOOLS, and the capability may live in a '
+                    . 'connected service instead. Then tell the user what you searched for.',
             );
         }
 

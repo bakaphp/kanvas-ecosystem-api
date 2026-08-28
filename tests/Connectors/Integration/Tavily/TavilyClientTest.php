@@ -22,6 +22,11 @@ final class TavilyClientTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('Tavily integration tests are skipped in CI');
+        }
+
         $this->kanvasApp = app(Apps::class);
     }
 

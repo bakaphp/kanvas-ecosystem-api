@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\CapabilityLookupTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ListActiveIntegrationsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ReportCapabilityGapTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
@@ -393,6 +394,7 @@ class ProjectManagerAgent extends SystemUserAgent
         // has to be granted them is an agent that reaches for the near-match on the day nobody
         // remembered to.
         $core[] = new CapabilityLookupTool($agent);
+        $core[] = new ListActiveIntegrationsTool()->withContext($app, $company, $user);
         $core[] = new ReportCapabilityGapTool($agent);
 
         $core[] = new HireAgentTool($agent)
