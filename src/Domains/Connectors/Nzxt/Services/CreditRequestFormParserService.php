@@ -108,7 +108,7 @@ class CreditRequestFormParserService implements CreditRequestFormParserInterface
         return $lines;
     }
 
-    // The account number rides as a trailing "-41045"-style suffix on the label itself (e.g. "Promotion Discount -41045", "MDF-72300").
+    // The account number rides as a trailing "-99001"-style suffix on the label itself (e.g. "Promotion Discount -99001", "ABC-88002").
     private function extractAccountNumber(string $controlAcct): ?string
     {
         return preg_match('/-\s*(\d{4,6})\s*$/', trim($controlAcct), $matches) === 1 ? $matches[1] : null;
