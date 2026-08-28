@@ -934,6 +934,12 @@ class Order extends BaseModel implements PayableInterface
             ->first();
     }
 
+    // the -company-app suffix is what Activity::scopeForAppAndCompany matches on
+    public function getActivityLogName(): string
+    {
+        return 'order-' . $this->companies_id . '-' . $this->apps_id;
+    }
+
     public function calculateTotal(bool $autoSave = true): void
     {
         $total = OrderItem::query()->where(['order_id' => $this->id])
