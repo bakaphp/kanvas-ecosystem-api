@@ -14,6 +14,7 @@ use Kanvas\Connectors\Intellicheck\Jobs\AttachDriverLicenseImagesJob;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Services\DriverLicenseCombinedPdfService;
 use Kanvas\Connectors\SalesAssist\Services\DriverLicenseVerificationService;
+use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -69,16 +70,12 @@ final class AttachDriverLicenseImagesJobTest extends TestCase
             ->count();
 
         $this->assertSame(2, $dlFileCount, 'front + back attached exactly once');
-
-        $combinedCount = $message->files()
-            ->where('filesystem_entities.field_name', DriverLicenseCombinedPdfService::COMBINED_FIELD_NAME)
-            ->count();
-
-        $this->assertSame(1, $combinedCount, 'combined PDF generated exactly once');
     }
 
     public function testGeneratesCombinedPdfWithBothDriverLicenseSides(): void
     {
+        $this->skipWithoutPdfRenderer();
+
         $app = app(Apps::class);
         $lead = $this->makeLead();
         $this->setUpIdVerificationEngagement($lead);
@@ -97,6 +94,16 @@ final class AttachDriverLicenseImagesJobTest extends TestCase
         $this->assertSame('pdf', $combined->filesystem->file_type);
         $this->assertSame('green', $combined->filesystem->get('id_verification_status'));
         $this->assertSame(1, (int) $combined->filesystem->get('id_verify'));
+
+        // A retry re-runs the whole attach; the merged document must not pile up.
+        $people->set('driver_license_images', ['front' => $image, 'back' => $image]);
+        new AttachDriverLicenseImagesJob($app, $people, $message, 'green', 'passed')->handle();
+
+        $combinedCount = $message->files()
+            ->where('filesystem_entities.field_name', DriverLicenseCombinedPdfService::COMBINED_FIELD_NAME)
+            ->count();
+
+        $this->assertSame(1, $combinedCount, 'combined PDF generated exactly once');
     }
 
     public function testDoesNotGenerateCombinedPdfWhenNoSideIsAttached(): void
@@ -111,6 +118,18 @@ final class AttachDriverLicenseImagesJobTest extends TestCase
             new DriverLicenseCombinedPdfService($message)->attach(true, false, 'passed', 'green')
         );
         $this->assertNull($message->getFileByName(DriverLicenseCombinedPdfService::COMBINED_FIELD_NAME));
+    }
+
+    /**
+     * The PDF path shells out to wkhtmltopdf, which the GitHub Actions runner does not
+     * install — and DriverLicenseCombinedPdfService swallows the failure by design, so
+     * without this the assertions fail on a silent null instead of saying why.
+     */
+    private function skipWithoutPdfRenderer(): void
+    {
+        if (! is_executable(PdfService::BINARY_PATH)) {
+            $this->markTestSkipped('wkhtmltopdf is not installed at ' . PdfService::BINARY_PATH);
+        }
     }
 
     private function makeLead(): Lead

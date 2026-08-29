@@ -18,6 +18,8 @@ use Knp\Snappy\Pdf;
 
 class PdfService
 {
+    public const string BINARY_PATH = '/usr/local/bin/wkhtmltopdf';
+
     public static function htmlToPdf(
         AppInterface $app,
         UserInterface $user,
@@ -41,7 +43,7 @@ class PdfService
 
         $tempFilePath = $tempDir . '/' . $fileName;
 
-        $snappy = new Pdf('/usr/local/bin/wkhtmltopdf', $options);
+        $snappy = new Pdf(self::BINARY_PATH, $options);
 
         $snappy->setOption('encoding', 'UTF-8');
         $snappy->setOption('no-outline', true);
