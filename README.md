@@ -78,6 +78,22 @@ to:
 "I've already done it."
 ```
 
+## Inside the Nervous System (`src/Domains/NervousSystem`)
+
+The "nervous system" isn't only a metaphor — it's a real, first-class domain in this codebase (`src/Domains/NervousSystem/`) that gives every agent and human working in Kanvas a shared place to plan, act, and remember. It's split into cooperating sub-domains:
+
+- **Project** – a `Workspace` groups related `Project`s, each with an owner, an optional PM/oversight agent, members, and bound channels. Projects support parent/child nesting, external webhook ingestion (`IngestToProjectAction`) so signals like transcripts, emails, and tickets can land inside a project, and a heartbeat (`ProjectHeartbeatCommand`) that proactively pings projects that have gone quiet.
+- **Plan** – a `Plan` is the unit of work an agent (or human) commits to; it tracks status, priority, deadlines, approval requirements, and budget, and links back to the project/entity it serves. Plans break down into `Task`s dispatched to worker agents and reconciled through `UpdateTaskStatusAction`, with stalled-task detection (`DetectStalledTasksAction`), continuation logic, and two-way Kanban sync (Hermes) built in.
+- **Ledger** – an append-only event log (`Event` / `LedgerEventDispatcher`) that any domain can emit into via the `EmitsNervousSystemEvents` trait. Events are categorized (`SIGNAL`, `UNDERSTAND`, `DECIDE`, `ACT`, `WARNING`), broadcast in real time, and archived to S3 after a configurable retention window (see `config/nervous-system.php`) — except a durable allow-list (e.g. `agent.knowledge.saved`) that must survive indefinitely for agent long-term memory.
+- **Capability** – the registry of `Tool`s and `Skill`s an `AgentType` can be granted, with per-agent overrides, tool categories, drift detection (`CheckAgentToolDriftCommand`), and Kanvas-module reconciliation so agents only see tools that match what's actually enabled for the tenant.
+- **Orchestrator** – turns raw inbound signals (Plain transcripts, WebVTT, Read.ai, etc.) into routed, classified work: `ClassifySignalToProjectAction` + `MatchSignalToProjectsAction` decide which project a signal belongs to, escalating to a human-approval path when confidence is low.
+- **Scheduling** – `ScheduledAction`s let agents (or users) queue one-off or recurring future actions (reminders, follow-up tasks) that a minute-by-minute sweeper (`SweepScheduledActionsCommand`) claims and fires per-channel.
+- **Dashboard & Pulse** – daily-rolled-up, cached metrics (`workforce_leverage`, `accomplishments_count`, `mistakes_caught_count`, `signals_count`, `actions_executed`, `system_confidence_pct`, …) exposed over GraphQL (`nervousSystemDashboardMetrics`, `nervousSystemPulseMetrics`) so operators can see what the nervous system is doing without reading raw ledger rows.
+- **DailyLearning** – a nightly pipeline (`RecordAgentDailyCyclesCommand` → `SummarizeAgentDailyLearningCommand` → `SendDailyLearningDigestCommand`) that turns each agent's prior-day ledger activity into a human-readable digest email.
+- **Claims** – short-lived, exclusive `EntityClaim` locks so two agents don't clobber the same record concurrently.
+
+All of it is exposed through GraphQL under `graphql/schemas/NervousSystem/` (workspaces, projects, plans, tasks, capabilities, scheduled actions, dashboard/pulse metrics, ledger events) and automated via a dedicated scheduler, `App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule`, that staggers ledger archiving, heartbeats, capability expiry, metric rollups, and the daily-learning pipeline across the day.
+
 ## Core Domains
 
 Kanvas is composed of operational building blocks:
@@ -89,6 +105,7 @@ Kanvas is composed of operational building blocks:
 - **Commerce** – orders, fulfillment, operational logic  
 - **Social** – messaging, feeds, interactions  
 - **Agents** – execution, orchestration, operational memory  
+- **Nervous System** – projects, plans, ledger, capabilities, orchestration, scheduling, and metrics (see above)  
 
 You don’t install disconnected features.  
 You assemble an **operational nervous system** for your business.
