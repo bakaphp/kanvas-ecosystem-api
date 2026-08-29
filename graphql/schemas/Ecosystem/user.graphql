@@ -92,7 +92,7 @@ type UserLinkSource {
 
 type RegisterResponse {
     user: User!
-    token: TokenResponse!
+    token: TokenResponse
 }
 
 type UserSocialInfo {
