@@ -17,6 +17,16 @@ final class SignupProtectionSettingsService
     public const DEFAULT_PREFIX_WINDOW_SECONDS = 600;
     public const DEFAULT_MAILBOX_LIMIT = 3;
     public const DEFAULT_MAILBOX_WINDOW_SECONDS = 86400;
+
+    /**
+     * Off until an app opts in. Unlike a prefix or a mailbox, a shared domain is
+     * the normal case — a consumer app takes hundreds of legitimate `gmail.com`
+     * signups a day — so any limit shipped as a default would lock out real
+     * users on the apps already in production. The number has to be picked
+     * against an app's own traffic.
+     */
+    public const DEFAULT_DOMAIN_LIMIT = 0;
+    public const DEFAULT_DOMAIN_WINDOW_SECONDS = 86400;
     public const DEFAULT_ANOMALY_MULTIPLIER = 5;
     public const DEFAULT_ANOMALY_FLOOR = 20;
     public const DEFAULT_ANOMALY_BASELINE_DAYS = 7;
@@ -64,6 +74,16 @@ final class SignupProtectionSettingsService
     public function mailboxWindowSeconds(): int
     {
         return $this->int(AppSettingsEnums::SIGNUP_MAILBOX_WINDOW, self::DEFAULT_MAILBOX_WINDOW_SECONDS, self::MIN_WINDOW_SECONDS);
+    }
+
+    public function domainLimit(): int
+    {
+        return $this->int(AppSettingsEnums::SIGNUP_DOMAIN_LIMIT, self::DEFAULT_DOMAIN_LIMIT);
+    }
+
+    public function domainWindowSeconds(): int
+    {
+        return $this->int(AppSettingsEnums::SIGNUP_DOMAIN_WINDOW, self::DEFAULT_DOMAIN_WINDOW_SECONDS, self::MIN_WINDOW_SECONDS);
     }
 
     public function anomalyMultiplier(): int

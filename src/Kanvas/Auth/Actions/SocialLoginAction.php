@@ -6,15 +6,18 @@ namespace Kanvas\Auth\Actions;
 
 use Baka\Support\Random;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\AuthenticationService;
+use Kanvas\Auth\Services\EmailVerification;
 use Kanvas\Auth\Socialite\DataTransferObject\User as SocialiteUser;
 use Kanvas\Users\Models\Sources;
 use Kanvas\Users\Models\UserLinkedSources;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
+use Throwable;
 
 class SocialLoginAction
 {
@@ -63,9 +66,32 @@ class SocialLoginAction
                 'source_username' => $this->socialUser->nickname ?? $this->socialUser->name,
             ]);
 
+            $this->markEmailVerified($existedUser);
+
             return $existedUser;
         }
 
+        $this->markEmailVerified($userLinkedSource->user);
+
         return $userLinkedSource->user;
+    }
+
+    /**
+     * Also covers the accounts linked before verification existed, and promotes
+     * a password account that was never verified the first time its owner signs
+     * in with the provider that holds the same address.
+     */
+    private function markEmailVerified(Users $user): void
+    {
+        try {
+            new EmailVerification($this->app)->markVerified($user);
+        } catch (Throwable $e) {
+            Log::warning('auth.social_login_verification_flag_failed', [
+                'app_id' => $this->app->getId(),
+                'users_id' => $user->getId(),
+                'provider' => $this->provider,
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Baka\Unit;
 
+use Illuminate\Support\Carbon;
 use Kanvas\Auth\Services\RegistrationVelocityService;
 use Tests\Stubs\Auth\InMemorySettingsApp;
 use Tests\TestCase;
@@ -20,6 +21,13 @@ class RegistrationVelocityServiceTest extends TestCase
         parent::setUp();
 
         config(['cache.default' => 'array']);
+    }
+
+    protected function tearDown(): void
+    {
+        Carbon::setTestNow();
+
+        parent::tearDown();
     }
 
     /**
@@ -101,6 +109,79 @@ class RegistrationVelocityServiceTest extends TestCase
 
         for ($i = 0; $i < 20; $i++) {
             $this->assertNull($service->violation('dggie_sample' . $i . '@gmail.com'));
+        }
+    }
+
+    /**
+     * The `nooowayy@whothefuckru.com` campaign: one signup every ten minutes,
+     * which the old fixed window expired between rather than counted.
+     */
+    public function testASlowDripNoLongerOutlastsTheBurstWindow(): void
+    {
+        Carbon::setTestNow('2026-08-28 10:00:00');
+        $service = $this->service(['signup_prefix_burst_window' => 3600]);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->assertNull($service->violation('nooowayy' . $i . '@example.com'));
+            Carbon::setTestNow(Carbon::now()->addMinutes(10));
+        }
+
+        $this->assertSame('local_part_prefix_burst', $service->violation('nooowayyfinal@example.com'));
+    }
+
+    public function testTheDomainRuleStaysOffUntilAnAppOptsIn(): void
+    {
+        $service = $this->service([
+            'signup_prefix_burst_limit' => 0,
+            'signup_mailbox_limit' => 0,
+        ]);
+
+        for ($i = 0; $i < 20; $i++) {
+            $this->assertNull($service->violation('person' . $i . '@gmail.com'));
+        }
+    }
+
+    public function testTheDomainBurstFiresOnceAnAppSetsALimit(): void
+    {
+        $service = $this->service([
+            'signup_prefix_burst_limit' => 0,
+            'signup_mailbox_limit' => 0,
+            'signup_domain_limit' => 3,
+        ]);
+
+        foreach (['ana', 'beto', 'carla'] as $local) {
+            $this->assertNull($service->violation($local . '@throwaway.test'));
+        }
+
+        $this->assertSame('email_domain_burst', $service->violation('dario@throwaway.test'));
+    }
+
+    /**
+     * The shape the rule cannot see, kept here so nobody mistakes it for cover
+     * it does not give: one signup per domain across a provider's vanity
+     * catalog never concentrates on a domain, so every counter stays at 1.
+     */
+    public function testASignupPerDomainStaysUnderTheDomainRule(): void
+    {
+        $service = $this->service([
+            'signup_prefix_burst_limit' => 0,
+            'signup_mailbox_limit' => 0,
+            'signup_domain_limit' => 3,
+        ]);
+
+        $emails = [
+            'benjamin.03@gmx.fr',
+            'alexander-lucas422@alice.it',
+            'luke-2009@email.com',
+            'michael03@myself.com',
+            'jessica528@doctor.com',
+            'james95@analyst.com',
+            'ethan02.garcia@pm.me',
+            'reed839@seznam.cz',
+        ];
+
+        foreach ($emails as $email) {
+            $this->assertNull($service->violation($email), $email . ' slips past every velocity rule.');
         }
     }
 }
