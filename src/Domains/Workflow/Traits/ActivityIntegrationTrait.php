@@ -78,13 +78,15 @@ trait ActivityIntegrationTrait
         Model $entity,
         mixed $historyResponse = null,
         ?Throwable $exception = null,
-        ?Rule $rule = null
+        ?Rule $rule = null,
+        mixed $input = null
     ): ModelsEntityIntegrationHistory {
         $dto = new EntityIntegrationHistory(
             app: $app,
             integrationCompany: $integrationCompany,
             status: $status,
             entity: $entity,
+            input: $input,
             response: $historyResponse ?? null,
             exception: $exception,
             workflowId: $this->workflowId(),
@@ -98,6 +100,14 @@ trait ActivityIntegrationTrait
         )->execute();
 
         return $this->lastIntegrationHistory;
+    }
+
+    protected function buildIntegrationHistoryInput(Model $entity, array $params): array
+    {
+        return [
+            'entity' => $entity->toArray(),
+            'params' => $params,
+        ];
     }
 
     public function executeIntegration(
@@ -174,7 +184,8 @@ trait ActivityIntegrationTrait
             $entity,
             $response ?? null,
             $exception,
-            rule: $additionalParams['rule'] ?? null
+            rule: $additionalParams['rule'] ?? null,
+            input: $this->buildIntegrationHistoryInput($entity, $additionalParams)
         );
 
         if ($throwException && $exception) {
