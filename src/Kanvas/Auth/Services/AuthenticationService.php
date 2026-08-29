@@ -90,6 +90,8 @@ class AuthenticationService
             Password::rehash($loginInput->getPassword(), $authentically);
             $this->resetLoginTries($authentically);
 
+            $this->verifiedEmailValidation($authentically);
+
             $company = $user->getCurrentCompany();
             if (! $company->isActive()) {
                 $authMessage = $this->app->get(AppSettingsEnums::INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE->getValue()) ?? 'Company is not active, please contact support.';
@@ -113,6 +115,25 @@ class AuthenticationService
 
             throw new AuthenticationException('Invalid email or password.');
         }
+    }
+
+    /**
+     * Opt-in per app: the apps already in production onboarded their users
+     * without ever asking them to verify, so a default-on switch would lock out
+     * an entire user base overnight.
+     *
+     * @throws AuthenticationException
+     */
+    protected function verifiedEmailValidation(UsersAssociatedApps $authentically): void
+    {
+        if (! EmailVerification::isRequiredFor($this->app) || (bool) $authentically->is_verified) {
+            return;
+        }
+
+        throw new AuthenticationException(
+            $this->app->get(AppSettingsEnums::UNVERIFIED_ACCOUNT_ERROR_MESSAGE->getValue())
+                ?? 'Please verify your email address before logging in.'
+        );
     }
 
     /**
