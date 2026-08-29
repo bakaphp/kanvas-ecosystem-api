@@ -65,4 +65,7 @@ enum IntegrationsEnum: string
     case WORDPRESS = 'wordpress';
     case UNIVERSAL_SEGUROS = 'universal_seguros';
     case YUSEN = 'yusen';
+    case SLACK = 'slack';
+    case TRELLO = 'trello';
+    case JIRA = 'jira';
 }
