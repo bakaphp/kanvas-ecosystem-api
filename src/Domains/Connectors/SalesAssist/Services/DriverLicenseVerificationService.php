@@ -107,16 +107,21 @@ class DriverLicenseVerificationService
         bool $isIdValid,
         bool $isExpired = false
     ): void {
+        $verificationMessage = $this->getVerificationMessage($message, $isIdValid, $isExpired);
+        $status = $this->idVerificationReport !== null
+            ? ($this->idVerificationReport['status'] ?? 'unknown')
+            : null;
+
         if (isset($driverLicenseImages['back'])) {
             $backFile = $this->createFileFromBase64($driverLicenseImages['back'], 'drivers_license_back.jpg');
             $message->addFile($backFile, 'drivers_license_back');
 
             $backFile->set('id_verify', (int) $isIdValid);
             $backFile->set('id_expired', (int) $isExpired);
-            $backFile->set('id_verification_msg', $this->getVerificationMessage($message, $isIdValid, $isExpired));
+            $backFile->set('id_verification_msg', $verificationMessage);
 
-            if ($this->idVerificationReport !== null) {
-                $backFile->set('id_verification_status', $this->idVerificationReport['status'] ?? 'unknown');
+            if ($status !== null) {
+                $backFile->set('id_verification_status', $status);
             }
         }
 
@@ -126,12 +131,19 @@ class DriverLicenseVerificationService
 
             $frontFile->set('id_verify', (int) $isIdValid);
             $frontFile->set('id_expired', (int) $isExpired);
-            $frontFile->set('id_verification_msg', $this->getVerificationMessage($message, $isIdValid, $isExpired));
+            $frontFile->set('id_verification_msg', $verificationMessage);
 
-            if ($this->idVerificationReport !== null) {
-                $frontFile->set('id_verification_status', $this->idVerificationReport['status'] ?? 'unknown');
+            if ($status !== null) {
+                $frontFile->set('id_verification_status', $status);
             }
         }
+
+        new DriverLicenseCombinedPdfService($message)->attach(
+            $isIdValid,
+            $isExpired,
+            $verificationMessage,
+            $status,
+        );
     }
 
     public function createFileFromBase64(

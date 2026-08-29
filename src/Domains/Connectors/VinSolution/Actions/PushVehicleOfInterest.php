@@ -8,6 +8,7 @@ use Kanvas\Connectors\VinSolution\Dealers\Dealer;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Exceptions\VinSolutionException;
+use Kanvas\Connectors\VinSolution\Services\LeadUserService;
 use Kanvas\Connectors\VinSolution\Vehicles\Interest;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
@@ -24,7 +25,8 @@ class PushVehicleOfInterest
     {
         $vinCompany = Dealer::getById($this->lead->company->get(ConfigurationEnum::COMPANY->value), $this->lead->app);
 
-        $vinUserId = $this->lead->user->get(ConfigurationEnum::getUserKey($this->lead->company, $this->lead->user));
+        $vinUser = LeadUserService::resolve($this->lead);
+        $vinUserId = $vinUser?->get(ConfigurationEnum::getUserKey($this->lead->company, $vinUser));
 
         if (! $vinUserId) {
             throw new VinSolutionException(
@@ -32,11 +34,7 @@ class PushVehicleOfInterest
             );
         }
 
-        $user = Dealer::getUser(
-            $vinCompany,
-            $vinUserId,
-            $this->lead->app,
-        );
+        $user = Dealer::getUser($vinCompany, $vinUserId, $this->lead->app);
 
         $message = $this->message->getMessage();
         $products = $message['data']['products'];

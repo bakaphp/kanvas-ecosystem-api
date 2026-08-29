@@ -7,12 +7,12 @@ namespace Kanvas\Connectors\VinSolution\Actions;
 use Kanvas\Connectors\SalesAssist\Enums\PeopleCustomFieldEnum;
 use Kanvas\Connectors\VinSolution\ClientCredential;
 use Kanvas\Connectors\VinSolution\DataTransferObject\CreditApp;
-use Kanvas\Connectors\VinSolution\Dealers\Dealer;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Exceptions\VinSolutionException;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
 use Kanvas\Connectors\VinSolution\Services\ContactService;
+use Kanvas\Connectors\VinSolution\Services\LeadUserService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Social\Messages\Models\Message;
@@ -28,27 +28,15 @@ class PushCoBuyerAction
 
     public function execute(): ?People
     {
-        $vinCompany = Dealer::getById($this->lead->company->get(ConfigurationEnum::COMPANY->value), $this->lead->app);
+        $vinUser = LeadUserService::resolve($this->lead);
 
-        $vinUserId = $this->lead->user->get(ConfigurationEnum::getUserKey($this->lead->company, $this->lead->user));
-
-        if (! $vinUserId) {
-            throw new VinSolutionException(
-                'User not found in VinSolution',
-            );
+        if (empty($vinUser?->get(ConfigurationEnum::getUserKey($this->lead->company, $vinUser)))) {
+            throw new VinSolutionException('User not found in VinSolution');
         }
 
-        $vinCredential = ClientCredential::get(
-            $this->lead->company,
-            $this->lead->user,
-            $this->lead->app
-        );
-
-        $user = Dealer::getUser(
-            $vinCompany,
-            $vinUserId,
-            $this->app,
-        );
+        $vinCredential = ClientCredential::get($this->lead->company, $vinUser, $this->lead->app);
+        $vinCompany = $vinCredential->dealer;
+        $user = $vinCredential->user;
         $vinLead = Lead::getById(
             $vinCompany,
             $user,

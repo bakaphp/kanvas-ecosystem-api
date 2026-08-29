@@ -112,7 +112,7 @@ class SocialMessageToolsTest extends TestCase
         $this->assertSame($body, $message->message);
     }
 
-    public function testPlainTextContentKeepsTheContentWrapper(): void
+    public function testPlainTextContentIsStoredVerbatim(): void
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -125,10 +125,45 @@ class SocialMessageToolsTest extends TestCase
 
         $message = Message::findOrFail($result['message_id']);
 
-        $this->assertSame(['content' => 'Just a plain sentence'], $message->message);
+        $this->assertSame('Just a plain sentence', $message->message);
+        $this->assertSame('Just a plain sentence', $message->contentText());
     }
 
-    public function testJsonListContentKeepsTheContentWrapper(): void
+    /**
+     * The whole point of dropping the `content` wrapper: an agent told to write markdown saves
+     * markdown, and every construct survives the JSON column round-trip untouched.
+     */
+    public function testMarkdownContentSurvivesTheRoundTripUnwrapped(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $markdown = <<<'MD'
+            # Kanvas Ecosystem API v1.99.5
+
+            Ingesting the Slack company brain.
+
+            - Contextual product search
+            - `contentText()` returns this verbatim
+
+            ```json
+            {"not": "an envelope"}
+            ```
+            MD;
+
+        $result = new CreateMessageTool($app, $company, $user)->__invoke($markdown);
+
+        $this->assertSame('success', $result['status']);
+
+        $message = Message::findOrFail($result['message_id']);
+
+        $this->assertSame($markdown, $message->message);
+        $this->assertSame($markdown, $message->contentText());
+        $this->assertArrayNotHasKey('content', (array) $message->message);
+    }
+
+    public function testJsonListContentIsStoredVerbatim(): void
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -141,7 +176,9 @@ class SocialMessageToolsTest extends TestCase
 
         $message = Message::findOrFail($result['message_id']);
 
-        $this->assertSame(['content' => '["one", "two"]'], $message->message);
+        // The column cast decodes any valid JSON on read, so a list comes back as the list the
+        // agent wrote — not wrapped, and not a string.
+        $this->assertSame(['one', 'two'], $message->message);
     }
 
     public function testAttachesFilesFromUrlList(): void

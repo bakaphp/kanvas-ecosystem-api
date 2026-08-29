@@ -16,6 +16,7 @@ use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Intellicheck\Jobs\AttachDriverLicenseImagesJob;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Services\DriverLicenseCombinedPdfService;
 use Kanvas\Connectors\SalesAssist\Services\DriverLicenseVerificationService;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Services\FilesystemServices;
@@ -299,6 +300,13 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         $backDone = empty($images['back']) || $message->getFileByName('drivers_license_back') !== null;
 
         if ($frontDone && $backDone) {
+            new DriverLicenseCombinedPdfService($message)->attach(
+                $isIdValid,
+                $isExpired,
+                (string) ($reportData['message'] ?? ''),
+                (string) ($reportData['status'] ?? 'unknown'),
+            );
+
             $people->del('driver_license_images');
         }
     }
