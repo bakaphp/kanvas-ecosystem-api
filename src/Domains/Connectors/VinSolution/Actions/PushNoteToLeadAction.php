@@ -13,6 +13,7 @@ use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Exceptions\VinSolutionException;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
+use Kanvas\Connectors\VinSolution\Services\LeadUserService;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Social\Messages\Models\Message;
 use Throwable;
@@ -29,7 +30,8 @@ class PushNoteToLeadAction
     {
         $vinCompany = Dealer::getById($this->lead->company->get(ConfigurationEnum::COMPANY->value), $this->lead->app);
 
-        $vinUserId = $this->lead->user->get(ConfigurationEnum::getUserKey($this->lead->company, $this->lead->user));
+        $vinUser = LeadUserService::resolve($this->lead);
+        $vinUserId = $vinUser?->get(ConfigurationEnum::getUserKey($this->lead->company, $vinUser));
 
         if (! $vinUserId) {
             throw new VinSolutionException(

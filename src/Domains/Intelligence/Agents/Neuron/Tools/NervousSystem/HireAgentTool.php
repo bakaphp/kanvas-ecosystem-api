@@ -7,11 +7,12 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 use Kanvas\Intelligence\Agents\Actions\HireAgentAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\NervousSystem\Capability\Enums\AgentAbilityEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool as CapabilityTool;
+use Kanvas\NervousSystem\Capability\Services\ActiveIntegrationsService;
+use Kanvas\NervousSystem\Capability\Services\AgentTypeResolver;
 use Kanvas\NervousSystem\Capability\Services\ToolGrantResolver;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -50,7 +51,9 @@ class HireAgentTool extends Tool
                 . 'you get work done that YOUR OWN tools cannot do: you can grant the hire ANY tool in the '
                 . 'catalog, including ones you do not hold yourself, so a capability you lack is a reason to '
                 . 'hire rather than a reason to stop. Look the tools up with capability_lookup first and pass '
-                . 'their exact names. You must give it complete instructions describing its job. It gets its '
+                . 'their exact names, and pick the KIND of agent with agent_type — list_agent_types shows what '
+                . 'exists, including coding agents that work in a sandbox and open pull requests. You must give '
+                . 'it complete instructions describing its job. It gets its '
                 . 'own identity, so its work is attributed to it and not to you, and you can retune it later. '
                 . 'Check first whether an existing agent already does this job — assign the work to that one '
                 . 'instead of hiring a duplicate.',
@@ -94,6 +97,17 @@ class HireAgentTool extends Tool
                 required: false,
             ),
             new ToolProperty(
+                name: 'agent_type',
+                type: PropertyType::STRING,
+                description: 'Which kind of agent to build this on — call list_agent_types for the exact '
+                    . 'names and what each one is for. This decides what the hire can physically do: a '
+                    . 'conversational type reads and writes records, a coding type works in a sandbox and '
+                    . 'opens pull requests. Pick by the job. Some types need credentials set by a human '
+                    . 'after hiring — the result says which, and you must pass that on. Omit only for '
+                    . 'ordinary conversational work.',
+                required: false,
+            ),
+            new ToolProperty(
                 name: 'soul',
                 type: PropertyType::STRING,
                 description: 'Optional persona — who it is and how it carries itself.',
@@ -110,6 +124,7 @@ class HireAgentTool extends Tool
         string $role,
         string $instructions,
         ?string $tools = null,
+        ?string $agent_type = null,
         ?string $soul = null,
     ): array {
         // The shared guard answers in create/update shape; this tool's callers read `hired`, and a
@@ -142,10 +157,33 @@ class HireAgentTool extends Tool
             ));
         }
 
-        $agentType = $this->genericAgentType();
+        $types = new AgentTypeResolver($this->app);
+        $requestedType = trim((string) $agent_type);
+        $agentType = $requestedType !== ''
+            ? $types->resolve($requestedType)
+            : $types->default();
 
         if ($agentType === null) {
-            return $this->error('No generic agent type is available to build on. Tell the admin.');
+            return $this->error(
+                $requestedType !== ''
+                    ? sprintf(
+                        'There is no agent type called "%s". Call list_agent_types and use one of: %s.',
+                        $requestedType,
+                        implode(', ', $types->names())
+                    )
+                    : 'No agent type is available to build on. Tell the admin.',
+            );
+        }
+
+        $unavailable = $types->unavailableFor(new ActiveIntegrationsService($this->company)->names());
+
+        if (in_array($agentType->name, $unavailable, true)) {
+            return $this->error(sprintf(
+                'Nothing was hired. "%s" runs on an integration this company has not connected, so the '
+                . 'hire would exist and never be able to run. Ask an admin to connect it, or hire a '
+                . 'different type — call list_agent_types to see which ones are available here.',
+                $agentType->name
+            ));
         }
 
         // Resolved against the runtime the hire will actually run on, so a tool that exists only for
@@ -178,27 +216,24 @@ class HireAgentTool extends Tool
             return $this->error($e->getMessage());
         }
 
+        $requires = $types->requirementsOf($agentType);
+
         return [
             'hired' => true,
             'agent_id' => $hired->getId(),
             'name' => $hired->name,
+            'agent_type' => $agentType->name,
             'tools' => array_map(fn (CapabilityTool $tool): string => $tool->name, $grants['tools']),
+            'needs_from_an_admin' => $requires,
             'message' => 'Hired, with its own identity so its work is attributed to it rather than to you. '
                 . 'It does nothing until something reaches it — assign it a task, or point a workflow at it '
-                . 'with its agent_id.',
+                . 'with its agent_id.'
+                . ($requires === []
+                    ? ''
+                    : ' IT IS NOT READY YET: this type needs things only a human can set, listed in '
+                        . 'needs_from_an_admin. Tell the person who asked, name them exactly, and do not '
+                        . 'assign it work that depends on them until an admin confirms they are set.'),
         ];
-    }
-
-    /**
-     * Hires are built on the generic handler so their behaviour is their instructions — a coded agent
-     * type would need a deploy per job.
-     */
-    private function genericAgentType(): ?AgentType
-    {
-        return AgentType::query()
-            ->where('name', 'Generic Neuron Agent')
-            ->first()
-            ?? $this->hiringAgent->type;
     }
 
     /**

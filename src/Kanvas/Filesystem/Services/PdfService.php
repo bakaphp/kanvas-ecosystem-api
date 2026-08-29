@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\PdfGenerator;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
+use InvalidArgumentException;
 use Kanvas\Filesystem\Models\Filesystem as ModelsFilesystem;
 use Kanvas\Templates\Actions\RenderTemplateAction;
+use Kanvas\Users\Models\Users;
 use Knp\Snappy\Pdf;
 
 class PdfService
@@ -96,6 +99,74 @@ class PdfService
             app: $app,
             user: $user,
             html: $renderTemplateHtml,
+            options: $options
+        );
+    }
+
+    /**
+     * One image per page, in the order given.
+     *
+     * @param array<int, array{url: string, caption?: string}> $images
+     */
+    public static function imagesToPdf(
+        AppInterface $app,
+        Users $user,
+        array $images,
+        ?CompanyInterface $company = null,
+        ?string $fileName = null,
+        array $options = []
+    ): ModelsFilesystem {
+        $pages = '';
+
+        foreach ($images as $image) {
+            $url = (string) ($image['url'] ?? '');
+
+            if ($url === '') {
+                continue;
+            }
+
+            $caption = (string) ($image['caption'] ?? '');
+            $pages .= '<div class="page">'
+                . '<img src="' . htmlspecialchars($url, ENT_QUOTES) . '" alt="' . htmlspecialchars($caption, ENT_QUOTES) . '">'
+                . ($caption !== '' ? '<p class="caption">' . htmlspecialchars($caption, ENT_QUOTES) . '</p>' : '')
+                . '</div>';
+        }
+
+        if ($pages === '') {
+            throw new InvalidArgumentException('No images given to render into a PDF');
+        }
+
+        // page-break-before on every sibling but the first: page-break-after on the
+        // last element makes wkhtmltopdf emit a trailing blank page.
+        $html = '<!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                @page { margin: 0; }
+                body { margin: 0; font-family: Arial, sans-serif; }
+                .page { box-sizing: border-box; padding: 20px; text-align: center; }
+                .page + .page { page-break-before: always; }
+                .page img { max-width: 100%; max-height: 950px; height: auto; }
+                .caption { font-size: 14px; color: #666; margin-top: 10px; }
+            </style>
+        </head>
+        <body>' . $pages . '</body>
+        </html>';
+
+        // wkhtmltopdf cannot decode HEIC/HEIF/TIFF/etc — convert any such source first.
+        $html = ImageConversionService::convertHtmlImagesToViewable(
+            $html,
+            $app,
+            user: $user,
+            company: $company,
+        );
+
+        return self::htmlToPdf(
+            app: $app,
+            user: $user,
+            html: $html,
+            fileName: $fileName,
             options: $options
         );
     }
