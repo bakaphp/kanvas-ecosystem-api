@@ -54,6 +54,7 @@ abstract class BaseOrderCorrectionAction
         array $evidenceUrls = []
     ): void {
         activity()
+            ->useLog($this->order->getActivityLogName())
             ->causedBy($this->user)
             ->performedOn($this->order)
             ->withProperties([

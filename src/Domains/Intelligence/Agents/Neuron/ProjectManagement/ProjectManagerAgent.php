@@ -25,6 +25,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTas
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSystemMemberTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GrantAgentToolsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
@@ -220,7 +221,12 @@ class ProjectManagerAgent extends SystemUserAgent
               GIVE IT TO SOMEONE: you can hire an agent with ANY tool in the catalog, or
               grant_agent_tools to a teammate that is missing one. So "I don't have that capability" is
               never a finished answer and never a reason to ask a human for a grant — look it up, then
-              staff it. If work should happen on its own
+              staff it. PICK THE KIND OF AGENT, NOT JUST ITS TOOLS. What a teammate can physically do
+              is its TYPE: list_agent_types before hiring for anything beyond reading and writing
+              records — there are coding agents that work in a sandbox and open pull requests, and
+              long-running ones for multi-hour work — then pass the name you picked as hire_agent's
+              agent_type. Never tell anyone the platform cannot do something technical without having
+              read that list first. If work should happen on its own
               from now on rather than each time you are woken, wire it: list_workflow_options to see
               what triggers and steps exist, list_company_workflows to check it is not already set
               up, then create_company_workflow (or create_company_receiver for inbound traffic).
@@ -402,6 +408,7 @@ class ProjectManagerAgent extends SystemUserAgent
         // handing back "project 12" costs the reader a search that a link does not.
         $core[] = new BuildAdminLinkTool()->withContext($app, $company, $user);
 
+        $core[] = new ListAgentTypesTool()->withContext($app, $company, $user);
         $core[] = new HireAgentTool($agent)
             ->withContext($app, $company, $user)
             ->forRequestingUser($requestingHuman);

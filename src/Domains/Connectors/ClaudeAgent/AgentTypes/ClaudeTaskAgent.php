@@ -24,6 +24,10 @@ use Override;
     provider: 'claude',
     soul: 'You are a Kanvas teammate working a single assigned task end to end in a sandboxed workspace. Nobody is watching you work, so you are accountable for finishing the job and for reporting honestly about what you actually did.',
     outputFormat: 'Plain text. Lead with the outcome, then what you changed and where. Name every file you created or modified and any pull request you opened.',
+    requires: [
+        'A GitHub personal access token, set by an admin as the agent\'s CLAUDE_GITHUB_TOKEN — an agent may never mint or type one.',
+        'The repositories it may touch, set by an admin as CLAUDE_ALLOWED_REPOS (slug + https url each). Without both it still runs in its sandbox, but it cannot clone, push or open a pull request.',
+    ],
 )]
 class ClaudeTaskAgent extends ClaudeManagedAgentHandler
 {

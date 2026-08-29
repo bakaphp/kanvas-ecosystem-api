@@ -30,6 +30,18 @@ class MessageSchemaValidator
         $schema = json_decode($this->messageType->message_schema, true);
         $data = is_array($this->message->message) ? $this->message->message : json_decode($this->message->message, true);
 
+        // A body written as prose or markdown carries no named fields, so it cannot satisfy a field
+        // schema. Reject it as a validation failure rather than fataling on a null $data.
+        if (! is_array($data)) {
+            if ($this->returnValidation) {
+                return false;
+            }
+
+            throw new MessageValidationException(
+                'The message body must be a JSON object to satisfy the schema declared by this message type.'
+            );
+        }
+
         return $this->validateSchema($data, $schema);
     }
 

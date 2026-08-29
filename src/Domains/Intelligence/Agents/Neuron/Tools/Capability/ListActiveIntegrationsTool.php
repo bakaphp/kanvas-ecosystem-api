@@ -6,7 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Capability;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
+use Kanvas\NervousSystem\Capability\Services\ActiveIntegrationsService;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -63,23 +63,7 @@ class ListActiveIntegrationsTool extends Tool implements HasRunKey
             ];
         }
 
-        // Company alone: `integration_companies` has no apps_id, and the integrations it points at
-        // are global (apps_id = 0). The company IS the tenant boundary here.
-        $active = IntegrationsCompany::query()
-            ->fromCompany($this->company)
-            ->where('is_deleted', 0)
-            ->where('is_active', 1)
-            ->with(['integration', 'status'])
-            ->get();
-
-        $integrations = $active
-            ->filter(fn (IntegrationsCompany $row): bool => $row->integration !== null)
-            ->map(fn (IntegrationsCompany $row): array => [
-                'name' => $row->integration->name,
-                'status' => $row->status->name ?? 'unknown',
-            ])
-            ->values()
-            ->all();
+        $integrations = new ActiveIntegrationsService($this->company)->describe();
 
         return [
             'count' => count($integrations),
