@@ -43,7 +43,8 @@ ansible/inventory.gcp.yaml
 .planning
 compose.local.yml
 .ai-workflow-template/
-docs/
+docs/*
+!docs/tetsuo_console_exploration.md
 .claude/skills/Intelligence/
 app/Console/Commands/Inventory/SeedVehicleProductsCommand.php
 app/Console/Commands/local/
