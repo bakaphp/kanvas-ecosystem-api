@@ -78,6 +78,23 @@ to:
 "I've already done it."
 ```
 
+## Inside the Nervous System Domain (`src/Domains/NervousSystem`)
+
+The nervous-system metaphor isn't just marketing — it's a real, first-class domain in this codebase (`src/Domains/NervousSystem/`) that gives every agent and human working in Kanvas a shared place to plan, act, and remember. It's organized into cooperating sub-domains:
+
+- **Project** – a `Workspace` groups related `Project`s (owner, optional PM/oversight agent, members, bound channels). Projects support parent/child nesting, external webhook ingestion (`ProjectIngest`) so signals like transcripts, emails, and tickets land inside a project, and a heartbeat (`ProjectHeartbeatCommand`, every 5 minutes) that proactively pings a project once it's been quiet past its own `heartbeat_interval_minutes`.
+- **Plan** – a `Plan` is the unit of work an agent (or human) commits to: status, priority, deadlines, approval requirements, budget, and a link back to the project/entity it serves. Plans break down into `Task`s dispatched to worker agents and reconciled through status-update actions, with stalled-task detection (`DetectStalledPlanTasksCommand`), inactive-plan nudges (`NudgeInactivePlansCommand`), stale-intake sweeping (`SweepStaleIntakeCommand`), and two-way Kanban sync with Hermes (`SyncKanbanDeploymentsCommand`).
+- **Ledger** – an append-only event log (`Event` / `EventArchive`) that any domain can emit into. Events are categorized (`SIGNAL`, `UNDERSTAND`, `DECIDE`, `ACT`, `WARNING`), broadcast in real time, and archived to S3 by `ArchiveOldLedgerEventsCommand` after a configurable retention window (`config/nervous-system.php`, 7 days by default) — except a durable allow-list (e.g. `agent.knowledge.saved`, `people.enriched`) that must survive indefinitely to back agent long-term memory and product feeds. Archived events can be restored on demand via `RestoreLedgerEventsFromArchiveCommand`.
+- **Capability** – the registry of `Tool`s and `Skill`s an agent type can be granted (`AgentTool`, `AgentSkill`, `ToolCategory`), with per-agent overrides, scheduled expiry (`ExpireCapabilitiesCommand`), and drift/reconciliation checks (`CheckAgentToolDriftCommand`, `SyncAgentToolsCommand`, `SyncToolKanvasModulesCommand`) so agents only see tools that match what's actually enabled for the tenant.
+- **Orchestrator** – turns raw inbound signals (Plain transcripts, WebVTT, Read.ai, etc.) into routed, classified work: signal-matching and classification actions decide which project a signal belongs to, escalating to a human-approval path when confidence is low.
+- **Scheduling** – `ScheduledAction`s let agents (or users) queue one-off or recurring future actions (reminders, follow-up tasks) that a per-minute sweeper (`SweepScheduledActionsCommand`) claims and fires per channel.
+- **Dashboard & Pulse** – daily-rolled-up, cached metrics (`workforce_leverage`, `accomplishments_count`, `mistakes_caught_count`, `signals_count`, `actions_executed`, `system_confidence_pct`, ...) exposed over GraphQL (`nervousSystemDashboardMetrics`, `nervousSystemPulseMetrics`) so operators can see what the nervous system is doing without reading raw ledger rows.
+- **DailyLearning** – a nightly pipeline (`RecordAgentDailyCyclesCommand` → `SummarizeAgentDailyLearningCommand` → `SendDailyLearningDigestCommand`) that turns each agent's prior-day ledger activity into a human-readable digest email.
+- **Claims** – short-lived, exclusive `EntityClaim` locks so two agents don't clobber the same record concurrently.
+- **Agent runtime health** – hourly/every-10-minute checks (`CheckAgentRuntimeHealthCommand`, `RefreshAgentLiveCountersCommand`, `FlagDeadAgentDeploymentsCommand`) keep the fleet of deployed agents observable and self-healing.
+
+All of it is exposed through GraphQL under `graphql/schemas/NervousSystem/` (workspaces, projects, plans, capabilities, scheduled actions, dashboard/pulse metrics) and automated via a dedicated scheduler, `App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule`, that staggers ledger archiving, heartbeats, capability expiry, metric rollups, and the daily-learning pipeline across the day (see the timing map in that class for the exact cadence).
+
 ## Core Domains
 
 Kanvas is composed of operational building blocks:
@@ -89,6 +106,7 @@ Kanvas is composed of operational building blocks:
 - **Commerce** – orders, fulfillment, operational logic  
 - **Social** – messaging, feeds, interactions  
 - **Agents** – execution, orchestration, operational memory  
+- **Nervous System** – projects, plans, ledger, capabilities, orchestration, scheduling, dashboard/pulse metrics, and daily learning (see above)  
 
 You don’t install disconnected features.  
 You assemble an **operational nervous system** for your business.
