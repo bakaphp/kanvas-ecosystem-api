@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Intelligence;
 
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
+use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsReceivableAgent;
@@ -19,7 +22,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
+use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
+use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum as InvoicesConfigurationEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -473,6 +478,56 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $line = $creditNote->lines->first();
         $this->assertSame($controlAccount->getId(), $line->account_id);
+    }
+
+    public function test_create_ar_credit_memo_notifies_the_configured_default_email(): void
+    {
+        $originalNotificationEmail = $this->kanvasApp->get(InvoicesConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value);
+        $originalNotifierAgentId = $this->kanvasApp->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value);
+
+        try {
+            $notifierAgent = Agent::factory()
+                ->withAppId($this->kanvasApp->getId())
+                ->withCompanyId($this->company->getId())
+                ->create(['name' => 'Apex', 'user_id' => static::$cachedUser->getId()]);
+            $notifierAgent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test-token');
+
+            $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, (string) $notifierAgent->getId());
+            $this->kanvasApp->set(InvoicesConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value, 'notify@example.test');
+
+            Http::fake([
+                'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
+                'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
+                'slack.com/api/chat.postMessage' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
+            ]);
+
+            $customer = $this->seedTestOrganization('Notification Test Customer');
+            $controlAccount = Account::query()
+                ->where('apps_id', $this->kanvasApp->getId())
+                ->where('companies_id', $this->company->getId())
+                ->where('account_sub_type', AccountSubTypeEnum::TRAVEL_AND_MEALS->value)
+                ->firstOrFail();
+
+            $result = new CreateArCreditMemoTool()
+                ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+                ->__invoke(
+                    customer_name: 'Notification Test Customer',
+                    invoice_number: 'Notification Test Reference',
+                    lines: [
+                        ['control_account_number' => $controlAccount->account_number, 'amount' => 75.0],
+                    ],
+                );
+
+            $this->assertTrue($result['created']);
+            Http::assertSent(
+                fn (Request $request): bool => str_contains($request->url(), 'chat.postMessage')
+                    && str_contains((string) $request['text'], 'Notification Test Customer')
+                    && str_contains((string) $request['text'], (string) $result['credit_memo_id'])
+            );
+        } finally {
+            $this->kanvasApp->set(InvoicesConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value, $originalNotificationEmail);
+            $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
+        }
     }
 
     public function test_add_invoice_note_reports_not_found_for_unknown_invoice(): void

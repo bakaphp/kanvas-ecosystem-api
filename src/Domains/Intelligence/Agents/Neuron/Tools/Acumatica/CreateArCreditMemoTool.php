@@ -14,10 +14,12 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
+use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\ObjectProperty;
@@ -222,6 +224,12 @@ class CreateArCreditMemoTool extends Tool
         try {
             $reference = new PushInvoiceToAcumaticaAction($creditNote)->execute();
         } catch (AcumaticaWriteException|Throwable $e) {
+            $this->notifyCreditMemoOutcome(
+                $app,
+                "AR credit memo pushed to Acumatica FAILED:\nCustomer: {$customerDisplayName}\nReference: "
+                    . "{$invoice_number}\nKanvas credit_memo_id: {$creditNote->getId()}\nError: " . $e->getMessage(),
+            );
+
             return [
                 'created' => true,
                 'pushed' => false,
@@ -234,6 +242,13 @@ class CreateArCreditMemoTool extends Tool
                     . $e->getMessage() . '. It needs manual attention — it will not auto-retry.',
             ];
         }
+
+        $this->notifyCreditMemoOutcome(
+            $app,
+            "AR credit memo pushed to Acumatica:\nCustomer: {$customerDisplayName}\nAmount: {$currency} "
+                . number_format((float) $creditNote->total_native, 2) . "\nReference: {$invoice_number}\nKanvas "
+                . "credit_memo_id: {$creditNote->getId()}\nAcumatica ref: {$reference}",
+        );
 
         return [
             'created' => true,
@@ -251,6 +266,18 @@ class CreateArCreditMemoTool extends Tool
                 . 'timestamp yourself. Use add_invoice_note / attach_invoice_file if you need to attach the '
                 . 'request form or manager approval.',
         ];
+    }
+
+    // Until per-customer notification routing is decided, everything goes to one fixed default address (CREDIT_MEMO_NOTIFICATION_EMAIL) — silently skipped when unset.
+    private function notifyCreditMemoOutcome(Apps $app, string $text): void
+    {
+        $email = trim((string) $app->get(ConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value, ''));
+
+        if ($email === '') {
+            return;
+        }
+
+        new NotifyApproverAction(app: $app, text: $text, approverEmail: $email)->execute();
     }
 
     private function resolveAccount(string $accountNumber, Apps $app, Companies $company): ?Account
