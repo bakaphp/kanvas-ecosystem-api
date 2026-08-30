@@ -21,8 +21,11 @@ use Throwable;
 
 /**
  * Test-only import: pulls Location__c (+ its primary Location_Contact__c) from Salesforce into
- * Kanvas Products, using GAGroup's field names hardcoded. This is the fixture for validating the
- * Product+Attributes mapping before building the real per-tenant field mapper.
+ * Kanvas Products, using GAGroup's field names hardcoded (`PullPropertyAction::mapAttributes()`).
+ * Deliberately unfiltered — imports every Location__c regardless of Deal_Status__c/
+ * Marketing_Status__c, saving both as attributes; the website's "which properties are listed"
+ * question is answered downstream with Kanvas's own product/attribute filtering
+ * (`hasAttributeValues`/`variantAttributeValue`), not by narrowing the SOQL at import time.
  *
  * The per-record upsert runs inside a queued closure (not a dedicated Job class) so this
  * GAGroup-only fixture doesn't grow a permanent class in the shared Salesforce connector — the
