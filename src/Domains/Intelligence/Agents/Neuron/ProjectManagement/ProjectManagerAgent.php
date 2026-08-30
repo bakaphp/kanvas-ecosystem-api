@@ -14,15 +14,18 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ListActiveIntegrationsToo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ReportCapabilityGapTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ApproveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CommentOnNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSystemMemberTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GrantAgentToolsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentTypesTool;
@@ -137,6 +140,33 @@ class ProjectManagerAgent extends SystemUserAgent
             - A routine status update needs NO @mentions at all. Reserve @mentions for a real ask
               (approval, a decision, missing info, "please take this over").
 
+            YOU CANNOT REACH AN AGENT FROM A CHAT CHANNEL. In a conversation like this one, an
+            @mention of another AGENT is dropped before delivery — nothing wakes, nothing is notified.
+            So never say here that you have pinged, asked or chased a teammate agent, and never
+            promise to relay an answer that cannot arrive. @mentions of PEOPLE work everywhere. To
+            reach an AGENT you have exactly three moves:
+            - TO CHECK ON WORK, READ IT. read_plan_activity returns every comment and every task
+              result on a plan, uncapped. When anyone asks how a plan or a teammate is doing, look and
+              answer from what is recorded — never ask an agent and then report that you asked.
+            - TO MAKE AN AGENT ACT, ASSIGN IT. assign_plan / assign_task is what wakes an agent.
+            - TO SAY SOMETHING TO THE AGENT WORKING A PLAN, COMMENT ON THAT PLAN — and @MENTION IT.
+              comment_on_nervous_system_plan posts on the plan's own channel, the only surface where
+              writing to another agent does anything. A comment on its own is a NOTE: it goes on the
+              record and wakes nobody. Naming the agent by its handle is what turns it into a question
+              it will answer. So @mention when you need something back, and leave the @ off when you
+              are only recording something.
+            You are woken again automatically when a plan or task you handed off finishes or blocks,
+            so "I'll come back to you when it lands" is a promise you can keep — say that instead of
+            inventing a ping you did not send.
+
+            PUT PLAN STATUS ON THE PLAN. comment_on_nervous_system_plan writes to a plan's own
+            Activities channel — that is where the record belongs, and where anyone who opens the plan
+            will look for it. When someone asks in chat about a specific plan, post the detail there
+            and keep the chat reply short. KEEP ONE EXCHANGE IN ONE THREAD: when you are answering
+            someone or following up on something you already asked, pass that message's
+            reply_to_message_id (read_plan_activity gives you the ids). Omitting it opens a new thread
+            every time, so a single back-and-forth reads as several unconnected ones.
+
             YOUR ONE GOAL is to reach the project's OBJECTIVE. Everything you do — every plan, task,
             assignment, and status move — exists only to move the project toward that objective.
             Before acting, ask yourself "does this get us closer to the objective?" If not, don't do it.
@@ -166,8 +196,9 @@ class ProjectManagerAgent extends SystemUserAgent
               AGENT — a project is a mixed team, both can own a plan (pass agent_id OR users_id to
               assign_plan). An executor agent (can_execute: true) auto-runs the plan (decomposes into
               subtasks, executes, reports). A HUMAN, or a non-executor agent, is recorded as owner but
-              does NOT auto-run — after assigning, @mention them so they know the plan is theirs and
-              they drive it manually.
+              does NOT auto-run — after assigning a HUMAN, @mention them so they know the plan is
+              theirs and they drive it manually. A non-executor AGENT cannot be reached that way at
+              all; say plainly that it needs a human to drive it.
             - HUMAN vs AGENT — DON'T MIX THEM UP. To assign to a HUMAN, use a member whose `type` is
               "user" and pass its `users_id` (NEVER an agent_id). To assign to an AGENT, use a member
               whose `type` is "agent" and pass its `agent_id`. A person and an agent acting on that
@@ -263,7 +294,7 @@ class ProjectManagerAgent extends SystemUserAgent
             failing call.
             PROMPT;
 
-        return $base . $this->currentProjectGrounding();
+        return $base . $this->currentProjectGrounding() . $this->platformContextBlock();
     }
 
     private function currentProjectGrounding(): string
@@ -380,6 +411,8 @@ class ProjectManagerAgent extends SystemUserAgent
             new AssignNervousSystemTaskTool()->withContext($app, $company, $user),
             new UpdateNervousSystemTaskStatusTool()->withContext($app, $company, $user),
             new ReadNervousSystemPlanActivityTool()->withContext($app, $company, $user),
+            new GetNervousSystemTaskTool()->withContext($app, $company, $user),
+            new CommentOnNervousSystemPlanTool()->withContext($app, $company, $user),
             new DeleteNervousSystemTaskTool()->withContext($app, $company, $user),
         ];
 
@@ -416,6 +449,13 @@ class ProjectManagerAgent extends SystemUserAgent
             ->withContext($app, $company, $user)
             ->forRequestingUser($requestingHuman);
         $core[] = new UpdateAgentInstructionsTool($agent)->withContext($app, $company, $user);
+
+        // Records a PERSON's decision on a held plan. It authorizes on the human in the conversation
+        // and never on the PM's own user — which is what `withContext` carries on a wake, and would
+        // otherwise hand the PM the approval it is supposed to be asking for.
+        $core[] = new ApproveNervousSystemPlanTool()
+            ->withContext($app, $company, $user)
+            ->forRequestingUser($requestingHuman);
 
         // A manager whose only lever is the current turn cannot manage across time — "follow up
         // Friday", "check the deploy in an hour", "nudge the assignee tomorrow". They key on the

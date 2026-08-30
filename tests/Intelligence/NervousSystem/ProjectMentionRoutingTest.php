@@ -195,14 +195,16 @@ class ProjectMentionRoutingTest extends TestCase
         $this->assertNotNull($channel);
         $this->assertSame($planChannelId, (int) $channel->getId());
 
-        // Non-mention wakes (ingest/heartbeat/assigned) keep posting to the project default channel.
+        // Non-mention wakes (ingest/heartbeat/assigned/plan outcome) keep posting to the project
+        // default channel. It is named here rather than left to the post action to resolve, because
+        // the wake baselines this channel to tell whether the agent already answered on it mid-turn.
         $ingest = $resolve->invoke(new WakeAgentForProjectJob(
             $project,
             WakeAgentForProjectJob::REASON_INGEST,
             'trigger',
             (int) $mention->getId(),
         ));
-        $this->assertNull($ingest);
+        $this->assertSame((int) $project->default_channel_id, (int) $ingest?->getId());
 
         // A mention with no trigger message also falls back to the default channel.
         $noTrigger = $resolve->invoke(new WakeAgentForProjectJob(
@@ -211,7 +213,7 @@ class ProjectMentionRoutingTest extends TestCase
             null,
             null,
         ));
-        $this->assertNull($noTrigger);
+        $this->assertSame((int) $project->default_channel_id, (int) $noTrigger?->getId());
     }
 
     public function testMentioningANonPmAgentOnProjectChannelFallsThroughToGenericResponder(): void

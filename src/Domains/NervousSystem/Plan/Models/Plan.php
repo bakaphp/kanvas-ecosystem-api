@@ -49,6 +49,7 @@ use Throwable;
  * @property int $apps_id
  * @property int $companies_id
  * @property int|null $agent_id
+ * @property int|null $created_by_agent_id
  * @property int|null $swarm_id
  * @property bool $is_swarm_mission
  * @property int|null $users_id
@@ -113,6 +114,7 @@ class Plan extends BaseModel implements HandlesAgentMention
             'apps_id' => 'integer',
             'companies_id' => 'integer',
             'agent_id' => 'integer',
+            'created_by_agent_id' => 'integer',
             'assigned_users_id' => 'integer',
             'swarm_id' => 'integer',
             'users_id' => 'integer',
@@ -162,6 +164,17 @@ class Plan extends BaseModel implements HandlesAgentMention
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class, 'agent_id', 'id');
+    }
+
+    /**
+     * The agent that asked for this work, as opposed to `agent()`, which is whoever is doing it now.
+     *
+     * Set once at creation and never reassigned — that is the whole point: it is who to report back
+     * to when the plan lands, and delegation must not overwrite it.
+     */
+    public function createdByAgent(): BelongsTo
+    {
+        return $this->belongsTo(Agent::class, 'created_by_agent_id', 'id');
     }
 
     public function assignedUser(): BelongsTo

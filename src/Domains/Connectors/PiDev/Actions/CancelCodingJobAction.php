@@ -45,10 +45,6 @@ class CancelCodingJobAction
 
     private function taskIsTerminal(): bool
     {
-        return in_array($this->task->status, [
-            TaskStatusEnum::DONE->value,
-            TaskStatusEnum::SKIPPED->value,
-            TaskStatusEnum::BLOCKED->value,
-        ], true);
+        return TaskStatusEnum::tryFrom($this->task->status)?->isTerminal() ?? false;
     }
 }

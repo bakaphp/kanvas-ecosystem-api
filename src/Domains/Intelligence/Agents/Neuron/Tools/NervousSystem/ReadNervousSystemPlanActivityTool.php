@@ -142,6 +142,9 @@ class ReadNervousSystemPlanActivityTool extends Tool implements HasRunKey
             ->get()
             ->toBase()
             ->map(fn (Message $message): array => [
+                // The id is what `comment_on_nervous_system_plan` threads a reply under — without it
+                // every answer opens a new thread and one exchange reads as several.
+                'message_id' => $message->getId(),
                 'author' => $message->user?->displayname ?? $message->user?->firstname,
                 'at' => $message->created_at?->toIso8601String(),
                 'content' => trim((string) ($message->contentText() ?? '')),

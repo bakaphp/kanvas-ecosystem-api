@@ -9,6 +9,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Actions\UpdatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -75,6 +76,16 @@ class UpdateNervousSystemPlanTool extends Tool implements HasRunKey
                 description: 'New priority, higher = more important (optional).',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'requires_human_approval',
+                type: PropertyType::BOOLEAN,
+                description: 'Set true to HOLD the plan for a person to sign off — money being spent, '
+                    . 'something sent to a customer, anything irreversible. The plan moves to '
+                    . 'awaiting_approval and nothing runs until a human approves it. This is the only '
+                    . 'thing that actually stops the work: setting status=blocked or asking in a comment '
+                    . 'does not, and you cannot approve your own request.',
+                required: false,
+            ),
         ];
     }
 
@@ -87,6 +98,7 @@ class UpdateNervousSystemPlanTool extends Tool implements HasRunKey
         ?string $description = null,
         ?string $status = null,
         ?int $priority = null,
+        ?bool $requires_human_approval = null,
     ): array {
         $plan = $this->resolvePlanOrError($plan_id, "Plan {$plan_id} was not found in this project.");
 
@@ -107,6 +119,9 @@ class UpdateNervousSystemPlanTool extends Tool implements HasRunKey
         if ($priority !== null) {
             $data['priority'] = $priority;
         }
+        if ($requires_human_approval !== null) {
+            $data['requires_human_approval'] = $requires_human_approval;
+        }
 
         $updated = new UpdatePlanAction(
             $plan,
@@ -120,11 +135,19 @@ class UpdateNervousSystemPlanTool extends Tool implements HasRunKey
 
         $updated->project?->recomputeCompletionPct();
 
-        return [
+        $result = [
             'plan_id' => $updated->getId(),
             'title' => $updated->title,
             'status' => $updated->status,
             'completion_pct' => $updated->completion_pct,
         ];
+
+        if ($updated->status === PlanStatusEnum::AWAITING_APPROVAL->value) {
+            $result['message'] = 'This plan is now held at awaiting_approval and NOTHING will run until '
+                . 'a person approves it. Do not approve it yourself — say plainly what you need signed '
+                . 'off and who you are asking.';
+        }
+
+        return $result;
     }
 }

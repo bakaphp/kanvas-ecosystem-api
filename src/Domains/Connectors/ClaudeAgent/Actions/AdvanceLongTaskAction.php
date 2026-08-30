@@ -228,10 +228,6 @@ class AdvanceLongTaskAction
 
     protected function isTerminal(): bool
     {
-        return in_array(
-            $this->task->status,
-            [TaskStatusEnum::DONE->value, TaskStatusEnum::BLOCKED->value, TaskStatusEnum::SKIPPED->value],
-            true,
-        );
+        return TaskStatusEnum::tryFrom($this->task->status)?->isTerminal() ?? false;
     }
 }

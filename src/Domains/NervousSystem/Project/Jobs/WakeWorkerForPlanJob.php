@@ -15,12 +15,14 @@ use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CommentOnNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Support\MentionHandle;
 use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
@@ -106,11 +108,12 @@ class WakeWorkerForPlanJob implements ShouldQueue
         // Baseline the plan's activity channel so we can tell if the worker posts a comment during
         // the run (via comment_on_nervous_system_plan) — if it does, its final reply is a duplicate.
         $channel = $this->planChannel();
-        $activityBefore = $channel?->messages()->count() ?? 0;
+        $activityBefore = $this->latestMessageId($channel);
 
         // Board tools scoped to this worker's context — injected only for this run.
         $tools = [
             new AddNervousSystemTaskTool()->withContext($agent->app, $agent->company, $owner),
+            new GetNervousSystemTaskTool()->withContext($agent->app, $agent->company, $owner),
             new UpdateNervousSystemTaskStatusTool()->withContext($agent->app, $agent->company, $owner),
             new DeleteNervousSystemTaskTool()->withContext($agent->app, $agent->company, $owner),
             new UpdateNervousSystemPlanTool()->withContext($agent->app, $agent->company, $owner),
@@ -138,9 +141,7 @@ class WakeWorkerForPlanJob implements ShouldQueue
 
         // Only post the final reply if the worker didn't already comment during the run — otherwise
         // the reply just duplicates the comment it already left on the plan.
-        $postedDuringRun = $channel !== null && $channel->messages()->count() > $activityBefore;
-
-        if (! $postedDuringRun) {
+        if (! $this->agentPostedDuringRun($channel, $activityBefore, $owner)) {
             $reply = new PostPlanActivityMessageAction(
                 $this->plan,
                 $response,
@@ -189,15 +190,57 @@ class WakeWorkerForPlanJob implements ShouldQueue
             . 'changed since the last note, take NO action: do not re-comment, do not re-set the status, '
             . 'just reply "no change" and stop. Only post a NEW comment when you have genuinely new '
             . "information or progress.\n\n"
+            . '%s'
             . "Plan: %s\n%s%s",
             $this->plan->getId(),
             $this->plan->status,
+            $this->whoToTell(),
             $this->plan->title,
             $this->plan->description !== null && $this->plan->description !== ''
                 ? "Details: {$this->plan->description}\n"
                 : '',
             $this->recentActivity(),
         );
+    }
+
+    /**
+     * Who is waiting on this plan, and how to actually reach them.
+     *
+     * Between agents a comment notifies nobody — naming who you want an answer from is what turns a
+     * note into a question. A worker answering in a plain comment is talking to an empty room. Handles
+     * are resolved rather than assumed: one that cannot be mentioned is offered as a plain name, so
+     * the worker names who it needs instead of writing an `@` that reaches no one.
+     */
+    private function whoToTell(): string
+    {
+        $app = $this->plan->app;
+        // The agent that asked for the work outranks the project's current PM — it is the one waiting
+        // on an answer, and on a plan with no project it is the only one there is.
+        $pm = $this->plan->createdByAgent ?? $this->plan->project?->pmAgent;
+        $pmHandle = MentionHandle::forUser($pm?->user, $app);
+        $ownerHandle = MentionHandle::forUser($this->plan->user, $app);
+
+        $lines = [];
+
+        if ($pm !== null) {
+            $lines[] = $pmHandle !== null
+                ? sprintf('Your project manager is %s — @mention them as @%s.', $pm->name, $pmHandle)
+                : sprintf('Your project manager is %s, who cannot be @mentioned — name them in the text.', $pm->name);
+        }
+
+        if ($ownerHandle !== null && $ownerHandle !== $pmHandle) {
+            $lines[] = sprintf('The person who asked for this work is @%s.', $ownerHandle);
+        }
+
+        if ($lines === []) {
+            return '';
+        }
+
+        return 'WHO IS WAITING ON YOU. ' . implode(' ', $lines) . ' A COMMENT IS A NOTE — it goes on '
+            . 'the record and wakes nobody. To get an answer, @mention the person or agent you want it '
+            . 'from; that is the only thing that reaches them. @mention when you finish the plan, when '
+            . 'you block, or when you are answering something they asked. Post routine progress as a '
+            . "plain comment with no @, so nobody is interrupted for it.\n\n";
     }
 
     private function planChannel(): ?Channel

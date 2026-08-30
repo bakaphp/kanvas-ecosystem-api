@@ -15,10 +15,15 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
+/**
+ * For routing a DIFFERENT channel's messages to a plan's agent — a per-company decision, which is what
+ * a rule is for. A plan's own board is handled natively by `WakePlanAgentOnChannelCommentListener`;
+ * wiring this to it as well makes the agent answer twice.
+ */
 #[WorkflowAction(
     name: 'Reply To Plan Comment',
-    description: 'Has the plan\'s agent answer a comment left on that plan, on the project board. Replies on '
-        . 'the board — not to a customer.',
+    description: 'Route another channel\'s comments to the agent working the linked plan, answering on the '
+        . 'board. A plan\'s own board is already handled natively — wiring this for it answers twice.',
 )]
 class ReplyToPlanCommentActivity extends KanvasActivity
 {

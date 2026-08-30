@@ -66,14 +66,28 @@ class CreateNervousSystemPlanTool extends Tool implements HasRunKey
                 description: 'Optional detail on the goal of this plan.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'requires_human_approval',
+                type: PropertyType::BOOLEAN,
+                description: 'Set true when a person must sign this off before any work starts — money '
+                    . 'being spent, something sent to a customer, anything irreversible. The plan is '
+                    . 'held at awaiting_approval and nothing runs until a human approves it. This is the '
+                    . 'ONLY thing that actually stops the work: asking for approval in a comment does '
+                    . 'not, and you cannot approve your own request.',
+                required: false,
+            ),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $project_id, string $title, ?string $description = null): array
-    {
+    public function __invoke(
+        int $project_id,
+        string $title,
+        ?string $description = null,
+        ?bool $requires_human_approval = null,
+    ): array {
         $project = $this->resolveProjectOrError($project_id);
 
         if (is_array($project)) {
@@ -110,6 +124,8 @@ class CreateNervousSystemPlanTool extends Tool implements HasRunKey
                 user: $this->user,
                 description: $description,
                 status: PlanStatusEnum::ACTIVE,
+                requiresHumanApproval: (bool) $requires_human_approval,
+                createdByAgent: $this->contextAgent(),
             ),
         )->execute();
 
@@ -128,11 +144,19 @@ class CreateNervousSystemPlanTool extends Tool implements HasRunKey
 
         $project->recomputeCompletionPct();
 
-        return [
+        $result = [
             'plan_id' => $plan->getId(),
             'project_id' => $project->getId(),
             'title' => $plan->title,
             'status' => $plan->status,
         ];
+
+        if ($plan->status === PlanStatusEnum::AWAITING_APPROVAL->value) {
+            $result['message'] = 'This plan is held at awaiting_approval and NOTHING will run until a '
+                . 'person approves it. Do not add or assign work expecting it to start, and do not '
+                . 'approve it yourself. Tell the human who asked for it that it needs their sign-off.';
+        }
+
+        return $result;
     }
 }

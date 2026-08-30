@@ -317,6 +317,11 @@ class WakeAgentForPlanJob implements ShouldQueue
                 . 'Your plan has been approved by the human reviewer. '
                 . 'Resume execution. Use the nervous-system-working skill '
                 . "to refresh plan context if you need to, then continue the work.\n\n"
+                // Its own history still says "waiting on approval", so without this it re-blocks on
+                // the condition that just cleared and the loop stops again on the next verdict.
+                . 'ANY TASK YOU BLOCKED WAITING FOR THIS APPROVAL IS ALREADY BACK TO pending — the '
+                . 'approval you were waiting for is the one that just arrived. Do NOT re-block for it '
+                . "and do not ask for it again; pick the work up and do it.\n\n"
                 . "Title: %s\n%s%s",
                 $this->plan->id,
                 $this->plan->uuid,

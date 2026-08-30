@@ -17,7 +17,11 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Services\AgentChannelActivity;
+use Kanvas\Intelligence\Agents\Services\AgentConversationBudget;
+use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use Kanvas\Intelligence\Notifications\AgentRepliedToMentionNotification;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionData;
@@ -26,6 +30,7 @@ use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Support\MentionHandle;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\PostChannelMessageAction;
 use Kanvas\Social\Messages\Models\Message;
@@ -35,7 +40,12 @@ use Throwable;
 
 /**
  * An agent-user was @mentioned: reply as a CHILD of the mentioning message, with the whole
- * channel in context. Neuron system agents (SystemUserAgent) only, for now.
+ * channel in context.
+ *
+ * ANY Kanvas Neuron agent answers, not just `SystemUserAgent` — being reachable by name wherever a
+ * person can name you is the point of an agent having a user at all. Gating on that one handler
+ * silently excluded every agent `hire_agent` creates (they are Generic Neuron Agents), so a PM
+ * @mentioning the worker on its own plan reached nobody, with no error anywhere.
  *
  * Loop-safe: the reply is from_ia, which the mention parser skips, so agent replies never
  * re-trigger; and an agent never replies to a message its own user authored.
@@ -47,6 +57,9 @@ final class RespondToMentionJob implements ShouldQueue
     use KanvasJobsTrait;
     use Queueable;
     use SerializesModels;
+
+    /** How far back to look for a person to call in when an exchange stalls. */
+    private const int HUMAN_LOOKBACK = 30;
 
     public function __construct(
         public readonly Agent $agent,
@@ -79,7 +92,7 @@ final class RespondToMentionJob implements ShouldQueue
         }
 
         $handler = new $handlerClass();
-        if (! $handler instanceof SystemUserAgent) {
+        if (! $handler instanceof BehavesAsKanvasAgent) {
             return;
         }
 
@@ -92,7 +105,11 @@ final class RespondToMentionJob implements ShouldQueue
             entity: $subjectEntity ?? $agentUser,
             user: $agentUser,
         );
-        $handler->setMentionChannel($channel);
+        // Swaps the agent's history to this channel's thread. Only SystemUserAgent reads a mention
+        // channel; every other agent keeps its own history and still answers the mention.
+        if ($handler instanceof SystemUserAgent) {
+            $handler->setMentionChannel($channel);
+        }
 
         // Tools that outlive the turn (schedule_reminder, schedule_agent_task) need the channel so
         // what they create can be delivered back HERE later, and the mentioning human so "remind me"
@@ -100,12 +117,20 @@ final class RespondToMentionJob implements ShouldQueue
         $handler->setSession($this->resolveChannelSession($channel, $app, $company, $subjectEntity ?? $agentUser));
         $handler->setConversationHuman(Users::getById($this->mentionMessage->users_id));
 
-        $mentionText = $this->mentionMessage->contentText();
+        // Silence is only an option when the counterpart is another agent — a person who asks a
+        // question and gets nothing has simply been ignored.
+        $mentioner = Agent::fromUser((int) $this->mentionMessage->users_id, $app, $company);
+        $mentionText = $this->mentionMessage->contentText()
+            . ($mentioner !== null ? AgentTurnResponse::noOpGuidance() : '');
 
         // RunNeuronChatAction sniffs each URL's bytes and rides image/audio/PDF/text natively, so the
         // image/document split doesn't matter here — hand it the merged list. Without this the file the
         // user attached to the @mention is dropped and the agent answers "I can't read the file."
         ['images' => $images, 'documents' => $documents] = $this->mentionMessage->attachmentUrls();
+
+        // Baseline the channel: the agent can write here mid-turn with a board tool, and its reply
+        // would then say the same thing again seconds later.
+        $activityBefore = AgentChannelActivity::latestMessageId($channel);
 
         // session stays null HERE on purpose: the handler has it (above) for its tools, but handing it
         // to the chat action would also run its lead-channel message backfill, which would sweep this
@@ -120,7 +145,16 @@ final class RespondToMentionJob implements ShouldQueue
             media: [...$images, ...$documents],
         )->execute();
 
-        if (trim($reply) === '') {
+        // An agent that answers an acknowledgement with an acknowledgement is the loop the budget was
+        // added to survive; this is what stops it being spent on nothing in the first place.
+        if (trim($reply) === '' || ($mentioner !== null && AgentTurnResponse::isNoOp($reply))) {
+            return;
+        }
+
+        // The agent already answered on this channel with a board tool during the turn — on plan 26531
+        // that produced two messages three seconds apart, the reply restating the comment. The comment
+        // is the answer; posting the turn as well is the duplicate.
+        if (AgentChannelActivity::agentPostedSince($channel, $activityBefore, $agentUser)) {
             return;
         }
 
@@ -131,7 +165,7 @@ final class RespondToMentionJob implements ShouldQueue
             $subjectEntity,
         );
 
-        $this->notifyMentioner($replyMessage);
+        $this->notifyMentioner($replyMessage, $mentioner);
         $this->recordInteractionInLedger(
             $app,
             $company,
@@ -224,15 +258,110 @@ final class RespondToMentionJob implements ShouldQueue
         }
     }
 
-    private function notifyMentioner(Message $replyMessage): void
+    /**
+     * Tell whoever asked that the answer has landed.
+     *
+     * A person gets a notification. An AGENT does not read notifications — one addressed to an agent's
+     * user lands in a table nobody consults, which is how a PM asked its worker for a status, got a
+     * reply on the board, and never knew. So an agent mentioner is WOKEN with the reply instead.
+     *
+     * That closes a cycle — it asks, we answer, it wakes, it may ask again — so every hop is charged
+     * to the thread's budget. Out of budget the exchange stops and says so on the board, rather than
+     * running until a wake budget somewhere else notices.
+     */
+    private function notifyMentioner(Message $replyMessage, ?Agent $mentioner): void
     {
         // Load the concrete Users model (Message->user is a UserFullTableName variant) so the
         // notification routes and the notifiable class is the canonical one.
         $recipient = Users::getById($this->mentionMessage->users_id);
 
-        $recipient->notify(
-            new AgentRepliedToMentionNotification($replyMessage, $this->agent)
-        );
+        if ($mentioner === null) {
+            // A person is in the exchange, so it is wanted — hand the pair their budget back.
+            AgentConversationBudget::reset($replyMessage->channels()->first());
+
+            $recipient->notify(
+                new AgentRepliedToMentionNotification($replyMessage, $this->agent)
+            );
+
+            return;
+        }
+
+        $channel = $replyMessage->channels()->first();
+
+        // An agent-to-agent mention is now routed by RespondToAgentMentionListener, which charges the
+        // same budget. If this reply NAMES the mentioner, that path already wakes them — threaded, and
+        // once. Waking them here as well is the same turn delivered twice.
+        if (MentionHandle::isNamedIn($replyMessage->contentText(), $mentioner->user, $this->agent->app)) {
+            return;
+        }
+
+        if (! AgentConversationBudget::spend($channel)) {
+            if (AgentConversationBudget::claimStopNotice($channel)) {
+                // No @ on the names: a stop notice is not an ask, and an agent name is not a handle —
+                // writing one would read as a mention that reaches nobody.
+                $this->postStopNotice($channel, $replyMessage, $mentioner->name);
+            }
+
+            return;
+        }
+
+        RespondToMentionJob::dispatch($mentioner, $replyMessage);
+    }
+
+    private function postStopNotice(?Channel $channel, Message $replyMessage, string $mentionerName): void
+    {
+        if ($channel === null) {
+            return;
+        }
+
+        new PostChannelMessageAction(
+            channel: $channel,
+            author: $this->agent->user,
+            verb: 'agent',
+            content: trim(sprintf(
+                '%s %s and I have gone back and forth %d times here without resolving it, so I am '
+                . 'stopping. Reply and we will pick it up again.',
+                $this->callForAHuman($channel),
+                $mentionerName,
+                AgentConversationBudget::MAX_HOPS,
+            )),
+            extraPayload: ['from_ia' => true, 'from_me' => true],
+            parentId: $replyMessage->joinAncestors()->last()->getId(),
+        )->execute();
+    }
+
+    /**
+     * `@handle` of the last person who actually spoke here, or '' when there is none.
+     *
+     * "A human should take a look" notifies nobody on its own, and the channel's OWNER is no help —
+     * on an agent-created plan board that is the agent itself, so tagging it re-tags the loop. The
+     * last human to participate is the one in this conversation. Silence beats a fake mention: an
+     * unmentionable name written with an `@` reads as a notification and sends none.
+     */
+    private function callForAHuman(Channel $channel): string
+    {
+        $recent = $channel->messages()
+            ->orderByDesc('messages.id')
+            ->limit(self::HUMAN_LOOKBACK)
+            ->get();
+
+        foreach ($recent as $message) {
+            $payload = $message->message;
+
+            if (is_array($payload)
+                && (($payload['from_agent'] ?? false) === true || ($payload['from_ia'] ?? false) === true)
+            ) {
+                continue;
+            }
+
+            $handle = MentionHandle::forUser(Users::getById((int) $message->users_id), $this->agent->app);
+
+            if ($handle !== null) {
+                return '@' . $handle;
+            }
+        }
+
+        return '';
     }
 
     private function recordInteractionInLedger(

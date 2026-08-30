@@ -43,6 +43,7 @@ class WorkerToolPolicy extends ScopedToolPolicy
 
         // Further delegation — depth stays at one until nested orchestration is its own feature.
         'dispatch_coding_task',
+        'retry_coding_job',
         'dispatch_long_task',
         'hire_agent',
         'grant_agent_tools',

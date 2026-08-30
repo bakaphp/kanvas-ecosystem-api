@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Intelligence\Agents\Contracts\HandlesAgentMention;
 use Kanvas\Intelligence\Agents\Jobs\RespondToMentionJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\AgentConversationBudget;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
 use Kanvas\Social\Messages\Models\Message;
@@ -32,17 +33,31 @@ class RespondToAgentMentionListener
         $message = $event->message;
         $payload = $message->message;
 
-        // Agent-authored (from_ia) messages are parsed so an agent can @mention a human to notify
-        // them (NotifyMentionedUsersListener), but they must never wake another agent — delegation
-        // is via assign_task, not by one agent tagging another. This is the anti-loop guard.
-        if (is_array($payload) && ($payload['from_ia'] ?? false)) {
-            return;
-        }
-
         // Project-ingest messages (transcript/email/mention) already wake the PM via
         // IngestToProjectAction — don't let a mention inside their content wake it a second time.
         if (is_array($payload) && isset($payload['ingest_type'])) {
             return;
+        }
+
+        // An agent naming another agent used to be dropped outright, as a blanket anti-loop guard. It
+        // took the working half with it: a worker that finished step 1 and handed off to step 2 was
+        // told to @mention the next agent, and that mention reached nobody (plan 25148 — task #11363
+        // sat `pending` while the summary it needed was already on the board). Whether a handoff
+        // worked came down to which code path posted it: a board comment carries `from_agent` and got
+        // through, a mention reply carries `from_ia` and did not.
+        //
+        // The budget is the guard now — the same one the plan board uses. An agent-to-agent exchange
+        // gets AgentConversationBudget::MAX_HOPS and then stops; a human speaking resets it, because a
+        // person re-entering is the signal the conversation is wanted.
+        /** @var Channel|null $channel */
+        $channel = $message->channels()->first();
+
+        if ($this->postedByAgent($message)) {
+            if (! AgentConversationBudget::spend($channel)) {
+                return;
+            }
+        } else {
+            AgentConversationBudget::reset($channel);
         }
 
         $awaitingUpload = ! $message->files()->exists();
@@ -89,6 +104,22 @@ class RespondToAgentMentionListener
                 );
             }
         }
+    }
+
+    /**
+     * Whether a machine wrote this, read off the message rather than inferred from its author.
+     *
+     * Both stamps count: an agent's board comment carries `from_agent`, a mention reply carries
+     * `from_ia`, and they are equally machine-authored. Author identity cannot answer it — agents
+     * share users with real people, so `Agent::fromUser()` calls a human's message agent-authored and
+     * would ration the one participant whose speaking is supposed to reset the budget.
+     */
+    private function postedByAgent(Message $message): bool
+    {
+        $payload = $message->message;
+
+        return is_array($payload)
+            && (($payload['from_agent'] ?? false) === true || ($payload['from_ia'] ?? false) === true);
     }
 
     /**

@@ -201,9 +201,15 @@ trait MergesRegisteredTools
             $app = $this->firstCandidateOfType($candidates, Apps::class);
             $company = $this->firstCandidateOfType($candidates, Companies::class);
             $user = $this->firstCandidateOfType($candidates, Users::class);
+            $actingAgent = $this->firstCandidateOfType($candidates, Agent::class);
 
             if ($app instanceof Apps && $company instanceof Companies && $user instanceof Users) {
-                $tool->withContext($app, $company, $user);
+                $tool->withContext(
+                    $app,
+                    $company,
+                    $user,
+                    $actingAgent instanceof Agent ? $actingAgent : null,
+                );
             }
         }
 

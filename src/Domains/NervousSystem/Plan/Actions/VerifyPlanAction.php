@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
@@ -155,6 +156,8 @@ class VerifyPlanAction
 
     private function settle(bool $passed): void
     {
+        $previousStatus = (string) $this->plan->status;
+
         $this->plan->status = $passed
             ? PlanStatusEnum::DONE->value
             : PlanStatusEnum::BLOCKED->value;
@@ -168,5 +171,28 @@ class VerifyPlanAction
         }
 
         $this->plan->saveQuietly();
+
+        if ($previousStatus === (string) $this->plan->status) {
+            return;
+        }
+
+        // Only a PASS is announced. This is where the loop actually FINISHES a plan — the agent calling
+        // update_nervous_system_plan is the manual path, not the normal one — and settling quietly meant
+        // the end of the work was the one transition nobody heard.
+        //
+        // A FAILURE is not an outcome, it is a lap: verification runs again on the next wake and often
+        // passes seconds later (plan 26531 told its PM "blocked" at 03:37:39 and "done" at 03:37:49 —
+        // two wakes for one result). A plan that stays blocked is still reported: the project heartbeat
+        // treats a blocked plan as needing attention, so nothing is lost by staying quiet here.
+        if (! $passed) {
+            return;
+        }
+
+        // The save stays quiet — the observers here would re-enter the loop — and the change is
+        // announced explicitly, the way PollPiDevJobJob announces a remote job landing.
+        $this->plan->broadcastChange(
+            PlanChangeTypeEnum::UPDATED,
+            previousStatus: $previousStatus,
+        );
     }
 }

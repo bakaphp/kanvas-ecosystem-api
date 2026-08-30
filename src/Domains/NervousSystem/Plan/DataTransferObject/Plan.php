@@ -42,6 +42,7 @@ class Plan extends Data
         /** @var array<int, array<string, mixed>> */
         public readonly array $files = [],
         public readonly ?Project $project = null,
+        public readonly ?Agent $createdByAgent = null,
     ) {
     }
 

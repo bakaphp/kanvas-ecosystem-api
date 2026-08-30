@@ -88,6 +88,19 @@ class AssignNervousSystemTaskTool extends Tool implements HasRunKey
         $task->agent_id = $agent->getId();
         $task->saveQuietly();
 
+        // A plan nobody owns is inert: WakeWorkerForPlanJob returns on its first line, the plan-change
+        // wake bails, and a comment on its board wakes nobody — so the work sits there while the PM
+        // hand-drives it task by task (plan 22975). Assigning the first task adopts the plan for that
+        // assignee. Only when it is unowned: a plan already delegated keeps its owner.
+        $plan = $task->plan;
+        $adoptedPlan = false;
+
+        if ($plan !== null && $plan->agent_id === null && $plan->assigned_users_id === null) {
+            $plan->agent_id = $agent->getId();
+            $plan->saveQuietly();
+            $adoptedPlan = true;
+        }
+
         // Delegation means the assignee actually runs — wake it to execute the task.
         WakeAgentForTaskJob::dispatch($task);
 
@@ -95,6 +108,7 @@ class AssignNervousSystemTaskTool extends Tool implements HasRunKey
             'task_id' => $task->getId(),
             'agent_id' => $agent->getId(),
             'agent_name' => $agent->name,
+            'plan_owner_set' => $adoptedPlan,
         ];
     }
 }

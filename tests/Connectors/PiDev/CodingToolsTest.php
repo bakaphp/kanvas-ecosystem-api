@@ -14,6 +14,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\CheckCodingJobStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\CheckCodingSetupTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\DispatchCodingTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\ListMyCodingJobsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\RetryCodingJobTool;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Tests\Connectors\Traits\HasPiDevConfiguration;
 use Tests\TestCase;
@@ -197,5 +198,47 @@ final class CodingToolsTest extends TestCase
         $result = new CancelCodingJobTool($app, $company, $agent)($task->getId());
 
         $this->assertSame('success', $result['status']);
+    }
+
+    public function testRetryToolRefusesAJobBelongingToAnotherAgent(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $owner = $this->makeAgent();
+        $this->configure($owner);
+        $task = $this->makeCodingTaskForAgent($owner, TaskStatusEnum::BLOCKED);
+
+        $result = new RetryCodingJobTool($app, $company, $this->makeAgent())($task->getId());
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('not found for this agent', $result['message']);
+    }
+
+    public function testRetryToolReportsAMissingJobAsAnErrorRatherThanThrowing(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $result = new RetryCodingJobTool($app, $company, $this->makeAgent())(999999999);
+
+        $this->assertSame('error', $result['status']);
+    }
+
+    public function testRetryToolSurfacesWhyATaskCannotBeRetried(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $agent = $this->makeAgent();
+        $this->configure($agent);
+
+        // Never dispatched to pi.dev, so there is no job to re-send.
+        $task = $this->makeCodingTaskForAgent($agent, TaskStatusEnum::BLOCKED, pidevJobId: null);
+
+        $result = new RetryCodingJobTool($app, $company, $agent)($task->getId());
+
+        $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('never reached pi.dev', $result['message']);
     }
 }
