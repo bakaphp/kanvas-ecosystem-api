@@ -65,11 +65,13 @@ class NotifyPlanOwnerOfBlockedPlanJob implements ShouldQueue
             return;
         }
 
+        $why = $this->whyBlocked($plan);
+
         // No mention here — each destination addresses a different person; see the done alert.
         $body = sprintf(
             '⚠️ This plan is BLOCKED: %s Take it over, hand it to someone who can do it, or '
             . 'grant the assignee what it is missing.',
-            $this->whyBlocked($plan),
+            $why,
         );
 
         $this->postToPlanBoard(
@@ -83,7 +85,7 @@ class NotifyPlanOwnerOfBlockedPlanJob implements ShouldQueue
 
         // The mention above can be dropped for an agent-classified user; this reaches the person
         // who asked regardless, and costs no model tokens.
-        $this->notifyTheAsker($plan, 'Needs you', sprintf('%s is blocked: %s', $plan->title, $this->whyBlocked($plan)));
+        $this->notifyTheAsker($plan, 'Needs you', sprintf('%s is blocked: %s', $plan->title, $why));
     }
 
     /**

@@ -110,15 +110,20 @@ class WakeWorkerForPlanJob implements ShouldQueue
         $channel = $this->planChannel();
         $activityBefore = $this->latestMessageId($channel);
 
-        // Board tools scoped to this worker's context — injected only for this run.
-        $tools = [
-            new AddNervousSystemTaskTool()->withContext($agent->app, $agent->company, $owner),
-            new GetNervousSystemTaskTool()->withContext($agent->app, $agent->company, $owner),
-            new UpdateNervousSystemTaskStatusTool()->withContext($agent->app, $agent->company, $owner),
-            new DeleteNervousSystemTaskTool()->withContext($agent->app, $agent->company, $owner),
-            new UpdateNervousSystemPlanTool()->withContext($agent->app, $agent->company, $owner),
-            new CommentOnNervousSystemPlanTool()->withContext($agent->app, $agent->company, $owner),
-        ];
+        // Board tools scoped to this worker's context — injected only for this run, so the persona
+        // does not need them granted. One context for the set: adding a tool is one line, and no tool
+        // can end up wired to a different app/company than its neighbours.
+        $tools = array_map(
+            fn (object $tool): object => $tool->withContext($agent->app, $agent->company, $owner),
+            [
+                new AddNervousSystemTaskTool(),
+                new GetNervousSystemTaskTool(),
+                new UpdateNervousSystemTaskStatusTool(),
+                new DeleteNervousSystemTaskTool(),
+                new UpdateNervousSystemPlanTool(),
+                new CommentOnNervousSystemPlanTool(),
+            ],
+        );
 
         $basePayload = ['plan_id' => $this->plan->getId(), 'agent_id' => $agent->getId()];
 

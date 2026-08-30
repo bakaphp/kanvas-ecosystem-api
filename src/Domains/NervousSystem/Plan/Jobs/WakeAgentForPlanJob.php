@@ -11,9 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
-use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Actions\DispatchTaskBandAction;
 use Kanvas\NervousSystem\Plan\Actions\PlanContinuationAction;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
@@ -23,8 +21,8 @@ use Kanvas\NervousSystem\Plan\Enums\ContinuationDecisionEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Support\PlanLoopSettings;
+use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
 use Kanvas\Social\Messages\Models\Message;
-use Throwable;
 
 /**
  * Single entry point for waking the agent assigned to a Plan. Used by:
@@ -39,11 +37,12 @@ use Throwable;
  *   plan.agent.replied      — after the reply is posted on the channel
  *
  * And one on failure:
- *   plan.agent.invocation_failed — when AgentChatKernel throws
+ *   plan.agent.invocation_failed — when the agent turn throws
  */
 class WakeAgentForPlanJob implements ShouldQueue
 {
     use Dispatchable;
+    use DrivesAgentWake;
     use InteractsWithQueue;
     use KanvasJobsTrait;
     use Queueable;
@@ -121,46 +120,25 @@ class WakeAgentForPlanJob implements ShouldQueue
             }
         }
 
-        $message = $this->buildMessage($decision);
+        $failurePayload = [
+            'agent_id' => $this->plan->agent_id,
+            'session_id' => $session->getId(),
+            'reason' => $this->reason,
+        ];
 
-        $startedAt = microtime(true);
-
-        try {
-            $response = new AgentChatKernel(
-                agent: $agent,
-                session: $session,
-                message: $message,
-                user: $owner,
-            )->execute();
-        } catch (Throwable $e) {
-            $this->plan->emitLedgerEvent(
-                eventType: 'plan.agent.invocation_failed',
-                status: EventStatusEnum::ERROR,
-                payload: [
-                    'agent_id' => $this->plan->agent_id,
-                    'session_id' => $session->getId(),
-                    'reason' => $this->reason,
-                ],
-                error: [
-                    'message' => $e->getMessage(),
-                    'class' => $e::class,
-                ],
-                durationMs: (int) ((microtime(true) - $startedAt) * 1000),
-            );
-
-            throw $e;
-        }
-
-        $durationMs = (int) ((microtime(true) - $startedAt) * 1000);
+        [$response, $durationMs] = $this->runAgentWake(
+            $agent,
+            $session,
+            $owner,
+            $this->buildMessage($decision),
+            $this->plan,
+            'plan.agent',
+            $failurePayload,
+        );
 
         $this->plan->emitLedgerEvent(
             'plan.agent.invoked',
-            payload: [
-                'agent_id' => $this->plan->agent_id,
-                'session_id' => $session->getId(),
-                'reason' => $this->reason,
-                'response_length' => strlen($response),
-            ],
+            payload: $failurePayload + ['response_length' => strlen($response)],
             durationMs: $durationMs,
         );
 
@@ -178,23 +156,19 @@ class WakeAgentForPlanJob implements ShouldQueue
         }
     }
 
+    /**
+     * Keyed on the PLAN alone, deliberately: every wake reason for a plan shares one continuous LLM
+     * thread. (The worker path keys per-agent instead, so a reassigned plan does not inherit its
+     * predecessor's "I am blocked" thread.)
+     */
     protected function resolveSession(): Session
     {
         $owner = $this->plan->user ?? $this->plan->agent?->user;
 
-        /** @var Session $session */
-        $session = Session::firstOrCreate(
-            [
-                'apps_id' => $this->plan->apps_id,
-                'companies_id' => $this->plan->companies_id,
-                'entity_namespace' => Plan::class,
-                'entity_id' => $this->plan->id,
-            ],
-            [
-                'uuid' => Str::uuid()->toString(),
+        return $this->firstOrCreateWakeSession(
+            $this->plan,
+            create: [
                 'agents_id' => $this->plan->agent_id,
-                'channel_id' => null,
-                'content' => '',
                 'user' => $owner !== null ? [
                     'id' => $owner->getId(),
                     'name' => trim(($owner->firstname ?? '') . ' ' . ($owner->lastname ?? '')),
@@ -202,8 +176,6 @@ class WakeAgentForPlanJob implements ShouldQueue
                 ] : [],
             ],
         );
-
-        return $session;
     }
 
     /**

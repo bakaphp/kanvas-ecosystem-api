@@ -271,26 +271,25 @@ final class RespondToMentionJob implements ShouldQueue
      */
     private function notifyMentioner(Message $replyMessage, ?Agent $mentioner): void
     {
-        // Load the concrete Users model (Message->user is a UserFullTableName variant) so the
-        // notification routes and the notifiable class is the canonical one.
-        $recipient = Users::getById($this->mentionMessage->users_id);
+        /** @var Channel|null $channel */
+        $channel = $replyMessage->channels()->first();
 
         if ($mentioner === null) {
             // A person is in the exchange, so it is wanted — hand the pair their budget back.
-            AgentConversationBudget::reset($replyMessage->channels()->first());
+            AgentConversationBudget::reset($channel);
 
-            $recipient->notify(
+            // The concrete Users model (Message->user is a UserFullTableName variant) so the
+            // notification routes and the notifiable class is the canonical one.
+            Users::getById($this->mentionMessage->users_id)->notify(
                 new AgentRepliedToMentionNotification($replyMessage, $this->agent)
             );
 
             return;
         }
 
-        $channel = $replyMessage->channels()->first();
-
-        // An agent-to-agent mention is now routed by RespondToAgentMentionListener, which charges the
-        // same budget. If this reply NAMES the mentioner, that path already wakes them — threaded, and
-        // once. Waking them here as well is the same turn delivered twice.
+        // An agent-to-agent mention is routed by RespondToAgentMentionListener, which charges the same
+        // budget. If this reply NAMES the mentioner, that path already wakes them — threaded, and once.
+        // Waking them here as well is the same turn delivered twice.
         if (MentionHandle::isNamedIn($replyMessage->contentText(), $mentioner->user, $this->agent->app)) {
             return;
         }
@@ -350,7 +349,13 @@ final class RespondToMentionJob implements ShouldQueue
                 continue;
             }
 
-            $handle = MentionHandle::forUser(Users::getById((int) $message->users_id), $this->agent->app);
+            try {
+                // Someone who has since left the company is not a candidate, and must not take the
+                // stop notice down with them — `getById` throws rather than returning null.
+                $handle = MentionHandle::forUser(Users::getById((int) $message->users_id), $this->agent->app);
+            } catch (Throwable) {
+                continue;
+            }
 
             if ($handle !== null) {
                 return '@' . $handle;
