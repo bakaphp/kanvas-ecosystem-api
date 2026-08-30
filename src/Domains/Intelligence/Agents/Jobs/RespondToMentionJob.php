@@ -43,12 +43,12 @@ use Throwable;
  * channel in context.
  *
  * ANY Kanvas Neuron agent answers, not just `SystemUserAgent` — being reachable by name wherever a
- * person can name you is the point of an agent having a user at all. Gating on that one handler
- * silently excluded every agent `hire_agent` creates (they are Generic Neuron Agents), so a PM
- * @mentioning the worker on its own plan reached nobody, with no error anywhere.
+ * person can name you is the point of an agent having a user at all. Gating on one handler excludes
+ * every agent `hire_agent` creates, so a PM @mentioning its worker reaches nobody and nothing errors.
  *
- * Loop-safe: the reply is from_ia, which the mention parser skips, so agent replies never
- * re-trigger; and an agent never replies to a message its own user authored.
+ * Loop-safety is the CONVERSATION BUDGET, not the `from_ia` stamp: an agent-authored mention is
+ * delivered (that is how a handoff works) and charged a hop, so an exchange between two agents ends
+ * on its own. An agent still never replies to a message its own user authored.
  */
 final class RespondToMentionJob implements ShouldQueue
 {
@@ -346,11 +346,7 @@ final class RespondToMentionJob implements ShouldQueue
             ->get();
 
         foreach ($recent as $message) {
-            $payload = $message->message;
-
-            if (is_array($payload)
-                && (($payload['from_agent'] ?? false) === true || ($payload['from_ia'] ?? false) === true)
-            ) {
+            if (AgentChannelActivity::isAgentAuthored($message)) {
                 continue;
             }
 

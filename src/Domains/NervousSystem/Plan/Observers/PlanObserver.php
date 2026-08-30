@@ -54,8 +54,10 @@ class PlanObserver
             return;
         }
 
-        // No project means no PM watching — and a person is waiting on it.
-        if ($plan->project_id === null) {
+        // No project means no PM watching — and a person is waiting on it. A plan under a project takes
+        // the same route only when a PERSON is the one who can unblock it, so they are interrupted for
+        // what they can act on; a capability block belongs to the operator digest below.
+        if ($plan->project_id === null || $plan->blockedNeedsAHuman()) {
             NotifyPlanOwnerOfBlockedPlanJob::dispatch($plan)->delay(now()->addSeconds(45));
 
             return;

@@ -13,9 +13,9 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Support\MentionHandle;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
 use Kanvas\NervousSystem\Project\Models\Project;
-use Throwable;
 
 class NotifyProjectOwnerOfBlockedPlanJob implements ShouldQueue
 {
@@ -95,16 +95,8 @@ class NotifyProjectOwnerOfBlockedPlanJob implements ShouldQueue
     private function ownerHandle(Project $project): ?string
     {
         $owner = $project->owner;
-        if ($owner === null) {
-            return null;
-        }
+        $handle = MentionHandle::forUser($owner, $project->app);
 
-        try {
-            $displayname = trim($owner->getAppProfile($project->app)->displayname);
-        } catch (Throwable) {
-            return null;
-        }
-
-        return $displayname !== '' ? '@' . $displayname : null;
+        return $handle !== null ? '@' . $handle : null;
     }
 }

@@ -134,6 +134,11 @@ class CreateNervousSystemPlanTool extends Tool implements HasRunKey
         // of only onto the plan's own Activities channel, which nobody is subscribed to.
         $plan->origin_channel_id = $this->session?->channel_id;
 
+        // The CONVERSATION, not just the room. A chat thread is session-scoped, so a report posted to
+        // the channel without the session renders outside it and is never seen (plan 26824: the alert
+        // landed in the right DM and the person watching that DM saw nothing).
+        $plan->origin_session_id = $this->session?->getId();
+
         // And by whom. `users_id` is the plan's OWNER, which on agent-created work is another agent,
         // so it is never a route to a person. The session records the human who was actually talking.
         $sessionUser = $this->session?->user;

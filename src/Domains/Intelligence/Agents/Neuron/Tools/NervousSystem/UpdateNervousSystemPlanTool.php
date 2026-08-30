@@ -9,6 +9,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
 use Kanvas\NervousSystem\Plan\Actions\UpdatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
+use Kanvas\NervousSystem\Plan\Enums\PlanBlockedNeedsEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
@@ -77,6 +78,18 @@ class UpdateNervousSystemPlanTool extends Tool implements HasRunKey
                 required: false,
             ),
             new ToolProperty(
+                name: 'blocked_needs',
+                type: PropertyType::STRING,
+                description: 'Only with status=blocked. Say WHO can unblock it: "human" when a person '
+                    . 'has to answer — an approval, a decision, information only they have — or '
+                    . '"capability" when a tool, integration or permission is missing. A "human" block '
+                    . 'interrupts the person who asked for the work, in their own conversation; a '
+                    . '"capability" block goes to the board for an operator. Choose honestly: marking a '
+                    . 'missing tool as "human" pesters someone who cannot help.',
+                required: false,
+                enum: ['human', 'capability'],
+            ),
+            new ToolProperty(
                 name: 'requires_human_approval',
                 type: PropertyType::BOOLEAN,
                 description: 'Set true to HOLD the plan for a person to sign off — money being spent, '
@@ -99,6 +112,7 @@ class UpdateNervousSystemPlanTool extends Tool implements HasRunKey
         ?string $status = null,
         ?int $priority = null,
         ?bool $requires_human_approval = null,
+        ?string $blocked_needs = null,
     ): array {
         $plan = $this->resolvePlanOrError($plan_id, "Plan {$plan_id} was not found in this project.");
 
@@ -121,6 +135,9 @@ class UpdateNervousSystemPlanTool extends Tool implements HasRunKey
         }
         if ($requires_human_approval !== null) {
             $data['requires_human_approval'] = $requires_human_approval;
+        }
+        if ($blocked_needs !== null && PlanBlockedNeedsEnum::tryFrom($blocked_needs) !== null) {
+            $data['blocked_needs'] = $blocked_needs;
         }
 
         $updated = new UpdatePlanAction(

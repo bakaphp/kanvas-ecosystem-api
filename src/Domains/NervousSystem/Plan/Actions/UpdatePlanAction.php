@@ -48,6 +48,7 @@ class UpdatePlanAction
                 ? (string) $this->data->confidenceScore
                 : null;
             $this->plan->requires_human_approval = $this->data->requiresHumanApproval;
+            $this->plan->blocked_needs = $this->data->blockedNeeds?->value;
             $this->plan->swarm_id = $this->data->swarm?->getId();
             $this->plan->is_swarm_mission = $this->data->isSwarmMission;
             $this->plan->impact_summary = $this->data->impactSummary;

@@ -17,9 +17,11 @@ use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Contracts\HandlesAgentMention;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\LedgerConfigurationEnum;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
+use Kanvas\NervousSystem\Plan\Enums\PlanBlockedNeedsEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
@@ -69,6 +71,8 @@ use Throwable;
  * @property array|null $input
  * @property array|null $output
  * @property string|null $confidence_score
+ * @property int|null $origin_session_id
+ * @property string|null $blocked_needs
  * @property bool $requires_human_approval
  * @property int|null $approved_by_user_id
  * @property \Illuminate\Support\Carbon|null $approved_at
@@ -319,6 +323,25 @@ class Plan extends BaseModel implements HandlesAgentMention
     public function originChannel(): BelongsTo
     {
         return $this->belongsTo(Channel::class, 'origin_channel_id');
+    }
+
+    /**
+     * The conversation it was asked for in — narrower than `originChannel`, and what actually renders.
+     *
+     * A chat thread is session-scoped: every turn carries the session uuid and the `ai-chat` type, so a
+     * report posted to the channel without them sits outside the conversation and is never seen.
+     */
+    public function originSession(): BelongsTo
+    {
+        return $this->belongsTo(Session::class, 'origin_session_id');
+    }
+
+    /**
+     * Whether this plan is blocked on something only a person can resolve.
+     */
+    public function blockedNeedsAHuman(): bool
+    {
+        return PlanBlockedNeedsEnum::tryFrom((string) $this->blocked_needs)?->interruptsAPerson() ?? false;
     }
 
     public function socialChannels(): HasMany

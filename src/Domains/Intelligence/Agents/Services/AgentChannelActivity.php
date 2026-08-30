@@ -4,20 +4,35 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
+use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 
 /**
- * Whether an agent already said it, before its turn says it again.
+ * What an agent has said on a channel — the questions every posting path has to ask before speaking.
  *
- * An agent can write on a channel mid-turn with a board tool and then have its final reply posted to
- * the same channel — two messages seconds apart, the second narrating the first. It has happened on
- * three different posting paths now (the PM's project wake, the plan worker, and the mention reply on
- * plan 26531), so the check lives here rather than in whichever job noticed it last.
+ * Three of them post an agent's turn (the project wake, the plan worker, the mention reply), and each
+ * needs the same two answers: did a machine write this, and has this agent already said its piece here
+ * during the turn. Kept together so the paths cannot drift apart on what counts.
  */
 class AgentChannelActivity
 {
+    /**
+     * Whether a machine wrote this, read off the message rather than inferred from its author.
+     *
+     * Author identity cannot answer it: agents share users with real people — one production user
+     * backs 28 agents — so `Agent::fromUser()` calls a human's message agent-authored. Both stamps
+     * count; a board comment carries `from_agent`, a turn reply carries `from_ia`.
+     */
+    public static function isAgentAuthored(?Message $message): bool
+    {
+        $payload = $message?->message;
+
+        return is_array($payload)
+            && (($payload['from_agent'] ?? false) === true || ($payload['from_ia'] ?? false) === true);
+    }
+
     /**
      * The newest message on a channel — the baseline to compare against after the turn.
      */
@@ -45,12 +60,10 @@ class AgentChannelActivity
         return $channel->messages()
             ->when(
                 $sinceMessageId !== null,
-                fn ($query) => $query->where('messages.id', '>', $sinceMessageId),
+                fn (Builder $query): Builder => $query->where('messages.id', '>', $sinceMessageId),
             )
             ->where('messages.users_id', $author->getId())
             ->get()
-            ->contains(fn (Message $message): bool => is_array($message->message)
-                && (($message->message['from_agent'] ?? false) === true
-                    || ($message->message['from_ia'] ?? false) === true));
+            ->contains(fn (Message $message): bool => self::isAgentAuthored($message));
     }
 }

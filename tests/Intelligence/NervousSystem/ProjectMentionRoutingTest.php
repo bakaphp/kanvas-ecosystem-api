@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
@@ -33,6 +34,10 @@ use Tests\TestCase;
 
 class ProjectMentionRoutingTest extends TestCase
 {
+    // Inert without the trait: declared alone, every row this test writes COMMITS. These create
+    // agents on the shared auth user, and a leaked agent makes Agent::fromUser() call a human an agent.
+    use DatabaseTransactions;
+
     protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'workflow'];
 
     /**

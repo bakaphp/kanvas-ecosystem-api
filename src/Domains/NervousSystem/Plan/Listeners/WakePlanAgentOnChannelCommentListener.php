@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
+use Kanvas\Intelligence\Agents\Services\AgentChannelActivity;
 use Kanvas\Intelligence\Agents\Services\AgentConversationBudget;
 use Kanvas\NervousSystem\Plan\Jobs\PushCommentToKanbanJob;
 use Kanvas\NervousSystem\Plan\Jobs\WakeAgentForPlanJob;
@@ -59,7 +60,7 @@ class WakePlanAgentOnChannelCommentListener
         // An agent's comment is a NOTE on the record; it becomes a question only by naming who it
         // wants an answer from. A person is never held to that — they should not have to know
         // handles to reach the agent working their plan.
-        if ($this->postedByAgent($event->message) && ! $namesTheAssignee) {
+        if (AgentChannelActivity::isAgentAuthored($event->message) && ! $namesTheAssignee) {
             return;
         }
 
@@ -73,7 +74,7 @@ class WakePlanAgentOnChannelCommentListener
         // including one that opens a NEW thread, which is how the pair on plan 20355 bought themselves
         // a second budget after spending the first. A person speaking resets it: that is the signal
         // the conversation is wanted.
-        if (! $this->postedByAgent($event->message)) {
+        if (! AgentChannelActivity::isAgentAuthored($event->message)) {
             AgentConversationBudget::reset($event->channel);
         } elseif (! AgentConversationBudget::spend($event->channel)) {
             return;
@@ -128,21 +129,6 @@ class WakePlanAgentOnChannelCommentListener
         return is_string($handler)
             && class_exists($handler)
             && is_a($handler, BehavesAsKanvasAgent::class, true);
-    }
-
-    /**
-     * Whether a machine wrote this, read off the message rather than inferred from its author.
-     *
-     * Author identity cannot answer it: agents share users with real people (11 agents sit on one
-     * real person's user in production), so `Agent::fromUser()` calls a human's comment agent-authored and
-     * would ration the one participant who is supposed to reset the budget.
-     */
-    private function postedByAgent(Message $message): bool
-    {
-        $payload = $message->message;
-
-        return is_array($payload)
-            && (($payload['from_agent'] ?? false) === true || ($payload['from_ia'] ?? false) === true);
     }
 
     /**

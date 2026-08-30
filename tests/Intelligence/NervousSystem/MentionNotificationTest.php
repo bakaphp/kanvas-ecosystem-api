@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\File;
@@ -28,6 +29,10 @@ use Tests\TestCase;
 
 class MentionNotificationTest extends TestCase
 {
+    // Inert without the trait: declared alone, every row this test writes COMMITS. These create
+    // agents on the shared auth user, and a leaked agent makes Agent::fromUser() call a human an agent.
+    use DatabaseTransactions;
+
     protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'workflow'];
 
     /**

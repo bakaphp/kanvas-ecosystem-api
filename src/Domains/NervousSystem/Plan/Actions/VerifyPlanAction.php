@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfCompletedPlanJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Support\VerifierToolPolicy;
@@ -187,6 +188,11 @@ class VerifyPlanAction
         if (! $passed) {
             return;
         }
+
+        // Dispatched by hand because `saveQuietly()` skips the observer that normally does it — this is
+        // the path that finishes most plans, so without it only a plan closed through
+        // update_nervous_system_plan would tell the person who asked.
+        NotifyPlanOwnerOfCompletedPlanJob::dispatch($this->plan)->delay(now()->addSeconds(45));
 
         // The save stays quiet — the observers here would re-enter the loop — and the change is
         // announced explicitly, the way PollPiDevJobJob announces a remote job landing.
