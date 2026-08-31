@@ -220,7 +220,10 @@ class RespondToMentionJobTest extends TestCase
 
     public function testMentioningUserIsNotifiedWhenTheAgentReplies(): void
     {
-        $human = auth()->user();
+        // A human of its own, not the shared acting user: the notify path only fires when the
+        // mentioner resolves to no Agent, and any earlier test that hangs an agent off the acting
+        // user turns this human into one — the reply is then routed as an agent wake instead.
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('InventoryBot');
         $agent = $this->makeAgent($agentUser);
 

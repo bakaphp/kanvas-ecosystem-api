@@ -81,9 +81,16 @@ trait DrivesAgentWake
      * comment_on_nervous_system_plan — which makes the turn's final reply a restatement of something
      * already on the record. Two posts, four seconds apart, saying the same thing.
      */
-    protected function agentPostedDuringRun(?Channel $channel, ?int $sinceMessageId, ?Users $author): bool
-    {
-        return AgentChannelActivity::agentPostedSince($channel, $sinceMessageId, $author);
+    protected function agentPostedDuringRun(
+        ?Channel $channel,
+        ?int $sinceMessageId,
+        ?Users $author
+    ): bool {
+        return AgentChannelActivity::agentPostedSince(
+            $channel,
+            $sinceMessageId,
+            $author
+        );
     }
 
     /**
