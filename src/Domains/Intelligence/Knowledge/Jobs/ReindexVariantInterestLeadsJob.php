@@ -25,11 +25,8 @@ final class ReindexVariantInterestLeadsJob implements ShouldBeUnique, ShouldQueu
     public int $tries = 3;
     public int $uniqueFor = 60;
 
-    public function __construct(
-        public readonly int $variantId,
-        public readonly int $appId,
-        public readonly int $companyId,
-    ) {
+    public function __construct(public readonly int $variantId, public readonly int $appId, public readonly int $companyId)
+    {
     }
 
     public function handle(): void

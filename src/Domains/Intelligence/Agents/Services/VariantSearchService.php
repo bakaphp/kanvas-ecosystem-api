@@ -15,8 +15,12 @@ class VariantSearchService
     /**
      * @return array<int, array<string, mixed>>
      */
-    public function search(Apps $app, Companies $company, string $keyword, int $limit = 20): array
-    {
+    public function search(
+        Apps $app,
+        Companies $company,
+        string $keyword,
+        int $limit = 20
+    ): array {
         $search = Variants::traitSearch($keyword);
         $search->model->setRelation('app', $app);
 

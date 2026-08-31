@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Services\LeadTraits;
+namespace Kanvas\Intelligence\Agents\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;

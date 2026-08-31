@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadVariantInterest;
 use Kanvas\Guild\Leads\Services\LeadVariantInterestProjectionService;
+use Kanvas\Intelligence\Agents\Filters\VariantInterestLeadFilter;
 use Kanvas\Intelligence\Knowledge\Sources\LeadKnowledgeSource;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Products\Models\Products;
@@ -59,6 +60,29 @@ class LeadVariantInterestProjectionServiceTest extends TestCase
         $this->assertStringContainsString('model: RAV4', $variantDocument->content);
         $this->assertSame(11, $variantDocument->metadata['apps_id']);
         $this->assertSame(22, $variantDocument->metadata['companies_id']);
+    }
+
+    public function testPriceFilterDoesNotReturnInterestsWithoutRecordedPrice(): void
+    {
+        $lead = $this->leadWithVariantInterest();
+        $unpricedInterest = clone $lead->variantInterests->first();
+        $unpricedInterest->id = 2;
+        $unpricedInterest->price_at_interest = null;
+        $lead->setRelation('variantInterests', $lead->variantInterests->push($unpricedInterest));
+
+        $rows = new VariantInterestLeadFilter()->attachMatches(
+            new Collection([$lead]),
+            [['lead_id' => $lead->getId()]],
+            [
+                'active' => true,
+                'variants' => [['id' => 6544]],
+                'minimum_price' => null,
+                'maximum_price' => 30000.0,
+            ],
+        );
+
+        $this->assertCount(1, $rows[0]['matched_variant_interests']);
+        $this->assertSame(29495.0, $rows[0]['matched_variant_interests'][0]['price_at_interest']);
     }
 
     private function leadWithVariantInterest(): Lead

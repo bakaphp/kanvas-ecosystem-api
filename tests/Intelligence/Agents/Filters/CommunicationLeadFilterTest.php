@@ -2,17 +2,22 @@
 
 declare(strict_types=1);
 
-namespace Tests\Intelligence\Agents\Services;
+namespace Tests\Intelligence\Agents\Filters;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Services\LeadTraits\CommunicationLeadFilter;
+use Kanvas\Intelligence\Agents\Filters\CommunicationLeadFilter;
 use Tests\TestCase;
 
 class CommunicationLeadFilterTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = [null, 'crm'];
+
     public function testAwaitingResponseUsesLatestCustomerMessageAndAge(): void
     {
         $company = Companies::factory()->create();
@@ -20,8 +25,18 @@ class CommunicationLeadFilterTest extends TestCase
         $responded = $this->lead($company);
         $filter = $this->filter(
             latest: collect([
-                $this->message($waiting->getId(), 10, 'contact', now()->subDays(8)->toDateTimeString()),
-                $this->message($responded->getId(), 20, 'user', now()->subDays(9)->toDateTimeString()),
+                $this->message(
+                    $waiting->getId(),
+                    10,
+                    'contact',
+                    now()->subDays(8)->toDateTimeString()
+                ),
+                $this->message(
+                    $responded->getId(),
+                    20,
+                    'user',
+                    now()->subDays(9)->toDateTimeString()
+                ),
             ]),
         );
         $query = Lead::query()->whereIn('id', [$waiting->getId(), $responded->getId()]);
@@ -42,8 +57,18 @@ class CommunicationLeadFilterTest extends TestCase
         $replied = $this->lead($company);
         $filter = $this->filter(
             latest: collect([
-                $this->message($silent->getId(), 30, 'agent', now()->toDateTimeString()),
-                $this->message($replied->getId(), 40, 'user', now()->toDateTimeString()),
+                $this->message(
+                    $silent->getId(),
+                    30,
+                    'agent',
+                    now()->toDateTimeString()
+                ),
+                $this->message(
+                    $replied->getId(),
+                    40,
+                    'user',
+                    now()->toDateTimeString()
+                ),
             ]),
             summaries: collect([
                 (object) ['lead_id' => $silent->getId(), 'has_contact' => 0, 'has_outbound' => 1],
@@ -52,7 +77,12 @@ class CommunicationLeadFilterTest extends TestCase
         );
         $query = Lead::query()->whereIn('id', [$silent->getId(), $replied->getId()]);
 
-        $filter->apply($query, app(Apps::class), $company, ['communication_state' => 'never_replied']);
+        $filter->apply(
+            $query,
+            app(Apps::class),
+            $company,
+            ['communication_state' => 'never_replied']
+        );
 
         $this->assertSame([$silent->getId()], $query->pluck('id')->all());
     }
@@ -63,11 +93,21 @@ class CommunicationLeadFilterTest extends TestCase
         $withMessage = $this->lead($company);
         $withoutMessage = $this->lead($company);
         $filter = $this->filter(collect([
-            $this->message($withMessage->getId(), 50, 'contact', now()->toDateTimeString()),
+            $this->message(
+                $withMessage->getId(),
+                50,
+                'contact',
+                now()->toDateTimeString()
+            ),
         ]));
         $query = Lead::query()->whereIn('id', [$withMessage->getId(), $withoutMessage->getId()]);
 
-        $filter->apply($query, app(Apps::class), $company, ['communication_state' => 'no_messages']);
+        $filter->apply(
+            $query,
+            app(Apps::class),
+            $company,
+            ['communication_state' => 'no_messages']
+        );
 
         $this->assertSame([$withoutMessage->getId()], $query->pluck('id')->all());
     }
@@ -101,8 +141,12 @@ class CommunicationLeadFilterTest extends TestCase
             ->create();
     }
 
-    private function message(int $leadId, int $messageId, string $senderType, string $createdAt): object
-    {
+    private function message(
+        int $leadId,
+        int $messageId,
+        string $senderType,
+        string $createdAt
+    ): object {
         return (object) [
             'lead_id' => $leadId,
             'message_id' => $messageId,

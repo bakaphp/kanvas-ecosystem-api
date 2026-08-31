@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Services\LeadTraits;
+namespace Kanvas\Intelligence\Agents\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -18,8 +18,12 @@ use Kanvas\Social\Messages\Enums\MessageSenderTypeEnum;
 class CommunicationLeadFilter
 {
     /** @return array{active: bool, criteria: array<string, mixed>, last_messages: array<int, array<string, mixed>>, matching_messages: int} */
-    public function apply(Builder $query, Apps $app, Companies $company, array $filters): array
-    {
+    public function apply(
+        Builder $query,
+        Apps $app,
+        Companies $company,
+        array $filters
+    ): array {
         $state = strtolower(trim((string) ($filters['communication_state'] ?? '')));
         $waitingDays = $filters['customer_waiting_since_days'] ?? null;
         $active = $state !== '' || $waitingDays !== null;
@@ -106,7 +110,13 @@ class CommunicationLeadFilter
             ->groupBy('c.entity_id');
 
         return DB::connection('social')->table('messages as latest_message')
-            ->joinSub($latestIds, 'latest', 'latest.message_id', '=', 'latest_message.id')
+            ->joinSub(
+                $latestIds,
+                'latest',
+                'latest.message_id',
+                '=',
+                'latest_message.id'
+            )
             ->select([
                 'latest.lead_id',
                 'latest_message.id as message_id',
@@ -132,8 +142,18 @@ class CommunicationLeadFilter
     private function communicationQuery(Apps $app, Companies $company): QueryBuilder
     {
         return DB::connection('social')->table('messages as m')
-            ->join('channel_messages as cm', 'cm.messages_id', '=', 'm.id')
-            ->join('channels as c', 'c.id', '=', 'cm.channel_id')
+            ->join(
+                'channel_messages as cm',
+                'cm.messages_id',
+                '=',
+                'm.id'
+            )
+            ->join(
+                'channels as c',
+                'c.id',
+                '=',
+                'cm.channel_id'
+            )
             ->where('m.apps_id', $app->getId())
             ->where('m.companies_id', $company->getId())
             ->where('m.is_deleted', 0)

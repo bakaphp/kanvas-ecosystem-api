@@ -18,7 +18,12 @@ class VariantInterestSearchServiceTest extends TestCase
         $company = auth()->user()->getCurrentCompany();
         $variantSearch = Mockery::mock(VariantSearchService::class);
         $variantSearch->expects('search')
-            ->with($app, $company, 'truck', 1000)
+            ->with(
+                $app,
+                $company,
+                'truck',
+                1000
+            )
             ->andReturn([
                 ['id' => 10, 'price' => 28000, 'attributes' => ['Condition' => 'Used', 'Type' => 'Truck']],
                 ['id' => 11, 'price' => 42000, 'attributes' => ['Condition' => 'Used', 'Type' => 'Truck']],
@@ -40,7 +45,12 @@ class VariantInterestSearchServiceTest extends TestCase
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
         $variantSearch = Mockery::mock(VariantSearchService::class);
-        $variantSearch->expects('search')->with($app, $company, '*', 1000)->andReturn([]);
+        $variantSearch->expects('search')->with(
+            $app,
+            $company,
+            '*',
+            1000
+        )->andReturn([]);
 
         $matches = (new VariantInterestSearchService($variantSearch))->resolve(
             $app,

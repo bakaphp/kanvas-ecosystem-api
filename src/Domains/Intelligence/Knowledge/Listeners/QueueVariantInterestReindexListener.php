@@ -11,10 +11,6 @@ final class QueueVariantInterestReindexListener
 {
     public function handle(VariantSearchDocumentChanged $event): void
     {
-        ReindexVariantInterestLeadsJob::dispatch(
-            $event->variantId,
-            $event->appId,
-            $event->companyId,
-        )->afterCommit();
+        ReindexVariantInterestLeadsJob::dispatch($event->variantId, $event->appId, $event->companyId)->afterCommit();
     }
 }

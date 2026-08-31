@@ -27,7 +27,12 @@ class VariantInterestSearchService
     ): array {
         $filters = $this->parseAttributeFilters($attributeFilters);
 
-        return collect($this->variantSearch->search($app, $company, $query === '' ? '*' : $query, $limit))
+        return collect($this->variantSearch->search(
+            $app,
+            $company,
+            $query === '' ? '*' : $query,
+            $limit
+        ))
             ->filter(fn (array $variant): bool => $this->matchesAttributes($variant, $filters))
             ->values()
             ->all();

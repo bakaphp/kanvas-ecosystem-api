@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Services;
+namespace Kanvas\Intelligence\Agents\Filters;
 
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
@@ -12,13 +12,17 @@ use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 
-class EngagementLeadFilterService
+class EngagementLeadFilter
 {
     /**
      * @return array{lead_ids: list<int>, exclude: bool, matching_engagements: int, slugs: list<string>}
      */
-    public function resolve(Apps $app, Companies $company, string $action, string $completion): array
-    {
+    public function resolve(
+        Apps $app,
+        Companies $company,
+        string $action,
+        string $completion
+    ): array {
         $completion = strtolower(trim($completion));
         if (! in_array($completion, ['started', 'incomplete', 'submitted', 'missing'], true)) {
             throw new InvalidArgumentException('Engagement completion must be started, incomplete, submitted, or missing.');

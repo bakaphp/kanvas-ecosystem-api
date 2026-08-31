@@ -4,21 +4,23 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
+use Illuminate\Database\Eloquent\Builder;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\BatchRecipientResolverService;
-use Kanvas\Intelligence\Agents\Services\LeadTraits\CommunicationLeadFilter;
-use Kanvas\Intelligence\Agents\Services\LeadTraits\LeadBaseFilter;
-use Kanvas\Intelligence\Agents\Services\LeadTraits\VariantInterestLeadFilter;
+use Kanvas\Intelligence\Agents\Filters\CommunicationLeadFilter;
+use Kanvas\Intelligence\Agents\Filters\EngagementLeadFilter;
+use Kanvas\Intelligence\Agents\Filters\LeadBaseFilter;
+use Kanvas\Intelligence\Agents\Filters\VariantInterestLeadFilter;
 
 class FindLeadsByTraitsService
 {
     public function __construct(
         private readonly LeadBaseFilter $baseFilter = new LeadBaseFilter(),
         private readonly VariantInterestLeadFilter $variantFilter = new VariantInterestLeadFilter(),
-        private readonly EngagementLeadFilterService $engagementFilter = new EngagementLeadFilterService(),
+        private readonly EngagementLeadFilter $engagementFilter = new EngagementLeadFilter(),
         private readonly CommunicationLeadFilter $communicationFilter = new CommunicationLeadFilter(),
         private readonly BatchRecipientResolverService $recipientResolver = new BatchRecipientResolverService(),
     ) {
@@ -36,7 +38,12 @@ class FindLeadsByTraitsService
         $criteria = $this->baseFilter->apply($query, $company, $filters) + ['channel' => $channel];
 
         try {
-            [$engagementCriteria, $engagementAuthority] = $this->applyEngagement($query, $app, $company, $filters);
+            [$engagementCriteria, $engagementAuthority] = $this->applyEngagement(
+                $query,
+                $app,
+                $company,
+                $filters
+            );
         } catch (InvalidArgumentException $exception) {
             return ['status' => 'error', 'message' => $exception->getMessage()];
         }
@@ -45,7 +52,12 @@ class FindLeadsByTraitsService
         }
 
         try {
-            $communication = $this->communicationFilter->apply($query, $app, $company, $filters);
+            $communication = $this->communicationFilter->apply(
+                $query,
+                $app,
+                $company,
+                $filters
+            );
         } catch (InvalidArgumentException $exception) {
             return ['status' => 'error', 'message' => $exception->getMessage()];
         }
@@ -53,7 +65,12 @@ class FindLeadsByTraitsService
             $criteria['communication'] = $communication['criteria'];
         }
 
-        $variant = $this->variantFilter->apply($query, $app, $company, $filters);
+        $variant = $this->variantFilter->apply(
+            $query,
+            $app,
+            $company,
+            $filters
+        );
         if ($variant['active']) {
             $criteria['variant_interest'] = $variant['criteria'];
         }
@@ -94,8 +111,12 @@ class FindLeadsByTraitsService
     }
 
     /** @return array{0: array<string, mixed>|null, 1: string|null} */
-    private function applyEngagement($query, Apps $app, Companies $company, array $filters): array
-    {
+    private function applyEngagement(
+        Builder $query,
+        Apps $app,
+        Companies $company,
+        array $filters
+    ): array {
         $action = trim((string) ($filters['engagement_action'] ?? ''));
         $completion = strtolower(trim((string) ($filters['engagement_completion'] ?? '')));
         if ($action === '' && $completion === '') {
@@ -105,7 +126,12 @@ class FindLeadsByTraitsService
             throw new InvalidArgumentException('Both engagement_action and engagement_completion are required together.');
         }
 
-        $selection = $this->engagementFilter->resolve($app, $company, $action, $completion);
+        $selection = $this->engagementFilter->resolve(
+            $app,
+            $company,
+            $action,
+            $completion
+        );
         $leadIds = $selection['lead_ids'];
         $selection['exclude']
             ? $query->whereNotIn('id', $leadIds)

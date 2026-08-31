@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Services\LeadTraits;
+namespace Kanvas\Intelligence\Agents\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -21,8 +21,12 @@ class VariantInterestLeadFilter
     }
 
     /** @return array{active: bool, variants: list<array<string, mixed>>, criteria: array<string, mixed>, minimum_price: float|null, maximum_price: float|null} */
-    public function apply(Builder $query, Apps $app, Companies $company, array $filters): array
-    {
+    public function apply(
+        Builder $query,
+        Apps $app,
+        Companies $company,
+        array $filters
+    ): array {
         $attributes = $filters['variant_attributes'] ?? [];
         $attributes = is_array($attributes) ? $attributes : [];
         $variantQuery = trim((string) ($filters['variant_query'] ?? ''));
@@ -32,7 +36,12 @@ class VariantInterestLeadFilter
         $variants = [];
 
         if ($active) {
-            $variants = $this->search->resolve($app, $company, $variantQuery, $attributes);
+            $variants = $this->search->resolve(
+                $app,
+                $company,
+                $variantQuery,
+                $attributes
+            );
             $variantIds = array_map(static fn (array $variant): int => (int) $variant['id'], $variants);
             $query->whereHas('variantInterests', fn ($interest) => $interest
                 ->where('is_active', 1)
@@ -71,8 +80,7 @@ class VariantInterestLeadFilter
             $lead->getId() => array_values(array_filter(
                 $this->projection->build($lead)['items'],
                 fn (array $interest): bool => isset($variantIds[(int) $interest['variant_id']])
-                    && ($context['minimum_price'] === null || $interest['price_at_interest'] >= $context['minimum_price'])
-                    && ($context['maximum_price'] === null || $interest['price_at_interest'] <= $context['maximum_price']),
+                    && $this->matchesPrice($interest['price_at_interest'], $context),
             )),
         ])->all();
 
@@ -83,5 +91,16 @@ class VariantInterestLeadFilter
             ],
             $rows,
         );
+    }
+
+    /** @param array<string, mixed> $context */
+    private function matchesPrice(?float $price, array $context): bool
+    {
+        if ($price === null) {
+            return $context['minimum_price'] === null && $context['maximum_price'] === null;
+        }
+
+        return ($context['minimum_price'] === null || $price >= $context['minimum_price'])
+            && ($context['maximum_price'] === null || $price <= $context['maximum_price']);
     }
 }
