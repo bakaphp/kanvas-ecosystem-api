@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -334,18 +335,46 @@ class Lead extends BaseModel implements EventResourceInterface
      * TODO: `leads_status` has no `category`/`is_closed` column, so there is
      * no reliable way to know per-tenant which custom statuses mean "open".
      * This hardcodes the known global seed ids as a stopgap — replace with a
-     * real category lookup once `leads_status` gets that column.
+     * real category lookup once `leads_status` gets that column. Tenants with
+     * custom statuses append their ids via the OPEN_LEADS_STATUS_IDS company
+     * setting; see openLeadsStatusIds().
      */
     public const array OPEN_LEADS_STATUS_IDS = [1, 2];
 
-    public function hasOpenLeadStatus(): bool
+    /**
+     * The `guild_open_leads_status_ids` setting is written either as an array
+     * or as a comma-separated list, so both shapes are normalized here.
+     */
+    public static function openLeadsStatusIds(?CompanyInterface $company = null): array
     {
-        return in_array((int) $this->getAttributeValue('leads_status_id'), self::OPEN_LEADS_STATUS_IDS, true);
+        if ($company === null) {
+            return self::OPEN_LEADS_STATUS_IDS;
+        }
+
+        $extra = $company->get(ConfigurationEnum::OPEN_LEADS_STATUS_IDS->value);
+
+        if (! is_array($extra)) {
+            $extra = $extra === null || $extra === '' ? [] : explode(',', (string) $extra);
+        }
+
+        $extra = array_filter(array_map('intval', $extra), fn (int $id): bool => $id > 0);
+
+        return array_values(array_unique([...self::OPEN_LEADS_STATUS_IDS, ...$extra]));
     }
 
-    public function scopeHasOpenLeadStatus(Builder $query): Builder
+    public function isOpenLeadStatusId(?int $statusId): bool
     {
-        return $query->whereIn('leads_status_id', self::OPEN_LEADS_STATUS_IDS);
+        return in_array($statusId, self::openLeadsStatusIds($this->company), true);
+    }
+
+    public function hasOpenLeadStatus(): bool
+    {
+        return $this->isOpenLeadStatusId((int) $this->getAttributeValue('leads_status_id'));
+    }
+
+    public function scopeHasOpenLeadStatus(Builder $query, ?CompanyInterface $company = null): Builder
+    {
+        return $query->whereIn('leads_status_id', self::openLeadsStatusIds($company));
     }
 
     public function isActive(): bool

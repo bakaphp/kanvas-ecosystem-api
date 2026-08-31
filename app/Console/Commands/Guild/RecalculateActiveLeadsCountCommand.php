@@ -6,7 +6,9 @@ namespace App\Console\Commands\Guild;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 
@@ -27,7 +29,7 @@ class RecalculateActiveLeadsCountCommand extends Command
                             {--chunk=500 : People per chunk}
                             {--dry-run : Report what would change without writing}';
 
-    protected $description = 'Recompute peoples.active_leads_count from leads (leads_status_id IN (1, 2), not deleted)';
+    protected $description = 'Recompute peoples.active_leads_count from leads (open leads_status_id per company, not deleted)';
 
     public function handle(): int
     {
@@ -58,7 +60,7 @@ class RecalculateActiveLeadsCountCommand extends Command
                 ->when($app !== null, fn ($query) => $query->fromApp($app))
                 ->orderBy('id')
                 ->limit($chunk)
-                ->get(['id', 'active_leads_count']);
+                ->get(['id', 'companies_id', 'active_leads_count']);
 
             if ($people->isEmpty()) {
                 break;
@@ -66,13 +68,7 @@ class RecalculateActiveLeadsCountCommand extends Command
 
             $lastId = (int) $people->last()->id;
 
-            $actualCounts = Lead::query()
-                ->whereIn('people_id', $people->pluck('id'))
-                ->hasOpenLeadStatus()
-                ->where('is_deleted', 0)
-                ->selectRaw('people_id, COUNT(*) as total')
-                ->groupBy('people_id')
-                ->pluck('total', 'people_id');
+            $actualCounts = $this->countOpenLeadsPerPeople($people);
 
             foreach ($people as $person) {
                 $stats['people_checked']++;
@@ -101,5 +97,33 @@ class RecalculateActiveLeadsCountCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Open-status ids are per-company (global defaults + the company's
+     * `guild_open_leads_status_ids` setting), so the chunk is counted one
+     * company at a time instead of a single whereIn over every person.
+     *
+     * @return array<int, int> people_id => open lead count
+     */
+    private function countOpenLeadsPerPeople(Collection $people): array
+    {
+        $counts = [];
+
+        foreach ($people->groupBy('companies_id') as $companyId => $companyPeople) {
+            $company = (int) $companyId > 0 ? Companies::getById((int) $companyId) : null;
+
+            $counts += Lead::query()
+                ->whereIn('people_id', $companyPeople->pluck('id'))
+                ->hasOpenLeadStatus($company)
+                ->where('is_deleted', 0)
+                ->selectRaw('people_id, COUNT(*) as total')
+                ->groupBy('people_id')
+                ->pluck('total', 'people_id')
+                ->map(fn ($total): int => (int) $total)
+                ->all();
+        }
+
+        return $counts;
     }
 }
