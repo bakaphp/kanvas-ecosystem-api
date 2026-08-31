@@ -26,12 +26,13 @@ class NotifyApproverAction
         protected readonly ?string $approverEmail = null,
         protected readonly ?string $attachmentUrl = null,
         protected readonly ?string $attachmentFilename = null,
+        protected readonly ?string $agentId = null,
     ) {
     }
 
     public function execute(): void
     {
-        $agentId = (string) ($this->app->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value) ?? '');
+        $agentId = $this->agentId ?? (string) ($this->app->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value) ?? '');
 
         if ($this->approverEmail === null || trim($this->approverEmail) === '' || $agentId === '') {
             return;
