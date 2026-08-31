@@ -170,7 +170,11 @@ jobs:
           - Inventory
           - Souk
           - Workflow
-          - Intelligence
+          - Intelligence-NervousSystem
+          - Intelligence-Agents
+          - Intelligence-AgentTools
+          - Intelligence-Tools
+          - Intelligence-Other
           - Baka
           - Event
           - ActionEngine
@@ -179,7 +183,13 @@ jobs:
         include:
           - testsuite: Inventory
             processes: 1
-          - testsuite: Intelligence
+          - testsuite: Intelligence-Agents
+            processes: 1
+          - testsuite: Intelligence-AgentTools
+            processes: 1
+          - testsuite: Intelligence-Tools
+            processes: 1
+          - testsuite: Intelligence-Other
             processes: 1
           - testsuite: Scribe
             processes: 1
