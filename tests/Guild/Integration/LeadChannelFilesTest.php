@@ -94,6 +94,27 @@ final class LeadChannelFilesTest extends TestCase
         $this->assertSame('Sarah Cobb', $group['participant_name']);
     }
 
+    /**
+     * The group is keyed on the thread parent but its files, engagement and labels come from the last
+     * submitted child, so a people_id written only on the parent still has to be picked up.
+     */
+    public function testReadsThePeopleIdOffTheThreadParentWhenTheChildCarriesTheEngagement(): void
+    {
+        $lead = $this->makeLead();
+        $coBuyer = $this->makePeople($lead, 'Dana Reyes');
+        $parent = $this->makeIdVerificationMessage($lead);
+        $parent->set('people_id', $coBuyer->getId());
+
+        $child = $this->makeIdVerificationMessage($lead, $parent);
+        $this->makeEngagement($lead, $child, 0);
+
+        $group = $this->groupFor($lead, $parent);
+
+        $this->assertSame('id-verification', $group['verb']);
+        $this->assertSame('ID Verification (Dana Reyes)', $group['action']);
+        $this->assertSame('Dana Reyes', $group['participant_name']);
+    }
+
     public function testMessageWithoutEngagementKeepsGenericLabels(): void
     {
         $lead = $this->makeLead();
@@ -231,7 +252,7 @@ final class LeadChannelFilesTest extends TestCase
      * system module link matters because the engagement observer reads notification copy off
      * message->entity().
      */
-    private function makeIdVerificationMessage(Lead $lead): Message
+    private function makeIdVerificationMessage(Lead $lead, ?Message $parent = null): Message
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -258,6 +279,7 @@ final class LeadChannelFilesTest extends TestCase
                     'status' => 'submitted',
                     'verb' => ConfigurationEnum::ID_VERIFICATION->value,
                 ],
+                parent_id: $parent?->getId(),
             ),
             SystemModulesRepository::getByModelName(Lead::class, $app),
             $lead->getId()

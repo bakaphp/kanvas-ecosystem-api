@@ -142,8 +142,12 @@ class LeadChannelFilesService
     {
         //`?:` and not `??`: engagement.people_id is 0 on legacy rows and 0 would never fall through `??`
         $peopleId = (int) ($engagement?->people_id ?: 0)
-            ?: (int) ($lastMessage->get('people_id') ?: 0)
-            ?: (int) ($message->get('people_id') ?: 0);
+            ?: (int) ($lastMessage->get('people_id') ?: 0);
+
+        //every get() is a custom field lookup, so only reach for the thread parent when it is another row
+        if (! $peopleId && ! $lastMessage->is($message)) {
+            $peopleId = (int) ($message->get('people_id') ?: 0);
+        }
 
         if (! $peopleId || $peopleId === (int) $this->lead->people_id) {
             return null;
