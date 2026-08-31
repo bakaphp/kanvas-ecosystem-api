@@ -598,7 +598,7 @@ class CreateEngagementAction
         return match ($type) {
             'creditApp' => ActionEnum::CREDIT_APP->value,
             'cosigner' => ActionEnum::CO_SIGNER->value,
-            'codeShare' => ActionEnum::SHARE_BLUELINK->value,
+            'codeShare' => $actionSlug,
             'messageVideos' => ActionEnum::MESSAGE_VIDEO->value,
             default => $actionSlug,
         };
