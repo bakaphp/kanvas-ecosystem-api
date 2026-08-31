@@ -95,6 +95,20 @@ extend type Query @guardByAppKey {
         )
 }
 
+type VoiceAgentTwilioNumber {
+    phone_number: String!
+    friendly_name: String
+    sid: String!
+}
+
+extend type Query @guard {
+    "Admin: list the Twilio numbers on the current company's account, to pick from when configuring an agent's voice."
+    voiceAgentTwilioNumbers: [VoiceAgentTwilioNumber!]!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentTwilioNumbersQuery"
+        )
+}
+
 type VoiceAgentCallResult {
     call_id: String
     twilio_sid: String
