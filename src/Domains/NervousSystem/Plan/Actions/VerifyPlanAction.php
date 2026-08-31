@@ -17,11 +17,8 @@ use Kanvas\NervousSystem\Plan\Support\VerifierToolPolicy;
 use Throwable;
 
 /**
- * Establishes that the goal was met — not that the boxes were ticked.
- *
- * Until now a plan reached DONE because the agent working it said so, which is marking your own
- * homework and is how these systems produce confident, complete-looking failures: every task closed,
- * the objective not achieved.
+ * Establishes that the goal was met — not that the boxes were ticked, which is what a plan reaching
+ * DONE on its own agent's say-so establishes.
  *
  * Three things make this a check rather than a second opinion:
  *  - it runs under `VerifierToolPolicy`, so the verifier can read and cannot fix;

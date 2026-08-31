@@ -15,15 +15,7 @@ use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
 
-/**
- * Read one task — including which plan and project it belongs to.
- *
- * There were five task tools and not one of them could READ a task: an agent could create, assign,
- * move and delete work it could not look at. On plan 26531 that cost two round trips and part of the
- * conversation budget — the PM asked "which project does Task #11890 belong to? I manage two", and
- * the worker answered "I do not currently have access to a tool to retrieve task details (such as a
- * `get_nervous_system_task`)", naming the tool that did not exist.
- */
+/** Read one task — including which plan and project it belongs to. */
 #[AgentTool(name: 'Get Task', category: 'nervous_system')]
 class GetNervousSystemTaskTool extends Tool implements HasRunKey
 {

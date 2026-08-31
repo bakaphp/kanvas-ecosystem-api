@@ -13,10 +13,5 @@ enum TaskCustomFieldEnum: string
     case PIDEV_STATUS = 'PIDEV_STATUS';
     case PIDEV_PULL_REQUEST_URL = 'PIDEV_PULL_REQUEST_URL';
     case PIDEV_EVENTS_CURSOR = 'PIDEV_EVENTS_CURSOR';
-
-    /**
-     * Budget for automatic provider-error retries only. A human- or agent-triggered retry does not
-     * spend it, so an exhausted auto-budget never blocks a deliberate retry_coding_job.
-     */
     case PIDEV_AUTO_RETRY_COUNT = 'PIDEV_AUTO_RETRY_COUNT';
 }

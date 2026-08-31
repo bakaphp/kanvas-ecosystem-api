@@ -14,13 +14,10 @@ use Kanvas\NervousSystem\Project\Models\Project;
 /**
  * Close the delegation loop at the PLAN level: when a plan a PM handed off finishes, wake the PM.
  *
- * `WakeAgentOnPlanChangeListener` covers the task level, but it wakes the plan's OWN agent and skips a
- * task whose assignee is that agent. Delegating a whole PLAN — the unit the PM is instructed to use —
- * makes the worker the plan's agent, so its tasks are its own and every task wake is suppressed as
- * self-notification, leaving nobody watching.
- *
- * The project heartbeat does not cover it either: `needsAttention()` looks for blocked plans and
- * stalled tasks, so a plan that finished CLEANLY is exactly the case it decides needs no attention.
+ * Nothing else covers it. `WakeAgentOnPlanChangeListener` wakes the plan's OWN agent and skips tasks
+ * assigned to it — and delegating a whole plan makes the worker that agent, so every task wake is
+ * suppressed as self-notification. The heartbeat's `needsAttention()` looks for blocked plans and
+ * stalled tasks, so a plan that finished CLEANLY is precisely what it decides needs no attention.
  */
 class WakeProjectManagerOnPlanOutcomeListener
 {

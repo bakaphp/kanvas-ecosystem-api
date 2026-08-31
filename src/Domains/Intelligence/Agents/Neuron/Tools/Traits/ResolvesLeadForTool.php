@@ -9,16 +9,13 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 
 /**
- * Look up a Lead by id from a tool's __invoke and return either the Lead OR a
- * structured error array the LLM can act on. Prevents the LLM's hallucinated
- * lead_ids from crashing the chat with an unhandled ModelNotFoundException.
+ * Look up a Lead by id from a tool's __invoke, returning the Lead OR a structured error the LLM can
+ * act on — a hallucinated id must not crash the chat.
  *
- * Pulls in HasKanvasContext because lead_id is an LLM-supplied — therefore
- * prompt-injectable — integer. Resolving it by id alone matches any lead on the
- * platform, so a prospect chatting with a customer-facing agent could read another
- * company's prospect PII, or make the agent email/SMS/hand-off against their lead.
- * Tenant context is a hard dependency here: a tool wired without it resolves
- * nothing rather than crossing the boundary.
+ * Pulls in HasKanvasContext because lead_id is LLM-supplied and therefore prompt-injectable:
+ * resolving by id alone matches any lead on the platform, handing a prospect another company's PII
+ * or aiming an email/SMS at their lead. Tenant context is a hard dependency — a tool wired without
+ * it resolves nothing rather than crossing the boundary.
  *
  * Pattern:
  *

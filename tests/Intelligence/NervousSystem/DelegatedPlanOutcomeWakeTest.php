@@ -24,13 +24,8 @@ use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 
 /**
- * The delegation loop, closed at the plan level.
- *
- * Task-level handoffs already wake the plan's own agent. Whole-plan delegation — the unit the PM is
- * instructed to use — makes the worker the plan's agent, so every task wake is suppressed as
- * self-notification and nothing is left watching. The PM learned a plan had finished only if a human
- * told it; asked for a status it @mentioned the worker, which is dropped before delivery, and then
- * promised to relay an answer that could never arrive.
+ * The delegation loop, closed at the plan level — see WakeProjectManagerOnPlanOutcomeListener for
+ * why the task-level wake cannot cover it.
  */
 final class DelegatedPlanOutcomeWakeTest extends TestCase
 {

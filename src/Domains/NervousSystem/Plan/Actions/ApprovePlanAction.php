@@ -92,20 +92,11 @@ class ApprovePlanAction
     /**
      * Put the work that was parked on this approval back in play.
      *
-     * The gate lifting has to move the WORK, not just the plan's own status. On plan 26238 the
-     * approval fired the wake one second after the click — the worker looked at its board, found its
-     * own task still `blocked` with "Awaiting budget approval of $500", and `PlanContinuationAction`
-     * returned BLOCK. An approved, running plan sat on a blocker that no longer existed until a human
-     * said so in a comment.
-     *
-     * Telling the model to "resume" cannot fix that: the continuation verdict is computed from task
-     * state BEFORE the agent's turn can act on the prompt. The state has to be right first.
-     *
-     * Every blocked task on the plan, deliberately — not a timestamp window. A plan cannot be both
-     * approved and holding work blocked on approval, and a task blocked for an unrelated reason is
-     * re-blocked by its own agent on the next turn, with the real reason. Written quietly: the
-     * APPROVED broadcast already wakes the agent, and a per-task broadcast would wake it again for
-     * each one.
+     * The state has to be right before the wake, not after: PlanContinuationAction computes its
+     * verdict from task state BEFORE the agent's turn, so a prompt telling it to resume cannot lift
+     * a task still marked blocked. Every blocked task, not a timestamp window — one blocked for an
+     * unrelated reason is re-blocked by its own agent next turn, with the real reason. Written
+     * quietly because the APPROVED broadcast already wakes the agent.
      */
     private function releaseBlockedTasks(): int
     {

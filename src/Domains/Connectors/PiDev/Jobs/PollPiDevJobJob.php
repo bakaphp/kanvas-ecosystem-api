@@ -39,11 +39,6 @@ class PollPiDevJobJob implements ShouldQueue
     // just past the ceiling to capture pi.dev's own terminal "time limit exceeded" state.
     private const int POLL_INTERVAL_SECONDS = 30;
     private const int MAX_ATTEMPTS = 62;
-
-    // Provider outages range from a momentary overload to a usage cap that only lifts hours later, so
-    // the backoff widens fast. One entry per attempt: past the last the job is left to fail and a human
-    // (or the agent itself, via retry_coding_job) decides whether it is worth another run.
-    /** @var list<int> */
     private const array PROVIDER_RETRY_BACKOFF_SECONDS = [120, 900, 3600];
 
     public function __construct(

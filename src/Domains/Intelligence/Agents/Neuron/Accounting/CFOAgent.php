@@ -26,17 +26,8 @@ use Override;
  * The agent does NOT write to the books — no posting, no Voids, no Approves, no rate changes. CFO advice
  * is given on top of the deterministic numbers the tools return.
  *
- * Tools the agent has (9):
- *   - query_balance_sheet      → BalanceSheetRepository
- *   - query_pnl                 → ProfitAndLossRepository
- *   - query_trial_balance       → TrialBalanceRepository
- *   - query_ar_aging            → ArAgingRepository
- *   - list_overdue_invoices     → direct Invoice query (per-invoice detail aging can't give)
- *   - top_late_payers           → ArAgingRepository + ranking
- *   - query_cash_position       → AccountActivityRepository over Cash sub-types
- *   - query_recent_expenses     → direct Expense query
- *   - query_data_freshness      → meta query (must run FIRST on every turn so the agent knows how stale
- *                                  the data is before stating any number)
+ * query_data_freshness must run FIRST on every turn — the agent has to know how stale the books are
+ * before it states any number.
  *
  * Defaults to the agent's `role` JSON for system-prompt content (background/steps/output). When the agent
  * has no `role`, falls back to a hard-coded CFO-shaped prompt that emphasizes data-freshness checks.
