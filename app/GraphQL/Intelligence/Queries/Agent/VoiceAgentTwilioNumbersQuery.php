@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Intelligence\Queries\Agent;
 
-use Kanvas\Apps\Models\Apps;
+use App\GraphQL\Concerns\ResolvesActingContext;
 use Kanvas\Connectors\Twilio\Client as TwilioClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Repositories\AgentsRepository;
@@ -26,21 +26,22 @@ use Throwable;
  */
 class VoiceAgentTwilioNumbersQuery
 {
+    use ResolvesActingContext;
+
     /**
      * @return array<int, array<string, mixed>>
      */
     public function __invoke(mixed $root, array $args): array
     {
-        $company = auth()->user()->getCurrentCompany();
-        $app = app(Apps::class);
+        $ctx = $this->actingContext();
         $exceptUuid = $args['agent_uuid'] ?? null;
 
         // Numbers already claimed by OTHER agents (digits-only, for lenient match).
         $assigned = [];
         $agents = Agent::query()
+            ->fromApp($ctx->app)
+            ->fromCompany($ctx->company)
             ->notDeleted()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
             ->whereNotNull('voice_config')
             ->get();
         foreach ($agents as $agent) {
@@ -54,7 +55,7 @@ class VoiceAgentTwilioNumbersQuery
         }
 
         try {
-            $twilio = TwilioClient::getInstanceByCompany($company);
+            $twilio = TwilioClient::getInstanceByCompany($ctx->company);
             $numbers = $twilio->incomingPhoneNumbers->read([], 200);
         } catch (Throwable) {
             return []; // no creds / API error — surface as an empty picker
