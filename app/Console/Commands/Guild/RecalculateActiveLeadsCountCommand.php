@@ -100,10 +100,6 @@ class RecalculateActiveLeadsCountCommand extends Command
     }
 
     /**
-     * Open-status ids are per-company (global defaults + the company's
-     * `guild_open_leads_status_ids` setting), so the chunk is counted one
-     * company at a time instead of a single whereIn over every person.
-     *
      * @return array<int, int> people_id => open lead count
      */
     private function countOpenLeadsPerPeople(Collection $people): array

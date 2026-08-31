@@ -335,16 +335,10 @@ class Lead extends BaseModel implements EventResourceInterface
      * TODO: `leads_status` has no `category`/`is_closed` column, so there is
      * no reliable way to know per-tenant which custom statuses mean "open".
      * This hardcodes the known global seed ids as a stopgap — replace with a
-     * real category lookup once `leads_status` gets that column. Tenants with
-     * custom statuses append their ids via the OPEN_LEADS_STATUS_IDS company
-     * setting; see openLeadsStatusIds().
+     * real category lookup once `leads_status` gets that column.
      */
     public const array OPEN_LEADS_STATUS_IDS = [1, 2];
 
-    /**
-     * The `guild_open_leads_status_ids` setting is written either as an array
-     * or as a comma-separated list, so both shapes are normalized here.
-     */
     public static function openLeadsStatusIds(?CompanyInterface $company = null): array
     {
         if ($company === null) {
