@@ -27,15 +27,15 @@ class VoiceAgentCallerMutation
         $agent = AgentsRepository::getByUuidForVoiceRuntime((string) $args['agent_uuid'], $app);
 
         return new CaptureVoiceCallerAction(
-            $agent,
-            (string) $args['phone'],
-            $args['name'] ?? null,
-            $args['interest'] ?? null,
-            (bool) ($args['interested'] ?? false),
-            $args['direction'] ?? null,
-            $args['summary'] ?? null,
-            (bool) ($args['wants_appointment'] ?? false),
-            $args['appointment_preference'] ?? null,
+            agent: $agent,
+            phone: (string) $args['phone'],
+            name: $args['name'] ?? null,
+            interest: $args['interest'] ?? null,
+            interested: (bool) ($args['interested'] ?? false),
+            direction: $args['direction'] ?? null,
+            summary: $args['summary'] ?? null,
+            wantsAppointment: (bool) ($args['wants_appointment'] ?? false),
+            appointmentPreference: $args['appointment_preference'] ?? null,
         )->execute();
     }
 }
