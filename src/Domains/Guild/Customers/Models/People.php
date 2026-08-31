@@ -139,7 +139,8 @@ class People extends BaseModel
             Lead::class,
             'people_id',
             'id'
-        )->orderBy('created_at', 'desc');
+        )->notDeleted()
+            ->orderBy('created_at', 'desc');
     }
 
     public function orders(): HasMany
