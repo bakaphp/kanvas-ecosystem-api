@@ -22,20 +22,23 @@ use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
 use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use NeuronAI\Tools\ArrayProperty;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\ObjectProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\ToolPropertyInterface;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
 /** Issues a standalone AR credit memo (e.g. a back-end rebate) not tied to any specific invoice, and pushes it to Acumatica. */
 #[AgentTool(name: 'Create AR Credit Memo', category: 'accounting')]
-class CreateArCreditMemoTool extends Tool
+class CreateArCreditMemoTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

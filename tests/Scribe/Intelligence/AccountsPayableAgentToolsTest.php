@@ -568,6 +568,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             new FindBillTool(),
             new FindPurchaseOrderTool(),
             new MatchBillsForPaymentTool(),
+            new CreateApBillTool(),
         ];
 
         foreach ($tools as $tool) {
