@@ -17,7 +17,6 @@ use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Users\Actions\AssignCompanyAction;
 use Kanvas\Users\Models\Users;
-use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 
 /**
  * Plan / task / agent fixtures for the continuation-loop tests.
@@ -42,9 +41,6 @@ trait MakesPlans
         $app = app(Apps::class);
         $type = AgentType::factory()->withAppId($app->getId())->create([
             'provider' => 'neuron',
-            // A wake that actually runs the agent needs a handler; the factory leaves it null and
-            // AgentChatKernel refuses with "agent_type has no valid handler set".
-            'handler' => SalesNeuronAgentStub::class,
         ]);
 
         return Agent::factory()

@@ -20,6 +20,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 use ReflectionMethod;
+use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 use Tests\Traits\MakesPlans;
 
@@ -199,7 +200,12 @@ final class AgentConversationBudgetTest extends TestCase
     private function boardWithAgent(): array
     {
         $agent = $this->makeAgent();
-        $plan = $this->makePlan([], $agent);
+
+        // These cases post a comment that wakes the agent for real, so the type needs a runnable
+        // handler — the factory leaves it null and AgentChatKernel refuses the turn.
+        $agent->type->update(['handler' => SalesNeuronAgentStub::class]);
+
+        $plan = $this->makePlan([], $agent->refresh());
 
         $this->assertNotNull($plan->socialChannels()->first());
 
