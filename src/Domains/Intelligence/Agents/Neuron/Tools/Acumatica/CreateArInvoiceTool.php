@@ -20,20 +20,23 @@ use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
 /** Creates a one-line AR invoice and, by default, issues it and pushes it to Acumatica — the AR mirror of CreateApBillTool. Stays open; use apply_ar_payment to record a payment against it separately. */
 #[AgentTool(name: 'Create AR Invoice', category: 'accounting')]
-class CreateArInvoiceTool extends Tool
+class CreateArInvoiceTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
     use PushesInvoiceWithCreditHoldRetry;
     use StoresApprovalSourceFields;
+    use TrackByInputs;
 
     public function __construct()
     {
