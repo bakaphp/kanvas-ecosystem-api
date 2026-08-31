@@ -13,6 +13,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
 use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
@@ -43,6 +45,9 @@ class WakeAgentForProjectJob implements ShouldQueue
     public const string REASON_HEARTBEAT = 'heartbeat';
     public const string REASON_ASSIGNED = 'assigned';
     public const string REASON_MENTION = 'mention';
+
+    /** A plan this PM delegated reached a terminal state — the delegation loop closing. */
+    public const string REASON_PLAN_OUTCOME = 'plan_outcome';
     public const string NO_UPDATE_SENTINEL = 'NO_UPDATE';
     private const int WAKE_LOCK_TTL_SECONDS = 600;
     private const int MENTION_RETRY_SECONDS = 15;
@@ -51,13 +56,24 @@ class WakeAgentForProjectJob implements ShouldQueue
     // (WithoutOverlapping's releaseAfter for a mention lock-collision sets its own delay independently.)
     public int $backoff = 30;
 
+    /**
+     * `wakeAgent` overrides the project's current PM. A plan outcome goes to whoever ASKED for the
+     * work (`Plan::createdByAgent`), which is a different agent once a project has changed hands —
+     * re-deriving `pmAgent` here would wake someone who never delegated it.
+     */
     public function __construct(
         public readonly Project $project,
         public readonly string $reason,
         public readonly ?string $triggerMessage = null,
         public readonly ?int $triggerMessageId = null,
+        public readonly ?Agent $wakeAgent = null,
     ) {
         $this->onQueue('nervous-system-project');
+    }
+
+    private function agentToWake(): ?Agent
+    {
+        return $this->wakeAgent ?? $this->project->pmAgent;
     }
 
     /**
@@ -100,7 +116,7 @@ class WakeAgentForProjectJob implements ShouldQueue
         // under a leaked worker scope.
         $this->overwriteAppService($this->project->app);
 
-        $agent = $this->project->pmAgent;
+        $agent = $this->agentToWake();
         $owner = $this->project->user ?? $agent?->user;
 
         if ($agent === null || $owner === null) {
@@ -109,10 +125,15 @@ class WakeAgentForProjectJob implements ShouldQueue
 
         $session = $this->resolveSession();
         $failurePayload = [
-            'agent_id' => $this->project->agent_id,
+            'agent_id' => $agent->getId(),
             'session_id' => $session->getId(),
             'reason' => $this->reason,
         ];
+
+        // Baseline the channel the reply would land on, so we can tell afterwards whether the PM
+        // already said it there with comment_on_nervous_system_plan.
+        $replyChannel = $this->resolveReplyChannel();
+        $activityBefore = $this->latestMessageId($replyChannel);
 
         [$response, $durationMs] = $this->runAgentWake(
             $agent,
@@ -140,6 +161,19 @@ class WakeAgentForProjectJob implements ShouldQueue
             return;
         }
 
+        // The PM has a board tool now, so it can answer by commenting on the plan and then be handed
+        // the floor again to "reply" — posting the same thing twice, seconds apart, the second one
+        // narrating the first ("Actions Taken: commented on the thread..."). One turn is one message.
+        if ($this->agentPostedDuringRun($replyChannel, $activityBefore, $agent->user)) {
+            $this->project->emitLedgerEvent(
+                'project.agent.reply_skipped',
+                payload: $failurePayload + ['channel_id' => $replyChannel?->getId()],
+                durationMs: $durationMs,
+            );
+
+            return;
+        }
+
         $reply = new PostProjectMessageAction(
             project: $this->project,
             verb: 'project-agent-reply',
@@ -147,7 +181,7 @@ class WakeAgentForProjectJob implements ShouldQueue
             author: $agent->user,
             fromIa: true,
             parentMessageId: $this->triggerMessageId,
-            channel: $this->resolveReplyChannel(),
+            channel: $replyChannel,
         )->execute();
 
         $this->project->emitLedgerEvent(
@@ -166,21 +200,24 @@ class WakeAgentForProjectJob implements ShouldQueue
      */
     private function isNoOpResponse(string $response): bool
     {
-        $normalized = strtoupper(trim($response, " \t\n\r\0\x0B*#`.\"'"));
-
-        return $normalized === '' || str_starts_with($normalized, self::NO_UPDATE_SENTINEL);
+        return AgentTurnResponse::isNoOp($response);
     }
 
     /**
+     * The channel this turn answers on.
+     *
      * A @mention must be answered on the SAME channel it came from — the plan's activity thread, the
      * project channel, wherever the person asked — otherwise the reply lands on the project's default
      * channel and they never see it. Only mentions carry a specific originating thread; every other
-     * wake (ingest, heartbeat, assigned) posts to the default channel as before.
+     * wake (ingest, heartbeat, assigned, plan outcome) answers on the default channel.
+     *
+     * Null only when the project has no channel bound yet — `PostProjectMessageAction` binds one at
+     * post time, which is deliberately NOT done here: resolving a target must not create one.
      */
     private function resolveReplyChannel(): ?Channel
     {
         if ($this->reason !== self::REASON_MENTION || $this->triggerMessageId === null) {
-            return null;
+            return $this->project->defaultChannel;
         }
 
         $message = Message::query()->where('id', $this->triggerMessageId)->first();
@@ -188,17 +225,24 @@ class WakeAgentForProjectJob implements ShouldQueue
         /** @var Channel|null $channel */
         $channel = $message?->channels()->first();
 
-        return $channel;
+        return $channel ?? $this->project->defaultChannel;
     }
 
+    /**
+     * Keyed per project, and additionally per agent when someone other than the project's PM is
+     * woken — otherwise a delegating agent inherits the PM's thread and answers out of its history.
+     * The PM's own session keeps its original key so existing threads are not forked.
+     */
     protected function resolveSession(): Session
     {
-        $owner = $this->project->user ?? $this->project->pmAgent?->user;
+        $agent = $this->agentToWake();
+        $owner = $this->project->user ?? $agent?->user;
+        $isProjectPm = $agent === null || $agent->getId() === $this->project->agent_id;
 
         return $this->firstOrCreateWakeSession(
             $this->project,
             create: [
-                'agents_id' => $this->project->agent_id,
+                'agents_id' => $agent?->getId() ?? $this->project->agent_id,
                 'channel_id' => $this->project->default_channel_id,
                 'user' => $owner !== null ? [
                     'id' => $owner->getId(),
@@ -206,6 +250,7 @@ class WakeAgentForProjectJob implements ShouldQueue
                     'email' => $owner->email ?? null,
                 ] : [],
             ],
+            extraKey: $isProjectPm ? [] : ['agents_id' => $agent->getId()],
         );
     }
 
@@ -257,10 +302,10 @@ class WakeAgentForProjectJob implements ShouldQueue
             return '';
         }
 
-        return "This is a periodic check-in, not a new event. Look at the recent messages/events below: "
+        return 'This is a periodic check-in, not a new event. Look at the recent messages/events below: '
             . 'if NOTHING has changed since your last status update — no new messages, no task/plan '
             . 'status changes, nothing a human needs — then DO NOT post another update. Reply with '
-            . 'exactly ' . self::NO_UPDATE_SENTINEL . " and nothing else. Only post when there is a real "
+            . 'exactly ' . self::NO_UPDATE_SENTINEL . ' and nothing else. Only post when there is a real '
             . "change to report, a real ask, or work to move. Do not repeat what you already said.\n\n";
     }
 }

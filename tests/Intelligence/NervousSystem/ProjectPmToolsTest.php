@@ -21,6 +21,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPro
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
@@ -425,6 +426,85 @@ class ProjectPmToolsTest extends TestCase
         );
     }
 
+    /**
+     * A plan nobody owns is inert — `WakeWorkerForPlanJob` returns on its first line, the plan-change
+     * wake bails, and a comment on its board wakes nobody. Plan 22975 sat in exactly that state while
+     * its tasks were assigned, so the PM had to hand-drive it task by task.
+     */
+    public function testAssignTaskAdoptsThePlanWhenNobodyOwnsIt(): void
+    {
+        Bus::fake([WakeAgentForTaskJob::class]);
+
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+        $plan->agent_id = null;
+        $plan->saveQuietly();
+
+        /** @var Task $task */
+        $task = $plan->tasks()->firstOrFail();
+        $executor = $this->makeAgent($app, $company, $user);
+
+        $result = new AssignNervousSystemTaskTool()->withContext($app, $company, $user)((int) $task->id, (int) $executor->id);
+
+        $this->assertTrue($result['plan_owner_set']);
+        $this->assertSame((int) $executor->id, (int) $plan->fresh()->agent_id);
+    }
+
+    /** A plan already delegated keeps its owner — assigning one of its tasks is not a handover. */
+    public function testAssignTaskLeavesAnAlreadyOwnedPlanAlone(): void
+    {
+        Bus::fake([WakeAgentForTaskJob::class]);
+
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+        $owner = $this->makeAgent($app, $company, $user);
+        $plan->agent_id = $owner->getId();
+        $plan->saveQuietly();
+
+        /** @var Task $task */
+        $task = $plan->tasks()->firstOrFail();
+        $executor = $this->makeAgent($app, $company, $user);
+
+        $result = new AssignNervousSystemTaskTool()->withContext($app, $company, $user)((int) $task->id, (int) $executor->id);
+
+        $this->assertFalse($result['plan_owner_set']);
+        $this->assertSame($owner->getId(), (int) $plan->fresh()->agent_id);
+    }
+
+    /**
+     * There were five task tools and not one could READ a task. On plan 26531 that cost two round
+     * trips and part of the conversation budget: the PM asked "which project does Task #11890 belong
+     * to? I manage two", and the worker answered that it had no tool to retrieve task details.
+     */
+    public function testGetTaskToolAnswersWhichPlanAndProjectATaskBelongsTo(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planUnderProject($project, $app, $company, $user);
+
+        /** @var Task $task */
+        $task = $plan->tasks()->firstOrFail();
+
+        $result = new GetNervousSystemTaskTool()->withContext($app, $company, $user)((int) $task->id);
+
+        $this->assertSame((int) $task->id, $result['task_id']);
+        $this->assertSame((int) $plan->id, $result['plan_id']);
+        $this->assertSame((int) $project->id, $result['project_id']);
+        $this->assertSame($project->title, $result['project_title']);
+    }
+
+    /** An id the model invented must come back as a structured error, never a crash. */
+    public function testGetTaskToolRejectsAnUnknownId(): void
+    {
+        [$app, $company, $user] = $this->context();
+
+        $result = new GetNervousSystemTaskTool()->withContext($app, $company, $user)(999999999);
+
+        $this->assertArrayHasKey('error', $result);
+    }
+
     public function testUpdateProjectToolSetsObjectiveAndStatus(): void
     {
         [$app, $company, $user] = $this->context();
@@ -487,6 +567,11 @@ class ProjectPmToolsTest extends TestCase
         $this->assertContains('delete_nervous_system_task', $names);
         $this->assertContains('update_nervous_system_plan', $names);
         $this->assertContains('delete_nervous_system_plan', $names);
+
+        // Asked in chat for an update on a plan, a PM without this can only answer into whatever
+        // conversation it happens to be in — the record never reaches the plan anyone would open.
+        $this->assertContains('comment_on_nervous_system_plan', $names);
+        $this->assertContains('read_plan_activity', $names);
     }
 
     /**

@@ -39,6 +39,8 @@ use Kanvas\NervousSystem\Plan\Listeners\NotifyPlanCreatorOfAgentProgressListener
 use Kanvas\NervousSystem\Plan\Listeners\PushPlanChangeToKanbanListener;
 use Kanvas\NervousSystem\Plan\Listeners\SyncKanbanAfterChatListener;
 use Kanvas\NervousSystem\Plan\Listeners\WakeAgentOnPlanChangeListener;
+use Kanvas\NervousSystem\Plan\Listeners\WakePlanAgentOnChannelCommentListener;
+use Kanvas\NervousSystem\Plan\Listeners\WakeProjectManagerOnPlanOutcomeListener;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
 use Kanvas\Social\Channels\Events\ChannelMessageAttachedEvent;
@@ -67,6 +69,7 @@ class EventServiceProvider extends ServiceProvider
             WakeAgentOnPlanChangeListener::class,
             PushPlanChangeToKanbanListener::class,
             NotifyPlanCreatorOfAgentProgressListener::class,
+            WakeProjectManagerOnPlanOutcomeListener::class,
         ],
         AgentChatResponseEvent::class => [
             SyncKanbanAfterChatListener::class,
@@ -91,6 +94,7 @@ class EventServiceProvider extends ServiceProvider
         ],
         ChannelMessageAttachedEvent::class => [
             QueueChannelKnowledgeIndexListener::class,
+            WakePlanAgentOnChannelCommentListener::class,
         ],
         KnowledgeIndexRequested::class => [
             QueueKnowledgeIndexListener::class,

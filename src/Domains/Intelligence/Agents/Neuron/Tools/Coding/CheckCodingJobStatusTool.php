@@ -64,11 +64,7 @@ class CheckCodingJobStatusTool extends Tool
             return ['status' => 'error', 'message' => "Coding job {$job_id} was not found for this agent."];
         }
 
-        $finished = in_array($result->status, [
-            TaskStatusEnum::DONE->value,
-            TaskStatusEnum::SKIPPED->value,
-            TaskStatusEnum::BLOCKED->value,
-        ], true);
+        $finished = TaskStatusEnum::tryFrom($result->status)?->isTerminal() ?? false;
 
         return [
             'status' => 'success',

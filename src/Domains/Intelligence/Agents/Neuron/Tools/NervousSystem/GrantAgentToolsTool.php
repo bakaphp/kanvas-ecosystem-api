@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\NervousSystem\Capability\Enums\AgentAbilityEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool as CapabilityTool;
 use Kanvas\NervousSystem\Capability\Services\ToolGrantResolver;
+use Kanvas\NervousSystem\Plan\Support\MentionHandle;
 use Kanvas\NervousSystem\Project\Models\ProjectMember;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -147,6 +148,7 @@ class GrantAgentToolsTool extends Tool
             'status' => 'success',
             'agent_id' => $target->getId(),
             'agent' => $target->name,
+            'agent_handle' => MentionHandle::forUser($target->user, $this->app),
             'granted' => array_map(fn (CapabilityTool $tool): string => $tool->name, $added),
             'already_held' => array_values(array_diff(
                 array_map(fn (CapabilityTool $tool): string => $tool->name, $grants['tools']),

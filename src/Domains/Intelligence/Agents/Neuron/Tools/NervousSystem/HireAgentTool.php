@@ -14,6 +14,7 @@ use Kanvas\NervousSystem\Capability\Models\Tool as CapabilityTool;
 use Kanvas\NervousSystem\Capability\Services\ActiveIntegrationsService;
 use Kanvas\NervousSystem\Capability\Services\AgentTypeResolver;
 use Kanvas\NervousSystem\Capability\Services\ToolGrantResolver;
+use Kanvas\NervousSystem\Plan\Support\MentionHandle;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -222,6 +223,8 @@ class HireAgentTool extends Tool
             'hired' => true,
             'agent_id' => $hired->getId(),
             'name' => $hired->name,
+            // The form an @mention must take — its display name reaches nobody.
+            'handle' => MentionHandle::forUser($hired->user, $this->app),
             'agent_type' => $agentType->name,
             'tools' => array_map(fn (CapabilityTool $tool): string => $tool->name, $grants['tools']),
             'needs_from_an_admin' => $requires,

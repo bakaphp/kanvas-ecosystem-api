@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\CheckCodingJobStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\CheckCodingSetupTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\DispatchCodingTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\ListMyCodingJobsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\RetryCodingJobTool;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Override;
 
@@ -34,7 +35,7 @@ class ProgrammingAgent extends SystemUserAgent
     #[Override]
     public function instructions(): string
     {
-        return <<<'PROMPT'
+        $base = <<<'PROMPT'
             You are a programming agent. You do not edit files yourself — you dispatch coding work to a
             remote coding agent with dispatch_coding_task, then track it to a pull request.
 
@@ -68,6 +69,8 @@ class ProgrammingAgent extends SystemUserAgent
               pretend to start work you can't.
             - If a tool returns an error, read it and correct your next call — don't repeat a failing call.
             PROMPT;
+
+        return $base . $this->platformContextBlock();
     }
 
     /**
@@ -91,6 +94,7 @@ class ProgrammingAgent extends SystemUserAgent
             new CheckCodingJobStatusTool($app, $company, $agent),
             new ListMyCodingJobsTool($app, $company, $agent),
             new CancelCodingJobTool($app, $company, $agent),
+            new RetryCodingJobTool($app, $company, $agent),
         ];
 
         return $this->mergeRegisteredTools(

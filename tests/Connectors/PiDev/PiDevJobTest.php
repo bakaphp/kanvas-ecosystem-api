@@ -58,4 +58,41 @@ final class PiDevJobTest extends TestCase
         $this->assertStringContainsString('Repository not found', (string) $job->error);
         $this->assertTrue($job->isTerminal());
     }
+
+    public function testProviderErrorIsRetryable(): void
+    {
+        $job = PiDevJob::fromApiResponse([
+            'jobId' => 'job-123',
+            'status' => 'failed',
+            'error' => 'You have reached your specified API usage limits.',
+            'errorCode' => 'provider_error',
+            'usage' => ['turns' => 1, 'costUsd' => 0],
+        ]);
+
+        $this->assertSame('provider_error', $job->errorCode);
+        $this->assertTrue($job->isRetryable());
+    }
+
+    public function testFailureWithoutAProviderErrorCodeIsNotRetryable(): void
+    {
+        $job = PiDevJob::fromApiResponse([
+            'jobId' => 'job-123',
+            'status' => 'failed',
+            'error' => 'git clone failed (exit 128): remote: Repository not found.',
+        ]);
+
+        $this->assertNull($job->errorCode);
+        $this->assertFalse($job->isRetryable());
+    }
+
+    public function testACompletedJobIsNeverRetryable(): void
+    {
+        $job = PiDevJob::fromApiResponse([
+            'jobId' => 'job-123',
+            'status' => 'completed',
+            'errorCode' => 'provider_error',
+        ]);
+
+        $this->assertFalse($job->isRetryable());
+    }
 }

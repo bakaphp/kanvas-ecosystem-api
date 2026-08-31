@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Intelligence\Agents\Contracts\HandlesAgentMention;
 use Kanvas\Intelligence\Agents\Jobs\RespondToMentionJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\AgentChannelActivity;
+use Kanvas\Intelligence\Agents\Services\AgentConversationBudget;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
 use Kanvas\Social\Messages\Models\Message;
@@ -32,17 +34,25 @@ class RespondToAgentMentionListener
         $message = $event->message;
         $payload = $message->message;
 
-        // Agent-authored (from_ia) messages are parsed so an agent can @mention a human to notify
-        // them (NotifyMentionedUsersListener), but they must never wake another agent — delegation
-        // is via assign_task, not by one agent tagging another. This is the anti-loop guard.
-        if (is_array($payload) && ($payload['from_ia'] ?? false)) {
-            return;
-        }
-
         // Project-ingest messages (transcript/email/mention) already wake the PM via
         // IngestToProjectAction — don't let a mention inside their content wake it a second time.
         if (is_array($payload) && isset($payload['ingest_type'])) {
             return;
+        }
+
+        // An agent naming another agent is a handoff, so it has to reach it — a worker finishing step 1
+        // and passing step 2 on is the whole point. The BUDGET is what bounds it, not a blanket
+        // refusal: an agent-to-agent exchange gets MAX_HOPS and then stops, and a human speaking resets
+        // it, because a person re-entering is the signal the conversation is wanted.
+        /** @var Channel|null $channel */
+        $channel = $message->channels()->first();
+
+        if (AgentChannelActivity::isAgentAuthored($message)) {
+            if (! AgentConversationBudget::spend($channel)) {
+                return;
+            }
+        } else {
+            AgentConversationBudget::reset($channel);
         }
 
         $awaitingUpload = ! $message->files()->exists();
