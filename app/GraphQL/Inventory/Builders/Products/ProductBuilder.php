@@ -50,11 +50,7 @@ class ProductBuilder
         }
 
         foreach ($args['attributeValues'] ?? [] as $filter) {
-            $query->filterByAttributeValue(
-                value: isset($filter['value']) ? (string) $filter['value'] : null,
-                attributesId: isset($filter['attribute_id']) ? (int) $filter['attribute_id'] : null,
-                slug: $filter['slug'] ?? null,
-            );
+            $query->filterByAttributeValue(...Products::attributeFilterArgsFromInput($filter));
         }
 
         if (! empty($args['withAttributeSlug'])) {
