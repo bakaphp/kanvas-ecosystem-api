@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Plan\Listeners;
 
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Models\Plan;
@@ -28,12 +29,13 @@ class WakeProjectManagerOnPlanOutcomeListener
 
     public function handle(PlanBroadcast $event): void
     {
-        $project = $this->projectAwaitingOutcome($event);
+        $target = $this->wakeTarget($event);
 
-        if ($project === null) {
+        if ($target === null) {
             return;
         }
 
+        [$project, $creator] = $target;
         $plan = $event->plan;
 
         $plan->emitLedgerEvent(
@@ -41,25 +43,33 @@ class WakeProjectManagerOnPlanOutcomeListener
             payload: [
                 'project_id' => $project->getId(),
                 'pm_agent_id' => $project->pmAgent?->getId(),
-                'created_by_agent_id' => $plan->created_by_agent_id,
+                'woken_agent_id' => $creator->getId(),
                 'plan_status' => $plan->status,
                 'previous_status' => $event->previousStatus,
+                'change_type' => $event->changeType->value,
             ],
         );
 
         WakeAgentForProjectJob::dispatch(
             $project,
             WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
-            $this->outcomeFact($plan),
+            $this->outcomeFact($plan, $event->changeType),
+            wakeAgent: $creator,
         );
     }
 
     /**
-     * The project whose PM should hear about this transition, or null when nobody should.
+     * The project and the agent that should hear about this transition, or null when nobody should.
+     *
+     * @return array{0: Project, 1: Agent}|null
      */
-    private function projectAwaitingOutcome(PlanBroadcast $event): ?Project
+    private function wakeTarget(PlanBroadcast $event): ?array
     {
-        if ($event->fromSync || $event->changeType !== PlanChangeTypeEnum::UPDATED) {
+        // Every other PlanBroadcast listener drops REJECTED, so if this one does too a human turning
+        // a plan down cancels the work and tells nobody.
+        $rejected = $event->changeType === PlanChangeTypeEnum::REJECTED;
+
+        if ($event->fromSync || (! $rejected && $event->changeType !== PlanChangeTypeEnum::UPDATED)) {
             return null;
         }
 
@@ -80,6 +90,7 @@ class WakeProjectManagerOnPlanOutcomeListener
         // Who ASKED for this work, preferred over the project's current PM: it is right for a plan
         // whose project has since changed hands, and it is the only answer that exists when the
         // creator delegated outside a project.
+        /** @var Agent|null $creator */
         $creator = $plan->createdByAgent ?? $project?->pmAgent;
 
         if ($project === null || $creator === null || ! $creator->is_active) {
@@ -87,22 +98,34 @@ class WakeProjectManagerOnPlanOutcomeListener
         }
 
         // An agent that finished its own plan already knows; waking it there bounces its work at it.
-        return $creator->getId() === $plan->agent_id ? null : $project;
+        // A rejection is the exception — a HUMAN made that call, so the assignee has not heard it.
+        if (! $rejected && $creator->getId() === $plan->agent_id) {
+            return null;
+        }
+
+        return [$project, $creator];
     }
 
-    private function outcomeFact(Plan $plan): string
+    private function outcomeFact(Plan $plan, PlanChangeTypeEnum $changeType): string
     {
-        $worker = $plan->agent?->name ?? 'an assignee';
+        if ($changeType === PlanChangeTypeEnum::REJECTED) {
+            return sprintf(
+                'Plan %d ("%s") was REJECTED by a human and is now %s — the work is stopped. Read it with '
+                    . 'read_plan_activity to see the reason given, then decide whether to revise and re-submit '
+                    . 'it or drop it. Do not simply re-create the same plan.',
+                $plan->getId(),
+                (string) $plan->title,
+                (string) $plan->status,
+            );
+        }
 
-        $fact = sprintf(
+        return sprintf(
             'Plan %d ("%s") is now %s, worked by %s.',
             $plan->getId(),
             (string) $plan->title,
             (string) $plan->status,
-            $worker,
-        );
-
-        return $fact . ' Read it with read_plan_activity before you report anything about it — the '
-            . 'result and any blocker are recorded on its tasks.';
+            $plan->agent?->name ?? 'an assignee',
+        ) . ' Read it with read_plan_activity before you report anything about it — the result and any '
+            . 'blocker are recorded on its tasks.';
     }
 }

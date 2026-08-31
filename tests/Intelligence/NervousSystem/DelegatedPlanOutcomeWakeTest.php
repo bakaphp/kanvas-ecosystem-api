@@ -8,6 +8,9 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\NervousSystem\Ledger\Models\Event;
+use Kanvas\NervousSystem\Plan\Actions\ApprovePlanAction;
 use Kanvas\NervousSystem\Plan\Actions\UpdatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
@@ -17,6 +20,7 @@ use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Users\Models\Users;
+use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 
 /**
@@ -102,6 +106,100 @@ final class DelegatedPlanOutcomeWakeTest extends TestCase
         $this->complete($plan, PlanStatusEnum::ACTIVE);
 
         Bus::assertNotDispatched(WakeAgentForProjectJob::class);
+    }
+
+    /**
+     * A rejection is broadcast as REJECTED, which every other listener filters out. If this one
+     * drops it too, turning a plan down cancels the work and tells nobody.
+     */
+    public function testRejectingAPlanWakesTheAgentThatAskedForIt(): void
+    {
+        Bus::fake();
+
+        $project = $this->project();
+        $plan = $this->planFor($project, $this->worker());
+        $plan->created_by_agent_id = $project->pmAgent?->getId();
+        $plan->status = PlanStatusEnum::AWAITING_APPROVAL->value;
+        $plan->saveQuietly();
+
+        new ApprovePlanAction($plan->refresh(), $this->user(), approved: false, reviewOutcome: 'Out of scope.')->execute();
+
+        Bus::assertDispatched(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool => $job->reason === WakeAgentForProjectJob::REASON_PLAN_OUTCOME
+                && $job->wakeAgent?->getId() === $project->pmAgent?->getId()
+                && str_contains((string) $job->triggerMessage, 'REJECTED')
+        );
+    }
+
+    /**
+     * The creator is the agent that delegated, which stops being the project's PM the moment the
+     * project changes hands. Asserted through handle(), not the dispatch — a job that accepts the
+     * creator and then re-derives pmAgent anyway still passes a Bus::fake assertion.
+     */
+    public function testTheCreatorIsWokenNotTheProjectsCurrentPm(): void
+    {
+        $project = $this->project();
+        $creator = $this->agentNamed('Creator ');
+        $creator->type->update(['handler' => SalesNeuronAgentStub::class]);
+
+        new WakeAgentForProjectJob(
+            $project,
+            WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
+            'Plan 1 is now done.',
+            wakeAgent: $creator->refresh(),
+        )->handle();
+
+        $invoked = Event::query()
+            ->where('source_entity_type', Project::class)
+            ->where('source_entity_id', $project->getId())
+            ->where('event_type', 'project.agent.invoked')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($invoked, 'the wake never ran');
+        $this->assertSame($creator->getId(), $invoked->payload['agent_id']);
+        $this->assertNotSame($project->pmAgent?->getId(), $invoked->payload['agent_id']);
+    }
+
+    /** A non-PM wake must not inherit the PM's thread and answer out of its history. */
+    public function testANonPmWakeGetsItsOwnSession(): void
+    {
+        $project = $this->project();
+        $creator = $this->agentNamed('Creator ');
+        $creator->type->update(['handler' => SalesNeuronAgentStub::class]);
+        $project->pmAgent?->type->update(['handler' => SalesNeuronAgentStub::class]);
+
+        new WakeAgentForProjectJob($project, WakeAgentForProjectJob::REASON_HEARTBEAT, 'x')->handle();
+        new WakeAgentForProjectJob(
+            $project,
+            WakeAgentForProjectJob::REASON_PLAN_OUTCOME,
+            'x',
+            wakeAgent: $creator->refresh(),
+        )->handle();
+
+        $sessions = Session::query()
+            ->where('entity_namespace', Project::class)
+            ->where('entity_id', $project->getId())
+            ->pluck('agents_id');
+
+        $this->assertCount(2, $sessions);
+        $this->assertContains($creator->getId(), $sessions->all());
+    }
+
+    /** No creator recorded is the pre-existing case: the project's PM stays the right answer. */
+    public function testAPlanWithNoRecordedCreatorStillWakesTheProjectPm(): void
+    {
+        Bus::fake();
+
+        [$project, $plan] = $this->delegatedPlan();
+
+        $this->complete($plan, PlanStatusEnum::DONE);
+
+        Bus::assertDispatched(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool => $job->wakeAgent?->getId() === $project->pmAgent?->getId()
+        );
     }
 
     /**

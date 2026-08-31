@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
+use Kanvas\NervousSystem\Plan\Support\MentionHandle;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -84,6 +85,8 @@ class GetNervousSystemTaskTool extends Tool implements HasRunKey
             'result' => $task->result,
             'assigned_agent_id' => $task->agent_id,
             'assigned_agent_name' => $task->agent?->name,
+            // How to actually reach them: an @mention must be the handle, never the display name.
+            'assigned_agent_handle' => MentionHandle::forUser($task->agent?->user, $this->app),
             'plan_id' => $plan?->getId(),
             'plan_title' => $plan?->title,
             'plan_status' => $plan?->status,

@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
+use Kanvas\NervousSystem\Plan\Support\MentionHandle;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
@@ -108,6 +109,9 @@ class AssignNervousSystemTaskTool extends Tool implements HasRunKey
             'task_id' => $task->getId(),
             'agent_id' => $agent->getId(),
             'agent_name' => $agent->name,
+            // The only form an @mention can be written in: the parser matches ONE @token, so the
+            // display name ("Format Specialist") becomes "@Format" and reaches nobody.
+            'agent_handle' => MentionHandle::forUser($agent->user, $this->app),
             'plan_owner_set' => $adoptedPlan,
         ];
     }

@@ -13,6 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
@@ -55,13 +56,24 @@ class WakeAgentForProjectJob implements ShouldQueue
     // (WithoutOverlapping's releaseAfter for a mention lock-collision sets its own delay independently.)
     public int $backoff = 30;
 
+    /**
+     * `wakeAgent` overrides the project's current PM. A plan outcome goes to whoever ASKED for the
+     * work (`Plan::createdByAgent`), which is a different agent once a project has changed hands —
+     * re-deriving `pmAgent` here would wake someone who never delegated it.
+     */
     public function __construct(
         public readonly Project $project,
         public readonly string $reason,
         public readonly ?string $triggerMessage = null,
         public readonly ?int $triggerMessageId = null,
+        public readonly ?Agent $wakeAgent = null,
     ) {
         $this->onQueue('nervous-system-project');
+    }
+
+    private function agentToWake(): ?Agent
+    {
+        return $this->wakeAgent ?? $this->project->pmAgent;
     }
 
     /**
@@ -104,7 +116,7 @@ class WakeAgentForProjectJob implements ShouldQueue
         // under a leaked worker scope.
         $this->overwriteAppService($this->project->app);
 
-        $agent = $this->project->pmAgent;
+        $agent = $this->agentToWake();
         $owner = $this->project->user ?? $agent?->user;
 
         if ($agent === null || $owner === null) {
@@ -113,7 +125,7 @@ class WakeAgentForProjectJob implements ShouldQueue
 
         $session = $this->resolveSession();
         $failurePayload = [
-            'agent_id' => $this->project->agent_id,
+            'agent_id' => $agent->getId(),
             'session_id' => $session->getId(),
             'reason' => $this->reason,
         ];
@@ -216,14 +228,21 @@ class WakeAgentForProjectJob implements ShouldQueue
         return $channel ?? $this->project->defaultChannel;
     }
 
+    /**
+     * Keyed per project, and additionally per agent when someone other than the project's PM is
+     * woken — otherwise a delegating agent inherits the PM's thread and answers out of its history.
+     * The PM's own session keeps its original key so existing threads are not forked.
+     */
     protected function resolveSession(): Session
     {
-        $owner = $this->project->user ?? $this->project->pmAgent?->user;
+        $agent = $this->agentToWake();
+        $owner = $this->project->user ?? $agent?->user;
+        $isProjectPm = $agent === null || $agent->getId() === $this->project->agent_id;
 
         return $this->firstOrCreateWakeSession(
             $this->project,
             create: [
-                'agents_id' => $this->project->agent_id,
+                'agents_id' => $agent?->getId() ?? $this->project->agent_id,
                 'channel_id' => $this->project->default_channel_id,
                 'user' => $owner !== null ? [
                     'id' => $owner->getId(),
@@ -231,6 +250,7 @@ class WakeAgentForProjectJob implements ShouldQueue
                     'email' => $owner->email ?? null,
                 ] : [],
             ],
+            extraKey: $isProjectPm ? [] : ['agents_id' => $agent->getId()],
         );
     }
 

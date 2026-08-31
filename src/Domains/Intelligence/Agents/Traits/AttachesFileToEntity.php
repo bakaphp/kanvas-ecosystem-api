@@ -110,7 +110,7 @@ trait AttachesFileToEntity
 
             $file = $content !== null
                 ? $filesystem->createFileSystemFromBase64(base64_encode($content), $name, $user)
-                : $filesystem->uploadFileFromUrl($fileUrl, $user);
+                : $filesystem->uploadFileFromUrl($fileUrl, $user, $name);
         } catch (InvalidArgumentException) {
             return [
                 'status' => 'error',

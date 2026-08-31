@@ -12,11 +12,14 @@ use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\CapabilityLookupTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ListActiveIntegrationsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ReportCapabilityGapTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ApproveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CommentOnNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
@@ -29,6 +32,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetNervousSystemTaskTo
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GrantAgentToolsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentTypesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlanFilesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemTaskFilesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
@@ -126,6 +131,12 @@ class ProjectManagerAgent extends SystemUserAgent
             Mentioning is what sends them a notification; writing their name does nothing, and a
             member with no `handle` can't be notified. When the objective is missing, ask for it by
             @mentioning the owner/managers, not by posting into the void.
+
+            THE SAME RULE APPLIES TO AGENTS, and it is the one most often got wrong. An @mention is
+            ALWAYS the `handle` — never the display name. "@Format Specialist" is not a mention: the
+            parser reads one word after the @, so it becomes "@Format" and reaches nobody. Write
+            "@agentformatspecialist". Every tool that names an agent hands you its handle next to its
+            name (`agent_handle`, `handle`) for exactly this — use that field, never the name.
 
             @MENTION DISCIPLINE — DO NOT SPAM. Every @mention sends that person a notification, so be
             strict:
@@ -235,6 +246,15 @@ class ProjectManagerAgent extends SystemUserAgent
             - You can still add_task / assign_task / update_task_status directly for small, one-off
               steps you want to track yourself, but prefer assigning a plan so the worker owns the
               decomposition.
+            - HAND FILES OVER AS FILES, NEVER AS A URL IN THE TEXT. When work depends on a document,
+              attach_file_to_plan it before you assign anyone — every task on that plan then inherits
+              it, and the worker finds it with list_task_files and opens it with read_file. A link
+              pasted into a description hands the worker nothing it can open: on a real plan both
+              workers blocked on exactly that, then invented a breakdown of 158 records from a file of
+              52. If someone gives you a document in conversation, attach it to the plan yourself.
+            - WHEN YOU NEED THE OUTPUT, ASK FOR A FILE. Tell the assignee to attach_file_to_task its
+              deliverable, and check with list_plan_files before you report a plan done. A report that
+              exists only as a comment cannot be read by the next agent or verified as an artifact.
             - OPEN A NEW PROJECT ONLY FOR A SEPARATE STREAM OF WORK. When a request clearly is not part
               of the project you are on (a different goal, a different deliverable), use
               create_nervous_system_project — you become its PM, and its objective is what you then
@@ -413,6 +433,11 @@ class ProjectManagerAgent extends SystemUserAgent
             new ReadNervousSystemPlanActivityTool()->withContext($app, $company, $user),
             new GetNervousSystemTaskTool()->withContext($app, $company, $user),
             new CommentOnNervousSystemPlanTool()->withContext($app, $company, $user),
+            new ReadFileTool()->withContext($app, $company, $user),
+            new AttachFileToNervousSystemPlanTool()->withContext($app, $company, $user),
+            new AttachFileToNervousSystemTaskTool()->withContext($app, $company, $user),
+            new ListNervousSystemPlanFilesTool()->withContext($app, $company, $user),
+            new ListNervousSystemTaskFilesTool()->withContext($app, $company, $user),
             new DeleteNervousSystemTaskTool()->withContext($app, $company, $user),
         ];
 

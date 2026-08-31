@@ -13,6 +13,7 @@ use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
+use Kanvas\NervousSystem\Plan\Support\MentionHandle;
 use Kanvas\NervousSystem\Project\Enums\ProjectMemberTypeEnum;
 use Kanvas\NervousSystem\Project\Models\ProjectMember;
 use Kanvas\Users\Models\Users;
@@ -155,6 +156,7 @@ class AssignNervousSystemPlanTool extends Tool implements HasRunKey
                     'assignee_type' => 'agent',
                     'agent_id' => $agent->getId(),
                     'name' => $agent->name,
+            'handle' => MentionHandle::forUser($agent->user, $this->app),
                     'auto_run' => $autoRun,
                     'agent_tools' => $grantedTools,
                     'already_assigned' => true,

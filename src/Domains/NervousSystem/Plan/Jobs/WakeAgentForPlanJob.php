@@ -108,7 +108,15 @@ class WakeAgentForPlanJob implements ShouldQueue
             // states a human or the agent's own reply resolves. Acting here rather than asking the
             // agent to is the difference between a decision and a suggestion.
             if ($decision->verdict === ContinuationDecisionEnum::DISPATCH) {
-                new DispatchTaskBandAction($this->plan)->execute();
+                $band = new DispatchTaskBandAction($this->plan)->execute();
+
+                // The band's workers ARE the assignees, so continuing this turn would put the plan's
+                // own agent on their tasks in parallel. The batch wakes it again when they finish.
+                // Guarded on the count: a band that dispatched nothing leaves this turn the only one
+                // that can move the plan.
+                if ($band['dispatched'] > 0) {
+                    return;
+                }
             }
 
             if ($decision->verdict === ContinuationDecisionEnum::VERIFY) {

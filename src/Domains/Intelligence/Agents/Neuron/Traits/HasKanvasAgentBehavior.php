@@ -207,6 +207,9 @@ trait HasKanvasAgentBehavior
      */
     protected function universalTools(): array
     {
+        // read_file is deliberately NOT here. It reaches any file the company owns, so it is granted
+        // per agent (or held intrinsically by the PM) rather than handed to every agent that exists —
+        // a customer-facing agent talked into a filesystem_id would read another prospect's quote.
         return [
             new CurrentTimeTool($this->resolveTenantTimezone()),
         ];
