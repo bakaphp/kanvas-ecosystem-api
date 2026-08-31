@@ -46,7 +46,12 @@ class AgentFactory extends Factory
     {
         $user = Users::factory()->create();
 
-        new RegisterUsersAppAction($user, Apps::query()->find($appId))->execute((string) $user->password);
+        // Fall back to the running app: Apps::find(null) is null, and registering against null leaves
+        // the user with no app profile — getAppProfile() then throws "User not found in app" the first
+        // time an agent reads its own user.
+        $app = $appId !== null ? Apps::query()->find($appId) : null;
+
+        new RegisterUsersAppAction($user, $app ?? app(Apps::class))->execute((string) $user->password);
 
         return $user;
     }
