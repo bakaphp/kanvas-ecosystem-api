@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Tests\TestCase;
 
@@ -43,6 +44,64 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
         $this->createLead($person, leadsStatusId: 3);
 
         $this->assertSame(0, $this->activeLeadsCount($person));
+    }
+
+    public function testCompanySettingAppendsExtraOpenStatusIds(): void
+    {
+        $this->withOpenLeadStatusIds([3], function (): void {
+            $person = $this->createPerson();
+
+            $this->createLead($person, leadsStatusId: 3);
+
+            $this->assertSame(1, $this->activeLeadsCount($person));
+        });
+    }
+
+    public function testCompanySettingKeepsDefaultOpenStatusIds(): void
+    {
+        $this->withOpenLeadStatusIds('3, 7', function ($company): void {
+            $this->assertSame([1, 2, 3, 7], Lead::openLeadsStatusIds($company));
+
+            $person = $this->createPerson();
+            $this->createLead($person, leadsStatusId: 1);
+
+            $this->assertSame(1, $this->activeLeadsCount($person));
+        });
+    }
+
+    public function testExtraOpenStatusDecrementsWhenLeadMovesToClosedStatus(): void
+    {
+        $this->withOpenLeadStatusIds([3], function (): void {
+            $person = $this->createPerson();
+            $lead = $this->createLead($person, leadsStatusId: 3);
+            $this->assertSame(1, $this->activeLeadsCount($person));
+
+            $lead->leads_status_id = 4;
+            $lead->saveOrFail();
+
+            $this->assertSame(0, $this->activeLeadsCount($person));
+        });
+    }
+
+    public function testOpenLeadsStatusIdsWithoutCompanyReturnsDefaults(): void
+    {
+        $this->assertSame([1, 2], Lead::openLeadsStatusIds());
+    }
+
+    /**
+     * The setting lives in Redis, which DatabaseTransactions does not roll
+     * back — so it must be deleted even when the assertions fail.
+     */
+    private function withOpenLeadStatusIds(array|string $ids, callable $assertions): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $company->set(ConfigurationEnum::OPEN_LEADS_STATUS_IDS->value, $ids);
+
+        try {
+            $assertions($company);
+        } finally {
+            $company->del(ConfigurationEnum::OPEN_LEADS_STATUS_IDS->value);
+        }
     }
 
     public function testStatusChangeFromOpenToClosedDecrementsCounter(): void
