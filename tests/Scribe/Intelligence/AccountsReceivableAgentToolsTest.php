@@ -574,6 +574,8 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             new FindCustomerTool(),
             new FindInvoiceTool(),
             new MatchInvoicesForPaymentTool(),
+            new CreateArInvoiceTool(),
+            new CreateArCreditMemoTool(),
         ];
 
         foreach ($tools as $tool) {

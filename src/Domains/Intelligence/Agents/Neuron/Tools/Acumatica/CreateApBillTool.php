@@ -24,19 +24,22 @@ use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
 /** Creates a one-line AP bill and, by default, auto-approves it and pushes it to Acumatica in one step. */
 #[AgentTool(name: 'Create AP Bill', category: 'accounting')]
-class CreateApBillTool extends Tool
+class CreateApBillTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
     use StoresApprovalSourceFields;
+    use TrackByInputs;
 
     public function __construct()
     {
