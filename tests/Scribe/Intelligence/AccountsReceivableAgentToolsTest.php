@@ -480,6 +480,34 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame($controlAccount->getId(), $line->account_id);
     }
 
+    public function test_create_ar_credit_memo_appends_optional_notes_from_the_request_email(): void
+    {
+        $this->seedTestOrganization('Notes QA Customer');
+        $controlAccount = Account::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('account_sub_type', AccountSubTypeEnum::TRAVEL_AND_MEALS->value)
+            ->firstOrFail();
+
+        $result = new CreateArCreditMemoTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                customer_name: 'Notes QA Customer',
+                invoice_number: 'Notes QA Reference',
+                lines: [
+                    ['control_account_number' => $controlAccount->account_number, 'amount' => 100.0],
+                ],
+                notes: 'Back-end rebate on sales-out, no VAT. Approved by the requester.',
+            );
+
+        $this->assertTrue($result['created']);
+
+        /** @var Invoice $creditNote */
+        $creditNote = Invoice::query()->where('id', $result['credit_memo_id'])->firstOrFail();
+        $this->assertStringContainsString('Notes QA Reference', $creditNote->notes);
+        $this->assertStringContainsString('Back-end rebate on sales-out, no VAT. Approved by the requester.', $creditNote->notes);
+    }
+
     public function test_create_ar_credit_memo_notifies_the_configured_default_email(): void
     {
         $originalNotificationEmail = $this->kanvasApp->get(InvoicesConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value);
