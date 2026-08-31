@@ -277,7 +277,14 @@ class CreateArCreditMemoTool extends Tool
             return;
         }
 
-        new NotifyApproverAction(app: $app, text: $text, approverEmail: $email)->execute();
+        $agentId = trim((string) $app->get(ConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value, ''));
+
+        new NotifyApproverAction(
+            app: $app,
+            text: $text,
+            approverEmail: $email,
+            agentId: $agentId !== '' ? $agentId : null,
+        )->execute();
     }
 
     private function resolveAccount(string $accountNumber, Apps $app, Companies $company): ?Account
