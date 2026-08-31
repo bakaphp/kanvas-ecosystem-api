@@ -95,20 +95,6 @@ extend type Query @guardByAppKey {
         )
 }
 
-type VoiceAgentTwilioNumber {
-    phone_number: String!
-    friendly_name: String
-    sid: String!
-}
-
-extend type Query @guard {
-    "Admin: list the AVAILABLE (purchased but unassigned) Twilio numbers on the current company's account, to pick from when configuring an agent's voice. Pass agent_uuid when editing so that agent's own number stays listed."
-    voiceAgentTwilioNumbers(agent_uuid: String): [VoiceAgentTwilioNumber!]!
-        @field(
-            resolver: "App\\GraphQL\\Intelligence\\Queries\\Agent\\VoiceAgentTwilioNumbersQuery"
-        )
-}
-
 type VoiceAgentCallResult {
     call_id: String
     twilio_sid: String
