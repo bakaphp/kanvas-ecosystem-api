@@ -11,6 +11,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Client;
 use Kanvas\Connectors\Zoho\DataTransferObject\ZohoLead;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Zoho\Services\ZohoFieldTypeService;
 use Kanvas\Connectors\Zoho\ZohoService;
 use Kanvas\Guild\Agents\Models\Agent;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -68,7 +69,7 @@ class SyncLeadToZohoAction
                 }
 
                 try {
-                    $zohoLead = $leadModule->create($zohoData);
+                    $zohoLead = $this->createLeadRecord($leadModule, $zohoData);
                     $zohoLeadId = $zohoLead->getId();
 
                     $lead->set(
@@ -90,7 +91,8 @@ class SyncLeadToZohoAction
             } else {
                 $zohoLeadInfo = $leadModule->get((string) $zohoLeadId)->getData();
                 if (! empty($zohoLeadInfo)) {
-                    $zohoLead = $leadModule->update(
+                    $zohoLead = $this->updateLeadRecord(
+                        $leadModule,
                         (string) $zohoLeadId,
                         $zohoData
                     );
@@ -103,6 +105,57 @@ class SyncLeadToZohoAction
 
             return $zohoData;
         });
+    }
+
+    /**
+     * Zoho rejects the whole lead when a single value doesn't match its field type — the lead form
+     * hands us "$50,000" for a currency field, and 24 leads never reached the CRM because of it. We
+     * can't know each tenant's field types up front (the map is per-company config), so we let Zoho
+     * be the judge: on INVALID_DATA, coerce exactly the fields it named into the types it asked for
+     * and retry once, dropping any value we can't make fit rather than losing the lead over it.
+     */
+    protected function createLeadRecord(ZohoRecordsModule $leadModule, array &$zohoData): object
+    {
+        try {
+            return $leadModule->create($zohoData);
+        } catch (ApiError $e) {
+            $retryData = $this->coerceRejectedPayload($e, $zohoData);
+
+            if ($retryData === null) {
+                throw $e;
+            }
+
+            $zohoData = $retryData;
+
+            return $leadModule->create($zohoData);
+        }
+    }
+
+    protected function updateLeadRecord(
+        ZohoRecordsModule $leadModule,
+        string $zohoLeadId,
+        array &$zohoData
+    ): object {
+        try {
+            return $leadModule->update($zohoLeadId, $zohoData);
+        } catch (ApiError $e) {
+            $retryData = $this->coerceRejectedPayload($e, $zohoData);
+
+            if ($retryData === null) {
+                throw $e;
+            }
+
+            $zohoData = $retryData;
+
+            return $leadModule->update($zohoLeadId, $zohoData);
+        }
+    }
+
+    protected function coerceRejectedPayload(ApiError $e, array $zohoData): ?array
+    {
+        $body = json_decode((string) $e->response()->getBody(), true);
+
+        return ZohoFieldTypeService::coercePayload($zohoData, is_array($body) ? $body : null);
     }
 
     /**
