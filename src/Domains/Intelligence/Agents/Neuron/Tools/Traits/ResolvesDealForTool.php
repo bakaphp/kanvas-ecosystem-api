@@ -9,13 +9,12 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Deals\Models\Deal;
 
 /**
- * Look up a Deal by id from a tool's __invoke and return either the Deal OR a
- * structured error array the LLM can act on. Prevents a hallucinated deal_id from
- * crashing the chat with an unhandled ModelNotFoundException.
+ * Look up a Deal by id from a tool's __invoke, returning the Deal OR a structured error the LLM can
+ * act on — a hallucinated id must not crash the chat.
  *
- * deal_id is LLM-supplied — therefore prompt-injectable — so resolving it by id alone matches any
- * deal on the platform: another company's opportunity read back into the chat, or (delete_deal)
- * destroyed. Tenant context is a hard dependency; a tool wired without it resolves nothing.
+ * deal_id is LLM-supplied and therefore prompt-injectable: resolving by id alone matches any deal on
+ * the platform — another company's opportunity read back into the chat, or destroyed by delete_deal.
+ * Tenant context is a hard dependency; a tool wired without it resolves nothing.
  *
  * Unlike ResolvesLeadForTool this does NOT pull in HasKanvasContext: UpdateDealTool declares its own
  * promoted private $app/$company, and a trait re-declaring them would fatal on property composition.

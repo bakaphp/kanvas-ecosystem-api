@@ -32,7 +32,20 @@ class PostPlanActivityMessageAction
         private readonly ?Channel $channel = null,
         private readonly string $verb = 'agent_reply',
         private readonly array $extraPayload = [],
+        private readonly ?Message $replyTo = null,
     ) {
+    }
+
+    /**
+     * The ROOT of the thread a reply belongs to, never the message replied to directly.
+     *
+     * Threads stay one level deep — the same anchor `RespondToMentionJob` uses. Parenting to the
+     * message itself would nest a conversation deeper on every turn; parenting to nothing starts a
+     * new thread per message, which is how one exchange ends up as five disconnected roots.
+     */
+    private function threadRootOf(?Message $replyTo): ?int
+    {
+        return $replyTo?->joinAncestors()->last()?->getId();
     }
 
     public function execute(): ?Message
@@ -50,7 +63,12 @@ class PostPlanActivityMessageAction
                 author: $author,
                 verb: $this->verb,
                 content: $this->content,
-                extraPayload: array_merge(['from_me' => true], $this->extraPayload),
+                // Every caller of this action is a job, an action or an agent tool — a person comments
+                // through the generic channel mutation instead. Stamping it here is what lets the wake
+                // listener tell an agent's comment from a human's WITHOUT asking who the author is:
+                // agents share users with real people, so user identity answers that question wrongly.
+                extraPayload: array_merge(['from_me' => true, 'from_agent' => true], $this->extraPayload),
+                parentId: $this->threadRootOf($this->replyTo),
                 runWorkflow: true,
                 messageTypeName: $this->verb,
                 template: '{{message}}',

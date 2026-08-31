@@ -22,8 +22,6 @@ class PlanProgressNotification extends Notification
      * @param array<string, mixed> $metadata
      * @param list<string> $via
      */
-    private readonly Plan $planForSlack;
-
     public function __construct(
         Plan $plan,
         string $title,
@@ -31,7 +29,6 @@ class PlanProgressNotification extends Notification
         array $metadata = [],
         array $via = ['mail', 'push'],
     ) {
-        $this->planForSlack = $plan;
         $fromUser = $plan->agent?->user ?? $plan->user;
 
         $data = [
@@ -76,9 +73,12 @@ class PlanProgressNotification extends Notification
     }
 
     /**
-     * Slack identifies the sender by the bot token, which lives on an AGENT rather than the app — so
-     * the plan's own agent is what speaks here. A plan whose agent was never connected to Slack
-     * returns none, and the channel stays quiet instead of failing the notification.
+     * Slack identifies the sender by the bot token, which lives on an AGENT rather than the app — so an
+     * agent is what speaks here, and one that was never connected to Slack sends nothing, leaving the
+     * channel quiet instead of failing the notification.
+     *
+     * The agent that ASKED for the work comes first: it is the one the person has been talking to, and
+     * the worker is usually a hired agent with no Slack connection at all.
      *
      * @return array<string, mixed>
      */
@@ -87,8 +87,10 @@ class PlanProgressNotification extends Notification
         $title = trim((string) ($this->data['title'] ?? ''));
         $message = trim((string) ($this->data['message'] ?? ''));
 
+        $plan = $this->entity instanceof Plan ? $this->entity : null;
+
         return [
-            'agent' => $this->planForSlack->agent,
+            'agent' => $plan?->createdByAgent ?? $plan?->agent,
             'text' => $title !== '' ? '*' . $title . '*\n' . $message : $message,
         ];
     }

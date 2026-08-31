@@ -7,12 +7,15 @@ namespace Tests\Intelligence\NervousSystem;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Bus;
 use Kanvas\NervousSystem\Plan\Actions\DispatchTaskBandAction;
+use Kanvas\NervousSystem\Plan\Enums\PlanLoopConfigEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\WakeAgentForPlanJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Support\ApprovalPolicy;
 use Kanvas\NervousSystem\Plan\Support\VerifierToolPolicy;
 use Kanvas\NervousSystem\Plan\Support\WorkerToolPolicy;
 use RuntimeException;
+use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 use Tests\Traits\MakesPlans;
 
@@ -174,5 +177,35 @@ class TaskWorkerBandTest extends TestCase
         $plan->saveQuietly();
 
         return $plan->refresh();
+    }
+
+    /**
+     * The band's workers are the assignees, so a turn that continued after dispatching would put the
+     * plan agent on their tasks in parallel — on plan 30647 both produced a synthesis of the same
+     * task nine seconds apart.
+     */
+    public function test_a_wake_that_dispatches_a_band_does_not_also_run_its_own_turn(): void
+    {
+        Bus::fake();
+
+        $agent = $this->makeAgent();
+        $agent->type->update(['handler' => SalesNeuronAgentStub::class]);
+        $agent->set(PlanLoopConfigEnum::CONTINUATION_ENABLED->value, '1');
+
+        $plan = $this->makePlan([], $agent->refresh());
+        $this->makeTask($plan, sequence: 1);
+
+        new WakeAgentForPlanJob($plan, WakeAgentForPlanJob::REASON_TASK_REOPENED)->handle();
+
+        Bus::assertBatchCount(1);
+        $this->assertDatabaseMissing(
+            'nervous_system_events',
+            [
+                'source_entity_type' => Plan::class,
+                'source_entity_id' => $plan->getId(),
+                'event_type' => 'plan.agent.invoked',
+            ],
+            'intelligence',
+        );
     }
 }

@@ -286,7 +286,13 @@ class FilesystemServices
         return null;
     }
 
-    public function uploadFileFromUrl(string $fileUrl, Users $user): ModelsFilesystem
+    /**
+     * `$fileName` is the name to STORE it under. A caller that validated a name against an
+     * allow-list must pass it here: deriving the name from the URL instead stores something the
+     * check never saw, so `attach_file_to_plan(file_url: '.../x.exe', file_name: 'report.md')`
+     * would pass the tool's extension gate and land as `x.exe`.
+     */
+    public function uploadFileFromUrl(string $fileUrl, Users $user, ?string $fileName = null): ModelsFilesystem
     {
         // Download the file to a temporary location
         $tempFilePath = $this->downloadFileFromUrl($fileUrl);
@@ -295,12 +301,11 @@ class FilesystemServices
             throw new InvalidArgumentException('Failed to download file from URL: ' . $fileUrl);
         }
 
-        // Extract the original filename from the URL
-        $parsedUrl = parse_url($fileUrl);
-        $path = $parsedUrl['path'] ?? '';
-        $originalName = basename($path);
+        $originalName = trim((string) $fileName) !== ''
+            ? basename(str_replace('\\', '/', (string) $fileName))
+            : basename(parse_url($fileUrl, PHP_URL_PATH) ?? '');
 
-        // If no filename found in URL, generate one
+        // Neither the caller nor the URL gave a usable name
         $mimeType = self::detectMimeType($tempFilePath);
         if (empty($originalName) || strpos($originalName, '.') === false) {
             $extension = self::getExtensionFromMimeType($mimeType);

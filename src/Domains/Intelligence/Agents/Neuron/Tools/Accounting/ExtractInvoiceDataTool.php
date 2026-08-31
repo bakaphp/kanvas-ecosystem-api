@@ -69,9 +69,14 @@ class ExtractInvoiceDataTool extends Tool implements HasRunKey
      */
     public function __invoke(int $filesystem_id, ?string $from_email = null, ?string $subject = null): array
     {
+        // Company-scoped, not just app: filesystem_id comes from the model, so an app hosting
+        // several companies would otherwise read another company's invoice off a hallucinated or
+        // injected id.
         $pdf = Filesystem::query()
             ->where('id', $filesystem_id)
-            ->where('apps_id', $this->app->getId())
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
             ->first();
 
         if ($pdf === null) {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\NervousSystem;
 
 use Carbon\CarbonImmutable;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
@@ -33,6 +34,10 @@ use Tests\TestCase;
 
 class ProjectMentionRoutingTest extends TestCase
 {
+    // Inert without the trait: declared alone, every row this test writes COMMITS. These create
+    // agents on the shared auth user, and a leaked agent makes Agent::fromUser() call a human an agent.
+    use DatabaseTransactions;
+
     protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'workflow'];
 
     /**
@@ -195,14 +200,16 @@ class ProjectMentionRoutingTest extends TestCase
         $this->assertNotNull($channel);
         $this->assertSame($planChannelId, (int) $channel->getId());
 
-        // Non-mention wakes (ingest/heartbeat/assigned) keep posting to the project default channel.
+        // Non-mention wakes (ingest/heartbeat/assigned/plan outcome) keep posting to the project
+        // default channel. It is named here rather than left to the post action to resolve, because
+        // the wake baselines this channel to tell whether the agent already answered on it mid-turn.
         $ingest = $resolve->invoke(new WakeAgentForProjectJob(
             $project,
             WakeAgentForProjectJob::REASON_INGEST,
             'trigger',
             (int) $mention->getId(),
         ));
-        $this->assertNull($ingest);
+        $this->assertSame((int) $project->default_channel_id, (int) $ingest?->getId());
 
         // A mention with no trigger message also falls back to the default channel.
         $noTrigger = $resolve->invoke(new WakeAgentForProjectJob(
@@ -211,7 +218,7 @@ class ProjectMentionRoutingTest extends TestCase
             null,
             null,
         ));
-        $this->assertNull($noTrigger);
+        $this->assertSame((int) $project->default_channel_id, (int) $noTrigger?->getId());
     }
 
     public function testMentioningANonPmAgentOnProjectChannelFallsThroughToGenericResponder(): void

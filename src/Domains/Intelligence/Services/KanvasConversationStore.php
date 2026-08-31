@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Services;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -282,14 +283,20 @@ class KanvasConversationStore implements ConversationStore
         string $agentClass,
         string $content,
         ?int $agentId = null,
+        ?int $userId = null,
     ): ?string {
         $query = DB::connection('intelligence')->table('agent_conversations')
             ->where('apps_id', $appsId)
             ->where('companies_id', $companiesId)
-            ->where('title', $sessionId);
+            ->where('title', $sessionId)
+            ->when($userId !== null, fn (Builder $builder): Builder => $builder->where('user_id', $userId));
 
+        // OLDEST, and it has to stay that way: one session id can own several conversations, and
+        // `findOrCreateConversationBySession` binds to the first by id — so that is where the agent's
+        // own turns are, and the only thread a person is reading. The ids are uuid7, so ascending is
+        // oldest-first; anything else files a message into a stray beside the live conversation.
         $conversation = ($agentId !== null ? $query->where('agent_id', $agentId) : $query)
-            ->orderByDesc('created_at')
+            ->orderBy('id')
             ->first();
 
         if ($conversation === null) {

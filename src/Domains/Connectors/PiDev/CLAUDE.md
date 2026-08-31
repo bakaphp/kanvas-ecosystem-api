@@ -52,7 +52,8 @@ Never loosen tier 2 into a free-typed repo URL — that's the destination-safety
 A coding job reuses the **Nervous System Plan/Task** engine (there is no `pidev_coding_jobs` table).
 `DispatchCodingJobAction` creates one **Plan** (`plan_type='coding_job'`, owned by the agent) with one
 **Task**; the pi.dev linkage rides in **Task custom fields** (`TaskCustomFieldEnum`:
-`PIDEV_JOB_ID` / `PIDEV_REPO_SLUG` / `PIDEV_REPO_URL` / `PIDEV_STATUS` / `PIDEV_PULL_REQUEST_URL`),
+`PIDEV_JOB_ID` / `PIDEV_REPO_SLUG` / `PIDEV_REPO_URL` / `PIDEV_STATUS` / `PIDEV_PULL_REQUEST_URL` /
+`PIDEV_AUTO_RETRY_COUNT`),
 exactly mirroring the Kanban sync. This is deliberate: pi.dev's own store is in-memory and 404s known
 jobs after a redeploy, so the Task is Kanvas' durable record, and jobs show up in the existing
 plan/task UI + ledger for free.
@@ -64,8 +65,20 @@ plan/task UI + ledger for free.
 | queued | pending |
 | running | in_progress |
 | completed | done (+ `result` = summary + PR url) |
-| failed | **blocked** (+ `blocked_reason`) |
+| failed | **blocked** (+ `blocked_reason`) — unless it is a retryable provider error, see below |
 | cancelled | skipped |
+
+**A `failed` job carrying `errorCode: "provider_error"` is not blocked — it is retried.** That code
+means pi.dev's *upstream* refused the run (an Anthropic usage cap, a 5xx, an overloaded model), not
+that the task was wrong: `usage` comes back all-zero at turn 1, nothing was charged, and the identical
+payload succeeds once the condition clears. `PiDevJob::isRetryable()` is the test. The poller then
+schedules `RetryPiDevJobJob` on a widening backoff (2min / 15min / 1h, `MAX_PROVIDER_RETRIES = 3`),
+spending the `PIDEV_AUTO_RETRY_COUNT` budget, and posts a plan comment each time. Only once that
+budget is gone does the task actually go blocked. Every other failure blocks on the first try —
+re-running a bad clone or an impossible task would only repeat it.
+
+The check runs **before** `mirrorOntoTask`, deliberately: mirroring would set the task BLOCKED, which
+`taskIsTerminal()` treats as final, and the poller would refuse to follow the retried job.
 
 - **The poller (`PollPiDevJobJob`) rides the existing `agent-runtime` queue.**
   `overwriteAppService($this->app)` is the first line of `handle()`. It mirrors pi.dev state onto the
@@ -98,7 +111,8 @@ plan/task UI + ledger for free.
 
 ## The agent tools (`Neuron/Tools/Coding/`)
 
-`check_coding_setup` / `dispatch_coding_task` / `check_coding_job_status` / `list_my_coding_jobs` / `cancel_coding_job`. They take the running
+`check_coding_setup` / `dispatch_coding_task` / `check_coding_job_status` / `list_my_coding_jobs` /
+`cancel_coding_job` / `retry_coding_job`. They take the running
 `Agent` by constructor injection, return `['status'=>…]` (never throw). The `job_id` they pass around
 is the **Task id** (int); check/cancel resolve it via `ResolvesTaskForTool` and then verify
 `task->agent_id === agent->getId()` — one agent can't see or cancel another's job. Registered by
@@ -117,9 +131,21 @@ Hermes-provider "Programming Agent" row exists — this one is the Neuron/pi.dev
   stores its 2nd ctor arg as `reason`, not the exception code, so `getCode()` is always 0. Callers
   that branch on status (cancel-on-409, poll-on-404) read `$e->status`, not `getCode()`.
 - **`Client` is built fresh per use** (Octane stale-creds rule). For tests it accepts an injected
-  `GuzzleClient`; `DispatchCodingJobAction`/`CancelCodingJobAction` accept an injected `Client`. The
-  poller can't (it's serialized) — cover its logic via `JobStatusEnum::toTaskStatus` + the
-  terminal-guard test instead.
+  `GuzzleClient`; `DispatchCodingJobAction`/`CancelCodingJobAction`/`RetryCodingJobAction` accept an
+  injected `Client`. The poller cannot take one on its constructor — a Guzzle handler stack does not
+  survive queue serialization, which is exactly the landmine the root CLAUDE.md warns about — so it
+  exposes a `protected makeClient()` seam instead, and `PollPiDevJobJobTest` subclasses the job to
+  override it. Do not "fix" this by adding a `?Client` constructor param.
+- **Retrying is not re-dispatching.** `DispatchCodingJobAction` always mints a *fresh* Plan, so
+  sending the same task again through it abandons the original plan and its history. Recovering a
+  failed job goes through `RetryCodingJobAction`, which POSTs a new pi.dev job and rewires the
+  *existing* Task onto it — resetting the task out of BLOCKED (nothing else can, and the poller will
+  not follow a task it considers terminal), clearing `blocked_reason`, the stale PR url and the SSE
+  cursor, and reopening the plan.
+- **Two separate retry budgets, on purpose.** `PIDEV_AUTO_RETRY_COUNT` gates only the *automatic*
+  provider-error retries. A human- or agent-triggered `retry_coding_job` never spends it and is never
+  blocked by it — an exhausted automatic budget must not stop someone deciding the job is worth
+  another run hours later.
 - **The connector ships NO bespoke GraphQL.** Infra connect flows through the generic
   `createIntegrationCompany` + the seeded `integrations` row → `PiDevHandler::setup()`. Per-agent config
   (token / allowed repos / system prompt) is set via the **generic agent-settings** mutations

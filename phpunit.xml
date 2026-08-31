@@ -55,6 +55,25 @@
         <testsuite name="Intelligence">
             <directory suffix="Test.php">./tests/Intelligence</directory>
         </testsuite>
+        <testsuite name="Intelligence-NervousSystem">
+            <directory suffix="Test.php">./tests/Intelligence/NervousSystem</directory>
+        </testsuite>
+        <testsuite name="Intelligence-Agents">
+            <directory suffix="Test.php">./tests/Intelligence/Agents</directory>
+            <exclude>./tests/Intelligence/Agents/Tools</exclude>
+        </testsuite>
+        <testsuite name="Intelligence-AgentTools">
+            <directory suffix="Test.php">./tests/Intelligence/Agents/Tools</directory>
+        </testsuite>
+        <testsuite name="Intelligence-Tools">
+            <directory suffix="Test.php">./tests/Intelligence/Tools</directory>
+        </testsuite>
+        <testsuite name="Intelligence-Other">
+            <directory suffix="Test.php">./tests/Intelligence</directory>
+            <exclude>./tests/Intelligence/NervousSystem</exclude>
+            <exclude>./tests/Intelligence/Agents</exclude>
+            <exclude>./tests/Intelligence/Tools</exclude>
+        </testsuite>
         <testsuite name="Scribe">
             <directory suffix="Test.php">./tests/Scribe</directory>
         </testsuite>

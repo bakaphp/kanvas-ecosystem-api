@@ -11,9 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
-use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Plan\Actions\DispatchTaskBandAction;
 use Kanvas\NervousSystem\Plan\Actions\PlanContinuationAction;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
@@ -23,8 +21,8 @@ use Kanvas\NervousSystem\Plan\Enums\ContinuationDecisionEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Support\PlanLoopSettings;
+use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
 use Kanvas\Social\Messages\Models\Message;
-use Throwable;
 
 /**
  * Single entry point for waking the agent assigned to a Plan. Used by:
@@ -39,11 +37,12 @@ use Throwable;
  *   plan.agent.replied      — after the reply is posted on the channel
  *
  * And one on failure:
- *   plan.agent.invocation_failed — when AgentChatKernel throws
+ *   plan.agent.invocation_failed — when the agent turn throws
  */
 class WakeAgentForPlanJob implements ShouldQueue
 {
     use Dispatchable;
+    use DrivesAgentWake;
     use InteractsWithQueue;
     use KanvasJobsTrait;
     use Queueable;
@@ -109,7 +108,15 @@ class WakeAgentForPlanJob implements ShouldQueue
             // states a human or the agent's own reply resolves. Acting here rather than asking the
             // agent to is the difference between a decision and a suggestion.
             if ($decision->verdict === ContinuationDecisionEnum::DISPATCH) {
-                new DispatchTaskBandAction($this->plan)->execute();
+                $band = new DispatchTaskBandAction($this->plan)->execute();
+
+                // The band's workers ARE the assignees, so continuing this turn would put the plan's
+                // own agent on their tasks in parallel. The batch wakes it again when they finish.
+                // Guarded on the count: a band that dispatched nothing leaves this turn the only one
+                // that can move the plan.
+                if ($band['dispatched'] > 0) {
+                    return;
+                }
             }
 
             if ($decision->verdict === ContinuationDecisionEnum::VERIFY) {
@@ -121,46 +128,25 @@ class WakeAgentForPlanJob implements ShouldQueue
             }
         }
 
-        $message = $this->buildMessage($decision);
+        $failurePayload = [
+            'agent_id' => $this->plan->agent_id,
+            'session_id' => $session->getId(),
+            'reason' => $this->reason,
+        ];
 
-        $startedAt = microtime(true);
-
-        try {
-            $response = new AgentChatKernel(
-                agent: $agent,
-                session: $session,
-                message: $message,
-                user: $owner,
-            )->execute();
-        } catch (Throwable $e) {
-            $this->plan->emitLedgerEvent(
-                eventType: 'plan.agent.invocation_failed',
-                status: EventStatusEnum::ERROR,
-                payload: [
-                    'agent_id' => $this->plan->agent_id,
-                    'session_id' => $session->getId(),
-                    'reason' => $this->reason,
-                ],
-                error: [
-                    'message' => $e->getMessage(),
-                    'class' => $e::class,
-                ],
-                durationMs: (int) ((microtime(true) - $startedAt) * 1000),
-            );
-
-            throw $e;
-        }
-
-        $durationMs = (int) ((microtime(true) - $startedAt) * 1000);
+        [$response, $durationMs] = $this->runAgentWake(
+            $agent,
+            $session,
+            $owner,
+            $this->buildMessage($decision),
+            $this->plan,
+            'plan.agent',
+            $failurePayload,
+        );
 
         $this->plan->emitLedgerEvent(
             'plan.agent.invoked',
-            payload: [
-                'agent_id' => $this->plan->agent_id,
-                'session_id' => $session->getId(),
-                'reason' => $this->reason,
-                'response_length' => strlen($response),
-            ],
+            payload: $failurePayload + ['response_length' => strlen($response)],
             durationMs: $durationMs,
         );
 
@@ -178,23 +164,19 @@ class WakeAgentForPlanJob implements ShouldQueue
         }
     }
 
+    /**
+     * Keyed on the PLAN alone, deliberately: every wake reason for a plan shares one continuous LLM
+     * thread. (The worker path keys per-agent instead, so a reassigned plan does not inherit its
+     * predecessor's "I am blocked" thread.)
+     */
     protected function resolveSession(): Session
     {
         $owner = $this->plan->user ?? $this->plan->agent?->user;
 
-        /** @var Session $session */
-        $session = Session::firstOrCreate(
-            [
-                'apps_id' => $this->plan->apps_id,
-                'companies_id' => $this->plan->companies_id,
-                'entity_namespace' => Plan::class,
-                'entity_id' => $this->plan->id,
-            ],
-            [
-                'uuid' => Str::uuid()->toString(),
+        return $this->firstOrCreateWakeSession(
+            $this->plan,
+            create: [
                 'agents_id' => $this->plan->agent_id,
-                'channel_id' => null,
-                'content' => '',
                 'user' => $owner !== null ? [
                     'id' => $owner->getId(),
                     'name' => trim(($owner->firstname ?? '') . ' ' . ($owner->lastname ?? '')),
@@ -202,8 +184,6 @@ class WakeAgentForPlanJob implements ShouldQueue
                 ] : [],
             ],
         );
-
-        return $session;
     }
 
     /**
@@ -317,6 +297,11 @@ class WakeAgentForPlanJob implements ShouldQueue
                 . 'Your plan has been approved by the human reviewer. '
                 . 'Resume execution. Use the nervous-system-working skill '
                 . "to refresh plan context if you need to, then continue the work.\n\n"
+                // Its own history still says "waiting on approval", so without this it re-blocks on
+                // the condition that just cleared and the loop stops again on the next verdict.
+                . 'ANY TASK YOU BLOCKED WAITING FOR THIS APPROVAL IS ALREADY BACK TO pending — the '
+                . 'approval you were waiting for is the one that just arrived. Do NOT re-block for it '
+                . "and do not ask for it again; pick the work up and do it.\n\n"
                 . "Title: %s\n%s%s",
                 $this->plan->id,
                 $this->plan->uuid,

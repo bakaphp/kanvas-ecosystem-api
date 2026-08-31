@@ -55,9 +55,13 @@ class ExtractCreditRequestFormTool extends Tool
      */
     public function __invoke(int $filesystem_id): array
     {
+        // Company-scoped, not just app — see ExtractInvoiceDataTool: an LLM-supplied id must not
+        // resolve another company's document.
         $file = Filesystem::query()
             ->where('id', $filesystem_id)
-            ->where('apps_id', $this->app->getId())
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
             ->first();
 
         if ($file === null) {

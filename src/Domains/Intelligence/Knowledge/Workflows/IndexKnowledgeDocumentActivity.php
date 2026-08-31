@@ -7,10 +7,10 @@ namespace Kanvas\Intelligence\Knowledge\Workflows;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\FileTextExtractor;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeScope;
 use Kanvas\Intelligence\Knowledge\Services\KnowledgeComponents;
-use Kanvas\Intelligence\Knowledge\Services\KnowledgeTextExtractor;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -33,7 +33,7 @@ class IndexKnowledgeDocumentActivity extends KanvasActivity
             ]);
         }
 
-        $extractor = new KnowledgeTextExtractor();
+        $extractor = new FileTextExtractor();
         $textFiles = $entity->files
             ->filter(fn (Filesystem $file): bool => $extractor->supports($file) && $this->isStaffUpload($file, $entity))
             ->values();
