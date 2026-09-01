@@ -251,19 +251,17 @@ class CreateApBillTool extends Tool implements HasRunKey
         if (! $push_to_acumatica) {
             $approverEmails = ResolveApproverEmailAction::resolveForOrganization($vendor);
 
-            foreach ($approverEmails as $approverEmail) {
-                new NotifyApproverAction(
-                    app: $app,
-                    text: "You have an AP bill pending approval:\nVendor: {$vendorDisplayName}\nAmount: "
-                        . "{$currency} {$amount}\nGL: {$gl_account_number}"
-                        . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : '')
-                        . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
-                        . "{$bill->getId()}\" to approve it and push it to Acumatica.",
-                    approverEmail: $approverEmail,
-                    attachmentUrl: $source_attachment_url,
-                    attachmentFilename: $source_attachment_filename,
-                )->execute();
-            }
+            NotifyApproverAction::notifyAll(
+                approverEmails: $approverEmails,
+                app: $app,
+                text: "You have an AP bill pending approval:\nVendor: {$vendorDisplayName}\nAmount: {$currency} "
+                    . "{$amount}\nGL: {$gl_account_number}"
+                    . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : '')
+                    . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
+                    . "{$bill->getId()}\" to approve it and push it to Acumatica.",
+                attachmentUrl: $source_attachment_url,
+                attachmentFilename: $source_attachment_filename,
+            );
 
             return [
                 'created' => true,
