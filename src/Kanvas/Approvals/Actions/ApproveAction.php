@@ -73,10 +73,14 @@ class ApproveAction
 
         new NotifyApproversAction($this->request)->execute();
 
-        $this->workflow->fire($this->request, WorkflowEnum::APPROVAL_STEP_COMPLETED, [
-            'approver' => $this->approver,
-            'step' => $step,
-        ]);
+        $this->workflow->fire(
+            $this->request,
+            WorkflowEnum::APPROVAL_STEP_COMPLETED,
+            [
+                'approver' => $this->approver,
+                'step' => $step,
+            ]
+        );
 
         return ApprovalResult::advanced($this->request, $step);
     }
