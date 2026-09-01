@@ -343,6 +343,28 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
         $this->assertTrue(true);
     }
 
+    /**
+     * "Approved" and "landed in Acumatica" are different facts. Without the push outcome persisted on
+     * the request, anything reading the record later can only see that someone signed.
+     */
+    public function test_the_push_outcome_is_persisted_on_the_request_not_just_returned(): void
+    {
+        $vendor = $this->seedTestOrganization('Persisted Result Vendor');
+        $approver = $this->linkApprover($vendor, 'persisted-approver');
+        $this->seedBillPolicy();
+
+        $request = $this->submitBill($vendor)->pendingApproval();
+
+        new ApproveAction($request, $approver)->execute();
+
+        $result = $request->refresh()->metadata['handler_result'];
+
+        $this->assertSame('bill', $result['target_type']);
+        $this->assertFalse($result['pushed'], 'Acumatica is unreachable in tests.');
+        $this->assertNotNull($result['push_error'], 'The failure has to survive on the record.');
+        $this->assertSame($result, $request->ledgerPayload()['result']);
+    }
+
     private function seedBillPolicy(): ApprovalPolicy
     {
         return $this->seedPolicy(Bill::class, 'approve_bill', 'vendor', ApproveAndPushBillHandler::class);

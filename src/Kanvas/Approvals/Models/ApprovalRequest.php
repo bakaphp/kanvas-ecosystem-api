@@ -146,6 +146,9 @@ class ApprovalRequest extends BaseModel
             'requested_by_users_id' => $this->requested_by_users_id,
             'resolved_by_users_id' => $this->resolved_by_users_id,
             'reason' => $this->reason,
+            // What the sync handler actually did downstream — an ERP reference, or the error that
+            // stopped it. "Approved" and "landed in the ERP" are different facts.
+            'result' => $this->metadata['handler_result'] ?? null,
             'approvers' => $this->approvers()
                 ->get(['users_id', 'email', 'step', 'decision'])
                 ->map(fn (ApprovalRequestApprover $row): array => [

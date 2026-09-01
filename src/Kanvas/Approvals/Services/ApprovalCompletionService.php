@@ -41,6 +41,14 @@ class ApprovalCompletionService
 
         $handlerResult = $this->runHandler($request, $approver);
 
+        // Persisted, not just returned: without this the ERP reference (or the push error) lives only
+        // in the caller's return value, so nothing looking at the record later can tell whether the
+        // approval actually landed downstream — only that someone signed.
+        if ($handlerResult !== null) {
+            $request->metadata = [...($request->metadata ?? []), 'handler_result' => $handlerResult];
+            $request->saveOrFail();
+        }
+
         $this->workflow->fire($request, WorkflowEnum::APPROVED, [
             'approver' => $approver,
             'result' => $handlerResult,

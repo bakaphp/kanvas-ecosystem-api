@@ -23,6 +23,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidArInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\CheckApprovalStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
@@ -105,6 +106,13 @@ class AccountsReceivableAgent extends SystemUserAgent
             new MarkEmailAsReadTool(),
             new ReplyToEmailTool(),
         ]));
+
+        // Read-only, so unlike approve_pending_item it is not gated on a requesting human: reporting
+        // where something stands authorizes nothing.
+        $statusUser = $this->requestingHuman() ?? $this->actingUser();
+        if ($statusUser !== null && $this->app !== null && $this->company !== null) {
+            $tools[] = new CheckApprovalStatusTool()->withContext($this->app, $this->company, $statusUser);
+        }
 
         // approve_pending_item must authorize against the real human, not actingUser() (the agent itself on @mention/channel surfaces).
         $requestingHuman = $this->requestingHuman();

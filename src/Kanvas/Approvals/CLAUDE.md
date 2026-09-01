@@ -106,6 +106,33 @@ Event types: `approvals.approval_requested`, `.approval_unassigned`, `.approval_
   stays reserved for the ledger's own failures so a dashboard filtering on it does not fill up with
   people declining bills.
 
+## Agent surface
+
+| Tool | Does |
+|---|---|
+| `check_approval_status` | Read-only. Is this approved, and if not who are we waiting on, at which step, and what did everyone else say. Reads the generic domain, falls back to the legacy queue, so it answers the same either side of a tenant's cutover. |
+| `approve_pending_item` | Decides. Generic first, legacy fallback. |
+
+They are deliberately separate, and wired differently on the accounting agents: `approve_pending_item`
+is gated on `requestingHuman()` because approving must authorize against the real person, never the
+agent's own user on an @mention surface. `check_approval_status` authorizes nothing, so it is always
+available — an agent should be able to report where something stands without the tool that decides it
+being in reach.
+
+## Building a document timeline on top of this
+
+`ledgerEvents` is `@guard` and filters on `source_entity_type` + `source_entity_id`, so one query
+returns every domain's events for one record, in order. That is the timeline primitive — the approvals
+domain contributes to it, it does not own it.
+
+What an AP bill can render today: `scribe.document.email_received` (anchored to the PDF, from the
+Mailgun inbound job), `scribe.bill.received`, and the whole `approvals.*` sequence including the
+downstream push outcome in `payload.result`.
+
+Still unemitted, so a timeline shows gaps: bill *creation* (only `received`/`voided` emit), the agent's
+extraction step and its confidence, and the Google Sheets write. Each is one `emitLedgerEvent()` call
+at a point that already exists.
+
 ## Where a handler lives
 
 Approving is domain work; pushing to an ERP is connector work. A handler that does both lives with the

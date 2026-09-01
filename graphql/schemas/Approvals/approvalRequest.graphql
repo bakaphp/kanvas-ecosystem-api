@@ -6,7 +6,6 @@ type ApprovalRequest {
     current_step: Int!
     origin: String @method(name: "originName")
     entity_id: Int!
-    "A curated {id, type, label} of the record under approval — not the raw model, which would expose every column to a wider audience than the record itself has."
     entity: Mixed @method(name: "entitySummary")
     system_module: SystemModule! @belongsTo(relation: "systemModule")
     payload: Mixed
@@ -16,7 +15,6 @@ type ApprovalRequest {
     resolved_at: DateTime
     reason: String
     expires_at: DateTime
-    "Who was asked, at which step, and what they said."
     approvers: [ApprovalRequestApprover!]! @hasMany(relation: "approvers")
     created_at: DateTime!
     updated_at: DateTime
@@ -36,7 +34,6 @@ type ApprovalRequestApprover {
 
 input ApprovalDecisionInput {
     id: ID!
-    "Free text shown in the audit trail. Required when rejecting."
     reason: String
 }
 
@@ -67,7 +64,6 @@ extend type Query @guard {
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
         )
-    "Requests waiting on the authenticated user right now — their step is the live one."
     myPendingApprovals: [ApprovalRequest!]!
         @paginate(
             defaultCount: 25

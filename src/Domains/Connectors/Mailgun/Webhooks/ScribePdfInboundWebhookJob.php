@@ -4,16 +4,22 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Webhooks;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Mailgun\Actions\VerifyMailgunWebhookSignatureAction;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
+use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
+use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\Scribe\PdfIngest\Jobs\ProcessAccountingPdfJob;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
+use Throwable;
 
 /**
  * Mailgun inbound webhook for the Scribe accounting inbox.
@@ -126,6 +132,18 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
                 $subject,
                 $inboundMetadata,
             );
+            $this->recordArrival(
+                $app,
+                $company,
+                $pdf,
+                [
+                    'message_id' => $messageId,
+                    'from_email' => $fromEmail,
+                    'from_name' => $fromName,
+                    'subject' => $subject,
+                ]
+            );
+
             $dispatched++;
         }
 
@@ -136,6 +154,47 @@ class ScribePdfInboundWebhookJob extends ProcessWebhookJob
             'from_email' => $fromEmail,
             'subject' => $subject,
         ];
+    }
+
+    /**
+     * The first entry on an AP document's timeline: the email that delivered it.
+     *
+     * Anchored to the PDF, not the bill — the bill does not exist yet, the agent creates it
+     * downstream. That is also the stitch: `pdf_ingest_logs.filesystem_id` ties the document the agent
+     * produces back to this same Filesystem row, so a desk renders the timeline with
+     * `ledgerEvents(where: source_entity_type EQ Filesystem AND source_entity_id EQ <id>)` — both
+     * indexed columns.
+     *
+     * One event per attachment, because one email carrying three invoices is three documents.
+     * The Mailgun Message-Id rides in the payload: `correlation_id` is char(36) and holds UUIDs.
+     *
+     * Best-effort: an audit line must never cost us an inbound invoice.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function recordArrival(
+        AppInterface $app,
+        CompanyInterface $company,
+        Filesystem $pdf,
+        array $payload
+    ): void {
+        try {
+            new AppendEventAction(
+                new EventData(
+                    app: $app,
+                    company: $company,
+                    sourceDomain: 'Scribe',
+                    eventType: 'scribe.document.email_received',
+                    status: EventStatusEnum::INFO,
+                    sourceEntityType: Filesystem::class,
+                    sourceEntityId: (int) $pdf->getKey(),
+                    actorType: 'System',
+                    payload: $payload,
+                ),
+            )->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     #[Override]
