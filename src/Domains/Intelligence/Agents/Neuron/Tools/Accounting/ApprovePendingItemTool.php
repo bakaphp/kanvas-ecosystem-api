@@ -89,9 +89,9 @@ class ApprovePendingItemTool extends Tool
             ];
         }
 
-        $approverEmail = new ResolveApproverEmailAction($target_type, $target_id)->execute();
+        $approverEmails = new ResolveApproverEmailAction($target_type, $target_id)->execute();
 
-        if ($approverEmail === null) {
+        if ($approverEmails === []) {
             return [
                 'approved' => false,
                 'reason' => 'no_approver_configured',
@@ -99,7 +99,7 @@ class ApprovePendingItemTool extends Tool
             ];
         }
 
-        if (! $this->isAuthorizedApprover($approverEmail)) {
+        if (! $this->isAuthorizedApprover($approverEmails)) {
             return [
                 'approved' => false,
                 'reason' => 'not_authorized',

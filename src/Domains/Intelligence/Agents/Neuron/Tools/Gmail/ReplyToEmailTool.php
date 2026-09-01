@@ -78,9 +78,9 @@ class ReplyToEmailTool extends Tool
      */
     public function __invoke(string $message_id, string $note, string $target_type, int $target_id): array
     {
-        $approverEmail = new ResolveApproverEmailAction($target_type, $target_id)->execute();
+        $approverEmails = new ResolveApproverEmailAction($target_type, $target_id)->execute();
 
-        if ($approverEmail === null) {
+        if ($approverEmails === []) {
             return [
                 'replied' => false,
                 'reason' => 'no_approver_configured',
@@ -89,7 +89,7 @@ class ReplyToEmailTool extends Tool
         }
 
         try {
-            $result = new ReplyToEmailAction($this->app, $message_id, [$approverEmail], $note)->execute();
+            $result = new ReplyToEmailAction($this->app, $message_id, $approverEmails, $note)->execute();
         } catch (Throwable $e) {
             return [
                 'replied' => false,
