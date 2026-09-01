@@ -8,6 +8,8 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
+use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationData;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationApprover;
 use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
@@ -19,7 +21,10 @@ use Maatwebsite\Excel\Facades\Excel;
  * One-off import: sets ap_approver_email AND ap_approver_vendor_name on each vendor Organization,
  * and links a real Kanvas User as its OrganizationApprover (creating a minimal User record if no
  * Kanvas account matches that email yet), from a spreadsheet mapping Vendor Name -> Approver Email
- * (e.g. the AP Vendor-Approver List finance maintains). Re-run whenever that sheet changes — it's
+ * (e.g. the AP Vendor-Approver List finance maintains). A vendor with no existing Organization match
+ * at all gets one created on the fly, so the whole sheet ends up linked — a vendor with SEVERAL
+ * possible matches is still skipped for manual resolution, since auto-picking one could silently
+ * misfile it against the wrong existing Organization. Re-run whenever the sheet changes — it's
  * idempotent, safe to run again with an updated file.
  */
 class ImportVendorApproversCommand extends Command
@@ -28,7 +33,7 @@ class ImportVendorApproversCommand extends Command
 
     protected $signature = 'scribe:import-vendor-approvers {apps_id} {company_id} {file}';
 
-    protected $description = 'Sets the ap_approver_email/ap_approver_vendor_name custom fields and links an OrganizationApprover on vendor Organizations from a Vendor Name / Approver Email spreadsheet';
+    protected $description = 'Sets the ap_approver_email/ap_approver_vendor_name custom fields and links an OrganizationApprover on vendor Organizations from a Vendor Name / Approver Email spreadsheet, creating the Organization when none matches';
 
     public function handle(): void
     {
@@ -50,7 +55,7 @@ class ImportVendorApproversCommand extends Command
         [$headerIndex, $vendorColumn, $emailColumn] = $header;
 
         $updated = 0;
-        $unmatched = [];
+        $created = 0;
         $ambiguous = [];
         $noEmail = [];
 
@@ -70,25 +75,34 @@ class ImportVendorApproversCommand extends Command
 
             $match = OrganizationVendorMatcherService::match($app, $company, $vendorName);
 
-            if (! $match->isMatched()) {
-                if ($match->candidates !== []) {
-                    $names = implode(', ', array_map(static fn (Organization $o): string => $o->name, $match->candidates));
-                    $ambiguous[] = "{$vendorName} (candidates: {$names})";
-                } else {
-                    $unmatched[] = $vendorName;
-                }
+            if ($match->isMatched()) {
+                $this->linkVendorApprover($match->organization, $vendorName, $approverEmail);
+                $updated++;
 
                 continue;
             }
 
-            $match->organization->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, $approverEmail);
-            $match->organization->set(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, $vendorName);
-            OrganizationApprover::linkApproverEmail($match->organization, $approverEmail);
-            $this->info("{$vendorName} -> {$match->organization->name} -> {$approverEmail}");
-            $updated++;
+            if ($match->candidates !== []) {
+                $names = implode(', ', array_map(static fn (Organization $o): string => $o->name, $match->candidates));
+                $ambiguous[] = "{$vendorName} (candidates: {$names})";
+
+                continue;
+            }
+
+            $organization = new CreateOrganizationAction(
+                new OrganizationData(
+                    company: $company,
+                    user: $company->user,
+                    app: $app,
+                    name: $vendorName,
+                ),
+            )->execute();
+
+            $this->linkVendorApprover($organization, $vendorName, $approverEmail);
+            $created++;
         }
 
-        $this->info("Done. {$updated} vendors updated.");
+        $this->info("Done. {$updated} vendors updated, {$created} vendor organizations created.");
 
         if ($noEmail !== []) {
             $this->warn('No approver email in the sheet (skipped): ' . implode(', ', $noEmail));
@@ -97,10 +111,14 @@ class ImportVendorApproversCommand extends Command
         if ($ambiguous !== []) {
             $this->warn('Multiple vendor Organizations could match (skipped, resolve manually): ' . implode('; ', $ambiguous));
         }
+    }
 
-        if ($unmatched !== []) {
-            $this->warn('No matching vendor Organization found (skipped): ' . implode(', ', $unmatched));
-        }
+    private function linkVendorApprover(Organization $organization, string $vendorName, string $approverEmail): void
+    {
+        $organization->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, $approverEmail);
+        $organization->set(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, $vendorName);
+        OrganizationApprover::linkApproverEmail($organization, $approverEmail);
+        $this->info("{$vendorName} -> {$organization->name} -> {$approverEmail}");
     }
 
     /**
