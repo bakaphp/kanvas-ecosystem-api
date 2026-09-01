@@ -4,14 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Workflow\Integration;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
-use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
+use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\Models\Integrations;
 use Kanvas\Workflow\Traits\ActivityIntegrationTrait;
@@ -184,6 +185,7 @@ final class ActivityIntegrationTraitTest extends TestCase
     private function activity(): object
     {
         return new class () {
+            use KanvasJobsTrait;
             use ActivityIntegrationTrait;
 
             public function workflowId(): ?int
