@@ -24,6 +24,7 @@ type AgentAi {
     voice_config: Mixed
     deployment_status: String!
     activeDeployment: AgentDeploymentType @hasOne
+    latestDeployment: AgentDeploymentType @hasOne
     agent_model_id: ID
     parent_id: ID
     is_active: Boolean!
