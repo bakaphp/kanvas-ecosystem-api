@@ -113,6 +113,7 @@ The tracking sheet (see `Connectors/GoogleSheets/CLAUDE.md`) needs these columns
 | D | Status (`Pending` → `Approved`) |
 | E | Approved Date |
 | F | Approved By (the approver's email) |
+| G | Acumatica Ref. (the `reference` from `approve_pending_item`'s result) |
 
 ## Extending: adding a new approval type
 
