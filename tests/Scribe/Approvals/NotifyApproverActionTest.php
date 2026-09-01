@@ -122,6 +122,34 @@ class NotifyApproverActionTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_notify_all_sends_one_message_per_email(): void
+    {
+        $this->configureNotifierAgent();
+        Http::fake([
+            'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
+            'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
+            'slack.com/api/chat.postMessage' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
+        ]);
+
+        NotifyApproverAction::notifyAll(
+            approverEmails: ['first@example.test', 'second@example.test'],
+            app: $this->kanvasApp,
+            text: 'You have an AP bill pending approval',
+        );
+
+        Http::assertSentCount(6);
+    }
+
+    public function test_notify_all_does_nothing_for_an_empty_list(): void
+    {
+        $this->configureNotifierAgent();
+        Http::fake();
+
+        NotifyApproverAction::notifyAll(approverEmails: [], app: $this->kanvasApp, text: 'Nothing to send');
+
+        Http::assertNothingSent();
+    }
+
     public function test_it_does_nothing_when_the_email_does_not_match_a_slack_workspace_member(): void
     {
         $this->configureNotifierAgent();
