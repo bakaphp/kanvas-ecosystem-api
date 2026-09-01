@@ -16,20 +16,17 @@ class AgentsRepository
      *
      * By default this is app-scoped: an app's credentials can only resolve its
      * own agents. The voice runtime, however, is a single trusted service that
-     * may serve agents living in DIFFERENT apps. To allow that WITHOUT turning
-     * every app-key into a cross-tenant reader, the calling app must be
-     * explicitly flagged via the VOICE_RUNTIME_CROSS_APP setting — only then do
-     * we resolve by uuid across apps. Any other app stays strictly app-scoped.
+     * may serve agents living in DIFFERENT apps. Cross-app resolution is gated by
+     * isCrossApp() — the calling app's own VOICE_RUNTIME_CROSS_APP setting, or,
+     * when unset, the global default (config kanvas.voice_runtime.cross_app). It
+     * stays strictly app-scoped unless that resolves true.
      *
      * Throws ModelNotFoundException when the uuid does not resolve under the
      * effective scope.
      */
     public static function getByUuidForVoiceRuntime(string $uuid, AppInterface $app): Agent
     {
-        $crossApp = filter_var(
-            $app->get(ConfigurationEnum::VOICE_RUNTIME_CROSS_APP->value),
-            FILTER_VALIDATE_BOOLEAN
-        );
+        $crossApp = self::isCrossApp($app);
 
         $query = Agent::where('uuid', $uuid);
 
@@ -46,8 +43,8 @@ class AgentsRepository
      * inbound routing. Returns null when no agent claims the number so the
      * caller can fall back to a default agent instead of dropping the call.
      *
-     * Same cross-app trust model as getByUuidForVoiceRuntime: app-scoped unless
-     * the calling app is flagged VOICE_RUNTIME_CROSS_APP.
+     * Same cross-app trust model as getByUuidForVoiceRuntime — app-scoped unless
+     * isCrossApp() resolves true (per-app setting, else the global default).
      */
     public static function getByPhoneForVoiceRuntime(string $phoneNumber, AppInterface $app): ?Agent
     {
@@ -56,10 +53,7 @@ class AgentsRepository
             return null;
         }
 
-        $crossApp = filter_var(
-            $app->get(ConfigurationEnum::VOICE_RUNTIME_CROSS_APP->value),
-            FILTER_VALIDATE_BOOLEAN
-        );
+        $crossApp = self::isCrossApp($app);
 
         // Narrow to voice-configured agents in SQL (a small set — only agents
         // with a voice_config), then match in PHP with the SAME
@@ -93,6 +87,30 @@ class AgentsRepository
     public static function normalizePhoneNumber(string $number): string
     {
         return preg_replace('/\D+/', '', $number) ?? '';
+    }
+
+    /**
+     * Whether the calling app may resolve voice agents ACROSS apps.
+     *
+     * Per-app setting (VOICE_RUNTIME_CROSS_APP) wins; when it's unset we fall
+     * back to a global default (config kanvas.voice_runtime.cross_app / env
+     * VOICE_RUNTIME_CROSS_APP). This lets the single shared runtime be flagged
+     * cross-app for EVERY app via one env var instead of per-app, while an app
+     * can still explicitly opt out by setting its own value to false.
+     *
+     * SECURITY: enabling this globally turns every valid app-key into a
+     * cross-tenant reader for voice-agent resolution. Intended for the shared
+     * single-runtime deployment; leave the global default off for multi-key
+     * deployments where app-keys must stay tenant-scoped.
+     */
+    private static function isCrossApp(AppInterface $app): bool
+    {
+        $value = $app->get(ConfigurationEnum::VOICE_RUNTIME_CROSS_APP->value);
+        if ($value === null || $value === '') {
+            $value = config('kanvas.voice_runtime.cross_app', false);
+        }
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
     }
 
     /**

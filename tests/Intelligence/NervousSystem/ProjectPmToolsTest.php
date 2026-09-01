@@ -622,6 +622,7 @@ class ProjectPmToolsTest extends TestCase
             'create_company_receiver',
             'create_email_route',
             'read_channel_window',
+            'get_transcription',
             'list_message_types',
             'create_message_type',
             // Lost once already: ProjectManagerAgent overrides SystemUserAgent::tools() without
