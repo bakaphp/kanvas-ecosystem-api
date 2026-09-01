@@ -23,7 +23,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
-use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum as InvoicesConfigurationEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
@@ -481,10 +480,38 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame($controlAccount->getId(), $line->account_id);
     }
 
+    public function test_create_ar_credit_memo_appends_optional_notes_from_the_request_email(): void
+    {
+        $this->seedTestOrganization('Notes QA Customer');
+        $controlAccount = Account::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('account_sub_type', AccountSubTypeEnum::TRAVEL_AND_MEALS->value)
+            ->firstOrFail();
+
+        $result = new CreateArCreditMemoTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                customer_name: 'Notes QA Customer',
+                invoice_number: 'Notes QA Reference',
+                lines: [
+                    ['control_account_number' => $controlAccount->account_number, 'amount' => 100.0],
+                ],
+                notes: 'Back-end rebate on sales-out, no VAT. Approved by the requester.',
+            );
+
+        $this->assertTrue($result['created']);
+
+        /** @var Invoice $creditNote */
+        $creditNote = Invoice::query()->where('id', $result['credit_memo_id'])->firstOrFail();
+        $this->assertStringContainsString('Notes QA Reference', $creditNote->notes);
+        $this->assertStringContainsString('Back-end rebate on sales-out, no VAT. Approved by the requester.', $creditNote->notes);
+    }
+
     public function test_create_ar_credit_memo_notifies_the_configured_default_email(): void
     {
         $originalNotificationEmail = $this->kanvasApp->get(InvoicesConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value);
-        $originalNotifierAgentId = $this->kanvasApp->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value);
+        $originalNotifierAgentId = $this->kanvasApp->get(InvoicesConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value);
 
         try {
             $notifierAgent = Agent::factory()
@@ -493,7 +520,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
                 ->create(['name' => 'Apex', 'user_id' => static::$cachedUser->getId()]);
             $notifierAgent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test-token');
 
-            $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, (string) $notifierAgent->getId());
+            $this->kanvasApp->set(InvoicesConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value, (string) $notifierAgent->getId());
             $this->kanvasApp->set(InvoicesConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value, 'notify@example.test');
 
             Http::fake([
@@ -527,7 +554,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             );
         } finally {
             $this->kanvasApp->set(InvoicesConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value, $originalNotificationEmail);
-            $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
+            $this->kanvasApp->set(InvoicesConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
         }
     }
 
@@ -575,6 +602,8 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             new FindCustomerTool(),
             new FindInvoiceTool(),
             new MatchInvoicesForPaymentTool(),
+            new CreateArInvoiceTool(),
+            new CreateArCreditMemoTool(),
         ];
 
         foreach ($tools as $tool) {

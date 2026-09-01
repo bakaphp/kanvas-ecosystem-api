@@ -183,6 +183,8 @@ jobs:
         include:
           - testsuite: Inventory
             processes: 1
+          - testsuite: Intelligence-NervousSystem
+            processes: 1
           - testsuite: Intelligence-Agents
             processes: 1
           - testsuite: Intelligence-AgentTools
