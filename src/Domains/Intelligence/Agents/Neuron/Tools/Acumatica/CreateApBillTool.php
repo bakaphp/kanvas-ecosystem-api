@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
 use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
+use Kanvas\Scribe\Approvals\Actions\ResolveApproverEmailAction;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Bills\Actions\ApproveBillAction;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
@@ -248,19 +249,21 @@ class CreateApBillTool extends Tool implements HasRunKey
         );
 
         if (! $push_to_acumatica) {
-            $approverEmail = trim((string) $vendor->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, ''));
+            $approverEmails = ResolveApproverEmailAction::resolveForOrganization($vendor);
 
-            new NotifyApproverAction(
-                app: $app,
-                text: "You have an AP bill pending approval:\nVendor: {$vendorDisplayName}\nAmount: {$currency} "
-                    . "{$amount}\nGL: {$gl_account_number}"
-                    . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : '')
-                    . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
-                    . "{$bill->getId()}\" to approve it and push it to Acumatica.",
-                approverEmail: $approverEmail !== '' ? $approverEmail : null,
-                attachmentUrl: $source_attachment_url,
-                attachmentFilename: $source_attachment_filename,
-            )->execute();
+            foreach ($approverEmails as $approverEmail) {
+                new NotifyApproverAction(
+                    app: $app,
+                    text: "You have an AP bill pending approval:\nVendor: {$vendorDisplayName}\nAmount: "
+                        . "{$currency} {$amount}\nGL: {$gl_account_number}"
+                        . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : '')
+                        . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
+                        . "{$bill->getId()}\" to approve it and push it to Acumatica.",
+                    approverEmail: $approverEmail,
+                    attachmentUrl: $source_attachment_url,
+                    attachmentFilename: $source_attachment_filename,
+                )->execute();
+            }
 
             return [
                 'created' => true,
@@ -274,14 +277,14 @@ class CreateApBillTool extends Tool implements HasRunKey
                 'gl_account' => $gl_account_number,
                 'subaccount' => $subaccount,
                 'memo' => $memo,
-                'approved_by_flag' => $approverEmail !== '' ? '' : 'NOT IN APPROVER LIST',
-                'next' => $approverEmail !== ''
+                'approved_by_flag' => $approverEmails !== [] ? '' : 'NOT IN APPROVER LIST',
+                'next' => $approverEmails !== []
                     ? 'Bill created and submitted for approval in Kanvas (status: pending_approval). Not pushed '
                         . 'to Acumatica — that happens separately once a human approves it.'
                     : 'Bill created and submitted for approval, but vendor "' . $vendorDisplayName . '" has no '
-                        . 'approver email configured — nobody can approve it and no notification was sent. Write '
+                        . 'approver configured — nobody can approve it and no notification was sent. Write '
                         . 'approved_by_flag into the sheet\'s Approved By column so this is visible there too, '
-                        . 'and tell the user to have an admin set that vendor\'s approver email.',
+                        . 'and tell the user to have an admin set that vendor\'s approver.',
             ];
         }
 
