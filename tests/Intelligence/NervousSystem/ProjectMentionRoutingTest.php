@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
-use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Support\Facades\Bus;
@@ -13,6 +12,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Jobs\RespondToMentionJob;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
@@ -30,6 +30,7 @@ use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Users\Models\Users;
 use ReflectionMethod;
+use RuntimeException;
 use Tests\TestCase;
 
 class ProjectMentionRoutingTest extends TestCase
@@ -367,21 +368,56 @@ class ProjectMentionRoutingTest extends TestCase
         $this->assertFalse($isNoOp->invoke($job, 'Everything is synchronized and ready for the workweek.'));
     }
 
-    public function testMentionRetryWindowOutlastsAutomatedWakes(): void
+    public function testMentionRetryBudgetOutlastsTheLockWithoutAWallClockDeadline(): void
     {
         [$app, $company, $user] = $this->context();
         $project = $this->makeProject($app, $company, $user)->refresh();
 
-        CarbonImmutable::setTestNow('2026-07-23 12:00:00');
+        $mention = new WakeAgentForProjectJob($project, WakeAgentForProjectJob::REASON_MENTION);
+        $ingest = new WakeAgentForProjectJob($project, WakeAgentForProjectJob::REASON_INGEST);
 
-        $mentionUntil = new WakeAgentForProjectJob($project, WakeAgentForProjectJob::REASON_MENTION)->retryUntil();
-        $ingestUntil = new WakeAgentForProjectJob($project, WakeAgentForProjectJob::REASON_INGEST)->retryUntil();
+        // A mention re-queues every 15s on collision, so its budget must span the 600s lock TTL.
+        $this->assertSame(41, $mention->tries);
+        $this->assertSame(3, $ingest->tries);
 
-        // Mention retries for the full lock-TTL window (600s); automated wakes cap failure retries short (90s).
-        $this->assertSame(600, (int) now()->diffInSeconds($mentionUntil));
-        $this->assertSame(90, (int) now()->diffInSeconds($ingestUntil));
+        // ...but a wake that's actually FAILING must not spend that budget on 41 LLM calls.
+        $this->assertSame(3, $mention->maxExceptions);
+        $this->assertSame(3, $ingest->maxExceptions);
 
-        CarbonImmutable::setTestNow();
+        // Both of the things Queue::getJobExpiration() looks for, so the payload carries no wall-clock
+        // deadline — one is checked at pickup, which makes queue WAIT eat the retry budget.
+        $this->assertFalse(method_exists($mention, 'retryUntil'));
+        $this->assertFalse(isset($mention->retryUntil));
+    }
+
+    public function testAbandonedWakeIsRecordedOnTheProject(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user)->refresh();
+
+        new WakeAgentForProjectJob($project, WakeAgentForProjectJob::REASON_MENTION, null, 987)
+            ->failed(new RuntimeException('boom'));
+
+        $event = Event::query()
+            ->where('source_entity_type', Project::class)
+            ->where('source_entity_id', $project->getId())
+            ->where('event_type', 'project.agent.wake_abandoned')
+            ->first();
+
+        $this->assertNotNull($event, 'A question the PM never answered must be visible on the project.');
+        $this->assertSame(WakeAgentForProjectJob::REASON_MENTION, $event->payload['reason']);
+        $this->assertSame(987, $event->payload['trigger_message_id']);
+        $this->assertSame('boom', $event->error['message']);
+    }
+
+    public function testAbandonedWakeNeverThrowsOverTheFailureItIsRecording(): void
+    {
+        // Job::fail() runs failed() unguarded, so a throw here replaces the real exception and escapes the
+        // worker's handling of it. A project with no app can neither rebind scope nor write the event.
+        new WakeAgentForProjectJob(new Project(), WakeAgentForProjectJob::REASON_HEARTBEAT)
+            ->failed(new RuntimeException('the original failure'));
+
+        $this->assertTrue(true, 'failed() swallowed its own fault instead of masking the job\'s.');
     }
 
     private function overlappingMiddleware(WakeAgentForProjectJob $job): WithoutOverlapping
