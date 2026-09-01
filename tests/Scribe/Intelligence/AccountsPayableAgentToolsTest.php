@@ -11,6 +11,7 @@ use Kanvas\Guild\Organizations\Models\OrganizationApprover;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
@@ -482,6 +483,54 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $bill = Bill::query()->where('id', $created['bill_id'])->first();
         $this->assertSame(BillDocumentStatusEnum::RECEIVED, $bill->document_status);
+    }
+
+    public function test_add_organization_approver_links_an_existing_kanvas_user(): void
+    {
+        $vendor = $this->seedTestOrganization('Add Approver Existing User Corp');
+        $existingUser = Users::factory()->create(['email' => 'existing-tool-approver-' . uniqid() . '@example.test']);
+
+        $result = new AddOrganizationApproverTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(organization_id: $vendor->getId(), approver_email: $existingUser->email);
+
+        $this->assertTrue($result['linked']);
+        $this->assertSame([$existingUser->email], $result['approvers']);
+    }
+
+    public function test_add_organization_approver_creates_a_minimal_user_when_none_matches(): void
+    {
+        $vendor = $this->seedTestOrganization('Add Approver New User Corp');
+        $newEmail = 'brand-new-tool-approver-' . uniqid() . '@example.test';
+
+        $result = new AddOrganizationApproverTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(organization_id: $vendor->getId(), approver_email: $newEmail);
+
+        $this->assertTrue($result['linked']);
+        $this->assertSame([$newEmail], $result['approvers']);
+    }
+
+    public function test_add_organization_approver_rejects_an_invalid_email(): void
+    {
+        $vendor = $this->seedTestOrganization('Add Approver Invalid Email Corp');
+
+        $result = new AddOrganizationApproverTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(organization_id: $vendor->getId(), approver_email: 'not-an-email');
+
+        $this->assertFalse($result['linked']);
+        $this->assertSame('invalid_email', $result['reason']);
+    }
+
+    public function test_add_organization_approver_reports_not_found_for_an_unknown_organization(): void
+    {
+        $result = new AddOrganizationApproverTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(organization_id: 999999999, approver_email: 'someone@example.test');
+
+        $this->assertFalse($result['linked']);
+        $this->assertSame('organization_not_found', $result['reason']);
     }
 
     public function test_organization_approvers_take_priority_over_the_legacy_field_and_any_one_may_approve(): void

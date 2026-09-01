@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
@@ -71,6 +72,7 @@ class AccountsPayableAgent extends SystemUserAgent
             new FindBillTool(),
             new FindVendorTool(),
             new MatchBillsForPaymentTool(),
+            new AddOrganizationApproverTool(),
             new CreateApBillTool(),
             new VoidApBillTool(),
             new ApplyApPaymentTool(),
@@ -114,6 +116,9 @@ class AccountsPayableAgent extends SystemUserAgent
             . '(set only_overdue for past-due focus).',
             '- "What has vendor X got on order" / matching an invoice to a PO → list_open_purchase_orders.',
             '- Resolving a vendor name off an invoice → find_vendor; if more than one candidate, confirm which.',
+            '- "Add/assign an approver for vendor X" → find_vendor first to resolve organization_id, then '
+            . 'add_organization_approver with that id and the approver\'s email. A vendor can have more than '
+            . 'one approver — this never replaces an existing one, only adds.',
             '- Lead with the headline (e.g. "Total payables: $84,200 across 12 vendors; $19,500 overdue"), then '
             . 'the top 3-5 items. Be honest about freshness; never invent precision the data lacks.',
             '- "Create a bill for vendor X" → create_ap_bill, only when the user explicitly asks for it — by '

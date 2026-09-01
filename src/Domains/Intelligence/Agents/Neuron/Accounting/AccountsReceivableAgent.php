@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractCreditRequestFormTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
@@ -84,6 +85,7 @@ class AccountsReceivableAgent extends SystemUserAgent
             new SalesByProductTool(),
             new SalesRevenueTool(),
             new MatchInvoicesForPaymentTool(),
+            new AddOrganizationApproverTool(),
             new CreateArInvoiceTool(),
             new VoidArInvoiceTool(),
             new ApplyArPaymentTool(),
@@ -129,6 +131,9 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'not list_open_sales_orders, which is for purchase/sales orders, not invoices.',
             '- "Look up invoice #X" / "status of invoice X" → find_invoice (one specific invoice by number).',
             '- "Who is customer X" / resolve a customer name to its ERP code → find_customer.',
+            '- "Add/assign an approver for customer X" → find_customer first to resolve organization_id, then '
+            . 'add_organization_approver with that id and the approver\'s email. A customer can have more than '
+            . 'one approver — this never replaces an existing one, only adds.',
             '- "Look up sales order #X" → find_sales_order (a sales order is a CUSTOMER order, not a purchase order).',
             '- "What orders are open" / "a customer\'s in-flight orders" / the sales pipeline → list_open_sales_orders.',
             '- "Top customers" / "biggest buyers" → sales_by_customer. "Best sellers" / "top products" → sales_by_product. "Revenue this quarter / trend" → sales_revenue (set by_month for a trend). All exclude draft/canceled orders; be clear about the date range.',
