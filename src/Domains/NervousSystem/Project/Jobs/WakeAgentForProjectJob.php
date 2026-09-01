@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Project\Jobs;
 
 use Baka\Traits\KanvasJobsTrait;
-use DateTimeInterface;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -16,12 +15,14 @@ use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\AgentTurnResponse;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
 use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Services\ProjectContextService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
+use Throwable;
 
 /**
  * Wake the project's PM agent to advance the work. Called by:
@@ -52,9 +53,23 @@ class WakeAgentForProjectJob implements ShouldQueue
     private const int WAKE_LOCK_TTL_SECONDS = 600;
     private const int MENTION_RETRY_SECONDS = 15;
 
+    /** WAKE_LOCK_TTL_SECONDS / MENTION_RETRY_SECONDS + the first attempt: a mention outlasts any held lock. */
+    private const int MENTION_MAX_ATTEMPTS = 41;
+
     // Space out exception-driven retries so a genuinely-failing wake doesn't hammer the LLM/ledger.
     // (WithoutOverlapping's releaseAfter for a mention lock-collision sets its own delay independently.)
     public int $backoff = 30;
+
+    /**
+     * Bound retries by ATTEMPTS, never wall-clock: a `retryUntil` deadline is set at dispatch and checked
+     * at pickup, so queue WAIT counts against it — and every job on this queue is a multi-second LLM turn
+     * serialized per project, so a wake behind a backlog dies without running.
+     *
+     * The mention budget is sized for lock COLLISIONS (see {@see self::middleware()}); `maxExceptions` is
+     * what keeps it from becoming 41 LLM calls when the wake itself is what's failing.
+     */
+    public int $tries = 3;
+    public int $maxExceptions = 3;
 
     /**
      * `wakeAgent` overrides the project's current PM. A plan outcome goes to whoever ASKED for the
@@ -69,23 +84,15 @@ class WakeAgentForProjectJob implements ShouldQueue
         public readonly ?Agent $wakeAgent = null,
     ) {
         $this->onQueue('nervous-system-project');
+
+        if ($this->reason === self::REASON_MENTION) {
+            $this->tries = self::MENTION_MAX_ATTEMPTS;
+        }
     }
 
     private function agentToWake(): ?Agent
     {
         return $this->wakeAgent ?? $this->project->pmAgent;
-    }
-
-    /**
-     * Bound retries by TIME, not attempt count. A mention re-queues (releaseAfter) every collision
-     * until the in-flight PM turn frees the lock — give it the full lock-TTL window so a long turn
-     * never drops the question. Other reasons don't self-release; this just caps their failure retries.
-     */
-    public function retryUntil(): DateTimeInterface
-    {
-        return now()->addSeconds(
-            $this->reason === self::REASON_MENTION ? self::WAKE_LOCK_TTL_SECONDS : 90,
-        );
     }
 
     /**
@@ -191,6 +198,34 @@ class WakeAgentForProjectJob implements ShouldQueue
                 'message_id' => $reply->getId(),
             ],
         );
+    }
+
+    /**
+     * The wake is being abandoned — retries exhausted, or a mention that never won the lock. Record it on
+     * the project, because the queue's failure record carries no project context and an abandoned mention
+     * means a human asked the PM something and will never get an answer.
+     *
+     * `Job::fail()` does not guard this call, so a throw here REPLACES the failure being recorded and
+     * escapes the worker's own handling of it. The ledger write is the thing most likely to fail for the
+     * same reason the wake did (the DB), so it must never take the real exception down with it.
+     */
+    public function failed(Throwable $exception): void
+    {
+        try {
+            $this->overwriteAppService($this->project->app);
+
+            $this->project->emitLedgerEvent(
+                'project.agent.wake_abandoned',
+                status: EventStatusEnum::ERROR,
+                payload: [
+                    'reason' => $this->reason,
+                    'attempts' => $this->attempts(),
+                    'trigger_message_id' => $this->triggerMessageId,
+                ],
+                error: ['message' => $exception->getMessage(), 'class' => $exception::class],
+            );
+        } catch (Throwable) {
+        }
     }
 
     /**
