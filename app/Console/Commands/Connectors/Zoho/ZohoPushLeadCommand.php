@@ -78,7 +78,7 @@ class ZohoPushLeadCommand extends Command
         $activity = new ZohoLeadActivity(
             0,
             now()->toDateTimeString(),
-            StoredWorkflow::make(),
+            new StoredWorkflow(),
             []
         );
 
