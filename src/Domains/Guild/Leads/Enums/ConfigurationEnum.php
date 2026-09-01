@@ -22,4 +22,5 @@ enum ConfigurationEnum: string
     case HAS_FOLLOW_UP = 'lead_has_follow_up';
     case AI_MODE_IS_MANUAL = 'lead_ai_mode_is_manual';
     case CONVERTED_TO_DEAL_ID = 'converted_to_deal_id';
+    case OPEN_LEADS_STATUS_IDS = 'guild_open_leads_status_ids';
 }
