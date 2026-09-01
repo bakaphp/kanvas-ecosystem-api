@@ -13,6 +13,8 @@ type Organization {
     "The address an invoice bills to: the one tagged Billing, else the default, else whichever exists."
     billing_address: OrganizationAddress @method(name: "billingAddress")
     organization_type: OrganizationType @belongsTo(relation: "organizationType")
+    "The Kanvas Users who may approve this organization's AP/AR items."
+    approvers: [OrganizationApprover!]! @hasMany(relation: "approvers")
     leads: [Lead!]!
         @paginate(
             defaultCount: 25
@@ -35,10 +37,6 @@ type Organization {
         )
 }
 
-"""
-A structured address on an Organization. Own table, but the SAME `AddressTypeEnum` and `AddressInput` People
-uses — Billing is Billing regardless of who owns the address.
-"""
 type OrganizationAddress {
     id: ID!
     organization: Organization! @belongsTo(relation: "organization")
@@ -85,15 +83,10 @@ input OrganizationPeopleInput {
 }
 
 type OrganizationDuplicateGroup {
-    "Recommended merge target — oldest id in the group."
     canonical_id: Int!
-    "All member organization ids, including canonical_id, ascending."
     member_ids: [Int!]!
-    "Which dimension flagged this cluster: external_id_conflict | exact_name | email_match"
     reason: String!
-    "A representative `name` from the group (for display)."
     sample_name: String!
-    "The full Organization rows for member_ids."
     organizations: [Organization!]!
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@organizations")
 }

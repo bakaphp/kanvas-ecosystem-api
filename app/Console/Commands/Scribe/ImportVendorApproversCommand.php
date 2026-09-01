@@ -9,9 +9,9 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
+use Kanvas\Guild\Organizations\Actions\LinkApproverEmailToOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationData;
 use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Guild\Organizations\Models\OrganizationApprover;
 use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Support\Excel\NullExcelImport;
@@ -117,7 +117,7 @@ class ImportVendorApproversCommand extends Command
     {
         $organization->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, $approverEmail);
         $organization->set(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, $vendorName);
-        OrganizationApprover::linkApproverEmail($organization, $approverEmail);
+        new LinkApproverEmailToOrganizationAction($organization, $approverEmail)->execute();
         $this->info("{$vendorName} -> {$organization->name} -> {$approverEmail}");
     }
 

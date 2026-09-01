@@ -37,6 +37,15 @@ class SubmitBillForApprovalAction
             return $this->bill;
         }
 
+        $bill = $this->submit();
+
+        $this->openGenericApproval($bill);
+
+        return $bill;
+    }
+
+    private function submit(): Bill
+    {
         return DB::connection('accounting')->transaction(function (): Bill {
             $bill = $this->bill;
 
@@ -60,5 +69,24 @@ class SubmitBillForApprovalAction
 
             return $bill->refresh();
         });
+    }
+
+    /**
+     * Dual-write while the generic approvals domain is adopted: the legacy accounting.approval_queue
+     * row above stays authoritative for Apex/Arc, and this opens the matching approval_requests row
+     * only where the tenant has a policy configured. Returns null — and changes nothing — when it has
+     * none, so seeding a policy is what switches a tenant over, not deploying this.
+     */
+    private function openGenericApproval(Bill $bill): void
+    {
+        $bill->requestApproval(
+            'approve_bill',
+            payload: [
+                'total_native' => (float) $bill->total_native,
+                'currency' => $bill->currency,
+                'vendor_organization_id' => $bill->vendor_organization_id,
+            ],
+            requestedBy: $this->user,
+        );
     }
 }

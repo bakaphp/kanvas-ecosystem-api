@@ -3,6 +3,7 @@
 namespace App\Console;
 
 use App\Console\Commands\Analytics\Schedules\AnalyticsSchedule;
+use App\Console\Commands\Approvals\ExpireApprovalRequestsCommand;
 use App\Console\Commands\Connectors\Acumatica\ScheduledAcumaticaSyncCommand;
 use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
@@ -48,6 +49,7 @@ class Kernel extends ConsoleKernel
         // Ecosystem / Social / Souk / Connectors — small enough to inline today.
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
         $schedule->command(DetectSignupAnomalyCommand::class)->hourly()->withoutOverlapping()->onOneServer();
+        $schedule->command(ExpireApprovalRequestsCommand::class)->hourly()->withoutOverlapping()->onOneServer();
         $schedule->command(SocialUserCounterResetCommand::class, ['13'])->dailyAt('00:00');
         $schedule->command(OrderFinishExpiredCommand::class)->everyMinute();
         $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();

@@ -36,6 +36,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlanF
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemTaskFilesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\MoveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleReminderTool;
@@ -299,6 +300,10 @@ class ProjectManagerAgent extends SystemUserAgent
               update_nervous_system_plan (status=done); reprioritize or re-scope a plan with the same
               tool; delete_nervous_system_plan only for a plan that should not exist. Prefer
               status=cancelled over delete when a plan was decided against.
+            - WRONG PROJECT? MOVE IT, DON'T RE-CREATE IT. When a plan belongs on another board, use
+              move_nervous_system_plan — its tasks, sub-plans and whole activity history go with it.
+              Re-creating it elsewhere and cancelling the original throws that history away. If the
+              move reports the plan came back UNOWNED, assign it to a member of the new project.
             - Delegate: assign tasks to member agents rather than doing everything yourself.
             - If something is blocking progress (missing decision, external dependency), set the task
               blocked with a clear blocked_reason and say what you need.
@@ -426,6 +431,7 @@ class ProjectManagerAgent extends SystemUserAgent
             new CreateNervousSystemPlanTool($this->session)->withContext($app, $company, $user),
             new UpdateNervousSystemPlanTool()->withContext($app, $company, $user),
             new DeleteNervousSystemPlanTool()->withContext($app, $company, $user),
+            new MoveNervousSystemPlanTool()->withContext($app, $company, $user),
             new AssignNervousSystemPlanTool()->withContext($app, $company, $user),
             new FindAndAddNervousSystemMemberTool()->withContext($app, $company, $user),
             new AddNervousSystemTaskTool()->withContext($app, $company, $user),

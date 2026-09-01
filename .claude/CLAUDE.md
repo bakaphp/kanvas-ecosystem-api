@@ -74,6 +74,7 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `src/Domains/Guild/Leads/CLAUDE.md` — receiver → lead → email flow: why the email template comes from the **rotation config** (not the job/receiver), the `user-`/`lead-` template-name prefixing, the `notification_mode`/`notification_user_mode` knobs, and how company onboarding differs from the `kanvas:sa-setup-receivers` default.
 - `src/Domains/Inventory/CLAUDE.md` — product search engine (dynamic per-tenant Algolia/Typesense/Meilisearch resolution + precedence), index naming, `shouldBeSearchable` gating, the tenant-aware reindex command, and Typesense Natural Language Search config for the recommendation agent.
 - `app/Console/Commands/Inventory/CLAUDE.md` — what each inventory command does and the order the discovery ones must run in (enrich → index → search → score).
+- `src/Kanvas/Approvals/CLAUDE.md` — generic cross-domain approval gating (policies, resolvers, the sync-handler vs workflow lanes, the transitional entity-fired event, and the `ecosystem` connection test trap).
 - `src/Domains/Insurance/CLAUDE.md` — provider-agnostic insurance layer (quote → policy). Why it is a top-level domain rather than Souk/Inventory/a connector, why only 2 direct queries exist and everything else is a workflow activity, and the hybrid generic-vs-connector custom-field split.
 
 ### Where to put new conventions (don't bloat this file)

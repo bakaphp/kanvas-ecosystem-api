@@ -46,9 +46,11 @@ abstract class ScribeTestCase extends TestCase
      * (via EmitsLedgerEventsForEntity) get rolled back at the end of each test — otherwise
      * stale `nervous_system_events` rows leak across tests. `crm` is included because Scribe tests
      * seed Guild vendor/customer orgs (via seedTestOrganization) — without it those rows leak and
-     * skew later tests (duplicate 'Globex Supply' orgs crowding out a find_vendor limit).
+     * skew later tests (duplicate 'Globex Supply' orgs crowding out a find_vendor limit). `ecosystem`
+     * is where approval_requests lives: Bill and Invoice use HasApprovals, so submitting either one
+     * writes there even though it looks like a purely accounting-side action.
      */
-    protected array $connectionsToTransact = ['mysql', 'accounting', 'intelligence', 'crm'];
+    protected array $connectionsToTransact = ['mysql', 'ecosystem', 'accounting', 'intelligence', 'crm'];
 
     protected Apps $kanvasApp;
     protected Companies $company;

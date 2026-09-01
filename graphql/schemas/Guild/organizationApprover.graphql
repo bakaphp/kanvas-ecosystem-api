@@ -1,0 +1,25 @@
+type OrganizationApprover {
+    id: ID!
+    organization: Organization! @belongsTo(relation: "organization")
+    user: User! @belongsTo(relation: "user")
+    created_at: DateTime!
+}
+
+input OrganizationApproverInput {
+    organization_id: ID!
+    users_id: ID
+    email: String
+}
+
+extend type Mutation @guard {
+    addOrganizationApprover(
+        input: OrganizationApproverInput!
+    ): OrganizationApprover!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationApproverMutation@add"
+        )
+    removeOrganizationApprover(input: OrganizationApproverInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationApproverMutation@remove"
+        )
+}

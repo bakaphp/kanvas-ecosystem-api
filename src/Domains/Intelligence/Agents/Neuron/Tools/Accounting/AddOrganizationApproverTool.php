@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Guild\Organizations\Actions\LinkApproverEmailToOrganizationAction;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationApprover;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -86,7 +87,7 @@ class AddOrganizationApproverTool extends Tool
         }
 
         try {
-            OrganizationApprover::linkApproverEmail($organization, $email);
+            new LinkApproverEmailToOrganizationAction($organization, $email)->execute();
         } catch (Throwable $e) {
             return [
                 'linked' => false,
