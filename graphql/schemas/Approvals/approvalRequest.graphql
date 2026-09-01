@@ -1,0 +1,95 @@
+type ApprovalRequest {
+    id: ID!
+    uuid: String!
+    approval_type: String!
+    status: String! @method(name: "statusName")
+    current_step: Int!
+    origin: String @method(name: "originName")
+    entity_id: Int!
+    "A curated {id, type, label} of the record under approval — not the raw model, which would expose every column to a wider audience than the record itself has."
+    entity: Mixed @method(name: "entitySummary")
+    system_module: SystemModule! @belongsTo(relation: "systemModule")
+    payload: Mixed
+    metadata: Mixed
+    requested_by: User @belongsTo(relation: "requestedByUser")
+    resolved_by: User @belongsTo(relation: "resolvedByUser")
+    resolved_at: DateTime
+    reason: String
+    expires_at: DateTime
+    "Who was asked, at which step, and what they said."
+    approvers: [ApprovalRequestApprover!]! @hasMany(relation: "approvers")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type ApprovalRequestApprover {
+    id: ID!
+    user: User! @belongsTo(relation: "user")
+    email: String
+    step: Int!
+    decision: String! @method(name: "decisionName")
+    decided_at: DateTime
+    comment: String
+    delegated_to: User @belongsTo(relation: "delegatedTo")
+    notified_at: DateTime
+}
+
+input ApprovalDecisionInput {
+    id: ID!
+    "Free text shown in the audit trail. Required when rejecting."
+    reason: String
+}
+
+input DelegateApprovalInput {
+    id: ID!
+    users_id: ID!
+    reason: String
+}
+
+extend type Query @guard {
+    approvalRequests(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "status"
+                    "approval_type"
+                    "entity_id"
+                    "system_modules_id"
+                ]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "created_at", "resolved_at", "expires_at"])
+    ): [ApprovalRequest!]!
+        @paginate(
+            model: "Kanvas\\Approvals\\Models\\ApprovalRequest"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+    "Requests waiting on the authenticated user right now — their step is the live one."
+    myPendingApprovals: [ApprovalRequest!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Approvals\\Queries\\ApprovalRequestQuery@myPendingApprovals"
+        )
+}
+
+extend type Mutation @guard {
+    approveApprovalRequest(input: ApprovalDecisionInput!): ApprovalRequest!
+        @field(
+            resolver: "App\\GraphQL\\Approvals\\Mutations\\ApprovalRequestMutation@approve"
+        )
+    rejectApprovalRequest(input: ApprovalDecisionInput!): ApprovalRequest!
+        @field(
+            resolver: "App\\GraphQL\\Approvals\\Mutations\\ApprovalRequestMutation@reject"
+        )
+    delegateApprovalRequest(input: DelegateApprovalInput!): ApprovalRequest!
+        @field(
+            resolver: "App\\GraphQL\\Approvals\\Mutations\\ApprovalRequestMutation@delegate"
+        )
+    cancelApprovalRequest(input: ApprovalDecisionInput!): ApprovalRequest!
+        @field(
+            resolver: "App\\GraphQL\\Approvals\\Mutations\\ApprovalRequestMutation@cancel"
+        )
+}

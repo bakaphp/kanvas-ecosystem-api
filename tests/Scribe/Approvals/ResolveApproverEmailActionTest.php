@@ -6,6 +6,7 @@ namespace Tests\Scribe\Approvals;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationApprover;
 use Kanvas\Scribe\Approvals\Actions\ResolveApproverEmailAction;
@@ -42,7 +43,7 @@ final class ResolveApproverEmailActionTest extends TestCase
         $organization->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, 'legacy@example.test');
 
         $approver = Users::factory()->create(['email' => 'real-approver-' . uniqid() . '@example.test']);
-        OrganizationApprover::addApproverToOrganization($organization, $approver);
+        new AddApproverToOrganizationAction($organization, $approver)->execute();
 
         $emails = ResolveApproverEmailAction::resolveForOrganization($organization);
 
@@ -55,8 +56,8 @@ final class ResolveApproverEmailActionTest extends TestCase
         $organization = $this->seedOrganization('Two Approvers Corp');
         $approverOne = Users::factory()->create(['email' => 'approver-one-' . uniqid() . '@example.test']);
         $approverTwo = Users::factory()->create(['email' => 'approver-two-' . uniqid() . '@example.test']);
-        OrganizationApprover::addApproverToOrganization($organization, $approverOne);
-        OrganizationApprover::addApproverToOrganization($organization, $approverTwo);
+        new AddApproverToOrganizationAction($organization, $approverOne)->execute();
+        new AddApproverToOrganizationAction($organization, $approverTwo)->execute();
 
         $emails = ResolveApproverEmailAction::resolveForOrganization($organization);
 

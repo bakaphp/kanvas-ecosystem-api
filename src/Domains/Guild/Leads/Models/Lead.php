@@ -75,6 +75,8 @@ use Throwable;
  * @property string|null $description
  * @property string $is_duplicate
  * @property string $third_party_sync_status
+ * @property int|null $merged_into_leads_id
+ * @property bool $is_deleted
  */
 class Lead extends BaseModel implements EventResourceInterface
 {

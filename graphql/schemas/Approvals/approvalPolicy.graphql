@@ -1,0 +1,66 @@
+"""
+What "approving an X" means for this tenant: who signs, in what order, and what runs on success.
+Configuring this is an admin operation — it decides who can release money.
+"""
+type ApprovalPolicy {
+    id: ID!
+    approval_type: String!
+    system_module: SystemModule! @belongsTo(relation: "systemModule")
+    "Ordered chain. Each step: {step, resolver, config, required_approvals, when}."
+    steps: Mixed!
+    handler: String
+    trigger: String! @method(name: "triggerName")
+    trigger_condition: Mixed
+    trigger_event: String
+    reject_policy: String!
+    fallback_resolver: String
+    fallback_config: Mixed
+    notify: String!
+    expires_after_hours: Int
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+input ApprovalPolicyInput {
+    system_module_id: ID!
+    approval_type: String!
+    steps: Mixed!
+    handler: String
+    trigger: String
+    trigger_condition: Mixed
+    trigger_event: String
+    reject_policy: String
+    fallback_resolver: String
+    fallback_config: Mixed
+    notify: String
+    expires_after_hours: Int
+}
+
+extend type Query @guardByAdmin {
+    approvalPolicies(
+        where: _
+            @whereConditions(
+                columns: ["id", "approval_type", "system_modules_id", "trigger"]
+            )
+    ): [ApprovalPolicy!]!
+        @paginate(
+            model: "Kanvas\\Approvals\\Models\\ApprovalPolicy"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    createApprovalPolicy(input: ApprovalPolicyInput!): ApprovalPolicy!
+        @field(
+            resolver: "App\\GraphQL\\Approvals\\Mutations\\ApprovalPolicyMutation@create"
+        )
+    updateApprovalPolicy(id: ID!, input: ApprovalPolicyInput!): ApprovalPolicy!
+        @field(
+            resolver: "App\\GraphQL\\Approvals\\Mutations\\ApprovalPolicyMutation@update"
+        )
+    deleteApprovalPolicy(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Approvals\\Mutations\\ApprovalPolicyMutation@delete"
+        )
+}

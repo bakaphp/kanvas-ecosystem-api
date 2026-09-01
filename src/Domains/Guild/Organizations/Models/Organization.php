@@ -96,6 +96,15 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     }
 
     /**
+     * The Kanvas Users who may approve this organization's AP/AR items.
+     */
+    public function approvers(): HasMany
+    {
+        return $this->hasMany(OrganizationApprover::class, 'organizations_id', 'id')
+            ->where('is_deleted', false);
+    }
+
+    /**
      * Falls back to the default, then to any address: a company that entered exactly one address means it,
      * and requiring them to tag it "Billing" before an invoice renders is bureaucracy, not correctness.
      */

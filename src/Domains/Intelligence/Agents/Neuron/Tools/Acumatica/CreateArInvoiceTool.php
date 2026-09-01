@@ -203,6 +203,19 @@ class CreateArInvoiceTool extends Tool implements HasRunKey
                 requestedByUser: $actingUser,
             )->execute();
 
+            // Dual-write while the generic approvals domain is adopted: the queue row above stays
+            // authoritative for Arc, and this opens the matching approval_requests row only where the
+            // tenant has a policy. No policy configured means this changes nothing.
+            $invoice->requestApproval(
+                'approve_invoice',
+                payload: [
+                    'total_native' => (float) $invoice->total_native,
+                    'currency' => $invoice->currency,
+                    'customer_organization_id' => $invoice->customer_organization_id,
+                ],
+                requestedBy: $actingUser,
+            );
+
             $approverEmails = ResolveApproverEmailAction::resolveForOrganization($customer);
 
             foreach ($approverEmails as $approverEmail) {

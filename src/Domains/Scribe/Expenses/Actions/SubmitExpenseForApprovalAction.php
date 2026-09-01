@@ -39,6 +39,26 @@ class SubmitExpenseForApprovalAction
             return $this->expense;
         }
 
+        $expense = $this->submit();
+
+        // Dual-write while the generic approvals domain is adopted: the legacy queue row stays
+        // authoritative, and this opens the matching approval_requests row only where the tenant has
+        // a policy configured. No policy means nothing changes.
+        $expense->requestApproval(
+            'approve_expense',
+            payload: [
+                'total_native' => (float) $expense->total_native,
+                'currency' => $expense->currency,
+                'paid_by' => $expense->paid_by->value,
+            ],
+            requestedBy: $this->user,
+        );
+
+        return $expense;
+    }
+
+    private function submit(): Expense
+    {
         return DB::connection('accounting')->transaction(function (): Expense {
             $expense = $this->expense;
 
