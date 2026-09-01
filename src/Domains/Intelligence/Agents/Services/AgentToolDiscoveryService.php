@@ -126,6 +126,7 @@ class AgentToolDiscoveryService extends AttributeClassDiscovery
             str_contains($fqcn, '\\Templates\\') => 'templates',
             str_contains($fqcn, '\\News\\'),
             str_contains($fqcn, '\\Jina\\'),
+            str_contains($fqcn, '\\Supadata\\'),
             str_contains($fqcn, '\\Tavily\\'),
             str_contains($fqcn, '\\FinancialModelingPrep\\') => 'knowledge',
             str_contains($fqcn, '\\System\\'),

@@ -46,6 +46,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTas
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\CreateMessageTypeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ListMessageTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadChannelWindowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Supadata\GetTranscriptionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\BuildAdminLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyReceiverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyWorkflowTool;
@@ -450,6 +451,7 @@ class ProjectManagerAgent extends SystemUserAgent
         $requestingHuman = $this->requestingHuman();
 
         $core[] = new ReadChannelWindowTool()->withContext($app, $company, $user);
+        $core[] = new GetTranscriptionTool()->withContext($app, $company, $user);
         $core[] = new ListMessageTypesTool()->withContext($app, $company, $user);
         $core[] = new CreateMessageTypeTool()->withContext($app, $company, $user);
 
