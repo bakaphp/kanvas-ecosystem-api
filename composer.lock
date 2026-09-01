@@ -18121,16 +18121,16 @@
         },
         {
             "name": "laramint/laravel-brain",
-            "version": "v2.4.0",
+            "version": "v2.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laramint/laravel-brain.git",
-                "reference": "bf7f41760636066d099c479b4648c98aec8ceb4d"
+                "reference": "344eecae256ad5a5bad434dc3ffa600c70df2024"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laramint/laravel-brain/zipball/bf7f41760636066d099c479b4648c98aec8ceb4d",
-                "reference": "bf7f41760636066d099c479b4648c98aec8ceb4d",
+                "url": "https://api.github.com/repos/laramint/laravel-brain/zipball/344eecae256ad5a5bad434dc3ffa600c70df2024",
+                "reference": "344eecae256ad5a5bad434dc3ffa600c70df2024",
                 "shasum": ""
             },
             "require": {
@@ -18170,7 +18170,7 @@
             "description": "Visualize your Laravel request lifecycle as an interactive graph",
             "support": {
                 "issues": "https://github.com/laramint/laravel-brain/issues",
-                "source": "https://github.com/laramint/laravel-brain/tree/v2.4.0"
+                "source": "https://github.com/laramint/laravel-brain/tree/v2.5.0"
             },
             "funding": [
                 {
@@ -18182,7 +18182,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-09T13:40:42+00:00"
+            "time": "2026-08-27T13:45:06+00:00"
         },
         {
             "name": "laramint/laravel-stress",
