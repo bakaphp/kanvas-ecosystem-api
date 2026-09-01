@@ -37,6 +37,7 @@ class WorkerToolPolicy extends ScopedToolPolicy
         'create_nervous_system_plan',
         'update_nervous_system_plan',
         'delete_nervous_system_plan',
+        'move_nervous_system_plan',
         'add_nervous_system_task',
         'delete_nervous_system_task',
         'update_nervous_system_project',

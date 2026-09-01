@@ -76,6 +76,7 @@ class SyncProductWithShopifyWithIntegrationActivity extends KanvasActivity
                         integrationCompany: $integrationCompany,
                         status: $status,
                         entity: $product,
+                        input: $this->buildIntegrationHistoryInput($product, $params),
                         response: $historyResponse ?? null,
                         exception: $exception,
                         workflowId: $this->workflowId(),

@@ -6,8 +6,8 @@ namespace Tests\Scribe\Intelligence;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
+use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
 use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Guild\Organizations\Models\OrganizationApprover;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
@@ -540,8 +540,8 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $approverOne = Users::factory()->create(['email' => 'approver-one-' . uniqid() . '@example.test']);
         $approverTwo = Users::factory()->create(['email' => 'approver-two-' . uniqid() . '@example.test']);
-        OrganizationApprover::addApproverToOrganization($vendor, $approverOne);
-        OrganizationApprover::addApproverToOrganization($vendor, $approverTwo);
+        new AddApproverToOrganizationAction($vendor, $approverOne)->execute();
+        new AddApproverToOrganizationAction($vendor, $approverTwo)->execute();
 
         $accountCode = (string) Account::query()
             ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))

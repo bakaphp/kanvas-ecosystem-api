@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Approvals\Actions\ApproveAction;
+use Kanvas\Approvals\Enums\ApprovalOutcomeEnum;
+use Kanvas\Approvals\Enums\ApprovalStatusEnum;
+use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
@@ -20,10 +24,15 @@ use Override;
 use Throwable;
 
 /**
- * Approves any pending item in the approval queue — a bill, an invoice, or any future action type
- * registered in ResolveApprovalAction — and carries out whatever that approval means (e.g. pushing
- * to Acumatica). Generic on purpose: new approval types plug into ResolveApprovalAction without
- * ever touching this tool.
+ * Approves any pending item — a bill, an invoice, an expense, or any future type — and carries out
+ * whatever that approval means (e.g. pushing to Acumatica).
+ *
+ * Prefers the generic Kanvas\Approvals domain and falls back to the legacy accounting.approval_queue
+ * when the tenant has no policy configured. That is the cutover: seeding a policy moves a tenant onto
+ * the new engine one at a time, and a tenant with no policy behaves exactly as it did before.
+ *
+ * The result shape is identical on both paths, so the agent guidance in AccountsPayableAgent /
+ * AccountsReceivableAgent reads `pushed`, `push_error` and the source fields unchanged.
  */
 #[AgentTool(name: 'Approve Pending Item', category: 'accounting')]
 class ApprovePendingItemTool extends Tool
@@ -72,6 +81,97 @@ class ApprovePendingItemTool extends Tool
      */
     public function __invoke(string $target_type, int $target_id): array
     {
+        $request = $this->genericRequest($target_type, $target_id);
+
+        return $request !== null
+            ? $this->approveGeneric($request, $target_type)
+            : $this->approveLegacy($target_type, $target_id);
+    }
+
+    /**
+     * Matched on approval_type rather than a target_type -> model-class map, so adding a new
+     * approvable type stays a policy row and never touches this tool.
+     */
+    private function genericRequest(string $target_type, int $target_id): ?ApprovalRequest
+    {
+        /** @var ApprovalRequest|null $request */
+        $request = ApprovalRequest::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('approval_type', 'approve_' . $target_type)
+            ->where('entity_id', $target_id)
+            ->where('status', ApprovalStatusEnum::PENDING->value)
+            ->where('is_deleted', false)
+            ->latest('id')
+            ->first();
+
+        return $request;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function approveGeneric(ApprovalRequest $request, string $target_type): array
+    {
+        $approverEmails = $request->pendingApproverEmails();
+
+        if ($approverEmails === []) {
+            return [
+                'approved' => false,
+                'reason' => 'no_approver_configured',
+                'message' => "No approver is configured on this {$target_type}'s vendor/customer.",
+            ];
+        }
+
+        // Still the email check, because the identity that matters here is the sender's Slack profile
+        // email resolved by SlackUserResolverService, not their Kanvas login.
+        if (! $this->isAuthorizedApprover($approverEmails)) {
+            return [
+                'approved' => false,
+                'reason' => 'not_authorized',
+                'message' => 'Only an approver configured for this vendor/customer can approve this.',
+            ];
+        }
+
+        try {
+            $result = new ApproveAction($request, $this->user)->execute();
+        } catch (ValidationException|Throwable $e) {
+            return [
+                'approved' => false,
+                'reason' => 'resolve_failed',
+                'message' => $e->getMessage(),
+            ];
+        }
+
+        return match ($result->outcome) {
+            ApprovalOutcomeEnum::APPROVED => $this->approvedPayload($result->handlerResult ?? []),
+            ApprovalOutcomeEnum::STILL_PENDING => [
+                'approved' => false,
+                'recorded' => true,
+                'reason' => 'awaiting_quorum',
+                'message' => "Your approval is recorded. This step needs {$result->needed} approvals and "
+                    . "has {$result->have}. Do not update the tracking sheet yet.",
+            ],
+            ApprovalOutcomeEnum::ADVANCED => [
+                'approved' => false,
+                'recorded' => true,
+                'reason' => 'awaiting_next_step',
+                'message' => 'Your approval is recorded and this step is cleared. It now needs step '
+                    . "{$result->step} to sign off. Do not update the tracking sheet yet.",
+            ],
+            default => [
+                'approved' => false,
+                'reason' => 'already_resolved',
+                'message' => 'Someone else already resolved this request.',
+            ],
+        };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function approveLegacy(string $target_type, int $target_id): array
+    {
         $item = ApprovalQueueItem::query()
             ->where('apps_id', $this->app->getId())
             ->where('companies_id', $this->company->getId())
@@ -117,6 +217,18 @@ class ApprovePendingItemTool extends Tool
             ];
         }
 
+        return $this->approvedPayload($result);
+    }
+
+    /**
+     * The single shape both paths return, so the agents' guidance never has to know which engine ran.
+     *
+     * @param array<string, mixed> $result
+     *
+     * @return array<string, mixed>
+     */
+    private function approvedPayload(array $result): array
+    {
         $approvedBy = (string) $this->user->email;
         $approvedAt = Carbon::now()->toDateString();
         $evidence = "Approved by {$approvedBy} on {$approvedAt}";
@@ -125,7 +237,7 @@ class ApprovePendingItemTool extends Tool
             'approved' => true,
             'approved_by' => $approvedBy,
             'approved_at' => $approvedAt,
-            'next' => $result['pushed']
+            'next' => ($result['pushed'] ?? false)
                 ? "Pushed to Acumatica. Now: (1) add a note with the approval evidence (\"{$evidence}\"). "
                     . '(2) If source_attachment_url is present, attach it (attach_bill_file/attach_invoice_file) '
                     . 'now that this record is actually pushed. '
@@ -134,8 +246,9 @@ class ApprovePendingItemTool extends Tool
                     . '(4) In the sheet, find the row for this record and update column D (Status) to '
                     . '"Approved", column E (Approved Date) to approved_at, and column F (Approved By) to '
                     . 'approved_by.'
-                : 'Approved in Kanvas but the push to Acumatica failed: ' . ($result['push_error'] ?? 'unknown error')
-                    . '. It needs manual attention.',
+                : 'Approved in Kanvas but the push to Acumatica failed: '
+                    . ($result['push_error'] ?? $result['handler_error'] ?? 'unknown error')
+                    . '. It needs manual attention. Do NOT mark the sheet Approved.',
         ]);
     }
 }

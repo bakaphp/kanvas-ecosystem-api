@@ -73,6 +73,7 @@ class DeleteVariantFromShopifyActivity extends KanvasActivity
                     integrationCompany: $integrationCompany,
                     status: $status,
                     entity: $variant,
+                    input: $this->buildIntegrationHistoryInput($variant, $params),
                     response: $historyResponse ?? null,
                     exception: $exception,
                     workflowId: $this->workflowId(),

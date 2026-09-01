@@ -57,6 +57,14 @@ enum WorkflowEnum: string
     case AFTER_MERGE = 'after-merge';
     case EVENT_VERSIONS_WORKFLOW = 'event-versions-workflow';
 
+    case APPROVAL_REQUESTED = 'approval-requested';
+    case APPROVAL_STEP_COMPLETED = 'approval-step-completed';
+    case APPROVAL_UNASSIGNED = 'approval-unassigned';
+    case APPROVAL_EXPIRED = 'approval-expired';
+    case APPROVAL_CANCELLED = 'approval-cancelled';
+    case APPROVED = 'approved';
+    case REJECTED = 'rejected';
+
     /**
      * Get the enum case by its value.
      */
