@@ -14,18 +14,19 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Salesforce\Actions\PullPropertyAction;
 use Kanvas\Connectors\Salesforce\Actions\PullPropertyContactAction;
+use Kanvas\Connectors\Salesforce\Actions\PullPropertyFilesAction;
 use Kanvas\Connectors\Salesforce\Client;
 use Kanvas\Connectors\Salesforce\Services\SalesforceApiClient;
 use RuntimeException;
 use Throwable;
 
 /**
- * Test-only import: pulls Location__c (+ its primary Location_Contact__c) from Salesforce into
- * Kanvas Products, using GAGroup's field names hardcoded (`PullPropertyAction::mapAttributes()`).
- * Deliberately unfiltered — imports every Location__c regardless of Deal_Status__c/
- * Marketing_Status__c, saving both as attributes; the website's "which properties are listed"
- * question is answered downstream with Kanvas's own product/attribute filtering
- * (`hasAttributeValues`/`variantAttributeValue`), not by narrowing the SOQL at import time.
+ * Test-only import: pulls Location__c (+ its primary Location_Contact__c and any Salesforce Files
+ * attached to it) from Salesforce into Kanvas Products, using GAGroup's field names hardcoded
+ * (`PullPropertyAction::mapAttributes()`). Deliberately unfiltered — imports every Location__c
+ * regardless of Deal_Status__c/Marketing_Status__c, saving both as attributes; the website's
+ * "which properties are listed" question is answered downstream with Kanvas's own product/attribute
+ * filtering (`hasAttributeValues`/`variantAttributeValue`), not by narrowing the SOQL at import time.
  *
  * The per-record upsert runs inside a queued closure (not a dedicated Job class) so this
  * GAGroup-only fixture doesn't grow a permanent class in the shared Salesforce connector — the
@@ -51,7 +52,7 @@ class ImportSalesforcePropertiesCommand extends Command
 
         $client = Client::getInstance($app, $company);
 
-        $soql = 'SELECT Id, Name, Property_Name__c, Deal_Status__c, Marketing_Status__c, Street__c, City__c, '
+        $soql = 'SELECT Id, Name, Property_Name__c, Deal_Status__c, Marketing_Status__c, Store__c, Street__c, City__c, '
             . 'State_Province__c, Zip_Code__c, Brand__c, Ask_Deal_Type__c, Location_Type__c, Gross_SF__c, '
             . 'Property_Acreage__c, Year_Built__c, Zoning__c, Latitude__c, Longitude__c FROM Location__c';
 
@@ -97,6 +98,10 @@ class ImportSalesforcePropertiesCommand extends Command
                 }
             }
 
+            // Resolved once and reused per property — Client::getInstance() caches the access
+            // token itself, so this is cheap even across a long-running queued closure.
+            $client = Client::getInstance($app, $company);
+
             $total = count($properties);
             $processed = 0;
             $failed = 0;
@@ -126,6 +131,15 @@ class ImportSalesforcePropertiesCommand extends Command
                             (string) $contact['Id'],
                         )->execute();
                     }
+
+                    new PullPropertyFilesAction(
+                        $app,
+                        $company,
+                        $product,
+                        $user,
+                        $client,
+                        $salesforceId,
+                    )->execute();
 
                     $processed++;
                 } catch (Throwable $e) {

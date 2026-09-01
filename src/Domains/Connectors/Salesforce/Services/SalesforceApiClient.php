@@ -88,6 +88,20 @@ final class SalesforceApiClient
     }
 
     /**
+     * Raw file bytes for a ContentVersion (a Salesforce File's binary payload) — unlike every other
+     * method here, the caller wants the response body itself, not `->json()`.
+     */
+    public function downloadContentVersion(string $contentVersionId): string
+    {
+        $response = $this->send(
+            'get',
+            "/services/data/{$this->apiVersion}/sobjects/ContentVersion/{$contentVersionId}/VersionData",
+        );
+
+        return $response->body();
+    }
+
+    /**
      * @return array{sobjects: list<array{name: string, label: string, custom: bool, keyPrefix: ?string}>}
      */
     public function describeGlobal(): array
