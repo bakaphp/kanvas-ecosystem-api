@@ -205,17 +205,15 @@ class CreateArInvoiceTool extends Tool implements HasRunKey
 
             $approverEmails = ResolveApproverEmailAction::resolveForOrganization($customer);
 
-            foreach ($approverEmails as $approverEmail) {
-                new NotifyApproverAction(
-                    app: $app,
-                    text: "You have an AR invoice pending approval:\nCustomer: {$customerDisplayName}\nAmount: "
-                        . "{$currency} {$amount}\nMemo: {$memo}\nInvoice ID (Kanvas): {$invoice->getId()}\n\nReply "
-                        . "\"approve invoice {$invoice->getId()}\" to approve it and push it to Acumatica.",
-                    approverEmail: $approverEmail,
-                    attachmentUrl: $source_attachment_url,
-                    attachmentFilename: $source_attachment_filename,
-                )->execute();
-            }
+            NotifyApproverAction::notifyAll(
+                approverEmails: $approverEmails,
+                app: $app,
+                text: "You have an AR invoice pending approval:\nCustomer: {$customerDisplayName}\nAmount: "
+                    . "{$currency} {$amount}\nMemo: {$memo}\nInvoice ID (Kanvas): {$invoice->getId()}\n\nReply "
+                    . "\"approve invoice {$invoice->getId()}\" to approve it and push it to Acumatica.",
+                attachmentUrl: $source_attachment_url,
+                attachmentFilename: $source_attachment_filename,
+            );
 
             return [
                 'created' => true,
