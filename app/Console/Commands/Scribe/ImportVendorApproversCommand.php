@@ -9,16 +9,18 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Models\OrganizationApprover;
 use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Support\Excel\NullExcelImport;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
- * One-off import: sets ap_approver_email AND ap_approver_vendor_name on each vendor Organization
- * from a spreadsheet mapping Vendor Name -> Approver Email (e.g. the AP Vendor-Approver List
- * finance maintains). Re-run whenever that sheet changes — it's idempotent, safe to run again
- * with an updated file.
+ * One-off import: sets ap_approver_email AND ap_approver_vendor_name on each vendor Organization,
+ * and links a real Kanvas User as its OrganizationApprover (creating a minimal User record if no
+ * Kanvas account matches that email yet), from a spreadsheet mapping Vendor Name -> Approver Email
+ * (e.g. the AP Vendor-Approver List finance maintains). Re-run whenever that sheet changes — it's
+ * idempotent, safe to run again with an updated file.
  */
 class ImportVendorApproversCommand extends Command
 {
@@ -26,7 +28,7 @@ class ImportVendorApproversCommand extends Command
 
     protected $signature = 'scribe:import-vendor-approvers {apps_id} {company_id} {file}';
 
-    protected $description = 'Sets the ap_approver_email and ap_approver_vendor_name custom fields on vendor Organizations from a Vendor Name / Approver Email spreadsheet';
+    protected $description = 'Sets the ap_approver_email/ap_approver_vendor_name custom fields and links an OrganizationApprover on vendor Organizations from a Vendor Name / Approver Email spreadsheet';
 
     public function handle(): void
     {
@@ -81,6 +83,7 @@ class ImportVendorApproversCommand extends Command
 
             $match->organization->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, $approverEmail);
             $match->organization->set(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, $vendorName);
+            OrganizationApprover::linkApproverEmail($match->organization, $approverEmail);
             $this->info("{$vendorName} -> {$match->organization->name} -> {$approverEmail}");
             $updated++;
         }

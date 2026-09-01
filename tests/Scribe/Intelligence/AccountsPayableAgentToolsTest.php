@@ -7,6 +7,7 @@ namespace Tests\Scribe\Intelligence;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Models\OrganizationApprover;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
@@ -481,6 +482,41 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $bill = Bill::query()->where('id', $created['bill_id'])->first();
         $this->assertSame(BillDocumentStatusEnum::RECEIVED, $bill->document_status);
+    }
+
+    public function test_organization_approvers_take_priority_over_the_legacy_field_and_any_one_may_approve(): void
+    {
+        $vendor = $this->seedTestOrganization('Multi Approver Vendor Corp');
+        $vendor->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, 'not-a-real-approver-' . uniqid() . '@example.test');
+
+        $approverOne = Users::factory()->create(['email' => 'approver-one-' . uniqid() . '@example.test']);
+        $approverTwo = Users::factory()->create(['email' => 'approver-two-' . uniqid() . '@example.test']);
+        OrganizationApprover::addApproverToOrganization($vendor, $approverOne);
+        OrganizationApprover::addApproverToOrganization($vendor, $approverTwo);
+
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $created = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Multi Approver Vendor Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Multi approver test',
+                invoice_number: 'MULTI-1',
+                push_to_acumatica: false,
+            );
+
+        $this->assertSame('', $created['approved_by_flag']);
+
+        $result = new ApprovePendingItemTool()
+            ->withContext($this->kanvasApp, $this->company, $approverTwo)
+            ->__invoke(target_type: 'bill', target_id: (int) $created['bill_id']);
+
+        $this->assertTrue($result['approved']);
+        $this->assertSame($approverTwo->email, $result['approved_by']);
     }
 
     public function test_approve_pending_item_reports_not_found_when_nothing_pending(): void

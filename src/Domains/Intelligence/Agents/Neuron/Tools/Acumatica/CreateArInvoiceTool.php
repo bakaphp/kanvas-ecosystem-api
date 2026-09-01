@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
 use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
 use Kanvas\Scribe\Approvals\Actions\RequestApprovalAction;
+use Kanvas\Scribe\Approvals\Actions\ResolveApproverEmailAction;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
@@ -202,17 +203,19 @@ class CreateArInvoiceTool extends Tool implements HasRunKey
                 requestedByUser: $actingUser,
             )->execute();
 
-            $approverEmail = trim((string) $customer->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, ''));
+            $approverEmails = ResolveApproverEmailAction::resolveForOrganization($customer);
 
-            new NotifyApproverAction(
-                app: $app,
-                text: "You have an AR invoice pending approval:\nCustomer: {$customerDisplayName}\nAmount: {$currency} "
-                    . "{$amount}\nMemo: {$memo}\nInvoice ID (Kanvas): {$invoice->getId()}\n\nReply "
-                    . "\"approve invoice {$invoice->getId()}\" to approve it and push it to Acumatica.",
-                approverEmail: $approverEmail !== '' ? $approverEmail : null,
-                attachmentUrl: $source_attachment_url,
-                attachmentFilename: $source_attachment_filename,
-            )->execute();
+            foreach ($approverEmails as $approverEmail) {
+                new NotifyApproverAction(
+                    app: $app,
+                    text: "You have an AR invoice pending approval:\nCustomer: {$customerDisplayName}\nAmount: "
+                        . "{$currency} {$amount}\nMemo: {$memo}\nInvoice ID (Kanvas): {$invoice->getId()}\n\nReply "
+                        . "\"approve invoice {$invoice->getId()}\" to approve it and push it to Acumatica.",
+                    approverEmail: $approverEmail,
+                    attachmentUrl: $source_attachment_url,
+                    attachmentFilename: $source_attachment_filename,
+                )->execute();
+            }
 
             return [
                 'created' => true,
@@ -224,14 +227,14 @@ class CreateArInvoiceTool extends Tool implements HasRunKey
                 'amount' => $amount,
                 'currency' => $currency,
                 'memo' => $memo,
-                'approved_by_flag' => $approverEmail !== '' ? '' : 'NOT IN APPROVER LIST',
-                'next' => $approverEmail !== ''
+                'approved_by_flag' => $approverEmails !== [] ? '' : 'NOT IN APPROVER LIST',
+                'next' => $approverEmails !== []
                     ? 'Invoice created in Kanvas (status: draft). Not issued or pushed to Acumatica — that '
                         . 'happens separately once a human approves it.'
-                    : 'Invoice created in Kanvas, but customer "' . $customerDisplayName . '" has no approver email '
+                    : 'Invoice created in Kanvas, but customer "' . $customerDisplayName . '" has no approver '
                         . 'configured — nobody can approve it and no notification was sent. Write approved_by_flag '
                         . 'into the sheet\'s Approved By column so this is visible there too, and tell the user to '
-                        . 'have an admin set that customer\'s approver email.',
+                        . 'have an admin set that customer\'s approver.',
             ];
         }
 
