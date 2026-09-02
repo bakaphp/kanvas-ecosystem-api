@@ -7,15 +7,22 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConvertQuoteToInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractCreditRequestFormTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindQuoteTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateInvoicePdfTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\GenerateQuotePdfTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOverdueInvoicesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchInvoicesForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SendQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\TopLatePayersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddInvoiceNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
@@ -24,6 +31,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\CheckApprovalStatusTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
@@ -58,7 +66,8 @@ use Override;
 #[AgentTypeDefinition(
     name: 'Accounts Receivable Agent',
     description: 'AR / sales-orders teammate — answers who owes us, AR aging, and looks up customer sales orders '
-        . '(Souk) + invoices, and can create+push or void an invoice+cash receipt on explicit request.',
+        . '(Souk) + invoices, can create+push or void an invoice+cash receipt on explicit request, and handles '
+        . 'quotes end to end (draft → sent → accepted → invoice) with PDFs of quotes and invoices.',
     provider: 'neuron',
     soul: 'You are the Accounts-Receivable teammate. You answer questions about money customers owe us and about '
         . 'customer sales orders, using your read tools. You are precise with numbers. create_ar_invoice, '
@@ -93,6 +102,16 @@ class AccountsReceivableAgent extends SystemUserAgent
             new CreateArCreditMemoTool(),
             new AddInvoiceNoteTool(),
             new AttachInvoiceFileTool(),
+            new CreateQuoteTool(),
+            new FindQuoteTool(),
+            new SendQuoteTool(),
+            new AnswerQuoteTool(),
+            new ConvertQuoteToInvoiceTool(),
+            new GenerateQuotePdfTool(),
+            new GenerateInvoicePdfTool(),
+            // The PDF tools hand back a filesystem_id; without this the agent quotes that id at a
+            // person who then has nothing to open.
+            new GetFileLinkTool(),
             new ReadGoogleSheetTool(),
             new AppendGoogleSheetRowsTool(),
             new UpdateGoogleSheetCellTool(),
@@ -152,6 +171,18 @@ class AccountsReceivableAgent extends SystemUserAgent
             . 'false only when you specifically want it to stop at draft instead (e.g. the automatic '
             . 'invoice-email flow below).',
             '- "Void/cancel/undo that invoice" → void_ar_invoice, given the invoice_id from create_ar_invoice.',
+            '- "Quote customer X for Y" / "send them a proposal" → create_quote (customer name + priced lines). '
+            . 'It stops at a DRAFT with no quote number. Then send_quote to number it and mark it sent — that '
+            . 'freezes the customer details onto the quote. Nothing is emailed by either call: '
+            . 'generate_quote_pdf gives you the document to hand over.',
+            '- Only record the customer\'s own answer with answer_quote (accepted or rejected, with their reason '
+            . 'when they said no) — never assume it. Once accepted, "turn that quote into an invoice" → '
+            . 'convert_quote_to_invoice, which creates a DRAFT invoice carrying the same lines; a human issues '
+            . 'it. "Look up quote #X" → find_quote, which gives you the quote_id the other quote tools need.',
+            '- "Send me the quote/invoice as a PDF" / "I need a copy to forward" → generate_quote_pdf or '
+            . 'generate_invoice_pdf. Both render what Kanvas holds and attach the file to the record; then call '
+            . 'get_file_link and hand back the link, never the filesystem_id. generate_invoice_pdf renders OUR '
+            . 'invoice — it is not the vendor PDF an invoice email arrived with.',
             '- "Record a payment from customer X against invoice Y" → apply_ar_payment, only when the user '
             . 'explicitly asks to record a real payment. Needs the invoice_id, amount, and a payment reference.',
             '- "Issue a standalone credit memo for customer X" (e.g. a back-end rebate) → create_ar_credit_memo, '

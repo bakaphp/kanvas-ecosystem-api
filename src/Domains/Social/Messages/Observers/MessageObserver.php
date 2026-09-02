@@ -37,7 +37,7 @@ class MessageObserver
             ))->execute();
         } */
 
-        if ($message->app->get('validate-message-schema')) {
+        if ($message->app->get('validate-message-schema') && $message->messageType !== null) {
             $checkJson = new MessageSchemaValidator($message, $message->messageType);
             $checkJson->validate();
         }
@@ -45,7 +45,7 @@ class MessageObserver
 
     public function created(Message $message): void
     {
-        if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
+        if ($message->isIndexedMessageType()) {
             $message->searchable();
         }
 
@@ -70,7 +70,7 @@ class MessageObserver
         $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);
         $message->clearLightHouseCacheJob();
 
-        if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
+        if ($message->isIndexedMessageType()) {
             $message->searchableSync();
         }
     }
@@ -93,7 +93,7 @@ class MessageObserver
                 $channel->saveOrFail();
             }
         }
-        if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
+        if ($message->isIndexedMessageType()) {
             $message->unsearchable();
         }
     }

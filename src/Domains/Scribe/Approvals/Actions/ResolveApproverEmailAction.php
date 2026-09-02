@@ -11,9 +11,14 @@ use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 
 /**
- * Resolves the approver email(s) for a pending item from its vendor/customer Organization —
- * the same organization-level lookup for every approval type, so a new type only needs a new
- * match arm here, mirroring ResolveApprovalAction's own action_type dispatch.
+ * @deprecated Use the organization_approver resolver on an approval policy.
+ *
+ * Still called by the AP/AR tools to address a Slack DM, which is why it outlives the legacy queue:
+ * the Slack notification has not moved into the approvals domain yet. Once it has, a step's resolver
+ * answers this and the class goes.
+ *
+ * Resolves the approver email(s) for a pending item from its vendor/customer Organization — the same
+ * organization-level lookup for every approval type.
  */
 class ResolveApproverEmailAction
 {

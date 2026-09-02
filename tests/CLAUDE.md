@@ -17,6 +17,32 @@ docker exec -it phpkanvas-ecosystem bash -c "cd /var/www/html && php vendor/bin/
 
 **Always run the relevant test suite after completing work on a module or connector** to verify nothing is broken, unless explicitly told otherwise.
 
+## Keeping the Verify Loop Fast (measured, don't re-litigate)
+
+**Never run `php artisan lighthouse:validate-schema` as part of a routine verification run.** It costs
+**79 seconds** (measured twice, warm) — more than the tests it's bolted onto — and **CI never runs it**:
+`lighthouse:*` appears only in the deploy workflows, never in `.github/workflows/tests.yml`. A broken
+schema already fails the tests. Run it only when the diff actually touches `.graphql`:
+
+```bash
+git diff --name-only | grep -q '\.graphql$' && docker exec phpkanvas-ecosystem bash -c "cd /var/www/html && php artisan lighthouse:validate-schema"
+```
+
+**Keep `bootstrap/cache/config.php` in place.** `TestCase::createApplication()` re-bootstraps the kernel
+for *every test*, so with config uncached each test re-reads ~100 config files over the macOS bind mount.
+Same 146 tests: **1m34s uncached vs 35.7s cached** — 2.6x. If a run suddenly feels twice as slow, run
+`php artisan config:cache` before suspecting your change. Don't leave a `config:clear` behind.
+
+**Scope the run like CI does — one suite.** CI is a 25-runner matrix, one `--testsuite` each at
+`--processes=4`; no runner ever runs 830 tests. Running several suites at once locally serializes the
+whole matrix onto one box and is what gets the process OOM-killed (exit 137). Prefer
+`--testsuite=<Name>` over directory paths so the slice matches CI exactly.
+
+**Already measured, don't retry:** `opcache.enable_cli` + `file_cache` = 3%. Lighthouse **schema cache =
+a wash** — 14% on a GraphQL-only file, and *slower* on mixed sets (every process loads a 26MB
+`lighthouse-schema.php`); leave `LIGHTHOUSE_SCHEMA_CACHE_ENABLE=false`. `paratest --processes=4` = 20%
+only, because each worker repeats the full domain setup in `createApplication()`.
+
 ## Available Suites
 
 Unit, Ecosystem, GraphQL, Inventory, Social, Guild, Connectors, Workflow, Intelligence, Baka, Souk, Event, ActionEngine

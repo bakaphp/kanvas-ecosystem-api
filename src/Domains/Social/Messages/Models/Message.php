@@ -392,9 +392,18 @@ class Message extends BaseModel
             return false;
         }
 
+        return ! $this->app->get('index_message_by_type') || $this->isIndexedMessageType();
+    }
+
+    /**
+     * `message_types_id` carries no foreign key, so the relation can resolve to null — and the
+     * observers calling this run inside the write, where a fatal takes the whole save down.
+     */
+    public function isIndexedMessageType(): bool
+    {
         $filterByMessageType = $this->app->get('index_message_by_type');
 
-        return ! $filterByMessageType || $this->messageType->verb === $filterByMessageType;
+        return (bool) $filterByMessageType && $this->messageType?->verb === $filterByMessageType;
     }
 
     public function isPublic(): bool

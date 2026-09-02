@@ -146,12 +146,16 @@ connector's own `BaseIntegration`. Use `{Connector}/Approvals/`.
 
 ## Scribe AP/AR adoption status
 
-The generic domain and `accounting.approval_queue` run **side by side**, and a tenant moves over by
-having a policy seeded — not by a deploy.
+`accounting.approval_queue` is **deprecated**. The table stays for the history in it, and it still
+receives rows for tenants with no policy configured — but a tenant that has one writes only
+`approval_requests`. A tenant moves over by having a policy seeded, not by a deploy.
+
+Nothing is written twice, which is the point: a legacy row that the generic engine later resolved
+would sit `pending` forever, since only `ResolveApprovalAction` knows how to close it.
 
 | Piece | State |
 |---|---|
-| `SubmitBillForApprovalAction`, `SubmitExpenseForApprovalAction`, `CreateArInvoiceTool` | Dual-write. Legacy queue row always; generic request only when a policy exists. |
+| `SubmitBillForApprovalAction`, `SubmitExpenseForApprovalAction`, `CreateArInvoiceTool` | **Either/or, not both.** A tenant with a policy writes only `approval_requests`; one without still writes the legacy queue row exactly as before. |
 | `ApprovePendingItemTool` | Generic first, legacy fallback. Same result shape either way, so the AP/AR agent guidance is unchanged. |
 | Handlers | `Connectors\Acumatica\Approvals\{ApproveAndPushBill,IssueAndPushInvoice}Handler`, `Scribe\Expenses\Approvals\ApproveExpenseHandler`. |
 | Slack DM | **Still Scribe's `NotifyApproverAction`**, fired from the intake paths. Seeded policies therefore use `notify: 'none'` so the generic mail layer does not double-notify real people. |
@@ -172,8 +176,8 @@ two answers to the same question.
 
 ### Not done yet
 
-- The legacy `ApprovalQueueItem` write is still there. Removing it (and `ResolveApprovalAction` /
-  `ResolveApproverEmailAction`) is the final cutover, once every tenant has a policy.
+- The legacy writers still exist for unmigrated tenants. Deleting them, plus `ResolveApprovalAction`
+  and `ResolveApproverEmailAction`, is the final cutover once every tenant has a policy.
 - Slack notification has not moved into this domain, so generic notifications are mail-only and carry
   no invoice PDF. That move is what lets `notify` go back to `'all'`.
 - An expired request does not walk its entity back to draft — the request closes, the bill stays
