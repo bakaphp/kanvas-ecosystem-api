@@ -11,6 +11,13 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Override;
 
+/**
+ * A bare notification: the checklist PDF state on this lead changed, go read it.
+ *
+ * Carrying the entries instead would force the client to reconcile snapshots that neither the queue
+ * nor Pusher delivers in order. Re-reading the `checklist.generate.pdf` custom field is always the
+ * current truth, and reuses the same read the page already does on load.
+ */
 class ChecklistGeneratePdfEvent implements ShouldBroadcast
 {
     use Dispatchable;
@@ -18,18 +25,8 @@ class ChecklistGeneratePdfEvent implements ShouldBroadcast
 
     public string $broadcastQueue = 'broadcasts';
 
-    /**
-     * Primitives only, no models and no SerializesModels: the payload is the snapshot as it stood at
-     * write time. On success the entry — often the whole custom field — is already gone by the time
-     * this job runs, so re-reading the Lead would publish a later state and erase the transition.
-     *
-     * @param array<int, array{action_id: int, company_action_id: int, task_id: int, status: string}> $entries
-     */
-    public function __construct(
-        public int $leadId,
-        public string $leadUuid,
-        public array $entries
-    ) {
+    public function __construct(public string $leadUuid)
+    {
     }
 
     #[Override]
@@ -43,16 +40,8 @@ class ChecklistGeneratePdfEvent implements ShouldBroadcast
         return 'checklist.generate.pdf';
     }
 
-    /**
-     * `items` is a full snapshot rather than a delta because neither the queue nor Pusher guarantees
-     * ordering — the client replaces its list on every event instead of merging.
-     */
     public function broadcastWith(): array
     {
-        return [
-            'lead_id' => $this->leadId,
-            'lead_uuid' => $this->leadUuid,
-            'items' => $this->entries,
-        ];
+        return [];
     }
 }

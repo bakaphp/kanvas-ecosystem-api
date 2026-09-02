@@ -12,6 +12,7 @@ use Kanvas\ActionEngine\Tasks\Actions\TrackChecklistPdfGenerationAction;
 use Kanvas\ActionEngine\Tasks\Enums\ChecklistPdfGenerationEnum;
 use Kanvas\ActionEngine\Tasks\Events\ChecklistGeneratePdfEvent;
 use Kanvas\ActionEngine\Tasks\Support\ChecklistPdfContext;
+use Kanvas\ActionEngine\Tasks\Support\ChecklistPdfEntry;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
@@ -55,10 +56,10 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
         )->execute();
 
         $this->assertCount(1, $entries);
-        $this->assertSame(ChecklistPdfGenerationEnum::GENERATING->value, $entries[0]['status']);
-        $this->assertSame($context->taskListItem->getId(), $entries[0]['task_id']);
-        $this->assertSame($context->taskListItem->companyAction->getId(), $entries[0]['company_action_id']);
-        $this->assertSame((int) $context->taskListItem->companyAction->actions_id, $entries[0]['action_id']);
+        $this->assertSame(ChecklistPdfGenerationEnum::GENERATING, $entries[0]->status);
+        $this->assertSame($context->taskListItem->getId(), $entries[0]->taskId);
+        $this->assertSame($context->taskListItem->companyAction->getId(), $entries[0]->companyActionId);
+        $this->assertSame((int) $context->taskListItem->companyAction->actions_id, $entries[0]->actionId);
     }
 
     public function testGeneratingAppendsSecondTaskWithoutTouchingTheFirst(): void
@@ -79,7 +80,7 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
         $this->assertCount(2, $entries);
         $this->assertSame(
             [$first->taskListItem->getId(), $second->taskListItem->getId()],
-            array_column($entries, 'task_id')
+            array_map(fn (ChecklistPdfEntry $entry): int => $entry->taskId, $entries)
         );
     }
 
@@ -92,7 +93,7 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
         }
 
         $this->assertCount(1, $entries);
-        $this->assertSame(ChecklistPdfGenerationEnum::GENERATING->value, $entries[0]['status']);
+        $this->assertSame(ChecklistPdfGenerationEnum::GENERATING, $entries[0]->status);
     }
 
     public function testFailedFlipsTheStatusInPlace(): void
@@ -110,7 +111,7 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
         )->execute();
 
         $this->assertCount(1, $entries);
-        $this->assertSame(ChecklistPdfGenerationEnum::FAILED->value, $entries[0]['status']);
+        $this->assertSame(ChecklistPdfGenerationEnum::FAILED, $entries[0]->status);
     }
 
     public function testClearingTheLastEntryDeletesTheCustomFieldRow(): void
@@ -146,11 +147,11 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
         $entries = new TrackChecklistPdfGenerationAction(context: $taskA, status: null)->execute();
 
         $this->assertCount(1, $entries);
-        $this->assertSame($taskB->taskListItem->getId(), $entries[0]['task_id']);
+        $this->assertSame($taskB->taskListItem->getId(), $entries[0]->taskId);
         $this->assertNotNull($this->lead->get(TrackChecklistPdfGenerationAction::CUSTOM_FIELD));
     }
 
-    public function testEachWriteDispatchesTheBroadcastWithThePostWriteSnapshot(): void
+    public function testEveryWriteNotifiesTheLeadChannel(): void
     {
         Event::fake([ChecklistGeneratePdfEvent::class]);
 
@@ -160,41 +161,59 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
             context: $context,
             status: ChecklistPdfGenerationEnum::GENERATING
         )->execute();
+        new TrackChecklistPdfGenerationAction(context: $context, status: null)->execute();
 
+        Event::assertDispatchedTimes(ChecklistGeneratePdfEvent::class, 2);
         Event::assertDispatched(
             ChecklistGeneratePdfEvent::class,
             fn (ChecklistGeneratePdfEvent $event): bool => $event->leadUuid === $this->lead->uuid
-                && $event->leadId === $this->lead->getId()
-                && count($event->entries) === 1
-                && $event->entries[0]['status'] === ChecklistPdfGenerationEnum::GENERATING->value
-                && $event->broadcastWith()['items'] === $event->entries
         );
     }
 
-    public function testClearEventCarriesTheSurvivingEntryNotARereadOfTheLead(): void
+    /**
+     * Re-marking a task that is already in that state — or clearing one that has no entry — would
+     * otherwise rewrite an identical array, firing a create-custom-field workflow and a broadcast
+     * that makes every client refetch for nothing.
+     */
+    public function testAnUnchangedWriteNotifiesNobody(): void
     {
-        $taskA = $this->makeContext('pdf-track-snapshot-a');
-        $taskB = $this->makeContext('pdf-track-snapshot-b');
+        $context = $this->makeContext('pdf-track-noop');
 
         new TrackChecklistPdfGenerationAction(
-            context: $taskA,
-            status: ChecklistPdfGenerationEnum::GENERATING
-        )->execute();
-        new TrackChecklistPdfGenerationAction(
-            context: $taskB,
+            context: $context,
             status: ChecklistPdfGenerationEnum::GENERATING
         )->execute();
 
         Event::fake([ChecklistGeneratePdfEvent::class]);
 
-        new TrackChecklistPdfGenerationAction(context: $taskA, status: null)->execute();
+        new TrackChecklistPdfGenerationAction(
+            context: $context,
+            status: ChecklistPdfGenerationEnum::GENERATING
+        )->execute();
 
-        Event::assertDispatched(
-            ChecklistGeneratePdfEvent::class,
-            fn (ChecklistGeneratePdfEvent $event): bool => count($event->entries) === 1
-                && $event->entries[0]['task_id'] === $taskB->taskListItem->getId()
-                && $event->broadcastWith()['items'] === $event->entries
-        );
+        Event::assertNotDispatched(ChecklistGeneratePdfEvent::class);
+    }
+
+    public function testClearingATaskThatWasNeverTrackedNotifiesNobody(): void
+    {
+        Event::fake([ChecklistGeneratePdfEvent::class]);
+
+        $entries = new TrackChecklistPdfGenerationAction(
+            context: $this->makeContext('pdf-track-clear-unknown'),
+            status: null
+        )->execute();
+
+        $this->assertSame([], $entries);
+        Event::assertNotDispatched(ChecklistGeneratePdfEvent::class);
+    }
+
+    /**
+     * The event is a notification, not a snapshot — carrying entries would make the client reconcile
+     * payloads the queue and Pusher do not deliver in order.
+     */
+    public function testTheBroadcastCarriesNoPayload(): void
+    {
+        $this->assertSame([], new ChecklistGeneratePdfEvent((string) $this->lead->uuid)->broadcastWith());
     }
 
     /**
@@ -232,7 +251,7 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
 
     public function testBroadcastChannelAndEventName(): void
     {
-        $event = new ChecklistGeneratePdfEvent($this->lead->getId(), (string) $this->lead->uuid, []);
+        $event = new ChecklistGeneratePdfEvent((string) $this->lead->uuid);
 
         $this->assertSame(
             'checklist-generate-pdf-lead-' . $this->lead->uuid,

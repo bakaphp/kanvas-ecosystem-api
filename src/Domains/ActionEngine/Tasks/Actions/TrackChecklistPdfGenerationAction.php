@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
 use Kanvas\ActionEngine\Tasks\Enums\ChecklistPdfGenerationEnum;
 use Kanvas\ActionEngine\Tasks\Events\ChecklistGeneratePdfEvent;
 use Kanvas\ActionEngine\Tasks\Support\ChecklistPdfContext;
+use Kanvas\ActionEngine\Tasks\Support\ChecklistPdfEntry;
 use Kanvas\Guild\Leads\Models\Lead;
 
 class TrackChecklistPdfGenerationAction
@@ -25,7 +26,7 @@ class TrackChecklistPdfGenerationAction
     }
 
     /**
-     * @return array<int, array{action_id: int, company_action_id: int, task_id: int, status: string}>
+     * @return list<ChecklistPdfEntry>
      */
     public function execute(): array
     {
@@ -37,38 +38,45 @@ class TrackChecklistPdfGenerationAction
         // another task on the same lead that just started generating.
         $lockKey = 'checklist_generate_pdf:' . $lead->getId();
 
-        return Cache::lock($lockKey, 10)->block(10, function () use ($lead, $taskId): array {
-            $entries = $this->writeEntries($lead, $taskId);
+        [$entries, $changed] = Cache::lock($lockKey, 10)
+            ->block(10, fn (): array => $this->writeEntries($lead, $taskId));
 
-            ChecklistGeneratePdfEvent::dispatch(
-                $lead->getId(),
-                (string) $lead->uuid,
-                $entries
-            );
+        // Re-marking a task that is already in this state writes nothing, so there is nothing for
+        // the client to re-read either.
+        if ($changed) {
+            ChecklistGeneratePdfEvent::dispatch((string) $lead->uuid);
+        }
 
-            return $entries;
-        });
+        return $entries;
     }
 
     /**
-     * @return array<int, array{action_id: int, company_action_id: int, task_id: int, status: string}>
+     * @return array{0: list<ChecklistPdfEntry>, 1: bool}
      */
     private function writeEntries(Lead $lead, int $taskId): array
     {
+        $current = $this->readEntries($lead);
+
         $entries = array_values(array_filter(
-            (array) $lead->get(self::CUSTOM_FIELD, []),
-            fn (array $entry): bool => (int) ($entry['task_id'] ?? 0) !== $taskId
+            $current,
+            fn (ChecklistPdfEntry $entry): bool => $entry->taskId !== $taskId
         ));
 
         if ($this->status !== null) {
             $companyAction = $this->context->taskListItem->companyAction;
 
-            $entries[] = [
-                'action_id' => (int) $companyAction->actions_id,
-                'company_action_id' => $companyAction->getId(),
-                'task_id' => $taskId,
-                'status' => $this->status->value,
-            ];
+            $entries[] = new ChecklistPdfEntry(
+                actionId: (int) $companyAction->actions_id,
+                companyActionId: $companyAction->getId(),
+                taskId: $taskId,
+                status: $this->status
+            );
+        }
+
+        $stored = self::toStoredArray($entries);
+
+        if ($stored === self::toStoredArray($current)) {
+            return [$entries, false];
         }
 
         // set() ends in fireWorkflow(CREATE_CUSTOM_FIELD), which would re-evaluate every
@@ -78,17 +86,38 @@ class TrackChecklistPdfGenerationAction
         $lead->disableWorkflows();
 
         try {
-            if ($entries === []) {
+            if ($stored === []) {
                 // Must be del(), never set([]): get() starts with `if ($value = getFromRedis())`,
                 // and an empty array is falsy, so a stored [] falls through to the stale DB value.
                 $lead->del(self::CUSTOM_FIELD);
             } else {
-                $lead->set(self::CUSTOM_FIELD, $entries);
+                $lead->set(self::CUSTOM_FIELD, $stored);
             }
         } finally {
             $lead->enableWorkflows();
         }
 
-        return $entries;
+        return [$entries, true];
+    }
+
+    /**
+     * @return list<ChecklistPdfEntry>
+     */
+    private function readEntries(Lead $lead): array
+    {
+        return array_values(array_filter(array_map(
+            ChecklistPdfEntry::fromArray(...),
+            (array) $lead->get(self::CUSTOM_FIELD, [])
+        )));
+    }
+
+    /**
+     * @param list<ChecklistPdfEntry> $entries
+     *
+     * @return list<array{action_id: int, company_action_id: int, task_id: int, status: string}>
+     */
+    private static function toStoredArray(array $entries): array
+    {
+        return array_map(fn (ChecklistPdfEntry $entry): array => $entry->toArray(), $entries);
     }
 }

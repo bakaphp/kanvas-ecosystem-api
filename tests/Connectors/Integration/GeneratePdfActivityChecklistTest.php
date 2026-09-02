@@ -112,20 +112,8 @@ final class GeneratePdfActivityChecklistTest extends TestCase
         // than propagating — see the retries section of the plan.
         $this->assertArrayHasKey('trace', $result);
 
-        $statuses = [];
-        Event::assertDispatched(
-            ChecklistGeneratePdfEvent::class,
-            function (ChecklistGeneratePdfEvent $event) use (&$statuses): bool {
-                $statuses[] = $event->entries[0]['status'];
-
-                return true;
-            }
-        );
-
-        $this->assertSame(
-            [ChecklistPdfGenerationEnum::GENERATING->value, ChecklistPdfGenerationEnum::FAILED->value],
-            $statuses
-        );
+        // One for `generating`, one for `failed` — the client refetches on each.
+        Event::assertDispatchedTimes(ChecklistGeneratePdfEvent::class, 2);
     }
 
     /**
