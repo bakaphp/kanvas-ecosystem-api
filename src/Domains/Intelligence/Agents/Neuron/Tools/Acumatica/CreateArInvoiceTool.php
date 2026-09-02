@@ -7,18 +7,17 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
-use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\Traits\PushesInvoiceWithCreditHoldRetry;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\StoresApprovalSourceFields;
 use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
-use Kanvas\Scribe\Approvals\Actions\RequestApprovalAction;
 use Kanvas\Scribe\Approvals\Actions\ResolveApproverEmailAction;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
+use Kanvas\Scribe\Invoices\Actions\SubmitInvoiceForApprovalAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
 use NeuronAI\Tools\HasRunKey;
@@ -36,6 +35,7 @@ class CreateArInvoiceTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
     use PushesInvoiceWithCreditHoldRetry;
+    use ResolvesCustomerForTool;
     use StoresApprovalSourceFields;
     use TrackByInputs;
 
@@ -145,22 +145,15 @@ class CreateArInvoiceTool extends Tool implements HasRunKey
             ];
         }
 
-        $match = OrganizationVendorMatcherService::match($app, $company, $customer_name);
+        $customer = $this->resolveCustomerOrError(
+            $customer_name,
+            'Call find_customer to see Acumatica codes and confirm the right one with the user.',
+        );
 
-        if (! $match->isMatched()) {
-            return [
-                'created' => false,
-                'reason' => $match->candidates !== [] ? 'customer_ambiguous' : 'customer_not_found',
-                'message' => $match->candidates !== []
-                    ? "\"{$customer_name}\" could match more than one customer: "
-                        . implode(', ', array_map(static fn (Organization $o): string => $o->name, $match->candidates))
-                        . '. Call find_customer to see Acumatica codes and confirm the right one with the user.'
-                    : "No customer organization matching \"{$customer_name}\" for this app/company.",
-            ];
+        if (is_array($customer)) {
+            return ['created' => false, ...$customer];
         }
 
-        /** @var Organization $customer */
-        $customer = $match->organization;
         $customerDisplayName = trim((string) $customer->get(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, '')) ?: $customer->name;
 
         $currency = $currency !== null && trim($currency) !== '' ? strtoupper(trim($currency)) : 'USD';
@@ -194,27 +187,7 @@ class CreateArInvoiceTool extends Tool implements HasRunKey
         );
 
         if (! $push_to_acumatica) {
-            new RequestApprovalAction(
-                app: $app,
-                company: $company,
-                actionType: 'approve_invoice',
-                targetType: 'invoice',
-                targetId: $invoice->getId(),
-                requestedByUser: $actingUser,
-            )->execute();
-
-            // Dual-write while the generic approvals domain is adopted: the queue row above stays
-            // authoritative for Arc, and this opens the matching approval_requests row only where the
-            // tenant has a policy. No policy configured means this changes nothing.
-            $invoice->requestApproval(
-                'approve_invoice',
-                payload: [
-                    'total_native' => (float) $invoice->total_native,
-                    'currency' => $invoice->currency,
-                    'customer_organization_id' => $invoice->customer_organization_id,
-                ],
-                requestedBy: $actingUser,
-            );
+            new SubmitInvoiceForApprovalAction($invoice, $actingUser)->execute();
 
             $approverEmails = ResolveApproverEmailAction::resolveForOrganization($customer);
 

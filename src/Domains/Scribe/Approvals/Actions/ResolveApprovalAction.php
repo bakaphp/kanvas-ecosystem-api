@@ -22,9 +22,15 @@ use Kanvas\Scribe\Invoices\Models\Invoice;
 use Throwable;
 
 /**
+ * @deprecated Use Kanvas\Approvals\Actions\ApproveAction.
+ *
+ * Only reachable for a tenant with no approval policy, since a migrated tenant never gets an
+ * ApprovalQueueItem to resolve. Its match arms live on as registered handler classes named by a
+ * policy row, so nothing new should be added here — a new approval type is a policy row plus a
+ * handler, not another case.
+ *
  * Resolves a pending ApprovalQueueItem by dispatching on action_type to the domain action that
- * knows how to carry it out. A new approval type (expense, credit memo, etc.) is added here as a
- * new match arm — the calling tool, the Slack notification, and the queue itself never change.
+ * knows how to carry it out.
  */
 class ResolveApprovalAction
 {

@@ -162,6 +162,15 @@ class ApprovalRequest extends BaseModel
     }
 
     /**
+     * The approval_type for a Scribe-style target: `bill` -> `approve_bill`. Stated once here because
+     * both the writer and the two agent tools that look a request up by target depend on it matching.
+     */
+    public static function approvalTypeFor(string $targetType): string
+    {
+        return 'approve_' . trim($targetType);
+    }
+
+    /**
      * The caller's live approver row, or a refusal. Authorization for any decision is this row and
      * nothing else — not a Bouncer ability (someone with `edit` on an Invoice must not thereby be able
      * to approve one) and not a row sitting at a step that has not become live yet.

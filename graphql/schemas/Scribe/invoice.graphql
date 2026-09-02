@@ -280,4 +280,9 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@amend"
         )
+    "Renders the invoice as a PDF and attaches it to the invoice. template_name overrides the default layout."
+    generateScribeInvoicePdf(id: ID!, template_name: String): Filesystem!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@generatePdf"
+        )
 }

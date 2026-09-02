@@ -55,6 +55,14 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
 - **Payments live in Souk** (`Souk.Payments` polymorphic via `payable_type`/`payable_id`). Scribe's `Invoice` and `Bill` implement `Baka\Contracts\PayableInterface` (extracted in PR -1). `accounting.invoice_payment_allocations` maps one Souk payment to N invoices/bills.
 - **Stripe lives in `Connectors/Stripe/`, ALWAYS.** No in-Scribe Stripe handlers, period. When Scribe needs Stripe (tenant AR via Stripe Billing), the work goes in `Connectors/Stripe/` and calls Scribe's public `*FromExternal` Actions.
 - **Items (`accounting.items`) live in Scribe** with a nullable `inventory_variant_id` FK to `inventory.variants.id`. Variant — not Product, because you sell the variant. Pure-service items have `inventory_variant_id=NULL`. Each domain owns its own fields; no auto-sync in either direction except one-time creation observers.
+- **Document PDFs live in `Scribe/Documents/`.** `DocumentPdfService` renders an Invoice **or** a Quote
+  through one shared Blade layout (`resources/views/pdf/scribe-document.blade.php`) and attaches the file
+  to the document (`invoice_pdf` / `quote_pdf` field names). A tenant overrides the layout by pointing
+  `Scribe\Documents\Enums\ConfigurationEnum::{INVOICE,QUOTE}_PDF_TEMPLATE` at a stored template name —
+  that path goes through `RenderTemplateAction`, so the template is Blade with the same view data.
+  One service, not two: the documents differ only in title, number field, due-vs-valid-until and
+  amount-paid, and two layouts would drift. **Rendering is not sending** — nothing emails a document; the
+  outbound flow (PR 7) stays out of scope on purpose.
 - **Regional compliance** (NCF for DR, CFDI for MX, NFE for BR, …) lives in a single `regional_compliance` JSON column on invoices/bills/quotes/sales_receipts, validated by per-country validator services in `Scribe/Regional/Validators/{Country}/{Code}Validator`. NOT custom fields (those are tenant-choice extensions); NOT dedicated DR-only columns (schema bloat).
 
 ## What's NOT in Scribe (and why)

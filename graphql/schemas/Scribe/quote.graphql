@@ -170,4 +170,9 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Quotes\\QuoteMutation@convertToInvoice"
         )
+    "Renders the quote as a PDF and attaches it to the quote. template_name overrides the default layout."
+    generateScribeQuotePdf(id: ID!, template_name: String): Filesystem!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Quotes\\QuoteMutation@generatePdf"
+        )
 }

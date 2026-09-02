@@ -87,7 +87,7 @@ class CheckApprovalStatusTool extends Tool implements HasRunKey
         $request = ApprovalRequest::query()
             ->where('apps_id', $this->app->getId())
             ->where('companies_id', $this->company->getId())
-            ->where('approval_type', 'approve_' . $targetType)
+            ->where('approval_type', ApprovalRequest::approvalTypeFor($targetType))
             ->where('entity_id', $targetId)
             ->where('is_deleted', false)
             ->latest('id')
