@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Guild\Mutations\Organizations;
 
 use App\GraphQL\Concerns\RecordsEntityNotes;
+use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Social\Channels\Models\Channel;
@@ -21,7 +22,7 @@ class OrganizationMessageMutation
         $input = $request['input'];
 
         return $this->postNoteToEntityChannel(
-            $this->organizationFor((int) $input['organization_id']),
+            $this->organizationFor((int) $input['organization_id'], $user),
             $input,
             $user
         );
@@ -33,8 +34,11 @@ class OrganizationMessageMutation
      */
     public function createNotesChannel(mixed $root, array $request): Channel
     {
+        $user = auth()->user();
+
         return $this->resolveNotesChannel(
-            $this->organizationFor((int) $request['organization_id'])
+            $this->organizationFor((int) $request['organization_id'], $user),
+            $user
         );
     }
 
@@ -44,12 +48,12 @@ class OrganizationMessageMutation
         return 'organization';
     }
 
-    private function organizationFor(int $id): Organization
+    private function organizationFor(int $id, UserInterface $user): Organization
     {
         /** @var Organization $organization */
         $organization = Organization::getByIdFromCompanyApp(
             $id,
-            auth()->user()->getCurrentCompany(),
+            $user->getCurrentCompany(),
             app(Apps::class)
         );
 
