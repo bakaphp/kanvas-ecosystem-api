@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Organizations\Observers;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Actions\CreateEntityNotesChannelAction;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Duplicates\Jobs\CheckOrganizationDuplicateJob;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -21,6 +22,12 @@ class OrganizationObserver
     {
         try {
             CheckOrganizationDuplicateJob::dispatch(Apps::getById((int) $organization->apps_id), $organization->getId());
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        try {
+            new CreateEntityNotesChannelAction($organization)->execute();
         } catch (Throwable $e) {
             report($e);
         }

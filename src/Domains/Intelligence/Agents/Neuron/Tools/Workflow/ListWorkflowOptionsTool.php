@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Workflow;
 
+use Baka\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesWorkflowCatalogForTool;
 use NeuronAI\Tools\HasRunKey;
@@ -67,7 +68,7 @@ class ListWorkflowOptionsTool extends Tool implements HasRunKey
     public function __invoke(?string $kind = null, ?string $search = null): array
     {
         $kind = mb_strtolower(trim((string) $kind)) ?: 'all';
-        $search = trim((string) $search) ?: null;
+        $search = Str::trimToNull((string) $search);
 
         $options = [];
 

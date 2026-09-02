@@ -24,6 +24,9 @@ type People {
     photo: Filesystem @method(name: "getPhoto")
     employment_history: [PeopleEmploymentHistory!]
         @hasMany(relation: "employmentHistory")
+    notes: SocialChannel @hasOne(relation: "notes")
+    events: [Event!]! @morphToMany(relation: "events")
+    channels: [SocialChannel!]! @hasMany(relation: "socialChannels")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -125,6 +128,13 @@ input PeopleInput {
     peopleEmploymentHistory: [EmploymentPeopleHistoryInput!]
     organization: String
     created_at: DateTime
+}
+
+input PeopleMessageInput {
+    people_id: ID!
+    message: Mixed!
+    message_verb: String
+    channel_id: ID
 }
 
 input PeopleParticipantInput {
@@ -290,6 +300,14 @@ extend type Mutation @guard {
     importPeoples(input: [PeopleInput!]!, companyId: Int): String!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleImportMutation@import"
+        )
+    addMessageToPeopleChannel(input: PeopleMessageInput!): Message!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleMessageMutation@addToNotesChannel"
+        )
+    createPeopleNotesChannel(people_id: ID!): SocialChannel!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleMessageMutation@createNotesChannel"
         )
     attachFileToPeople(file: Upload!, id: ID!, params: Mixed): People!
         @field(

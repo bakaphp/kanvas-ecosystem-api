@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Guild\Organizations\Models\Organization;
 
 /**
@@ -138,7 +139,7 @@ class ResolveOrCreateOrganizationFromVendorPayloadAction
         ]);
     }
 
-    private function tenantScopedQuery()
+    private function tenantScopedQuery(): Builder
     {
         return Organization::query()
             ->where('apps_id', $this->app->getId())
@@ -151,8 +152,7 @@ class ResolveOrCreateOrganizationFromVendorPayloadAction
         if (! is_string($value)) {
             return null;
         }
-        $trimmed = trim($value);
 
-        return $trimmed === '' ? null : $trimmed;
+        return Str::trimToNull($value);
     }
 }
