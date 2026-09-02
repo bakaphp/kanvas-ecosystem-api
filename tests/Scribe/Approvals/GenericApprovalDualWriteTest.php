@@ -38,9 +38,9 @@ use Tests\Scribe\ScribeTestCase;
 use Throwable;
 
 /**
- * The adoption contract for the generic approvals domain: submitting a bill keeps writing the legacy
- * accounting.approval_queue row Apex depends on, and additionally opens an approval_requests row —
- * but only where the tenant has actually configured a policy.
+ * The adoption contract: a tenant with an approval policy writes ONLY approval_requests, and a tenant
+ * without one still gets the legacy accounting.approval_queue row exactly as before. Seeding a policy
+ * is what moves a tenant across — deploying this changes nothing on its own.
  */
 class GenericApprovalDualWriteTest extends ScribeTestCase
 {
@@ -53,7 +53,7 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
         $this->assertNull($bill->pendingApproval(), 'No policy means no generic request.');
     }
 
-    public function test_a_tenant_with_a_policy_gets_both_rows(): void
+    public function test_a_tenant_with_a_policy_writes_only_the_new_table(): void
     {
         $vendor = $this->seedTestOrganization('Dual Write Vendor');
         $approver = $this->linkApprover($vendor);
@@ -61,10 +61,13 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
 
         $bill = $this->submitBill($vendor);
 
-        $this->assertNotNull($this->legacyQueueItem($bill), 'The legacy queue row must still be written.');
+        $this->assertNull(
+            $this->legacyQueueItem($bill),
+            'A migrated tenant writes no legacy row — nothing to double-book or leave stale.'
+        );
 
         $request = $bill->pendingApproval();
-        $this->assertNotNull($request, 'A configured policy must also open a generic request.');
+        $this->assertNotNull($request, 'A configured policy opens the generic request.');
         $this->assertSame('approve_bill', $request->approval_type);
         $this->assertSame([$approver->email], $request->pendingApproverEmails());
     }

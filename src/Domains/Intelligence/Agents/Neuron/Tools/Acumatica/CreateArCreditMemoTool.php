@@ -10,10 +10,9 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Acumatica\Actions\PushInvoiceToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
-use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
 use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
@@ -38,6 +37,7 @@ use Throwable;
 class CreateArCreditMemoTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use ResolvesCustomerForTool;
     use TrackByInputs;
 
     public function __construct()
@@ -159,22 +159,15 @@ class CreateArCreditMemoTool extends Tool implements HasRunKey
             ];
         }
 
-        $match = OrganizationVendorMatcherService::match($app, $company, $customer_name);
+        $customer = $this->resolveCustomerOrError(
+            $customer_name,
+            'Call find_customer to see Acumatica codes and confirm the right one with the user.',
+        );
 
-        if (! $match->isMatched()) {
-            return [
-                'created' => false,
-                'reason' => $match->candidates !== [] ? 'customer_ambiguous' : 'customer_not_found',
-                'message' => $match->candidates !== []
-                    ? "\"{$customer_name}\" could match more than one customer: "
-                        . implode(', ', array_map(static fn (Organization $o): string => $o->name, $match->candidates))
-                        . '. Call find_customer to see Acumatica codes and confirm the right one with the user.'
-                    : "No customer organization matching \"{$customer_name}\" for this app/company.",
-            ];
+        if (is_array($customer)) {
+            return ['created' => false, ...$customer];
         }
 
-        /** @var Organization $customer */
-        $customer = $match->organization;
         $customerDisplayName = trim((string) $customer->get(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, '')) ?: $customer->name;
 
         $lineData = [];

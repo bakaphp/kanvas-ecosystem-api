@@ -6,8 +6,7 @@ namespace Kanvas\Scribe\Bills\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
-use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
+use Kanvas\Scribe\Approvals\Actions\RequestApprovalAction;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Services\BillStateMachineService;
@@ -39,7 +38,7 @@ class SubmitBillForApprovalAction
 
         $bill = $this->submit();
 
-        $this->openGenericApproval($bill);
+        $this->openApproval($bill);
 
         return $bill;
     }
@@ -52,41 +51,29 @@ class SubmitBillForApprovalAction
             $bill->document_status = BillDocumentStatusEnum::PENDING_APPROVAL;
             $bill->save();
 
-            ApprovalQueueItem::create([
-                'apps_id' => $bill->apps_id,
-                'companies_id' => $bill->companies_id,
-                'requested_by_users_id' => $this->user?->getId(),
-                'action_type' => 'approve_bill',
-                'target_type' => 'bill',
-                'target_id' => $bill->id,
-                'payload' => [
-                    'total_native' => (float) $bill->total_native,
-                    'currency' => $bill->currency,
-                    'vendor_organization_id' => $bill->vendor_organization_id,
-                ],
-                'status' => ApprovalQueueStatusEnum::PENDING,
-            ]);
-
             return $bill->refresh();
         });
     }
 
     /**
-     * Dual-write while the generic approvals domain is adopted: the legacy accounting.approval_queue
-     * row above stays authoritative for Apex/Arc, and this opens the matching approval_requests row
-     * only where the tenant has a policy configured. Returns null — and changes nothing — when it has
-     * none, so seeding a policy is what switches a tenant over, not deploying this.
+     * One call, one decision: RequestApprovalAction opens a generic request when the tenant has a
+     * policy and falls back to the legacy queue row when it does not. Never both.
      */
-    private function openGenericApproval(Bill $bill): void
+    private function openApproval(Bill $bill): void
     {
-        $bill->requestApproval(
-            'approve_bill',
+        new RequestApprovalAction(
+            app: $bill->app,
+            company: $bill->company,
+            actionType: 'approve_bill',
+            targetType: 'bill',
+            targetId: $bill->getId(),
+            requestedByUser: $this->user,
             payload: [
                 'total_native' => (float) $bill->total_native,
                 'currency' => $bill->currency,
                 'vendor_organization_id' => $bill->vendor_organization_id,
             ],
-            requestedBy: $this->user,
-        );
+            entity: $bill,
+        )->execute();
     }
 }
