@@ -7,7 +7,13 @@ namespace Tests\Guild\Integration;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\Event;
+use Kanvas\Event\Events\Models\EventCategory;
+use Kanvas\Event\Events\Models\EventClass;
 use Kanvas\Event\Events\Models\EventResource;
+use Kanvas\Event\Events\Models\EventStatus;
+use Kanvas\Event\Events\Models\EventType;
+use Kanvas\Event\Themes\Models\Theme;
+use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -120,34 +126,48 @@ final class EventResourceRelationTest extends TestCase
 
     private function seedEvent(string $name): Event
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
+        $context = $this->tenantContext();
+        $eventType = EventType::firstOrCreate($context + ['name' => 'Event Resource Type']);
+        $eventClass = EventClass::firstOrCreate($context + ['name' => 'Event Resource Class']);
 
-        return Event::create([
-            'users_id' => $user->getId(),
-            'companies_id' => $user->getCurrentCompany()->getId(),
-            'apps_id' => $app->getId(),
-            'theme_id' => 1,
-            'theme_area_id' => 1,
-            'event_status_id' => 1,
-            'event_type_id' => 1,
-            'event_class_id' => 1,
-            'event_category_id' => 1,
+        return Event::create($context + [
+            'theme_id' => Theme::firstOrCreate($context + ['name' => 'Event Resource Theme'])->getId(),
+            'theme_area_id' => ThemeArea::firstOrCreate($context + ['name' => 'Event Resource Area'])->getId(),
+            'event_status_id' => EventStatus::firstOrCreate($context + ['name' => 'Event Resource Status'])->getId(),
+            'event_type_id' => $eventType->getId(),
+            'event_class_id' => $eventClass->getId(),
+            'event_category_id' => EventCategory::firstOrCreate(
+                $context + [
+                    'name' => 'Event Resource Category',
+                    'event_type_id' => $eventType->getId(),
+                    'event_class_id' => $eventClass->getId(),
+                ]
+            )->getId(),
             'name' => $name,
             'slug' => str($name)->slug() . '-' . uniqid(),
         ]);
     }
 
+    private function tenantContext(): array
+    {
+        $user = auth()->user();
+
+        return [
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => $user->getCurrentCompany()->getId(),
+            'users_id' => $user->getId(),
+        ];
+    }
+
     private function seedPeople(): People
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
+        $context = $this->tenantContext();
 
         /** @var People $people */
         $people = PeopleFactory::new()
-            ->withAppId($app->getId())
-            ->withCompanyId($user->getCurrentCompany()->getId())
-            ->withUserId($user->getId())
+            ->withAppId($context['apps_id'])
+            ->withCompanyId($context['companies_id'])
+            ->withUserId($context['users_id'])
             ->create();
 
         return $people;
@@ -155,13 +175,7 @@ final class EventResourceRelationTest extends TestCase
 
     private function seedOrganization(): Organization
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-
-        return Organization::create([
-            'apps_id' => $app->getId(),
-            'companies_id' => $user->getCurrentCompany()->getId(),
-            'users_id' => $user->getId(),
+        return Organization::create($this->tenantContext() + [
             'name' => 'Event Resource Corp ' . uniqid(),
             'address' => '',
             'total_employees' => 0,
