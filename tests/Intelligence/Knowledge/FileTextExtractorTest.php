@@ -10,9 +10,10 @@ use Kanvas\Filesystem\Services\FileTextExtractor;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
+use PhpOffice\PhpSpreadsheet\Writer\Ods;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use PHPUnit\Framework\Attributes\DataProvider;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 use ZipArchive;
 
 class FileTextExtractorTest extends TestCase
@@ -41,6 +42,7 @@ class FileTextExtractorTest extends TestCase
             'docx' => ['contract.docx', true],
             'xlsx' => ['sheet.xlsx', true],
             'xls' => ['legacy.xls', true],
+            'ods' => ['libreoffice.ods', true],
             'image not supported' => ['logo.png', false],
             'zip not supported' => ['bundle.zip', false],
             'no extension' => ['noext', false],
@@ -51,7 +53,7 @@ class FileTextExtractorTest extends TestCase
     public function testTheSupportedListIsTheOneTheToolAdvertises(): void
     {
         $this->assertSame(
-            ['csv', 'docx', 'json', 'log', 'markdown', 'md', 'pdf', 'tsv', 'txt', 'xls', 'xlsx'],
+            ['csv', 'docx', 'json', 'log', 'markdown', 'md', 'ods', 'pdf', 'tsv', 'txt', 'xls', 'xlsx'],
             collect(FileTextExtractor::supportedExtensions())->sort()->values()->all(),
         );
     }
@@ -110,6 +112,25 @@ class FileTextExtractorTest extends TestCase
         $this->assertStringContainsString('# Sheet: Employees', $text);
         $this->assertStringContainsString("name\tdept", $text);
         $this->assertStringContainsString("Ada\tEngineering", $text);
+    }
+
+    public function testAnOpenDocumentSpreadsheetIsRenderedAsTabSeparatedRows(): void
+    {
+        $book = new Spreadsheet();
+        $sheet = $book->getActiveSheet();
+        $sheet->setTitle('Inventory');
+        $sheet->fromArray([['sku', 'price'], ['VIN123', 42000]], null, 'A1');
+
+        $path = tempnam(sys_get_temp_dir(), 'odstest') . '.ods';
+        new Ods($book)->save($path);
+        $bytes = (string) file_get_contents($path);
+        @unlink($path);
+
+        $text = new FileTextExtractor()->extractFrom($bytes, 'ods');
+
+        $this->assertStringContainsString('# Sheet: Inventory', $text);
+        $this->assertStringContainsString("sku\tprice", $text);
+        $this->assertStringContainsString("VIN123\t42000", $text);
     }
 
     /**

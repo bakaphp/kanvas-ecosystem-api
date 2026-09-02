@@ -33,7 +33,7 @@ final class FileTextExtractor
 
     private const array WORD_EXTENSIONS = ['docx'];
 
-    private const array SPREADSHEET_EXTENSIONS = ['xlsx', 'xls'];
+    private const array SPREADSHEET_EXTENSIONS = ['xlsx', 'xls', 'ods'];
 
     /** Past this a spreadsheet is a data feed, not something an agent reads into a prompt. */
     private const int MAX_SPREADSHEET_ROWS = 2000;
@@ -66,7 +66,29 @@ final class FileTextExtractor
             return '';
         }
 
-        return $this->extractFrom(SafeUrlFetcher::fetch($file->url), $extension);
+        return $this->extractFrom($this->readBytes($file), $extension);
+    }
+
+    /**
+     * Files already managed by Kanvas should be read through the app's configured storage client.
+     * Besides avoiding a second public HTTP hop, this keeps local/private S3 endpoints compatible
+     * with the SSRF guard, which correctly rejects RFC1918 and container-only hostnames.
+     */
+    private function readBytes(Filesystem $file): string
+    {
+        try {
+            $storage = new FilesystemServices($file->app, $file->company);
+            $bytes = $storage->getStorageByDisk()->get($file->path);
+
+            if ($bytes !== '') {
+                return $bytes;
+            }
+        } catch (Throwable) {
+            // Legacy/external Filesystem rows may not belong to the configured bucket. Their public
+            // URL remains supported, with the same SSRF validation and response-size cap as before.
+        }
+
+        return SafeUrlFetcher::fetch($file->url);
     }
 
     /** Split from {@see extract()} so the per-format parsing is reachable without a network fetch. */
@@ -151,7 +173,11 @@ final class FileTextExtractor
             // NOT setReadDataOnly: that drops the number formats, and without them a date cell is
             // read as its raw serial (46265, not 2026-08-31) whatever toArray is asked to format.
             // The row cap below is what bounds the cost of parsing styles.
-            $reader = IOFactory::createReader($extension === 'xls' ? 'Xls' : 'Xlsx');
+            $reader = IOFactory::createReader(match ($extension) {
+                'xls' => 'Xls',
+                'ods' => 'Ods',
+                default => 'Xlsx',
+            });
             $book = $reader->load($path);
 
             return $this->normalize($this->renderSpreadsheet($book));
