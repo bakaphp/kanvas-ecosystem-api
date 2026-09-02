@@ -11,8 +11,9 @@ use Kanvas\Filesystem\Services\FileTextExtractor;
 /**
  * The row shape the list_*_files tools hand back.
  *
- * `filesystem_id` and `readable` lead because the only useful next move is read_file: a listing of
- * names and URLs teaches the model to describe files instead of opening them.
+ * `filesystem_id` and `readable` lead because the useful next move is read_file: a listing carrying
+ * URLs teaches the model to describe files instead of opening them. A link for a person to click is
+ * a separate, asked-for call — get_file_link — precisely so it does not ride along on every listing.
  */
 trait PresentsEntityFiles
 {
@@ -53,7 +54,8 @@ trait PresentsEntityFiles
                 ? $emptyNote
                 : sprintf(
                     '%d file(s), %d readable. Call read_file with a filesystem_id to read one — never describe a '
-                        . 'file you have not read.',
+                        . 'file you have not read. When you are handing a file to a person rather than reading it '
+                        . 'yourself, call get_file_link so they get a link instead of an id.',
                     count($files),
                     count($readable),
                 ),

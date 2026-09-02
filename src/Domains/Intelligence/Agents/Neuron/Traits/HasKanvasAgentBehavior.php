@@ -392,7 +392,9 @@ trait HasKanvasAgentBehavior
             . 'template, a rendered page, a report, a PDF — put it in Kanvas as a record '
             . '(create_template, then update_template to revise it and generate_template_pdf to render '
             . 'it) or attach it as a file. Then write what you made and NAME it, the way a person sends '
-            . 'a link or an attachment rather than pasting two hundred lines into the thread.',
+            . 'a link or an attachment rather than pasting two hundred lines into the thread. Name it '
+            . 'with a LINK, not an id: call get_file_link on the filesystem_id and hand back what it '
+            . 'returns — "Filesystem ID: 10981582" is a lookup you are asking the reader to do.',
             'Never paste markup, code or a document body into a chat message or a plan comment as the '
             . 'deliverable. Nobody can use it there: it cannot be rendered, revised or reused, and it '
             . 'buries the conversation. A short snippet to illustrate a point is fine — the artifact '
