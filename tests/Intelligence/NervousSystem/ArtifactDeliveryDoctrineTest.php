@@ -47,6 +47,11 @@ final class ArtifactDeliveryDoctrineTest extends TestCase
             $context,
             'Without a tool the agent must ask, not fall back to pasting.'
         );
+        $this->assertStringContainsString(
+            'get_file_link',
+            $context,
+            'Naming the artifact is only half of handing it over — the reader needs a link, not an id.'
+        );
     }
 
     /**

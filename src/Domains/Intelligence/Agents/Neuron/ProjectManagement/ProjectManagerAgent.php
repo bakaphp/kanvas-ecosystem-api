@@ -12,6 +12,7 @@ use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\CapabilityLookupTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ListActiveIntegrationsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ReportCapabilityGapTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
@@ -473,6 +474,11 @@ class ProjectManagerAgent extends SystemUserAgent
         // Baseline for the same reason: a PM reports on records people then have to go find, and
         // handing back "project 12" costs the reader a search that a link does not.
         $core[] = new BuildAdminLinkTool()->withContext($app, $company, $user);
+
+        // Same reason, for the other half of what a PM hands over: the list_*_files tools withhold
+        // URLs on purpose, so without this the deliverables in a delivery summary are ids the reader
+        // has to go hunt down.
+        $core[] = new GetFileLinkTool()->withContext($app, $company, $user);
 
         $core[] = new ListAgentTypesTool()->withContext($app, $company, $user);
         $core[] = new HireAgentTool($agent)
