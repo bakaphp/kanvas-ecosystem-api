@@ -11,6 +11,7 @@ use Kanvas\Guild\Organizations\Actions\RecordOrganizationNoteAction;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Events\ChannelMessageCreatedEvent;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 final class OrganizationNotesChannelTest extends TestCase
@@ -272,6 +273,46 @@ final class OrganizationNotesChannelTest extends TestCase
         $this->assertContains(
             'new-message-channel-organization-' . $organization->getId(),
             array_map(fn (Channel $channel): string => $channel->name, $channels)
+        );
+    }
+
+    /**
+     * The channel is created by whoever writes the first note, so that person owns the thread. It used
+     * to fall through to the entity's creator, which made the record's owner admin of a conversation
+     * someone else started — and on an imported account that owner is whoever ran the import.
+     */
+    public function testFirstNoteMakesTheWriterTheChannelOwnerNotTheRecordOwner(): void
+    {
+        $writer = auth()->user();
+        $recordOwner = Users::factory()->create(['email' => 'record-owner-' . uniqid() . '@example.test']);
+
+        $organization = $this->seedOrganization('Owner Attribution Corp');
+        $organization->notes->forceDelete();
+        $organization->users_id = $recordOwner->getId();
+        $organization->saveQuietly();
+        $organization->refresh();
+
+        $this->assertNull($organization->notes, 'fixture must have no channel yet');
+        $this->assertNotSame($writer->getId(), $recordOwner->getId());
+
+        $this->graphQL(self::ADD_MESSAGE_MUTATION, [
+            'input' => [
+                'organization_id' => (string) $organization->getId(),
+                'message' => ['content' => 'First note on an imported account'],
+            ],
+        ])->assertSuccessful()->assertGraphQLErrorFree();
+
+        $channel = $organization->refresh()->notes;
+
+        $this->assertNotNull($channel);
+        $this->assertSame($writer->getId(), (int) $channel->users_id, 'the writer owns the channel');
+        $this->assertTrue(
+            $channel->users()->where('users.id', $writer->getId())->exists(),
+            'the writer must be attached to channel_users'
+        );
+        $this->assertFalse(
+            $channel->users()->where('users.id', $recordOwner->getId())->exists(),
+            'the record owner must not be attached just for having created the organization'
         );
     }
 

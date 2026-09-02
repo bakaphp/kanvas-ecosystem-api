@@ -13,6 +13,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Channels\Events\ChannelMessageCreatedEvent;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 final class PeopleNotesChannelTest extends TestCase
@@ -313,6 +314,46 @@ final class PeopleNotesChannelTest extends TestCase
         $this->assertContains(
             'new-message-channel-people-' . $people->getId(),
             array_map(fn (Channel $channel): string => $channel->name, $channels)
+        );
+    }
+
+    /**
+     * The channel is created by whoever writes the first note, so that person owns the thread. Falling
+     * through to the record's creator makes whoever ran the import an admin of every conversation.
+     */
+    public function testFirstNoteMakesTheWriterTheChannelOwnerNotTheRecordOwner(): void
+    {
+        $writer = auth()->user();
+        $recordOwner = Users::factory()->create(['email' => 'people-owner-' . uniqid() . '@example.test']);
+
+        $people = $this->seedPeople();
+        $people->notes->forceDelete();
+        $people->users_id = $recordOwner->getId();
+        $people->saveQuietly();
+        $people->refresh();
+
+        $this->assertNull($people->notes, 'fixture must have no channel yet');
+        $this->assertNotSame($writer->getId(), $recordOwner->getId());
+
+        $this->graphQL(self::ADD_MESSAGE_MUTATION, [
+            'input' => [
+                'people_id' => (string) $people->getId(),
+                'message' => ['content' => 'First note on an imported contact'],
+            ],
+        ])->assertSuccessful()
+            ->assertGraphQLErrorFree();
+
+        $channel = $people->refresh()->notes;
+
+        $this->assertNotNull($channel);
+        $this->assertSame($writer->getId(), (int) $channel->users_id, 'the writer owns the channel');
+        $this->assertTrue(
+            $channel->users()->where('users.id', $writer->getId())->exists(),
+            'the writer must be attached to channel_users'
+        );
+        $this->assertFalse(
+            $channel->users()->where('users.id', $recordOwner->getId())->exists(),
+            'the record owner must not be attached just for having created the person'
         );
     }
 

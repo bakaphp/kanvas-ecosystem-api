@@ -34,7 +34,7 @@ trait RecordsEntityNotes
 
         $channel = isset($input['channel_id'])
             ? $this->resolveEntityChannel($entity, (int) $input['channel_id'])
-            : $this->resolveNotesChannel($entity);
+            : $this->resolveNotesChannel($entity, $user);
 
         $message = new CreateMessageAction(
             new MessageInput(
@@ -57,9 +57,9 @@ trait RecordsEntityNotes
     /**
      * The observer creates it on insert, so this only self-heals rows that predate that.
      */
-    private function resolveNotesChannel(BaseModel $entity): Channel
+    private function resolveNotesChannel(BaseModel $entity, ?UserInterface $actingUser = null): Channel
     {
-        $channel = $entity->notes ?? new CreateEntityNotesChannelAction($entity)->execute();
+        $channel = $entity->notes ?? new CreateEntityNotesChannelAction($entity)->execute($actingUser);
 
         if ($channel === null) {
             throw new ValidationException(

@@ -40,7 +40,8 @@ class PeopleMessageMutation
         $user = auth()->user();
 
         return $this->resolveNotesChannel(
-            $this->peopleFor((int) $request['people_id'], $user)
+            $this->peopleFor((int) $request['people_id'], $user),
+            $user
         );
     }
 

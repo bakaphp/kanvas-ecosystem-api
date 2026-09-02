@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Actions;
 
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Str;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -24,7 +25,12 @@ class CreateEntityNotesChannelAction
     ) {
     }
 
-    public function execute(?Users $user = null): ?Channel
+    /**
+     * $user is the person whose action is creating the channel. It matters: CreateChannelAction writes
+     * whoever it is given into channels.users_id AND into channel_users as admin, so defaulting to the
+     * entity's creator silently makes the record's owner the admin of a thread someone else started.
+     */
+    public function execute(?UserInterface $user = null): ?Channel
     {
         $owner = $user ?? $this->entity->user ?? $this->entity->company?->user;
 
