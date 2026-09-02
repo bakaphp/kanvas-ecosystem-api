@@ -81,11 +81,16 @@ class ApprovePendingItemTool extends Tool
      */
     public function __invoke(string $target_type, int $target_id): array
     {
-        $request = $this->genericRequest($target_type, $target_id);
+        // Normalised once at the boundary, like check_approval_status: the generic lookup composes an
+        // approval_type and the legacy one matches target_type raw, so an LLM sending " bill " would
+        // otherwise resolve on one path and miss on the other.
+        $type = trim($target_type);
+
+        $request = $this->genericRequest($type, $target_id);
 
         return $request !== null
-            ? $this->approveGeneric($request, $target_type)
-            : $this->approveLegacy($target_type, $target_id);
+            ? $this->approveGeneric($request, $type)
+            : $this->approveLegacy($type, $target_id);
     }
 
     /**
@@ -98,7 +103,7 @@ class ApprovePendingItemTool extends Tool
         $request = ApprovalRequest::query()
             ->where('apps_id', $this->app->getId())
             ->where('companies_id', $this->company->getId())
-            ->where('approval_type', 'approve_' . $target_type)
+            ->where('approval_type', ApprovalRequest::approvalTypeFor($target_type))
             ->where('entity_id', $target_id)
             ->where('status', ApprovalStatusEnum::PENDING->value)
             ->where('is_deleted', false)

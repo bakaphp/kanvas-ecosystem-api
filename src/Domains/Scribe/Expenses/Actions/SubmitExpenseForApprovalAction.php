@@ -66,18 +66,14 @@ class SubmitExpenseForApprovalAction
     private function openApproval(Expense $expense): void
     {
         new RequestApprovalAction(
-            app: $expense->app,
-            company: $expense->company,
-            actionType: 'approve_expense',
+            entity: $expense,
             targetType: 'expense',
-            targetId: $expense->getId(),
             requestedByUser: $this->user,
             payload: [
                 'total_native' => (float) $expense->total_native,
                 'currency' => $expense->currency,
                 'paid_by' => $expense->paid_by->value,
             ],
-            entity: $expense,
         )->execute();
     }
 }

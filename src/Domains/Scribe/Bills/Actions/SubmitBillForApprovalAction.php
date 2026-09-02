@@ -62,18 +62,14 @@ class SubmitBillForApprovalAction
     private function openApproval(Bill $bill): void
     {
         new RequestApprovalAction(
-            app: $bill->app,
-            company: $bill->company,
-            actionType: 'approve_bill',
+            entity: $bill,
             targetType: 'bill',
-            targetId: $bill->getId(),
             requestedByUser: $this->user,
             payload: [
                 'total_native' => (float) $bill->total_native,
                 'currency' => $bill->currency,
                 'vendor_organization_id' => $bill->vendor_organization_id,
             ],
-            entity: $bill,
         )->execute();
     }
 }

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Approvals\Actions;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Approvals\Models\ApprovalRequest;
@@ -16,9 +14,11 @@ use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
  * @deprecated Use HasApprovals::requestApproval() on the entity directly.
  *
  * Kept as the one place that decides which engine owns an approval, so callers do not each carry the
- * branch. Hand it the entity and it opens a generic ApprovalRequest when the tenant has a policy;
- * without a policy — or without an entity — it writes the legacy accounting.approval_queue row exactly
- * as before.
+ * branch. Hand it an entity using HasApprovals: it opens a generic ApprovalRequest when the tenant has
+ * a policy, and writes the legacy accounting.approval_queue row when it has none.
+ *
+ * app, company and target id are read off the entity rather than passed beside it — a caller handing
+ * in a company that disagreed with the record's own is a tenant-mismatch waiting to happen.
  *
  * Never both. A legacy row the generic engine later resolved would sit `pending` forever, because only
  * ResolveApprovalAction knows how to close one.
@@ -28,14 +28,10 @@ use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 class RequestApprovalAction
 {
     public function __construct(
-        protected readonly AppInterface $app,
-        protected readonly CompanyInterface $company,
-        protected readonly string $actionType,
+        protected readonly Model $entity,
         protected readonly string $targetType,
-        protected readonly int $targetId,
         protected readonly ?UserInterface $requestedByUser = null,
         protected readonly array $payload = [],
-        protected readonly ?Model $entity = null,
     ) {
     }
 
@@ -44,13 +40,14 @@ class RequestApprovalAction
      */
     public function execute(): ApprovalRequest|ApprovalQueueItem
     {
-        $request = $this->entity !== null && method_exists($this->entity, 'requestApproval')
-            ? $this->entity->requestApproval(
-                $this->actionType,
-                payload: $this->payload,
-                requestedBy: $this->requestedByUser,
-            )
-            : null;
+        // Null means the tenant has no policy — the one legitimate reason to fall back. An entity
+        // without HasApprovals fails here instead, which is right: that is a wiring mistake, and
+        // quietly writing a legacy row would hide it behind an approval that still looks fine.
+        $request = $this->entity->requestApproval(
+            ApprovalRequest::approvalTypeFor($this->targetType),
+            payload: $this->payload,
+            requestedBy: $this->requestedByUser,
+        );
 
         return $request ?? $this->legacyQueueItem();
     }
@@ -58,12 +55,12 @@ class RequestApprovalAction
     private function legacyQueueItem(): ApprovalQueueItem
     {
         return ApprovalQueueItem::create([
-            'apps_id' => $this->app->getId(),
-            'companies_id' => $this->company->getId(),
+            'apps_id' => $this->entity->app->getId(),
+            'companies_id' => $this->entity->company->getId(),
             'requested_by_users_id' => $this->requestedByUser?->getId(),
-            'action_type' => $this->actionType,
+            'action_type' => ApprovalRequest::approvalTypeFor($this->targetType),
             'target_type' => $this->targetType,
-            'target_id' => $this->targetId,
+            'target_id' => $this->entity->getKey(),
             'payload' => $this->payload,
             'status' => ApprovalQueueStatusEnum::PENDING,
         ]);

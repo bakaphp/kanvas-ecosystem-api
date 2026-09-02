@@ -44,18 +44,14 @@ class SubmitInvoiceForApprovalAction
         }
 
         new RequestApprovalAction(
-            app: $this->invoice->app,
-            company: $this->invoice->company,
-            actionType: 'approve_invoice',
+            entity: $this->invoice,
             targetType: 'invoice',
-            targetId: $this->invoice->getId(),
             requestedByUser: $this->user,
             payload: [
                 'total_native' => (float) $this->invoice->total_native,
                 'currency' => $this->invoice->currency,
                 'customer_organization_id' => $this->invoice->customer_organization_id,
             ],
-            entity: $this->invoice,
         )->execute();
 
         return $this->invoice->refresh();
