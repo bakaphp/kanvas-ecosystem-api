@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Tools;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -14,6 +15,10 @@ use Tests\TestCase;
 
 class BuildAdminLinkToolTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'crm', 'intelligence', 'social'];
+
     private const HOST = 'https://admin.kanvas.dev';
 
     protected function setUp(): void
@@ -25,7 +30,7 @@ class BuildAdminLinkToolTest extends TestCase
 
     public function test_it_links_to_a_record(): void
     {
-        $lead = Lead::query()->fromApp(app(Apps::class))->firstOrFail();
+        $lead = $this->lead();
 
         $result = $this->toolFor($lead->company)('lead', $lead->uuid);
 
@@ -45,7 +50,7 @@ class BuildAdminLinkToolTest extends TestCase
 
     public function test_it_appends_a_tab(): void
     {
-        $lead = Lead::query()->fromApp(app(Apps::class))->firstOrFail();
+        $lead = $this->lead();
 
         $result = $this->toolFor($lead->company)('lead', $lead->uuid, 'history');
 
@@ -73,7 +78,7 @@ class BuildAdminLinkToolTest extends TestCase
      */
     public function test_it_resolves_a_record_from_whatever_identifier_the_caller_holds(): void
     {
-        $lead = Lead::query()->fromApp(app(Apps::class))->firstOrFail();
+        $lead = $this->lead();
         $tool = $this->toolFor($lead->company);
 
         $fromNumericId = $tool('lead', (string) $lead->getId());
@@ -154,6 +159,18 @@ class BuildAdminLinkToolTest extends TestCase
 
         $this->assertNotEquals($one, $two, 'Distinct records must not share a run budget.');
         $this->assertEquals($oneAgain, $one, 'Identical calls must collapse to one key so a loop stays capped.');
+    }
+
+    /**
+     * These tests used to read whichever lead another test had left behind. That only held while the
+     * shard ran single-process — under paratest the donor test lands on a different worker and the
+     * lookup finds nothing.
+     */
+    private function lead(): Lead
+    {
+        return Lead::factory()
+            ->withAppAndCompany(app(Apps::class)->getId(), static::$cachedUser->getCurrentCompany()->getId())
+            ->create();
     }
 
     private function tool(): BuildAdminLinkTool

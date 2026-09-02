@@ -46,7 +46,13 @@ class EngagementLeaderboardTest extends TestCase
         parent::setUp();
 
         $this->kanvasApp = app(Apps::class);
-        $this->company = auth()->user()->getCurrentCompany();
+
+        // A company of its own rather than the shared test company. Every assertion here is a count
+        // over everything the leaderboard can see in one company, so any concurrently running worker
+        // that writes to the shared one changes the answer — and the AI-agent-user setting below is
+        // company-wide, so a worker reading it mid-test loses a rep row entirely.
+        $this->company = Companies::factory()->create(['users_id' => auth()->user()->getId()]);
+        $this->company->associateApp($this->kanvasApp);
 
         $this->smsType = MessageType::factory()->create([
             'apps_id' => $this->kanvasApp->getId(),
@@ -237,8 +243,9 @@ class EngagementLeaderboardTest extends TestCase
 
         $rows = $this->leaderboard()['rows'];
 
-        // Company settings are not covered by $connectionsToTransact, so this has to be undone
-        // by hand or every later test in the suite inherits a bogus AI user.
+        // Company settings are not covered by $connectionsToTransact. The company is this test's
+        // own now, so nothing else can inherit it, but the setting is cached per company id —
+        // clear it rather than leaving a dangling AI user behind that id.
         $this->company->del(ConfigurationEnum::AI_AGENT_USER_ID->value);
 
         $this->assertCount(1, $rows);
@@ -344,7 +351,8 @@ class EngagementLeaderboardTest extends TestCase
         ])->render();
 
         $this->assertStringContainsString('Engage usage', $html);
-        $this->assertStringContainsString($result['rows'][0]['name'], $html);
+        // Blade escapes the name, so a rep faker happened to call O'Connell only matches escaped.
+        $this->assertStringContainsString(e($result['rows'][0]['name']), $html);
         $this->assertStringContainsString('Team total', $html);
     }
 
