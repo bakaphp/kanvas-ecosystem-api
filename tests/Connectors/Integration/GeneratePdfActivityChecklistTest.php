@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Kanvas\ActionEngine\Tasks\Actions\TrackChecklistPdfGenerationAction;
 use Kanvas\ActionEngine\Tasks\Enums\ChecklistPdfGenerationEnum;
@@ -16,8 +15,6 @@ use Kanvas\Connectors\Internal\Activities\GeneratePdfActivity;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Social\MessagesTypes\Models\MessageType;
-use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Templates\Models\Templates;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
@@ -78,7 +75,7 @@ final class GeneratePdfActivityChecklistTest extends TestCase
     {
         Event::fake([ChecklistGeneratePdfEvent::class]);
 
-        $this->runActivity($this->createMessage(['content' => 'no checklist here']));
+        $this->runActivity($this->makeChecklistMessage($this->lead, ['content' => 'no checklist here']));
 
         $this->assertNull($this->lead->get(TrackChecklistPdfGenerationAction::CUSTOM_FIELD));
         Event::assertNotDispatched(ChecklistGeneratePdfEvent::class);
@@ -145,7 +142,7 @@ final class GeneratePdfActivityChecklistTest extends TestCase
 
         $wiring = $this->makeChecklistWiring($this->lead, $slug);
 
-        $message = $this->createMessage([
+        $message = $this->makeChecklistMessage($this->lead, [
             'verb' => $slug,
             'checkListId' => $wiring['taskList']->getId(),
         ]);
@@ -156,47 +153,6 @@ final class GeneratePdfActivityChecklistTest extends TestCase
             'message' => $message,
             'taskListItem' => $wiring['taskListItem'],
         ];
-    }
-
-    private function createMessage(array $payload): Message
-    {
-        $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
-
-        $messageType = MessageType::firstOrCreate(
-            ['apps_id' => $app->getId(), 'languages_id' => 1, 'verb' => 'checklist-pdf'],
-            ['name' => 'Checklist Pdf']
-        );
-
-        SystemModules::firstOrCreate(
-            ['model_name' => Lead::class],
-            ['name' => 'Leads', 'slug' => 'leads', 'description' => 'Leads system module']
-        );
-
-        $message = Message::factory()
-            ->withAppId($app->getId())
-            ->withCompanyId($company->getId())
-            ->withMessageType($messageType)
-            ->create([
-                'message' => $payload,
-                'is_public' => 1,
-                'is_locked' => 0,
-            ]);
-
-        // The Engagement observer broadcasts a status-changed event that reads the message's entity,
-        // so the module link has to exist or the fixture blows up far from what we are testing.
-        DB::connection('social')->table('app_module_message')->insert([
-            'message_id' => $message->getId(),
-            'message_types_id' => $messageType->getId(),
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'system_modules' => Lead::class,
-            'entity_id' => $this->lead->getId(),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        return $message->fresh();
     }
 
     private function registerInternalIntegration(): IntegrationsCompany

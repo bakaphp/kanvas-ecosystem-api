@@ -69,6 +69,7 @@ class TrackChecklistPdfGenerationAction
                 actionId: (int) $companyAction->actions_id,
                 companyActionId: $companyAction->getId(),
                 taskId: $taskId,
+                messageId: (int) $this->context->engagement->message_id,
                 status: $this->status
             );
         }

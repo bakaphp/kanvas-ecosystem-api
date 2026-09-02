@@ -11,10 +11,17 @@ use Kanvas\ActionEngine\Tasks\Enums\ChecklistPdfGenerationEnum;
  */
 readonly class ChecklistPdfEntry
 {
+    /**
+     * `messageId` is what lets a client turn a failed entry into a retry: it finds that message's
+     * row in `entity_integration_history` and hands the id to `integrationWorkflowRetry`. The
+     * activity cannot carry the history id itself — executeIntegration writes that row after the
+     * closure it marks the failure in.
+     */
     public function __construct(
         public int $actionId,
         public int $companyActionId,
         public int $taskId,
+        public int $messageId,
         public ChecklistPdfGenerationEnum $status
     ) {
     }
@@ -40,12 +47,15 @@ readonly class ChecklistPdfEntry
             actionId: (int) ($entry['action_id'] ?? 0),
             companyActionId: (int) ($entry['company_action_id'] ?? 0),
             taskId: $taskId,
+            // Zero rather than invalid: an entry without it is still matchable by task, it just
+            // cannot be retried.
+            messageId: (int) ($entry['message_id'] ?? 0),
             status: $status
         );
     }
 
     /**
-     * @return array{action_id: int, company_action_id: int, task_id: int, status: string}
+     * @return array{action_id: int, company_action_id: int, task_id: int, message_id: int, status: string}
      */
     public function toArray(): array
     {
@@ -53,6 +63,7 @@ readonly class ChecklistPdfEntry
             'action_id' => $this->actionId,
             'company_action_id' => $this->companyActionId,
             'task_id' => $this->taskId,
+            'message_id' => $this->messageId,
             'status' => $this->status->value,
         ];
     }
