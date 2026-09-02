@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Actions\AssignMechanicToOrderAction;
@@ -682,8 +683,6 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             return null;
         }
 
-        $trimmed = trim($feedback);
-
-        return $trimmed === '' ? null : $trimmed;
+        return Str::trimToNull($feedback);
     }
 }

@@ -192,6 +192,52 @@ So any `addMultipleFilesFromUrl()` / `addFileFromUrl()` call automatically inval
 
 ## Key Conventions
 
+### Never Ship a Duplicate Method — Encapsulate It or Flag It
+
+**A second copy of the same logic is not acceptable, ever.** This codebase is large and still
+growing; every copy that ships is a place a future fix will be applied to one site and missed at the
+others. That is not hypothetical — the copies always drift, and the drift is always found late.
+
+Before writing a helper, **search for it first**. If the logic already exists anywhere:
+
+- **It belongs in a shared home** — `Baka\Support\Str`, an existing trait, a base class, a Service,
+  an enum method. Put it there and repoint every call site, don't add a second private copy beside it.
+- **The framework or Baka may already have it.** Reimplementing something Laravel/Baka provides is
+  the most common form of this in our code.
+- **If you genuinely cannot unify it** — the shapes differ enough that merging would be contrived, or
+  it is deliberately per-domain — **say so out loud** in the PR/report, with where the copies live.
+  A flagged duplicate is a decision; a silent one is a bug waiting.
+
+The escape hatch is narrow and it is about *intent*, not convenience: keep a separate implementation
+only when it **should** be specific and overridable — a per-domain lookup, an entity-specific rule,
+a deliberate override point. "Cheaper to copy right now" is never the reason.
+
+```php
+// WRONG — a third private copy of trim-to-null, drifting quietly across the platform
+private function clean(?string $value): ?string
+{
+    $value = trim((string) $value);
+
+    return $value === '' ? null : $value;
+}
+
+// WRONG — the popular inline idiom, which is also subtly broken: "0" is falsy, so it becomes null
+$title = trim((string) $title) ?: null;
+
+// CORRECT — one implementation, one place, one behaviour
+use Baka\Support\Str;
+
+$title = Str::trimToNull($title);
+```
+
+Real case: `trim → null if empty` existed as **7 private copies plus 13 inline `?: null`** sites
+across connectors, agent tools and DTOs. The inline form silently dropped the string `"0"`. It is now
+`Str::trimToNull()`, one implementation with one test.
+
+The same applies to duplicated *resolvers*, *observers* and *model relations* — if two classes need
+the same three methods, that is a trait (`HasNotesChannelTrait`) or a Concern
+(`App\GraphQL\Concerns\RecordsEntityNotes`), not copy-paste.
+
 ### Don't Pass a Model AND Its Own Relationships
 
 When an action/service already receives an entity, **do not also pass references that entity can

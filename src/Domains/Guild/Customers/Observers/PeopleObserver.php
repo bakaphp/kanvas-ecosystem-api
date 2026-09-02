@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Guild\Customers\Observers;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Guild\Actions\CreateEntityNotesChannelAction;
 use Kanvas\Guild\Customers\Events\PeopleCompanyUpdateEvent;
 use Kanvas\Guild\Customers\Events\PeopleUpdateEvent;
 use Kanvas\Guild\Customers\Models\People;
@@ -31,6 +32,12 @@ class PeopleObserver
                 Apps::getById((int) $people->apps_id),
                 $people->getId()
             );
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        try {
+            new CreateEntityNotesChannelAction($people)->execute();
         } catch (Throwable $e) {
             report($e);
         }
