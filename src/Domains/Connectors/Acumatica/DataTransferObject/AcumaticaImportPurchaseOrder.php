@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Acumatica\DataTransferObject;
 
 use Baka\Support\DateHelper;
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Spatie\LaravelData\Data;
 use Spatie\LaravelData\DataCollection;
@@ -48,7 +49,7 @@ class AcumaticaImportPurchaseOrder extends Data
             orderType: $orderType,
             orderNumber: $orderNbr,
             vendorCode: trim((string) ($header['AcctCD'] ?? '')),
-            status: trim((string) ($header['Status'] ?? '')) ?: null,
+            status: Str::trimToNull((string) ($header['Status'] ?? '')),
             orderDate: DateHelper::tryParseCarbon($header['OrderDate'] ?? null),
             currency: trim((string) ($header['CuryID'] ?? '')) ?: 'USD',
             orderTotal: (float) ($header['CuryOrderTotal'] ?? ($header['OrderTotal'] ?? 0)),

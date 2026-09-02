@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Laravel\Traits;
 
+use Baka\Support\Str;
 use Kanvas\Users\Models\Users;
 use Laravel\Ai\Tools\Request;
 
@@ -22,9 +23,7 @@ trait HandlesToolRequest
 
     protected function nullableString(Request $request, string $key): ?string
     {
-        $value = trim((string) $request->string($key));
-
-        return $value === '' ? null : $value;
+        return Str::trimToNull((string) $request->string($key));
     }
 
     /**

@@ -91,6 +91,17 @@ class Str extends IlluminateStr
         return '+' . $digits;
     }
 
+    /**
+     * Trim a value, treating a blank result as absent. Prefer this over `trim($x) ?: null`, which is
+     * falsy-based and so turns the meaningful string "0" into null.
+     */
+    public static function trimToNull(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
+    }
+
     public static function sanitizeEmail(string $email): string
     {
         return str_replace(['@', '.'], ['-at-', '-dot-'], $email);

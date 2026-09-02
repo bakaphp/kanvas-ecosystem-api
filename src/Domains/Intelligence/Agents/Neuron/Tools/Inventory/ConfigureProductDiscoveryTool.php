@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
+use Baka\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
@@ -202,7 +203,7 @@ class ConfigureProductDiscoveryTool extends Tool
     ): array {
         $applied = [];
 
-        $strategy = SemanticProfileStrategyEnum::fromApp(trim((string) $catalogType) ?: null);
+        $strategy = SemanticProfileStrategyEnum::fromApp(Str::trimToNull((string) $catalogType));
         $this->app->set(ConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value, $strategy->value);
         $applied[ConfigurationEnum::SEMANTIC_PROFILE_STRATEGY->value] = $strategy->value;
 

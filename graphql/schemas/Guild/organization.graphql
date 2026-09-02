@@ -20,6 +20,9 @@ type Organization {
             defaultCount: 25
             builder: "App\\GraphQL\\Guild\\Queries\\Organizations\\OrganizationLeadsQuery@getLeadsBuilder"
         )
+    notes: SocialChannel @hasOne(relation: "notes")
+    events: [Event!]! @morphToMany(relation: "events")
+    channels: [SocialChannel!]! @hasMany(relation: "socialChannels")
     total_employees: Int!
     created_at: DateTime!
     updated_at: DateTime
@@ -91,6 +94,13 @@ type OrganizationDuplicateGroup {
         @field(resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMergeMutation@organizations")
 }
 
+input OrganizationMessageInput {
+    organization_id: ID!
+    message: Mixed!
+    message_verb: String
+    channel_id: ID
+}
+
 extend type Mutation @guard {
     createOrganization(input: OrganizationInput!): Organization
         @field(
@@ -115,6 +125,17 @@ extend type Mutation @guard {
     removePeopleFromOrganization(input: OrganizationPeopleInput!): Boolean!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\PeopleOrganizationMutation@remove"
+        )
+
+    addMessageToOrganizationChannel(
+        input: OrganizationMessageInput!
+    ): Message!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMessageMutation@addToNotesChannel"
+        )
+    createOrganizationNotesChannel(organization_id: ID!): SocialChannel!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Organizations\\OrganizationMessageMutation@createNotesChannel"
         )
 
     mergeOrganizations(source_ids: [Int!]!, target_id: Int!): Organization!

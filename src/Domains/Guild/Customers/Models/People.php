@@ -22,6 +22,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
@@ -33,6 +34,7 @@ use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Traits\HasNotesChannelTrait;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
@@ -75,7 +77,9 @@ class People extends BaseModel
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
+    use EventResourceTrait;
     use HasLightHouseCache;
+    use HasNotesChannelTrait;
     use HasTagsTrait;
     use LikableTrait;
     use Notifiable;

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Services;
 
+use Baka\Support\Str;
+
 /**
  * Reads Mailgun's parsed-email payload. Header keys arrive in whatever case the sending client used
  * (`Message-Id`, `message-id`, `Message-ID`), so every header read goes through a case-insensitive
@@ -34,9 +36,7 @@ class MailgunPayloadService
             return null;
         }
 
-        $name = trim($matches[1]);
-
-        return $name === '' ? null : $name;
+        return Str::trimToNull($matches[1]);
     }
 
     public function subject(): string

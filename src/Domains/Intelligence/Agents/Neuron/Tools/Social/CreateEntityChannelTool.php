@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Social;
 
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -112,7 +113,7 @@ class CreateEntityChannelTool extends Tool
                 entity_namespace: $modelClass,
                 name: $name,
                 description: trim((string) $description),
-                slug: trim((string) $slug) ?: null,
+                slug: Str::trimToNull((string) $slug),
             ))->execute();
         } catch (Throwable $e) {
             report($e);

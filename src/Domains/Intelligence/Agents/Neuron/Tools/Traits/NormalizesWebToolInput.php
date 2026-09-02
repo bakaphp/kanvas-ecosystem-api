@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
 
+use Baka\Support\Str;
+
 /**
  * Cleaning up what the model passed before it reaches an external web API. Shared by the research
  * connectors (Tavily, Jina) because each of them otherwise grows its own copy of the same two checks.
@@ -33,9 +35,7 @@ trait NormalizesWebToolInput
      */
     protected function optionalText(?string $value): ?string
     {
-        $value = trim((string) $value);
-
-        return $value === '' ? null : $value;
+        return Str::trimToNull($value);
     }
 
     /**
