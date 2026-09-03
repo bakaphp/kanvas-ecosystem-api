@@ -35,6 +35,8 @@ class AgentReachOutOnChannelAction
         protected readonly Agent $agent,
         protected readonly string $channelType,
         protected readonly string $recipient,
+        protected readonly bool $deferDelivery = false,
+        protected readonly ?string $from = null,
     ) {
     }
 
@@ -111,7 +113,13 @@ class AgentReachOutOnChannelAction
                     'chat_jid' => $this->recipient,
                 ])->toArray(),
                 is_public: 1,
-                tags: [$this->recipient, 'agent-reach-out', 'first-touch'],
+                tags: array_values(array_filter([
+                    $this->recipient,
+                    'agent-reach-out',
+                    'first-touch',
+                    'first-message',
+                    $this->deferDelivery ? 'agent-reach-out-delayed' : null,
+                ])),
                 type: $type,
             )
         );
@@ -119,6 +127,8 @@ class AgentReachOutOnChannelAction
         $outbound = $createMessage->execute();
 
         $outbound->set('communicationChannel', $this->channelType);
+        $outbound->set('from_number', $this->from);
+        $outbound->set('title', $emailSubject);
         // $channel is the master People channel. addMessage() handles the channel pivot;
         // the polymorphic People entity link (used by history loaders) needs an explicit
         // addEntity.
@@ -136,18 +146,23 @@ class AgentReachOutOnChannelAction
         );
 
         // Company in APPROVAL
-        if (
+        if ($this->deferDelivery) {
+            $outbound->setLock();
+            $outbound->setPrivate();
+        } elseif (
             $this->channelType === ChannelCategoryEnum::EMAIL->value
             && $company->requiresAgentHumanApproval()
         ) {
             $outbound->setLock();
         }
 
-        $outbound->fireWorkflow(
-            WorkflowEnum::CREATED->value,
-            true,
-            ['app' => $this->lead->app],
-        );
+        if (! $this->deferDelivery) {
+            $outbound->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                ['app' => $this->lead->app],
+            );
+        }
 
         // Deliver via the canonical Lead-level dispatcher (SMS/email/WhatsApp/voice),
         // unless the draft is held for human approval.
@@ -155,7 +170,7 @@ class AgentReachOutOnChannelAction
             $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
                 channel: $this->channelType,
                 message: $responseText,
-                from: null,
+                from: $this->from,
                 title: $emailSubject,
                 signature: false,
                 files: null,
