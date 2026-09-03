@@ -393,6 +393,148 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertNotSame('pending_approval', $result['document_status']);
     }
 
+    public function test_create_ap_bill_passes_the_due_date_through(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Due date test',
+                invoice_number: 'DUEDATE-1',
+                due_date: '2026-10-15',
+                push_to_acumatica: false,
+            );
+
+        $this->assertTrue($result['created']);
+        $bill = Bill::query()->where('id', $result['bill_id'])->firstOrFail();
+        $this->assertSame('2026-10-15', $bill->due_date->toDateString());
+    }
+
+    public function test_create_ap_bill_supports_multiple_lines_without_combining_them(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $travelAccount = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+        $officeAccount = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::OFFICE_SUPPLIES))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                memo: 'Multi-line invoice',
+                invoice_number: 'MULTILINE-1',
+                lines: [
+                    ['gl_account_number' => $travelAccount, 'amount' => 100.0, 'description' => 'Flight'],
+                    ['gl_account_number' => $officeAccount, 'amount' => 25.0, 'description' => 'Paper'],
+                ],
+                push_to_acumatica: false,
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertSame(125.0, (float) $result['amount']);
+        $this->assertCount(2, $result['lines']);
+
+        $bill = Bill::query()->where('id', $result['bill_id'])->firstOrFail();
+        $this->assertCount(2, $bill->lines);
+        $this->assertSame(125.0, (float) $bill->total_native);
+    }
+
+    public function test_create_ap_bill_reports_account_not_found_for_an_invalid_line(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $travelAccount = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                memo: 'Multi-line invoice with a bad line',
+                invoice_number: 'MULTILINE-2',
+                lines: [
+                    ['gl_account_number' => $travelAccount, 'amount' => 100.0],
+                    ['gl_account_number' => 'DOES-NOT-EXIST', 'amount' => 25.0],
+                ],
+                push_to_acumatica: false,
+            );
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('account_not_found', $result['reason']);
+    }
+
+    public function test_create_ap_bill_requires_either_lines_or_amount_and_gl_account(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                memo: 'Neither lines nor amount',
+                invoice_number: 'NOLINES-1',
+                push_to_acumatica: false,
+            );
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('lines_or_amount_required', $result['reason']);
+    }
+
+    public function test_create_ap_bill_flags_a_missing_attachment_when_a_source_email_is_given(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Missing attachment test',
+                invoice_number: 'NOATTACH-1',
+                push_to_acumatica: false,
+                source_email_message_id: 'MSG_NOATTACH_1',
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertArrayHasKey('attachment_warning', $result);
+    }
+
+    public function test_create_ap_bill_does_not_flag_a_missing_attachment_without_a_source_email(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Manual entry, no email',
+                invoice_number: 'MANUAL-1',
+                push_to_acumatica: false,
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertArrayNotHasKey('attachment_warning', $result);
+    }
+
     public function test_approve_pending_item_requires_the_configured_approver(): void
     {
         $vendor = $this->seedTestOrganization('Windwalk Games Corp');
