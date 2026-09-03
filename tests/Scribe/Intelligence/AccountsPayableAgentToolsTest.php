@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Intelligence;
 
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
@@ -23,6 +26,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ResendBillAttachmentTool;
+use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
@@ -533,6 +538,99 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $this->assertTrue($result['created']);
         $this->assertArrayNotHasKey('attachment_warning', $result);
+    }
+
+    public function test_resend_bill_attachment_resends_the_stored_pdf(): void
+    {
+        $vendor = $this->seedTestOrganization('Windwalk Games Corp');
+        new AddApproverToOrganizationAction($vendor, static::$cachedUser)->execute();
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $agent = Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['name' => 'Apex', 'user_id' => static::$cachedUser->getId()]);
+        $agent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test-token');
+        $originalNotifierAgentId = $this->kanvasApp->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value);
+        $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, (string) $agent->getId());
+
+        try {
+            Http::fake([
+                'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
+                'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
+                'cdn.example.test/*' => Http::response('%PDF-1.4 fake bytes', 200),
+                'slack.com/api/files.getUploadURLExternal' => Http::response([
+                    'ok' => true,
+                    'upload_url' => 'https://files.slack.com/upload/v1/abc123',
+                    'file_id' => 'F123',
+                ]),
+                'files.slack.com/upload/v1/abc123' => Http::response('', 200),
+                'slack.com/api/files.completeUploadExternal' => Http::response(['ok' => true]),
+                'slack.com/api/chat.postMessage' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
+            ]);
+
+            $created = new CreateApBillTool()
+                ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+                ->__invoke(
+                    vendor_name: 'Windwalk Games Corp',
+                    amount: 500.0,
+                    gl_account_number: $accountCode,
+                    memo: 'Resend test',
+                    invoice_number: 'RESEND-1',
+                    push_to_acumatica: false,
+                    source_email_message_id: 'MSG_RESEND_1',
+                    source_attachment_url: 'https://cdn.example.test/invoice-resend.pdf',
+                    source_attachment_filename: 'invoice-resend.pdf',
+                );
+
+            $result = new ResendBillAttachmentTool()
+                ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+                ->__invoke(bill_id: (int) $created['bill_id']);
+
+            $this->assertTrue($result['resent']);
+            Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'files.getUploadURLExternal'));
+        } finally {
+            $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
+        }
+    }
+
+    public function test_resend_bill_attachment_reports_no_attachment_on_file(): void
+    {
+        $vendor = $this->seedTestOrganization('Windwalk Games Corp');
+        new AddApproverToOrganizationAction($vendor, static::$cachedUser)->execute();
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $created = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'No attachment on file',
+                invoice_number: 'RESEND-2',
+                push_to_acumatica: false,
+            );
+
+        $result = new ResendBillAttachmentTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: (int) $created['bill_id']);
+
+        $this->assertFalse($result['resent']);
+        $this->assertSame('no_attachment_on_file', $result['reason']);
+    }
+
+    public function test_resend_bill_attachment_reports_bill_not_found(): void
+    {
+        $result = new ResendBillAttachmentTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: 999999999);
+
+        $this->assertFalse($result['resent']);
+        $this->assertSame('bill_not_found', $result['reason']);
     }
 
     public function test_approve_pending_item_requires_the_configured_approver(): void
