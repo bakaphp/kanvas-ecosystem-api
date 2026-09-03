@@ -72,6 +72,29 @@ class PlanProgressNotification extends Notification
         ];
     }
 
+    /**
+     * Slack identifies the sender by the bot token, which lives on an AGENT rather than the app — so an
+     * agent is what speaks here, and one that was never connected to Slack sends nothing, leaving the
+     * channel quiet instead of failing the notification.
+     *
+     * The agent that ASKED for the work comes first: it is the one the person has been talking to, and
+     * the worker is usually a hired agent with no Slack connection at all.
+     *
+     * @return array<string, mixed>
+     */
+    public function toSlack(UserInterface|AnonymousNotifiable $notifiable): array
+    {
+        $title = trim((string) ($this->data['title'] ?? ''));
+        $message = trim((string) ($this->data['message'] ?? ''));
+
+        $plan = $this->entity instanceof Plan ? $this->entity : null;
+
+        return [
+            'agent' => $plan?->createdByAgent ?? $plan?->agent,
+            'text' => $title !== '' ? '*' . $title . '*\n' . $message : $message,
+        ];
+    }
+
     #[Override]
     public function getEmailContent(): string
     {

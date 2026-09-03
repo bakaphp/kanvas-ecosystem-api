@@ -9,7 +9,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
-use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeV1Action;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -38,10 +37,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 }
 
                 $configService = new LeadConfigurationService();
-                $actionClass = $configService->isV2Enabled($lead->company)
-                    ? ApplyLeadAiModeAction::class
-                    : ApplyLeadAiModeV1Action::class;
-                $result = new $actionClass($lead, $triggerType)->execute();
+                $result = new ApplyLeadAiModeAction($lead, $triggerType)->execute();
                 if ($aiMode = $lead->get($configService->getAiModeKey($lead))) {
                     $this->sendDataToOrchestration($lead, $aiMode);
                 }

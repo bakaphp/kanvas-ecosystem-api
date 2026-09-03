@@ -44,6 +44,8 @@ enum AppSettingsEnums implements EnumsInterface
     case EMAIL_VERIFICATION_LINK_URL;
     case EMAIL_VERIFICATION_LINK_TTL_HOURS;
     case EMAIL_VERIFICATION_EMAIL_SUBJECT;
+    case REQUIRE_EMAIL_VERIFICATION;
+    case UNVERIFIED_ACCOUNT_ERROR_MESSAGE;
     case FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME;
     case FILESYSTEM_MAPPER_HEADER_VALIDATION;
     case NOTIFICATION_FROM_USER_ID;
@@ -60,6 +62,8 @@ enum AppSettingsEnums implements EnumsInterface
     case SIGNUP_PREFIX_BURST_WINDOW;
     case SIGNUP_MAILBOX_LIMIT;
     case SIGNUP_MAILBOX_WINDOW;
+    case SIGNUP_DOMAIN_LIMIT;
+    case SIGNUP_DOMAIN_WINDOW;
     case SIGNUP_ANOMALY_ALERT_EMAILS;
     case SIGNUP_ANOMALY_MULTIPLIER;
     case SIGNUP_ANOMALY_FLOOR;
@@ -67,6 +71,7 @@ enum AppSettingsEnums implements EnumsInterface
     case SIGNUP_ANOMALY_COOLDOWN;
     case SIGNUP_ABUSE_SENTRY_ENABLED;
     case AGENT_CHAT_ASYNC;
+    case ADMIN_URL;
 
     #[Override]
     public function getValue(): mixed
@@ -107,6 +112,8 @@ enum AppSettingsEnums implements EnumsInterface
             self::EMAIL_VERIFICATION_LINK_URL => 'app_email_verification_link_url',
             self::EMAIL_VERIFICATION_LINK_TTL_HOURS => 'email_verification_link_ttl_hours',
             self::EMAIL_VERIFICATION_EMAIL_SUBJECT => 'email_verification_email_subject',
+            self::REQUIRE_EMAIL_VERIFICATION => 'require_email_verification',
+            self::UNVERIFIED_ACCOUNT_ERROR_MESSAGE => 'unverified_account_error_message',
             self::FILESYSTEM_ALLOW_DUPLICATE_FILES_BY_NAME => 'filesystem_allow_duplicate_files_by_name',
             self::FILESYSTEM_MAPPER_HEADER_VALIDATION => 'filesystem_mapper_header_validation',
             self::NOTIFICATION_FROM_USER_ID => 'notification_from_user_id',
@@ -123,6 +130,8 @@ enum AppSettingsEnums implements EnumsInterface
             self::SIGNUP_PREFIX_BURST_WINDOW => 'signup_prefix_burst_window',
             self::SIGNUP_MAILBOX_LIMIT => 'signup_mailbox_limit',
             self::SIGNUP_MAILBOX_WINDOW => 'signup_mailbox_window',
+            self::SIGNUP_DOMAIN_LIMIT => 'signup_domain_limit',
+            self::SIGNUP_DOMAIN_WINDOW => 'signup_domain_window',
             self::SIGNUP_ANOMALY_ALERT_EMAILS => 'signup_anomaly_alert_emails',
             self::SIGNUP_ANOMALY_MULTIPLIER => 'signup_anomaly_multiplier',
             self::SIGNUP_ANOMALY_FLOOR => 'signup_anomaly_floor',
@@ -130,6 +139,7 @@ enum AppSettingsEnums implements EnumsInterface
             self::SIGNUP_ANOMALY_COOLDOWN => 'signup_anomaly_cooldown',
             self::SIGNUP_ABUSE_SENTRY_ENABLED => 'signup_abuse_sentry_enabled',
             self::AGENT_CHAT_ASYNC => 'agent_chat_async',
+            self::ADMIN_URL => 'admin_url',
         };
     }
 }

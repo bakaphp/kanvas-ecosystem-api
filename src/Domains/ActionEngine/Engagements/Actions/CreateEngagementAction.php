@@ -235,7 +235,7 @@ class CreateEngagementAction
     protected function generateNewEngagementUrl(Engagement $engagement): ?string
     {
         $checkoutActions = $this->app->get('new-action-checkout-link') ?? [];
-        $newActionPageV4 = $this->app->get('new_action_page_v4_config') ?? $engagement->company->get('new_action_page_v4_config') ?? [];
+        $newActionPageV4 = $engagement->company->get('new_action_page_v4_config') ?? $this->app->get('new_action_page_v4_config') ?? [];
         $isCheckoutAction = is_array($checkoutActions) && in_array($this->actionSlug, $checkoutActions);
 
         $isNewActionPage = false;
@@ -415,6 +415,12 @@ class CreateEngagementAction
             'total_shared' => 0,
             'ip_address' => IPInfo::getClientIp(),
         ];
+
+        //MessageInput::fromArray looks up the parent whenever the key exists, so only set it when there is one
+        $parentMessageId = $this->engagementData->parentEngagement?->message_id;
+        if ($parentMessageId !== null) {
+            $messageInput['parent_id'] = $parentMessageId;
+        }
 
         $messageTypeDto = MessageTypeInput::from([
             'apps_id' => $this->app->getId(),

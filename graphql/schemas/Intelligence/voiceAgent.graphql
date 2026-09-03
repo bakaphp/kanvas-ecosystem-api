@@ -103,11 +103,22 @@ type VoiceAgentCallResult {
     tenant_id: String
 }
 
+type VoiceAgentInboundWebhookResult {
+    status: String!
+    message: String!
+    url: String
+}
+
 extend type Mutation @guard {
     "Place a one-off test call for an agent via the external voice runtime."
     sendVoiceAgentTestCall(id: ID!, to_number: String!): VoiceAgentCallResult!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\VoiceAgentCallMutation@placeTestCall"
+        )
+    "Re-run inbound-webhook wiring for an agent's Twilio number (admin retry). Returns the resulting status."
+    configureVoiceAgentInboundWebhook(id: ID!): VoiceAgentInboundWebhookResult!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@configureInboundWebhook"
         )
 }
 
@@ -118,7 +129,7 @@ extend type Mutation @guardByAppKey {
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\VoiceAgentToolMutation@run"
         )
     "Data plane: capture the caller behind a phone as a contact, promoting to a lead on repeat or clear intent (outbound requires intent). Phone/direction come from the runtime, not the LLM."
-    captureVoiceLead(agent_uuid: String!, phone: String!, name: String, interest: String, interested: Boolean, direction: String): Mixed
+    captureVoiceLead(agent_uuid: String!, phone: String!, name: String, interest: String, interested: Boolean, direction: String, summary: String, wants_appointment: Boolean, appointment_preference: String): Mixed
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\VoiceAgentCallerMutation@capture"
         )

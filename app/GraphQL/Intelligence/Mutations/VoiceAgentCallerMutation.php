@@ -33,6 +33,9 @@ class VoiceAgentCallerMutation
             $args['interest'] ?? null,
             (bool) ($args['interested'] ?? false),
             $args['direction'] ?? null,
+            $args['summary'] ?? null,
+            (bool) ($args['wants_appointment'] ?? false),
+            $args['appointment_preference'] ?? null,
         )->execute();
     }
 }

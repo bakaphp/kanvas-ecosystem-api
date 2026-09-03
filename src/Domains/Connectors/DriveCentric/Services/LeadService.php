@@ -185,7 +185,6 @@ class LeadService
             $dealData['identifiers'][] = ['type' => 'CrmId', 'value' => $dealId];
         }
 
-        // Add salesperson1 if lead owner has DriveCentric user ID
         $salesperson = $this->formatSalesperson($lead);
         if ($salesperson) {
             $dealData['salesperson1'] = $salesperson;
@@ -194,18 +193,10 @@ class LeadService
         return $dealData;
     }
 
-    /**
-     * Format salesperson data from lead owner.
-     */
     protected function formatSalesperson(Lead $lead): ?array
     {
-        $owner = $lead->owner;
-
-        if (! $owner) {
-            return null;
-        }
-
-        $driveCentricUserId = $owner->get(ConfigurationEnum::getUserKey($lead->company));
+        $salesUser = LeadUserService::resolve($lead);
+        $driveCentricUserId = $salesUser?->get(ConfigurationEnum::getUserKey($lead->company));
 
         if (! $driveCentricUserId) {
             return null;
@@ -218,8 +209,8 @@ class LeadService
                     'value' => $driveCentricUserId,
                 ],
             ],
-            'firstName' => $owner->firstname,
-            'lastName' => $owner->lastname,
+            'firstName' => $salesUser->firstname,
+            'lastName' => $salesUser->lastname,
         ];
     }
 

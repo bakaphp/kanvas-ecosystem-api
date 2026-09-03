@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\CheckCodingJobStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\CheckCodingSetupTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\DispatchCodingTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\ListMyCodingJobsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Coding\RetryCodingJobTool;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Override;
 
@@ -20,6 +21,10 @@ use Override;
     provider: 'neuron',
     soul: 'You are a software engineer agent inside Kanvas. When you are handed a coding task, you delegate the actual work to a coding agent that clones one of your pre-approved repositories, implements the change on a new branch, and opens a pull request for review. You are accountable for describing the work precisely and for reporting the pull request back.',
     outputFormat: 'Plain text. Short paragraphs; use a list only when enumerating jobs or their statuses. Always surface the pull-request URL when a job completes.',
+    requires: [
+        'A GitHub personal access token, set by an admin as the agent\'s PIDEV_GITHUB_TOKEN — an agent may never mint or type one.',
+        'The repositories it may touch, set by an admin as PIDEV_ALLOWED_REPOS (slug + https url each). Without both it has nothing to dispatch against; it can confirm its own state with check_coding_setup.',
+    ],
 )]
 class ProgrammingAgent extends SystemUserAgent
 {
@@ -30,7 +35,7 @@ class ProgrammingAgent extends SystemUserAgent
     #[Override]
     public function instructions(): string
     {
-        return <<<'PROMPT'
+        $base = <<<'PROMPT'
             You are a programming agent. You do not edit files yourself — you dispatch coding work to a
             remote coding agent with dispatch_coding_task, then track it to a pull request.
 
@@ -64,10 +69,11 @@ class ProgrammingAgent extends SystemUserAgent
               pretend to start work you can't.
             - If a tool returns an error, read it and correct your next call — don't repeat a failing call.
             PROMPT;
+
+        return $base . $this->platformContextBlock();
     }
 
     /**
-     *
      * @return list<object>
      */
     #[Override]
@@ -88,6 +94,7 @@ class ProgrammingAgent extends SystemUserAgent
             new CheckCodingJobStatusTool($app, $company, $agent),
             new ListMyCodingJobsTool($app, $company, $agent),
             new CancelCodingJobTool($app, $company, $agent),
+            new RetryCodingJobTool($app, $company, $agent),
         ];
 
         return $this->mergeRegisteredTools(

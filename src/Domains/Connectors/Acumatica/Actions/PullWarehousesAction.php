@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Acumatica\Actions;
 
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -68,7 +69,7 @@ class PullWarehousesAction
                     user: $this->user,
                     region: $this->region,
                     name: $code,
-                    location: trim((string) ($row['Descr'] ?? '')) ?: null,
+                    location: Str::trimToNull((string) ($row['Descr'] ?? '')),
                 ),
                 $this->user,
             )->execute();

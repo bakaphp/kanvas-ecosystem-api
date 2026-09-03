@@ -14,11 +14,11 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
+use Kanvas\Intelligence\Agents\Services\NativeChannelDeliveryService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionDto;
 use Kanvas\NervousSystem\Scheduling\Actions\CreateScheduledActionAction;
-use Kanvas\NervousSystem\Scheduling\Actions\DeliverScheduledMessageToChannelAction;
 use Kanvas\NervousSystem\Scheduling\DataTransferObject\ScheduledAction as ScheduledActionData;
 use Kanvas\NervousSystem\Scheduling\Enums\ScheduledActionTypeEnum;
 use Kanvas\NervousSystem\Scheduling\Jobs\RunScheduledAgentActionJob;
@@ -241,15 +241,12 @@ class ScheduledActionChannelDeliveryTest extends TestCase
 
         // The session's canal_id carries the connector destination in ORIGINAL case; the channel slug is
         // lowercased and would 404 against the Slack API. `slack:{team}:{channel}:{thread_ts}`.
-        $action = new DeliverScheduledMessageToChannelAction(
-            channel: $channel,
-            text: 'ping',
-            author: $user,
-            agent: $agent,
-            canalId: 'slack:T0BC3HTQYAC:D0BKWG1JJ2X:1699999999.001',
-        );
-
-        [$slackChannelId, $threadTs] = new ReflectionMethod($action, 'slackTargetFromCanalId')->invoke($action);
+        // The parsing moved to NativeChannelDeliveryService when the plan-outcome path needed the same
+        // push; the delivery action delegates to it now.
+        [$slackChannelId, $threadTs] = new ReflectionMethod(
+            NativeChannelDeliveryService::class,
+            'slackTargetFromCanalId',
+        )->invoke(null, 'slack:T0BC3HTQYAC:D0BKWG1JJ2X:1699999999.001');
 
         $this->assertSame('D0BKWG1JJ2X', $slackChannelId);
         $this->assertSame('1699999999.001', $threadTs);

@@ -72,10 +72,30 @@ final class HireAgentToolTest extends TestCase
     }
 
     /**
-     * The escalation guard. Without it, an agent denied a capability could create a child that has it
-     * and call the child — laundering a permission nobody approved.
+     * The reversal. This used to assert the opposite — a hire could hold nothing its hirer did not
+     * already hold — on the reasoning that otherwise an agent launders a capability it was denied.
+     * Nothing in this system denies a tool, though; it only ever grants one, so all the guard achieved
+     * was to stop an orchestrator staffing work it could not do itself, which is most of the job. A
+     * real turn ended with the PM asking a human to grant it `Create Lead` rather than hiring someone
+     * who had it.
      */
-    public function testItCannotGrantAToolItDoesNotHoldItself(): void
+    public function testItCanGrantAToolItDoesNotHoldItself(): void
+    {
+        $hirer = $this->hiringAgent(['Read Channel Window']);
+
+        $result = $this->tool($hirer, $this->currentUser())->__invoke(
+            name: 'Staffed ' . fake()->unique()->lexify('?????'),
+            role: 'Worker',
+            instructions: 'Create the leads you are given. Do nothing when there are none.',
+            tools: 'Create Lead',
+        );
+
+        $this->assertTrue($result['hired'], $result['message'] ?? '');
+        $this->assertSame(['Create Lead'], $result['tools']);
+    }
+
+    /** What replaced it, and the reason fan-out stays bounded without the toolset bounding it. */
+    public function testItCannotPassOnTheToolsThatCreateOrEquipAgents(): void
     {
         $hirer = $this->hiringAgent(['Read Channel Window']);
         $before = Agent::query()->count();
@@ -84,12 +104,12 @@ final class HireAgentToolTest extends TestCase
             name: 'Escalated ' . fake()->unique()->lexify('?????'),
             role: 'Worker',
             instructions: 'Do the thing.',
-            tools: 'Create Company Workflow',
+            tools: 'Hire Agent',
         );
 
         $this->assertFalse($result['hired']);
-        $this->assertStringContainsString('do not hold', $result['message']);
-        $this->assertArrayHasKey('your_tools', $result);
+        $this->assertStringContainsString('stays with a human', $result['message']);
+        $this->assertArrayHasKey('refused', $result);
         $this->assertSame($before, Agent::query()->count(), 'Nothing may be created on a refused grant.');
     }
 

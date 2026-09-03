@@ -52,12 +52,22 @@ class ZohoLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 $syncLeadWithZoho = new SyncLeadToZohoAction($app, $lead);
                 $zohoLead = $syncLeadWithZoho->execute();
 
-                return [
-                    'zohoLeadId' => $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value),
+                $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value);
+
+                $result = [
+                    'zohoLeadId' => $zohoLeadId,
                     'zohoRequest' => $zohoLead,
                     'leadId' => $lead->getId(),
                     'status' => $lead->status()->first()->name,
                 ];
+
+                if (empty($zohoLeadId)) {
+                    return $this->failWorkflow([
+                        'message' => 'Lead was not created in Zoho, no Zoho lead id was returned',
+                    ] + $result);
+                }
+
+                return $result;
             },
             company: $lead->company,
         );

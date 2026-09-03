@@ -15,7 +15,6 @@ use Kanvas\Intelligence\Agents\Traits\HandlesSupportModeDelayedResponseTrait;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Jobs\SendUnrespondedAgentMessageJob;
-use Kanvas\Intelligence\Jobs\SendUnrespondedAgentMessageV1Job;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
@@ -50,7 +49,6 @@ class SupportModeDelayedResponseToggleTest extends TestCase
 
         $this->assertNull($result);
         Queue::assertNotPushed(SendUnrespondedAgentMessageJob::class);
-        Queue::assertNotPushed(SendUnrespondedAgentMessageV1Job::class);
 
         $app->set(ConfigurationEnum::SUPPORT_MODE_DELAYED_RESPONSE->value, true);
     }
@@ -91,7 +89,6 @@ class SupportModeDelayedResponseToggleTest extends TestCase
 
         $company->timezone = 'UTC';
         $company->saveQuietly();
-        $company->set('intelligence_lead_type_mode_v2', true);
         $company->set(
             CompanyConfigurationEnum::WORKING_HOURS->value,
             array_fill_keys(

@@ -49,6 +49,7 @@ class SetupRolesCommand extends Command
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::AGENT,
                 MovipassRolesEnum::TRUCK_DRIVER,
+                MovipassRolesEnum::PARQUEAT,
             ],
             "view-order" => [
                 RolesEnums::OWNER,
@@ -56,6 +57,7 @@ class SetupRolesCommand extends Command
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::AGENT,
+                MovipassRolesEnum::PARQUEAT,
             ],
             "update-orders" => [
                 RolesEnums::OWNER,
@@ -138,6 +140,13 @@ class SetupRolesCommand extends Command
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::PARQUEAT,
+            ],
+            'correct-vehicle-data' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::PARQUEAT,
             ],
             'adjust-amount' => [
                 RolesEnums::OWNER,
@@ -157,13 +166,13 @@ class SetupRolesCommand extends Command
             'associate-payment' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
-                MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::OPERATIONS,
             ],
             'relocate' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::PARQUEAT,
             ],
             'admin-reverse-transition' => [
                 RolesEnums::OWNER,
@@ -180,8 +189,11 @@ class SetupRolesCommand extends Command
                 Bouncer::allow($roleName->value)->to($ability);
             }
 
-            if (! in_array(MovipassRolesEnum::RDVIAL_CONSULTANT, $roles, true)) {
-                Bouncer::disallow(MovipassRolesEnum::RDVIAL_CONSULTANT->value)->to($ability);
+            // Bouncer::allow is additive-only, so a role dropped from an ability keeps the grant unless revoked here
+            foreach (MovipassRolesEnum::cases() as $movipassRole) {
+                if (! in_array($movipassRole, $roles, true)) {
+                    Bouncer::disallow($movipassRole->value)->to($ability);
+                }
             }
         }
 

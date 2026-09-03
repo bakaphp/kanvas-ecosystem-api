@@ -11,13 +11,18 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Str;
-use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Sessions\Models\Session;
-use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Actions\DispatchTaskBandAction;
+use Kanvas\NervousSystem\Plan\Actions\PlanContinuationAction;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
+use Kanvas\NervousSystem\Plan\Actions\VerifyPlanAction;
+use Kanvas\NervousSystem\Plan\DataTransferObject\ContinuationDecision;
+use Kanvas\NervousSystem\Plan\Enums\ContinuationDecisionEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\NervousSystem\Plan\Support\PlanLoopSettings;
+use Kanvas\NervousSystem\Project\Jobs\Traits\DrivesAgentWake;
 use Kanvas\Social\Messages\Models\Message;
-use Throwable;
 
 /**
  * Single entry point for waking the agent assigned to a Plan. Used by:
@@ -32,11 +37,12 @@ use Throwable;
  *   plan.agent.replied      — after the reply is posted on the channel
  *
  * And one on failure:
- *   plan.agent.invocation_failed — when AgentChatKernel throws
+ *   plan.agent.invocation_failed — when the agent turn throws
  */
 class WakeAgentForPlanJob implements ShouldQueue
 {
     use Dispatchable;
+    use DrivesAgentWake;
     use InteractsWithQueue;
     use KanvasJobsTrait;
     use Queueable;
@@ -53,6 +59,16 @@ class WakeAgentForPlanJob implements ShouldQueue
      * the agent needs is the one that vanishes.
      */
     public const string REASON_TASK_COMPLETED = 'task_completed';
+
+    /**
+     * A finished task was put back to `pending` — someone wants it done again, usually because the
+     * first attempt failed for a reason that has since been fixed. Distinct from completion because
+     * the instruction is the opposite: run the work, do not report and close out.
+     */
+    public const string REASON_TASK_REOPENED = 'task_reopened';
+
+    /** Enough to see a board, short of pasting a long plan into every wake. */
+    private const int INVENTORY_LIMIT = 30;
 
     public function __construct(
         public readonly Plan $plan,
@@ -75,46 +91,62 @@ class WakeAgentForPlanJob implements ShouldQueue
         }
 
         $session = $this->resolveSession();
-        $message = $this->buildMessage();
 
-        $startedAt = microtime(true);
+        // Counted before the turn, not after: a turn that crashes still consumed a re-entry, and a
+        // plan that crashes every time is exactly what the budget exists to stop.
+        $this->plan->increment('wake_count');
+        $this->plan->refresh();
 
-        try {
-            $response = new AgentChatKernel(
-                agent: $agent,
-                session: $session,
-                message: $message,
-                user: $owner,
-            )->execute();
-        } catch (Throwable $e) {
-            $this->plan->emitLedgerEvent(
-                eventType: 'plan.agent.invocation_failed',
-                status: EventStatusEnum::ERROR,
-                payload: [
-                    'agent_id' => $this->plan->agent_id,
-                    'session_id' => $session->getId(),
-                    'reason' => $this->reason,
-                ],
-                error: [
-                    'message' => $e->getMessage(),
-                    'class' => $e::class,
-                ],
-                durationMs: (int) ((microtime(true) - $startedAt) * 1000),
-            );
+        $decision = PlanLoopSettings::continuationEnabled($agent)
+            ? new PlanContinuationAction($this->plan)->execute()
+            : null;
 
-            throw $e;
+        if ($decision !== null) {
+            $this->plan->emitLedgerEvent('plan.continuation.decided', payload: $decision->toLedgerPayload());
+
+            // DISPATCH and VERIFY are the two verdicts the loop can act on by itself; the rest are
+            // states a human or the agent's own reply resolves. Acting here rather than asking the
+            // agent to is the difference between a decision and a suggestion.
+            if ($decision->verdict === ContinuationDecisionEnum::DISPATCH) {
+                $band = new DispatchTaskBandAction($this->plan)->execute();
+
+                // The band's workers ARE the assignees, so continuing this turn would put the plan's
+                // own agent on their tasks in parallel. The batch wakes it again when they finish.
+                // Guarded on the count: a band that dispatched nothing leaves this turn the only one
+                // that can move the plan.
+                if ($band['dispatched'] > 0) {
+                    return;
+                }
+            }
+
+            if ($decision->verdict === ContinuationDecisionEnum::VERIFY) {
+                new VerifyPlanAction($this->plan)->execute();
+
+                // Verification settles the plan itself — DONE on a pass, BLOCKED on anything else — so
+                // there is nothing left for this turn to tell the agent to do.
+                return;
+            }
         }
 
-        $durationMs = (int) ((microtime(true) - $startedAt) * 1000);
+        $failurePayload = [
+            'agent_id' => $this->plan->agent_id,
+            'session_id' => $session->getId(),
+            'reason' => $this->reason,
+        ];
+
+        [$response, $durationMs] = $this->runAgentWake(
+            $agent,
+            $session,
+            $owner,
+            $this->buildMessage($decision),
+            $this->plan,
+            'plan.agent',
+            $failurePayload,
+        );
 
         $this->plan->emitLedgerEvent(
             'plan.agent.invoked',
-            payload: [
-                'agent_id' => $this->plan->agent_id,
-                'session_id' => $session->getId(),
-                'reason' => $this->reason,
-                'response_length' => strlen($response),
-            ],
+            payload: $failurePayload + ['response_length' => strlen($response)],
             durationMs: $durationMs,
         );
 
@@ -132,23 +164,19 @@ class WakeAgentForPlanJob implements ShouldQueue
         }
     }
 
+    /**
+     * Keyed on the PLAN alone, deliberately: every wake reason for a plan shares one continuous LLM
+     * thread. (The worker path keys per-agent instead, so a reassigned plan does not inherit its
+     * predecessor's "I am blocked" thread.)
+     */
     protected function resolveSession(): Session
     {
         $owner = $this->plan->user ?? $this->plan->agent?->user;
 
-        /** @var Session $session */
-        $session = Session::firstOrCreate(
-            [
-                'apps_id' => $this->plan->apps_id,
-                'companies_id' => $this->plan->companies_id,
-                'entity_namespace' => Plan::class,
-                'entity_id' => $this->plan->id,
-            ],
-            [
-                'uuid' => Str::uuid()->toString(),
+        return $this->firstOrCreateWakeSession(
+            $this->plan,
+            create: [
                 'agents_id' => $this->plan->agent_id,
-                'channel_id' => null,
-                'content' => '',
                 'user' => $owner !== null ? [
                     'id' => $owner->getId(),
                     'name' => trim(($owner->firstname ?? '') . ' ' . ($owner->lastname ?? '')),
@@ -156,15 +184,92 @@ class WakeAgentForPlanJob implements ShouldQueue
                 ] : [],
             ],
         );
-
-        return $session;
     }
 
-    protected function buildMessage(): string
+    /**
+     * What is already on the board, named.
+     *
+     * Without it an agent re-decomposes work it cannot see: one plan filed "Count leads missing email"
+     * and "Audit leads missing email" as separate tasks. Re-wording is how a duplicate escapes a title
+     * check, so the fix is showing the board rather than policing the writes.
+     *
+     * Blocked reasons are included because a task blocked for a missing tool will block again.
+     */
+    private function taskInventory(): string
     {
+        $tasks = $this->plan->tasks()
+            ->where('is_deleted', 0)
+            ->orderBy('sequence')
+            ->orderBy('id')
+            ->limit(self::INVENTORY_LIMIT)
+            ->get();
+
+        if ($tasks->isEmpty()) {
+            return '';
+        }
+
+        $lines = $tasks->map(static function (Task $task): string {
+            $line = sprintf('  #%d seq=%d [%s] %s', $task->getId(), $task->sequence, $task->status, $task->title);
+
+            return $task->blocked_reason !== null && $task->blocked_reason !== ''
+                ? $line . ' — blocked: ' . Str::limit($task->blocked_reason, 160)
+                : $line;
+        })->implode("\n");
+
+        return sprintf(
+            "\nTasks already on this plan — do NOT create these again, in any wording:\n%s\n",
+            $lines,
+        );
+    }
+
+    protected function buildMessage(?ContinuationDecision $decision = null): string
+    {
+        // When the loop is on, the verdict IS the instruction. The prose branches below stay for
+        // agents that have not been switched over — running both would give the agent two sets of
+        // orders, which is how it ends up following neither.
+        if ($decision !== null) {
+            $header = sprintf(
+                '[NS:continuation] plan_id=%d plan_uuid=%s verdict=%s',
+                $this->plan->id,
+                $this->plan->uuid,
+                $decision->verdict->value,
+            );
+
+            $state = sprintf(
+                "Plan state: %s\n%s%s",
+                $decision->reason,
+                $this->taskInventory(),
+                $decision->verdict->instruction(),
+            );
+
+            // A human comment is a question addressed to the agent, so it leads. Putting the verdict
+            // first would have the agent answer the board instead of the person who just asked it
+            // something — the state is context for the reply, not a replacement for it.
+            if ($this->reason === self::REASON_COMMENT && $this->userMessage !== null && $this->userMessage !== '') {
+                return sprintf("%s\n\n%s\n\n---\n%s", $header, $this->userMessage, $state);
+            }
+
+            return $this->userMessage !== null && $this->userMessage !== ''
+                ? sprintf("%s\n\n%s\n\nWhat just happened: %s", $header, $state, $this->userMessage)
+                : sprintf("%s\n\n%s", $header, $state);
+        }
+
         if ($this->reason === self::REASON_COMMENT) {
             return sprintf(
                 "[NS:plan_comment] plan_id=%d plan_uuid=%s\n\n%s",
+                $this->plan->id,
+                $this->plan->uuid,
+                (string) $this->userMessage,
+            );
+        }
+
+        if ($this->reason === self::REASON_TASK_REOPENED) {
+            return sprintf(
+                "[NS:task_reopened] plan_id=%d plan_uuid=%s\n\n%s\n\n"
+                . 'A task on this plan was reset to pending, which means someone wants it RUN AGAIN — '
+                . 'whatever blocked it the first time is expected to be fixed now. Do the work or '
+                . 'dispatch it to the assignee. Do not report it as already finished, and do not wait '
+                . 'for anything else to pick it up: nothing else will.',
                 $this->plan->id,
                 $this->plan->uuid,
                 (string) $this->userMessage,
@@ -192,6 +297,11 @@ class WakeAgentForPlanJob implements ShouldQueue
                 . 'Your plan has been approved by the human reviewer. '
                 . 'Resume execution. Use the nervous-system-working skill '
                 . "to refresh plan context if you need to, then continue the work.\n\n"
+                // Its own history still says "waiting on approval", so without this it re-blocks on
+                // the condition that just cleared and the loop stops again on the next verdict.
+                . 'ANY TASK YOU BLOCKED WAITING FOR THIS APPROVAL IS ALREADY BACK TO pending — the '
+                . 'approval you were waiting for is the one that just arrived. Do NOT re-block for it '
+                . "and do not ask for it again; pick the work up and do it.\n\n"
                 . "Title: %s\n%s%s",
                 $this->plan->id,
                 $this->plan->uuid,

@@ -4,33 +4,41 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica;
 
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Acumatica\Actions\PushInvoiceToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
-use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
+use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
+use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Invoices\Actions\IssueCreditNoteAction;
 use Kanvas\Scribe\Invoices\DataTransferObject\Invoice as InvoiceData;
 use Kanvas\Scribe\Invoices\DataTransferObject\InvoiceLine as InvoiceLineData;
+use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use NeuronAI\Tools\ArrayProperty;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\ObjectProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\ToolPropertyInterface;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Spatie\LaravelData\DataCollection;
 use Throwable;
 
 /** Issues a standalone AR credit memo (e.g. a back-end rebate) not tied to any specific invoice, and pushes it to Acumatica. */
 #[AgentTool(name: 'Create AR Credit Memo', category: 'accounting')]
-class CreateArCreditMemoTool extends Tool
+class CreateArCreditMemoTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use ResolvesCustomerForTool;
+    use TrackByInputs;
 
     public function __construct()
     {
@@ -100,6 +108,15 @@ class CreateArCreditMemoTool extends Tool
                 description: 'Currency code. Defaults to USD.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'notes',
+                type: PropertyType::STRING,
+                description: 'Accounting-relevant context from the request email\'s own wording that is not '
+                    . 'already captured by the form\'s fields — e.g. why no VAT applies, or an approval statement '
+                    . 'from the sender. Use the email\'s own wording, never invent one. Omit when the email has '
+                    . 'nothing beyond the routine request.',
+                required: false,
+            ),
         ];
     }
 
@@ -113,6 +130,7 @@ class CreateArCreditMemoTool extends Tool
         string $invoice_number,
         array $lines,
         ?string $currency = null,
+        ?string $notes = null,
     ): array {
         $app = $this->app;
         $company = $this->company;
@@ -141,21 +159,16 @@ class CreateArCreditMemoTool extends Tool
             ];
         }
 
-        /** @var Organization|null $customer */
-        $customer = Organization::query()
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->where('is_deleted', false)
-            ->where('name', 'like', '%' . trim($customer_name) . '%')
-            ->first();
+        $customer = $this->resolveCustomerOrError(
+            $customer_name,
+            'Call find_customer to see Acumatica codes and confirm the right one with the user.',
+        );
 
-        if ($customer === null) {
-            return [
-                'created' => false,
-                'reason' => 'customer_not_found',
-                'message' => "No customer organization matching \"{$customer_name}\" for this app/company.",
-            ];
+        if (is_array($customer)) {
+            return ['created' => false, ...$customer];
         }
+
+        $customerDisplayName = trim((string) $customer->get(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, '')) ?: $customer->name;
 
         $lineData = [];
         foreach ($lines as $line) {
@@ -201,7 +214,9 @@ class CreateArCreditMemoTool extends Tool
                     currency: $currency,
                     fx_rate_to_base: 1.0,
                     invoice_number: trim($invoice_number),
-                    notes: "Credit Request Form reference: {$invoice_number}",
+                    notes: trim((string) $notes) !== ''
+                        ? "Credit Request Form reference: {$invoice_number}\n" . trim((string) $notes)
+                        : "Credit Request Form reference: {$invoice_number}",
                 ),
                 billable: $customer,
                 user: $actingUser,
@@ -217,31 +232,67 @@ class CreateArCreditMemoTool extends Tool
         try {
             $reference = new PushInvoiceToAcumaticaAction($creditNote)->execute();
         } catch (AcumaticaWriteException|Throwable $e) {
+            $this->notifyCreditMemoOutcome(
+                $app,
+                "AR credit memo pushed to Acumatica FAILED:\nCustomer: {$customerDisplayName}\nReference: "
+                    . "{$invoice_number}\nKanvas credit_memo_id: {$creditNote->getId()}\nError: " . $e->getMessage(),
+            );
+
             return [
                 'created' => true,
                 'pushed' => false,
                 'credit_memo_id' => $creditNote->getId(),
                 'credit_memo_number' => $creditNote->invoice_number,
-                'customer' => $customer->name,
+                'customer' => $customerDisplayName,
+                'processed_at' => Carbon::now()->toDateTimeString(),
                 'reason' => 'push_failed',
                 'message' => 'Credit memo was issued in Kanvas but the push to Acumatica failed: '
                     . $e->getMessage() . '. It needs manual attention — it will not auto-retry.',
             ];
         }
 
+        $this->notifyCreditMemoOutcome(
+            $app,
+            "AR credit memo pushed to Acumatica:\nCustomer: {$customerDisplayName}\nAmount: {$currency} "
+                . number_format((float) $creditNote->total_native, 2) . "\nReference: {$invoice_number}\nKanvas "
+                . "credit_memo_id: {$creditNote->getId()}\nAcumatica ref: {$reference}",
+        );
+
         return [
             'created' => true,
             'pushed' => true,
             'credit_memo_id' => $creditNote->getId(),
             'credit_memo_number' => $creditNote->invoice_number,
-            'customer' => $customer->name,
+            'customer' => $customerDisplayName,
             'amount' => (float) $creditNote->total_native,
             'currency' => $currency,
             'credit_memo_ref' => $reference,
             'acumatica_invoice_id' => (string) $creditNote->get(AcumaticaCustomFieldEnum::INVOICE_ID->value, ''),
-            'next' => 'Pushed to Acumatica as a Credit Memo. credit_memo_ref is the ERP reference. Use '
-                . 'add_invoice_note / attach_invoice_file if you need to attach the request form or manager approval.',
+            'processed_at' => Carbon::now()->toDateTimeString(),
+            'next' => 'Pushed to Acumatica as a Credit Memo. credit_memo_ref is the ERP reference. processed_at '
+                . 'is the exact time this ran — copy it verbatim if logging this to a sheet, never invent a '
+                . 'timestamp yourself. Use add_invoice_note / attach_invoice_file if you need to attach the '
+                . 'request form or manager approval.',
         ];
+    }
+
+    // Until per-customer notification routing is decided, everything goes to one fixed default address (CREDIT_MEMO_NOTIFICATION_EMAIL) — silently skipped when unset.
+    private function notifyCreditMemoOutcome(Apps $app, string $text): void
+    {
+        $email = trim((string) $app->get(ConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value, ''));
+
+        if ($email === '') {
+            return;
+        }
+
+        $agentId = trim((string) $app->get(ConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value, ''));
+
+        new NotifyApproverAction(
+            app: $app,
+            text: $text,
+            approverEmail: $email,
+            agentId: $agentId !== '' ? $agentId : null,
+        )->execute();
     }
 
     private function resolveAccount(string $accountNumber, Apps $app, Companies $company): ?Account

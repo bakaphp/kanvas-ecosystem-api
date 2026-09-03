@@ -13,6 +13,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
+use Kanvas\NervousSystem\Plan\Support\VerifierToolPolicy;
+use Kanvas\NervousSystem\Plan\Support\WorkerToolPolicy;
 use Kanvas\Users\Models\Users;
 use ReflectionClass;
 use ReflectionNamedType;
@@ -88,7 +90,48 @@ trait MergesRegisteredTools
             }
         }
 
-        return array_values($baseline);
+        return $this->applyWorkerBoundary(array_values($baseline));
+    }
+
+    /**
+     * Strip tools a task worker may not hold. A single chokepoint on purpose: this is the one place
+     * every toolset is assembled — baseline plus registry, Neuron and Laravel alike — so filtering
+     * here is the difference between a boundary and a request. Outside a worker turn the policy is
+     * inactive and this is a no-op.
+     *
+     * @param list<object> $tools
+     * @return list<object>
+     */
+    protected function applyWorkerBoundary(array $tools): array
+    {
+        $verifying = VerifierToolPolicy::isActive();
+
+        if (! $verifying && ! WorkerToolPolicy::isActive()) {
+            return $tools;
+        }
+
+        return array_values(array_filter(
+            $tools,
+            static function (object $tool) use ($verifying): bool {
+                // The two tool trees name themselves differently; a tool that answers to neither is
+                // kept under the worker policy — silently dropping something unidentifiable is the
+                // worse failure there. Under the verifier it is dropped, because an unidentifiable
+                // tool cannot be shown to be read-only and the allow-list must fail closed.
+                $name = match (true) {
+                    method_exists($tool, 'getName') => $tool->getName(),
+                    method_exists($tool, 'name') => $tool->name(),
+                    default => null,
+                };
+
+                if (! is_string($name)) {
+                    return ! $verifying;
+                }
+
+                return $verifying
+                    ? VerifierToolPolicy::permits($name)
+                    : WorkerToolPolicy::permits($name);
+            },
+        ));
     }
 
     /**
@@ -158,9 +201,15 @@ trait MergesRegisteredTools
             $app = $this->firstCandidateOfType($candidates, Apps::class);
             $company = $this->firstCandidateOfType($candidates, Companies::class);
             $user = $this->firstCandidateOfType($candidates, Users::class);
+            $actingAgent = $this->firstCandidateOfType($candidates, Agent::class);
 
             if ($app instanceof Apps && $company instanceof Companies && $user instanceof Users) {
-                $tool->withContext($app, $company, $user);
+                $tool->withContext(
+                    $app,
+                    $company,
+                    $user,
+                    $actingAgent instanceof Agent ? $actingAgent : null,
+                );
             }
         }
 

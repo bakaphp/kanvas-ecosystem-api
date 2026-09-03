@@ -8,6 +8,8 @@ use Illuminate\Support\Str as IlluminateStr;
 
 class Str extends IlluminateStr
 {
+    public const int BROADCAST_CHANNEL_MAX_LENGTH = 164;
+
     /**
      * Given a string remove all any special characters.
      */
@@ -89,9 +91,39 @@ class Str extends IlluminateStr
         return '+' . $digits;
     }
 
+    /**
+     * Trim a value, treating a blank result as absent. Prefer this over `trim($x) ?: null`, which is
+     * falsy-based and so turns the meaningful string "0" into null.
+     */
+    public static function trimToNull(?string $value): ?string
+    {
+        $value = trim((string) $value);
+
+        return $value === '' ? null : $value;
+    }
+
     public static function sanitizeEmail(string $email): string
     {
         return str_replace(['@', '.'], ['-at-', '-dot-'], $email);
+    }
+
+    /**
+     * Pusher throws `Invalid channel name` on any character outside `[A-Za-z0-9_\-=@,.;]` or a name
+     * over 164 chars, so a channel name built from a slug or an email must pass through here first.
+     */
+    public static function sanitizeChannelName(string $name): string
+    {
+        $sanitized = (string) preg_replace('/[^A-Za-z0-9_\-=@,.;]/', '-', $name);
+
+        if (strlen($sanitized) <= self::BROADCAST_CHANNEL_MAX_LENGTH) {
+            return $sanitized;
+        }
+
+        // Hash the truncated tail so two long names sharing a prefix don't collapse onto the
+        // same channel and leak each other's payloads.
+        $suffix = '-' . substr(sha1($sanitized), 0, 8);
+
+        return substr($sanitized, 0, self::BROADCAST_CHANNEL_MAX_LENGTH - strlen($suffix)) . $suffix;
     }
 
     /**

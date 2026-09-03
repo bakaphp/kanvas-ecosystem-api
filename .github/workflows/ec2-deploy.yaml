@@ -62,13 +62,14 @@ jobs:
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:clear-cache all
             docker exec -i phpkanvas-ecosystem php artisan config:cache
 
-            # Stage only for now — migrations run automatically here, and
-            # workflow-sync-actions writes/updates rows in the `actions` table from
-            # the #[WorkflowAction] attributes. Drop the guard once it's proven on 1.x.
+            # Migrations stay stage-only — on 1.x they're run by hand after review.
             if [ "${{ github.ref_name }}" != "1.x" ]; then
               docker exec -i phpkanvas-ecosystem composer migrate-all-kanvas
-              docker exec -i phpkanvas-ecosystem php artisan kanvas:workflow-sync-actions
             fi
+
+            docker exec -i phpkanvas-ecosystem php artisan kanvas:workflow-sync-actions
+            docker exec -i phpkanvas-ecosystem php artisan kanvas:intelligence:sync-agent-types
+            docker exec -i phpkanvas-ecosystem php artisan kanvas:nervous-system:sync-tools
 
             # Restart all queue worker containers so they pick up new code.
             # Names come from docker-compose — no hand-maintained list to rot.

@@ -17,7 +17,7 @@ Two archetypes, split by **audience**:
 
 | | Internal teammate | External / customer-facing |
 |---|---|---|
-| Example | `SystemUserAgent` (implements `ConversesWithUser`) | `SalesAgent` |
+| Example | `SystemUserAgent` (implements `ConversesWithUser`) | `SalesAgent` (implements `ConversesWithCustomer`) |
 | Talks to | company **staff** | a **prospect / customer** |
 | Reached via | @mention, channel, DM, task assignment, ownership, follow | inbound connector channel (WhatsApp/email/SMS) on a lead |
 | Acts as | itself (its own user) | itself, as a consistent **persona** |
@@ -37,6 +37,59 @@ Two archetypes, split by **audience**:
 This is the same guard already in code: `read_user_activity` is entity-scoped, `read_my_ledger` is
 company-wide. The **audience** decides which applies — the same user-identity agent could switch
 surfaces (answer a teammate with full recall, answer a prospect with only that prospect's thread).
+
+### The two marker contracts — which one does my agent implement?
+
+The archetype above is declared in code by one of two empty marker interfaces in
+`Agents/Contracts/`. **Pick by who the agent talks to, not by what it does.**
+
+| | `ConversesWithCustomer` | `ConversesWithUser` |
+|---|---|---|
+| Audience | **external** — a prospect / customer outside the company | **internal** — company staff, the agent doing work inside the system |
+| Typical surface | inbound connector channel on a lead (WhatsApp/email/SMS) | user↔agent DM channel, @mention, task assignment |
+| Session keyed on | the entity (lead) timeline | the user thread |
+| Memory | prospect-isolated — continuity within the lead only | company-wide recall via `read_my_ledger` |
+| Speaks as | a persona, name only, never internal ids | itself, its own user |
+| Implemented by | `SalesAgent`, `ReceptionistAgent` | `SystemUserAgent` |
+| Read at runtime | `Agent::conversesWithCustomer()` | `Agent::conversesWithUser()` |
+
+**They are markers, not a required choice — and internal is the default.** Subclassing inherits the
+marker (`CompanyBrainAgent extends SystemUserAgent` is `ConversesWithUser` for free), but an agent
+that extends `BaseRagAgent` directly and declares neither (`CFOAgent`, `FollowUpAgent`) is treated as
+internal, because the gates are written as a negation of the customer marker:
+
+```php
+$internal = ! $this instanceof ConversesWithCustomer;
+```
+
+So `ConversesWithCustomer` is the one you must not forget: **every agent whose counterparty is outside
+the company has to declare it**, or it silently inherits the internal toolset. `ConversesWithUser` is
+the positive signal used to key sessions/persistence on the user thread instead of an entity timeline
+(the `ConverseWithSystemAgentAction` funnel) — omitting it costs routing, not isolation.
+
+What the customer marker actually gates today (add to this list, don't invent a parallel flag):
+
+- **`read_my_ledger`** — company-wide cross-entity recall; never on a customer surface.
+- **`ReadFileTool`** and the plan/task file tools — `read_file` reaches any file the company owns, so
+  a prospect who talks the agent into a `filesystem_id` reads another prospect's quote. These are
+  **granted per agent from the catalog**, never baseline: only `ProjectManagerAgent` holds them
+  intrinsically. Do not add them to `universalTools()` — a baseline addition silently rewrites the
+  toolset of every curated handler (it turned a deliberately single-tool agent into a three-tool one
+  in `NeuronDynamicSubAgentTest`) and reaches customer-facing agents before any marker can stop it.
+- **Persona rendering** — `HasCustomerPersona` exposes a name and no internal ids.
+
+**For now a `ConversesWithCustomer` agent gets NO file access at all — do not grant it `read_file`.**
+`resolveFile()` filters on `fromApp` + `fromCompany` and nothing else, so any `filesystem_id` in the
+tenant resolves: granting it to a customer-facing agent hands over the whole company drive — another
+prospect's quote, an internal contract — one coaxed id away. There is no entity-scoped variant today
+(`PresentsEntityFiles` / `list_*_files` cover plans and tasks only, not leads), so there is no safe
+version of this grant to make.
+
+The end state we want is narrower, not wider: an external agent able to read **only the files uploaded
+to the conversation / entity it is on** (a customer's licence photo, an insurance PDF), because an
+agent that cannot open what it was handed answers from imagination. That needs `read_file` constrained
+to the entity in scope first. **Until that is built and reviewed, the rule is flat: no files on a
+customer surface.** Don't hand-grant an exception.
 
 ### Rules
 

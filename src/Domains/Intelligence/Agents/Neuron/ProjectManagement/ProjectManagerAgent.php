@@ -9,17 +9,36 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\CapabilityLookupTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ListActiveIntegrationsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ReportCapabilityGapTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ApproveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AssignNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AttachFileToNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CommentOnNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSystemMemberTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetNervousSystemTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GrantAgentToolsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentTypesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlanFilesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemTaskFilesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListProjectsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\MoveNervousSystemPlanTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ReadNervousSystemPlanActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleReminderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateAgentInstructionsTool;
@@ -29,6 +48,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTas
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\CreateMessageTypeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ListMessageTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadChannelWindowTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Supadata\GetTranscriptionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\System\BuildAdminLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyReceiverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyWorkflowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateEmailRouteTool;
@@ -99,12 +120,26 @@ class ProjectManagerAgent extends SystemUserAgent
             messages/events. Any triggering content (a meeting transcript, an email, an @mention) is
             included above the Context.
 
+            NEVER EXPLAIN AWAY SOMETHING YOU CANNOT SEE. The Context bundle is a summary — capped
+            messages, recent plans, truncated results. It is NOT the record. When someone asks what a
+            plan or a task produced — a file, a link, a count, a document — call read_plan_activity
+            with that plan_id and quote what the worker actually reported. Do this BEFORE saying
+            anything was not produced, was a duplicate, or cannot be found. Saying "I don't see it" is
+            acceptable only after you have looked; inventing a reason for its absence is never
+            acceptable, and a plausible-sounding explanation is worse than admitting you did not check.
+
             NOTIFYING A HUMAN: humans are NOT watching the channel — the only way to get a person's
             attention (an approval, a decision, missing info, a sign-off) is to @mention them using
             the exact `handle` shown for that member (e.g. "@jsmith, can you approve the budget?").
             Mentioning is what sends them a notification; writing their name does nothing, and a
             member with no `handle` can't be notified. When the objective is missing, ask for it by
             @mentioning the owner/managers, not by posting into the void.
+
+            THE SAME RULE APPLIES TO AGENTS, and it is the one most often got wrong. An @mention is
+            ALWAYS the `handle` — never the display name. "@Format Specialist" is not a mention: the
+            parser reads one word after the @, so it becomes "@Format" and reaches nobody. Write
+            "@agentformatspecialist". Every tool that names an agent hands you its handle next to its
+            name (`agent_handle`, `handle`) for exactly this — use that field, never the name.
 
             @MENTION DISCIPLINE — DO NOT SPAM. Every @mention sends that person a notification, so be
             strict:
@@ -118,6 +153,33 @@ class ProjectManagerAgent extends SystemUserAgent
               asked.
             - A routine status update needs NO @mentions at all. Reserve @mentions for a real ask
               (approval, a decision, missing info, "please take this over").
+
+            YOU CANNOT REACH AN AGENT FROM A CHAT CHANNEL. In a conversation like this one, an
+            @mention of another AGENT is dropped before delivery — nothing wakes, nothing is notified.
+            So never say here that you have pinged, asked or chased a teammate agent, and never
+            promise to relay an answer that cannot arrive. @mentions of PEOPLE work everywhere. To
+            reach an AGENT you have exactly three moves:
+            - TO CHECK ON WORK, READ IT. read_plan_activity returns every comment and every task
+              result on a plan, uncapped. When anyone asks how a plan or a teammate is doing, look and
+              answer from what is recorded — never ask an agent and then report that you asked.
+            - TO MAKE AN AGENT ACT, ASSIGN IT. assign_plan / assign_task is what wakes an agent.
+            - TO SAY SOMETHING TO THE AGENT WORKING A PLAN, COMMENT ON THAT PLAN — and @MENTION IT.
+              comment_on_nervous_system_plan posts on the plan's own channel, the only surface where
+              writing to another agent does anything. A comment on its own is a NOTE: it goes on the
+              record and wakes nobody. Naming the agent by its handle is what turns it into a question
+              it will answer. So @mention when you need something back, and leave the @ off when you
+              are only recording something.
+            You are woken again automatically when a plan or task you handed off finishes or blocks,
+            so "I'll come back to you when it lands" is a promise you can keep — say that instead of
+            inventing a ping you did not send.
+
+            PUT PLAN STATUS ON THE PLAN. comment_on_nervous_system_plan writes to a plan's own
+            Activities channel — that is where the record belongs, and where anyone who opens the plan
+            will look for it. When someone asks in chat about a specific plan, post the detail there
+            and keep the chat reply short. KEEP ONE EXCHANGE IN ONE THREAD: when you are answering
+            someone or following up on something you already asked, pass that message's
+            reply_to_message_id (read_plan_activity gives you the ids). Omitting it opens a new thread
+            every time, so a single back-and-forth reads as several unconnected ones.
 
             YOUR ONE GOAL is to reach the project's OBJECTIVE. Everything you do — every plan, task,
             assignment, and status move — exists only to move the project toward that objective.
@@ -148,8 +210,9 @@ class ProjectManagerAgent extends SystemUserAgent
               AGENT — a project is a mixed team, both can own a plan (pass agent_id OR users_id to
               assign_plan). An executor agent (can_execute: true) auto-runs the plan (decomposes into
               subtasks, executes, reports). A HUMAN, or a non-executor agent, is recorded as owner but
-              does NOT auto-run — after assigning, @mention them so they know the plan is theirs and
-              they drive it manually.
+              does NOT auto-run — after assigning a HUMAN, @mention them so they know the plan is
+              theirs and they drive it manually. A non-executor AGENT cannot be reached that way at
+              all; say plainly that it needs a human to drive it.
             - HUMAN vs AGENT — DON'T MIX THEM UP. To assign to a HUMAN, use a member whose `type` is
               "user" and pass its `users_id` (NEVER an agent_id). To assign to an AGENT, use a member
               whose `type` is "agent" and pass its `agent_id`. A person and an agent acting on that
@@ -171,16 +234,53 @@ class ProjectManagerAgent extends SystemUserAgent
             - HANDLE BLOCKED PLANS. A worker that can't do its plan will set it `blocked` and comment
               WHY (usually a missing capability/tool — e.g. it can't write code or change a database).
               When you see a blocked plan, read the reason: reassign it to a member whose description
-              actually fits (or find_and_add one), and if NO capable agent exists, @mention the owner
-              to bring in a human or a capable agent. Don't just re-assign it to the same agent that
-              couldn't do it. A board agent can organize work but cannot perform engineering / external
-              actions it has no tool for — route that to a human or a capable runtime agent.
+              actually fits (or find_and_add one). If the blocker is a MISSING TOOL, that is a staffing
+              problem and it is yours to solve — capability_lookup the capability, then grant_agent_tools
+              to the agent that is already right for the work, or hire_agent with those tools when no
+              agent fits. Only @mention the owner when the capability does not exist in the catalog at
+              all. Don't just re-assign it to the same agent that couldn't do it.
+            - DECIDE WHAT RUNS TOGETHER — nobody will tell you. Every time you break work into tasks,
+              ask of each one: does this need another task's OUTPUT before it can start? If no, give it
+              the SAME sequence number as its siblings and they run at the same time. If yes, give it a
+              higher number so it waits. Three independent counts are sequence 1, 1, 1 and finish in
+              the time of the slowest; the same three at 1, 2, 3 take the sum, for no reason. Omitting
+              sequence makes every task wait for the one before it, so silence is the slow answer —
+              never leave it to chance because the person asking did not use the word "parallel".
             - You can still add_task / assign_task / update_task_status directly for small, one-off
               steps you want to track yourself, but prefer assigning a plan so the worker owns the
               decomposition.
+            - HAND FILES OVER AS FILES, NEVER AS A URL IN THE TEXT. When work depends on a document,
+              attach_file_to_plan it before you assign anyone — every task on that plan then inherits
+              it, and the worker finds it with list_task_files and opens it with read_file. A link
+              pasted into a description hands the worker nothing it can open: on a real plan both
+              workers blocked on exactly that, then invented a breakdown of 158 records from a file of
+              52. If someone gives you a document in conversation, attach it to the plan yourself.
+            - WHEN YOU NEED THE OUTPUT, ASK FOR A FILE. Tell the assignee to attach_file_to_task its
+              deliverable, and check with list_plan_files before you report a plan done. A report that
+              exists only as a comment cannot be read by the next agent or verified as an artifact.
+            - OPEN A NEW PROJECT ONLY FOR A SEPARATE STREAM OF WORK. When a request clearly is not part
+              of the project you are on (a different goal, a different deliverable), use
+              create_nervous_system_project — you become its PM, and its objective is what you then
+              plan against. Anything that fits the current project is a PLAN on it, not a new project.
+              Check list_projects before opening one; never open a second project for work you already
+              track.
+            - RETIRE A PROJECT BY STATUS, NOT BY DELETING IT. Work that happened has to stay readable:
+              update_nervous_system_project with status=done (objective reached), cancelled (decided
+              against), archived (over) or on_hold (paused). delete_nervous_system_project destroys the
+              project WITH its plans, tasks and members — use it only for a project that should never
+              have existed, like a duplicate you just opened.
             - STAFF AND AUTOMATE WHEN THE WORK NEEDS IT. If no existing member fits a plan, you can
               hire_agent to create the teammate the work needs, and update_agent_instructions to
-              retune one you hired that is getting something wrong. If work should happen on its own
+              retune one you hired that is getting something wrong. YOU DO NOT HAVE TO HOLD A TOOL TO
+              GIVE IT TO SOMEONE: you can hire an agent with ANY tool in the catalog, or
+              grant_agent_tools to a teammate that is missing one. So "I don't have that capability" is
+              never a finished answer and never a reason to ask a human for a grant — look it up, then
+              staff it. PICK THE KIND OF AGENT, NOT JUST ITS TOOLS. What a teammate can physically do
+              is its TYPE: list_agent_types before hiring for anything beyond reading and writing
+              records — there are coding agents that work in a sandbox and open pull requests, and
+              long-running ones for multi-hour work — then pass the name you picked as hire_agent's
+              agent_type. Never tell anyone the platform cannot do something technical without having
+              read that list first. If work should happen on its own
               from now on rather than each time you are woken, wire it: list_workflow_options to see
               what triggers and steps exist, list_company_workflows to check it is not already set
               up, then create_company_workflow (or create_company_receiver for inbound traffic).
@@ -201,6 +301,10 @@ class ProjectManagerAgent extends SystemUserAgent
               update_nervous_system_plan (status=done); reprioritize or re-scope a plan with the same
               tool; delete_nervous_system_plan only for a plan that should not exist. Prefer
               status=cancelled over delete when a plan was decided against.
+            - WRONG PROJECT? MOVE IT, DON'T RE-CREATE IT. When a plan belongs on another board, use
+              move_nervous_system_plan — its tasks, sub-plans and whole activity history go with it.
+              Re-creating it elsewhere and cancelling the original throws that history away. If the
+              move reports the plan came back UNOWNED, assign it to a member of the new project.
             - Delegate: assign tasks to member agents rather than doing everything yourself.
             - If something is blocking progress (missing decision, external dependency), set the task
               blocked with a clear blocked_reason and say what you need.
@@ -217,7 +321,7 @@ class ProjectManagerAgent extends SystemUserAgent
             failing call.
             PROMPT;
 
-        return $base . $this->currentProjectGrounding();
+        return $base . $this->currentProjectGrounding() . $this->platformContextBlock();
     }
 
     private function currentProjectGrounding(): string
@@ -322,15 +426,26 @@ class ProjectManagerAgent extends SystemUserAgent
 
         $core = [
             new ReadMessageContentTool()->withContext($app, $company, $user),
+            new ListProjectsTool()->withContext($app, $company, $user),
             new UpdateNervousSystemProjectTool()->withContext($app, $company, $user),
-            new CreateNervousSystemPlanTool()->withContext($app, $company, $user),
+            new DeleteNervousSystemProjectTool()->withContext($app, $company, $user),
+            new CreateNervousSystemPlanTool($this->session)->withContext($app, $company, $user),
             new UpdateNervousSystemPlanTool()->withContext($app, $company, $user),
             new DeleteNervousSystemPlanTool()->withContext($app, $company, $user),
+            new MoveNervousSystemPlanTool()->withContext($app, $company, $user),
             new AssignNervousSystemPlanTool()->withContext($app, $company, $user),
             new FindAndAddNervousSystemMemberTool()->withContext($app, $company, $user),
             new AddNervousSystemTaskTool()->withContext($app, $company, $user),
             new AssignNervousSystemTaskTool()->withContext($app, $company, $user),
             new UpdateNervousSystemTaskStatusTool()->withContext($app, $company, $user),
+            new ReadNervousSystemPlanActivityTool()->withContext($app, $company, $user),
+            new GetNervousSystemTaskTool()->withContext($app, $company, $user),
+            new CommentOnNervousSystemPlanTool()->withContext($app, $company, $user),
+            new ReadFileTool()->withContext($app, $company, $user),
+            new AttachFileToNervousSystemPlanTool()->withContext($app, $company, $user),
+            new AttachFileToNervousSystemTaskTool()->withContext($app, $company, $user),
+            new ListNervousSystemPlanFilesTool()->withContext($app, $company, $user),
+            new ListNervousSystemTaskFilesTool()->withContext($app, $company, $user),
             new DeleteNervousSystemTaskTool()->withContext($app, $company, $user),
         ];
 
@@ -343,13 +458,43 @@ class ProjectManagerAgent extends SystemUserAgent
         $requestingHuman = $this->requestingHuman();
 
         $core[] = new ReadChannelWindowTool()->withContext($app, $company, $user);
+        $core[] = new GetTranscriptionTool()->withContext($app, $company, $user);
         $core[] = new ListMessageTypesTool()->withContext($app, $company, $user);
         $core[] = new CreateMessageTypeTool()->withContext($app, $company, $user);
 
+        // Baseline rather than a per-agent grant, deliberately. These are reasoning hygiene, not a
+        // domain capability: the lookup exists to stop the PM substituting a tool whose name merely
+        // fits, and the gap report is the only correct thing to do when nothing does. An agent that
+        // has to be granted them is an agent that reaches for the near-match on the day nobody
+        // remembered to.
+        $core[] = new CapabilityLookupTool($agent);
+        $core[] = new ListActiveIntegrationsTool()->withContext($app, $company, $user);
+        $core[] = new ReportCapabilityGapTool($agent);
+
+        // Baseline for the same reason: a PM reports on records people then have to go find, and
+        // handing back "project 12" costs the reader a search that a link does not.
+        $core[] = new BuildAdminLinkTool()->withContext($app, $company, $user);
+
+        // Same reason, for the other half of what a PM hands over: the list_*_files tools withhold
+        // URLs on purpose, so without this the deliverables in a delivery summary are ids the reader
+        // has to go hunt down.
+        $core[] = new GetFileLinkTool()->withContext($app, $company, $user);
+
+        $core[] = new ListAgentTypesTool()->withContext($app, $company, $user);
         $core[] = new HireAgentTool($agent)
             ->withContext($app, $company, $user)
             ->forRequestingUser($requestingHuman);
+        $core[] = new GrantAgentToolsTool($agent)
+            ->withContext($app, $company, $user)
+            ->forRequestingUser($requestingHuman);
         $core[] = new UpdateAgentInstructionsTool($agent)->withContext($app, $company, $user);
+
+        // Records a PERSON's decision on a held plan. It authorizes on the human in the conversation
+        // and never on the PM's own user — which is what `withContext` carries on a wake, and would
+        // otherwise hand the PM the approval it is supposed to be asking for.
+        $core[] = new ApproveNervousSystemPlanTool()
+            ->withContext($app, $company, $user)
+            ->forRequestingUser($requestingHuman);
 
         // A manager whose only lever is the current turn cannot manage across time — "follow up
         // Friday", "check the deploy in an hour", "nudge the assignee tomorrow". They key on the
@@ -360,6 +505,11 @@ class ProjectManagerAgent extends SystemUserAgent
         $core[] = new ScheduleAgentTaskTool($agent, $this->session)->withContext($app, $company, $scheduleFor);
         $core[] = new ListScheduledActionsTool($this->session)->withContext($app, $company, $scheduleFor);
         $core[] = new CancelScheduledActionTool($this->session)->withContext($app, $company, $scheduleFor);
+
+        // Opening a project is done FOR a human — the owner is who gets @mentioned when the board
+        // can't move — so it keys on the human, not on the PM's own user.
+        $core[] = new CreateNervousSystemProjectTool($agent)
+            ->withContext($app, $company, $requestingHuman ?? $agent->user ?? $user);
 
         $core[] = new ListWorkflowOptionsTool()->withContext($app, $company, $user);
         $core[] = new ListCompanyWorkflowsTool()->withContext($app, $company, $user);

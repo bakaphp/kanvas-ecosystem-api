@@ -20,6 +20,11 @@ class InventorySearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;
 
+    public function name(): string
+    {
+        return 'inventory_search';
+    }
+
     #[Override]
     public function description(): Stringable|string
     {

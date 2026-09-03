@@ -9,6 +9,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Tests\TestCase;
 
@@ -18,31 +19,98 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
 
     protected $connectionsToTransact = [null, 'crm'];
 
-    public function testCreatingOpenLeadIncrementsCounter(): void
+    public function testCreatingLeadWithOpenStatus1IncrementsCounter(): void
     {
         $person = $this->createPerson();
 
-        $this->createLead($person, status: 0);
+        $this->createLead($person, leadsStatusId: 1);
 
         $this->assertSame(1, $this->activeLeadsCount($person));
     }
 
-    public function testCreatingClosedLeadDoesNotIncrementCounter(): void
+    public function testCreatingLeadWithOpenStatus2IncrementsCounter(): void
     {
         $person = $this->createPerson();
 
-        $this->createLead($person, status: 5);
+        $this->createLead($person, leadsStatusId: 2);
+
+        $this->assertSame(1, $this->activeLeadsCount($person));
+    }
+
+    public function testCreatingLeadWithClosedStatusDoesNotIncrementCounter(): void
+    {
+        $person = $this->createPerson();
+
+        $this->createLead($person, leadsStatusId: 3);
 
         $this->assertSame(0, $this->activeLeadsCount($person));
+    }
+
+    public function testCompanySettingAppendsExtraOpenStatusIds(): void
+    {
+        $this->withOpenLeadStatusIds([3], function (): void {
+            $person = $this->createPerson();
+
+            $this->createLead($person, leadsStatusId: 3);
+
+            $this->assertSame(1, $this->activeLeadsCount($person));
+        });
+    }
+
+    public function testCompanySettingKeepsDefaultOpenStatusIds(): void
+    {
+        $this->withOpenLeadStatusIds('3, 7', function ($company): void {
+            $this->assertSame([1, 2, 3, 7], Lead::openLeadsStatusIds($company));
+
+            $person = $this->createPerson();
+            $this->createLead($person, leadsStatusId: 1);
+
+            $this->assertSame(1, $this->activeLeadsCount($person));
+        });
+    }
+
+    public function testExtraOpenStatusDecrementsWhenLeadMovesToClosedStatus(): void
+    {
+        $this->withOpenLeadStatusIds([3], function (): void {
+            $person = $this->createPerson();
+            $lead = $this->createLead($person, leadsStatusId: 3);
+            $this->assertSame(1, $this->activeLeadsCount($person));
+
+            $lead->leads_status_id = 4;
+            $lead->saveOrFail();
+
+            $this->assertSame(0, $this->activeLeadsCount($person));
+        });
+    }
+
+    public function testOpenLeadsStatusIdsWithoutCompanyReturnsDefaults(): void
+    {
+        $this->assertSame([1, 2], Lead::openLeadsStatusIds());
+    }
+
+    /**
+     * The setting lives in Redis, which DatabaseTransactions does not roll
+     * back — so it must be deleted even when the assertions fail.
+     */
+    private function withOpenLeadStatusIds(array|string $ids, callable $assertions): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $company->set(ConfigurationEnum::OPEN_LEADS_STATUS_IDS->value, $ids);
+
+        try {
+            $assertions($company);
+        } finally {
+            $company->del(ConfigurationEnum::OPEN_LEADS_STATUS_IDS->value);
+        }
     }
 
     public function testStatusChangeFromOpenToClosedDecrementsCounter(): void
     {
         $person = $this->createPerson();
-        $lead = $this->createLead($person, status: 0);
+        $lead = $this->createLead($person, leadsStatusId: 1);
         $this->assertSame(1, $this->activeLeadsCount($person));
 
-        $lead->status = 5;
+        $lead->leads_status_id = 3;
         $lead->saveOrFail();
 
         $this->assertSame(0, $this->activeLeadsCount($person));
@@ -51,10 +119,10 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
     public function testStatusChangeFromClosedToOpenIncrementsCounter(): void
     {
         $person = $this->createPerson();
-        $lead = $this->createLead($person, status: 5);
+        $lead = $this->createLead($person, leadsStatusId: 3);
         $this->assertSame(0, $this->activeLeadsCount($person));
 
-        $lead->status = 0;
+        $lead->leads_status_id = 2;
         $lead->saveOrFail();
 
         $this->assertSame(1, $this->activeLeadsCount($person));
@@ -63,7 +131,7 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
     public function testSoftDeletingOpenLeadDecrementsCounterExactlyOnce(): void
     {
         $person = $this->createPerson();
-        $lead = $this->createLead($person, status: 0);
+        $lead = $this->createLead($person, leadsStatusId: 1);
         $this->assertSame(1, $this->activeLeadsCount($person));
 
         $lead->softDelete();
@@ -78,7 +146,7 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
     public function testHardDeletingOpenLeadDecrementsCounter(): void
     {
         $person = $this->createPerson();
-        $lead = $this->createLead($person, status: 0);
+        $lead = $this->createLead($person, leadsStatusId: 1);
         $this->assertSame(1, $this->activeLeadsCount($person));
 
         try {
@@ -94,7 +162,7 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
     {
         $personA = $this->createPerson();
         $personB = $this->createPerson();
-        $lead = $this->createLead($personA, status: 0);
+        $lead = $this->createLead($personA, leadsStatusId: 1);
         $this->assertSame(1, $this->activeLeadsCount($personA));
         $this->assertSame(0, $this->activeLeadsCount($personB));
 
@@ -109,8 +177,8 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
     {
         $marker = $this->marker();
         $person = $this->createPerson($marker);
-        $this->createLead($person, status: 0, ownerId: 51);
-        $this->createLead($person, status: 5, ownerId: 52);
+        $this->createLead($person, leadsStatusId: 1, ownerId: 51);
+        $this->createLead($person, leadsStatusId: 3, ownerId: 52);
 
         $this->assertSame(1, $this->activeLeadsCount($person));
 
@@ -147,8 +215,8 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
     {
         $marker = $this->marker();
         $person = $this->createPerson($marker);
-        $this->createLead($person, status: 0, ownerId: 53);
-        $this->createLead($person, status: 5, ownerId: 53);
+        $this->createLead($person, leadsStatusId: 1, ownerId: 53);
+        $this->createLead($person, leadsStatusId: 3, ownerId: 53);
 
         $raw = $this->graphQL(
             'query($marker: Mixed) {
@@ -180,6 +248,77 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
         $this->assertSame([$person->getId()], $ids);
     }
 
+    public function testCurrentCustomersQueryReturnsOnlyPeopleWithAnOpenLead(): void
+    {
+        $marker = $this->marker();
+        $current = $this->createPerson($marker . '-current');
+        $past = $this->createPerson($marker . '-past');
+        $this->createLead($current, leadsStatusId: 1);
+        $this->createLead($past, leadsStatusId: 3);
+
+        $this->assertSame(
+            [$current->getId()],
+            $this->fetchIdsByActiveLeadsCount($marker, isCurrent: true),
+        );
+    }
+
+    public function testPastCustomersQueryReturnsOnlyPeopleWithoutAnOpenLead(): void
+    {
+        $marker = $this->marker();
+        $current = $this->createPerson($marker . '-current');
+        $past = $this->createPerson($marker . '-past');
+        $this->createLead($current, leadsStatusId: 2);
+        $this->createLead($past, leadsStatusId: 3);
+
+        $this->assertSame(
+            [$past->getId()],
+            $this->fetchIdsByActiveLeadsCount($marker, isCurrent: false),
+        );
+    }
+
+    public function testPersonWithOnlyClosedLeadsMovesFromCurrentToPastAfterStatusChange(): void
+    {
+        $marker = $this->marker();
+        $person = $this->createPerson($marker);
+        $lead = $this->createLead($person, leadsStatusId: 1);
+
+        $currentIds = $this->fetchIdsByActiveLeadsCount($marker, isCurrent: true);
+        $this->assertSame([$person->getId()], $currentIds);
+        $this->assertSame([], $this->fetchIdsByActiveLeadsCount($marker, isCurrent: false));
+
+        $lead->leads_status_id = 3;
+        $lead->saveOrFail();
+
+        $this->assertSame([], $this->fetchIdsByActiveLeadsCount($marker, isCurrent: true));
+        $this->assertSame([$person->getId()], $this->fetchIdsByActiveLeadsCount($marker, isCurrent: false));
+    }
+
+    private function fetchIdsByActiveLeadsCount(string $marker, bool $isCurrent): array
+    {
+        $operator = $isCurrent ? 'GT' : 'EQ';
+
+        $raw = $this->graphQL(
+            'query($marker: Mixed!) {
+                peoples(
+                    where: {
+                        AND: [
+                            { column: FIRSTNAME, operator: LIKE, value: $marker }
+                            { column: ACTIVE_LEADS_COUNT, operator: ' . $operator . ', value: 0 }
+                        ]
+                    }
+                ) {
+                    data { id }
+                }
+            }',
+            ['marker' => $marker . '%'],
+        )->assertOk()->json();
+
+        return array_map(
+            fn (array $row) => (int) $row['id'],
+            $raw['data']['peoples']['data'] ?? [],
+        );
+    }
+
     private function activeLeadsCount(People $person): int
     {
         return (int) People::query()->find($person->getId())->active_leads_count;
@@ -202,7 +341,7 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
         return $people->fresh();
     }
 
-    private function createLead(People $people, int $status, int $ownerId = 50): Lead
+    private function createLead(People $people, int $leadsStatusId, int $ownerId = 50): Lead
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -214,7 +353,7 @@ final class LeadActiveLeadsCounterObserverTest extends TestCase
             ->withPeopleId($people->getId())
             ->create([
                 'leads_owner_id' => $ownerId,
-                'status' => $status,
+                'leads_status_id' => $leadsStatusId,
             ]);
     }
 

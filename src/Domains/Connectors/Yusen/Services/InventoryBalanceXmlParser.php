@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Yusen\Services;
 
+use Baka\Support\Str;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Yusen\DataTransferObject\InventoryBalance;
 use Kanvas\Connectors\Yusen\DataTransferObject\InventoryBalanceLine;
@@ -194,9 +195,7 @@ class InventoryBalanceXmlParser
             return null;
         }
 
-        $string = trim((string) $value);
-
-        return $string === '' ? null : $string;
+        return Str::trimToNull((string) $value);
     }
 
     private function float(mixed $value): float

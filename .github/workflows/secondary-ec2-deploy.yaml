@@ -58,6 +58,12 @@ jobs:
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:clear-cache all
             docker exec -i phpkanvas-ecosystem php artisan config:cache
 
+            # No migrations here — this host shares the 1.x database, migrations
+            # are run by hand after review.
+            docker exec -i phpkanvas-ecosystem php artisan kanvas:workflow-sync-actions
+            docker exec -i phpkanvas-ecosystem php artisan kanvas:intelligence:sync-agent-types
+            docker exec -i phpkanvas-ecosystem php artisan kanvas:nervous-system:sync-tools
+
             docker stop rediskanvas-ecosystem
 
             # Restart all queue worker containers so they pick up new code.

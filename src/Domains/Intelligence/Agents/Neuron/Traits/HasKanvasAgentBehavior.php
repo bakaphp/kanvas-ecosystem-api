@@ -207,6 +207,9 @@ trait HasKanvasAgentBehavior
      */
     protected function universalTools(): array
     {
+        // read_file is deliberately NOT here. It reaches any file the company owns, so it is granted
+        // per agent (or held intrinsically by the PM) rather than handed to every agent that exists —
+        // a customer-facing agent talked into a filesystem_id would read another prospect's quote.
         return [
             new CurrentTimeTool($this->resolveTenantTimezone()),
         ];
@@ -351,6 +354,20 @@ trait HasKanvasAgentBehavior
     }
 
     /**
+     * The platform context as a prompt block, for an agent that writes its own `instructions()` and so
+     * never reaches the SystemPrompt above.
+     *
+     * Two of them do (ProjectManagerAgent, ProgrammingAgent), and each was silently exempt from every
+     * rule here — including "a deliverable is never the body of a message", which is the one thing
+     * that has to hold for every agent or it holds for none.
+     */
+    protected function platformContextBlock(): string
+    {
+        return "\n\nHOW WORK IS DONE HERE — this applies to you like every other agent:\n"
+            . implode("\n", array_map(fn (string $line): string => '- ' . $line, self::platformContext()));
+    }
+
+    /**
      * Where the agent is running. Without it, one that meets a gap fills it from training data — a
      * real agent refused to build a publishing workflow and sent a human off to find n8n/Zapier.
      *
@@ -371,6 +388,18 @@ trait HasKanvasAgentBehavior
             'When you lack a capability, say plainly which Kanvas tool or permission you are missing '
             . 'and ask an administrator to grant it or run it for you. That is a request someone can '
             . 'act on; "reassign to an engineer" is not.',
+            'A DELIVERABLE IS NEVER THE BODY OF A MESSAGE. When you produce a document — an HTML '
+            . 'template, a rendered page, a report, a PDF — put it in Kanvas as a record '
+            . '(create_template, then update_template to revise it and generate_template_pdf to render '
+            . 'it) or attach it as a file. Then write what you made and NAME it, the way a person sends '
+            . 'a link or an attachment rather than pasting two hundred lines into the thread. Name it '
+            . 'with a LINK, not an id: call get_file_link on the filesystem_id and hand back what it '
+            . 'returns — "Filesystem ID: 10981582" is a lookup you are asking the reader to do.',
+            'Never paste markup, code or a document body into a chat message or a plan comment as the '
+            . 'deliverable. Nobody can use it there: it cannot be rendered, revised or reused, and it '
+            . 'buries the conversation. A short snippet to illustrate a point is fine — the artifact '
+            . 'itself is not. If you have no tool to store it, say which one you are missing rather '
+            . 'than pasting it anyway.',
         ];
     }
 }

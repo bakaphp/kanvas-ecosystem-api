@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Intelligence;
 
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
+use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
+use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsReceivableAgent;
@@ -20,6 +24,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
+use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum as InvoicesConfigurationEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -235,9 +240,23 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->assertSame('draft', $result['document_status']);
         $this->assertArrayNotHasKey('invoice_ref', $result);
         $this->assertArrayNotHasKey('acumatica_invoice_id', $result);
+        $this->assertSame('NOT IN APPROVER LIST', $result['approved_by_flag']);
 
         $invoice = Invoice::query()->where('id', $result['invoice_id'])->first();
         $this->assertSame(InvoiceDocumentStatusEnum::DRAFT, $invoice->document_status);
+    }
+
+    public function test_create_ar_invoice_leaves_the_approved_by_flag_blank_when_an_approver_is_configured(): void
+    {
+        $customer = $this->seedTestOrganization('Flagged Invoice Customer');
+        $customer->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, 'approver-' . uniqid() . '@example.test');
+
+        $result = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(customer_name: 'Flagged Invoice Customer', amount: 275.0, memo: 'Has approver test', push_to_acumatica: false);
+
+        $this->assertTrue($result['created']);
+        $this->assertSame('', $result['approved_by_flag']);
     }
 
     public function test_approve_pending_item_requires_the_configured_approver(): void
@@ -447,6 +466,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $this->assertTrue($result['created']);
         $this->assertSame('Proshop Rebate QA Customer', $result['customer']);
+        $this->assertMatchesRegularExpression('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $result['processed_at']);
 
         /** @var Invoice $creditNote */
         $creditNote = Invoice::query()->where('id', $result['credit_memo_id'])->firstOrFail();
@@ -458,6 +478,84 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $line = $creditNote->lines->first();
         $this->assertSame($controlAccount->getId(), $line->account_id);
+    }
+
+    public function test_create_ar_credit_memo_appends_optional_notes_from_the_request_email(): void
+    {
+        $this->seedTestOrganization('Notes QA Customer');
+        $controlAccount = Account::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('account_sub_type', AccountSubTypeEnum::TRAVEL_AND_MEALS->value)
+            ->firstOrFail();
+
+        $result = new CreateArCreditMemoTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                customer_name: 'Notes QA Customer',
+                invoice_number: 'Notes QA Reference',
+                lines: [
+                    ['control_account_number' => $controlAccount->account_number, 'amount' => 100.0],
+                ],
+                notes: 'Back-end rebate on sales-out, no VAT. Approved by the requester.',
+            );
+
+        $this->assertTrue($result['created']);
+
+        /** @var Invoice $creditNote */
+        $creditNote = Invoice::query()->where('id', $result['credit_memo_id'])->firstOrFail();
+        $this->assertStringContainsString('Notes QA Reference', $creditNote->notes);
+        $this->assertStringContainsString('Back-end rebate on sales-out, no VAT. Approved by the requester.', $creditNote->notes);
+    }
+
+    public function test_create_ar_credit_memo_notifies_the_configured_default_email(): void
+    {
+        $originalNotificationEmail = $this->kanvasApp->get(InvoicesConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value);
+        $originalNotifierAgentId = $this->kanvasApp->get(InvoicesConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value);
+
+        try {
+            $notifierAgent = Agent::factory()
+                ->withAppId($this->kanvasApp->getId())
+                ->withCompanyId($this->company->getId())
+                ->create(['name' => 'Apex', 'user_id' => static::$cachedUser->getId()]);
+            $notifierAgent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test-token');
+
+            $this->kanvasApp->set(InvoicesConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value, (string) $notifierAgent->getId());
+            $this->kanvasApp->set(InvoicesConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value, 'notify@example.test');
+
+            Http::fake([
+                'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
+                'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
+                'slack.com/api/chat.postMessage' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
+            ]);
+
+            $customer = $this->seedTestOrganization('Notification Test Customer');
+            $controlAccount = Account::query()
+                ->where('apps_id', $this->kanvasApp->getId())
+                ->where('companies_id', $this->company->getId())
+                ->where('account_sub_type', AccountSubTypeEnum::TRAVEL_AND_MEALS->value)
+                ->firstOrFail();
+
+            $result = new CreateArCreditMemoTool()
+                ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+                ->__invoke(
+                    customer_name: 'Notification Test Customer',
+                    invoice_number: 'Notification Test Reference',
+                    lines: [
+                        ['control_account_number' => $controlAccount->account_number, 'amount' => 75.0],
+                    ],
+                );
+
+            $this->assertTrue($result['created']);
+            Http::assertSent(
+                fn (Request $request): bool => str_contains($request->url(), 'chat.postMessage')
+                    && str_contains((string) $request['text'], 'Notification Test Customer')
+                    && str_contains((string) $request['text'], (string) $result['credit_memo_id'])
+            );
+        } finally {
+            $this->kanvasApp->set(InvoicesConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value, $originalNotificationEmail);
+            $this->kanvasApp->set(InvoicesConfigurationEnum::AR_SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
+        }
     }
 
     public function test_add_invoice_note_reports_not_found_for_unknown_invoice(): void
@@ -489,8 +587,8 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             ->__invoke(name: 'Nonexistent Customer ' . uniqid());
 
         $this->assertSame(0, (int) $result['count']);
-        $this->assertArrayHasKey('message', $result);
-        $this->assertStringContainsString('Retrying the same name will not help', $result['message']);
+        $this->assertSame(ToolOutcomeEnum::NOT_FOUND->value, $result['outcome']);
+        $this->assertStringContainsString('Repeating this exact call will not find anything', $result['note']);
     }
 
     /**
@@ -504,6 +602,8 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             new FindCustomerTool(),
             new FindInvoiceTool(),
             new MatchInvoicesForPaymentTool(),
+            new CreateArInvoiceTool(),
+            new CreateArCreditMemoTool(),
         ];
 
         foreach ($tools as $tool) {

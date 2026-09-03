@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Sales;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Souk\Orders\Models\Order;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -21,6 +22,7 @@ use Override;
 class SalesRevenueTool extends Tool
 {
     use HasKanvasContext;
+    use ReportsToolOutcome;
 
     private const EXCLUDED_STATUSES = ['draft', 'canceled', 'cancelled', 'failed'];
 
@@ -69,15 +71,18 @@ class SalesRevenueTool extends Tool
             'orders' => $orders,
         ];
 
-        // A bare {revenue: 0, orders: 0} reads to the model as "the call didn't work", and it
-        // retries the identical arguments until Neuron kills the turn with ToolRunsExceededException
-        // (Sentry KANVAS-ECOSYSTEM-682). Saying the zero is final — and where the data actually
-        // starts and ends — turns a retry loop into a single corrected call or a plain answer.
+        // A bare {revenue: 0, orders: 0} reads to the model as "the call didn't work", and it retries
+        // the identical arguments until Neuron kills the turn (Sentry KANVAS-ECOSYSTEM-682). NOOP says
+        // the zero is final; the override adds the one thing generic guidance can't know — where this
+        // company's data actually starts and ends, so a corrected call is possible.
         if ($orders === 0) {
-            $result['message'] = 'Zero is the complete, correct answer for this range — no booked orders fall in it. '
-                . 'Calling this tool again with the same since/until returns the same zero. Report it as-is, or call '
-                . 'once more with a range inside first_booked_order_date..last_booked_order_date.';
             $result += $this->bookedOrderDateBounds();
+
+            return $this->noop(
+                $result,
+                'Zero is the complete, correct answer for this range — no booked orders fall in it. A range '
+                    . 'inside first_booked_order_date..last_booked_order_date would return data.',
+            );
         }
 
         if ($by_month === true) {

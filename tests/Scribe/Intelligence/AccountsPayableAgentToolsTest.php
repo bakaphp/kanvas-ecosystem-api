@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Intelligence;
 
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
+use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
@@ -21,6 +26,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ResendBillAttachmentTool;
+use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
@@ -319,6 +326,55 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame(BillDocumentStatusEnum::PENDING_APPROVAL, $bill->document_status);
     }
 
+    public function test_create_ap_bill_reports_the_approver_sheets_vendor_spelling_not_the_organizations_own_name(): void
+    {
+        $vendor = $this->seedTestOrganization('GmbH-PENNER + PARTNER GBR');
+        $vendor->set(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, 'Penner + Partner WP StB mbB');
+        $vendor->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, 'fanny.peng@example.test');
+
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Penner + Partner WP StB mbB',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Display name test',
+                invoice_number: 'DISP-1',
+                push_to_acumatica: false,
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertSame('Penner + Partner WP StB mbB', $result['vendor']);
+        $this->assertSame('', $result['approved_by_flag']);
+    }
+
+    public function test_create_ap_bill_flags_the_sheet_row_when_the_vendor_has_no_approver_configured(): void
+    {
+        $this->seedTestOrganization('No Approver Vendor Corp');
+
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'No Approver Vendor Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'No approver test',
+                invoice_number: 'NOAPP-1',
+                push_to_acumatica: false,
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertSame('NOT IN APPROVER LIST', $result['approved_by_flag']);
+    }
+
     public function test_create_ap_bill_treats_an_explicit_null_push_flag_as_the_default(): void
     {
         // The LLM sends `"push_to_acumatica": null` for an omitted optional boolean, which used to
@@ -340,6 +396,241 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $this->assertTrue($result['created']);
         $this->assertNotSame('pending_approval', $result['document_status']);
+    }
+
+    public function test_create_ap_bill_passes_the_due_date_through(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Due date test',
+                invoice_number: 'DUEDATE-1',
+                due_date: '2026-10-15',
+                push_to_acumatica: false,
+            );
+
+        $this->assertTrue($result['created']);
+        $bill = Bill::query()->where('id', $result['bill_id'])->firstOrFail();
+        $this->assertSame('2026-10-15', $bill->due_date->toDateString());
+    }
+
+    public function test_create_ap_bill_supports_multiple_lines_without_combining_them(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $travelAccount = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+        $officeAccount = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::OFFICE_SUPPLIES))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                memo: 'Multi-line invoice',
+                invoice_number: 'MULTILINE-1',
+                lines: [
+                    ['gl_account_number' => $travelAccount, 'amount' => 100.0, 'description' => 'Flight'],
+                    ['gl_account_number' => $officeAccount, 'amount' => 25.0, 'description' => 'Paper'],
+                ],
+                push_to_acumatica: false,
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertSame(125.0, (float) $result['amount']);
+        $this->assertCount(2, $result['lines']);
+
+        $bill = Bill::query()->where('id', $result['bill_id'])->firstOrFail();
+        $this->assertCount(2, $bill->lines);
+        $this->assertSame(125.0, (float) $bill->total_native);
+    }
+
+    public function test_create_ap_bill_reports_account_not_found_for_an_invalid_line(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $travelAccount = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                memo: 'Multi-line invoice with a bad line',
+                invoice_number: 'MULTILINE-2',
+                lines: [
+                    ['gl_account_number' => $travelAccount, 'amount' => 100.0],
+                    ['gl_account_number' => 'DOES-NOT-EXIST', 'amount' => 25.0],
+                ],
+                push_to_acumatica: false,
+            );
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('account_not_found', $result['reason']);
+    }
+
+    public function test_create_ap_bill_requires_either_lines_or_amount_and_gl_account(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                memo: 'Neither lines nor amount',
+                invoice_number: 'NOLINES-1',
+                push_to_acumatica: false,
+            );
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('lines_or_amount_required', $result['reason']);
+    }
+
+    public function test_create_ap_bill_flags_a_missing_attachment_when_a_source_email_is_given(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Missing attachment test',
+                invoice_number: 'NOATTACH-1',
+                push_to_acumatica: false,
+                source_email_message_id: 'MSG_NOATTACH_1',
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertArrayHasKey('attachment_warning', $result);
+    }
+
+    public function test_create_ap_bill_does_not_flag_a_missing_attachment_without_a_source_email(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $result = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Manual entry, no email',
+                invoice_number: 'MANUAL-1',
+                push_to_acumatica: false,
+            );
+
+        $this->assertTrue($result['created']);
+        $this->assertArrayNotHasKey('attachment_warning', $result);
+    }
+
+    public function test_resend_bill_attachment_resends_the_stored_pdf(): void
+    {
+        $vendor = $this->seedTestOrganization('Windwalk Games Corp');
+        new AddApproverToOrganizationAction($vendor, static::$cachedUser)->execute();
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $agent = Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['name' => 'Apex', 'user_id' => static::$cachedUser->getId()]);
+        $agent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test-token');
+        $originalNotifierAgentId = $this->kanvasApp->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value);
+        $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, (string) $agent->getId());
+
+        try {
+            Http::fake([
+                'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
+                'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
+                'cdn.example.test/*' => Http::response('%PDF-1.4 fake bytes', 200),
+                'slack.com/api/files.getUploadURLExternal' => Http::response([
+                    'ok' => true,
+                    'upload_url' => 'https://files.slack.com/upload/v1/abc123',
+                    'file_id' => 'F123',
+                ]),
+                'files.slack.com/upload/v1/abc123' => Http::response('', 200),
+                'slack.com/api/files.completeUploadExternal' => Http::response(['ok' => true]),
+                'slack.com/api/chat.postMessage' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
+            ]);
+
+            $created = new CreateApBillTool()
+                ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+                ->__invoke(
+                    vendor_name: 'Windwalk Games Corp',
+                    amount: 500.0,
+                    gl_account_number: $accountCode,
+                    memo: 'Resend test',
+                    invoice_number: 'RESEND-1',
+                    push_to_acumatica: false,
+                    source_email_message_id: 'MSG_RESEND_1',
+                    source_attachment_url: 'https://cdn.example.test/invoice-resend.pdf',
+                    source_attachment_filename: 'invoice-resend.pdf',
+                );
+
+            $result = new ResendBillAttachmentTool()
+                ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+                ->__invoke(bill_id: (int) $created['bill_id']);
+
+            $this->assertTrue($result['resent']);
+            Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'files.getUploadURLExternal'));
+        } finally {
+            $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
+        }
+    }
+
+    public function test_resend_bill_attachment_reports_no_attachment_on_file(): void
+    {
+        $vendor = $this->seedTestOrganization('Windwalk Games Corp');
+        new AddApproverToOrganizationAction($vendor, static::$cachedUser)->execute();
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $created = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'No attachment on file',
+                invoice_number: 'RESEND-2',
+                push_to_acumatica: false,
+            );
+
+        $result = new ResendBillAttachmentTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: (int) $created['bill_id']);
+
+        $this->assertFalse($result['resent']);
+        $this->assertSame('no_attachment_on_file', $result['reason']);
+    }
+
+    public function test_resend_bill_attachment_reports_bill_not_found(): void
+    {
+        $result = new ResendBillAttachmentTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: 999999999);
+
+        $this->assertFalse($result['resent']);
+        $this->assertSame('bill_not_found', $result['reason']);
     }
 
     public function test_approve_pending_item_requires_the_configured_approver(): void
@@ -434,6 +725,89 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame(BillDocumentStatusEnum::RECEIVED, $bill->document_status);
     }
 
+    public function test_add_organization_approver_links_an_existing_kanvas_user(): void
+    {
+        $vendor = $this->seedTestOrganization('Add Approver Existing User Corp');
+        $existingUser = Users::factory()->create(['email' => 'existing-tool-approver-' . uniqid() . '@example.test']);
+
+        $result = new AddOrganizationApproverTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(organization_id: $vendor->getId(), approver_email: $existingUser->email);
+
+        $this->assertTrue($result['linked']);
+        $this->assertSame([$existingUser->email], $result['approvers']);
+    }
+
+    public function test_add_organization_approver_creates_a_minimal_user_when_none_matches(): void
+    {
+        $vendor = $this->seedTestOrganization('Add Approver New User Corp');
+        $newEmail = 'brand-new-tool-approver-' . uniqid() . '@example.test';
+
+        $result = new AddOrganizationApproverTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(organization_id: $vendor->getId(), approver_email: $newEmail);
+
+        $this->assertTrue($result['linked']);
+        $this->assertSame([$newEmail], $result['approvers']);
+    }
+
+    public function test_add_organization_approver_rejects_an_invalid_email(): void
+    {
+        $vendor = $this->seedTestOrganization('Add Approver Invalid Email Corp');
+
+        $result = new AddOrganizationApproverTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(organization_id: $vendor->getId(), approver_email: 'not-an-email');
+
+        $this->assertFalse($result['linked']);
+        $this->assertSame('invalid_email', $result['reason']);
+    }
+
+    public function test_add_organization_approver_reports_not_found_for_an_unknown_organization(): void
+    {
+        $result = new AddOrganizationApproverTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(organization_id: 999999999, approver_email: 'someone@example.test');
+
+        $this->assertFalse($result['linked']);
+        $this->assertSame('organization_not_found', $result['reason']);
+    }
+
+    public function test_organization_approvers_take_priority_over_the_legacy_field_and_any_one_may_approve(): void
+    {
+        $vendor = $this->seedTestOrganization('Multi Approver Vendor Corp');
+        $vendor->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, 'not-a-real-approver-' . uniqid() . '@example.test');
+
+        $approverOne = Users::factory()->create(['email' => 'approver-one-' . uniqid() . '@example.test']);
+        $approverTwo = Users::factory()->create(['email' => 'approver-two-' . uniqid() . '@example.test']);
+        new AddApproverToOrganizationAction($vendor, $approverOne)->execute();
+        new AddApproverToOrganizationAction($vendor, $approverTwo)->execute();
+
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $created = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Multi Approver Vendor Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Multi approver test',
+                invoice_number: 'MULTI-1',
+                push_to_acumatica: false,
+            );
+
+        $this->assertSame('', $created['approved_by_flag']);
+
+        $result = new ApprovePendingItemTool()
+            ->withContext($this->kanvasApp, $this->company, $approverTwo)
+            ->__invoke(target_type: 'bill', target_id: (int) $created['bill_id']);
+
+        $this->assertTrue($result['approved']);
+        $this->assertSame($approverTwo->email, $result['approved_by']);
+    }
+
     public function test_approve_pending_item_reports_not_found_when_nothing_pending(): void
     {
         $result = new ApprovePendingItemTool()
@@ -519,6 +893,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             new FindBillTool(),
             new FindPurchaseOrderTool(),
             new MatchBillsForPaymentTool(),
+            new CreateApBillTool(),
         ];
 
         foreach ($tools as $tool) {

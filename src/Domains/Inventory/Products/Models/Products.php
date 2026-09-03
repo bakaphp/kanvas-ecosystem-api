@@ -25,6 +25,8 @@ use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Kanvas\Activities\Contracts\ActivityLogInterface;
 use Kanvas\Activities\Models\Activity;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -89,6 +91,7 @@ use Spatie\Activitylog\Support\LogOptions;
 #[ObservedBy(ProductsObserver::class)]
 class Products extends BaseModel implements EntityIntegrationInterface, EntityImportFilesystemInterface, ActivityLogInterface
 {
+    use HasAdminLink;
     use UuidTrait;
     use SlugTrait;
     use LikableTrait;
@@ -125,6 +128,12 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public function getGraphTypeName(): string
     {
         return 'Product';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::PRODUCT;
     }
 
     #[Override]
@@ -348,22 +357,50 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         return "COALESCE(CASE WHEN JSON_VALID({$column}) THEN JSON_UNQUOTE(JSON_EXTRACT({$column}, '$.en')) END, {$column})";
     }
 
+    /**
+     * Normalizes a `ProductAttributeFilterInput`-shaped array into named args for
+     * `scopeFilterByAttributeValue` — shared by every GraphQL entry point that accepts that input
+     * (`products.attributeValues`, `exportProducts.hasAttributeValues`) so they can't drift apart.
+     *
+     * @param array{value?: mixed, attribute_id?: mixed, slug?: string, operator?: string} $filter
+     * @return array{value: string|array<int, string>|null, attributesId: int|null, slug: string|null, operator: string}
+     */
+    public static function attributeFilterArgsFromInput(array $filter): array
+    {
+        return [
+            'value' => isset($filter['value'])
+                ? (is_array($filter['value']) ? $filter['value'] : (string) $filter['value'])
+                : null,
+            'attributesId' => isset($filter['attribute_id']) ? (int) $filter['attribute_id'] : null,
+            'slug' => $filter['slug'] ?? null,
+            'operator' => $filter['operator'] ?? 'EQ',
+        ];
+    }
+
+    /**
+     * @param string|array<int, string>|null $value
+     */
     public function scopeFilterByAttributeValue(
         Builder $query,
-        ?string $value = null,
+        string|array|null $value = null,
         ?int $attributesId = null,
-        ?string $slug = null
+        ?string $slug = null,
+        string $operator = 'EQ',
     ): Builder {
         return $query->whereHas(
             'attributeValues',
-            function (Builder $attributeValue) use ($value, $attributesId, $slug): void {
+            function (Builder $attributeValue) use ($value, $attributesId, $slug, $operator): void {
                 $attributeValue->where('products_attributes.is_deleted', 0);
 
                 if ($value !== null) {
-                    $attributeValue->whereRaw(
-                        self::normalizedAttributeValue('products_attributes.value') . ' = ?',
-                        [$value]
-                    );
+                    $normalized = self::normalizedAttributeValue('products_attributes.value');
+
+                    match ($operator) {
+                        'NOT_EQ' => $attributeValue->whereRaw("{$normalized} != ?", [$value]),
+                        'IN' => $attributeValue->whereIn(DB::raw($normalized), (array) $value),
+                        'NOT_IN' => $attributeValue->whereNotIn(DB::raw($normalized), (array) $value),
+                        default => $attributeValue->whereRaw("{$normalized} = ?", [$value]),
+                    };
                 }
 
                 if ($attributesId !== null) {
@@ -1020,8 +1057,8 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         // into N+1 channel/warehouse/status reads while building the search payload. Summary path
         // only renders channels.
         $eagerLoad = $useSummary
-            ? ['channels']
-            : ['channels', 'variantWarehouses.warehouse', 'variantWarehouses.status', 'status'];
+            ? ['channels', 'tags']
+            : ['channels', 'variantWarehouses.warehouse', 'variantWarehouses.status', 'status', 'tags'];
 
         // Bound peak memory by streaming the variants in small batches instead of materialising
         // up to PRODUCT_VARIANTS_SEARCH_LIMIT models at once — the Scout indexer was OOMing at

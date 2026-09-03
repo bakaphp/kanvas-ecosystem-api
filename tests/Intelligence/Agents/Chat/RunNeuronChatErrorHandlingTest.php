@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Chat;
 
+use GuzzleHttp\Exception\ServerException;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
@@ -86,6 +89,67 @@ class RunNeuronChatErrorHandlingTest extends TestCase
             handler: new ThrowingNeuronHandlerStub($exception),
             fallbackOnFailure: $fallbackOnFailure,
         )->execute();
+    }
+
+    /**
+     * A 503 from the model provider is not a fault in the request, so the generic copy sends the
+     * person to rephrase something that was never wrong — and offers a hand-off to a human for what
+     * a retry fixes by itself.
+     */
+    public function testAnOverloadedModelProviderTellsThePersonToTryAgain(): void
+    {
+        $response = $this->runChatWithThrowingHandler($this->providerOverload(503));
+
+        $this->assertStringContainsString('overloaded', $response);
+        $this->assertStringContainsString('again', $response);
+        $this->assertStringNotContainsString('I ran into a hiccup', $response);
+        $this->assertStringNotContainsString('rephrasing', $response);
+    }
+
+    /** Same fault, whichever provider reports it — 429 rate limit, 529 Anthropic overloaded, 5xx. */
+    public function testEveryTransientProviderStatusReadsAsRetryable(): void
+    {
+        foreach ([429, 500, 502, 503, 504, 529] as $status) {
+            $response = $this->runChatWithThrowingHandler($this->providerOverload($status));
+
+            $this->assertStringContainsString(
+                'overloaded',
+                $response,
+                sprintf('HTTP %d should read as a transient provider fault.', $status),
+            );
+        }
+    }
+
+    /** A 4xx is a bad request of ours; telling someone to retry it would loop them. */
+    public function testAClientErrorIsNotTreatedAsRetryable(): void
+    {
+        $response = $this->runChatWithThrowingHandler($this->providerOverload(400));
+
+        $this->assertStringContainsString('I ran into a hiccup', $response);
+        $this->assertStringNotContainsString('overloaded', $response);
+    }
+
+    /** The detail still has to stay out of the channel — same rule as every other fallback here. */
+    public function testTheProviderResponseBodyNeverReachesTheReply(): void
+    {
+        $response = $this->runChatWithThrowingHandler($this->providerOverload(503));
+
+        $this->assertStringNotContainsString('generativelanguage.googleapis.com', $response);
+        $this->assertStringNotContainsString('ServerException', $response);
+        $this->assertStringNotContainsString('gemini', strtolower($response));
+    }
+
+    private function providerOverload(int $status): ServerException
+    {
+        return new ServerException(
+            sprintf(
+                'Server error: `POST https://generativelanguage.googleapis.com/v1beta/models/'
+                . 'gemini-3.7-flash:generateContent` resulted in a `%d` response',
+                $status,
+            ),
+            new Request('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent'),
+            new Response($status, [], '{"error":{"code":' . $status . ',"message":"This model is currently experiencing high demand."}}'),
+        );
     }
 
     private function uniqueConstraintViolation(): UniqueConstraintViolationException

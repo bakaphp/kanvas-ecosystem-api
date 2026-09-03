@@ -24,6 +24,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\AccessControlList\Traits\HasPermissions;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -80,6 +82,7 @@ use Override;
 #[ObservedBy([MessageObserver::class])]
 class Message extends BaseModel
 {
+    use HasAdminLink;
     use UuidTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
@@ -115,6 +118,12 @@ class Message extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'Message';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::MESSAGE;
     }
 
     protected $cascadeDeletes = ['comments'];
@@ -383,9 +392,18 @@ class Message extends BaseModel
             return false;
         }
 
+        return ! $this->app->get('index_message_by_type') || $this->isIndexedMessageType();
+    }
+
+    /**
+     * `message_types_id` carries no foreign key, so the relation can resolve to null — and the
+     * observers calling this run inside the write, where a fatal takes the whole save down.
+     */
+    public function isIndexedMessageType(): bool
+    {
         $filterByMessageType = $this->app->get('index_message_by_type');
 
-        return ! $filterByMessageType || $this->messageType->verb === $filterByMessageType;
+        return (bool) $filterByMessageType && $this->messageType?->verb === $filterByMessageType;
     }
 
     public function isPublic(): bool

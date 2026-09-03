@@ -12,21 +12,21 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Salesforce\Actions\PullPropertyAction;
+use Kanvas\Connectors\Salesforce\Actions\PullPropertyContactAction;
+use Kanvas\Connectors\Salesforce\Actions\PullPropertyFilesAction;
 use Kanvas\Connectors\Salesforce\Client;
 use Kanvas\Connectors\Salesforce\Services\SalesforceApiClient;
-use Kanvas\Exceptions\ValidationException;
-use Kanvas\Filesystem\Actions\ApplyFilesystemMapperAction;
-use Kanvas\Filesystem\Models\FilesystemMapper;
 use RuntimeException;
 use Throwable;
 
 /**
- * Test-only import: pulls Location__c (+ its primary Location_Contact__c) from Salesforce —
- * GAGroup's field names, hardcoded here as this command's fixture, are how this SOQL is built.
- * The Salesforce-agnostic part — turning a raw record into a Kanvas Product/People — is not
- * hardcoded: it runs through the Company's configured `salesforce_property_mapper_id`
- * `FilesystemMapper` via `ApplyFilesystemMapperAction`, so a different tenant only needs a
- * different mapper, not a different command.
+ * Test-only import: pulls Location__c (+ its primary Location_Contact__c and any Salesforce Files
+ * attached to it) from Salesforce into Kanvas Products, using GAGroup's field names hardcoded
+ * (`PullPropertyAction::mapAttributes()`). Deliberately unfiltered — imports every Location__c
+ * regardless of Deal_Status__c/Marketing_Status__c, saving both as attributes; the website's
+ * "which properties are listed" question is answered downstream with Kanvas's own product/attribute
+ * filtering (`hasAttributeValues`/`variantAttributeValue`), not by narrowing the SOQL at import time.
  *
  * The per-record upsert runs inside a queued closure (not a dedicated Job class) so this
  * GAGroup-only fixture doesn't grow a permanent class in the shared Salesforce connector — the
@@ -50,17 +50,9 @@ class ImportSalesforcePropertiesCommand extends Command
         $company = Companies::getById((int) $this->argument('company_id'));
         $user = $company->user;
 
-        $mapperId = (int) ($company->get('salesforce_property_mapper_id') ?? 0);
-        if ($mapperId === 0) {
-            throw new ValidationException(
-                'Company ' . $company->getId() . ' has no salesforce_property_mapper_id custom field set.',
-            );
-        }
-        $mapper = FilesystemMapper::getByIdFromCompanyApp($mapperId, $company, $app);
-
         $client = Client::getInstance($app, $company);
 
-        $soql = 'SELECT Id, Name, Property_Name__c, Deal_Status__c, Marketing_Status__c, Street__c, City__c, '
+        $soql = 'SELECT Id, Name, Property_Name__c, Deal_Status__c, Marketing_Status__c, Store__c, Street__c, City__c, '
             . 'State_Province__c, Zip_Code__c, Brand__c, Ask_Deal_Type__c, Location_Type__c, Gross_SF__c, '
             . 'Property_Acreage__c, Year_Built__c, Zoning__c, Latitude__c, Longitude__c FROM Location__c';
 
@@ -94,7 +86,7 @@ class ImportSalesforcePropertiesCommand extends Command
                 . 'FROM Location_Contact__c WHERE Primary_Location_Contact__c = true',
         );
 
-        dispatch(function () use ($app, $company, $user, $mapper, $properties, $contacts): void {
+        dispatch(function () use ($app, $company, $user, $properties, $contacts): void {
             App::scoped(Apps::class, fn () => $app);
             Bouncer::scope()->to(RolesEnums::getScope($app));
 
@@ -106,8 +98,9 @@ class ImportSalesforcePropertiesCommand extends Command
                 }
             }
 
-            $configuration = is_array($mapper->configuration) ? $mapper->configuration : [];
-            $links = $configuration['links'] ?? [];
+            // Resolved once and reused per property — Client::getInstance() caches the access
+            // token itself, so this is cheap even across a long-running queued closure.
+            $client = Client::getInstance($app, $company);
 
             $total = count($properties);
             $processed = 0;
@@ -120,25 +113,32 @@ class ImportSalesforcePropertiesCommand extends Command
                         throw new RuntimeException('Salesforce record is missing an Id');
                     }
 
-                    $correlatedRecords = [];
-                    $contact = $contactsByLocationId[$salesforceId] ?? null;
-                    if ($contact !== null) {
-                        foreach ($links as $link) {
-                            $linkedMapperId = (int) ($link['mapper_id'] ?? 0);
-                            if ($linkedMapperId !== 0) {
-                                $correlatedRecords[$linkedMapperId] = $contact;
-                            }
-                        }
-                    }
-
-                    new ApplyFilesystemMapperAction(
+                    $product = new PullPropertyAction(
                         $app,
                         $company,
                         $user,
-                        $mapper,
-                        $salesforceId,
                         $property,
-                        $correlatedRecords,
+                        $salesforceId,
+                    )->execute();
+
+                    $contact = $contactsByLocationId[$salesforceId] ?? null;
+                    if ($contact !== null) {
+                        new PullPropertyContactAction(
+                            $app,
+                            $company,
+                            $product,
+                            $contact,
+                            (string) $contact['Id'],
+                        )->execute();
+                    }
+
+                    new PullPropertyFilesAction(
+                        $app,
+                        $company,
+                        $product,
+                        $user,
+                        $client,
+                        $salesforceId,
                     )->execute();
 
                     $processed++;

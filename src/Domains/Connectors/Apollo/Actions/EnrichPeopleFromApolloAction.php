@@ -216,15 +216,9 @@ class EnrichPeopleFromApolloAction
             return true;
         }
 
-        $emailTypes = [
-            ContactTypeEnum::EMAIL->value,
-            ContactTypeEnum::PRIMARY_EMAIL->value,
-            ContactTypeEnum::SECONDARY_EMAIL->value,
-        ];
-
         foreach ($diff['contacts_added'] ?? [] as $signature) {
             $typeId = (int) explode(':', (string) $signature, 2)[0];
-            if (in_array($typeId, $emailTypes, true)) {
+            if (Contact::isEmailType($typeId)) {
                 return true;
             }
         }

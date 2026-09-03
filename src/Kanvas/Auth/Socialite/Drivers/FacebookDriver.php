@@ -16,8 +16,8 @@ use Kanvas\Auth\Socialite\Contracts\DriverInterface;
 use Kanvas\Auth\Socialite\DataTransferObject\User;
 use Kanvas\Enums\SourceEnum;
 use Override;
-use phpseclib3\Crypt\RSA;
-use phpseclib3\Math\BigInteger;
+use phpseclib4\Crypt\RSA;
+use phpseclib4\Math\BigInteger;
 
 /**
  * @todo delegate the implementation of to a package

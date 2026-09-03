@@ -26,12 +26,39 @@ class NotifyApproverAction
         protected readonly ?string $approverEmail = null,
         protected readonly ?string $attachmentUrl = null,
         protected readonly ?string $attachmentFilename = null,
+        protected readonly ?string $agentId = null,
     ) {
+    }
+
+    /**
+     * Notifies every email in the list — e.g. all of an Organization's resolved approvers, where a
+     * single fixed recipient isn't enough. Each is still independently best-effort.
+     *
+     * @param list<string> $approverEmails
+     */
+    public static function notifyAll(
+        array $approverEmails,
+        Apps $app,
+        string $text,
+        ?string $attachmentUrl = null,
+        ?string $attachmentFilename = null,
+        ?string $agentId = null,
+    ): void {
+        foreach ($approverEmails as $approverEmail) {
+            new self(
+                app: $app,
+                text: $text,
+                approverEmail: $approverEmail,
+                attachmentUrl: $attachmentUrl,
+                attachmentFilename: $attachmentFilename,
+                agentId: $agentId,
+            )->execute();
+        }
     }
 
     public function execute(): void
     {
-        $agentId = (string) ($this->app->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value) ?? '');
+        $agentId = $this->agentId ?? (string) ($this->app->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value) ?? '');
 
         if ($this->approverEmail === null || trim($this->approverEmail) === '' || $agentId === '') {
             return;

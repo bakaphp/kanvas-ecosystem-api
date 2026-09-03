@@ -15,8 +15,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
@@ -25,6 +28,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Observers\OrganizationObserver;
 use Kanvas\Guild\Traits\BillableTrait;
+use Kanvas\Guild\Traits\HasNotesChannelTrait;
 use Kanvas\Guild\Traits\PayeeTrait;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Expenses\Models\Expense;
@@ -53,10 +57,13 @@ use Override;
 #[ObservedBy([OrganizationObserver::class])]
 class Organization extends BaseModel implements BillableInterface, PayeeInterface
 {
+    use HasAdminLink;
     use BillableTrait;
     use CanUseWorkflow;
     use DatabaseSearchableTrait;
+    use EventResourceTrait;
     use HasLightHouseCache;
+    use HasNotesChannelTrait;
     use HasTagsTrait;
     use PayeeTrait;
     use UuidTrait;
@@ -68,6 +75,12 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     public function getGraphTypeName(): string
     {
         return 'Organization';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::ORGANIZATION;
     }
 
     public function leads(): HasMany
@@ -83,6 +96,15 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     public function addresses(): HasMany
     {
         return $this->hasMany(Address::class, 'organizations_id', 'id')
+            ->where('is_deleted', false);
+    }
+
+    /**
+     * The Kanvas Users who may approve this organization's AP/AR items.
+     */
+    public function approvers(): HasMany
+    {
+        return $this->hasMany(OrganizationApprover::class, 'organizations_id', 'id')
             ->where('is_deleted', false);
     }
 

@@ -7,11 +7,14 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPlanForTool;
+use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
+use Kanvas\NervousSystem\Plan\Support\MentionHandle;
 use Kanvas\NervousSystem\Project\Enums\ProjectMemberTypeEnum;
-use Kanvas\NervousSystem\Project\Jobs\WakeWorkerForPlanJob;
 use Kanvas\NervousSystem\Project\Models\ProjectMember;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\HasRunKey;
@@ -32,6 +35,7 @@ use Override;
 class AssignNervousSystemPlanTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use ReportsToolOutcome;
     use TrackByInputs;
     use ResolvesPlanForTool;
 
@@ -89,6 +93,15 @@ class AssignNervousSystemPlanTool extends Tool implements HasRunKey
             return $plan;
         }
 
+        // An intake plan has no agreed brief yet, so there is nothing to assign against. Enforced at
+        // the entry point rather than trusted to the prompt, and above the agent/human fork so both
+        // assignee kinds are covered — a guard that only holds on one path is not a guard.
+        $blocked = $this->refuseIfNotExecutable($plan);
+
+        if ($blocked !== null) {
+            return $blocked;
+        }
+
         return $agent_id !== null
             ? $this->assignToAgent($plan, $agent_id)
             : $this->assignToHuman($plan, (int) $users_id);
@@ -133,28 +146,38 @@ class AssignNervousSystemPlanTool extends Tool implements HasRunKey
 
         // Idempotent: the plan is already this agent's. Re-assigning would re-dispatch the worker and,
         // for a non-executor (auto_run=false), the model can read the unchanged result as "didn't work"
-        // and call the identical args again until it trips ToolRunsExceededException. Short-circuit with
-        // an explicit "already done, stop" so the model moves on instead of looping.
+        // and call the identical args again until it trips ToolRunsExceededException. NOOP is exactly
+        // this case — a correct call that changed nothing — so the "stop, move on" wording comes from
+        // the enum rather than being restated here.
         if ((int) $plan->agent_id === $agent->getId()) {
-            return [
-                'plan_id' => $plan->getId(),
-                'assignee_type' => 'agent',
-                'agent_id' => $agent->getId(),
-                'name' => $agent->name,
-                'auto_run' => $autoRun,
-                'agent_tools' => $grantedTools,
-                'already_assigned' => true,
-                'message' => 'This plan is ALREADY assigned to this agent — assignment is complete. Do '
-                    . 'NOT call assign again for this plan; move on.',
-            ];
+            return $this->noop(
+                [
+                    'plan_id' => $plan->getId(),
+                    'assignee_type' => 'agent',
+                    'agent_id' => $agent->getId(),
+                    'name' => $agent->name,
+            'handle' => MentionHandle::forUser($agent->user, $this->app),
+                    'auto_run' => $autoRun,
+                    'agent_tools' => $grantedTools,
+                    'already_assigned' => true,
+                ],
+                'This plan is ALREADY assigned to this agent — assignment is complete.',
+            );
         }
 
         $plan->agent_id = $agent->getId();
         $plan->assigned_users_id = null;
-        $plan->saveQuietly();
+        $plan->save();
 
+        // Broadcast rather than dispatching a wake by hand. `saveQuietly()` + a direct
+        // WakeWorkerForPlanJob meant assignment never reached WakeAgentOnPlanChangeListener, so the
+        // continuation loop and the task band — everything that RUNS the work and records what it
+        // produced — were only ever entered by accident, when some later task transition happened to
+        // trip the listener. On the hand-dispatched path the agent had to mark its own tasks done, and
+        // an agent that answers the question but forgets the status write leaves no error anywhere:
+        // plan 13765 sat with a researched, posted answer and its task still `pending`.
         if ($autoRun) {
-            WakeWorkerForPlanJob::dispatch($plan);
+            $plan->broadcastChange(PlanChangeTypeEnum::ASSIGNED);
         }
 
         return [
@@ -247,6 +270,34 @@ class AssignNervousSystemPlanTool extends Tool implements HasRunKey
             'notified' => true,
             'note' => 'Human owner — not auto-run. They were notified of the assignment; @mention them '
                 . 'only if you also need something from them now.',
+        ];
+    }
+
+    /**
+     * A refusal when the plan's status forbids dispatch, or null when it is fine to proceed.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function refuseIfNotExecutable(Plan $plan): ?array
+    {
+        $status = PlanStatusEnum::tryFrom($plan->status);
+
+        if ($status === null || $status->isExecutable()) {
+            return null;
+        }
+
+        return [
+            'error' => $status === PlanStatusEnum::INTAKE
+                ? sprintf(
+                    'Plan %d is still in intake — its brief is not agreed yet, so it cannot be assigned or '
+                    . 'started. Finish the intake questions first.',
+                    $plan->getId(),
+                )
+                : sprintf(
+                    'Plan %d is awaiting human approval and cannot be assigned or started until someone '
+                    . 'approves it.',
+                    $plan->getId(),
+                ),
         ];
     }
 }

@@ -16,10 +16,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
@@ -31,6 +34,7 @@ use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Traits\HasNotesChannelTrait;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
@@ -67,12 +71,15 @@ use Override;
  */
 class People extends BaseModel
 {
+    use HasAdminLink;
     use CanUseWorkflow;
     use CascadeSoftDeletes;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
+    use EventResourceTrait;
     use HasLightHouseCache;
+    use HasNotesChannelTrait;
     use HasTagsTrait;
     use LikableTrait;
     use Notifiable;
@@ -106,6 +113,12 @@ class People extends BaseModel
         return 'People';
     }
 
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::PEOPLE;
+    }
+
     public function address(): HasMany
     {
         return $this->hasMany(
@@ -130,7 +143,8 @@ class People extends BaseModel
             Lead::class,
             'people_id',
             'id'
-        )->orderBy('created_at', 'desc');
+        )->notDeleted()
+            ->orderBy('created_at', 'desc');
     }
 
     public function orders(): HasMany

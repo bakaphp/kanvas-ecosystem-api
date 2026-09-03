@@ -17,6 +17,32 @@ docker exec -it phpkanvas-ecosystem bash -c "cd /var/www/html && php vendor/bin/
 
 **Always run the relevant test suite after completing work on a module or connector** to verify nothing is broken, unless explicitly told otherwise.
 
+## Keeping the Verify Loop Fast (measured, don't re-litigate)
+
+**Never run `php artisan lighthouse:validate-schema` as part of a routine verification run.** It costs
+**79 seconds** (measured twice, warm) — more than the tests it's bolted onto — and **CI never runs it**:
+`lighthouse:*` appears only in the deploy workflows, never in `.github/workflows/tests.yml`. A broken
+schema already fails the tests. Run it only when the diff actually touches `.graphql`:
+
+```bash
+git diff --name-only | grep -q '\.graphql$' && docker exec phpkanvas-ecosystem bash -c "cd /var/www/html && php artisan lighthouse:validate-schema"
+```
+
+**Keep `bootstrap/cache/config.php` in place.** `TestCase::createApplication()` re-bootstraps the kernel
+for *every test*, so with config uncached each test re-reads ~100 config files over the macOS bind mount.
+Same 146 tests: **1m34s uncached vs 35.7s cached** — 2.6x. If a run suddenly feels twice as slow, run
+`php artisan config:cache` before suspecting your change. Don't leave a `config:clear` behind.
+
+**Scope the run like CI does — one suite.** CI is a 25-runner matrix, one `--testsuite` each at
+`--processes=4`; no runner ever runs 830 tests. Running several suites at once locally serializes the
+whole matrix onto one box and is what gets the process OOM-killed (exit 137). Prefer
+`--testsuite=<Name>` over directory paths so the slice matches CI exactly.
+
+**Already measured, don't retry:** `opcache.enable_cli` + `file_cache` = 3%. Lighthouse **schema cache =
+a wash** — 14% on a GraphQL-only file, and *slower* on mixed sets (every process loads a 26MB
+`lighthouse-schema.php`); leave `LIGHTHOUSE_SCHEMA_CACHE_ENABLE=false`. `paratest --processes=4` = 20%
+only, because each worker repeats the full domain setup in `createApplication()`.
+
 ## Available Suites
 
 Unit, Ecosystem, GraphQL, Inventory, Social, Guild, Connectors, Workflow, Intelligence, Baka, Souk, Event, ActionEngine
@@ -35,6 +61,7 @@ Unit, Ecosystem, GraphQL, Inventory, Social, Guild, Connectors, Workflow, Intell
   ```
   Check which connection the Action actually writes on (`DB::connection('inventory')->transaction(...)` inside `CreateProductAction`, for example) — not the domain you *think* you're testing. Real case: `tests/Insurance/SyncInsuranceProductsActionTest.php`.
 - **The one exception: don't list `inventory` on a test that creates products through `CreateProductAction`.** That action wraps its work in `DB::connection('inventory')->transaction($cb, 3)` so it can retry the deadlock concurrent product inserts hit — `Products::where(slug, apps_id, companies_id)->lockForUpdate()` gap-locks the non-unique `(apps_id, companies_id, slug)` index, and two paratest workers inserting different slugs under the same tenant deadlock on the insert-intention lock. Laravel only retries a transaction it opened itself (`handleTransactionException` rethrows when `transactions > 1`), so listing `inventory` in `connectionsToTransact()` demotes that one to a savepoint, kills the retry, and the deadlock escapes as a 500 — which the caller then sees as `Undefined array key "data"`. Accept the leaked product rows, or run the suite single-process. Real case: the `Event` suite, pinned to `processes: 1` in `.github/workflows/tests.yml` for exactly this.
+- **`CreateChannelAction` had the same trap and it is fixed at the source, not worked around.** It no longer `lockForUpdate()`s `channels` — a locking read of a row that does not exist yet only takes a gap lock, which excludes nothing (gap locks are mutually compatible) while deadlocking the insert that follows. Creation is serialized on a `Cache::lock` instead, so any connection may be listed in `connectionsToTransact`. The symptom it caused: `PlanObserver` swallows a failed channel create, so a plan came out with no Activities channel and `AgentWakeReplySuppressionTest` failed on `A plan with no Activities channel cannot be posted on at all` — only under `--processes=3`. Don't reintroduce a row lock to dedupe a row that has no unique index; `channels` still has none.
 - **Never index straight into `->json()['data'][$mutation]`.** A failed mutation answers with an `errors`-only body and an unhandled exception answers with no GraphQL envelope at all, so that turns any real failure into an opaque `Undefined array key "data"` with no trace of the cause. Use `InventoryCases::graphQLData($response, $mutation)`, which asserts and prints the HTTP status plus the body.
 - Base `TestCase` loads `.env` (not `.env.testing`), no `RefreshDatabase` by default.
 - Base `TestCase` provides `$this->graphQL()` via Lighthouse's `MakesGraphQLRequests` trait.

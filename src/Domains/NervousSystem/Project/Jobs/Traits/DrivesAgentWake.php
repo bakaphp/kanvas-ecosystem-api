@@ -8,8 +8,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\AgentChannelActivity;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -64,6 +66,31 @@ trait DrivesAgentWake
         }
 
         return [$response, (int) ((microtime(true) - $startedAt) * 1000)];
+    }
+
+    /**
+     * The newest message on a channel, as the baseline for {@see self::agentPostedDuringRun()}.
+     */
+    protected function latestMessageId(?Channel $channel): ?int
+    {
+        return AgentChannelActivity::latestMessageId($channel);
+    }
+
+    /**
+     * Whether the agent put its own words on this channel DURING the turn — via a board tool such as
+     * comment_on_nervous_system_plan — which makes the turn's final reply a restatement of something
+     * already on the record. Two posts, four seconds apart, saying the same thing.
+     */
+    protected function agentPostedDuringRun(
+        ?Channel $channel,
+        ?int $sinceMessageId,
+        ?Users $author
+    ): bool {
+        return AgentChannelActivity::agentPostedSince(
+            $channel,
+            $sinceMessageId,
+            $author
+        );
     }
 
     /**

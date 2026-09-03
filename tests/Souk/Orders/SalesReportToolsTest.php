@@ -7,6 +7,7 @@ namespace Tests\Souk\Orders;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\SalesByCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\SalesByProductTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\SalesRevenueTool;
@@ -108,7 +109,9 @@ class SalesReportToolsTest extends TestCase
         $this->assertSame(0.0, (float) $result['total_revenue']);
         $this->assertSame('1999-01-01', $result['since']);
         $this->assertSame('1999-01-02', $result['until']);
-        $this->assertStringContainsString('same since/until returns the same zero', $result['message']);
+        $this->assertSame(ToolOutcomeEnum::NOOP->value, $result['outcome']);
+        $this->assertStringContainsString('first_booked_order_date', $result['note']);
+        $this->assertStringContainsString('do NOT retry', $result['note']);
         $this->assertSame(
             now()->format('Y-m-d'),
             $result['last_booked_order_date'],
@@ -122,7 +125,8 @@ class SalesReportToolsTest extends TestCase
 
         $result = new SalesRevenueTool()->withContext($app, $company, $user)->__invoke();
 
-        $this->assertArrayNotHasKey('message', $result);
+        $this->assertArrayNotHasKey('note', $result);
+        $this->assertArrayNotHasKey('outcome', $result);
         $this->assertSame('all-time', $result['since']);
         $this->assertSame('open-ended', $result['until']);
     }

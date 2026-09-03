@@ -74,6 +74,7 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `src/Domains/Guild/Leads/CLAUDE.md` — receiver → lead → email flow: why the email template comes from the **rotation config** (not the job/receiver), the `user-`/`lead-` template-name prefixing, the `notification_mode`/`notification_user_mode` knobs, and how company onboarding differs from the `kanvas:sa-setup-receivers` default.
 - `src/Domains/Inventory/CLAUDE.md` — product search engine (dynamic per-tenant Algolia/Typesense/Meilisearch resolution + precedence), index naming, `shouldBeSearchable` gating, the tenant-aware reindex command, and Typesense Natural Language Search config for the recommendation agent.
 - `app/Console/Commands/Inventory/CLAUDE.md` — what each inventory command does and the order the discovery ones must run in (enrich → index → search → score).
+- `src/Kanvas/Approvals/CLAUDE.md` — generic cross-domain approval gating (policies, resolvers, the sync-handler vs workflow lanes, the transitional entity-fired event, and the `ecosystem` connection test trap).
 - `src/Domains/Insurance/CLAUDE.md` — provider-agnostic insurance layer (quote → policy). Why it is a top-level domain rather than Souk/Inventory/a connector, why only 2 direct queries exist and everything else is a workflow activity, and the hybrid generic-vs-connector custom-field split.
 - `src/Kanvas/Filesystem/CLAUDE.md` — `FilesystemMapper` as a generic, file-agnostic field-mapping mechanism (`ApplyFilesystemMapperAction`), the real `mapping`/`attributes` syntax (easy to get wrong), and the `configuration.links` multi-entity "recipe" shape.
 - `src/Domains/Connectors/Salesforce/CLAUDE.md` — standard vs. custom Salesforce objects, wiring a custom object's real-time import through a receiver's `configuration.mapper_id`, and the SOQL-injection guard required wherever a mapper's `link` config reaches a query string.
@@ -192,6 +193,52 @@ So any `addMultipleFilesFromUrl()` / `addFileFromUrl()` call automatically inval
 - [ ] Smoke test: upload a file via `updateX(files: [...])`, query `x.files` in the same or next request, confirm the new file appears without a manual cache flush
 
 ## Key Conventions
+
+### Never Ship a Duplicate Method — Encapsulate It or Flag It
+
+**A second copy of the same logic is not acceptable, ever.** This codebase is large and still
+growing; every copy that ships is a place a future fix will be applied to one site and missed at the
+others. That is not hypothetical — the copies always drift, and the drift is always found late.
+
+Before writing a helper, **search for it first**. If the logic already exists anywhere:
+
+- **It belongs in a shared home** — `Baka\Support\Str`, an existing trait, a base class, a Service,
+  an enum method. Put it there and repoint every call site, don't add a second private copy beside it.
+- **The framework or Baka may already have it.** Reimplementing something Laravel/Baka provides is
+  the most common form of this in our code.
+- **If you genuinely cannot unify it** — the shapes differ enough that merging would be contrived, or
+  it is deliberately per-domain — **say so out loud** in the PR/report, with where the copies live.
+  A flagged duplicate is a decision; a silent one is a bug waiting.
+
+The escape hatch is narrow and it is about *intent*, not convenience: keep a separate implementation
+only when it **should** be specific and overridable — a per-domain lookup, an entity-specific rule,
+a deliberate override point. "Cheaper to copy right now" is never the reason.
+
+```php
+// WRONG — a third private copy of trim-to-null, drifting quietly across the platform
+private function clean(?string $value): ?string
+{
+    $value = trim((string) $value);
+
+    return $value === '' ? null : $value;
+}
+
+// WRONG — the popular inline idiom, which is also subtly broken: "0" is falsy, so it becomes null
+$title = trim((string) $title) ?: null;
+
+// CORRECT — one implementation, one place, one behaviour
+use Baka\Support\Str;
+
+$title = Str::trimToNull($title);
+```
+
+Real case: `trim → null if empty` existed as **7 private copies plus 13 inline `?: null`** sites
+across connectors, agent tools and DTOs. The inline form silently dropped the string `"0"`. It is now
+`Str::trimToNull()`, one implementation with one test.
+
+The same applies to duplicated *resolvers*, *observers* and *model relations* — if two classes need
+the same three methods, that is a trait (`HasNotesChannelTrait`) or a Concern
+(`App\GraphQL\Concerns\RecordsEntityNotes`), not copy-paste.
 
 ### Don't Pass a Model AND Its Own Relationships
 
@@ -855,6 +902,30 @@ try {
 A plain non-fail early `return ['message' => ..., 'entity' => null]` (status stays CONNECTED) is fine for a benign no-op that isn't even worth flagging (e.g. "message is from the agent side, skipping"). Use `failWorkflow` when you want it visibly marked FAILED; use a plain return for a silent skip. Either way — **not** an uncaught throw.
 
 `SilentWorkflowException` (records FAILED, skips `report()`) still exists for the case where the skip signal must originate *deep* in a call stack you don't want to unwind by hand — but prefer the local `try/catch → failWorkflow` in the activity when the throw site is one call away.
+
+### Broadcast Channel Names Built From User Data Must Be Sanitized
+
+Pusher rejects a channel name containing anything outside `[A-Za-z0-9_\-=@,.;]`, or longer than 164
+chars, with `PusherException: Invalid channel name` — thrown at broadcast time, inside the queue
+worker or mid-request. A name built purely from ids is always safe; one that interpolates a **slug,
+email, or any other user-controlled string** is not. `Str::sanitizeEmail()` only rewrites `@` and `.`,
+so a plus-addressed sender (`ap+caf_=x@example.com`) reaches the broadcaster with its `+` intact.
+
+```php
+use Baka\Support\Str;
+
+// WRONG — an email-derived channel slug throws at broadcast time
+new Channel('app-' . $channel->apps_id . '-new-message-channel-' . $channel->slug);
+
+// CORRECT
+new Channel(Str::sanitizeChannelName('app-' . $channel->apps_id . '-new-message-channel-' . $channel->slug));
+```
+
+Sanitize where the name is **assembled**, not at the broadcast — when a helper hands the same name to
+clients (`AgentChatBroadcastChannel::nameFor()` feeds both `broadcastOn()` and the `broadcast_channel`
+the `userChat` mutation returns), sanitizing anywhere else desyncs publisher from subscriber. Never fix
+this in the slug generator itself: channel slugs are dedup keys for Sessions and Social channels, so
+changing them forks every existing conversation.
 
 ### Code Style
 - **No section separator comments** — do not add `// --- SectionName ---`, `# --- SectionName ---`, or similar decorative dividers in code, tests, or schema files. Test methods and code sections are self-documenting by their names. If a file grows too large, split it into separate files instead.

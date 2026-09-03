@@ -114,6 +114,18 @@ input ProductAttributeFilterInput {
     attribute_id: ID
     slug: String
     value: Mixed
+    operator: ProductAttributeFilterOperator = EQ
+}
+
+"""
+Comparison applied to `ProductAttributeFilterInput.value`. IN/NOT_IN expect
+`value` to be a list; EQ/NOT_EQ expect a single scalar.
+"""
+enum ProductAttributeFilterOperator {
+    EQ
+    NOT_EQ
+    IN
+    NOT_IN
 }
 
 input ProductInputUpdate {

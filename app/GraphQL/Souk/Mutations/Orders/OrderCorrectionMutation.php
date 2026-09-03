@@ -9,6 +9,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\Corrections\AddObservationsAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\AdjustOrderItemsAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\AssociatePaymentToOrderAction;
+use Kanvas\Connectors\Movipass\Actions\Corrections\CorrectVehicleDataAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\CorrectVehiclePlateAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\MarkOrderAsDuplicateAction;
 use Kanvas\Connectors\Movipass\Actions\Corrections\RelocateVehicleAction;
@@ -44,6 +45,13 @@ class OrderCorrectionMutation
                 $order,
                 $user,
                 (string) ($data['new_plate'] ?? throw new ValidationException('data.new_plate is required for correct-plate')),
+                $reason,
+                $evidenceUrls,
+            )->execute(),
+            'correct-vehicle-data' => new CorrectVehicleDataAction(
+                $order,
+                $user,
+                $data,
                 $reason,
                 $evidenceUrls,
             )->execute(),

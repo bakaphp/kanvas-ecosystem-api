@@ -12,6 +12,7 @@ use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\Services\DriverLicenseCombinedPdfService;
 use Kanvas\Connectors\SalesAssist\Services\DriverLicenseVerificationService;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
@@ -291,6 +292,13 @@ class VerifyPeopleIdAction
             $frontFile->set('id_verification_msg', $verificationResults['message']);
             $frontFile->set('id_verification_status', $verificationResults['status'] ?? 'unknown');
         }
+
+        new DriverLicenseCombinedPdfService($engagement->message)->attach(
+            $isIdValid,
+            $isExpired,
+            (string) ($verificationResults['message'] ?? ''),
+            (string) ($verificationResults['status'] ?? 'unknown'),
+        );
     }
 
     protected function createFileFromBase64(

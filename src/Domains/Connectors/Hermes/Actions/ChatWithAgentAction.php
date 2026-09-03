@@ -83,7 +83,7 @@ class ChatWithAgentAction
 
         $client = $this->openSshClient($deployment->machine);
 
-        // phpseclib3's exec channel caps a single command around ~200 KB, so a 1+ MB payload
+        // phpseclib4's exec channel caps a single command around ~200 KB, so a 1+ MB payload
         // (the base64-inlined image case) gets truncated mid-write. Stage via SFTP, `docker cp`
         // into the container, and have curl read it from disk with --data-binary.
         $hostTmp = '/tmp/hermes-chat-' . bin2hex(random_bytes(8)) . '.json';

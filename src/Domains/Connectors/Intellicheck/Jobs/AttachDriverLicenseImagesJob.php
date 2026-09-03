@@ -11,6 +11,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\SalesAssist\Services\DriverLicenseCombinedPdfService;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Social\Messages\Models\Message;
@@ -78,6 +79,13 @@ class AttachDriverLicenseImagesJob implements ShouldQueue
         $backDone = empty($images['back']) || $this->message->getFileByName('drivers_license_back') !== null;
 
         if ($frontDone && $backDone) {
+            new DriverLicenseCombinedPdfService($this->message)->attach(
+                $isIdValid,
+                $isExpired,
+                $this->verificationMessage,
+                $this->status,
+            );
+
             $this->people->del('driver_license_images');
             $this->people->del('get_docs_drivers_license');
             $this->people->del('intellicheckResponse');
