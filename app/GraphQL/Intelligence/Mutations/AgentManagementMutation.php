@@ -89,6 +89,23 @@ class AgentManagementMutation
         return $agent;
     }
 
+    /**
+     * Re-run the inbound-webhook wiring for an agent's Twilio number — the admin
+     * "retry" button. Returns the ConfigureAgentInboundWebhookAction outcome
+     * ({status, message, url}); the action also persists it to
+     * voice_config.inbound_webhook so the Voice tab reflects the fresh result.
+     *
+     * @return array{status: string, message: string, url: string|null}
+     */
+    public function configureInboundWebhook(mixed $root, array $req): array
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $agent = Agent::getByIdFromCompanyApp((int) $req['id'], $company, $app);
+
+        return new ConfigureAgentInboundWebhookAction($agent, $app)->execute();
+    }
+
     public function update(mixed $root, array $req): Agent
     {
         $input = $req['input'] ?? [];
