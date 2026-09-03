@@ -183,10 +183,11 @@ jobs:
         include:
           - testsuite: Inventory
             processes: 1
-          # The Intelligence shards inherited processes: 1 from when Intelligence was a single
-          # suite, before the split — not from an observed failure. Trying 3.
+          # Intelligence-NervousSystem tests share the `nervous_system_plans` table across concurrent
+          # workers, which causes InnoDB lock-wait timeouts (error 1205) and cascade failures in
+          # EnsureOrchestratorAgentCommandTest and PlanAgentWakeUpTest at processes: 3. Keep it at 1.
           - testsuite: Intelligence-NervousSystem
-            processes: 3
+            processes: 1
           - testsuite: Intelligence-Agents
             processes: 3
           - testsuite: Intelligence-AgentTools
