@@ -27,7 +27,7 @@ class ListCompanyPhoneNumbersAction
      */
     public function execute(int $limit = 200): array
     {
-        $twilio = TwilioClient::getInstanceByCompany($this->company);
+        $twilio = TwilioClient::getInstanceByCompanyOrApp($this->company, $this->company->app);
 
         return array_map(
             static fn ($number): array => [
