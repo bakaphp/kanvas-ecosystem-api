@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Intelligence;
 
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsPayableAgent;
@@ -23,6 +26,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
+use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
@@ -511,6 +515,52 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $this->assertTrue($result['created']);
         $this->assertArrayHasKey('attachment_warning', $result);
+    }
+
+    public function test_create_ap_bill_slack_dm_itself_warns_about_a_missing_attachment(): void
+    {
+        $vendor = $this->seedTestOrganization('Windwalk Games Corp');
+        new AddApproverToOrganizationAction($vendor, static::$cachedUser)->execute();
+
+        $originalNotifierAgentId = $this->kanvasApp->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value);
+
+        try {
+            $notifierAgent = Agent::factory()
+                ->withAppId($this->kanvasApp->getId())
+                ->withCompanyId($this->company->getId())
+                ->create(['name' => 'Apex', 'user_id' => static::$cachedUser->getId()]);
+            $notifierAgent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test-token');
+            $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, (string) $notifierAgent->getId());
+
+            Http::fake([
+                'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
+                'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
+                'slack.com/api/chat.postMessage' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
+            ]);
+
+            $accountCode = (string) Account::query()
+                ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+                ->value('account_number');
+
+            new CreateApBillTool()
+                ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+                ->__invoke(
+                    vendor_name: 'Windwalk Games Corp',
+                    amount: 500.0,
+                    gl_account_number: $accountCode,
+                    memo: 'Slack warning test',
+                    invoice_number: 'SLACKWARN-1',
+                    push_to_acumatica: false,
+                    source_email_message_id: 'MSG_SLACKWARN_1',
+                );
+
+            Http::assertSent(
+                fn (Request $request): bool => str_contains($request->url(), 'chat.postMessage')
+                    && str_contains((string) $request['text'], 'No invoice PDF was attached')
+            );
+        } finally {
+            $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
+        }
     }
 
     public function test_create_ap_bill_does_not_flag_a_missing_attachment_without_a_source_email(): void

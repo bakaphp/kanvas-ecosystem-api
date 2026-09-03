@@ -328,8 +328,12 @@ class CreateApBillTool extends Tool implements HasRunKey
                 text: "You have an AP bill pending approval:\nVendor: {$vendorDisplayName}\nAmount: {$currency} "
                     . "{$totalAmount}\n" . ($isMultiLine ? $this->lineSummaryText($lineInputs) : "GL: {$gl_account_number}"
                         . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : ''))
-                    . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
-                    . "{$bill->getId()}\" to approve it and push it to Acumatica.",
+                    . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}"
+                    . ($hasSourceEmail && ! $hasAttachment
+                        ? "\n\n⚠️ No invoice PDF was attached to this request — check Kanvas bill "
+                            . "{$bill->getId()} directly before approving."
+                        : '')
+                    . "\n\nReply \"approve bill {$bill->getId()}\" to approve it and push it to Acumatica.",
                 attachmentUrl: $source_attachment_url,
                 attachmentFilename: $source_attachment_filename,
             );
