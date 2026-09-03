@@ -21,6 +21,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyApPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ResendBillAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\CheckApprovalStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
@@ -79,6 +80,7 @@ class AccountsPayableAgent extends SystemUserAgent
             new ApplyApPaymentTool(),
             new AddBillNoteTool(),
             new AttachBillFileTool(),
+            new ResendBillAttachmentTool(),
             new ReadGoogleSheetTool(),
             new AppendGoogleSheetRowsTool(),
             new UpdateGoogleSheetCellTool(),
@@ -138,6 +140,10 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'explicitly asks to record a real payment. Needs the bill_id, amount, and a payment reference.',
             '- "Add a note to bill Y" → add_bill_note; "attach this file to bill Y" → attach_bill_file. Both '
             . 'require the bill to already be pushed to Acumatica.',
+            '- "I didn\'t get the attachment" / "resend the invoice for bill Y" (an approver reporting a '
+            . 'missing PDF on a pending approval) → resend_bill_attachment with that bill_id. Works even before '
+            . 'the bill is pushed to Acumatica, unlike attach_bill_file. If it reports no_attachment_on_file, '
+            . 'say so plainly — there is genuinely nothing captured to resend, not a bug you can retry around.',
             '- "Read/check this Google Sheet" → read_google_sheet, given the URL the user shared. "Add these '
             . 'rows to the sheet" → write_google_sheet. "Mark that row as X in the sheet" → '
             . 'update_google_sheet_cell, only after confirming the exact cell with read_google_sheet first — '
