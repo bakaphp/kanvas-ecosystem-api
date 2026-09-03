@@ -1892,7 +1892,7 @@ final class IdVerificationTest extends TestCase
     {
         $verificationData = $this->idVerificationData();
 
-        $isShowRoom = $params['is_showroom'] ?? false;
+        $isShowRoom = ! isset($verificationData['ipqs']);
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -1917,7 +1917,7 @@ final class IdVerificationTest extends TestCase
     {
         $verificationData = $this->idVerificationFlag();
 
-        $isShowRoom = $params['is_showroom'] ?? false;
+        $isShowRoom = ! isset($verificationData['ipqs']);
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -1941,7 +1941,7 @@ final class IdVerificationTest extends TestCase
     {
         $verificationData = $this->idVerificationFlagTestA();
 
-        $isShowRoom = $params['is_showroom'] ?? false;
+        $isShowRoom = ! isset($verificationData['ipqs']);
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -1965,7 +1965,7 @@ final class IdVerificationTest extends TestCase
     {
         $verificationData = $this->idVerificationFlagTestB();
 
-        $isShowRoom = $params['is_showroom'] ?? false;
+        $isShowRoom = ! isset($verificationData['ipqs']);
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -1989,7 +1989,7 @@ final class IdVerificationTest extends TestCase
     {
         $verificationData = $this->idVerificationFlagC();
 
-        $isShowRoom = $params['is_showroom'] ?? false;
+        $isShowRoom = ! isset($verificationData['ipqs']);
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -2013,7 +2013,7 @@ final class IdVerificationTest extends TestCase
     {
         $verificationData = $this->idVerificationFlagTestD();
 
-        $isShowRoom = $params['is_showroom'] ?? false;
+        $isShowRoom = ! isset($verificationData['ipqs']);
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -2037,7 +2037,7 @@ final class IdVerificationTest extends TestCase
     {
         $verificationData = $this->idVerificationData();
 
-        $isShowRoom = $params['is_showroom'] ?? false;
+        $isShowRoom = ! isset($verificationData['ipqs']);
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -2144,5 +2144,187 @@ final class IdVerificationTest extends TestCase
 
         $this->assertNotSame('green', $result['status']);
         $this->assertSame('flag', $result['status']);
+    }
+
+    /**
+     * Showroom payload (no ipqs block) where every Computer Vision field compares
+     * cleanly. Overrides let each case flip individual match flags or blank out one
+     * side of a comparison.
+     */
+    private function computerVisionPayload(array $matchOverrides = [], array $idCheckOverrides = [], array $ocrOverrides = []): array
+    {
+        return [
+            'idcheck' => [
+                'success' => true,
+                'result' => true,
+                'data' => array_merge([
+                    'processResult' => 'DocumentProcessOK',
+                    'expired' => 'no',
+                    'firstName' => 'John',
+                    'lastName' => 'Testington',
+                    'dLIDNumberRaw' => '000000000',
+                    'dateOfBirth' => '1981-11-02',
+                    'gender' => 'Male',
+                    'address1' => '1144 Belle Pond Ave',
+                    'expirationDate' => '11/11/2032',
+                    'issuingJurisdictionCvt' => 'Tennessee',
+                    'issueDate' => '11/11/2024',
+                    'isRealID' => 'Yes',
+                    'heightCentimeters' => '178',
+                    'driverClass' => 'DM',
+                ], $idCheckOverrides),
+            ],
+            'ocr_match' => [
+                'success' => true,
+                'result' => true,
+                'data' => array_merge([
+                    'isNameMatch' => true,
+                    'isDocumentNumberMatch' => true,
+                    'isDobMatch' => true,
+                    'isSexMatch' => true,
+                    'isAddressMatch' => true,
+                    'isExpirationDateMatch' => true,
+                    'isIssuerNameMatch' => true,
+                    'isIssueDateMatch' => true,
+                    'isRealIdMatch' => true,
+                    'isHeightMatch' => true,
+                    'isDlClassMatch' => true,
+                ], $matchOverrides),
+            ],
+            'OCR' => [
+                'success' => true,
+                'result' => true,
+                'data' => array_merge([
+                    'fullName' => 'John Testington',
+                    'documentNumber' => '000000000',
+                    'dateOfBirthFormatted' => '11/02/1981',
+                    'sex' => 'M',
+                    'address' => '1144 Belle Pond Ave, Knoxville, TN 37932',
+                    'dateOfExpiryFormatted' => '11/11/2032',
+                    'dateOfExpiry' => '2032-11-11',
+                    'issuerName' => 'Tennessee',
+                    'dateOfIssueFormatted' => '11/11/2024',
+                    'isRealID' => 'yes',
+                    'height' => '178 cm',
+                    'dlClass' => 'DM',
+                ], $ocrOverrides),
+            ],
+        ];
+    }
+
+    private function statusFor(array $verificationData): string
+    {
+        return IdVerificationService::processVerificationData($verificationData, 'Test User', true)['status'];
+    }
+
+    public function testEveryComputerVisionFieldMatchingPasses(): void
+    {
+        $this->assertSame('green', $this->statusFor($this->computerVisionPayload()));
+    }
+
+    public function testUpToThreeMismatchesOnlyFlag(): void
+    {
+        $this->assertSame('flag', $this->statusFor($this->computerVisionPayload(['isHeightMatch' => false])));
+
+        $this->assertSame('flag', $this->statusFor($this->computerVisionPayload([
+            'isHeightMatch' => false,
+            'isDlClassMatch' => false,
+            'isIssueDateMatch' => false,
+        ])));
+    }
+
+    public function testFourMismatchesFail(): void
+    {
+        $status = $this->statusFor($this->computerVisionPayload([
+            'isHeightMatch' => false,
+            'isDlClassMatch' => false,
+            'isIssueDateMatch' => false,
+            'isIssuerNameMatch' => false,
+        ]));
+
+        $this->assertSame('fail', $status);
+    }
+
+    /**
+     * Incomplete fields are yellow on their own and never push a mismatch count over
+     * the failure threshold — 3 mismatches stay a flag no matter how many fields
+     * could not be compared.
+     */
+    public function testIncompleteFieldsDoNotCountTowardsTheFailureThreshold(): void
+    {
+        $status = $this->statusFor($this->computerVisionPayload([
+            'isHeightMatch' => false,
+            'isDlClassMatch' => false,
+            'isIssueDateMatch' => false,
+            'isNameMatch' => null,
+            'isDobMatch' => null,
+            'isSexMatch' => null,
+            'isAddressMatch' => null,
+            'isExpirationDateMatch' => null,
+        ]));
+
+        $this->assertSame('flag', $status);
+    }
+
+    public function testBlankComparisonSideFlagsEvenWhenTheFlagSaysMatch(): void
+    {
+        $status = $this->statusFor($this->computerVisionPayload(
+            idCheckOverrides: ['dLIDNumberRaw' => '   ']
+        ));
+
+        $this->assertSame('flag', $status);
+    }
+
+    /**
+     * Real IDs, height and driver class are not printed by every jurisdiction. Their
+     * absence must stay green, or a whole state's clean scans would go yellow forever.
+     */
+    public function testMissingOptionalFieldsStayGreen(): void
+    {
+        $payload = $this->computerVisionPayload([
+            'isRealIdMatch' => null,
+            'isHeightMatch' => null,
+            'isDlClassMatch' => null,
+        ], [
+            'isRealID' => null,
+            'heightCentimeters' => null,
+            'driverClass' => null,
+        ], [
+            'isRealID' => null,
+            'height' => null,
+            'dlClass' => null,
+        ]);
+
+        $this->assertSame('green', $this->statusFor($payload));
+    }
+
+    /**
+     * The score counts fields that actually compared and matched, over all 11 — an
+     * optional field nobody could compare must not inflate it.
+     */
+    public function testMatchScoreOnlyCreditsFieldsThatActuallyCompared(): void
+    {
+        $all = IdVerificationService::processVerificationData($this->computerVisionPayload(), 'Test User', true);
+        $this->assertSame(100.0, round($all['results']['ocr_required_matches'], 2));
+
+        $payload = $this->computerVisionPayload(
+            ['isHeightMatch' => null, 'isDlClassMatch' => false],
+            ['heightCentimeters' => null],
+            ['height' => null]
+        );
+
+        $partial = IdVerificationService::processVerificationData($payload, 'Test User', true);
+
+        $this->assertSame(81.82, round($partial['results']['ocr_required_matches'], 2));
+    }
+
+    public function testBooleanFalseOnBothSidesIsAComparisonNotABlank(): void
+    {
+        $payload = $this->computerVisionPayload(
+            idCheckOverrides: ['isRealID' => false],
+            ocrOverrides: ['isRealID' => false]
+        );
+
+        $this->assertSame('green', $this->statusFor($payload));
     }
 }
