@@ -13,7 +13,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 
 class TrackChecklistPdfGenerationAction
 {
-    public const CUSTOM_FIELD = 'checklist.generate.pdf';
+    public const string CUSTOM_FIELD = 'checklist.generate.pdf';
 
     /**
      * A null status means the generation is over and the entry goes away — success is the absence of
