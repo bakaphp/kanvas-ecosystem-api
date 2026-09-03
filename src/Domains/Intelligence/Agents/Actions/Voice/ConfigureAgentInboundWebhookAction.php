@@ -74,8 +74,9 @@ class ConfigureAgentInboundWebhookAction
         }
 
         try {
-            // Throws ValidationException when the company has no Twilio creds.
-            $twilio = TwilioClient::getInstanceByCompany($company);
+            // Company creds if the company has its own; else the app-level creds
+            // (shared account). Throws ValidationException when neither is set.
+            $twilio = TwilioClient::getInstanceByCompanyOrApp($company, $this->agent->app);
 
             // Twilio updates a number by SID, so resolve it first.
             $numbers = $twilio->incomingPhoneNumbers->read(['phoneNumber' => $number], 1);
