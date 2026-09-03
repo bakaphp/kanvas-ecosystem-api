@@ -183,16 +183,18 @@ jobs:
         include:
           - testsuite: Inventory
             processes: 1
+          # The Intelligence shards inherited processes: 1 from when Intelligence was a single
+          # suite, before the split — not from an observed failure. Trying 3.
           - testsuite: Intelligence-NervousSystem
-            processes: 1
+            processes: 3
           - testsuite: Intelligence-Agents
-            processes: 1
+            processes: 3
           - testsuite: Intelligence-AgentTools
-            processes: 1
+            processes: 3
           - testsuite: Intelligence-Tools
-            processes: 1
+            processes: 3
           - testsuite: Intelligence-Other
-            processes: 1
+            processes: 3
           - testsuite: Scribe
             processes: 1
           - testsuite: GraphQL-HumanResources
