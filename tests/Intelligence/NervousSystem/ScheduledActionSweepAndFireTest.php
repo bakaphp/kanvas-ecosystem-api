@@ -115,12 +115,21 @@ class ScheduledActionSweepAndFireTest extends TestCase
     {
         Queue::fake();
 
-        $this->makeDue($this->makeReminder());
-        $this->makeDue($this->makeReminder());
+        $due = [
+            $this->makeDue($this->makeReminder())->getId(),
+            $this->makeDue($this->makeReminder())->getId(),
+        ];
 
         $this->artisan('kanvas:nervous-system:sweep-scheduled-actions')->assertSuccessful();
 
-        Queue::assertPushed(RunScheduledAgentActionJob::class, 2);
+        // Asserted per row, not as a count: the sweep is global, so any other due row already on the
+        // database — a leftover from another test, real data on a shared box — would break a count.
+        foreach ($due as $id) {
+            Queue::assertPushed(
+                RunScheduledAgentActionJob::class,
+                fn (RunScheduledAgentActionJob $job): bool => $job->action->getId() === $id,
+            );
+        }
     }
 
     public function testOneOffReminderFiresAndCompletes(): void
