@@ -75,8 +75,18 @@ type ScribeBill {
     tax_lines: [ScribeBillTaxLine!]! @hasMany(relation: "taxLines")
     allocations: [ScribeBillPaymentAllocation!]!
         @hasMany(relation: "allocations")
+    receipts: [ScribeBillReceipt!]! @hasMany(relation: "receipts")
     created_at: DateTime!
     updated_at: DateTime!
+}
+
+type ScribeBillReceipt {
+    id: ID!
+    bill: ScribeBill! @belongsTo(relation: "bill")
+    filesystem: Filesystem! @belongsTo(relation: "filesystem")
+    uploaded_at: DateTime!
+    uploaded_by: User @belongsTo(relation: "uploadedBy")
+    metadata: Mixed
 }
 
 type ScribeBillLine {

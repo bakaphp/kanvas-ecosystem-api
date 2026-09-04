@@ -21,17 +21,39 @@ trait ReadsApprovalSourceFields
      */
     private function sourceFields(Model $record): array
     {
-        $fields = [];
+        $messageId = (string) $record->get(ApprovalCustomFieldEnum::SOURCE_EMAIL_MESSAGE_ID->value, '');
 
-        foreach ([
-            'source_email_message_id' => ApprovalCustomFieldEnum::SOURCE_EMAIL_MESSAGE_ID,
-            'source_attachment_url' => ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_URL,
-            'source_attachment_filename' => ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_FILENAME,
-        ] as $key => $field) {
-            $value = (string) $record->get($field->value, '');
-            $fields[$key] = $value !== '' ? $value : null;
+        return [
+            'source_email_message_id' => $messageId !== '' ? $messageId : null,
+            ...$this->attachmentFields($record),
+        ];
+    }
+
+    /**
+     * @return array{source_attachment_url: ?string, source_attachment_filename: ?string}
+     */
+    private function attachmentFields(Model $record): array
+    {
+        // Bill (and any future model with a `receipts()` relation) attaches its file via a real
+        // Filesystem receipt, never a custom field — check that first.
+        if (method_exists($record, 'receipts')) {
+            $file = $record->receipts()->latest('id')->first()?->filesystem;
+
+            if ($file !== null) {
+                return [
+                    'source_attachment_url' => (string) $file->url,
+                    'source_attachment_filename' => (string) $file->name,
+                ];
+            }
         }
 
-        return $fields;
+        // Legacy fallback: Invoice always, and Bills created before receipts existed.
+        $legacyUrl = (string) $record->get(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_URL->value, '');
+        $legacyFilename = (string) $record->get(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_FILENAME->value, '');
+
+        return [
+            'source_attachment_url' => $legacyUrl !== '' ? $legacyUrl : null,
+            'source_attachment_filename' => $legacyFilename !== '' ? $legacyFilename : null,
+        ];
     }
 }
