@@ -11,6 +11,7 @@ use Kanvas\Imports\AbstractImporterJob;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Events\ProductImportEvent;
+use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Execution\Utils\Subscription;
 use Override;
@@ -44,6 +45,14 @@ class ProductImporterJob extends AbstractImporterJob
         $this->startFilesystemMapperImport();
         $processProducts = [];
 
+        // Optional owner: stamps products/variants users_id; $this->user still gates auth + publishing.
+        $ownerUser = null;
+        $extra = $this->filesystemImport?->extra;
+        $ownerId = is_array($extra) ? ($extra['users_id'] ?? null) : null;
+        if (! empty($ownerId)) {
+            $ownerUser = UsersRepository::getUserOfCompanyById($company, (int) $ownerId);
+        }
+
         foreach ($this->iterateImporterRows() as $request) {
             try {
                 $product = new ProductImporterAction(
@@ -52,7 +61,8 @@ class ProductImporterJob extends AbstractImporterJob
                     $this->user,
                     $this->region,
                     $this->app,
-                    $this->runWorkflow
+                    $this->runWorkflow,
+                    $ownerUser
                 )->execute();
                 if ($product->wasRecentlyCreated) {
                     $created++;

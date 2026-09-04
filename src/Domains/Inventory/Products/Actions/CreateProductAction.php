@@ -56,7 +56,7 @@ class CreateProductAction
                 'warranty_terms' => $this->productDto->warranty_terms,
                 'upc' => $this->productDto->upc,
                 'status_id' => $this->productDto->status_id,
-                'users_id' => $this->user->getId(),
+                'users_id' => ($this->productDto->ownerUser ?? $this->user)->getId(),
                 'weight' => $this->productDto->weight ?? $existingProduct?->weight ?? 0,
             ];
 
@@ -97,7 +97,7 @@ class CreateProductAction
             }
 
             if ($this->productDto->variants) {
-                VariantService::createVariantsFromArray($products, $this->productDto->variants, $this->user);
+                VariantService::createVariantsFromArray($products, $this->productDto->variants, $this->user, $this->productDto->ownerUser);
             } else {
                 VariantService::createDefaultVariant($products, $this->user, $this->productDto);
             }

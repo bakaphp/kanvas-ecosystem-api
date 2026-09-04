@@ -66,7 +66,7 @@ class CreateVariantsAction
             $search,
             [
                 'name' => $this->variantDto->name,
-                'users_id' => $this->user->getId(),
+                'users_id' => ($this->variantDto->ownerUser ?? $this->user)->getId(),
                 'slug' => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
                 'description' => $this->variantDto->getDescription(),
                 'short_description' => $this->variantDto->short_description,

@@ -22,6 +22,7 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Services\SystemModulesServices;
+use Kanvas\Users\Repositories\UsersRepository;
 use League\Csv\Reader;
 
 class FilesystemMapperMutation
@@ -117,6 +118,12 @@ class FilesystemMapperMutation
             ? Regions::getByIdFromCompanyAppOrGlobal($input['regions_id'], $company, $app)
             : Regions::getDefault($company, $app);
 
+        $extra = is_array($input['extra'] ?? null) ? $input['extra'] : [];
+        if (! empty($input['users_id'])) {
+            $owner = UsersRepository::getUserOfCompanyById($company, (int) $input['users_id']);
+            $extra['users_id'] = $owner->getId();
+        }
+
         $dto = FilesystemImport::from([
             'app' => $app,
             'users' => $user,
@@ -125,7 +132,7 @@ class FilesystemMapperMutation
             'companiesBranches' => $user->getCurrentBranch(),
             'filesystem' => $filesystem,
             'filesystemMapper' => $mapper,
-            'extra' => $input['extra'] ?? null,
+            'extra' => $extra,
         ]);
 
         if ($app->get(AppSettingsEnums::FILESYSTEM_MAPPER_HEADER_VALIDATION->getValue())) {

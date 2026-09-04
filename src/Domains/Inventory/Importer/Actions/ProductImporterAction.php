@@ -45,7 +45,8 @@ class ProductImporterAction
         public UserInterface $user,
         public KanvasRegions|Regions $region,
         public ?AppInterface $app = null,
-        public bool $runWorkflow = true
+        public bool $runWorkflow = true,
+        public ?UserInterface $ownerUser = null
     ) {
         $this->app = $this->app ?? app(Apps::class);
     }
@@ -59,6 +60,7 @@ class ProductImporterAction
                 'app' => $this->app,
                 'company' => $this->company,
                 'user' => $this->user,
+                'ownerUser' => $this->ownerUser,
                 'name' => $this->importedProduct->name,
                 'slug' => $this->importedProduct->slug,
                 'description' => $this->importedProduct->description,

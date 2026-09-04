@@ -38,8 +38,12 @@ class VariantService
     /**
      * Create a new product variants.
      */
-    public static function createVariantsFromArray(Products $product, array $variants, UserInterface $user): array
-    {
+    public static function createVariantsFromArray(
+        Products $product,
+        array $variants,
+        UserInterface $user,
+        ?UserInterface $ownerUser = null
+    ): array {
         $variantsData = [];
 
         foreach ($variants as $variant) {
@@ -54,6 +58,7 @@ class VariantService
                 'product' => $product,
                 'products_id' => $product->getId(),
                 ...$variant,
+                'ownerUser' => $ownerUser,
             ]);
 
             $existVariantUpdate = Variants::fromCompany($product->company)->fromApp($product->app)->where('sku', $variantDto->sku);
@@ -166,6 +171,7 @@ class VariantService
             'product' => $product,
             'products_id' => $product->getId(),
             ...$variant,
+            'ownerUser' => $productDto?->ownerUser,
         ]);
         $variantModel = (new CreateVariantsAction($variantDto, $user))->execute();
 
