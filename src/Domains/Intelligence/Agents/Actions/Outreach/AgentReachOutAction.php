@@ -125,13 +125,14 @@ class AgentReachOutAction
         $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_IN_PROGRESS);
 
         $sentChannels = [];
+        $sentMessageIds = [];
         $scheduledChannels = [];
         $errors = [];
         $deferDelivery = $this->lead->isAiSupport();
 
         foreach ($channels as $pair) {
             try {
-                new AgentReachOutOnChannelAction(
+                $outbound = new AgentReachOutOnChannelAction(
                     lead: $this->lead,
                     agent: $agent,
                     channelType: $pair['channel_type'],
@@ -143,6 +144,9 @@ class AgentReachOutAction
                     $scheduledChannels[] = $pair['channel_type'];
                 } else {
                     $sentChannels[] = $pair['channel_type'];
+                    if (! $outbound->isLocked()) {
+                        $sentMessageIds[] = $outbound->getId();
+                    }
                 }
             } catch (Throwable $e) {
                 report($e);
@@ -180,6 +184,7 @@ class AgentReachOutAction
             'message' => 'Reach-out sent',
             'status' => AgentReachOutConfigEnum::STATUS_SENT,
             'channels_sent' => $sentChannels,
+            'message_ids_sent' => $sentMessageIds,
             'errors' => $errors,
         ];
     }
