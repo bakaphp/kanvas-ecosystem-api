@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use InvalidArgumentException;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\AppKey;
@@ -35,6 +36,7 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Traits\HasFollowUpState;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
@@ -835,11 +837,34 @@ class Lead extends BaseModel implements EventResourceInterface
         $this->set(ConfigurationEnum::CONTACTED->value, $status->value);
     }
 
+    public function resolveAiMode(?bool $isWithinWorkingHours = null): ?IntelligenceModeEnum
+    {
+        $storedMode = $this->get(EnumsConfigurationEnum::AI_MODE->value);
+        if ((bool) $this->get(ConfigurationEnum::AI_MODE_IS_MANUAL->value)) {
+            return IntelligenceModeEnum::tryFrom((string) $storedMode);
+        }
+
+        if ($isWithinWorkingHours === null) {
+            try {
+                $isWithinWorkingHours = $this->company->isWithinWorkingHours(now());
+            } catch (InvalidArgumentException) {
+                $isWithinWorkingHours = true;
+            }
+        }
+
+        $configurationService = new LeadConfigurationService();
+        $defaultKey = $configurationService->getAiModeDefaultKey($this, $isWithinWorkingHours);
+        $leadTypeConfig = $this->type()->first()?->config ?? [];
+        $resolvedMode = $leadTypeConfig[$defaultKey]
+            ?? $storedMode
+            ?? $this->company->get($configurationService->getAiModeKey($this));
+
+        return IntelligenceModeEnum::tryFrom((string) $resolvedMode);
+    }
+
     public function isAiMuted(): bool
     {
-        $aiMode = $this->get(EnumsConfigurationEnum::AI_MODE->value);
-
-        $mode = IntelligenceModeEnum::tryFrom((string) $aiMode);
+        $mode = $this->resolveAiMode();
 
         return $mode?->isOff() ?? false;
     }
@@ -850,9 +875,7 @@ class Lead extends BaseModel implements EventResourceInterface
      */
     public function isAiSupport(): bool
     {
-        return IntelligenceModeEnum::tryFrom(
-            (string) $this->get(EnumsConfigurationEnum::AI_MODE->value)
-        ) === IntelligenceModeEnum::SUPPORT;
+        return $this->resolveAiMode() === IntelligenceModeEnum::SUPPORT;
     }
 
     public function canRunAiAgent(): bool

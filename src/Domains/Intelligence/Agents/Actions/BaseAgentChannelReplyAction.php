@@ -17,7 +17,6 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
-use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
@@ -75,13 +74,11 @@ class BaseAgentChannelReplyAction
             }
         }
 
-        $configService = new LeadConfigurationService();
-        $aiModeKey = $lead instanceof Lead
-            ? $configService->getAiModeKey($lead)
-            : 'ai_mode';
+        $isAiMuted = $lead instanceof Lead
+            ? $lead->isAiMuted()
+            : IntelligenceModeEnum::tryFrom((string) $lead->get('ai_mode'))?->isOff() ?? false;
 
-        $mode = IntelligenceModeEnum::tryFrom((string) $lead->get($aiModeKey));
-        if ($this->respectsLeadAiMode && $mode?->isOff()) {
+        if ($this->respectsLeadAiMode && $isAiMuted) {
             throw new AgentReplySkippedException('Ai Agent Off for this lead');
         }
 
