@@ -16,12 +16,15 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 )]
 final class SalesAssistAgentReachOutActivity extends AgentReachOutActivity
 {
-    public function execute(Lead $lead, Apps $app, array $params): array
+    public $tries = 1;
+
+    protected function validateBeforeReachOut(Lead $lead, Apps $app, array $params): void
     {
-        $this->overwriteAppService($app);
-
         new EnsureFirstMessageEnabledAction($lead)->execute();
+    }
 
-        return parent::execute($lead, $app, $params);
+    protected function shouldThrowIntegrationException(): bool
+    {
+        return true;
     }
 }
