@@ -9,6 +9,7 @@ use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnu
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Scribe\Approvals\Enums\ApprovalAttachmentFieldEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -90,7 +91,9 @@ class AttachBillFileTool extends Tool
 
         $name = $file_name !== null && $file_name !== '' ? $file_name : basename(parse_url($file_url, PHP_URL_PATH) ?: 'file');
 
-        $bill->addFileFromUrl($file_url, $name);
+        // Same stable field_name create_ap_bill attaches under, so this updates that one row (the
+        // source invoice PDF) instead of creating a second, differently-keyed Filesystem attachment.
+        $bill->addFileFromUrl($file_url, ApprovalAttachmentFieldEnum::INVOICE_PDF->value);
 
         try {
             new AttachFileToAcumaticaBillAction($bill, $file_url, $name)->execute();
