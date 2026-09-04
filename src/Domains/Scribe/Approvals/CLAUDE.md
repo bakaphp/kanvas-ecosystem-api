@@ -41,17 +41,20 @@ and `ResolveApproverEmailAction`; the tool and the queue itself never change.
 
 1. Read the invoice email, extract the real data from the PDF.
 2. `create_ap_bill` / `create_ar_invoice` with `push_to_acumatica: false` — creates the bill/invoice
-   in Kanvas only, and stashes `source_email_message_id` + `source_attachment_url` as custom fields
-   via `StoresApprovalSourceFields`. For bills, `SubmitBillForApprovalAction` already drops the
-   `ApprovalQueueItem` row (`action_type: 'approve_bill'`); for invoices, `CreateArInvoiceTool` calls
-   `RequestApprovalAction` explicitly (`action_type: 'approve_invoice'`) since a draft invoice has no
-   built-in approval-queue side effect of its own.
+   in Kanvas only, via `StoresApprovalSourceFields`: `source_email_message_id` as a custom field, and
+   the invoice PDF (`source_attachment_filesystem_id`) attached to the entity via Kanvas Filesystem —
+   never as a custom field, since it's a third-party file, not a string. For bills,
+   `SubmitBillForApprovalAction` already drops the `ApprovalQueueItem` row (`action_type:
+   'approve_bill'`); for invoices, `CreateArInvoiceTool` calls `RequestApprovalAction` explicitly
+   (`action_type: 'approve_invoice'`) since a draft invoice has no built-in approval-queue side
+   effect of its own.
 3. The tool resolves the vendor's/customer's approver emails (`ResolveApproverEmailAction::resolveForOrganization()`)
    and calls `NotifyApproverAction` once per approver, which DMs that person on Slack — looked up by
    email, not a fixed Slack user id — with the record's details and its Kanvas id, uploading the
-   invoice PDF (`source_attachment_url`) as a real Slack attachment when one was captured, so the
-   approver can open the actual document before deciding. If the vendor/customer has no approver
-   configured, the tool still creates the record but tells the caller nobody can approve it yet and
+   invoice PDF (read back via `ReadsApprovalSourceFields`) as a real Slack attachment when one was
+   captured, so the approver can open the actual document before deciding. If the vendor/customer
+   has no approver configured, the tool still creates the record but tells the caller nobody can
+   approve it yet and
    no DM was sent.
 4. Logged to the tracking sheet as "Pending".
 

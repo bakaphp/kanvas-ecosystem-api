@@ -27,7 +27,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ResendBillAttachmentTool;
+use Kanvas\Scribe\Approvals\Enums\ApprovalAttachmentFieldEnum;
 use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
+use Kanvas\Scribe\Approvals\Enums\ApprovalCustomFieldEnum;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
@@ -540,6 +542,39 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertArrayNotHasKey('attachment_warning', $result);
     }
 
+    public function test_create_ap_bill_attaches_the_invoice_pdf_via_filesystem_not_a_custom_field(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $pdf = $this->createFilesystemRow(
+            url: 'https://cdn.example.test/invoice-filesystem-check.pdf',
+            name: 'invoice-filesystem-check.pdf',
+        );
+
+        $created = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Filesystem attachment test',
+                invoice_number: 'FSATTACH-1',
+                push_to_acumatica: false,
+                source_attachment_filesystem_id: $pdf->getId(),
+            );
+
+        $bill = Bill::query()->where('id', $created['bill_id'])->first();
+
+        $this->assertSame('', (string) $bill->get(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_URL->value, ''));
+        $fileEntity = $bill->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value);
+        $this->assertNotNull($fileEntity);
+        $this->assertSame($pdf->getId(), $fileEntity->filesystem->getId());
+        $this->assertSame('https://cdn.example.test/invoice-filesystem-check.pdf', $fileEntity->filesystem->url);
+    }
+
     public function test_resend_bill_attachment_resends_the_stored_pdf(): void
     {
         $vendor = $this->seedTestOrganization('Windwalk Games Corp');
@@ -571,6 +606,11 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 'slack.com/api/chat.postMessage' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
             ]);
 
+            $pdf = $this->createFilesystemRow(
+                url: 'https://cdn.example.test/invoice-resend.pdf',
+                name: 'invoice-resend.pdf',
+            );
+
             $created = new CreateApBillTool()
                 ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
                 ->__invoke(
@@ -581,8 +621,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                     invoice_number: 'RESEND-1',
                     push_to_acumatica: false,
                     source_email_message_id: 'MSG_RESEND_1',
-                    source_attachment_url: 'https://cdn.example.test/invoice-resend.pdf',
-                    source_attachment_filename: 'invoice-resend.pdf',
+                    source_attachment_filesystem_id: $pdf->getId(),
                 );
 
             $result = new ResendBillAttachmentTool()
@@ -696,6 +735,11 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
             ->value('account_number');
 
+        $pdf = $this->createFilesystemRow(
+            url: 'https://cdn.example.test/invoice-apr-2.pdf',
+            name: 'invoice-apr-2.pdf',
+        );
+
         $created = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(
@@ -706,8 +750,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 invoice_number: 'APR-2',
                 push_to_acumatica: false,
                 source_email_message_id: 'MSG_APR_2',
-                source_attachment_url: 'https://cdn.example.test/invoice-apr-2.pdf',
-                source_attachment_filename: 'invoice-apr-2.pdf',
+                source_attachment_filesystem_id: $pdf->getId(),
             );
 
         $result = new ApprovePendingItemTool()
