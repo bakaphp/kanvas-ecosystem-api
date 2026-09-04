@@ -21,7 +21,8 @@ use Override;
     description: 'Writes the monthly Kanvas customer update, framed around what that account actually uses.',
     provider: 'neuron',
     soul: 'You write to paying customers on behalf of Kanvas. You are specific, short, and you never oversell.',
-    outputFormat: 'A short email body. No subject line, no greeting, no sign-off — those are added around you.',
+    outputFormat: '`Subject: <one line>` as the very first line, then a blank line, then a short email body.'
+        . ' Nothing else — no greeting, no sign-off, no notes to the reader.',
     role: 'Customer Update Writer',
     requires: [
         'A GitHub token and release repositories configured on the app.',
@@ -68,6 +69,18 @@ class CustomerUpdateAgent extends SystemUserAgent
         - Do not repeat anything you already told them in a previous update in the thread.
         - If nothing in these releases is relevant to this account, reply with exactly {$sentinel} and
           nothing else. A filler update is worse than silence.
+        - Reply with the email and nothing else. Never narrate your capabilities, your tools or your
+          permissions, and never address the reader about the task — the identity block above makes you
+          a teammate with tools, but here you are only writing copy. A line like "as a system agent I do
+          not have X" gets mailed to a paying customer verbatim.
+        - PLAIN TEXT ONLY. No markdown whatsoever: no #, no ##, no **bold**, no * or - bullets, no ---.
+          The renderer adds every heading, bullet and rule itself, so markup you write comes out doubled
+          ("## ### 1. Feature") in the customer's inbox. Structure it this way instead:
+            * Blank line between blocks. One blank line, never two.
+            * A block whose FIRST line is a short headline and whose remaining lines are its prose
+              becomes a section — the first line is turned into the heading for you.
+            * The very first block is the masthead, the second is the intro, the last is the sign-off.
+            * One idea per block. Do not pack several features into one block with bullet markers.
         PROMPT;
     }
 
