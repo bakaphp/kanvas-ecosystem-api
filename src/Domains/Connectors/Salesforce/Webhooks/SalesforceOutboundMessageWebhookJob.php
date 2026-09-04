@@ -8,6 +8,12 @@ use Kanvas\Connectors\Salesforce\Actions\PullDealAction;
 use Kanvas\Connectors\Salesforce\Actions\PullLeadAction;
 use Kanvas\Connectors\Salesforce\Actions\PullOrganizationAction;
 use Kanvas\Connectors\Salesforce\Actions\PullPeopleAction;
+use Kanvas\Connectors\Salesforce\Client;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Actions\ApplyFilesystemMapperAction;
+use Kanvas\Filesystem\Models\FilesystemMapper;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
@@ -116,7 +122,7 @@ class SalesforceOutboundMessageWebhookJob extends ProcessWebhookJob
             'Contact' => new PullPeopleAction($app, $company, $fields, $salesforceId)->execute(),
             'Account' => new PullOrganizationAction($app, $company, $fields, $salesforceId)->execute(),
             'Opportunity' => new PullDealAction($app, $company, $fields, $salesforceId)->execute(),
-            default => null,
+            default => $this->applyMapper($fields, $salesforceId),
         };
 
         return [
@@ -124,5 +130,57 @@ class SalesforceOutboundMessageWebhookJob extends ProcessWebhookJob
             'entity_id' => $entity?->getId(),
             'processed' => $entity !== null,
         ];
+    }
+
+    /**
+     * Handles any Salesforce object that isn't one of the four standard ones above — custom
+     * objects are tenant-specific, so there's no name to match on here. The receiver instead
+     * carries `configuration['mapper_id']`, pointing at a `FilesystemMapper` that already knows
+     * how to turn this object's fields into a Kanvas entity (and, via `configuration.links` on
+     * that mapper, how to find and create any related entity too).
+     */
+    private function applyMapper(array $fields, string $salesforceId): Products|People|null
+    {
+        $mapperId = (int) ($this->receiver->configuration['mapper_id'] ?? 0);
+        if ($mapperId === 0) {
+            return null;
+        }
+
+        $app = $this->receiver->app;
+        $company = $this->receiver->company;
+        $mapper = FilesystemMapper::getByIdFromCompanyApp($mapperId, $company, $app);
+
+        return new ApplyFilesystemMapperAction(
+            $app,
+            $company,
+            $company->user,
+            $mapper,
+            $salesforceId,
+            $fields,
+            [],
+            function (string $sourceObject, string $matchField, string $primaryId) use ($app, $company): ?array {
+                $sourceObject = $this->assertValidSoqlIdentifier($sourceObject);
+                $matchField = $this->assertValidSoqlIdentifier($matchField);
+                $escapedId = $this->escapeSoqlLiteral($primaryId);
+
+                $soql = "SELECT FIELDS(ALL) FROM {$sourceObject} WHERE {$matchField} = '{$escapedId}' LIMIT 1";
+
+                return Client::getInstance($app, $company)->query($soql)['records'][0] ?? null;
+            },
+        )->execute();
+    }
+
+    private function assertValidSoqlIdentifier(string $identifier): string
+    {
+        if (! preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $identifier)) {
+            throw new ValidationException("Invalid Salesforce object/field name: {$identifier}");
+        }
+
+        return $identifier;
+    }
+
+    private function escapeSoqlLiteral(string $value): string
+    {
+        return str_replace(['\\', "'"], ['\\\\', "\\'"], $value);
     }
 }

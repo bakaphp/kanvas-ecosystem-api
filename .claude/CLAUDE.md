@@ -76,6 +76,8 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `app/Console/Commands/Inventory/CLAUDE.md` — what each inventory command does and the order the discovery ones must run in (enrich → index → search → score).
 - `src/Kanvas/Approvals/CLAUDE.md` — generic cross-domain approval gating (policies, resolvers, the sync-handler vs workflow lanes, the transitional entity-fired event, and the `ecosystem` connection test trap).
 - `src/Domains/Insurance/CLAUDE.md` — provider-agnostic insurance layer (quote → policy). Why it is a top-level domain rather than Souk/Inventory/a connector, why only 2 direct queries exist and everything else is a workflow activity, and the hybrid generic-vs-connector custom-field split.
+- `src/Kanvas/Filesystem/CLAUDE.md` — `FilesystemMapper` as a generic, file-agnostic field-mapping mechanism (`ApplyFilesystemMapperAction`), the real `mapping`/`attributes` syntax (easy to get wrong), and the `configuration.links` multi-entity "recipe" shape.
+- `src/Domains/Connectors/Salesforce/CLAUDE.md` — standard vs. custom Salesforce objects, wiring a custom object's real-time import through a receiver's `configuration.mapper_id`, and the SOQL-injection guard required wherever a mapper's `link` config reaches a query string.
 
 ### Where to put new conventions (don't bloat this file)
 
