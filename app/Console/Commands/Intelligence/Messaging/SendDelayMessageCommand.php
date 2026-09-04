@@ -84,6 +84,14 @@ class SendDelayMessageCommand extends Command
 
     protected function processMessage(Companies $company, Message $message, int $delayMinutes): void
     {
+        // The sweep selects on is_locked alone, so a draft held for human sign-off is indistinguishable
+        // from a delayed first touch — and every skip branch below releases the lock.
+        if ($message->pendingApproval() !== null) {
+            $this->info('Message ID ' . $message->getId() . ' is awaiting human approval. Leaving it held.');
+
+            return;
+        }
+
         $lead = $message->entity();
 
         if (! $lead instanceof Lead) {

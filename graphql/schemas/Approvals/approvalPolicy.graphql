@@ -17,6 +17,8 @@ type ApprovalPolicy {
     fallback_config: Mixed
     notify: String!
     expires_after_hours: Int
+    "May a company owner or admin decide this without having been resolved onto it? Off for anything that is a real control."
+    allow_authority_override: Boolean!
     created_at: DateTime!
     updated_at: DateTime
 }
@@ -34,6 +36,7 @@ input ApprovalPolicyInput {
     fallback_config: Mixed
     notify: String
     expires_after_hours: Int
+    allow_authority_override: Boolean
 }
 
 extend type Query @guardByAdmin {

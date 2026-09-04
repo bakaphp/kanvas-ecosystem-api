@@ -149,6 +149,10 @@ class ApprovalRequest extends BaseModel
             // What the sync handler actually did downstream — an ERP reference, or the error that
             // stopped it. "Approved" and "landed in the ERP" are different facts.
             'result' => $this->metadata['handler_result'] ?? null,
+            // Present only when someone decided on authority (owner/admin) rather than by having been
+            // asked. The approver rows alone cannot tell those apart afterwards, and the difference is
+            // the whole reason a self-assignment is allowed at all.
+            'self_assigned_approvers' => $this->metadata['self_assigned_approvers'] ?? null,
             'approvers' => $this->approvers()
                 ->get(['users_id', 'email', 'step', 'decision'])
                 ->map(fn (ApprovalRequestApprover $row): array => [
@@ -175,7 +179,57 @@ class ApprovalRequest extends BaseModel
      * nothing else — not a Bouncer ability (someone with `edit` on an Invoice must not thereby be able
      * to approve one) and not a row sitting at a step that has not become live yet.
      */
-    public function requireApproverRow(UserInterface $user): ApprovalRequestApprover
+    /**
+     * Every action that changes a decision opens with this, so a closed request cannot be decided
+     * twice and they all say the same thing when it is.
+     */
+    public function assertPending(): void
+    {
+        if ($this->status !== ApprovalStatusEnum::PENDING) {
+            throw new ValidationException(
+                "This approval is already {$this->status->value}, not pending."
+            );
+        }
+    }
+
+    /**
+     * Give someone a live turn at the current step — a delegate handed the baton, or an owner/admin
+     * taking a request nobody asked them to decide.
+     *
+     * A decided row is never reactivated. Flipping a REJECTED or APPROVED row back to PENDING would
+     * let the same person answer twice and would rewrite a decision the audit had already recorded.
+     */
+    public function grantTurnAtCurrentStep(UserInterface $user): void
+    {
+        /** @var ApprovalRequestApprover|null $existing */
+        $existing = $this->approvers()
+            ->where('users_id', $user->getId())
+            ->where('step', $this->current_step)
+            ->first();
+
+        if ($existing !== null) {
+            if (! $existing->decision->isDecided()) {
+                $existing->decision = ApprovalDecisionEnum::PENDING;
+                $existing->saveOrFail();
+            }
+
+            return;
+        }
+
+        $this->approvers()->create([
+            'users_id' => $user->getId(),
+            'email' => $user->email,
+            'step' => $this->current_step,
+            'decision' => ApprovalDecisionEnum::PENDING,
+        ]);
+    }
+
+    /**
+     * The one definition of "this person may decide, right now" — asked, at the live step, still
+     * undecided. Every caller reads it through here so the predicate cannot drift between the check
+     * that refuses and the check that asks whether refusing is necessary.
+     */
+    public function liveApproverRow(UserInterface $user): ?ApprovalRequestApprover
     {
         /** @var ApprovalRequestApprover|null $row */
         $row = $this->approvers()
@@ -184,6 +238,13 @@ class ApprovalRequest extends BaseModel
             ->where('decision', ApprovalDecisionEnum::PENDING)
             ->first();
 
+        return $row;
+    }
+
+    public function requireApproverRow(UserInterface $user): ApprovalRequestApprover
+    {
+        $row = $this->liveApproverRow($user);
+
         if ($row === null) {
             throw new ValidationException(
                 'You are not an approver for this request at its current step.'
@@ -191,6 +252,18 @@ class ApprovalRequest extends BaseModel
         }
 
         return $row;
+    }
+
+    /**
+     * What the approver themselves supplied when they decided, as opposed to what the requester
+     * stored in `payload`. ApproveAction writes it before the handler runs, so a handler reads the
+     * human's input from the record rather than from a parameter that leaves no trace.
+     *
+     * @return array<string, mixed>
+     */
+    public function decisionContext(): array
+    {
+        return (array) ($this->metadata['decision_context'] ?? []);
     }
 
     public function requiredApprovalsAtCurrentStep(): int

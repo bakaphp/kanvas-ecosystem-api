@@ -8,9 +8,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\DataTransferObject\ApprovalResult;
 use Kanvas\Approvals\Enums\ApprovalDecisionEnum;
-use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
-use Kanvas\Approvals\Models\ApprovalRequestApprover;
 use Kanvas\Exceptions\ValidationException;
 
 /**
@@ -31,11 +29,7 @@ class DelegateApprovalAction
 
     public function execute(): ApprovalResult
     {
-        if ($this->request->status !== ApprovalStatusEnum::PENDING) {
-            throw new ValidationException(
-                "This approval is already {$this->request->status->value}, not pending."
-            );
-        }
+        $this->request->assertPending();
 
         if ($this->from->getId() === $this->to->getId()) {
             throw new ValidationException('An approver cannot delegate to themselves.');
@@ -49,37 +43,8 @@ class DelegateApprovalAction
         $row->comment = $this->comment;
         $row->saveOrFail();
 
-        $this->grantTurnToDelegate();
+        $this->request->grantTurnAtCurrentStep($this->to);
 
         return ApprovalResult::delegated($this->request->refresh());
-    }
-
-    /**
-     * (request, user, step) is unique, so a delegate who is already listed on this step gets their
-     * existing row activated rather than a second one inserted.
-     */
-    private function grantTurnToDelegate(): void
-    {
-        /** @var ApprovalRequestApprover|null $existing */
-        $existing = $this->request->approvers()
-            ->where('users_id', $this->to->getId())
-            ->where('step', $this->request->current_step)
-            ->first();
-
-        if ($existing !== null) {
-            if (! $existing->decision->isDecided()) {
-                $existing->decision = ApprovalDecisionEnum::PENDING;
-                $existing->saveOrFail();
-            }
-
-            return;
-        }
-
-        $this->request->approvers()->create([
-            'users_id' => $this->to->getId(),
-            'email' => $this->to->email,
-            'step' => $this->request->current_step,
-            'decision' => ApprovalDecisionEnum::PENDING,
-        ]);
     }
 }

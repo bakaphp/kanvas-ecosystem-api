@@ -16,9 +16,11 @@ use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Actions\RequestMessageApprovalAction;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Support\MessageApproval;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -135,12 +137,16 @@ class AgentReachOutOnChannelAction
             $aiAgentUser,
         );
 
-        // Company in APPROVAL
+        // Company in APPROVAL mode → hold the first touch and open an approval on it.
         if (
             $this->channelType === ChannelCategoryEnum::EMAIL->value
             && $company->requiresAgentHumanApproval()
         ) {
-            $outbound->setLock();
+            new RequestMessageApprovalAction(
+                message: $outbound,
+                kind: MessageApproval::KIND_EMAIL_DRAFT,
+                private: false,
+            )->execute();
         }
 
         $outbound->fireWorkflow(

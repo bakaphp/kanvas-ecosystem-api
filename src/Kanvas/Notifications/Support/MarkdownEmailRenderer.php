@@ -17,7 +17,15 @@ use League\CommonMark\GithubFlavoredMarkdownConverter;
  */
 final class MarkdownEmailRenderer
 {
-    public static function toEmailHtml(string $markdown): string
+    /**
+     * @param bool $allowHtml false for content that leaves the building — an LLM-written, human-editable
+     *                        customer email. It escapes raw HTML instead of passing it through, and skips
+     *                        the idempotency guard, which is itself a passthrough: content that merely
+     *                        LOOKS like HTML is returned unconverted, so a raw <a href> or an
+     *                        <img onerror> reaches the recipient verbatim. Internal agent replies keep
+     *                        the permissive default.
+     */
+    public static function toEmailHtml(string $markdown, bool $allowHtml = true): string
     {
         $trimmed = trim($markdown);
 
@@ -27,12 +35,12 @@ final class MarkdownEmailRenderer
 
         // Idempotency guard: if the content already looks like HTML (an agent that
         // emitted HTML, or a value that was already converted), don't double-process.
-        if (self::looksLikeHtml($trimmed)) {
+        if ($allowHtml && self::looksLikeHtml($trimmed)) {
             return $markdown;
         }
 
         $converter = new GithubFlavoredMarkdownConverter([
-            'html_input' => 'allow',
+            'html_input' => $allowHtml ? 'allow' : 'escape',
             'allow_unsafe_links' => false,
             'renderer' => [
                 'soft_break' => "<br>\n",
