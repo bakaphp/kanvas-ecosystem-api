@@ -384,16 +384,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.394.5",
+            "version": "3.394.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "12c80170a12c9e9e5d9057bff4d197979631624f"
+                "reference": "c5e7a247fa6aeac7355d5be88f38873480789c71"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/12c80170a12c9e9e5d9057bff4d197979631624f",
-                "reference": "12c80170a12c9e9e5d9057bff4d197979631624f",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c5e7a247fa6aeac7355d5be88f38873480789c71",
+                "reference": "c5e7a247fa6aeac7355d5be88f38873480789c71",
                 "shasum": ""
             },
             "require": {
@@ -475,9 +475,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.394.5"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.394.9"
             },
-            "time": "2026-08-31T22:10:11+00:00"
+            "time": "2026-09-04T18:07:00+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -2434,16 +2434,16 @@
         },
         {
             "name": "google/cloud-discoveryengine",
-            "version": "v1.14.0",
+            "version": "v1.14.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-discoveryengine.git",
-                "reference": "bbb89d4dfd73eab3609e6226f26062d06fabd05e"
+                "reference": "68100eb859ab0f6fd4d538f30864a825e3b945f9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/bbb89d4dfd73eab3609e6226f26062d06fabd05e",
-                "reference": "bbb89d4dfd73eab3609e6226f26062d06fabd05e",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/68100eb859ab0f6fd4d538f30864a825e3b945f9",
+                "reference": "68100eb859ab0f6fd4d538f30864a825e3b945f9",
                 "shasum": ""
             },
             "require": {
@@ -2477,22 +2477,22 @@
             ],
             "description": "Google Cloud Discovery Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.14.0"
+                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.14.1"
             },
-            "time": "2026-08-24T22:04:34+00:00"
+            "time": "2026-09-01T17:33:42+00:00"
         },
         {
             "name": "google/cloud-recommendations-ai",
-            "version": "v0.10.0",
+            "version": "v0.10.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-recommendations-ai.git",
-                "reference": "ef64b03578f5788e8a534ba2d0e65b9b17b10e92"
+                "reference": "12a9e07e9d7dca3d25301bbd04af70a34c7dc70a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-recommendations-ai/zipball/ef64b03578f5788e8a534ba2d0e65b9b17b10e92",
-                "reference": "ef64b03578f5788e8a534ba2d0e65b9b17b10e92",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-recommendations-ai/zipball/12a9e07e9d7dca3d25301bbd04af70a34c7dc70a",
+                "reference": "12a9e07e9d7dca3d25301bbd04af70a34c7dc70a",
                 "shasum": ""
             },
             "require": {
@@ -2527,9 +2527,9 @@
             ],
             "description": "Google Cloud Recommendation Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-recommendations-ai/tree/v0.10.0"
+                "source": "https://github.com/googleapis/google-cloud-php-recommendations-ai/tree/v0.10.1"
             },
-            "time": "2026-08-10T16:39:50+00:00"
+            "time": "2026-09-01T17:33:42+00:00"
         },
         {
             "name": "google/cloud-storage",
@@ -2591,16 +2591,16 @@
         },
         {
             "name": "google/common-protos",
-            "version": "4.14.1",
+            "version": "4.14.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/common-protos-php.git",
-                "reference": "4eb6813b8068653e055fc8a63dbda3446f3e8869"
+                "reference": "a0ceb5e7b9f966e9e53592bb358b1e5dc3377ad3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/common-protos-php/zipball/4eb6813b8068653e055fc8a63dbda3446f3e8869",
-                "reference": "4eb6813b8068653e055fc8a63dbda3446f3e8869",
+                "url": "https://api.github.com/repos/googleapis/common-protos-php/zipball/a0ceb5e7b9f966e9e53592bb358b1e5dc3377ad3",
+                "reference": "a0ceb5e7b9f966e9e53592bb358b1e5dc3377ad3",
                 "shasum": ""
             },
             "require": {
@@ -2644,9 +2644,9 @@
                 "google"
             ],
             "support": {
-                "source": "https://github.com/googleapis/common-protos-php/tree/v4.14.1"
+                "source": "https://github.com/googleapis/common-protos-php/tree/v4.14.2"
             },
-            "time": "2026-06-17T23:07:32+00:00"
+            "time": "2026-09-01T17:33:42+00:00"
         },
         {
             "name": "google/gax",
@@ -2759,16 +2759,16 @@
         },
         {
             "name": "google/longrunning",
-            "version": "0.8.2",
+            "version": "0.8.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/php-longrunning.git",
-                "reference": "88aaae8e30a03a3d06efb1a88eeb1dad719d1bc9"
+                "reference": "51cffc3eb1e3059698cda4d8796bd432e266fc95"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/php-longrunning/zipball/88aaae8e30a03a3d06efb1a88eeb1dad719d1bc9",
-                "reference": "88aaae8e30a03a3d06efb1a88eeb1dad719d1bc9",
+                "url": "https://api.github.com/repos/googleapis/php-longrunning/zipball/51cffc3eb1e3059698cda4d8796bd432e266fc95",
+                "reference": "51cffc3eb1e3059698cda4d8796bd432e266fc95",
                 "shasum": ""
             },
             "require-dev": {
@@ -2797,9 +2797,9 @@
             ],
             "description": "Google LongRunning Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/php-longrunning/tree/v0.8.2"
+                "source": "https://github.com/googleapis/php-longrunning/tree/v0.8.3"
             },
-            "time": "2026-08-24T22:04:34+00:00"
+            "time": "2026-09-01T17:33:42+00:00"
         },
         {
             "name": "google/protobuf",
@@ -4262,16 +4262,16 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.11.0",
+            "version": "v0.11.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "dd08142f0c4dc4d5544521ce3fc4a1b9c2fe748c"
+                "reference": "ee2c5162838d440c4e2e629ea93c8c87e838eaed"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/dd08142f0c4dc4d5544521ce3fc4a1b9c2fe748c",
-                "reference": "dd08142f0c4dc4d5544521ce3fc4a1b9c2fe748c",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/ee2c5162838d440c4e2e629ea93c8c87e838eaed",
+                "reference": "ee2c5162838d440c4e2e629ea93c8c87e838eaed",
                 "shasum": ""
             },
             "require": {
@@ -4334,20 +4334,20 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-08-19T03:03:13+00:00"
+            "time": "2026-09-03T09:04:44+00:00"
         },
         {
             "name": "laravel/cashier",
-            "version": "v16.7.0",
+            "version": "v16.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/cashier-stripe.git",
-                "reference": "781ff517a544004f4ae0501f634c1ada40b78572"
+                "reference": "3741d81d0e2b7ca8de52c2f9a272d30edfa741b9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/cashier-stripe/zipball/781ff517a544004f4ae0501f634c1ada40b78572",
-                "reference": "781ff517a544004f4ae0501f634c1ada40b78572",
+                "url": "https://api.github.com/repos/laravel/cashier-stripe/zipball/3741d81d0e2b7ca8de52c2f9a272d30edfa741b9",
+                "reference": "3741d81d0e2b7ca8de52c2f9a272d30edfa741b9",
                 "shasum": ""
             },
             "require": {
@@ -4365,7 +4365,7 @@
                 "moneyphp/money": "^4.0",
                 "nesbot/carbon": "^2.0|^3.0",
                 "php": "^8.1",
-                "stripe/stripe-php": "^17.4|^18.0|^19.0|^20.0",
+                "stripe/stripe-php": "^17.4|^18.0|^19.0|^20.0|^21.0",
                 "symfony/console": "^6.0|^7.0|^8.0",
                 "symfony/http-kernel": "^6.0|^7.0|^8.0",
                 "symfony/polyfill-intl-icu": "^1.22.1",
@@ -4423,7 +4423,7 @@
                 "issues": "https://github.com/laravel/cashier/issues",
                 "source": "https://github.com/laravel/cashier"
             },
-            "time": "2026-08-05T23:53:36+00:00"
+            "time": "2026-09-01T13:29:00+00:00"
         },
         {
             "name": "laravel/framework",
@@ -6683,16 +6683,16 @@
         },
         {
             "name": "mike-bronner/laravel-model-caching",
-            "version": "13.1.7",
+            "version": "13.1.9",
             "source": {
                 "type": "git",
                 "url": "https://github.com/mike-bronner/laravel-model-caching.git",
-                "reference": "a294cf7b66dbbac35dd6bc46f52628a86c0cb560"
+                "reference": "11398ba4adba33a17e7b7c8b9baa50aaf8628e12"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/a294cf7b66dbbac35dd6bc46f52628a86c0cb560",
-                "reference": "a294cf7b66dbbac35dd6bc46f52628a86c0cb560",
+                "url": "https://api.github.com/repos/mike-bronner/laravel-model-caching/zipball/11398ba4adba33a17e7b7c8b9baa50aaf8628e12",
+                "reference": "11398ba4adba33a17e7b7c8b9baa50aaf8628e12",
                 "shasum": ""
             },
             "require": {
@@ -6703,7 +6703,7 @@
                 "illuminate/database": "^11.0|^12.0|^13.0",
                 "illuminate/http": "^11.0|^12.0|^13.0",
                 "illuminate/support": "^11.0|^12.0|^13.0",
-                "mikebronner/laravel-pivot-events": "*",
+                "mikebronner/laravel-pivot-events": "^13.1",
                 "php": ">=8.2"
             },
             "replace": {
@@ -6755,9 +6755,9 @@
             "description": "Automatic caching for Eloquent models.",
             "support": {
                 "issues": "https://github.com/mike-bronner/laravel-model-caching/issues",
-                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.7"
+                "source": "https://github.com/mike-bronner/laravel-model-caching/tree/13.1.9"
             },
-            "time": "2026-08-01T15:56:33+00:00"
+            "time": "2026-09-04T17:22:42+00:00"
         },
         {
             "name": "mikebronner/laravel-pivot-events",
@@ -7518,16 +7518,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.16.7",
+            "version": "3.16.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "7f4c8f0bbfad58451a7a0adc4532ced637e3706c"
+                "reference": "a7dfcec9556064e2fcd77cddadd40a66919b75f1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/7f4c8f0bbfad58451a7a0adc4532ced637e3706c",
-                "reference": "7f4c8f0bbfad58451a7a0adc4532ced637e3706c",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/a7dfcec9556064e2fcd77cddadd40a66919b75f1",
+                "reference": "a7dfcec9556064e2fcd77cddadd40a66919b75f1",
                 "shasum": ""
             },
             "require": {
@@ -7578,7 +7578,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.16.7"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.16.10"
             },
             "funding": [
                 {
@@ -7586,7 +7586,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-30T15:44:23+00:00"
+            "time": "2026-09-04T12:48:42+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
@@ -7802,16 +7802,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.69.2",
+            "version": "v6.70.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "43e036e1123e92ab1d060df2627f1eb1ffe186c9"
+                "reference": "d4d0c8eeebbf0eb92f8a776e6556159a48f0a7e9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/43e036e1123e92ab1d060df2627f1eb1ffe186c9",
-                "reference": "43e036e1123e92ab1d060df2627f1eb1ffe186c9",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/d4d0c8eeebbf0eb92f8a776e6556159a48f0a7e9",
+                "reference": "d4d0c8eeebbf0eb92f8a776e6556159a48f0a7e9",
                 "shasum": ""
             },
             "require": {
@@ -7929,7 +7929,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2026-07-29T12:57:29+00:00"
+            "time": "2026-09-02T12:48:27+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -9070,12 +9070,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPOffice/PHPPresentation.git",
-                "reference": "334b5cc70f211f85d83075a84eb3d718731c5d45"
+                "reference": "957bb90b83d2c0325f12604ec8ed0a84d53880dc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPOffice/PHPPresentation/zipball/334b5cc70f211f85d83075a84eb3d718731c5d45",
-                "reference": "334b5cc70f211f85d83075a84eb3d718731c5d45",
+                "url": "https://api.github.com/repos/PHPOffice/PHPPresentation/zipball/957bb90b83d2c0325f12604ec8ed0a84d53880dc",
+                "reference": "957bb90b83d2c0325f12604ec8ed0a84d53880dc",
                 "shasum": ""
             },
             "require": {
@@ -9133,7 +9133,7 @@
                 "issues": "https://github.com/PHPOffice/PHPPresentation/issues",
                 "source": "https://github.com/PHPOffice/PHPPresentation/tree/master"
             },
-            "time": "2026-08-31T19:39:25+00:00"
+            "time": "2026-09-03T05:03:55+00:00"
         },
         {
             "name": "phpoffice/phpspreadsheet",
@@ -18573,20 +18573,19 @@
         },
         {
             "name": "larastan/larastan",
-            "version": "v3.10.0",
+            "version": "v3.11.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/larastan/larastan.git",
-                "reference": "2970f83398154178a739609c244577267c7ee8eb"
+                "reference": "9baa74074f17cc70feaef31616a06ea0faeebba5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/larastan/larastan/zipball/2970f83398154178a739609c244577267c7ee8eb",
-                "reference": "2970f83398154178a739609c244577267c7ee8eb",
+                "url": "https://api.github.com/repos/larastan/larastan/zipball/9baa74074f17cc70feaef31616a06ea0faeebba5",
+                "reference": "9baa74074f17cc70feaef31616a06ea0faeebba5",
                 "shasum": ""
             },
             "require": {
-                "ext-json": "*",
                 "iamcal/sql-parser": "^0.7.0",
                 "illuminate/console": "^11.44.2 || ^12.4.1 || ^13",
                 "illuminate/container": "^11.44.2 || ^12.4.1 || ^13",
@@ -18596,7 +18595,7 @@
                 "illuminate/pipeline": "^11.44.2 || ^12.4.1 || ^13",
                 "illuminate/support": "^11.44.2 || ^12.4.1 || ^13",
                 "php": "^8.2",
-                "phpstan/phpstan": "^2.2.0"
+                "phpstan/phpstan": "^2.2.2"
             },
             "require-dev": {
                 "doctrine/coding-standard": "^14",
@@ -18606,7 +18605,7 @@
                 "orchestra/canvas": "^v9.2.2 || ^10.0.1 || ^11",
                 "orchestra/testbench-core": "^9.12.0 || ^10.1 || ^11",
                 "phpstan/phpstan-deprecation-rules": "^2.0.1",
-                "phpunit/phpunit": "^10.5.35 || ^11.5.15 || ^12.5.8 || ^13.1.8"
+                "phpunit/phpunit": "^10.5.35 || ^11.5.15 || ^12.5.8 || ^13.3.0"
             },
             "suggest": {
                 "orchestra/testbench": "Using Larastan for analysing a package needs Testbench",
@@ -18651,7 +18650,7 @@
             ],
             "support": {
                 "issues": "https://github.com/larastan/larastan/issues",
-                "source": "https://github.com/larastan/larastan/tree/v3.10.0"
+                "source": "https://github.com/larastan/larastan/tree/v3.11.0"
             },
             "funding": [
                 {
@@ -18659,7 +18658,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-05-28T08:00:58+00:00"
+            "time": "2026-09-01T16:35:48+00:00"
         },
         {
             "name": "laravel/agent-detector",
@@ -19419,11 +19418,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.2.12",
+            "version": "2.2.13",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/174b0d88710f00a42598886504dd7a146f91ace5",
-                "reference": "174b0d88710f00a42598886504dd7a146f91ace5",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/9ba9ac76ee9c5cf5b56d58eb5deec6315b7a0260",
+                "reference": "9ba9ac76ee9c5cf5b56d58eb5deec6315b7a0260",
                 "shasum": ""
             },
             "require": {
@@ -19479,7 +19478,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-31T19:09:43+00:00"
+            "time": "2026-09-03T20:38:19+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
