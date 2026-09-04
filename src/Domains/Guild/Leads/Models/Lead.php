@@ -844,6 +844,17 @@ class Lead extends BaseModel implements EventResourceInterface
         return $mode?->isOff() ?? false;
     }
 
+    /**
+     * Central extension point for apps that interpret AI support mode
+     * differently from the default `ai_mode = SUPPORT` convention.
+     */
+    public function isAiSupport(): bool
+    {
+        return IntelligenceModeEnum::tryFrom(
+            (string) $this->get(EnumsConfigurationEnum::AI_MODE->value)
+        ) === IntelligenceModeEnum::SUPPORT;
+    }
+
     public function canRunAiAgent(): bool
     {
         return ! $this->isAiMuted();

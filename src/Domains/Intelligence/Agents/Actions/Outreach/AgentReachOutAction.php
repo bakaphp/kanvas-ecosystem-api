@@ -45,6 +45,9 @@ class AgentReachOutAction
         if ($status === AgentReachOutConfigEnum::STATUS_SENT && ! $allowResend) {
             return ['message' => 'Already reached out', 'status' => $status];
         }
+        if ($status === AgentReachOutConfigEnum::STATUS_SCHEDULED && ! $allowResend) {
+            return ['message' => 'Reach-out already scheduled', 'status' => $status];
+        }
         if ($status === AgentReachOutConfigEnum::STATUS_IN_PROGRESS) {
             return ['message' => 'Reach-out already in flight (concurrent)', 'status' => $status];
         }
@@ -122,28 +125,55 @@ class AgentReachOutAction
         $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_IN_PROGRESS);
 
         $sentChannels = [];
+        $sentMessageIds = [];
+        $scheduledChannels = [];
         $errors = [];
+        $deferDelivery = $this->lead->isAiSupport();
 
         foreach ($channels as $pair) {
             try {
-                new AgentReachOutOnChannelAction(
+                $outbound = new AgentReachOutOnChannelAction(
                     lead: $this->lead,
                     agent: $agent,
                     channelType: $pair['channel_type'],
                     recipient: $pair['recipient'],
+                    deferDelivery: $deferDelivery,
+                    from: isset($this->params['from']) ? (string) $this->params['from'] : null,
                 )->execute();
-                $sentChannels[] = $pair['channel_type'];
+                if ($deferDelivery) {
+                    $scheduledChannels[] = $pair['channel_type'];
+                } else {
+                    $sentChannels[] = $pair['channel_type'];
+                    if (! $outbound->isLocked()) {
+                        $sentMessageIds[] = $outbound->getId();
+                    }
+                }
             } catch (Throwable $e) {
                 report($e);
                 $errors[$pair['channel_type']] = $e->getMessage();
             }
         }
 
-        if ($sentChannels === []) {
+        if ($sentChannels === [] && $scheduledChannels === []) {
             $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_FAILED);
             $this->lead->set(AgentReachOutConfigEnum::LAST_ERROR->value, json_encode($errors));
 
             return ['message' => 'All channels failed', 'errors' => $errors];
+        }
+
+        if ($scheduledChannels !== []) {
+            $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_SCHEDULED);
+            $this->lead->set(AgentReachOutConfigEnum::CHANNELS_SENT->value, []);
+
+            return [
+                'message' => 'Reach-out scheduled for support mode',
+                'status' => AgentReachOutConfigEnum::STATUS_SCHEDULED,
+                'channels_scheduled' => $scheduledChannels,
+                'delay_minutes' => (int) ($this->lead->company->get(
+                    CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value
+                ) ?? 60),
+                'errors' => $errors,
+            ];
         }
 
         $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_SENT);
@@ -154,6 +184,7 @@ class AgentReachOutAction
             'message' => 'Reach-out sent',
             'status' => AgentReachOutConfigEnum::STATUS_SENT,
             'channels_sent' => $sentChannels,
+            'message_ids_sent' => $sentMessageIds,
             'errors' => $errors,
         ];
     }

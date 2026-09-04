@@ -7,12 +7,13 @@ namespace Kanvas\Intelligence\Leads\Enums;
 /**
  * Per-Lead config keys + status values for the AgentReachOut* outbound-first flow.
  * Read/write keys via $lead->get($key->value) / $lead->set($key->value, ...).
- * STATUS lifecycle: null → pending → in_progress → sent | failed | skipped | muted.
+ * STATUS lifecycle: null → pending → in_progress → scheduled | sent | failed | skipped | muted.
  */
 enum AgentReachOutConfigEnum: string
 {
     public const string STATUS_PENDING = 'pending';
     public const string STATUS_IN_PROGRESS = 'in_progress';
+    public const string STATUS_SCHEDULED = 'scheduled';
     public const string STATUS_SENT = 'sent';
     public const string STATUS_FAILED = 'failed';
     public const string STATUS_SKIPPED = 'skipped';
