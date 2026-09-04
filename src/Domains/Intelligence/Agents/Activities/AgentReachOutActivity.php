@@ -37,7 +37,10 @@ class AgentReachOutActivity extends KanvasActivity
             integrationOperation: function () use ($lead, $app, $params): array {
                 $this->validateBeforeReachOut($lead, $app, $params);
 
-                return new AgentReachOutAction($lead, $params)->execute();
+                $result = new AgentReachOutAction($lead, $params)->execute();
+                $this->afterReachOut($lead, $app, $params, $result);
+
+                return $result;
             },
             company: $lead->company,
             throwException: $this->shouldThrowIntegrationException(),
@@ -45,6 +48,13 @@ class AgentReachOutActivity extends KanvasActivity
     }
 
     protected function validateBeforeReachOut(Lead $lead, Apps $app, array $params): void
+    {
+    }
+
+    /**
+     * @param array<string, mixed> $result
+     */
+    protected function afterReachOut(Lead $lead, Apps $app, array $params, array $result): void
     {
     }
 
