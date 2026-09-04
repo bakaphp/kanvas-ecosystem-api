@@ -45,11 +45,16 @@ class DraftCustomerUpdateAction
      * @param mixed $handlerOverride a pre-built chat handler, so a test can drive the action without a
      *                               live provider. `RunNeuronChatAction::$handler` is itself `mixed`,
      *                               so this matches what it will be handed. Null in production.
+     * @param bool $ignoreWatermark draft as though this account had never been written to. For
+     *                              re-running the same month while tuning copy — otherwise the second
+     *                              draft is told not to repeat the first and usually declines. Reads
+     *                              only; approving still advances the watermark as normal.
      */
     public function __construct(
         private readonly Organization $organization,
         private readonly Agent $agent,
         private readonly mixed $handlerOverride = null,
+        private readonly bool $ignoreWatermark = false,
     ) {
     }
 
@@ -108,6 +113,10 @@ class DraftCustomerUpdateAction
      */
     private function watermark(): ?Carbon
     {
+        if ($this->ignoreWatermark) {
+            return null;
+        }
+
         $stored = Str::trimToNull($this->organization->get(self::WATERMARK_FIELD));
 
         return $stored !== null ? Carbon::parse($stored) : null;
@@ -119,7 +128,10 @@ class DraftCustomerUpdateAction
             . ' ("' . $this->organization->name . '").'
             . ' You have been given every Kanvas release published since '
             . $windowOpensAt->toDateString() . ' — that is the month this update covers.'
-            . ' Title it for ' . $this->periodLabel($windowOpensAt) . '.';
+            // Phrased as the parser expects, not as prose. "Title it for August" reads the same to a
+            // human but let the model satisfy it inside the body, which then shipped two subject lines.
+            . ' Open with `Subject: ` on the very first line, naming '
+            . $this->periodLabel($windowOpensAt) . ', then a blank line, then the body.';
 
         $brief .= $lastWrittenTo !== null
             ? ' We last wrote to them on ' . $lastWrittenTo->toDateString()

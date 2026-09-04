@@ -36,6 +36,7 @@ class DraftCustomerUpdateCommand extends Command
                             {--html : print the rendered HTML email body instead of the plain text}
                             {--test-email= : mail the draft to ONE address to see how it renders in a real inbox}
                             {--request-approval : post the draft to the account as a locked approval card}
+                            {--ignore-watermark : draft as if the account had never been written to, for re-running the same month while tuning copy}
                             {--recipient= : who the email goes to once approved; required with --request-approval}';
 
     protected $description = 'Draft this month\'s Kanvas update for one customer account. Prints it, sends nothing.';
@@ -69,7 +70,11 @@ class DraftCustomerUpdateCommand extends Command
         }
 
         try {
-            $result = new DraftCustomerUpdateAction($organization, $agent)->execute();
+            $result = new DraftCustomerUpdateAction(
+                organization: $organization,
+                agent: $agent,
+                ignoreWatermark: (bool) $this->option('ignore-watermark'),
+            )->execute();
         } catch (Throwable $e) {
             // The action deliberately does not swallow provider failures into friendly prose, so a
             // failed turn arrives here as an exception rather than as something sendable.

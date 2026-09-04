@@ -157,11 +157,32 @@ class CustomerUpdateRenderer
 
         return array_values(array_filter(array_map(
             fn (string $chunk): array => array_values(array_filter(
-                array_map('trim', preg_split('/\n/', trim($chunk)) ?: []),
+                array_map(self::stripMarkup(...), preg_split('/\n/', trim($chunk)) ?: []),
                 fn (string $line): bool => $line !== ''
             )),
             $chunks
         )));
+    }
+
+    /**
+     * The agent is told to write plain text and this class supplies every heading, bullet and rule.
+     * A model that emits markdown anyway would otherwise have it doubled — a line it wrote as
+     * `### 1. Feature` came out as `## ### 1. Feature` in a customer's inbox. Strip what it added so
+     * only this class's markup survives; a horizontal rule becomes empty and drops out.
+     */
+    private static function stripMarkup(string $line): string
+    {
+        $line = trim($line);
+
+        if (preg_match('/^([*_-]\s*){3,}$/', $line) === 1) {
+            return '';
+        }
+
+        $line = (string) preg_replace('/^\s*#{1,6}\s*/', '', $line);
+        $line = (string) preg_replace('/^\s*[*+-]\s+/', '', $line);
+        $line = (string) preg_replace('/\*\*(.+?)\*\*/s', '$1', $line);
+
+        return trim($line);
     }
 
     private function shell(string $inner): string
