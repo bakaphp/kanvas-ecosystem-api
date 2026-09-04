@@ -44,9 +44,25 @@ class ApprovalResult
         );
     }
 
-    public static function rejected(ApprovalRequest $request): self
+    public static function rejected(ApprovalRequest $request, ?array $handlerResult = null): self
     {
-        return new self(outcome: ApprovalOutcomeEnum::REJECTED, request: $request);
+        return new self(
+            outcome: ApprovalOutcomeEnum::REJECTED,
+            request: $request,
+            handlerResult: $handlerResult,
+        );
+    }
+
+    /**
+     * Why the downstream side effect did not land, if it did not. The decision itself is recorded
+     * either way — "rejected" and "the draft was actually discarded" are separate facts — so a caller
+     * for whom they are not separable reads this and raises rather than reporting a clean success.
+     */
+    public function handlerError(): ?string
+    {
+        $error = $this->handlerResult['handler_error'] ?? null;
+
+        return $error !== null ? (string) $error : null;
     }
 
     public static function delegated(ApprovalRequest $request): self

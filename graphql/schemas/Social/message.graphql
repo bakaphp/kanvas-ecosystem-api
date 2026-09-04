@@ -197,7 +197,7 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageApprovalMutation@approve"
         )
-    rejectAgentMessage(id: ID!): Boolean!
+    rejectAgentMessage(id: ID!, reason: String): Boolean!
         @field(
             resolver: "App\\GraphQL\\Social\\Mutations\\Messages\\MessageApprovalMutation@reject"
         )

@@ -6,13 +6,15 @@ namespace Kanvas\Approvals\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
+use Kanvas\Approvals\Contracts\ApprovalRejectionHandlerInterface;
 use Kanvas\Approvals\DataTransferObject\ApprovalResult;
 use Kanvas\Approvals\Enums\ApprovalDecisionEnum;
 use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Approvals\Services\ApprovalWorkflowService;
-use Kanvas\Exceptions\ValidationException;
+use Kanvas\Approvals\Services\ApproverSelfAssignService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
 
 /**
  * Records a rejection. Whether one "no" kills the request is the policy's `reject_policy`:
@@ -28,16 +30,15 @@ class RejectAction
         protected readonly UserInterface $approver,
         protected readonly ?string $reason = null,
         protected readonly ApprovalWorkflowService $workflow = new ApprovalWorkflowService(),
+        protected readonly ApproverSelfAssignService $selfAssign = new ApproverSelfAssignService(),
     ) {
     }
 
     public function execute(): ApprovalResult
     {
-        if ($this->request->status !== ApprovalStatusEnum::PENDING) {
-            throw new ValidationException(
-                "This approval is already {$this->request->status->value}, not pending."
-            );
-        }
+        $this->request->assertPending();
+
+        $this->selfAssign->ensureCanDecide($this->request, $this->approver);
 
         $row = $this->request->requireApproverRow($this->approver);
         $row->decision = ApprovalDecisionEnum::REJECTED;
@@ -81,11 +82,41 @@ class RejectAction
         $this->request->skipUndecidedApprovers();
         $this->request->refresh();
 
+        $handlerResult = $this->runRejectionHandler();
+
+        if ($handlerResult !== null) {
+            $this->request->metadata = [...($this->request->metadata ?? []), 'handler_result' => $handlerResult];
+            $this->request->saveOrFail();
+        }
+
         $this->workflow->fire($this->request, WorkflowEnum::REJECTED, [
             'approver' => $this->approver,
             'reason' => $this->reason,
+            'result' => $handlerResult,
         ]);
 
-        return ApprovalResult::rejected($this->request);
+        return ApprovalResult::rejected($this->request, $handlerResult);
+    }
+
+    /**
+     * Most approvals have nothing to undo, so a policy whose handler does not implement the rejection
+     * contract is the normal case and returns null. A handler that throws must not resurrect a
+     * rejection that is already recorded — the "no" was said; the failure is reported alongside it.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function runRejectionHandler(): ?array
+    {
+        $handler = $this->request->policy?->handlerInstance();
+
+        if (! $handler instanceof ApprovalRejectionHandlerInterface) {
+            return null;
+        }
+
+        try {
+            return $handler->reject($this->request, $this->approver, $this->reason);
+        } catch (Throwable $e) {
+            return ['handler_error' => $e->getMessage()];
+        }
     }
 }

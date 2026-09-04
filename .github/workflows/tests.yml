@@ -342,7 +342,14 @@ jobs:
 
       - name: Run Tests
         if: success()
-        run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=${{ matrix.processes || '4' }}
+        run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=${{ matrix.processes || '4' }} --exclude-group=serial
+
+      # Tests tagged #[Group('serial')] mutate state every parallel process shares — a global
+      # apps_id=0 catalog row, an app setting (which lands in Redis and on the non-transactional
+      # `ecosystem` connection). Running them alongside anything else deadlocks or bleeds.
+      - name: Run serial tests (single process)
+        if: success()
+        run: vendor/bin/phpunit --testsuite=${{ matrix.testsuite }} --group=serial --do-not-fail-on-empty-test-suite
 
       - name: Run Filesystem Tests (single process)
         if: success() && matrix.testsuite == 'GraphQL-Ecosystem'

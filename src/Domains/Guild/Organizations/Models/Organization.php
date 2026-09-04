@@ -30,6 +30,7 @@ use Kanvas\Guild\Organizations\Observers\OrganizationObserver;
 use Kanvas\Guild\Traits\BillableTrait;
 use Kanvas\Guild\Traits\HasNotesChannelTrait;
 use Kanvas\Guild\Traits\PayeeTrait;
+use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -55,7 +56,7 @@ use Override;
  * @property int|null $merged_into_organization_id
  */
 #[ObservedBy([OrganizationObserver::class])]
-class Organization extends BaseModel implements BillableInterface, PayeeInterface
+class Organization extends BaseModel implements BillableInterface, PayeeInterface, ProvidesAgentContext
 {
     use HasAdminLink;
     use BillableTrait;
@@ -81,6 +82,30 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     public function adminLinkSection(): AdminLinkSectionEnum
     {
         return AdminLinkSectionEnum::ORGANIZATION;
+    }
+
+    /**
+     * What an agent grounds itself on when it is dropped on a customer account. The difference between
+     * "Acme Corp" and "Acme Corp, growth tier, using commerce and logistics, Spanish-speaking" — every
+     * agent gets it, not just the one that asked for it.
+     *
+     * Deliberately absent: the newsletter watermark and the linked tenant ids. Those are feature state
+     * for one workflow, not something the CFO agent should read off the same account.
+     *
+     * @return array<string, mixed>
+     */
+    #[Override]
+    public function agentContextBrief(): array
+    {
+        return array_filter([
+            'type' => 'Organization',
+            'id' => $this->getId(),
+            'name' => $this->name,
+            'modules' => $this->tags()->pluck('slug')->all(),
+            'tier' => $this->get('customer_tier'),
+            'locale' => $this->get('customer_locale'),
+            'total_employees' => $this->total_employees > 0 ? $this->total_employees : null,
+        ], fn (mixed $value): bool => $value !== null && $value !== []);
     }
 
     public function leads(): HasMany

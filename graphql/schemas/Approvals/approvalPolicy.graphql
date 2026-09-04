@@ -1,7 +1,3 @@
-"""
-What "approving an X" means for this tenant: who signs, in what order, and what runs on success.
-Configuring this is an admin operation — it decides who can release money.
-"""
 type ApprovalPolicy {
     id: ID!
     approval_type: String!
@@ -17,6 +13,7 @@ type ApprovalPolicy {
     fallback_config: Mixed
     notify: String!
     expires_after_hours: Int
+    allow_authority_override: Boolean!
     created_at: DateTime!
     updated_at: DateTime
 }
@@ -34,6 +31,7 @@ input ApprovalPolicyInput {
     fallback_config: Mixed
     notify: String
     expires_after_hours: Int
+    allow_authority_override: Boolean
 }
 
 extend type Query @guardByAdmin {
