@@ -175,11 +175,6 @@ class ApprovalRequest extends BaseModel
     }
 
     /**
-     * The caller's live approver row, or a refusal. Authorization for any decision is this row and
-     * nothing else — not a Bouncer ability (someone with `edit` on an Invoice must not thereby be able
-     * to approve one) and not a row sitting at a step that has not become live yet.
-     */
-    /**
      * Every action that changes a decision opens with this, so a closed request cannot be decided
      * twice and they all say the same thing when it is.
      */
@@ -241,6 +236,12 @@ class ApprovalRequest extends BaseModel
         return $row;
     }
 
+    /**
+     * The caller's live row, or a refusal. Authorization for any decision is this row and nothing
+     * else — never a Bouncer ability, so someone with `edit` on an Invoice cannot thereby approve one.
+     * `allow_authority_override` does not weaken that: it decides whether an owner or admin may be
+     * GIVEN a row, and they are still refused here until they have one.
+     */
     public function requireApproverRow(UserInterface $user): ApprovalRequestApprover
     {
         $row = $this->liveApproverRow($user);

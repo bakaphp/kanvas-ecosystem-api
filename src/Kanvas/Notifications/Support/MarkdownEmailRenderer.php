@@ -18,12 +18,10 @@ use League\CommonMark\GithubFlavoredMarkdownConverter;
 final class MarkdownEmailRenderer
 {
     /**
-     * @param bool $allowHtml false for content that leaves the building — an LLM-written, human-editable
-     *                        customer email. It escapes raw HTML instead of passing it through, and skips
-     *                        the idempotency guard, which is itself a passthrough: content that merely
-     *                        LOOKS like HTML is returned unconverted, so a raw <a href> or an
-     *                        <img onerror> reaches the recipient verbatim. Internal agent replies keep
-     *                        the permissive default.
+     * @param bool $allowHtml false for anything leaving the building. It escapes raw HTML and skips
+     *                        the idempotency guard below, which is itself a passthrough — content that
+     *                        merely LOOKS like HTML is returned unconverted, so an <img onerror> would
+     *                        reach the recipient verbatim.
      */
     public static function toEmailHtml(string $markdown, bool $allowHtml = true): string
     {

@@ -398,8 +398,6 @@ final class ApproveActionTest extends TestCase
     }
 
     /**
-     * @param list<array{required_approvals?: int, approvers?: int}> $stepSpecs
-     *
      * @return array{0: ApprovalRequest, 1: list<Users>, 2: ApprovableOrganization}
      */
     /**

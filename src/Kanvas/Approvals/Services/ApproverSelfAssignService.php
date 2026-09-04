@@ -14,20 +14,12 @@ use Throwable;
 
 /**
  * Lets a company's owner or an admin decide a request they were not resolved onto — by writing them an
- * approver row first, never by skipping the check.
+ * approver row first, never by skipping the check. That distinction is the whole design: ApproveAction
+ * still reads "who approved" from the rows alone, and the row is stamped with the authority it was
+ * taken on, so a decision nobody asked for stays distinguishable from one that was.
  *
- * **Opt-in per policy** (`allow_authority_override`), and off by default, because whether this is
- * correct depends entirely on what the approval is for. On a bill the approver list IS the control:
- * the point of "only these people sign" is that an admin cannot wave one through, and a blanket
- * version of this would quietly undo that for every adopter. On a held agent message draft the list is
- * thin by construction — `channel_members` finds nobody on tens of thousands of channels — so the
- * request lands on whichever single account owns the company and the reviewer looking straight at the
- * card is refused it.
- *
- * Self-assigning rather than bypassing is what keeps the audit answerable. ApproveAction still reads
- * "who approved" from the approver rows alone, and the row written here is stamped into the request's
- * metadata (and its ledger payload) with who took it and on what authority — so a decision nobody was
- * asked for stays distinguishable afterwards from one that was.
+ * Opt-in per policy (`allow_authority_override`) and off by default, because on a bill the approver
+ * list IS the control and a blanket version would quietly undo that for every adopter.
  */
 class ApproverSelfAssignService
 {

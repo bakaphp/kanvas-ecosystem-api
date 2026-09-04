@@ -16,14 +16,9 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 /**
  * The default policy behind every held agent draft.
  *
- * Auto-provisioned rather than seed-only, which is the opposite of how every other approvable model
- * works — and deliberately so. For a bill, no policy means no gate, and an ungated bill is the normal
- * case. A message is already locked by the time we get here: no policy would mean a draft nobody can
- * ever approve and nothing can ever send. An opinionated default beats a dead card.
- *
- * The default is as close to what the message flow did before it moved onto the approvals domain —
- * anyone looking at the channel could approve — as approver rows allow. A tenant tightens it by
- * editing the row; nothing here overwrites an existing policy.
+ * Auto-provisioned, unlike every other approvable model, because a message is already locked by the
+ * time the policy is read: for a bill no policy means no gate, but here it would mean a draft nobody
+ * can approve and nothing can send. A tenant tightens the row; nothing here overwrites an existing one.
  */
 final class MessageApprovalPolicyService
 {
