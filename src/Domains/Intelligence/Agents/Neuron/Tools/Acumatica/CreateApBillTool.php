@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -19,12 +20,15 @@ use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
 use Kanvas\Scribe\Approvals\Actions\ResolveApproverEmailAction;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Bills\Actions\ApproveBillAction;
+use Kanvas\Scribe\Bills\Actions\AttachBillReceiptAction;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
+use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\ObjectProperty;
@@ -182,18 +186,11 @@ class CreateApBillTool extends Tool implements HasRunKey
                 required: false,
             ),
             new ToolProperty(
-                name: 'source_attachment_url',
-                type: PropertyType::STRING,
-                description: 'The Kanvas-hosted URL of the invoice PDF (from download_attachment), when created '
-                    . 'as part of the automatic invoice-email flow. Kept so it can be attached to the bill once '
-                    . 'it is actually pushed to Acumatica, at approval time.',
-                required: false,
-            ),
-            new ToolProperty(
-                name: 'source_attachment_filename',
-                type: PropertyType::STRING,
-                description: 'The file name for source_attachment_url (from download_attachment). Optional — '
-                    . 'defaults to the URL\'s own file name when attached.',
+                name: 'source_attachment_filesystem_id',
+                type: PropertyType::INTEGER,
+                description: 'The filesystem_id of the invoice PDF (from download_attachment), when created as '
+                    . 'part of the automatic invoice-email flow. Attaches the PDF to the bill as a receipt so it '
+                    . 'can be forwarded to the approver and seen later.',
                 required: false,
             ),
         ];
@@ -216,8 +213,7 @@ class CreateApBillTool extends Tool implements HasRunKey
         ?string $currency = null,
         ?bool $push_to_acumatica = null,
         ?string $source_email_message_id = null,
-        ?string $source_attachment_url = null,
-        ?string $source_attachment_filename = null,
+        ?int $source_attachment_filesystem_id = null,
     ): array {
         $push_to_acumatica ??= true;
         $app = $this->app;
@@ -309,17 +305,14 @@ class CreateApBillTool extends Tool implements HasRunKey
 
         $bill = new SubmitBillForApprovalAction($bill, $actingUser)->execute();
 
-        $this->storeApprovalSourceFields(
-            $bill,
-            $source_email_message_id,
-            $source_attachment_url,
-            $source_attachment_filename,
-        );
+        $this->storeApprovalSourceFields($bill, $source_email_message_id, null, null);
+        $this->attachBillReceipt($bill, $source_attachment_filesystem_id, $actingUser);
 
         if (! $push_to_acumatica) {
             $approverEmails = ResolveApproverEmailAction::resolveForOrganization($vendor);
             $isMultiLine = $lines !== null && $lines !== [];
-            $hasAttachment = $source_attachment_url !== null && trim($source_attachment_url) !== '';
+            $receiptFile = $this->latestReceiptFile($bill);
+            $hasAttachment = $receiptFile !== null;
             $hasSourceEmail = $source_email_message_id !== null && trim($source_email_message_id) !== '';
 
             NotifyApproverAction::notifyAll(
@@ -330,8 +323,8 @@ class CreateApBillTool extends Tool implements HasRunKey
                         . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : ''))
                     . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
                     . "{$bill->getId()}\" to approve it and push it to Acumatica.",
-                attachmentUrl: $source_attachment_url,
-                attachmentFilename: $source_attachment_filename,
+                attachmentUrl: $receiptFile?->url,
+                attachmentFilename: $receiptFile?->name,
             );
 
             $result = [
@@ -368,8 +361,8 @@ class CreateApBillTool extends Tool implements HasRunKey
             }
 
             if ($hasSourceEmail && ! $hasAttachment) {
-                $result['attachment_warning'] = 'This bill has a source email but no source_attachment_url — '
-                    . 'the approver was notified without the invoice PDF attached.';
+                $result['attachment_warning'] = 'This bill has a source email but no source_attachment_filesystem_id '
+                    . '— the approver was notified without the invoice PDF attached.';
             }
 
             return $result;
@@ -497,6 +490,29 @@ class CreateApBillTool extends Tool implements HasRunKey
         } catch (Throwable) {
             return null;
         }
+    }
+
+    /** Attaches the invoice PDF as a bill receipt — a real Filesystem attachment, never a custom field. */
+    private function attachBillReceipt(Bill $bill, ?int $filesystemId, Users $user): void
+    {
+        if ($filesystemId === null) {
+            return;
+        }
+
+        $filesystem = Filesystem::query()
+            ->fromApp($this->app)
+            ->where('companies_id', $this->company->getId())
+            ->where('id', $filesystemId)
+            ->first();
+
+        if ($filesystem !== null) {
+            new AttachBillReceiptAction($bill, $filesystem, $user)->execute();
+        }
+    }
+
+    private function latestReceiptFile(Bill $bill): ?Filesystem
+    {
+        return $bill->receipts()->latest('id')->first()?->filesystem;
     }
 
     private function resolveSubaccountId(?string $subaccount, Apps $app, Companies $company): ?int

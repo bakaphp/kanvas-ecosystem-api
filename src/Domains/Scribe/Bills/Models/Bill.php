@@ -165,6 +165,11 @@ class Bill extends BaseModel implements PayableInterface
         return $this->belongsTo(Organization::class, 'vendor_organization_id', 'id');
     }
 
+    public function receipts(): HasMany
+    {
+        return $this->hasMany(BillReceipt::class, 'bill_id', 'id');
+    }
+
     #[Override]
     public function getPayableTotalNative(): float
     {

@@ -9,6 +9,8 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Scribe\Bills\Actions\AttachBillReceiptAction;
+use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
@@ -256,6 +258,59 @@ class ScribeGraphQLSurfaceTest extends TestCase
         ])->assertSuccessful();
 
         $response->assertJsonPath('data.attachScribeExpenseReceipt.filesystem.id', (string) $filesystem->id);
+    }
+
+    public function test_scribe_bill_exposes_its_receipts_via_graphql(): void
+    {
+        $travelId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
+
+        $create = $this->graphQL('
+            mutation($input: ScribeBillInput!) {
+                createScribeBill(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'bill_number' => 'RECEIPT-GQL-1',
+                'currency' => 'USD',
+                'fx_rate_to_base' => 1.0,
+                'lines' => [[
+                    'description' => 'Consulting',
+                    'unit_price_native' => 250.0,
+                    'expense_account_id' => $travelId,
+                ]],
+            ],
+        ])->assertSuccessful();
+
+        $billId = $create->json('data.createScribeBill.id');
+
+        $filesystem = new Filesystem();
+        $filesystem->apps_id = $this->kanvasApp->getId();
+        $filesystem->companies_id = $this->company->getId();
+        $filesystem->users_id = static::$cachedUser->getId();
+        $filesystem->name = 'invoice.pdf';
+        $filesystem->path = 'bills/invoice.pdf';
+        $filesystem->url = 'https://example.test/bills/invoice.pdf';
+        $filesystem->size = '4096';
+        $filesystem->file_type = 'pdf';
+        $filesystem->save();
+
+        $bill = Bill::query()->where('id', $billId)->first();
+        new AttachBillReceiptAction($bill, $filesystem, static::$cachedUser)->execute();
+
+        $response = $this->graphQL('
+            query($billNumber: Mixed) {
+                scribeBills(where: {column: BILL_NUMBER, operator: EQ, value: $billNumber}) {
+                    data {
+                        id
+                        receipts { filesystem { id url } }
+                    }
+                }
+            }
+        ', ['billNumber' => 'RECEIPT-GQL-1'])->assertSuccessful();
+
+        $response->assertJsonPath('data.scribeBills.data.0.id', (string) $billId);
+        $response->assertJsonPath('data.scribeBills.data.0.receipts.0.filesystem.id', (string) $filesystem->id);
+        $response->assertJsonPath('data.scribeBills.data.0.receipts.0.filesystem.url', 'https://example.test/bills/invoice.pdf');
     }
 
     public function test_scribe_expenses_list_filters_by_status(): void
