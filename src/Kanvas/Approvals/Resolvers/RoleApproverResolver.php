@@ -38,7 +38,11 @@ class RoleApproverResolver implements ApproverResolverInterface
         }
 
         try {
-            return UsersRepository::getCompanyAppUserByRole($company, $app, $role)->get();
+            return UsersRepository::getCompanyAppUserByRole(
+                $company,
+                $app,
+                $role
+            )->get();
         } catch (ModelNotFoundException) {
             return collect();
         }
