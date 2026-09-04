@@ -8,9 +8,7 @@ use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Leads\Enums\AgentReachOutConfigEnum;
-use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Throwable;
 
 /**
@@ -76,11 +74,7 @@ class AgentReachOutAction
         }
 
         // === AI-mode mute check ===
-        $leadAiMode = IntelligenceModeEnum::tryFrom(
-            (string) $this->lead->get(new LeadConfigurationService()->getAiModeKey($this->lead))
-        );
-
-        if ($leadAiMode?->isOff()) {
+        if ($this->lead->isAiMuted()) {
             $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_MUTED);
 
             return ['message' => 'Lead AI mode is off', 'status' => 'muted'];

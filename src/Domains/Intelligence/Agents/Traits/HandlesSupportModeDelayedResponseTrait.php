@@ -9,9 +9,7 @@ use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Jobs\SendUnrespondedAgentMessageJob;
-use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
@@ -43,10 +41,7 @@ trait HandlesSupportModeDelayedResponseTrait
             return null;
         }
 
-        $configService = new LeadConfigurationService();
-        $supportMode = $lead->get($configService->getAiModeKey($lead)) == IntelligenceModeEnum::SUPPORT->value;
-
-        if (! $supportMode) {
+        if (! $lead->isAiSupport()) {
             return null;
         }
 
