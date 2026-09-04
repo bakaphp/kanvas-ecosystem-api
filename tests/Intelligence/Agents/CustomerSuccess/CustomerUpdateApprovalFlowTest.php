@@ -41,7 +41,7 @@ final class CustomerUpdateApprovalFlowTest extends TestCase
         $note = new RequestCustomerUpdateApprovalAction(
             $this->draft(),
             $this->actingUser(),
-            self::RECIPIENT,
+            [self::RECIPIENT],
         )->execute();
 
         $this->assertNotNull($note);
@@ -66,7 +66,7 @@ final class CustomerUpdateApprovalFlowTest extends TestCase
         $note = new RequestCustomerUpdateApprovalAction(
             $this->draft($organization),
             $this->actingUser(),
-            self::RECIPIENT,
+            [self::RECIPIENT],
         )->execute();
 
         $this->assertNull(
@@ -93,7 +93,7 @@ final class CustomerUpdateApprovalFlowTest extends TestCase
         $note = new RequestCustomerUpdateApprovalAction(
             $this->draft(),
             $this->actingUser(),
-            self::RECIPIENT,
+            [self::RECIPIENT],
         )->execute();
 
         new ApproveAgentMessageAction($note, '# Rewritten by a human')->execute();

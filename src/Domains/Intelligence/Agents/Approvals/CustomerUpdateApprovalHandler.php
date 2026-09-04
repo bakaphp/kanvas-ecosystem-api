@@ -32,11 +32,9 @@ class CustomerUpdateApprovalHandler implements AgentApprovalHandler
     #[Override]
     public function approve(Message $message, array $context): void
     {
-        $recipient = Str::trimToNull(
-            $context['recipient'] ?? ($message->message['chat_jid'] ?? null)
-        );
+        $recipients = $this->recipients($message, $context);
 
-        if ($recipient === null) {
+        if ($recipients === []) {
             throw new ValidationException('This update has no recipient — choose who to send it to before approving.');
         }
 
@@ -57,11 +55,32 @@ class CustomerUpdateApprovalHandler implements AgentApprovalHandler
         Mail::send(
             new KanvasMailable($smtp->loadSmtpSettings(), new CustomerUpdateRenderer()->toEmailHtml($markdown, $app, $company))
                 ->from($from['address'], $from['name'])
-                ->to($recipient)
+                ->to($recipients)
                 ->subject((string) ($context['subject'] ?? ''))
         );
 
         $this->markCovered($context, $company, $app);
+    }
+
+    /**
+     * `recipients` is the list the batch resolves from the account's newsletter-tagged people. The
+     * singular `recipient` and the message's own `chat_jid` are the single-address forms — read as
+     * fallbacks so a card opened before the list existed, or by the one-off command, still sends.
+     *
+     * @param array<string, mixed> $context
+     *
+     * @return list<string>
+     */
+    private function recipients(Message $message, array $context): array
+    {
+        $candidates = $context['recipients'] ?? $context['recipient'] ?? ($message->message['chat_jid'] ?? null);
+
+        return array_values(array_unique(array_filter(
+            array_map(
+                fn (mixed $value): ?string => Str::trimToNull((string) $value),
+                (array) $candidates
+            )
+        )));
     }
 
     /**

@@ -16,8 +16,9 @@ use Kanvas\Intelligence\Agents\DataTransferObject\CustomerUpdateDraft;
 use Kanvas\Intelligence\Agents\DataTransferObject\CustomerUpdateResult;
 use Kanvas\Intelligence\Agents\Enums\CustomerUpdateSkipEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\CustomerSuccess\CustomerUpdateAgent;
+use Kanvas\Intelligence\Agents\Services\CustomerSuccess\CustomerUpdateAgentService;
 use Kanvas\Intelligence\Agents\Services\CustomerSuccess\CustomerUpdateRenderer;
+use Kanvas\Intelligence\Agents\Services\CustomerSuccess\NewsletterAudienceService;
 use Kanvas\Notifications\KanvasMailable;
 use Throwable;
 
@@ -37,7 +38,7 @@ class DraftCustomerUpdateCommand extends Command
                             {--test-email= : mail the draft to ONE address to see how it renders in a real inbox}
                             {--request-approval : post the draft to the account as a locked approval card}
                             {--ignore-watermark : draft as if the account had never been written to, for re-running the same month while tuning copy}
-                            {--recipient= : who the email goes to once approved; required with --request-approval}';
+                            {--recipient= : override who the email goes to; defaults to the newsletter-tagged people on the account}';
 
     protected $description = 'Draft this month\'s Kanvas update for one customer account. Prints it, sends nothing.';
 
@@ -112,15 +113,23 @@ class DraftCustomerUpdateCommand extends Command
      */
     private function requestApproval(CustomerUpdateDraft $draft, Agent $agent): void
     {
+        // An explicit --recipient overrides; otherwise fall back to the account's newsletter-tagged
+        // people, so the one-off command and the monthly batch reach the same audience.
         $recipient = trim((string) $this->option('recipient'));
+        $recipients = $recipient !== ''
+            ? [$recipient]
+            : new NewsletterAudienceService()->recipients($draft->organization);
 
-        if ($recipient === '') {
-            $this->error('  --recipient is required with --request-approval: approving the card sends the email.');
+        if ($recipients === []) {
+            $this->error(
+                '  Nobody to send to. Pass --recipient, or tag the people on this account with "'
+                . NewsletterAudienceService::TAG . '".'
+            );
 
             return;
         }
 
-        $note = new RequestCustomerUpdateApprovalAction($draft, $agent->user, $recipient)->execute();
+        $note = new RequestCustomerUpdateApprovalAction($draft, $agent->user, $recipients)->execute();
 
         if ($note === null) {
             $this->error('  Could not post the draft to the account notes — no approval was requested.');
@@ -129,7 +138,7 @@ class DraftCustomerUpdateCommand extends Command
         }
 
         $this->info('  Posted as approval card #' . $note->getId() . ' on the account notes, locked and private.');
-        $this->line('  <fg=gray>Approve it in the UI to mail it to ' . $recipient . ' and advance the watermark.</>');
+        $this->line('  <fg=gray>Approve it in the UI to mail it to ' . implode(', ', $recipients) . ' and advance the watermark.</>');
         $this->line('');
     }
 
@@ -274,20 +283,6 @@ class DraftCustomerUpdateCommand extends Command
 
     private function resolveAgent(Apps $app, Organization $organization): ?Agent
     {
-        $agentId = (int) $this->option('agent_id');
-
-        if ($agentId > 0) {
-            return Agent::getById($agentId, $app);
-        }
-
-        /** @var Agent|null $agent */
-        $agent = Agent::query()
-            ->fromApp($app)
-            ->where('companies_id', $organization->companies_id)
-            ->whereHas('type', fn ($query) => $query->where('handler', CustomerUpdateAgent::class))
-            ->notDeleted()
-            ->first();
-
-        return $agent;
+        return new CustomerUpdateAgentService()->resolve($app, $organization, (int) $this->option('agent_id'));
     }
 }
