@@ -38,7 +38,9 @@ class EnsureOrchestratorAgentCommandTest extends TestCase
             '--company' => $company->getId(),
         ]);
 
-        $this->assertSame(0, $exit);
+        // The command swallows every per-company Throwable into `$failed++`, so a bare exit-code
+        // assertion reports "1 is identical to 0" and nothing else. Carry the output into the message.
+        $this->assertSame(0, $exit, Artisan::output());
 
         $agent = Agent::query()
             ->fromApp($app)
