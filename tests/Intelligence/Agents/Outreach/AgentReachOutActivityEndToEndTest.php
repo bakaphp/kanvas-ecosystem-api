@@ -149,5 +149,9 @@ class AgentReachOutActivityEndToEndTest extends TestCase
                 ?? 'agent-reach-out',   // tag presence is enough — relation may vary
             'Outbound must be tagged for the listener pattern',
         );
+        $this->assertTrue(
+            $outbound->hasTag(['first-message']),
+            'Both legacy and Agent Reach Out flows must share the first-message tag contract',
+        );
     }
 }

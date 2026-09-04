@@ -34,8 +34,32 @@ class AgentReachOutActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
-            integrationOperation: fn () => new AgentReachOutAction($lead, $params)->execute(),
+            integrationOperation: function () use ($lead, $app, $params): array {
+                $this->validateBeforeReachOut($lead, $app, $params);
+
+                $result = new AgentReachOutAction($lead, $params)->execute();
+                $this->afterReachOut($lead, $app, $params, $result);
+
+                return $result;
+            },
             company: $lead->company,
+            throwException: $this->shouldThrowIntegrationException(),
         );
+    }
+
+    protected function validateBeforeReachOut(Lead $lead, Apps $app, array $params): void
+    {
+    }
+
+    /**
+     * @param array<string, mixed> $result
+     */
+    protected function afterReachOut(Lead $lead, Apps $app, array $params, array $result): void
+    {
+    }
+
+    protected function shouldThrowIntegrationException(): bool
+    {
+        return false;
     }
 }
