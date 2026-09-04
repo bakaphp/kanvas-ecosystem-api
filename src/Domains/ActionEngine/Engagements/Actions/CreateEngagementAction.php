@@ -642,12 +642,13 @@ class CreateEngagementAction
             $vehicleOfInterest = (array) $lead->get('vehicle_of_interest');
             $stockNumber = trim((string) ($vehicleOfInterest['stockNumber'] ?? '')) ?: 'N/A';
             $salesPerson = trim(($lead->owner?->firstname ?? '') . ' ' . ($lead->owner?->lastname ?? ''));
+            $customerName = (string) ($lead->people?->name ?? '');
             $messageData = $message->message ?? [];
 
             $stripePayment = [
                 'product_name' => 'Vehicle Purchase',
                 'product_description' => 'Stock No: ' . $stockNumber,
-                'success_url' => $messageData['action_link'],
+                'success_url' => $messageData['action_link'] ?? '',
                 'metadata' => [
                     'leads_id' => $lead->getId(),
                     'apps_id' => $lead->app->getId(),
@@ -660,7 +661,7 @@ class CreateEngagementAction
                         'type' => 'text',
                         'optional' => false, // Makes it required
                         'text' => [
-                            'default_value' => $lead->people->name,
+                            'default_value' => $customerName,
                             'maximum_length' => 200,
                         ],
                     ],

@@ -29,6 +29,37 @@ final class MessageApprovalPolicyService
         return $existing ?? self::create($message->app, $message->company);
     }
 
+    /**
+     * Brings an existing policy up to what v1 needs, without touching what a tenant tuned.
+     *
+     * `create()` is firstOrCreate, so it cannot repair: a policy seeded before
+     * `allow_authority_override` existed keeps the column's `false` default, and on a tenant whose
+     * channels have no members that means nobody can approve anything. Only the two settings this
+     * service owns are corrected — steps, resolvers and notify are the tenant's.
+     *
+     * @return list<string> what changed, empty when already correct
+     */
+    public static function repair(ApprovalPolicy $policy): array
+    {
+        $fixed = [];
+
+        if ($policy->allow_authority_override !== true) {
+            $policy->allow_authority_override = true;
+            $fixed[] = 'allow_authority_override -> true';
+        }
+
+        if ($policy->handler !== AgentMessageApprovalHandler::class) {
+            $policy->handler = AgentMessageApprovalHandler::class;
+            $fixed[] = 'handler -> AgentMessageApprovalHandler';
+        }
+
+        if ($fixed !== []) {
+            $policy->saveOrFail();
+        }
+
+        return $fixed;
+    }
+
     public static function create(Apps $app, Companies $company): ApprovalPolicy
     {
         $systemModule = SystemModulesRepository::getByModelName(Message::class, $app);
