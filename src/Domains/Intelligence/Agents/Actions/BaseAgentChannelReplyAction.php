@@ -74,12 +74,14 @@ class BaseAgentChannelReplyAction
             }
         }
 
-        $isAiMuted = $lead instanceof Lead
-            ? $lead->isAiMuted()
-            : IntelligenceModeEnum::tryFrom((string) $lead->get('ai_mode'))?->isOff() ?? false;
+        if ($this->respectsLeadAiMode) {
+            $isAiMuted = $lead instanceof Lead
+                ? $lead->isAiMuted()
+                : IntelligenceModeEnum::tryFrom((string) $lead->get('ai_mode'))?->isOff() ?? false;
 
-        if ($this->respectsLeadAiMode && $isAiMuted) {
-            throw new AgentReplySkippedException('Ai Agent Off for this lead');
+            if ($isAiMuted) {
+                throw new AgentReplySkippedException('Ai Agent Off for this lead');
+            }
         }
 
         if ($message->is_un_response) {
