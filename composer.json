@@ -21,7 +21,7 @@
         "berkayk/onesignal-laravel": "^2.4",
         "brick/math": "^0.14.2",
         "doctrine/dbal": "^4.2",
-        "durable-workflow/workflow": "^1.0.24",
+        "durable-workflow/workflow": "^2.0.2",
         "dyrynda/laravel-cascade-soft-deletes": "^4.3",
         "google/apiclient": "^2.19",
         "google/apiclient-services": "^0.457",

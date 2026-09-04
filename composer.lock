@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "34d13799ed71e3f2e35b9a4f6c939541",
+    "content-hash": "cc8816fc9ee922608f457e2d62bef695",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -153,6 +153,68 @@
                 "source": "https://github.com/algolia/scout-extended/tree/v5.0.0"
             },
             "time": "2026-04-28T12:56:21+00:00"
+        },
+        {
+            "name": "apache/avro",
+            "version": "1.12.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/apache/avro.git",
+                "reference": "8fa2067f70e3012cb3fd9a8839cd97e8c7cc1772"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/apache/avro/zipball/8fa2067f70e3012cb3fd9a8839cd97e8c7cc1772",
+                "reference": "8fa2067f70e3012cb3fd9a8839cd97e8c7cc1772",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.1 || ^8.0"
+            },
+            "require-dev": {
+                "ext-curl": "*",
+                "ext-json": "*",
+                "ext-pcntl": "*",
+                "ext-xml": "*",
+                "php-mock/php-mock-phpunit": "^2.10",
+                "phpunit/phpunit": "^7.5 || ^8.5 || ^9.5",
+                "squizlabs/php_codesniffer": "3.*"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Apache\\Avro\\": "lang/php/lib/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Apache Avro Developers",
+                    "email": "dev@avro.apache.org",
+                    "homepage": "http://avro.apache.org"
+                }
+            ],
+            "description": "Apache Avro™ is a data serialization system.",
+            "homepage": "http://avro.apache.org",
+            "keywords": [
+                "avro",
+                "data",
+                "serialization"
+            ],
+            "support": {
+                "email": "dev@avro.apache.org",
+                "issues": "https://issues.apache.org/jira/browse/AVRO",
+                "source": "https://github.com/apache/avro/tree/release-1.12.2"
+            },
+            "time": "2026-08-07T12:56:37+00:00"
         },
         {
             "name": "asad/oauth2-zoho",
@@ -1831,30 +1893,36 @@
         },
         {
             "name": "durable-workflow/workflow",
-            "version": "1.0.82",
+            "version": "2.0.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/durable-workflow/workflow.git",
-                "reference": "c3120b5d5d4742115a9f1274dbaf47adbc21caac"
+                "reference": "7b9c8308d14a3e8695fdf46a1a871cab8488c3e1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/c3120b5d5d4742115a9f1274dbaf47adbc21caac",
-                "reference": "c3120b5d5d4742115a9f1274dbaf47adbc21caac",
+                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/7b9c8308d14a3e8695fdf46a1a871cab8488c3e1",
+                "reference": "7b9c8308d14a3e8695fdf46a1a871cab8488c3e1",
                 "shasum": ""
             },
             "require": {
-                "laravel/framework": "^9.0|^10.0|^11.0|^12.0|^13.0",
+                "apache/avro": "^1.12",
+                "laravel/framework": "^9.52.17|^10.48.29|^11.44.1|^12.61.1|^13.12.0",
                 "php": "^8.1",
-                "react/promise": "^2.9|^3.0"
+                "react/promise": "^2.9|^3.0",
+                "symfony/yaml": "^6.0|^7.0|^8.0"
             },
             "replace": {
                 "laravel-workflow/laravel-workflow": "self.version"
             },
             "require-dev": {
-                "orchestra/testbench": "^8.0",
+                "doctrine/dbal": "^3.7",
+                "orchestra/testbench": "^8.0|^11.0",
                 "phpstan/phpstan": "^2.0",
                 "symplify/easy-coding-standard": "^11.0"
+            },
+            "suggest": {
+                "durable-workflow/sdk": "Framework-neutral client and remote-worker SDK for the standalone Durable Workflow server."
             },
             "type": "library",
             "extra": {
@@ -1862,11 +1930,17 @@
                     "providers": [
                         "Workflow\\Providers\\WorkflowServiceProvider"
                     ]
+                },
+                "durable-workflow": {
+                    "product-train": "2.0.2",
+                    "laravel-embedded-upgrade-contract": "resources/laravel-embedded-upgrade-contract.json",
+                    "laravel-dependency-security-policy": "resources/laravel-dependency-security-policy.json"
                 }
             },
             "autoload": {
                 "files": [
-                    "src/functions.php"
+                    "src/functions.php",
+                    "src/V2/functions.php"
                 ],
                 "psr-4": {
                     "Workflow\\": "src/"
@@ -1882,12 +1956,12 @@
                     "email": "support@durable-workflow.com"
                 }
             ],
-            "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
+            "description": "Embedded durable workflow runtime and orchestration engine for Laravel applications.",
             "support": {
                 "issues": "https://github.com/durable-workflow/workflow/issues",
-                "source": "https://github.com/durable-workflow/workflow/tree/1.0.82"
+                "source": "https://github.com/durable-workflow/workflow/tree/2.0.2"
             },
-            "time": "2026-08-27T20:28:21+00:00"
+            "time": "2026-09-01T08:31:26+00:00"
         },
         {
             "name": "dyrynda/laravel-cascade-soft-deletes",
