@@ -103,11 +103,22 @@ type VoiceAgentCallResult {
     tenant_id: String
 }
 
+type VoiceAgentInboundWebhookResult {
+    status: String!
+    message: String!
+    url: String
+}
+
 extend type Mutation @guard {
     "Place a one-off test call for an agent via the external voice runtime."
     sendVoiceAgentTestCall(id: ID!, to_number: String!): VoiceAgentCallResult!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\VoiceAgentCallMutation@placeTestCall"
+        )
+    "Re-run inbound-webhook wiring for an agent's Twilio number (admin retry). Returns the resulting status."
+    configureVoiceAgentInboundWebhook(id: ID!): VoiceAgentInboundWebhookResult!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentManagementMutation@configureInboundWebhook"
         )
 }
 

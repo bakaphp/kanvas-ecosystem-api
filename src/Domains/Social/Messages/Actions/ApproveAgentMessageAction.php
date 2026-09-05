@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Actions;
 
-use Kanvas\Connectors\Mailgun\Actions\SendAgentEmailAction;
+use Baka\Users\Contracts\UserInterface;
+use Kanvas\Approvals\Actions\ApproveAction;
+use Kanvas\Approvals\DataTransferObject\ApprovalResult;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Contracts\AgentApprovalHandler;
-use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
- * Approves a locked agent draft, runs the approved action, and unlocks it.
+ * Approves a held agent draft.
  *
- * A message can name its own approval handler (RequestAgentApprovalAction stores it under
- * `message.approval.handler`) — that's how any agent action gets human sign-off (orchestrator routing,
- * …). When no handler is set we fall back to routing by the outbound message-type verb (the original
- * email path, so existing locked email drafts keep working).
+ * The decision itself belongs to the approvals domain — approver rows, quorum, the single-claim that
+ * stops two reviewers running the action twice, the ledger entry, the workflow fire. This is the
+ * message-shaped door onto it: it applies the reviewer's edit to the draft (a message concern, and it
+ * has to land before the handler reads the content it is about to send) and hands the rest to
+ * ApproveAction. What approving actually DOES lives in AgentMessageApprovalHandler.
  */
 class ApproveAgentMessageAction
 {
@@ -28,12 +29,15 @@ class ApproveAgentMessageAction
         protected Message $message,
         protected ?string $editedText = null,
         protected array $context = [],
+        protected ?UserInterface $approver = null,
     ) {
     }
 
     public function execute(): Message
     {
-        if (! $this->message->isLocked()) {
+        $request = $this->message->pendingApproval();
+
+        if ($request === null) {
             throw new ValidationException('Message is not pending approval');
         }
 
@@ -44,58 +48,29 @@ class ApproveAgentMessageAction
             ]);
         }
 
-        $handler = $this->resolveHandler();
-        if ($handler !== null) {
-            $handler->approve($this->message, $this->mergedContext());
-        } else {
-            $this->sendByVerb();
-        }
+        $result = new ApproveAction(
+            request: $request,
+            approver: $this->approver ?? auth()->user(),
+            context: $this->context,
+        )->execute();
 
-        $this->message->setUnlock();
+        $this->assertHandlerLanded($result);
 
         return $this->message->refresh();
     }
 
-    private function resolveHandler(): ?AgentApprovalHandler
-    {
-        $payload = $this->message->message;
-        $class = is_array($payload) ? ($payload['approval']['handler'] ?? null) : null;
-
-        if (! is_string($class) || $class === '') {
-            return null;
-        }
-
-        if (! class_exists($class) || ! is_subclass_of($class, AgentApprovalHandler::class)) {
-            throw new ValidationException("Invalid approval handler: {$class}");
-        }
-
-        return new $class();
-    }
-
     /**
-     * @return array<string, mixed>
+     * The approvals domain records the decision even when the downstream action fails — right for a
+     * bill, where "approved but the ERP push errored" are two separate facts. A message draft has no
+     * such split: the reviewer pressed Approve to send it, so a send that did not happen has to come
+     * back as an error rather than as a message that quietly reads approved.
      */
-    private function mergedContext(): array
+    private function assertHandlerLanded(ApprovalResult $result): void
     {
-        $payload = $this->message->message;
-        $stored = is_array($payload) ? (array) ($payload['approval']['context'] ?? []) : [];
+        $error = $result->handlerError();
 
-        return array_merge($stored, $this->context);
-    }
-
-    /**
-     * Legacy path: no handler on the message → ship it via its channel by message-type verb. Only
-     * Mailgun is wired here (the original agent-email approval).
-     */
-    private function sendByVerb(): void
-    {
-        $verb = $this->message->messageType?->verb;
-
-        match ($verb) {
-            ChannelCategoryEnum::MAILGUN->value => new SendAgentEmailAction($this->message)->execute(),
-            default => throw new ValidationException(
-                'Approval send is not supported for message type: ' . (string) $verb,
-            ),
-        };
+        if ($error !== null) {
+            throw new ValidationException($error);
+        }
     }
 }
