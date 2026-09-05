@@ -7,8 +7,10 @@ namespace Kanvas\Scribe\Invoices\Models;
 use Baka\Casts\Json;
 use Baka\Contracts\PayableInterface;
 use Baka\Traits\DynamicSearchableTrait;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
@@ -23,6 +25,7 @@ use Kanvas\Scribe\Invoices\Enums\AgingBucketEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceCollectionStateEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
+use Kanvas\Scribe\Invoices\Observers\InvoiceObserver;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Payments\Models\Payment;
@@ -95,6 +98,7 @@ use Throwable;
  * @property bool $is_deleted
  * @property int|null $users_id
  */
+#[ObservedBy([InvoiceObserver::class])]
 class Invoice extends BaseModel implements PayableInterface
 {
     use HasApprovals;
@@ -103,6 +107,7 @@ class Invoice extends BaseModel implements PayableInterface
         search as public traitSearch;
     }
     use EmitsLedgerEventsForEntity;
+    use HasLightHouseCache;
     use UuidTrait;
 
     protected $table = 'invoices';
@@ -270,6 +275,12 @@ class Invoice extends BaseModel implements PayableInterface
     public function customer(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'customer_organization_id', 'id');
+    }
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'ScribeInvoice';
     }
 
     protected function sourceDomainForLedger(): string

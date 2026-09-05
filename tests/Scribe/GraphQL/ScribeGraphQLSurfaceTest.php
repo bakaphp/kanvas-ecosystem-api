@@ -9,6 +9,8 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
@@ -297,6 +299,91 @@ class ScribeGraphQLSurfaceTest extends TestCase
                 }
             }
         ')->assertSuccessful();
+    }
+
+    public function test_scribe_bill_exposes_its_files_via_graphql(): void
+    {
+        $travelId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
+
+        $create = $this->graphQL('
+            mutation($input: ScribeBillInput!) {
+                createScribeBill(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'bill_number' => 'FILES-GQL-1',
+                'currency' => 'USD',
+                'fx_rate_to_base' => 1.0,
+                'lines' => [[
+                    'description' => 'Consulting',
+                    'unit_price_native' => 250.0,
+                    'expense_account_id' => $travelId,
+                ]],
+            ],
+        ])->assertSuccessful();
+
+        $billId = $create->json('data.createScribeBill.id');
+
+        /** @var Bill $bill */
+        $bill = Bill::query()->where('id', $billId)->first();
+        $fileUrl = 'https://example.test/bills/invoice-' . uniqid() . '.pdf';
+        $bill->addFileFromUrl($fileUrl, 'invoice_pdf');
+
+        $response = $this->graphQL('
+            query($billNumber: Mixed) {
+                scribeBills(where: {column: BILL_NUMBER, operator: EQ, value: $billNumber}) {
+                    data {
+                        id
+                        files { data { url } }
+                    }
+                }
+            }
+        ', ['billNumber' => 'FILES-GQL-1'])->assertSuccessful();
+
+        $response->assertJsonPath('data.scribeBills.data.0.id', (string) $billId);
+        $response->assertJsonPath('data.scribeBills.data.0.files.data.0.url', $fileUrl);
+    }
+
+    public function test_scribe_invoice_exposes_its_files_via_graphql(): void
+    {
+        $travelId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
+
+        $create = $this->graphQL('
+            mutation($input: ScribeInvoiceInput!) {
+                createScribeInvoice(input: $input) { id }
+            }
+        ', [
+            'input' => [
+                'invoice_number' => 'FILES-GQL-INV-1',
+                'currency' => 'USD',
+                'fx_rate_to_base' => 1.0,
+                'lines' => [[
+                    'description' => 'Consulting',
+                    'unit_price_native' => 250.0,
+                ]],
+            ],
+        ])->assertSuccessful();
+
+        $invoiceId = $create->json('data.createScribeInvoice.id');
+
+        /** @var Invoice $invoice */
+        $invoice = Invoice::query()->where('id', $invoiceId)->first();
+        $fileUrl = 'https://example.test/invoices/invoice-' . uniqid() . '.pdf';
+        $invoice->addFileFromUrl($fileUrl, 'invoice_pdf');
+
+        $response = $this->graphQL('
+            query($invoiceNumber: Mixed) {
+                scribeInvoices(where: {column: INVOICE_NUMBER, operator: EQ, value: $invoiceNumber}) {
+                    data {
+                        id
+                        files { data { url } }
+                    }
+                }
+            }
+        ', ['invoiceNumber' => 'FILES-GQL-INV-1'])->assertSuccessful();
+
+        $response->assertJsonPath('data.scribeInvoices.data.0.id', (string) $invoiceId);
+        $response->assertJsonPath('data.scribeInvoices.data.0.files.data.0.url', $fileUrl);
     }
 
     private function accountIdBySubType(AccountSubTypeEnum $subType): int

@@ -297,6 +297,11 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $customer = $this->seedTestOrganization('Approval Flow Customer 2');
         $customer->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
 
+        $pdf = $this->createFilesystemRow(
+            url: 'https://cdn.example.test/invoice-ar-apr-1.pdf',
+            name: 'invoice-ar-apr-1.pdf',
+        );
+
         $created = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(
@@ -305,8 +310,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
                 memo: 'Approval flow test',
                 push_to_acumatica: false,
                 source_email_message_id: 'MSG_AR_APR_1',
-                source_attachment_url: 'https://cdn.example.test/invoice-ar-apr-1.pdf',
-                source_attachment_filename: 'invoice-ar-apr-1.pdf',
+                source_attachment_filesystem_id: $pdf->getId(),
             );
 
         $result = new ApprovePendingItemTool()

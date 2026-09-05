@@ -75,6 +75,12 @@ type ScribeBill {
     tax_lines: [ScribeBillTaxLine!]! @hasMany(relation: "taxLines")
     allocations: [ScribeBillPaymentAllocation!]!
         @hasMany(relation: "allocations")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     created_at: DateTime!
     updated_at: DateTime!
 }
