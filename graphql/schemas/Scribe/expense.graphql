@@ -68,6 +68,12 @@ type ScribeExpense {
     user: User @belongsTo(relation: "user")
     lines: [ScribeExpenseLine!]! @hasMany(relation: "lines")
     receipts: [ScribeExpenseReceipt!]! @hasMany(relation: "receipts")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     created_at: DateTime!
     updated_at: DateTime!
 }

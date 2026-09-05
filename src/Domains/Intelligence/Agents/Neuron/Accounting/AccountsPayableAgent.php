@@ -24,6 +24,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ResendBillAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\CheckApprovalStatusTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
@@ -90,6 +91,9 @@ class AccountsPayableAgent extends SystemUserAgent
             new ReadEmailDetailsTool(),
             new DownloadAttachmentTool(),
             new ExtractInvoiceDataTool(),
+            // extract_invoice_data and the inbound attachment markers both speak filesystem_id;
+            // without this the agent quotes that id at a person who then has nothing to open.
+            new GetFileLinkTool(),
             new MarkEmailAsReadTool(),
             new ReplyToEmailTool(),
         ]));
@@ -157,10 +161,11 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'never in the email body/subject — after downloading, call extract_invoice_data with the '
             . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet).',
             '- If your own message this turn contains a line like `[Attached file on this message — '
-            . 'filesystem_id: 123, filename: "invoice.pdf"]`, an invoice arrived directly to your own inbox '
-            . '(not via the Gmail search tools) — call extract_invoice_data(filesystem_id: 123) straight away, '
-            . 'skipping list_emails/read_email_details/download_attachment entirely (there is no Gmail message '
-            . 'to look up). Use that exact filesystem_id — never one from an earlier turn.',
+            . 'filesystem_id: 123, filename: "invoice.pdf"]`, someone handed you the file directly — your own '
+            . 'inbox, Slack, or this chat — rather than through the Gmail search tools. Call '
+            . 'extract_invoice_data(filesystem_id: 123) straight away, skipping '
+            . 'list_emails/read_email_details/download_attachment entirely (there is no Gmail message to look '
+            . 'up). Use that exact filesystem_id — never one from an earlier turn.',
             '- **Never reuse a `[Attachment: ...]` description from your own chat history as if it were '
             . 'attached to the CURRENT message.** That marker is a saved summary of a file from a *previous* '
             . 'turn — a different invoice, even if this email looks similar (same sender, same boilerplate '
@@ -172,8 +177,8 @@ class AccountsPayableAgent extends SystemUserAgent
             . '(1) Get the real vendor/total/dates/due date and the file\'s identifier — either list_emails → '
             . 'read_email_details → download_attachment → extract_invoice_data (Gmail), or, if this message '
             . 'already carries a `[Attached file...]` marker, extract_invoice_data(filesystem_id) directly. '
-            . '(2) create_ap_bill with push_to_acumatica: false and source_attachment_url/'
-            . 'source_attachment_filename set to the file\'s url/filename from step 1, using that real data. '
+            . '(2) create_ap_bill with push_to_acumatica: false and source_attachment_filesystem_id set to the '
+            . 'file\'s filesystem_id from step 1, using that real data. '
             . 'Pass due_date verbatim from extract_invoice_data\'s own due_date field when the invoice shows '
             . 'one — never compute or guess it yourself, and never leave it out just because computing it '
             . 'looked hard. If the invoice has more than one line item, pass all of them via the lines param, '

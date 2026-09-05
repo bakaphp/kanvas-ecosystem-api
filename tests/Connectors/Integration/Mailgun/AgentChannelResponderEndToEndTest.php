@@ -12,6 +12,7 @@ use Kanvas\Connectors\Mailgun\Actions\AgentChannelResponderAction;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
+use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
@@ -24,7 +25,6 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
-use ReflectionMethod;
 use ReflectionProperty;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
@@ -207,15 +207,13 @@ class AgentChannelResponderEndToEndTest extends TestCase
     // Regression: without this marker the agent had no way to know a new attachment existed and reused an older one's summary from chat history instead.
     public function testCurrentAttachmentIsSurfacedAsAnExplicitMarker(): void
     {
-        ['channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
-            $this->seedInboundEmailScenario();
+        ['inbound' => $inbound] = $this->seedInboundEmailScenario();
 
         $filesystem = $this->makeFilesystemRow('02_VATIT_INV2607GB30K00006851.pdf');
         $inbound->addFile($filesystem, 'attachment-1');
         $inbound = $inbound->fresh();
 
-        $action = new AgentChannelResponderAction($channel, $inbound, $agent, $session);
-        $markers = new ReflectionMethod($action, 'currentAttachmentMarkers')->invoke($action);
+        $markers = AttachmentPromptBuilder::withFilesystemMarkers('', $inbound->files);
 
         $this->assertStringContainsString('filesystem_id: ' . $filesystem->getId(), $markers);
         $this->assertStringContainsString('"02_VATIT_INV2607GB30K00006851.pdf"', $markers);
@@ -223,13 +221,9 @@ class AgentChannelResponderEndToEndTest extends TestCase
 
     public function testNoAttachmentMarkerWhenNothingIsAttached(): void
     {
-        ['channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
-            $this->seedInboundEmailScenario();
+        ['inbound' => $inbound] = $this->seedInboundEmailScenario();
 
-        $action = new AgentChannelResponderAction($channel, $inbound, $agent, $session);
-        $markers = new ReflectionMethod($action, 'currentAttachmentMarkers')->invoke($action);
-
-        $this->assertSame('', $markers);
+        $this->assertSame('', AttachmentPromptBuilder::withFilesystemMarkers('', $inbound->files));
     }
 
     private function makeFilesystemRow(string $name): Filesystem

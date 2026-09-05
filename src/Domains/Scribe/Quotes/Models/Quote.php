@@ -6,8 +6,10 @@ namespace Kanvas\Scribe\Quotes\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\DynamicSearchableTrait;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
@@ -17,6 +19,7 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
+use Kanvas\Scribe\Observers\ClearsLightHouseCacheObserver;
 use Kanvas\Scribe\Quotes\Enums\QuoteStatusEnum;
 use Override;
 
@@ -73,11 +76,13 @@ use Override;
  * @property bool $is_deleted
  * @property int|null $users_id
  */
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class Quote extends BaseModel
 {
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
+    use HasLightHouseCache;
     use UuidTrait;
 
     protected $table = 'quotes';
@@ -236,5 +241,11 @@ class Quote extends BaseModel
         }
 
         return $searchQuery;
+    }
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'ScribeQuote';
     }
 }

@@ -8,6 +8,7 @@ use Kanvas\Connectors\Acumatica\Actions\AttachFileToAcumaticaInvoiceAction;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\AttachesFileToDocumentForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPushedInvoiceForTool;
 use NeuronAI\Tools\PropertyType;
@@ -20,6 +21,7 @@ use Throwable;
 #[AgentTool(name: 'Attach Invoice File', category: 'accounting')]
 class AttachInvoiceFileTool extends Tool
 {
+    use AttachesFileToDocumentForTool;
     use HasKanvasContext;
     use ResolvesPushedInvoiceForTool;
 
@@ -27,8 +29,10 @@ class AttachInvoiceFileTool extends Tool
     {
         parent::__construct(
             name: 'attach_invoice_file',
-            description: 'Attaches a file (by URL) to an AR invoice or credit memo that has already been pushed '
-                . 'to Acumatica — stores it in Kanvas and uploads it to the Acumatica document too.',
+            description: 'Attaches a file to an AR invoice or credit memo that has already been pushed to '
+                . 'Acumatica — stores it in Kanvas and uploads it to the Acumatica document too. Identify the '
+                . 'file by filesystem_id when someone handed it to you this turn (an attachment marker, '
+                . 'download_attachment), or by file_url when all you have is a link.',
         );
     }
 
@@ -47,15 +51,31 @@ class AttachInvoiceFileTool extends Tool
                 required: true,
             ),
             new ToolProperty(
+                name: 'filesystem_id',
+                type: PropertyType::INTEGER,
+                description: 'The filesystem_id of a file already in Kanvas — from an `[Attached file...]` '
+                    . 'marker on this turn or from download_attachment. Prefer this over file_url whenever you '
+                    . 'have it; pass one of the two.',
+                required: false,
+            ),
+            new ToolProperty(
                 name: 'file_url',
                 type: PropertyType::STRING,
-                description: 'A URL the file can be downloaded from.',
-                required: true,
+                description: 'A URL the file can be downloaded from. Use only when you have no filesystem_id.',
+                required: false,
             ),
             new ToolProperty(
                 name: 'file_name',
                 type: PropertyType::STRING,
-                description: 'File name to store it under, including extension. Defaults to the URL\'s own file name.',
+                description: 'File name to store it under, including extension. Defaults to the file\'s own name.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'field_name',
+                type: PropertyType::STRING,
+                description: 'Which slot on the invoice to store the file under. Leave it out only for the '
+                    . 'invoice document the customer sent or that the approval flow re-sends. Pass a short name '
+                    . 'like "po" or "signed_contract" for any OTHER document, or it replaces that one.',
                 required: false,
             ),
         ];
@@ -64,20 +84,35 @@ class AttachInvoiceFileTool extends Tool
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $invoice_id, string $file_url, ?string $file_name = null): array
-    {
+    public function __invoke(
+        int $invoice_id,
+        ?int $filesystem_id = null,
+        ?string $file_url = null,
+        ?string $file_name = null,
+        ?string $field_name = null,
+    ): array {
         $invoice = $this->resolvePushedInvoice($invoice_id);
 
         if (is_array($invoice)) {
             return ['file_attached' => false, ...$invoice];
         }
 
-        $name = $file_name !== null && $file_name !== '' ? $file_name : basename(parse_url($file_url, PHP_URL_PATH) ?: 'file');
+        $file = $this->attachFileToDocument(
+            $invoice,
+            $filesystem_id,
+            $file_url,
+            $file_name,
+            $field_name,
+        );
 
-        $invoice->addFileFromUrl($file_url, $name);
+        if (! isset($file['url'])) {
+            return ['file_attached' => false, ...$file];
+        }
+
+        $name = $file['name'];
 
         try {
-            new AttachFileToAcumaticaInvoiceAction($invoice, $file_url, $name)->execute();
+            new AttachFileToAcumaticaInvoiceAction($invoice, $file['url'], $name)->execute();
         } catch (AcumaticaWriteException|Throwable $e) {
             return [
                 'file_attached' => true,

@@ -112,14 +112,16 @@ abstract class ScribeTestCase extends TestCase
         ?int $appsId = null,
         string $extension = 'pdf',
         string $fileType = 'pdf',
+        ?string $url = null,
+        ?string $name = null,
     ): Filesystem {
         $filesystem = new Filesystem();
         $filesystem->apps_id = $appsId ?? $this->kanvasApp->getId();
         $filesystem->companies_id = $this->company->getId();
         $filesystem->users_id = static::$cachedUser->getId();
-        $filesystem->name = 'test-' . uniqid('', true) . '.' . $extension;
+        $filesystem->name = $name ?? 'test-' . uniqid('', true) . '.' . $extension;
         $filesystem->path = 'inbound/' . $filesystem->name;
-        $filesystem->url = 'https://example.test/' . $filesystem->path;
+        $filesystem->url = $url ?? 'https://example.test/' . $filesystem->path;
         $filesystem->size = '12345';
         $filesystem->file_type = $fileType;
         $filesystem->save();

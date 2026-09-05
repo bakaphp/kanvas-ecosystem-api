@@ -61,9 +61,12 @@ class AgentChatMutation
         return new AgentChatKernel(
             agent: $agent,
             session: $session,
-            message: AttachmentPromptBuilder::withAttachments(
-                (string) $input['message'],
-                $mergedFiles,
+            message: AttachmentPromptBuilder::withFilesystemMarkers(
+                AttachmentPromptBuilder::withAttachments(
+                    (string) $input['message'],
+                    $mergedFiles,
+                ),
+                $attachments,
             ),
             user: $user,
             images: $mergedImages,
@@ -155,9 +158,12 @@ class AgentChatMutation
             $session
         );
 
-        $message = AttachmentPromptBuilder::withAttachments(
-            (string) $input['message'],
-            $mergedFiles,
+        $message = AttachmentPromptBuilder::withFilesystemMarkers(
+            AttachmentPromptBuilder::withAttachments(
+                (string) $input['message'],
+                $mergedFiles,
+            ),
+            $attachments,
         );
 
         if ($this->shouldRunAsync($input, $app)) {

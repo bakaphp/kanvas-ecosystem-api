@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;
+use Kanvas\Connectors\Acumatica\Approvals\ReadsApprovalSourceFields;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -42,6 +43,7 @@ use Throwable;
 class CreateApBillTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use ReadsApprovalSourceFields;
     use StoresApprovalSourceFields;
     use TrackByInputs;
 
@@ -182,18 +184,11 @@ class CreateApBillTool extends Tool implements HasRunKey
                 required: false,
             ),
             new ToolProperty(
-                name: 'source_attachment_url',
-                type: PropertyType::STRING,
-                description: 'The Kanvas-hosted URL of the invoice PDF (from download_attachment), when created '
-                    . 'as part of the automatic invoice-email flow. Kept so it can be attached to the bill once '
-                    . 'it is actually pushed to Acumatica, at approval time.',
-                required: false,
-            ),
-            new ToolProperty(
-                name: 'source_attachment_filename',
-                type: PropertyType::STRING,
-                description: 'The file name for source_attachment_url (from download_attachment). Optional — '
-                    . 'defaults to the URL\'s own file name when attached.',
+                name: 'source_attachment_filesystem_id',
+                type: PropertyType::INTEGER,
+                description: 'The filesystem_id of the invoice PDF (from download_attachment), when created as '
+                    . 'part of the automatic invoice-email flow. Attaches the PDF to the bill via Kanvas '
+                    . 'Filesystem so it can be forwarded to the approver and seen later.',
                 required: false,
             ),
         ];
@@ -216,8 +211,7 @@ class CreateApBillTool extends Tool implements HasRunKey
         ?string $currency = null,
         ?bool $push_to_acumatica = null,
         ?string $source_email_message_id = null,
-        ?string $source_attachment_url = null,
-        ?string $source_attachment_filename = null,
+        ?int $source_attachment_filesystem_id = null,
     ): array {
         $push_to_acumatica ??= true;
         $app = $this->app;
@@ -309,17 +303,13 @@ class CreateApBillTool extends Tool implements HasRunKey
 
         $bill = new SubmitBillForApprovalAction($bill, $actingUser)->execute();
 
-        $this->storeApprovalSourceFields(
-            $bill,
-            $source_email_message_id,
-            $source_attachment_url,
-            $source_attachment_filename,
-        );
+        $this->storeApprovalSourceFields($bill, $source_email_message_id, $source_attachment_filesystem_id);
 
         if (! $push_to_acumatica) {
             $approverEmails = ResolveApproverEmailAction::resolveForOrganization($vendor);
             $isMultiLine = $lines !== null && $lines !== [];
-            $hasAttachment = $source_attachment_url !== null && trim($source_attachment_url) !== '';
+            $sourceFields = $this->sourceFields($bill);
+            $hasAttachment = $sourceFields['source_attachment_url'] !== null;
             $hasSourceEmail = $source_email_message_id !== null && trim($source_email_message_id) !== '';
 
             NotifyApproverAction::notifyAll(
@@ -330,8 +320,8 @@ class CreateApBillTool extends Tool implements HasRunKey
                         . ($subaccount !== null && trim($subaccount) !== '' ? " / Subaccount: {$subaccount}" : ''))
                     . "\nMemo: {$memo}\nBill ID (Kanvas): {$bill->getId()}\n\nReply \"approve bill "
                     . "{$bill->getId()}\" to approve it and push it to Acumatica.",
-                attachmentUrl: $source_attachment_url,
-                attachmentFilename: $source_attachment_filename,
+                attachmentUrl: $sourceFields['source_attachment_url'],
+                attachmentFilename: $sourceFields['source_attachment_filename'],
             );
 
             $result = [
@@ -368,8 +358,8 @@ class CreateApBillTool extends Tool implements HasRunKey
             }
 
             if ($hasSourceEmail && ! $hasAttachment) {
-                $result['attachment_warning'] = 'This bill has a source email but no source_attachment_url — '
-                    . 'the approver was notified without the invoice PDF attached.';
+                $result['attachment_warning'] = 'This bill has a source email but no source_attachment_filesystem_id '
+                    . '— the approver was notified without the invoice PDF attached.';
             }
 
             return $result;

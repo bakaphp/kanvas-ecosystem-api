@@ -8,11 +8,11 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Acumatica\Actions\PushBillToAcumaticaAction;
 use Kanvas\Connectors\Acumatica\Actions\PushInvoiceToAcumaticaAction;
+use Kanvas\Connectors\Acumatica\Approvals\ReadsApprovalSourceFields;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum as AcumaticaCustomFieldEnum;
 use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Models\Organization;
-use Kanvas\Scribe\Approvals\Enums\ApprovalCustomFieldEnum;
 use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
 use Kanvas\Scribe\Bills\Actions\ApproveBillAction;
@@ -34,6 +34,8 @@ use Throwable;
  */
 class ResolveApprovalAction
 {
+    use ReadsApprovalSourceFields;
+
     public function __construct(
         protected readonly ApprovalQueueItem $item,
         protected readonly UserInterface $approver,
@@ -141,24 +143,5 @@ class ResolveApprovalAction
         }
 
         return $result;
-    }
-
-    /**
-     * @return array{source_email_message_id: ?string, source_attachment_url: ?string, source_attachment_filename: ?string}
-     */
-    private function sourceFields(Bill|Invoice $record): array
-    {
-        return [
-            'source_email_message_id' => $this->customField($record, ApprovalCustomFieldEnum::SOURCE_EMAIL_MESSAGE_ID),
-            'source_attachment_url' => $this->customField($record, ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_URL),
-            'source_attachment_filename' => $this->customField($record, ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_FILENAME),
-        ];
-    }
-
-    private function customField(Bill|Invoice $record, ApprovalCustomFieldEnum $field): ?string
-    {
-        $value = (string) $record->get($field->value, '');
-
-        return $value !== '' ? $value : null;
     }
 }
