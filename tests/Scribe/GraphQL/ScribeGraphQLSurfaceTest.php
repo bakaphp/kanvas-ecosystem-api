@@ -4,16 +4,29 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\GraphQL;
 
+use Baka\Traits\HasLightHouseCache;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Illuminate\Testing\TestResponse;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
+use Kanvas\Scribe\Expenses\Models\Expense;
+use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\FiscalPeriod;
 use Kanvas\Scribe\Ledger\Services\ChartOfAccountsSeederService;
+use Kanvas\Scribe\Models\BaseModel;
+use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
+use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
+use Kanvas\Scribe\Payments\Models\Payment;
+use Kanvas\Scribe\Quotes\Models\Quote;
+use Kanvas\Scribe\SalesReceipts\Models\SalesReceipt;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -297,6 +310,234 @@ class ScribeGraphQLSurfaceTest extends TestCase
                 }
             }
         ')->assertSuccessful();
+    }
+
+    /**
+     * Every primary accounting document must actually RESOLVE `files` over the graph — not merely
+     * declare it. A schema-only assertion passes even when the paginator builder, the system-module
+     * lookup or the model's own files() relation blows up at query time.
+     */
+    #[DataProvider('documentTypesExposingFiles')]
+    public function test_scribe_document_resolves_its_files_over_graphql(
+        string $modelClass,
+        string $graphTypeName,
+        string $schemaFile,
+        string $queryName,
+        string $whereColumn,
+        string $fileField
+    ): void {
+        $reference = 'FILES-GQL-' . strtoupper(substr(md5($graphTypeName), 0, 8));
+        $document = $this->makeDocument($graphTypeName, $reference);
+
+        $fileUrl = 'https://example.test/docs/' . uniqid('', true) . '.pdf';
+        $document->addFileFromUrl($fileUrl, $fileField);
+
+        $response = $this->queryDocumentFiles($queryName, $whereColumn, $reference);
+
+        $response->assertJsonPath("data.{$queryName}.data.0.id", (string) $document->getId());
+        $response->assertJsonPath("data.{$queryName}.data.0.files.data.0.url", $fileUrl);
+    }
+
+    /**
+     * The reason the HasLightHouseCache + observer wiring exists at all. @cacheRedis writes to a real
+     * Redis hash (it bypasses the cache facade, so CACHE_DRIVER=array does not neuter it) — without
+     * invalidation a second read serves the pre-upload list and a file the agent just attached is
+     * invisible until the key expires. Reads first so the cache is warm before the second attach.
+     */
+    public function test_a_file_attached_after_a_cached_read_still_appears(): void
+    {
+        $reference = 'FILES-GQL-CACHE-1';
+        $quote = $this->makeDocument('ScribeQuote', $reference);
+
+        $firstUrl = 'https://example.test/docs/' . uniqid('', true) . '.pdf';
+        $quote->addFileFromUrl($firstUrl, 'quote_pdf');
+
+        $warm = $this->queryDocumentFiles('scribeQuotes', 'QUOTE_NUMBER', $reference);
+        $warm->assertJsonPath('data.scribeQuotes.data.0.files.data.0.url', $firstUrl);
+
+        $secondUrl = 'https://example.test/docs/' . uniqid('', true) . '.pdf';
+        $quote->addFileFromUrl($secondUrl, 'signed_acceptance');
+
+        $urls = $this->queryDocumentFiles('scribeQuotes', 'QUOTE_NUMBER', $reference)
+            ->json('data.scribeQuotes.data.0.files.data.*.url');
+
+        $this->assertContains($firstUrl, $urls);
+        $this->assertContains(
+            $secondUrl,
+            $urls,
+            'A file attached after a cached read must invalidate the @cacheRedis entry, or it stays invisible.',
+        );
+    }
+
+    private function queryDocumentFiles(string $queryName, string $whereColumn, string $reference): TestResponse
+    {
+        return $this->graphQL('
+            query($reference: Mixed) {
+                ' . $queryName . '(where: {column: ' . $whereColumn . ', operator: EQ, value: $reference}) {
+                    data {
+                        id
+                        files { data { url } }
+                    }
+                }
+            }
+        ', ['reference' => $reference])->assertSuccessful();
+    }
+
+    /**
+     * Bill/Invoice/Quote go through their create mutation so this keeps covering that path; the rest
+     * are built directly because their `files` surface is what is under test, not their creation.
+     */
+    private function makeDocument(string $graphTypeName, string $reference): BaseModel
+    {
+        return match ($graphTypeName) {
+            'ScribeBill' => $this->createViaMutation(
+                'createScribeBill',
+                'ScribeBillInput',
+                Bill::class,
+                [
+                    'bill_number' => $reference,
+                    'currency' => 'USD',
+                    'fx_rate_to_base' => 1.0,
+                    'lines' => [[
+                        'description' => 'Consulting',
+                        'unit_price_native' => 250.0,
+                        'expense_account_id' => $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS),
+                    ]],
+                ],
+            ),
+            'ScribeInvoice' => $this->createViaMutation(
+                'createScribeInvoice',
+                'ScribeInvoiceInput',
+                Invoice::class,
+                [
+                    'invoice_number' => $reference,
+                    'currency' => 'USD',
+                    'fx_rate_to_base' => 1.0,
+                    'lines' => [['description' => 'Consulting', 'unit_price_native' => 250.0]],
+                ],
+            ),
+            'ScribeQuote' => $this->createViaMutation(
+                'createScribeQuote',
+                'ScribeQuoteInput',
+                Quote::class,
+                [
+                    'quote_number' => $reference,
+                    'currency' => 'USD',
+                    'fx_rate_to_base' => 1.0,
+                    'lines' => [['description' => 'Consulting', 'unit_price_native' => 250.0]],
+                ],
+            ),
+            'ScribeExpense' => $this->newDocument(Expense::class, [
+                'expense_number' => $reference,
+                'expense_date' => '2026-06-15',
+                'paid_by' => ExpensePaidByEnum::COMPANY_CARD->value,
+                'currency' => 'USD',
+                'fx_rate_to_base' => 1.0,
+            ]),
+            'ScribeSalesReceipt' => $this->newDocument(SalesReceipt::class, [
+                'receipt_number' => $reference,
+                'receipt_date' => '2026-06-15',
+                'currency' => 'USD',
+                'fx_rate_to_base' => 1.0,
+            ]),
+            'ScribePayment' => $this->newDocument(Payment::class, [
+                'external_id' => $reference,
+                'amount_native' => 100.0,
+                'amount_base' => 100.0,
+                'currency' => 'USD',
+                'fx_rate_to_base' => 1.0,
+                'payment_date' => '2026-06-15',
+                'direction' => PaymentDirectionEnum::INBOUND->value,
+                'method' => PaymentMethodEnum::CHECK->value,
+            ]),
+        };
+    }
+
+    /**
+     * @param array<string, mixed> $input
+     * @param class-string<BaseModel> $modelClass
+     */
+    private function createViaMutation(
+        string $mutation,
+        string $inputType,
+        string $modelClass,
+        array $input
+    ): BaseModel {
+        $id = $this->graphQL('
+            mutation($input: ' . $inputType . '!) {
+                ' . $mutation . '(input: $input) { id }
+            }
+        ', ['input' => $input])
+            ->assertSuccessful()
+            ->json('data.' . $mutation . '.id');
+
+        return $modelClass::query()->where('id', $id)->firstOrFail();
+    }
+
+    /**
+     * @param class-string<BaseModel> $modelClass
+     * @param array<string, mixed> $attributes
+     */
+    private function newDocument(string $modelClass, array $attributes): BaseModel
+    {
+        $document = new $modelClass();
+        $document->fill($attributes);
+        $document->apps_id = $this->kanvasApp->getId();
+        $document->companies_id = $this->company->getId();
+        $document->users_id = static::$cachedUser->getId();
+        $document->saveOrFail();
+
+        return $document;
+    }
+
+    /**
+     * `files` on a type is only half the wiring: without HasLightHouseCache + a getGraphTypeName()
+     * that matches the type, @cacheRedis keeps serving the pre-upload payload and a file the agent
+     * just attached never appears. Guards the pairing in both directions.
+     */
+    #[DataProvider('documentTypesExposingFiles')]
+    public function test_every_scribe_document_exposing_files_is_wired_for_cache_invalidation(
+        string $modelClass,
+        string $graphTypeName,
+        string $schemaFile,
+        string $queryName,
+        string $whereColumn,
+        string $fileField
+    ): void {
+        $this->assertContains(
+            HasLightHouseCache::class,
+            class_uses_recursive($modelClass),
+            $modelClass . ' exposes files but cannot invalidate its Lighthouse cache.',
+        );
+
+        $this->assertSame($graphTypeName, new $modelClass()->getGraphTypeName());
+
+        $schema = file_get_contents(base_path('graphql/schemas/Scribe/' . $schemaFile));
+        $type = substr($schema, strpos($schema, 'type ' . $graphTypeName . ' {'));
+        $type = substr($type, 0, strpos($type, "\n}\n"));
+
+        $this->assertStringContainsString('files: [Filesystem!]!', $type);
+        $this->assertStringContainsString('@cacheRedis', $type);
+
+        // A type whose files nothing can reach is the same as no files at all.
+        $this->assertStringContainsString($queryName . '(', $schema);
+        $this->assertStringContainsString('"' . strtolower($whereColumn) . '"', $schema);
+        $this->assertNotSame('', $fileField);
+    }
+
+    /**
+     * @return array<string, array{0: class-string, 1: string, 2: string, 3: string, 4: string, 5: string}>
+     */
+    public static function documentTypesExposingFiles(): array
+    {
+        return [
+            'bill' => [Bill::class, 'ScribeBill', 'bill.graphql', 'scribeBills', 'BILL_NUMBER', 'invoice_pdf'],
+            'invoice' => [Invoice::class, 'ScribeInvoice', 'invoice.graphql', 'scribeInvoices', 'INVOICE_NUMBER', 'invoice_pdf'],
+            'quote' => [Quote::class, 'ScribeQuote', 'quote.graphql', 'scribeQuotes', 'QUOTE_NUMBER', 'quote_pdf'],
+            'expense' => [Expense::class, 'ScribeExpense', 'expense.graphql', 'scribeExpenses', 'EXPENSE_NUMBER', 'receipt'],
+            'sales receipt' => [SalesReceipt::class, 'ScribeSalesReceipt', 'salesReceipt.graphql', 'scribeSalesReceipts', 'RECEIPT_NUMBER', 'receipt_pdf'],
+            'payment' => [Payment::class, 'ScribePayment', 'payment.graphql', 'scribePayments', 'EXTERNAL_ID', 'remittance'],
+        ];
     }
 
     private function accountIdBySubType(AccountSubTypeEnum $subType): int
