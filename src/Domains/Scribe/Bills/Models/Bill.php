@@ -23,9 +23,9 @@ use Kanvas\Scribe\Bills\Actions\MarkBillPaidAction;
 use Kanvas\Scribe\Bills\Enums\BillCollectionStateEnum;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
-use Kanvas\Scribe\Bills\Observers\BillObserver;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
+use Kanvas\Scribe\Observers\ClearsLightHouseCacheObserver;
 use Kanvas\Scribe\Payments\Models\Payment;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
@@ -90,7 +90,7 @@ use Override;
  * @property bool $is_deleted
  * @property int|null $users_id
  */
-#[ObservedBy([BillObserver::class])]
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class Bill extends BaseModel implements PayableInterface
 {
     use HasApprovals;

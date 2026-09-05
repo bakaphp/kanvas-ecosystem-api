@@ -191,7 +191,7 @@ class CreateArInvoiceTool extends Tool implements HasRunKey
                 attachmentFilename: $sourceFields['source_attachment_filename'],
             );
 
-            return [
+            $result = [
                 'created' => true,
                 'invoice_pushed' => false,
                 'invoice_id' => $invoice->getId(),
@@ -210,6 +210,19 @@ class CreateArInvoiceTool extends Tool implements HasRunKey
                         . 'into the sheet\'s Approved By column so this is visible there too, and tell the user to '
                         . 'have an admin set that customer\'s approver.',
             ];
+
+            // Same warning create_ap_bill returns: the approver was DM'd without the PDF, and the model
+            // is the only one who can notice and follow up with resend_invoice_attachment.
+            if ($source_email_message_id !== null
+                && trim($source_email_message_id) !== ''
+                && $sourceFields['source_attachment_url'] === null
+            ) {
+                $result['attachment_warning'] = 'This invoice has a source email but no '
+                    . 'source_attachment_filesystem_id — the approver was notified without the invoice PDF '
+                    . 'attached.';
+            }
+
+            return $result;
         }
 
         $invoice = new IssueInvoiceAction($invoice, $customer, $actingUser)->execute();

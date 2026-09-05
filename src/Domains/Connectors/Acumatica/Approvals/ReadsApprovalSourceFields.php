@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Acumatica\Approvals;
 
-use Illuminate\Database\Eloquent\Model;
 use Kanvas\Scribe\Approvals\Enums\ApprovalAttachmentFieldEnum;
 use Kanvas\Scribe\Approvals\Enums\ApprovalCustomFieldEnum;
+use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Invoices\Models\Invoice;
 
 /**
  * Reads back the source email and attachment that Apex/Arc stashed on the record at intake.
@@ -20,7 +21,7 @@ trait ReadsApprovalSourceFields
     /**
      * @return array<string, string|null>
      */
-    private function sourceFields(Model $record): array
+    private function sourceFields(Bill|Invoice $record): array
     {
         $messageId = (string) $record->get(ApprovalCustomFieldEnum::SOURCE_EMAIL_MESSAGE_ID->value, '');
 
@@ -33,7 +34,7 @@ trait ReadsApprovalSourceFields
     /**
      * @return array{source_attachment_url: ?string, source_attachment_filename: ?string}
      */
-    private function attachmentFields(Model $record): array
+    private function attachmentFields(Bill|Invoice $record): array
     {
         $fileEntity = $record->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value);
 

@@ -25,9 +25,9 @@ use Kanvas\Scribe\Invoices\Enums\AgingBucketEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceCollectionStateEnum;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
-use Kanvas\Scribe\Invoices\Observers\InvoiceObserver;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
+use Kanvas\Scribe\Observers\ClearsLightHouseCacheObserver;
 use Kanvas\Scribe\Payments\Models\Payment;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
@@ -98,7 +98,7 @@ use Throwable;
  * @property bool $is_deleted
  * @property int|null $users_id
  */
-#[ObservedBy([InvoiceObserver::class])]
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class Invoice extends BaseModel implements PayableInterface
 {
     use HasApprovals;

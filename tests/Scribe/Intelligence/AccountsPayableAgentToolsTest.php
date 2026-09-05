@@ -575,6 +575,172 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame('https://cdn.example.test/invoice-filesystem-check.pdf', $fileEntity->filesystem->url);
     }
 
+    public function test_attach_bill_file_accepts_a_filesystem_id_someone_handed_the_agent(): void
+    {
+        $bill = $this->pushedBill('Globex Supply');
+        $pdf = $this->createFilesystemRow(
+            url: 'https://cdn.example.test/handed-to-agent.pdf',
+            name: 'handed-to-agent.pdf',
+        );
+
+        $result = new AttachBillFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: $bill->getId(), filesystem_id: $pdf->getId());
+
+        // The Acumatica leg fails without a pushed bill GUID; the Kanvas-side attachment is the point.
+        $this->assertTrue($result['file_attached']);
+        $this->assertSame('handed-to-agent.pdf', $result['file_name']);
+
+        $stored = $bill->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value);
+        $this->assertNotNull($stored);
+        $this->assertSame($pdf->getId(), $stored->filesystem->getId());
+    }
+
+    public function test_attach_bill_file_reports_an_unknown_filesystem_id_instead_of_attaching(): void
+    {
+        $bill = $this->pushedBill('Globex Supply');
+
+        $result = new AttachBillFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: $bill->getId(), filesystem_id: 999999999);
+
+        $this->assertFalse($result['file_attached']);
+        $this->assertSame('file_not_found', $result['reason']);
+        $this->assertNull($bill->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value));
+    }
+
+    public function test_attach_bill_file_requires_a_filesystem_id_or_a_url(): void
+    {
+        $bill = $this->pushedBill('Globex Supply');
+
+        $result = new AttachBillFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: $bill->getId());
+
+        $this->assertFalse($result['file_attached']);
+        $this->assertSame('no_file_given', $result['reason']);
+    }
+
+    /**
+     * Every attachment sharing one field_name means the second document silently replaces the first —
+     * and the approval flow reads that slot back as "the invoice", so a W-9 would be resent as the bill.
+     */
+    public function test_attach_bill_file_keeps_a_second_document_beside_the_source_invoice_pdf(): void
+    {
+        $bill = $this->pushedBill('Globex Supply');
+        $invoicePdf = $this->createFilesystemRow(url: 'https://cdn.example.test/the-invoice.pdf', name: 'the-invoice.pdf');
+        $w9 = $this->createFilesystemRow(url: 'https://cdn.example.test/vendor-w9.pdf', name: 'vendor-w9.pdf');
+
+        $tool = new AttachBillFileTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $tool->__invoke(bill_id: $bill->getId(), filesystem_id: $invoicePdf->getId());
+        $tool->__invoke(bill_id: $bill->getId(), filesystem_id: $w9->getId(), field_name: 'w9');
+
+        $this->assertSame(
+            $invoicePdf->getId(),
+            $bill->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value)->filesystem->getId(),
+        );
+        $this->assertSame($w9->getId(), $bill->getFileByName('w9')->filesystem->getId());
+    }
+
+    /**
+     * Every bill created before the Filesystem cutover carries its invoice PDF as the two legacy
+     * custom fields, and nothing backfilled them. If ReadsApprovalSourceFields' fallback regresses,
+     * those records silently lose their attachment from the approval flow — no error, just a DM with
+     * no PDF. This is the only test standing between that and production.
+     */
+    public function test_a_pre_cutover_bill_still_resolves_its_legacy_custom_field_attachment(): void
+    {
+        $vendor = $this->seedTestOrganization('Legacy Fallback Vendor');
+        $vendor->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
+
+        /** @var Bill $bill */
+        $bill = Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->latest('id')
+            ->first();
+
+        // Exactly the shape a pre-cutover record has: custom fields set, no Filesystem attachment.
+        $bill->set(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_URL->value, 'https://cdn.example.test/legacy.pdf');
+        $bill->set(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_FILENAME->value, 'legacy.pdf');
+        $this->assertNull($bill->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value));
+
+        $agent = Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['name' => 'Apex Legacy', 'user_id' => static::$cachedUser->getId()]);
+        $agent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test-token');
+        $originalNotifierAgentId = $this->kanvasApp->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value);
+        $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, (string) $agent->getId());
+
+        try {
+            Http::fake([
+                'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
+                'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
+                'cdn.example.test/*' => Http::response('%PDF-1.4 fake bytes', 200),
+                'slack.com/api/files.getUploadURLExternal' => Http::response([
+                    'ok' => true,
+                    'upload_url' => 'https://files.slack.com/upload/v1/abc123',
+                    'file_id' => 'F123',
+                ]),
+                'files.slack.com/upload/v1/abc123' => Http::response('', 200),
+                'slack.com/api/files.completeUploadExternal' => Http::response(['ok' => true]),
+                'slack.com/api/chat.postMessage' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
+            ]);
+
+            $result = new ResendBillAttachmentTool()
+                ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+                ->__invoke(bill_id: $bill->getId());
+
+            $this->assertTrue($result['resent'], 'The legacy custom-field attachment must still be resolvable.');
+            Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'cdn.example.test/legacy.pdf'));
+        } finally {
+            $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
+        }
+    }
+
+    /** A Filesystem attachment is the current shape and must win over any stale legacy custom field. */
+    public function test_a_filesystem_attachment_wins_over_a_stale_legacy_custom_field(): void
+    {
+        $bill = $this->pushedBill('Precedence Vendor');
+        $bill->set(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_URL->value, 'https://cdn.example.test/stale-legacy.pdf');
+        $bill->set(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_FILENAME->value, 'stale-legacy.pdf');
+
+        $current = $this->createFilesystemRow(
+            url: 'https://cdn.example.test/current-invoice.pdf',
+            name: 'current-invoice.pdf',
+        );
+
+        new AttachBillFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: $bill->getId(), filesystem_id: $current->getId());
+
+        $stored = $bill->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value);
+        $this->assertNotNull($stored);
+        $this->assertSame('https://cdn.example.test/current-invoice.pdf', $stored->filesystem->url);
+    }
+
+    private function pushedBill(string $vendorName): Bill
+    {
+        $vendor = $this->seedTestOrganization($vendorName);
+        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
+
+        /** @var Bill $bill */
+        $bill = Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->latest('id')
+            ->first();
+
+        // attach_bill_file gates on the Acumatica ref; BILL_ID stays unset so the push leg fails fast
+        // (AcumaticaWriteException) instead of reaching the network.
+        $bill->set(CustomFieldEnum::BILL_REF->value, 'AP-' . $bill->getId());
+
+        return $bill;
+    }
+
     public function test_resend_bill_attachment_resends_the_stored_pdf(): void
     {
         $vendor = $this->seedTestOrganization('Windwalk Games Corp');
