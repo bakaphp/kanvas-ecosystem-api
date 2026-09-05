@@ -42,15 +42,17 @@ class DraftMonthlyCustomerUpdatesCommand extends Command
 
     protected $description = 'Draft this month\'s Kanvas update for every account tagged "newsletter" and post each as an approval card.';
 
+    private NewsletterAudienceService $audience;
+
     public function handle(): int
     {
-        $audience = new NewsletterAudienceService();
+        $this->audience = new NewsletterAudienceService();
 
         // An explicit --app_id is an operator running it by hand and bypasses the opt-in; the cron
         // form takes only apps whose operator turned the feature on.
         $appIds = $this->option('app_id') !== null
             ? [(int) $this->option('app_id')]
-            : $audience->enabledAppIds();
+            : $this->audience->enabledAppIds();
 
         if ($appIds === []) {
             $this->warn('No app has "' . KanvasReleaseFeedEnum::MONTHLY_UPDATE_ENABLED->value . '" switched on.');
@@ -62,7 +64,7 @@ class DraftMonthlyCustomerUpdatesCommand extends Command
         $tally = ['drafted' => 0, 'skipped' => 0, 'failed' => 0];
 
         foreach ($appIds as $appId) {
-            $this->runForApp($appId, $audience, $tally);
+            $this->runForApp($appId, $tally);
         }
 
         $this->newLine();
@@ -79,7 +81,7 @@ class DraftMonthlyCustomerUpdatesCommand extends Command
     /**
      * @param array<string, int> $tally
      */
-    private function runForApp(int $appId, NewsletterAudienceService $audience, array &$tally): void
+    private function runForApp(int $appId, array &$tally): void
     {
         /** @var Apps $app */
         $app = Apps::getById($appId);
@@ -92,7 +94,7 @@ class DraftMonthlyCustomerUpdatesCommand extends Command
             ? Companies::getById((int) $this->option('company_id'))
             : null;
 
-        $organizations = $audience->organizations($app, $company);
+        $organizations = $this->audience->organizations($app, $company);
 
         if ($organizations->isEmpty()) {
             $this->line('<fg=gray>' . $app->name . ' — no subscribed accounts.</>');
@@ -104,7 +106,7 @@ class DraftMonthlyCustomerUpdatesCommand extends Command
         $this->info($app->name . ' — ' . $organizations->count() . ' subscribed account(s).');
 
         foreach ($organizations as $organization) {
-            $this->processOne($app, $organization, $audience, $tally);
+            $this->processOne($app, $organization, $tally);
         }
     }
 
@@ -114,15 +116,11 @@ class DraftMonthlyCustomerUpdatesCommand extends Command
      *
      * @param array<string, int> $tally
      */
-    private function processOne(
-        Apps $app,
-        Organization $organization,
-        NewsletterAudienceService $audience,
-        array &$tally
-    ): void {
+    private function processOne(Apps $app, Organization $organization, array &$tally): void
+    {
         $label = '  ' . $organization->name . ' (' . $organization->getId() . ')';
 
-        $recipients = $audience->recipients($organization);
+        $recipients = $this->audience->recipients($organization);
 
         if ($recipients === []) {
             $tally['skipped']++;
@@ -181,11 +179,17 @@ class DraftMonthlyCustomerUpdatesCommand extends Command
         $this->line($label . ' <fg=green>— card #' . $note->getId() . '</> for ' . implode(', ', $recipients));
     }
 
+    /**
+     * Worth distinguishing in the output: only the last of these cost an LLM turn, so a summary line
+     * of "12 skipped" reads very differently depending on which.
+     */
     private function skipReason(?CustomerUpdateSkipEnum $skipped): string
     {
-        return $skipped === CustomerUpdateSkipEnum::NO_RELEASES
-            ? 'nothing shipped in the window.'
-            : 'the agent had nothing new worth saying to this account.';
+        return match ($skipped) {
+            CustomerUpdateSkipEnum::NO_RELEASES => 'nothing shipped in the window.',
+            CustomerUpdateSkipEnum::ALREADY_COVERED => 'every release in the window was already covered last time.',
+            default => 'the agent read the releases and had nothing new worth saying to this account.',
+        };
     }
 
     private function resolveAgent(Apps $app, Organization $organization): ?Agent
