@@ -79,6 +79,12 @@ type ScribeInvoice {
         @hasMany(relation: "allocations")
     parent_invoice: ScribeInvoice @belongsTo(relation: "parentInvoice")
     credit_notes: [ScribeInvoice!]! @hasMany(relation: "creditNotes")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     created_at: DateTime!
     updated_at: DateTime!
 }
