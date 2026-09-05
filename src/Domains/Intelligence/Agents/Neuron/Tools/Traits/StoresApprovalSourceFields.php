@@ -4,29 +4,38 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
 
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Scribe\Approvals\Enums\ApprovalAttachmentFieldEnum;
 use Kanvas\Scribe\Approvals\Enums\ApprovalCustomFieldEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 
-/** Stashes the originating email/attachment on a bill/invoice, for ResolveApprovalAction to use later. */
+/** Stashes the originating email/attachment on a bill/invoice, for ReadsApprovalSourceFields to use later. */
 trait StoresApprovalSourceFields
 {
     private function storeApprovalSourceFields(
         Bill|Invoice $record,
         ?string $messageId,
-        ?string $attachmentUrl,
-        ?string $attachmentFilename,
+        ?int $attachmentFilesystemId,
     ): void {
         if ($messageId !== null && trim($messageId) !== '') {
             $record->set(ApprovalCustomFieldEnum::SOURCE_EMAIL_MESSAGE_ID->value, trim($messageId));
         }
 
-        if ($attachmentUrl !== null && trim($attachmentUrl) !== '') {
-            $record->set(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_URL->value, trim($attachmentUrl));
+        if ($attachmentFilesystemId === null) {
+            return;
         }
 
-        if ($attachmentFilename !== null && trim($attachmentFilename) !== '') {
-            $record->set(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_FILENAME->value, trim($attachmentFilename));
+        // Third-party files (the invoice PDF) are attached to the entity via Kanvas Filesystem —
+        // the same mechanism every other entity in Kanvas uses — never a custom field.
+        $filesystem = Filesystem::query()
+            ->fromApp($this->app)
+            ->where('companies_id', $this->company->getId())
+            ->where('id', $attachmentFilesystemId)
+            ->first();
+
+        if ($filesystem !== null) {
+            $record->addFile($filesystem, ApprovalAttachmentFieldEnum::INVOICE_PDF->value);
         }
     }
 }

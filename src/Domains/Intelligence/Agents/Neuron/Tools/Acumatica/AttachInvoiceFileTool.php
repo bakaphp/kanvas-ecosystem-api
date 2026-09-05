@@ -10,6 +10,7 @@ use Kanvas\Connectors\Acumatica\Exceptions\AcumaticaWriteException;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPushedInvoiceForTool;
+use Kanvas\Scribe\Approvals\Enums\ApprovalAttachmentFieldEnum;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -74,7 +75,9 @@ class AttachInvoiceFileTool extends Tool
 
         $name = $file_name !== null && $file_name !== '' ? $file_name : basename(parse_url($file_url, PHP_URL_PATH) ?: 'file');
 
-        $invoice->addFileFromUrl($file_url, $name);
+        // Same stable field_name create_ar_invoice attaches under, so this updates that one row (the
+        // source invoice PDF) instead of creating a second, differently-keyed Filesystem attachment.
+        $invoice->addFileFromUrl($file_url, ApprovalAttachmentFieldEnum::INVOICE_PDF->value);
 
         try {
             new AttachFileToAcumaticaInvoiceAction($invoice, $file_url, $name)->execute();
