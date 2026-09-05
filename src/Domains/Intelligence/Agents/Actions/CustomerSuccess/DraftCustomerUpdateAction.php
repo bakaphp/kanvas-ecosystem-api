@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Actions\CustomerSuccess;
 
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
+use Kanvas\Connectors\Github\DataTransferObject\GithubRelease;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -71,6 +72,13 @@ class DraftCustomerUpdateAction
             return CustomerUpdateResult::skipped(CustomerUpdateSkipEnum::NO_RELEASES, 0);
         }
 
+        // Everything in the window predates the last send, so there is nothing new to tell them. The
+        // brief asks the agent to reach the same conclusion, but asking costs a turn and gets the same
+        // answer every re-run — the dates already say it. `--ignore-watermark` skips this gate.
+        if ($lastWrittenTo !== null && ! $this->hasReleaseNewerThan($releases, $lastWrittenTo)) {
+            return CustomerUpdateResult::skipped(CustomerUpdateSkipEnum::ALREADY_COVERED, count($releases));
+        }
+
         $body = new RunNeuronChatAction(
             agent: $this->agent,
             session: null,
@@ -104,6 +112,20 @@ class DraftCustomerUpdateAction
             ),
             count($releases)
         );
+    }
+
+    /**
+     * @param array<int, GithubRelease> $releases
+     */
+    private function hasReleaseNewerThan(array $releases, Carbon $lastWrittenTo): bool
+    {
+        foreach ($releases as $release) {
+            if ($release->publishedAt?->greaterThan($lastWrittenTo) === true) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -285,6 +285,51 @@ final class DraftCustomerUpdateActionTest extends TestCase
         $this->assertSame('You can now filter by attribute.', $draft->body);
     }
 
+    /**
+     * The gate that stops the monthly cron paying for a turn per account to be told what the dates
+     * already say. The handler throws if it is reached, so a spent turn fails this test.
+     *
+     * The watermark is the newest covered release's own published_at — that is exactly what
+     * CustomerUpdateApprovalHandler::markCovered() writes — so on every real re-run the release we
+     * already sent sits ON the watermark, not before it. That equality is why the comparison has to be
+     * strict: greaterThanOrEqualTo would re-draft the same release, at full price, every month.
+     */
+    public function testEverythingAlreadyCoveredSkipsWithoutSpendingATurn(): void
+    {
+        $coveredThrough = now()->subDays(20)->toIso8601String();
+
+        $this->fakeReleases([$this->release('v1.0.0', $coveredThrough)]);
+
+        $organization = $this->seedOrganization();
+        $organization->set(DraftCustomerUpdateAction::WATERMARK_FIELD, $coveredThrough);
+
+        $result = new DraftCustomerUpdateAction(
+            $organization->refresh(),
+            $this->seedAgent(),
+            $this->handler(new RuntimeException('the agent must not be asked')),
+        )->execute();
+
+        $this->assertFalse($result->hasDraft());
+        $this->assertSame(CustomerUpdateSkipEnum::ALREADY_COVERED, $result->skipped);
+        $this->assertFalse($result->skipped->costAnLlmTurn());
+    }
+
+    public function testAReleaseNewerThanTheWatermarkStillReachesTheAgent(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+
+        $organization = $this->seedOrganization();
+        $organization->set(DraftCustomerUpdateAction::WATERMARK_FIELD, now()->subDays(10)->toIso8601String());
+
+        $result = new DraftCustomerUpdateAction(
+            $organization->refresh(),
+            $this->seedAgent(),
+            $this->handler("Subject: Hello\n\nMasthead\n\nBody line."),
+        )->execute();
+
+        $this->assertTrue($result->hasDraft());
+    }
+
     private function seedOrganization(): Organization
     {
         $user = auth()->user();
