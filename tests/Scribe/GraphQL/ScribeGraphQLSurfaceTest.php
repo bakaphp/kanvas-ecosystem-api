@@ -5,25 +5,32 @@ declare(strict_types=1);
 namespace Tests\Scribe\GraphQL;
 
 use Baka\Traits\HasLightHouseCache;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Testing\TestResponse;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Scribe\Banking\Enums\BankTransactionDirectionEnum;
+use Kanvas\Scribe\Banking\Models\BankAccount;
+use Kanvas\Scribe\Banking\Models\BankTransaction;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Invoices\Models\Invoice;
+use Kanvas\Scribe\Items\Models\Item;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\FiscalPeriod;
+use Kanvas\Scribe\Ledger\Models\Subaccount;
 use Kanvas\Scribe\Ledger\Services\ChartOfAccountsSeederService;
-use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use Kanvas\Scribe\Payments\Models\Payment;
+use Kanvas\Scribe\Purchasing\Models\PurchaseOrder;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Scribe\SalesReceipts\Models\SalesReceipt;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -332,7 +339,10 @@ class ScribeGraphQLSurfaceTest extends TestCase
         $fileUrl = 'https://example.test/docs/' . uniqid('', true) . '.pdf';
         $document->addFileFromUrl($fileUrl, $fileField);
 
-        $response = $this->queryDocumentFiles($queryName, $whereColumn, $reference);
+        $filterValue = $document->{strtolower($whereColumn)};
+        $filterValue = $filterValue instanceof Carbon ? $filterValue->toDateString() : (string) $filterValue;
+
+        $response = $this->queryDocumentFiles($queryName, $whereColumn, $filterValue);
 
         $response->assertJsonPath("data.{$queryName}.data.0.id", (string) $document->getId());
         $response->assertJsonPath("data.{$queryName}.data.0.files.data.0.url", $fileUrl);
@@ -387,7 +397,7 @@ class ScribeGraphQLSurfaceTest extends TestCase
      * Bill/Invoice/Quote go through their create mutation so this keeps covering that path; the rest
      * are built directly because their `files` surface is what is under test, not their creation.
      */
-    private function makeDocument(string $graphTypeName, string $reference): BaseModel
+    private function makeDocument(string $graphTypeName, string $reference): Model
     {
         return match ($graphTypeName) {
             'ScribeBill' => $this->createViaMutation(
@@ -440,6 +450,41 @@ class ScribeGraphQLSurfaceTest extends TestCase
                 'currency' => 'USD',
                 'fx_rate_to_base' => 1.0,
             ]),
+            'ScribePurchaseOrder' => $this->newDocument(PurchaseOrder::class, [
+                'order_number' => $reference,
+                'order_type' => 'PO',
+                'order_total' => 500.0,
+                'currency' => 'USD',
+                'order_date' => '2026-06-15',
+                'source' => 'test',
+            ]),
+            'ScribeBankTransaction' => $this->newDocument(BankTransaction::class, [
+                'external_id' => $reference,
+                'bank_account_id' => $this->testBankAccount()->getId(),
+                'posted_at' => '2026-06-15 10:00:00',
+                'transaction_date' => '2026-06-15',
+                'direction' => BankTransactionDirectionEnum::CREDIT->value,
+                'amount_native' => 100.0,
+                'amount_base' => 100.0,
+                'currency' => 'USD',
+                'fx_rate_to_base' => 1.0,
+                'source' => 'test',
+            ]),
+            'ScribeBankAccount' => $this->testBankAccount($reference),
+            'ScribeItem' => $this->newDocument(Item::class, [
+                'item_number' => $reference,
+                'name' => $reference,
+            ]),
+            'ScribeSubaccount' => $this->newDocument(Subaccount::class, [
+                'sub_code' => $reference,
+                'description' => 'Files test subaccount',
+            ]),
+            // Its own range, well clear of the seeded June 2026 period the other cases post into.
+            'ScribeFiscalPeriod' => $this->newDocument(FiscalPeriod::class, [
+                'period_start' => '2027-01-01',
+                'period_end' => '2027-01-31',
+                'status' => FiscalPeriodStatusEnum::HARD_CLOSED,
+            ]),
             'ScribePayment' => $this->newDocument(Payment::class, [
                 'external_id' => $reference,
                 'amount_native' => 100.0,
@@ -455,14 +500,14 @@ class ScribeGraphQLSurfaceTest extends TestCase
 
     /**
      * @param array<string, mixed> $input
-     * @param class-string<BaseModel> $modelClass
+     * @param class-string<Model> $modelClass
      */
     private function createViaMutation(
         string $mutation,
         string $inputType,
         string $modelClass,
         array $input
-    ): BaseModel {
+    ): Model {
         $id = $this->graphQL('
             mutation($input: ' . $inputType . '!) {
                 ' . $mutation . '(input: $input) { id }
@@ -474,17 +519,31 @@ class ScribeGraphQLSurfaceTest extends TestCase
         return $modelClass::query()->where('id', $id)->firstOrFail();
     }
 
+    private function testBankAccount(?string $accountName = null): BankAccount
+    {
+        return $this->newDocument(BankAccount::class, [
+            'account_name' => $accountName ?? 'Files Test Operating Account',
+            'currency' => 'USD',
+            'gl_account_id' => $this->accountIdBySubType(AccountSubTypeEnum::CASH_CHECKING),
+        ]);
+    }
+
     /**
-     * @param class-string<BaseModel> $modelClass
+     * @param class-string<Model> $modelClass
      * @param array<string, mixed> $attributes
      */
-    private function newDocument(string $modelClass, array $attributes): BaseModel
+    private function newDocument(string $modelClass, array $attributes): Model
     {
         $document = new $modelClass();
         $document->fill($attributes);
         $document->apps_id = $this->kanvasApp->getId();
         $document->companies_id = $this->company->getId();
-        $document->users_id = static::$cachedUser->getId();
+
+        // fiscal_periods tracks its closer, not an owner — it has no users_id column.
+        if (Schema::connection($document->getConnectionName())->hasColumn($document->getTable(), 'users_id')) {
+            $document->users_id = static::$cachedUser->getId();
+        }
+
         $document->saveOrFail();
 
         return $document;
@@ -537,6 +596,12 @@ class ScribeGraphQLSurfaceTest extends TestCase
             'expense' => [Expense::class, 'ScribeExpense', 'expense.graphql', 'scribeExpenses', 'EXPENSE_NUMBER', 'receipt'],
             'sales receipt' => [SalesReceipt::class, 'ScribeSalesReceipt', 'salesReceipt.graphql', 'scribeSalesReceipts', 'RECEIPT_NUMBER', 'receipt_pdf'],
             'payment' => [Payment::class, 'ScribePayment', 'payment.graphql', 'scribePayments', 'EXTERNAL_ID', 'remittance'],
+            'purchase order' => [PurchaseOrder::class, 'ScribePurchaseOrder', 'purchaseOrder.graphql', 'scribePurchaseOrders', 'ORDER_NUMBER', 'po_pdf'],
+            'bank transaction' => [BankTransaction::class, 'ScribeBankTransaction', 'banking.graphql', 'scribeBankTransactions', 'EXTERNAL_ID', 'statement'],
+            'bank account' => [BankAccount::class, 'ScribeBankAccount', 'banking.graphql', 'scribeBankAccounts', 'ACCOUNT_NAME', 'bank_letter'],
+            'item' => [Item::class, 'ScribeItem', 'masterData.graphql', 'scribeItems', 'NAME', 'spec_sheet'],
+            'subaccount' => [Subaccount::class, 'ScribeSubaccount', 'ledger.graphql', 'scribeSubaccounts', 'SUB_CODE', 'supporting_doc'],
+            'fiscal period' => [FiscalPeriod::class, 'ScribeFiscalPeriod', 'ledger.graphql', 'scribeFiscalPeriods', 'PERIOD_START', 'close_packet'],
         ];
     }
 
