@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Banking\Models;
 
 use Baka\Casts\Json;
+use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -13,7 +14,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Models\BaseModel;
-use Kanvas\Scribe\Observers\ClearsLightHouseCacheObserver;
 use Override;
 
 /**

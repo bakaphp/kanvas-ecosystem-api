@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\SalesReceipts\Models;
 
 use Baka\Casts\Json;
+use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
@@ -19,7 +20,6 @@ use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Models\BaseModel;
-use Kanvas\Scribe\Observers\ClearsLightHouseCacheObserver;
 use Kanvas\Scribe\SalesReceipts\Enums\SalesReceiptStatusEnum;
 use Override;
 

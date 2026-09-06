@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Payments\Models;
 
 use Baka\Casts\Json;
+use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -12,7 +13,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Models\BaseModel;
-use Kanvas\Scribe\Observers\ClearsLightHouseCacheObserver;
 use Kanvas\Scribe\Payments\Enums\PaymentDirectionEnum;
 use Kanvas\Scribe\Payments\Enums\PaymentMethodEnum;
 use Kanvas\Scribe\Payments\Enums\PaymentStatusEnum;

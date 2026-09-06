@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Models;
 
+use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
@@ -18,7 +19,6 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Event\Events\Observers\EventObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
@@ -32,7 +32,7 @@ use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
-#[ObservedBy([EventObserver::class])]
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class Event extends BaseModel
 {
     use UuidTrait;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Ledger\Models;
 
 use Baka\Casts\Json;
+use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\KanvasAppScopesTrait;
 use Baka\Traits\KanvasCompanyScopesTrait;
@@ -16,7 +17,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
-use Kanvas\Scribe\Observers\ClearsLightHouseCacheObserver;
 use Kanvas\Users\Models\Users;
 use Override;
 

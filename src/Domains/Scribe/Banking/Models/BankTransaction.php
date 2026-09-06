@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Banking\Models;
 
 use Baka\Casts\Json;
+use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -18,7 +19,6 @@ use Kanvas\Scribe\Banking\Enums\BankTransactionMatchedToTypeEnum;
 use Kanvas\Scribe\Banking\Enums\BankTransactionMatchStatusEnum;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
 use Kanvas\Scribe\Models\BaseModel;
-use Kanvas\Scribe\Observers\ClearsLightHouseCacheObserver;
 use Override;
 
 /**

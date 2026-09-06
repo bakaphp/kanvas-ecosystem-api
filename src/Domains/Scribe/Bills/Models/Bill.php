@@ -6,6 +6,7 @@ namespace Kanvas\Scribe\Bills\Models;
 
 use Baka\Casts\Json;
 use Baka\Contracts\PayableInterface;
+use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
@@ -25,7 +26,6 @@ use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Enums\PaymentStatusHintEnum;
 use Kanvas\Scribe\Ledger\Enums\JournalEntryOriginEnum;
 use Kanvas\Scribe\Models\BaseModel;
-use Kanvas\Scribe\Observers\ClearsLightHouseCacheObserver;
 use Kanvas\Scribe\Payments\Models\Payment;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;

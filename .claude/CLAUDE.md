@@ -158,17 +158,23 @@ class Foo extends BaseModel
 
 ### Required on the Observer
 
+Most models need nothing but the invalidation, so attach the shared observer instead of writing one:
+
 ```php
-class FooObserver
-{
-    public function updating(Foo $foo): void
-    {
-        $foo->clearLightHouseCache(withKanvasConfiguration: false);
-    }
-}
+use Baka\Observers\ClearsLightHouseCacheObserver;
+
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
+class Foo extends BaseModel
 ```
 
-- Use `updating()` (fires before the save) so the cache is gone before any listener reads it post-save.
+A model that also needs its own lifecycle work keeps its own observer and calls
+`clearLightHouseCache(withKanvasConfiguration: false)` from a `saved()` hook.
+
+- Use `saved()`, not `updating()`. Clearing *before* the write leaves a window where a concurrent
+  read re-warms the cache from the uncommitted row, and that stale entry then survives until the next
+  write. `saved()` also covers inserts — a no-op for a brand-new id, which has no cache key yet, but
+  it means one hook instead of two. (Observers still on `updating()` predate this and are not yet
+  migrated; don't copy them.)
 - `withKanvasConfiguration: false` is the right default — file-relation regeneration is handled automatically by `AttachFilesystemAction` when files are attached. `true` eagerly regenerates custom_fields/files cache inside the observer, which is usually overkill and creates extra Redis writes.
 
 ### How file uploads trigger invalidation
@@ -186,7 +192,7 @@ So any `addMultipleFilesFromUrl()` / `addFileFromUrl()` call automatically inval
 - [ ] `HasLightHouseCache` trait on the model
 - [ ] `getGraphTypeName()` returning the GraphQL type name
 - [ ] `HasFilesystemTrait` (usually inherited from `BaseModel`)
-- [ ] Observer `updating()` hook calling `clearLightHouseCache(withKanvasConfiguration: false)`
+- [ ] `#[ObservedBy([ClearsLightHouseCacheObserver::class])]` on the model — or, if it needs its own observer, a `saved()` hook calling `clearLightHouseCache(withKanvasConfiguration: false)`
 - [ ] GraphQL type uses `files: [Filesystem!]! @cacheRedis @paginate(...)` with the shared `FilesystemQuery@getFileByGraphType` builder (so the cache key shape matches what `generateFilesLighthouseCache()` writes)
 - [ ] Smoke test: upload a file via `updateX(files: [...])`, query `x.files` in the same or next request, confirm the new file appears without a manual cache flush
 
