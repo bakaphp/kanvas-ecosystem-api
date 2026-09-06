@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Github\Enums\ConfigurationEnum;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Actions\RecordOrganizationNoteAction;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Actions\CustomerSuccess\DraftCustomerUpdateAction;
@@ -235,6 +236,101 @@ final class DraftCustomerUpdateActionTest extends TestCase
             $result->draft->releaseTags,
             'the release from 20 days ago is in the month, even though we wrote 2 days ago'
         );
+    }
+
+    /**
+     * The catch-up case: an off-cycle run that has to cover more than the month the cron would.
+     */
+    public function testAWidenedWindowReachesReleasesTheMonthlyDefaultWouldMiss(): void
+    {
+        $this->fakeReleases([
+            $this->release('v1.0.2', now()->subDays(3)->toIso8601String()),
+            $this->release('v1.0.1', now()->subDays(50)->toIso8601String()),
+        ]);
+
+        $result = new DraftCustomerUpdateAction(
+            organization: $this->seedOrganization(),
+            agent: $this->seedAgent(),
+            handlerOverride: $this->handler('Two months of news.'),
+            windowDays: 60,
+        )->execute();
+
+        $this->assertEqualsCanonicalizing(
+            ['v1.0.1', 'v1.0.2'],
+            $result->draft->releaseTags,
+            'the 50-day-old release is outside the monthly window but inside the widened one'
+        );
+    }
+
+    public function testAWindowBeyondTheCapIsRefusedRatherThanQuietlyDigestingEverything(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        new DraftCustomerUpdateAction(
+            organization: $this->seedOrganization(),
+            agent: $this->seedAgent(),
+            handlerOverride: $this->handler('never reached'),
+            windowDays: DraftCustomerUpdateAction::MAX_WINDOW_DAYS + 1,
+        )->execute();
+    }
+
+    /**
+     * A first send is a cold email — without framing it reads as a marketing blast to a contact who
+     * never subscribed.
+     */
+    public function testTheFirstEverUpdateIsBriefedToIntroduceItself(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+
+        $handler = $this->handler('An update.');
+        new DraftCustomerUpdateAction($this->seedOrganization(), $this->seedAgent(), $handler)->execute();
+
+        $prompt = implode("\n", $handler->seen);
+        $this->assertStringContainsString('FIRST update this account will ever receive', $prompt);
+        $this->assertStringContainsString('a reply is enough to stop them', $prompt);
+    }
+
+    /**
+     * The orientation belongs on the first send only. Every later one has the previous update in the
+     * thread, so re-introducing the newsletter every month is noise.
+     */
+    public function testAnAccountWeHaveWrittenToIsNotBriefedToIntroduceItselfAgain(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+
+        $organization = $this->seedOrganization();
+        $organization->set(DraftCustomerUpdateAction::WATERMARK_FIELD, now()->subDays(30)->toIso8601String());
+
+        $handler = $this->handler('An update.');
+        new DraftCustomerUpdateAction($organization->refresh(), $this->seedAgent(), $handler)->execute();
+
+        $this->assertStringNotContainsString('FIRST update', implode("\n", $handler->seen));
+    }
+
+    /**
+     * `--ignore-watermark` is a re-draft aid, not a claim about the account. An established customer
+     * re-drafted with it must never be told to introduce the newsletter.
+     */
+    public function testIgnoringTheWatermarkDoesNotTurnAnEstablishedAccountIntoAFirstSend(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+
+        $organization = $this->seedOrganization();
+        $organization->set(DraftCustomerUpdateAction::WATERMARK_FIELD, now()->subDays(30)->toIso8601String());
+
+        $handler = $this->handler('An update.');
+
+        new DraftCustomerUpdateAction(
+            organization: $organization->refresh(),
+            agent: $this->seedAgent(),
+            handlerOverride: $handler,
+            ignoreWatermark: true,
+        )->execute();
+
+        $prompt = implode("\n", $handler->seen);
+        $this->assertStringNotContainsString('FIRST update', $prompt);
+        $this->assertStringNotContainsString('never written to them before', $prompt);
+        $this->assertStringContainsString('do NOT introduce the newsletter', $prompt);
     }
 
     public function testTheAgentIsToldWhenItLastWroteSoItDoesNotRepeatItself(): void

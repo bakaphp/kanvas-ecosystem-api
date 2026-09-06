@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\CustomerSuccess;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddOrganizationNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CustomerSuccess\GetKanvasReleaseUpdatesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadChannelWindowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadEntityContextTool;
@@ -101,6 +102,7 @@ class CustomerUpdateAgent extends SystemUserAgent
         $tools = [
             new GetKanvasReleaseUpdatesTool()->withContext($app, $company, $user),
             new ReadChannelWindowTool()->withContext($app, $company, $user),
+            new AddOrganizationNoteTool()->withContext($app, $company, $user),
         ];
 
         // The parent's subjectEntity() is private; $this->entity is the protected property it reads.
