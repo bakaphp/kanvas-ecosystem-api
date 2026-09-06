@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Ledger\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Models\BaseModel;
+use Kanvas\Scribe\Observers\ClearsLightHouseCacheObserver;
+use Override;
 
 /**
  * The second GL coding dimension — the org segment (department / cost-center / location / project)
@@ -29,8 +33,10 @@ use Kanvas\Scribe\Models\BaseModel;
  * @property bool $is_deleted
  * @property int|null $users_id
  */
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class Subaccount extends BaseModel
 {
+    use HasLightHouseCache;
     use UuidTrait;
 
     protected $table = 'subaccounts';
@@ -46,5 +52,11 @@ class Subaccount extends BaseModel
     public function journalEntryLines(): HasMany
     {
         return $this->hasMany(JournalEntryLine::class, 'subaccount_id', 'id');
+    }
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'ScribeSubaccount';
     }
 }

@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Items\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Scribe\Items\Enums\ItemTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Models\BaseModel;
+use Kanvas\Scribe\Observers\ClearsLightHouseCacheObserver;
 use Kanvas\Scribe\TaxCodes\Models\TaxCode;
+use Override;
 
 /**
  * Scribe.Items is the canonical catalog of "things you can put on an invoice/bill/quote line."
@@ -43,8 +47,10 @@ use Kanvas\Scribe\TaxCodes\Models\TaxCode;
  * @property bool $is_deleted
  * @property int|null $users_id
  */
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class Item extends BaseModel
 {
+    use HasLightHouseCache;
     use UuidTrait;
 
     protected $table = 'items';
@@ -84,5 +90,11 @@ class Item extends BaseModel
     public function defaultTaxCode(): BelongsTo
     {
         return $this->belongsTo(TaxCode::class, 'default_tax_code_id', 'id');
+    }
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'ScribeItem';
     }
 }

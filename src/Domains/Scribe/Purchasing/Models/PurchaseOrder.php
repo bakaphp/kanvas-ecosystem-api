@@ -5,10 +5,16 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Purchasing\Models;
 
 use Baka\Casts\Json;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Models\BaseModel;
+use Kanvas\Scribe\Observers\ClearsLightHouseCacheObserver;
+use Override;
 
 /**
  * A read-mirror of a source-ERP purchase order, for AP-bill matching. Not a posted accounting
@@ -32,8 +38,10 @@ use Kanvas\Scribe\Models\BaseModel;
  * @property array|null $metadata
  * @property bool $is_deleted
  */
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class PurchaseOrder extends BaseModel
 {
+    use HasLightHouseCache;
     use UuidTrait;
 
     protected $table = 'purchase_orders';
@@ -50,5 +58,16 @@ class PurchaseOrder extends BaseModel
     public function lines(): HasMany
     {
         return $this->hasMany(PurchaseOrderLine::class, 'purchase_order_id', 'id');
+    }
+
+    public function vendor(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class, 'vendor_organization_id', 'id');
+    }
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'ScribePurchaseOrder';
     }
 }
