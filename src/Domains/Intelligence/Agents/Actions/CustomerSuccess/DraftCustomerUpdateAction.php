@@ -36,6 +36,13 @@ class DraftCustomerUpdateAction
      */
     private const int WINDOW_DAYS = 30;
 
+    /**
+     * A widened window is for catching up — an off-cycle run, or a month where the 1st slipped. Past
+     * roughly a quarter the digest stops being an update and becomes a changelog, and the month label
+     * below is meaningless, so refuse rather than quietly produce one.
+     */
+    public const int MAX_WINDOW_DAYS = 120;
+
     private const int NOTES_WINDOW = 20;
     private const int NOTE_CHARS = 600;
     private const int CONTACT_WINDOW = 6;
@@ -49,19 +56,23 @@ class DraftCustomerUpdateAction
      *                              re-running the same month while tuning copy — otherwise the second
      *                              draft is told not to repeat the first and usually declines. Reads
      *                              only; approving still advances the watermark as normal.
+     * @param int|null $windowDays how far back to read releases. Null is the monthly default, which is
+     *                             what the cron uses. Widen it only to catch up an off-cycle run.
      */
     public function __construct(
         private readonly Organization $organization,
         private readonly Agent $agent,
         private readonly mixed $handlerOverride = null,
         private readonly bool $ignoreWatermark = false,
+        private readonly ?int $windowDays = null,
     ) {
     }
 
     public function execute(): CustomerUpdateResult
     {
+        $windowDays = $this->resolveWindowDays();
         $lastWrittenTo = $this->watermark();
-        $windowOpensAt = now()->subDays(self::WINDOW_DAYS);
+        $windowOpensAt = now()->subDays($windowDays);
 
         $releases = new KanvasReleaseFeedService($this->organization->app)->publishedSince($windowOpensAt);
 
@@ -74,7 +85,7 @@ class DraftCustomerUpdateAction
         $body = new RunNeuronChatAction(
             agent: $this->agent,
             session: null,
-            message: $this->brief($lastWrittenTo, $windowOpensAt),
+            message: $this->brief($lastWrittenTo, $windowOpensAt, $windowDays),
             app: $this->organization->app,
             user: $this->agent->user,
             handler: $this->handlerOverride ?? $this->handler(),
@@ -108,8 +119,8 @@ class DraftCustomerUpdateAction
 
     /**
      * When we last wrote to them. Used to tell the agent what it must not repeat — it does NOT bound
-     * the release query, which is always the fixed window above, so a long-dormant account still gets
-     * one month of releases rather than a wall of everything since.
+     * the release query, which is the window above and nothing else, so a long-dormant account still
+     * gets one window of releases rather than a wall of everything since.
      */
     private function watermark(): ?Carbon
     {
@@ -117,12 +128,39 @@ class DraftCustomerUpdateAction
             return null;
         }
 
-        $stored = Str::trimToNull($this->organization->get(self::WATERMARK_FIELD));
+        $stored = $this->storedWatermark();
 
         return $stored !== null ? Carbon::parse($stored) : null;
     }
 
-    private function brief(?Carbon $lastWrittenTo, Carbon $windowOpensAt): string
+    private function storedWatermark(): ?string
+    {
+        return Str::trimToNull($this->organization->get(self::WATERMARK_FIELD));
+    }
+
+    /**
+     * Public so a caller taking the window from an operator can reject it before doing per-account
+     * work — the alternative is every account failing on the same typo'd flag.
+     */
+    public static function assertWindowDays(int $windowDays): void
+    {
+        if ($windowDays < 1 || $windowDays > self::MAX_WINDOW_DAYS) {
+            throw new ValidationException(
+                'The release window must be between 1 and ' . self::MAX_WINDOW_DAYS . ' days, got ' . $windowDays . '.'
+            );
+        }
+    }
+
+    private function resolveWindowDays(): int
+    {
+        $windowDays = $this->windowDays ?? self::WINDOW_DAYS;
+
+        self::assertWindowDays($windowDays);
+
+        return $windowDays;
+    }
+
+    private function brief(?Carbon $lastWrittenTo, Carbon $windowOpensAt, int $windowDays): string
     {
         $brief = 'Draft this month\'s Kanvas update for organization ' . $this->organization->getId()
             . ' ("' . $this->organization->name . '").'
@@ -131,13 +169,9 @@ class DraftCustomerUpdateAction
             // Phrased as the parser expects, not as prose. "Title it for August" reads the same to a
             // human but let the model satisfy it inside the body, which then shipped two subject lines.
             . ' Open with `Subject: ` on the very first line, naming '
-            . $this->periodLabel($windowOpensAt) . ', then a blank line, then the body.';
+            . $this->periodLabel($windowOpensAt, $windowDays) . ', then a blank line, then the body.';
 
-        $brief .= $lastWrittenTo !== null
-            ? ' We last wrote to them on ' . $lastWrittenTo->toDateString()
-                . '. The update we sent is in the thread below: do not repeat it, lead with what is new since then,'
-                . ' and if everything in this window was already covered there, say ' . CustomerUpdateAgent::NOTHING_TO_SEND . '.'
-            : ' We have never written to them before, so nothing here has been said to them yet.';
+        $brief .= $this->historyInstruction($lastWrittenTo);
 
         $brief .= $this->relationshipContext();
 
@@ -155,15 +189,59 @@ class DraftCustomerUpdateAction
     }
 
     /**
-     * Which month the update is "for". The window is a rolling 30 days that usually straddles two
-     * months, so the label is the month holding most of it — computed here rather than left to the
-     * agent, which would otherwise pick a different month depending on the day it runs.
+     * Which month the update is "for". The window is a rolling one that usually straddles two months,
+     * so the label is the month holding most of it — computed here rather than left to the agent,
+     * which would otherwise pick a different month depending on the day it runs.
      */
-    private function periodLabel(Carbon $windowOpensAt): string
+    private function periodLabel(Carbon $windowOpensAt, int $windowDays): string
     {
         return $windowOpensAt->copy()
-            ->addDays((int) (self::WINDOW_DAYS / 2))
+            ->addDays((int) ($windowDays / 2))
             ->format('F Y');
+    }
+
+    /**
+     * Whether this account has ever been sent an update, read from the STORED watermark — deliberately
+     * not from `watermark()`, which `--ignore-watermark` blanks. The flag says "draft as if nothing had
+     * been said", which is a re-draft aid; it must never convince the agent this is a first send, or a
+     * customer of two years is mailed "this is the first of a monthly note".
+     */
+    private function hasEverBeenWrittenTo(): bool
+    {
+        return $this->storedWatermark() !== null;
+    }
+
+    private function historyInstruction(?Carbon $lastWrittenTo): string
+    {
+        if ($lastWrittenTo !== null) {
+            return ' We last wrote to them on ' . $lastWrittenTo->toDateString()
+                . '. The update we sent is in the thread below: do not repeat it, lead with what is new since then,'
+                . ' and if everything in this window was already covered there, say ' . CustomerUpdateAgent::NOTHING_TO_SEND . '.';
+        }
+
+        if ($this->hasEverBeenWrittenTo()) {
+            return ' We have written to them before, so do NOT introduce the newsletter or imply this is the'
+                . ' first time we are writing. Draft this window fresh, as though what we sent previously did'
+                . ' not constrain you.';
+        }
+
+        return $this->firstSendInstruction();
+    }
+
+    /**
+     * The first update an account ever receives is a cold email: nobody asked for it, and "Here are
+     * this month's improvements" with no framing reads as marketing blast, which is how a real contact
+     * at a paying customer marks us as spam. One block of orientation, once — every later send already
+     * has the previous one in the thread and needs none of this.
+     */
+    private function firstSendInstruction(): string
+    {
+        return ' We have never written to them before, so nothing here has been said to them yet.'
+            . ' This is the FIRST update this account will ever receive, so the intro block must orient them'
+            . ' in two sentences at most: that this is the first of a monthly note on what shipped in Kanvas,'
+            . ' that they are getting it because they are a Kanvas customer, and that a reply is enough to stop them.'
+            . ' Keep it to that one block and then go straight into the releases — an apology for the intrusion,'
+            . ' a pitch, or a paragraph about the newsletter itself is worse than no intro at all.';
     }
 
     /**

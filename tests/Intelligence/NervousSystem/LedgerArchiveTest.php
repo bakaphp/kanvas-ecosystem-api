@@ -18,7 +18,20 @@ use Tests\TestCase;
 
 class LedgerArchiveTest extends TestCase
 {
-    public function testArchiveWithZeroRetentionFlushesEligibleEvents(): void
+    /**
+     * The sweep is deliberately table-wide — no app, company or event-type scoping — so a cutoff
+     * anywhere near `now` deletes ledger rows a parallel test class is about to assert on, and the
+     * failure surfaces over there (PlanAgentWakeUpTest, BuildLeadFollowUpDailySummaryActionTest,
+     * EventAnalyticsServiceTest). Seed 5 years back, cut at 3: a window nothing else occupies.
+     */
+    private const int RETENTION_DAYS = 365 * 3;
+
+    private function ancientTimestamp(int $extraDaysBack = 0): Carbon
+    {
+        return Carbon::now()->subYears(5)->subDays($extraDaysBack);
+    }
+
+    public function testArchiveFlushesEventsOlderThanRetentionWindow(): void
     {
         Storage::fake('local');
 
@@ -37,7 +50,7 @@ class LedgerArchiveTest extends TestCase
                     eventType: $tag,
                     status: EventStatusEnum::INFO,
                     payload: ['n' => $i],
-                    occurredAt: Carbon::now()->subMinutes(2),
+                    occurredAt: $this->ancientTimestamp(),
                 ),
             )->execute();
         }
@@ -46,7 +59,7 @@ class LedgerArchiveTest extends TestCase
         $this->assertSame(3, $beforeArchive);
 
         $result = new ArchiveOldEventsAction(
-            retentionDaysOverride: 0,
+            retentionDaysOverride: self::RETENTION_DAYS,
             diskOverride: 'local',
         )->execute();
 
@@ -88,7 +101,7 @@ class LedgerArchiveTest extends TestCase
         )->execute();
 
         new ArchiveOldEventsAction(
-            retentionDaysOverride: 7,
+            retentionDaysOverride: self::RETENTION_DAYS,
             diskOverride: 'local',
         )->execute();
 
@@ -126,13 +139,13 @@ class LedgerArchiveTest extends TestCase
                 sourceDomain: 'TestDomain',
                 eventType: $tag,
                 status: EventStatusEnum::INFO,
-                occurredAt: Carbon::now()->subMinutes(5),
+                occurredAt: $this->ancientTimestamp(),
             ),
         )->execute();
 
         $exitCode = $this->artisan(
             'nervous-system:archive-old-ledger-events',
-            ['--retention-days' => 0, '--disk' => 'local'],
+            ['--retention-days' => self::RETENTION_DAYS, '--disk' => 'local'],
         )->run();
 
         $this->assertSame(0, $exitCode);
@@ -187,13 +200,13 @@ class LedgerArchiveTest extends TestCase
                     sourceDomain: 'TestDomain',
                     eventType: $tag,
                     status: EventStatusEnum::INFO,
-                    occurredAt: Carbon::now()->subMinutes(5),
+                    occurredAt: $this->ancientTimestamp(),
                 ),
             )->execute();
         }
 
         new ArchiveOldEventsAction(
-            retentionDaysOverride: 0,
+            retentionDaysOverride: self::RETENTION_DAYS,
             diskOverride: 'local',
             preserveEventTypesOverride: [$keepTag],
         )->execute();
@@ -235,7 +248,7 @@ class LedgerArchiveTest extends TestCase
                         'changes' => ['title' => ['from' => 'Old', 'to' => 'New']],
                         'changed_fields' => ['title'],
                     ],
-                    occurredAt: Carbon::now()->subMinutes(5),
+                    occurredAt: $this->ancientTimestamp(),
                 ),
             )->execute();
             $uuids[] = $event->uuid;
@@ -244,7 +257,7 @@ class LedgerArchiveTest extends TestCase
         // Force the sweep to flush people.enriched (empty preserve list) so we
         // reproduce the historical loss this restore path exists to undo.
         new ArchiveOldEventsAction(
-            retentionDaysOverride: 0,
+            retentionDaysOverride: self::RETENTION_DAYS,
             diskOverride: 'local',
             preserveEventTypesOverride: [],
         )->execute();
@@ -290,7 +303,9 @@ class LedgerArchiveTest extends TestCase
 
         $tag = 'people.enriched';
         $marker = 'daterange-' . uniqid();
-        $targetDay = Carbon::now()->subDays(30)->startOfDay()->addHours(9);
+        // A day of its own — the restore filter is day-granular, and the previous test leaves its
+        // own restored people.enriched rows sitting on the default ancient day.
+        $targetDay = $this->ancientTimestamp(30)->startOfDay()->addHours(9);
 
         $inRange = new AppendEventAction(
             new EventData(
@@ -317,7 +332,7 @@ class LedgerArchiveTest extends TestCase
         )->execute();
 
         new ArchiveOldEventsAction(
-            retentionDaysOverride: 0,
+            retentionDaysOverride: self::RETENTION_DAYS,
             diskOverride: 'local',
             preserveEventTypesOverride: [],
         )->execute();
