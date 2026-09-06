@@ -17,12 +17,19 @@ use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\Intelligence\Agents\Enums\KanvasReleaseFeedEnum;
 use Kanvas\Intelligence\Agents\Services\CustomerSuccess\NewsletterAudienceService;
 use Kanvas\Social\Tags\Models\Tag;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 /**
  * Who the monthly update reaches. Both halves are opt-in and both are easy to get wrong in the
  * direction that mails somebody who never asked, so each is pinned here.
+ *
+ * Serial: this toggles the monthly-update flag on the shared test app. `HashTableTrait::set()` writes
+ * to Redis and upserts on `ecosystem`, and DatabaseTransactions rolls back neither — so in the parallel
+ * lane the flag is on for every other process while this runs, and an assertion failing between the
+ * on and the off leaves the cron enabled on that app afterwards.
  */
+#[Group('serial')]
 final class NewsletterAudienceServiceTest extends TestCase
 {
     use DatabaseTransactions;

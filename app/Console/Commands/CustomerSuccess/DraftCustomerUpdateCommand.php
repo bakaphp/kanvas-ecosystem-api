@@ -44,6 +44,7 @@ class DraftCustomerUpdateCommand extends Command
 
     public function handle(): int
     {
+        /** @var Apps $app */
         $app = Apps::getById((int) $this->option('app_id'));
         $this->overwriteAppService($app);
 
@@ -68,6 +69,17 @@ class DraftCustomerUpdateCommand extends Command
                 'This account has no notes channel yet, so the draft has no context to personalise from. '
                 . 'Post a note on it first — what they bought, what they use, what they care about.'
             );
+        }
+
+        // Ahead of the draft, because drafting costs an LLM turn and --request-approval is useless
+        // without somebody to send to. The batch already gates this way; this brings the one-off in line.
+        if ((bool) $this->option('request-approval') && $this->approvalRecipients($organization) === []) {
+            $this->error(
+                'Nobody to send to. Pass --recipient, or tag the people on this account with "'
+                . NewsletterAudienceService::TAG . '".'
+            );
+
+            return self::FAILURE;
         }
 
         try {
@@ -113,21 +125,7 @@ class DraftCustomerUpdateCommand extends Command
      */
     private function requestApproval(CustomerUpdateDraft $draft, Agent $agent): void
     {
-        // An explicit --recipient overrides; otherwise fall back to the account's newsletter-tagged
-        // people, so the one-off command and the monthly batch reach the same audience.
-        $recipient = trim((string) $this->option('recipient'));
-        $recipients = $recipient !== ''
-            ? [$recipient]
-            : new NewsletterAudienceService()->recipients($draft->organization);
-
-        if ($recipients === []) {
-            $this->error(
-                '  Nobody to send to. Pass --recipient, or tag the people on this account with "'
-                . NewsletterAudienceService::TAG . '".'
-            );
-
-            return;
-        }
+        $recipients = $this->approvalRecipients($draft->organization);
 
         $note = new RequestCustomerUpdateApprovalAction($draft, $agent->user, $recipients)->execute();
 
@@ -177,6 +175,21 @@ class DraftCustomerUpdateCommand extends Command
         $this->line('  <fg=yellow>Test send only — approval was bypassed and no customer was mailed.</>');
         $this->info('  Sent to ' . $recipient . ' as ' . $from['address'] . ' (' . $from['name'] . ').');
         $this->line('');
+    }
+
+    /**
+     * An explicit --recipient overrides; otherwise the account's newsletter-tagged people, so the
+     * one-off command and the monthly batch reach the same audience.
+     *
+     * @return list<string>
+     */
+    private function approvalRecipients(Organization $organization): array
+    {
+        $recipient = trim((string) $this->option('recipient'));
+
+        return $recipient !== ''
+            ? [$recipient]
+            : new NewsletterAudienceService()->recipients($organization);
     }
 
     private function renderDraft(Organization $organization, CustomerUpdateDraft $draft): void
@@ -259,14 +272,24 @@ class DraftCustomerUpdateCommand extends Command
     }
 
     /**
-     * The two skips need opposite responses, so they must not read the same. Nothing shipped is a
-     * waiting game; the agent declining after reading N releases means this account has nothing on it
-     * worth writing about.
+     * The skips need opposite responses, so they must not read the same. Nothing shipped is a waiting
+     * game, everything already covered is the steady state, and the agent declining after reading N
+     * releases means this account has nothing on it worth writing about.
      */
     private function reportSkip(Organization $organization, CustomerUpdateResult $result): void
     {
         if ($result->skipped === CustomerUpdateSkipEnum::NO_RELEASES) {
             $this->info('Nothing to send for ' . $organization->name . ' — Kanvas published no releases in the last 30 days.');
+
+            return;
+        }
+
+        if ($result->skipped === CustomerUpdateSkipEnum::ALREADY_COVERED) {
+            $this->info(
+                'Nothing to send for ' . $organization->name . ' — all '
+                . $result->releasesConsidered . ' release(s) in the window predate the last update we sent.'
+            );
+            $this->comment('No agent turn was spent. Use --ignore-watermark to draft anyway.');
 
             return;
         }
