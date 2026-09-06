@@ -4,15 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
-use Throwable;
 
 /**
  * Writes custom fields onto a person — the people-side counterpart of set_lead_custom_fields /
@@ -24,6 +23,7 @@ class SetPersonCustomFieldsTool extends Tool
 {
     use DecodesJsonObjectParam;
     use HasKanvasContext;
+    use ResolvesPersonForTool;
 
     public function __construct()
     {
@@ -69,12 +69,11 @@ class SetPersonCustomFieldsTool extends Tool
             return ['error' => 'Provide at least one custom field to set.'];
         }
 
-        try {
-            /** @var People $person */
-            $person = People::getByIdFromCompanyApp($person_id, $this->company, $this->app);
-        } catch (Throwable) {
-            return ['error' => sprintf('No person #%d found in this company.', $person_id)];
+        $result = $this->resolvePersonOrError($person_id);
+        if (is_array($result)) {
+            return $result;
         }
+        $person = $result;
 
         $written = [];
         foreach ($custom_fields as $name => $value) {

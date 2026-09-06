@@ -5,20 +5,27 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Ledger\Models;
 
 use Baka\Casts\Json;
+use Baka\Observers\ClearsLightHouseCacheObserver;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\KanvasAppScopesTrait;
 use Baka\Traits\KanvasCompanyScopesTrait;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
 use Kanvas\Users\Models\Users;
+use Override;
 
 /**
  * Fiscal periods are admin-managed time slots, immutable after closing — no soft delete needed.
  * Extends EloquentModel directly (not Scribe\Models\BaseModel) so it doesn't inherit
- * is_deleted / custom fields / files / lifecycle traits.
+ * is_deleted / custom fields / lifecycle traits. Files are the one exception: a close packet
+ * attaches to the period it closes, so HasFilesystemTrait is taken on its own rather than by
+ * moving to the soft-deleting base — this table has no is_deleted column to move to.
  *
  * @property int $id
  * @property int $apps_id
@@ -32,8 +39,11 @@ use Kanvas\Users\Models\Users;
  * @property string|null $close_notes
  * @property array|null $metadata
  */
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class FiscalPeriod extends EloquentModel
 {
+    use HasFilesystemTrait;
+    use HasLightHouseCache;
     use KanvasAppScopesTrait;
     use KanvasCompanyScopesTrait;
     use UuidTrait;
@@ -63,5 +73,18 @@ class FiscalPeriod extends EloquentModel
     public function acceptsPostings(): bool
     {
         return $this->status === FiscalPeriodStatusEnum::OPEN;
+    }
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'ScribeFiscalPeriod';
+    }
+
+    // Hand-rolled rather than taken from KanvasModelTrait, which would drag in the soft-delete
+    // helpers this table cannot answer. HasLightHouseCache keys its cache on this.
+    public function getId(): mixed
+    {
+        return $this->getKey();
     }
 }

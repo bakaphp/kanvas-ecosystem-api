@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Banking\Models;
 
 use Baka\Casts\Json;
+use Baka\Observers\ClearsLightHouseCacheObserver;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Models\BaseModel;
+use Override;
 
 /**
  * Minimal bank account row — points at the GL Cash account that backs it.
@@ -37,8 +41,10 @@ use Kanvas\Scribe\Models\BaseModel;
  * @property bool $is_deleted
  * @property int|null $users_id
  */
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class BankAccount extends BaseModel
 {
+    use HasLightHouseCache;
     use UuidTrait;
 
     protected $table = 'bank_accounts';
@@ -62,5 +68,11 @@ class BankAccount extends BaseModel
     public function transactions(): HasMany
     {
         return $this->hasMany(BankTransaction::class, 'bank_account_id', 'id');
+    }
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'ScribeBankAccount';
     }
 }

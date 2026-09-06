@@ -15,6 +15,12 @@ type ScribeItem {
     external_id: String
     metadata: Mixed
     company: Company! @belongsTo(relation: "company")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     created_at: DateTime!
     updated_at: DateTime!
 }

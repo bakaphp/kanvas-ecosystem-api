@@ -18,6 +18,12 @@ type ScribeBankAccount {
     metadata: Mixed
     company: Company! @belongsTo(relation: "company")
     user: User @belongsTo(relation: "user")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     created_at: DateTime!
     updated_at: DateTime!
 }
@@ -33,6 +39,76 @@ input ScribeBankAccountInput {
     source: String
     external_id: String
     metadata: Mixed
+}
+
+enum ScribeBankTransactionDirection {
+    DEBIT @enum(value: "debit")
+    CREDIT @enum(value: "credit")
+}
+
+enum ScribeBankTransactionCategory {
+    BANK_FEE @enum(value: "bank_fee")
+    INTEREST_INCOME @enum(value: "interest_income")
+    TRANSFER @enum(value: "transfer")
+    UNKNOWN @enum(value: "unknown")
+}
+
+enum ScribeBankTransactionMatchStatus {
+    UNMATCHED @enum(value: "unmatched")
+    AUTO_MATCHED @enum(value: "auto_matched")
+    MANUALLY_MATCHED @enum(value: "manually_matched")
+    IGNORED @enum(value: "ignored")
+}
+
+enum ScribeBankTransactionMatchedToType {
+    INVOICE_PAYMENT @enum(value: "invoice_payment")
+    BILL_PAYMENT @enum(value: "bill_payment")
+    EXPENSE @enum(value: "expense")
+    TRANSFER @enum(value: "transfer")
+    SALES_RECEIPT @enum(value: "sales_receipt")
+}
+
+enum ScribeBankTransactionMatchedBy {
+    SYSTEM @enum(value: "system")
+    AGENT @enum(value: "agent")
+    HUMAN @enum(value: "human")
+}
+
+"A single line off a bank feed/statement, with whatever document was matched to it."
+type ScribeBankTransaction {
+    id: ID!
+    uuid: String!
+    bank_account: ScribeBankAccount! @belongsTo(relation: "bankAccount")
+    posted_at: DateTime!
+    transaction_date: Date!
+    direction: ScribeBankTransactionDirection!
+    amount_native: Money!
+    currency: String!
+    amount_base: Money!
+    fx_rate_to_base: Float!
+    counterparty_name: String
+    counterparty_account_last4: String
+    memo: String
+    category: ScribeBankTransactionCategory!
+    match_status: ScribeBankTransactionMatchStatus!
+    matched_to_type: ScribeBankTransactionMatchedToType
+    matched_at: DateTime
+    matched_by: ScribeBankTransactionMatchedBy
+    match_confidence: Float
+    journal_entry: ScribeJournalEntry @belongsTo(relation: "journalEntry")
+    source: String!
+    external_id: String
+    metadata: Mixed
+    company: Company! @belongsTo(relation: "company")
+    user: User @belongsTo(relation: "user")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    created_at: DateTime!
+    updated_at: DateTime!
 }
 
 extend type Query @guard {
@@ -52,6 +128,29 @@ extend type Query @guard {
             model: "Kanvas\\Scribe\\Banking\\Models\\BankAccount"
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 25
+        )
+
+    scribeBankTransactions(
+        where: _
+            @whereConditions(
+                columns: [
+                    "bank_account_id"
+                    "direction"
+                    "category"
+                    "match_status"
+                    "currency"
+                    "transaction_date"
+                    "external_id"
+                    "source"
+                ]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "transaction_date", "posted_at", "amount_base", "created_at"])
+    ): [ScribeBankTransaction!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\Banking\\Models\\BankTransaction"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
         )
 }
 

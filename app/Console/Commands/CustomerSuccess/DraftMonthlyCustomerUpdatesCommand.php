@@ -8,6 +8,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Actions\CustomerSuccess\DraftCustomerUpdateAction;
 use Kanvas\Intelligence\Agents\Actions\CustomerSuccess\RequestCustomerUpdateApprovalAction;
@@ -38,14 +39,30 @@ class DraftMonthlyCustomerUpdatesCommand extends Command
                             {--company_id= : limit to one company; omit for every company on the app}
                             {--agent_id= : a specific Customer Update Agent; defaults to the first in each account\'s company}
                             {--ignore-watermark : draft as if no account had been written to, for re-running while tuning copy}
+                            {--window-days= : how many days of releases to cover; defaults to the monthly window, widen to catch up an off-cycle run}
                             {--dry-run : draft and report, post no approval cards}';
 
     protected $description = 'Draft this month\'s Kanvas update for every account tagged "newsletter" and post each as an approval card.';
 
     private NewsletterAudienceService $audience;
 
+    private ?int $windowDays = null;
+
     public function handle(): int
     {
+        $this->windowDays = $this->option('window-days') !== null ? (int) $this->option('window-days') : null;
+
+        // Up front, so a typo'd flag is one error rather than one per subscribed organization.
+        if ($this->windowDays !== null) {
+            try {
+                DraftCustomerUpdateAction::assertWindowDays($this->windowDays);
+            } catch (ValidationException $e) {
+                $this->error($e->getMessage());
+
+                return self::FAILURE;
+            }
+        }
+
         $this->audience = new NewsletterAudienceService();
 
         // An explicit --app_id is an operator running it by hand and bypasses the opt-in; the cron
@@ -143,6 +160,7 @@ class DraftMonthlyCustomerUpdatesCommand extends Command
                 organization: $organization,
                 agent: $agent,
                 ignoreWatermark: (bool) $this->option('ignore-watermark'),
+                windowDays: $this->windowDays,
             )->execute();
         } catch (Throwable $e) {
             $tally['failed']++;
