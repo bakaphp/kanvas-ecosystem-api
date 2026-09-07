@@ -14,11 +14,15 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
+use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -121,6 +125,23 @@ class TriggerIntelligenceActivityTest extends TestCase
         $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, 'Follow-up message content');
 
         return $message;
+    }
+
+    public function testOrchestrationSkipsHandlersWithoutSendDataToAgent(): void
+    {
+        $lead = $this->createLead('Internet');
+        $type = new AgentType(['handler' => IntelligenceHandlerWithoutSendData::class]);
+        $agent = new Agent();
+        $agent->setRelation('type', $type);
+        $session = new Session(['uuid' => 'local-neuron-session']);
+        $session->setRelation('agent', $agent);
+        $lead->setRelation('aiSession', collect([$session]));
+
+        $this->assertFalse(method_exists($type->handler, 'sendDataToAgent'));
+
+        /** @var TestableTriggerIntelligenceActivity $activity */
+        $activity = new \ReflectionClass(TestableTriggerIntelligenceActivity::class)->newInstanceWithoutConstructor();
+        $activity->sendDataForTest($lead, IntelligenceModeEnum::FULL_ON->value);
     }
 
     public function testOffModeBlocksAiTakeover(): void
@@ -522,6 +543,18 @@ class TriggerIntelligenceActivityTest extends TestCase
         $this->assertNull($command->sentContent);
         $this->assertTrue($message->fresh()->isLocked());
     }
+}
+
+final class TestableTriggerIntelligenceActivity extends TriggerIntelligenceActivity
+{
+    public function sendDataForTest(Lead $lead, string $aiMode): void
+    {
+        $this->sendDataToOrchestration($lead, $aiMode);
+    }
+}
+
+final class IntelligenceHandlerWithoutSendData
+{
 }
 
 final class TestableSendDelayMessageCommand extends SendDelayMessageCommand
