@@ -9,8 +9,6 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Organizations\Actions\ImportVendorApproversFromRowsAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Support\Excel\NullExcelImport;
-use Maatwebsite\Excel\Facades\Excel;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -21,9 +19,7 @@ use Throwable;
  * Bulk version of add_organization_approver — imports a whole Vendor Name / Approver Email
  * spreadsheet (xlsx/csv) in one call, from a file already attached to this conversation. Shares
  * its matching/linking rules with the scribe:import-vendor-approvers CLI command via
- * ImportVendorApproversFromRowsAction, so both stay in sync — including linking a vendor to its
- * one plausible existing match rather than leaving it for manual resolution, and skipping a vendor
- * whose approver is already exactly what the sheet says.
+ * ImportVendorApproversFromRowsAction, so both stay in sync.
  */
 #[AgentTool(name: 'Import Vendor Approvers', category: 'accounting')]
 class ImportVendorApproversTool extends Tool
@@ -37,7 +33,8 @@ class ImportVendorApproversTool extends Tool
             description: 'Imports a whole vendor/approver spreadsheet (xlsx/csv) in one call — sets each vendor '
                 . 'Organization\'s approver email and links a real Kanvas User as its approver, creating the '
                 . 'Organization when nothing matches and linking to the closest existing one when there is '
-                . 'exactly one plausible candidate. Only a genuine tie between several similarly-plausible '
+                . 'exactly one plausible candidate (flagged back as low-confidence, since that link is weaker '
+                . 'evidence than a normal match). Only a genuine tie between several similarly-plausible '
                 . 'candidates is left for manual resolution. Re-running with the same or an updated sheet only '
                 . 'touches vendors whose recorded approver actually differs. The sheet needs a "Vendor Name" '
                 . 'column and an "Approver Email" column (any other columns, e.g. "Approver Name", are ignored) '
@@ -69,9 +66,10 @@ class ImportVendorApproversTool extends Tool
     public function __invoke(int $filesystem_id): array
     {
         $filesystem = Filesystem::query()
-            ->fromApp($this->app)
-            ->where('companies_id', $this->company->getId())
             ->where('id', $filesystem_id)
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted()
             ->first();
 
         if ($filesystem === null) {
@@ -82,33 +80,22 @@ class ImportVendorApproversTool extends Tool
             ];
         }
 
+        $tempPath = tempnam(sys_get_temp_dir(), 'vendor_approvers_') . '.' . $this->spreadsheetExtension($filesystem->name);
+
         try {
-            $bytes = SafeUrlFetcher::fetch((string) $filesystem->url);
+            file_put_contents($tempPath, SafeUrlFetcher::fetch((string) $filesystem->url));
+            $result = ImportVendorApproversFromRowsAction::fromFilePath($this->app, $this->company, $tempPath)->execute();
         } catch (Throwable $e) {
             return [
                 'imported' => false,
-                'reason' => 'download_failed',
-                'message' => 'Could not download that file: ' . $e->getMessage(),
-            ];
-        }
-
-        $extension = pathinfo((string) $filesystem->name, PATHINFO_EXTENSION) ?: 'xlsx';
-        $tmpPath = sys_get_temp_dir() . '/vendor_approvers_' . uniqid('', true) . '.' . $extension;
-        file_put_contents($tmpPath, $bytes);
-
-        try {
-            $rows = Excel::toArray(new NullExcelImport(), $tmpPath)[0] ?? [];
-        } catch (Throwable $e) {
-            return [
-                'imported' => false,
-                'reason' => 'parse_failed',
+                'reason' => 'download_or_parse_failed',
                 'message' => 'Could not read that file as a spreadsheet: ' . $e->getMessage(),
             ];
         } finally {
-            @unlink($tmpPath);
+            if (file_exists($tempPath)) {
+                unlink($tempPath);
+            }
         }
-
-        $result = new ImportVendorApproversFromRowsAction($this->app, $this->company, $rows)->execute();
 
         if (isset($result['error'])) {
             return [
@@ -123,13 +110,22 @@ class ImportVendorApproversTool extends Tool
             'updated' => $result['updated'],
             'created' => $result['created'],
             'unchanged' => $result['unchanged'],
-            'resolved_single_candidate' => $result['resolved_single_candidate'],
+            'linked_low_confidence' => $result['linked_low_confidence'],
             'ambiguous' => $result['ambiguous'],
             'no_email' => $result['no_email'],
-            'next' => 'Report updated/created/unchanged counts plainly. If resolved_single_candidate is '
-                . 'non-empty, mention those vendors were linked to their closest existing match. If '
-                . 'ambiguous/no_email are non-empty, list those vendors by name so the user knows exactly which '
-                . 'ones still need manual attention.',
+            'next' => 'Report updated/created/unchanged counts plainly. If linked_low_confidence is non-empty, '
+                . 'tell the user plainly that those vendors were linked on a single weak match and should be '
+                . 'double-checked, listing them by name — do not present them as a routine success. If '
+                . 'ambiguous/no_email are non-empty, list those vendors too so the user knows exactly which ones '
+                . 'still need manual attention.',
         ];
+    }
+
+    /** Never trust the uploaded file's own name for the temp file's extension — allowlist only. */
+    private function spreadsheetExtension(?string $originalName): string
+    {
+        $extension = strtolower(pathinfo((string) $originalName, PATHINFO_EXTENSION));
+
+        return in_array($extension, ['xlsx', 'xls', 'csv', 'tsv'], true) ? $extension : 'xlsx';
     }
 }
