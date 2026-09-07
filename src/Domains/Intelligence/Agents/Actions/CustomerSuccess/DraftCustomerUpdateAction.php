@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\CustomerSuccess;
 
 use Baka\Support\Str;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Github\DataTransferObject\GithubRelease;
 use Kanvas\Exceptions\ValidationException;
@@ -19,6 +20,8 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\CustomerSuccess\CustomerUpdateAgent;
 use Kanvas\Intelligence\Agents\Services\CustomerSuccess\KanvasReleaseFeedService;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
@@ -204,9 +207,11 @@ class DraftCustomerUpdateAction
                 . ' their name. Say only what is plainly true of any customer, and keep it short.';
         }
 
+        // Every context channel: naming only `notes` points the tool at the thread this action writes
+        // to, rather than the one holding the history.
         return $brief . "\n\nWhat is on this account, oldest first. Everything you know about them is here:\n\n"
             . $notes
-            . "\n\nUse read_channel_window on channel " . $this->organization->notes->getId()
+            . "\n\nUse read_channel_window on channel " . implode(', ', $this->contextChannelIds())
             . ' if you need more than this.';
     }
 
@@ -357,14 +362,22 @@ class DraftCustomerUpdateAction
      */
     private function accountNotes(): string
     {
-        $channel = $this->organization->notes;
+        $channelIds = $this->contextChannelIds();
 
-        if ($channel === null) {
+        if ($channelIds === []) {
             return '';
         }
 
-        return $channel->messages()
+        // One query over the pivot rather than one per channel: the window is a cap across all of
+        // them, so paging each channel separately reads a multiple of what it keeps. The `whereIn`
+        // subquery also collapses a note attached to two channels, which a join would return twice.
+        return Message::query()
             ->with('tags')
+            ->whereIn('messages.id', function (QueryBuilder $query) use ($channelIds): void {
+                $query->select('messages_id')
+                    ->from('channel_messages')
+                    ->whereIn('channel_id', $channelIds);
+            })
             ->where('messages.is_deleted', 0)
             ->orderByDesc('messages.id')
             ->limit(self::NOTES_WINDOW)
@@ -379,6 +392,28 @@ class DraftCustomerUpdateAction
             })
             ->filter(fn (string $line): bool => trim($line) !== '')
             ->implode("\n\n");
+    }
+
+    /**
+     * Every thread on the account, NOT just the one named `Notes` — a human's CRM notes are written to
+     * `Activities`, while `Notes` holds only what this action itself posted.
+     *
+     * Excluded rather than allow-listed, because the names drift: the enum says `Activities` and live
+     * rows say `Activity`, so an allow-list silently drops the very thread this exists to read. Only
+     * the agent's own chat is dropped — that is its output, not what it knows.
+     *
+     * The organization's channels and not its contacts': NOTES_WINDOW caps everything read together,
+     * so per-person threads of connector chatter would evict the notes this exists to surface.
+     *
+     * @return list<int>
+     */
+    private function contextChannelIds(): array
+    {
+        return $this->organization->socialChannels
+            ->filter(fn (Channel $channel): bool => $channel->name !== ChannelNameEnum::AI_ASSIST->value)
+            ->map(fn (Channel $channel): int => $channel->getId())
+            ->values()
+            ->all();
     }
 
     private function handler(): BehavesAsKanvasAgent
