@@ -287,7 +287,12 @@ final class DraftCustomerUpdateActionTest extends TestCase
 
         $prompt = implode("\n", $handler->seen);
         $this->assertStringContainsString('FIRST update this account will ever receive', $prompt);
-        $this->assertStringContainsString('a reply is enough to stop them', $prompt);
+        $this->assertStringContainsString('replying is enough to stop these emails', $prompt);
+        $this->assertStringContainsString(
+            'SECOND block',
+            $prompt,
+            'the renderer assigns by position, so an orientation written first eats the masthead slot'
+        );
     }
 
     /**
