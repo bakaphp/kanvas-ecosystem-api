@@ -38,6 +38,7 @@ class DraftCustomerUpdateCommand extends Command
                             {--test-email= : mail the draft to ONE address to see how it renders in a real inbox}
                             {--request-approval : post the draft to the account as a locked approval card}
                             {--ignore-watermark : draft as if the account had never been written to, for re-running the same month while tuning copy}
+                            {--window-days= : how many days of releases to cover; defaults to the monthly window, widen to catch up an off-cycle run}
                             {--recipient= : override who the email goes to; defaults to the newsletter-tagged people on the account}';
 
     protected $description = 'Draft this month\'s Kanvas update for one customer account. Prints it, sends nothing.';
@@ -87,6 +88,7 @@ class DraftCustomerUpdateCommand extends Command
                 organization: $organization,
                 agent: $agent,
                 ignoreWatermark: (bool) $this->option('ignore-watermark'),
+                windowDays: $this->option('window-days') !== null ? (int) $this->option('window-days') : null,
             )->execute();
         } catch (Throwable $e) {
             // The action deliberately does not swallow provider failures into friendly prose, so a

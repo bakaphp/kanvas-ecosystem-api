@@ -255,15 +255,22 @@ class DraftCustomerUpdateAction
      * this month's improvements" with no framing reads as marketing blast, which is how a real contact
      * at a paying customer marks us as spam. One block of orientation, once — every later send already
      * has the previous one in the thread and needs none of this.
+     *
+     * The block POSITION is load-bearing and has to be spelled out. `CustomerUpdateRenderer::parse()`
+     * assigns by position — first block is the masthead, second is the intro, last is the sign-off —
+     * so an orientation written as the opening block takes the masthead slot and shifts every other
+     * block down one: the first feature loses its heading and the orientation is rendered as the h1.
      */
     private function firstSendInstruction(): string
     {
         return ' We have never written to them before, so nothing here has been said to them yet.'
-            . ' This is the FIRST update this account will ever receive, so the intro block must orient them'
-            . ' in two sentences at most: that this is the first of a monthly note on what shipped in Kanvas,'
-            . ' that they are getting it because they are a Kanvas customer, and that a reply is enough to stop them.'
-            . ' Keep it to that one block and then go straight into the releases — an apology for the intrusion,'
-            . ' a pitch, or a paragraph about the newsletter itself is worse than no intro at all.';
+            . ' This is the FIRST update this account will ever receive, so it needs one block of orientation:'
+            . ' that this is the first of a monthly note on what shipped in Kanvas, that they are getting it'
+            . ' because they are a Kanvas customer, and that replying is enough to stop these emails.'
+            . ' Two sentences at most, and it goes in the SECOND block — the intro. The masthead is still the'
+            . ' first block exactly as always; do NOT open with the orientation or move it into the masthead.'
+            . ' Then straight into the releases — an apology for the intrusion, a pitch, or a paragraph about'
+            . ' the newsletter itself is worse than no intro at all.';
     }
 
     /**
