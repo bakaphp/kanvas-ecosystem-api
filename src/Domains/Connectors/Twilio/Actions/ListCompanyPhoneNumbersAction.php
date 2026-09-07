@@ -10,11 +10,15 @@ use Kanvas\Connectors\Twilio\Client as TwilioClient;
 
 /**
  * List the phone numbers a company has purchased on its connected Twilio
- * account. Encapsulates the third-party Twilio call (company creds, falling back
- * to the app's shared account) so callers never touch the SDK directly.
+ * account. Encapsulates the third-party Twilio call (the app's shared account
+ * first, falling back to the company's own creds) so callers never touch the SDK
+ * directly.
  *
- * The app is passed in explicitly — a company can be global (apps_id 0), so its
- * own `->app` relation may be null; the caller supplies the acting app.
+ * App-first on purpose: the voice number picker runs on one shared app account,
+ * and a stray per-company BYOK cred pointing at a different account must not
+ * shadow it (it was listing the wrong numbers). The app is passed in explicitly
+ * — a company can be global (apps_id 0), so its own `->app` relation may be null;
+ * the caller supplies the acting app.
  *
  * Throws when neither company nor app has Twilio creds (ValidationException from
  * the Client) or the Twilio API errors — the caller decides how to degrade.
@@ -32,7 +36,7 @@ class ListCompanyPhoneNumbersAction
      */
     public function execute(int $limit = 200): array
     {
-        $twilio = TwilioClient::getInstanceByCompanyOrApp($this->company, $this->app);
+        $twilio = TwilioClient::getInstanceByAppOrCompany($this->app, $this->company);
 
         return array_map(
             static fn ($number): array => [
