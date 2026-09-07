@@ -52,6 +52,10 @@ class TriggerIntelligenceActivity extends KanvasActivity
         $data = ['stateDelta' => ['mode' => $aiMode]];
         foreach ($lead->aiSession as $session) {
             $handle = new $session->agent->type->handler();
+            if (! method_exists($handle, 'sendDataToAgent')) {
+                continue;
+            }
+
             $handle->setConfiguration(
                 agent: $session->agent,
                 entity: $session->entity(),
