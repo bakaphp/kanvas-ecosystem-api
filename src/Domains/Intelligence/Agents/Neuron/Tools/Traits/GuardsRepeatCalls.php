@@ -15,9 +15,14 @@ use stdClass;
  * stop, so it keeps trying until the cap kills the whole turn. This returns the first call's own
  * result again, labelled, so the model can read what it already had.
  *
- * The mechanism is the one `ReadMessageContentTool` documents: NeuronAI clones the registered tool
- * for each call, so a stdClass created in the constructor is shared by every call of the turn while
- * staying scoped to this agent instance.
+ * The mechanism is the one `ReadMessageContentTool` documents: NeuronAI hands each call a shallow
+ * `clone` of the registered tool (`clone $tool` in `HandleWithTools::findTool`), so an object
+ * property is shared by every call of the turn while staying scoped to this agent instance.
+ *
+ * That shallow clone is also why {@see self::initRepeatGuard()} must run in the using tool's
+ * constructor and cannot be lazy. The registered instance is constructed once and cloned per call;
+ * a ledger created on first use is created on a *clone*, so every call would get its own empty one
+ * and the guard would silently never fire. `GuardsRepeatCallsTest` fails if a tool forgets the call.
  *
  * Opt-in per tool, deliberately. A status poll or a job check is *supposed* to be callable twice with
  * the same arguments and get a different answer; only tools whose answer cannot change within a turn
@@ -25,7 +30,16 @@ use stdClass;
  */
 trait GuardsRepeatCalls
 {
-    private ?stdClass $repeatLedger = null;
+    private stdClass $repeatLedger;
+
+    /**
+     * Must be called from the using tool's constructor — see the class docblock for why it cannot be lazy.
+     */
+    final protected function initRepeatGuard(): void
+    {
+        $this->repeatLedger = new stdClass();
+        $this->repeatLedger->results = [];
+    }
 
     /**
      * Run the tool's work, unless this exact call already ran this turn.
@@ -36,12 +50,11 @@ trait GuardsRepeatCalls
      */
     protected function oncePerTurn(array $inputs, callable $work): array
     {
-        $ledger = $this->repeatLedger();
         $key = $this->repeatKey($inputs);
 
-        if (isset($ledger->results[$key])) {
+        if (isset($this->repeatLedger->results[$key])) {
             /** @var array<string, mixed> $previous */
-            $previous = $ledger->results[$key];
+            $previous = $this->repeatLedger->results[$key];
 
             return [
                 ...$previous,
@@ -54,7 +67,7 @@ trait GuardsRepeatCalls
         }
 
         $result = $work();
-        $ledger->results[$key] = $result;
+        $this->repeatLedger->results[$key] = $result;
 
         return $result;
     }
@@ -71,15 +84,5 @@ trait GuardsRepeatCalls
         ksort($normalised);
 
         return sha1((string) json_encode($normalised));
-    }
-
-    private function repeatLedger(): stdClass
-    {
-        if ($this->repeatLedger === null) {
-            $this->repeatLedger = new stdClass();
-            $this->repeatLedger->results = [];
-        }
-
-        return $this->repeatLedger;
     }
 }

@@ -7,6 +7,7 @@ namespace Tests\Intelligence\Agents;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\CreateMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadChannelWindowTool;
 use Kanvas\Social\Channels\Models\Channel;
@@ -117,6 +118,84 @@ final class NewsroomAgentToolsTest extends TestCase
 
         $this->assertSame('success', $result['status'], json_encode($result));
         $this->assertSame($verb, $result['message_type']);
+    }
+
+    /**
+     * KANVAS-ECOSYSTEM-6A1: an agent with no tool for the task it was woken on re-read one channel ten
+     * times with identical arguments and killed the turn. Each call runs on its own clone of the
+     * registered tool, so the guard is only exercised faithfully through clones.
+     */
+    public function testAnIdenticalSecondReadInTheSameTurnIsAnsweredWithoutRereadingTheChannel(): void
+    {
+        $channel = $this->channel();
+        $this->messageOn($channel, 'PO 260531 was received short by two pallets.');
+
+        $registered = $this->reader();
+        $firstCall = clone $registered;
+        $secondCall = clone $registered;
+
+        $first = $firstCall->__invoke(channel_id: $channel->getId());
+        $second = $secondCall->__invoke(channel_id: $channel->getId());
+
+        $this->assertSame('success', $first['status']);
+        $this->assertArrayNotHasKey('repeat_call', $first);
+
+        $this->assertTrue($second['repeat_call']);
+        $this->assertSame(ToolOutcomeEnum::NOOP->value, $second['outcome']);
+        $this->assertSame($first['messages'], $second['messages']);
+    }
+
+    public function testADifferentChannelIsStillReadAfterAGuardedRepeat(): void
+    {
+        $first = $this->channel();
+        $second = $this->channel();
+        $this->messageOn($first, 'Ben confirmed the count.');
+        $this->messageOn($second, 'Yusen sent the corrected ASN.');
+
+        $registered = $this->reader();
+
+        $registered->__invoke(channel_id: $first->getId());
+        $repeat = $registered->__invoke(channel_id: $first->getId());
+        $other = $registered->__invoke(channel_id: $second->getId());
+
+        $this->assertTrue($repeat['repeat_call']);
+        $this->assertArrayNotHasKey('repeat_call', $other);
+        $this->assertSame($second->getId(), $other['channel_id']);
+    }
+
+    /**
+     * The guard keys on the clamped limit, so a model cannot re-run an identical query by varying a
+     * parameter that changes nothing: omitted, the default, and anything above the maximum all read
+     * the same rows.
+     */
+    public function testALimitThatClampsToTheSameQueryIsTheSameCall(): void
+    {
+        $channel = $this->channel();
+        $this->messageOn($channel, 'Same window, asked for three different ways.');
+
+        $reader = $this->reader();
+
+        $reader->__invoke(channel_id: $channel->getId());
+        $spelledOut = $reader->__invoke(
+            channel_id: $channel->getId(),
+            limit: ReadChannelWindowTool::DEFAULT_LIMIT,
+        );
+        $overTheMax = $reader->__invoke(channel_id: $channel->getId(), limit: 500);
+
+        $this->assertTrue($spelledOut['repeat_call']);
+        $this->assertArrayNotHasKey('repeat_call', $overTheMax, 'A clamp to MAX_LIMIT is a different window.');
+    }
+
+    public function testTheRunBudgetIsKeyedPerChannelNotPerTool(): void
+    {
+        $reader = $this->reader();
+
+        $reader->setInputs(['channel_id' => 11]);
+        $eleven = $reader->getRunKey();
+
+        $reader->setInputs(['channel_id' => 12]);
+
+        $this->assertNotSame($eleven, $reader->getRunKey());
     }
 
     private function reader(): ReadChannelWindowTool
