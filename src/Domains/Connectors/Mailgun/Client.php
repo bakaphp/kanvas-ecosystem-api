@@ -21,11 +21,29 @@ class Client
     public function __construct(
         protected AppInterface $app
     ) {
-        $this->apiKey = (string) ($this->app->get(ConfigurationEnum::API_KEY->value));
+        $this->apiKey = self::apiKeyFor($this->app);
 
-        if (empty($this->apiKey)) {
+        if ($this->apiKey === '') {
             throw new ValidationException('Mailgun API key is not configured for app: ' . $this->app->name);
         }
+    }
+
+    /**
+     * App setting first, the platform credential second.
+     *
+     * `services.mailgun.secret` is what Laravel's own mail transport already runs on, so an install
+     * that sends mail at all has one — requiring it to be copied into an app setting before an agent
+     * can use the API is a second place to keep the same key in sync. A tenant on its own Mailgun
+     * account still wins by setting `MAILGUN_API_KEY`.
+     *
+     * Shared with `AgentMailboxService::isConfiguredFor()` so the "can I?" check and the actual
+     * request can never disagree about which credential is in play.
+     */
+    public static function apiKeyFor(AppInterface $app): string
+    {
+        $apiKey = trim((string) $app->get(ConfigurationEnum::API_KEY->value));
+
+        return $apiKey !== '' ? $apiKey : trim((string) config('services.mailgun.secret'));
     }
 
     public function validateAddress(string $email): array

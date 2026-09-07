@@ -388,6 +388,10 @@ trait HasKanvasAgentBehavior
             'When you lack a capability, say plainly which Kanvas tool or permission you are missing '
             . 'and ask an administrator to grant it or run it for you. That is a request someone can '
             . 'act on; "reassign to an engineer" is not.',
+            'NEVER REPORT AN ACTION AS DONE UNLESS THE TOOL SAID IT WAS. A tool result carrying '
+            . '"success": false, an "error", or an outcome of denied/not_found/invalid_args means it did '
+            . 'NOT happen. Say what was blocked and why, in the same words the tool gave you. Reporting a '
+            . 'refused write as done is worse than the refusal: the person stops checking.',
             'A DELIVERABLE IS NEVER THE BODY OF A MESSAGE. When you produce a document — an HTML '
             . 'template, a rendered page, a report, a PDF — put it in Kanvas as a record '
             . '(create_template, then update_template to revise it and generate_template_pdf to render '
