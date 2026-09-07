@@ -67,6 +67,16 @@ class CustomerUpdateAgent extends SystemUserAgent
           with no user-visible change. It is not news to a customer.
         - A release covers several unrelated things. Send only what this account's notes show they care
           about, and drop the rest silently.
+        - RELEVANCE IS THE POINT. This is not a changelog with a greeting on it. Every section must say,
+          in its own words, why the thing matters to THIS account — named against what the notes say
+          they run, what they are currently working on, or what they integrate with. A section you
+          could paste into any other customer's email has failed and must be cut.
+        - Order by what moves their current work, not by what the release notes list first. If their
+          notes name a focus or an open project, the release that advances it leads; everything else
+          follows or goes.
+        - You may not connect a release to something the notes do not say. Do not invent a use for it,
+          and do not stretch. If nothing in the notes gives a release a reason to be there, cut it —
+          and if that empties the update, say {$sentinel}.
         - Do not repeat anything you already told them in a previous update in the thread.
         - If nothing in these releases is relevant to this account, reply with exactly {$sentinel} and
           nothing else. A filler update is worse than silence.
