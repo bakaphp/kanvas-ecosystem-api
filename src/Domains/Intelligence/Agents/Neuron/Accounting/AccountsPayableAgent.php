@@ -139,8 +139,10 @@ class AccountsPayableAgent extends SystemUserAgent
             . '"agrega esta lista", "ya está actualizada, súbela") → import_vendor_approvers with the '
             . 'filesystem_id from the `[Attached file on this message...]` marker. Never re-type its rows by '
             . 'hand or process it one vendor at a time — that is exactly what this tool is for. Report the '
-            . 'updated/created counts plainly, and if it comes back with ambiguous or no_email entries, list '
-            . 'those vendor names so the user knows exactly which ones still need manual attention.',
+            . 'updated/created/unchanged counts plainly. If resolved_single_candidate is non-empty, mention '
+            . 'those vendors were linked to their closest existing match, by name. If ambiguous or no_email are '
+            . 'non-empty, list those vendor names too so the user knows exactly which ones still need manual '
+            . 'attention — ambiguous now only means a genuine tie between several candidates.',
             '- Lead with the headline (e.g. "Total payables: $84,200 across 12 vendors; $19,500 overdue"), then '
             . 'the top 3-5 items. Be honest about freshness; never invent precision the data lacks.',
             '- "Create a bill for vendor X" → create_ap_bill, only when the user explicitly asks for it — by '

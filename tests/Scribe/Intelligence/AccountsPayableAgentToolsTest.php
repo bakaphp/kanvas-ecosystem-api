@@ -1176,4 +1176,53 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertNotNull($created);
         $this->assertSame('new-vendor-approver@example.test', $created->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value));
     }
+
+    public function test_import_vendor_approvers_links_a_single_weak_candidate_and_is_idempotent_on_rerun(): void
+    {
+        $tok = uniqid();
+        $candidate = $this->seedTestOrganization("Acme Imports Group Holdings {$tok}");
+
+        $rows = [
+            ['Vendor Name', 'Approver Name', 'Approver Email'],
+            ["Acme {$tok}", 'Someone', 'single-candidate-approver@example.test'],
+        ];
+
+        $first = new ImportVendorApproversFromRowsAction($this->kanvasApp, $this->company, $rows)->execute();
+
+        $this->assertSame(1, $first['updated']);
+        $this->assertSame(0, $first['created']);
+        $this->assertSame(0, $first['unchanged']);
+        $this->assertSame([], $first['ambiguous']);
+        $this->assertCount(1, $first['resolved_single_candidate']);
+        $this->assertStringContainsString($candidate->name, $first['resolved_single_candidate'][0]);
+
+        $candidate->refresh();
+        $this->assertSame('single-candidate-approver@example.test', $candidate->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value));
+
+        // Re-running with the exact same row must not touch it again — only report it unchanged.
+        $second = new ImportVendorApproversFromRowsAction($this->kanvasApp, $this->company, $rows)->execute();
+
+        $this->assertSame(0, $second['updated']);
+        $this->assertSame(0, $second['created']);
+        $this->assertSame(1, $second['unchanged']);
+    }
+
+    public function test_import_vendor_approvers_still_treats_a_real_tie_between_candidates_as_ambiguous(): void
+    {
+        $tok = uniqid();
+        $this->seedTestOrganization("Blended North Group {$tok}");
+        $this->seedTestOrganization("Blended South Group {$tok}");
+
+        $rows = [
+            ['Vendor Name', 'Approver Name', 'Approver Email'],
+            ["Blended Group {$tok}", 'Someone', 'ambiguous-approver@example.test'],
+        ];
+
+        $result = new ImportVendorApproversFromRowsAction($this->kanvasApp, $this->company, $rows)->execute();
+
+        $this->assertSame(0, $result['updated']);
+        $this->assertSame(0, $result['created']);
+        $this->assertSame([], $result['resolved_single_candidate']);
+        $this->assertCount(1, $result['ambiguous']);
+    }
 }
