@@ -43,7 +43,20 @@ class InventorySearchTool extends Tool
     public function __invoke(string $product_name): array
     {
         try {
-            $products = Products::search($product_name)->take(10)->get();
+            // Products::search() queries `name,description`, where `name` is the
+            // translation resolved for a SINGLE locale at index time. A product
+            // whose name is only stored under `en` but indexed while another
+            // locale was active then can't be found by its English name. The
+            // `translations.name` / `translations.description` fields hold EVERY
+            // locale joined, so query those too to make the search
+            // locale-independent. Typesense-only; other engines ignore the extra
+            // fields. This overrides the query_by set inside Products::search().
+            $products = Products::search($product_name)
+                ->options([
+                    'query_by' => 'name,description,translations.name,translations.description',
+                ])
+                ->take(10)
+                ->get();
         } catch (Throwable $e) {
             return ['message' => "Search failed: {$e->getMessage()}"];
         }
@@ -61,7 +74,10 @@ class InventorySearchTool extends Tool
 
             return [
                 'id' => $product->getId(),
-                'name' => $product->name,
+                // Prefer the English name so the agent speaks a stable, readable
+                // label regardless of the call's locale; fall back to the resolved
+                // accessor when no `en` translation exists.
+                'name' => $product->getTranslation('name', 'en') ?: $product->name,
                 'slug' => $product->slug,
                 'is_published' => (bool) $product->is_published,
                 'is_available' => $isAvailable,

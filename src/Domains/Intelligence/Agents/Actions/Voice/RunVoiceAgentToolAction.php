@@ -55,23 +55,7 @@ class RunVoiceAgentToolAction
         Bouncer::scope()->to(RolesEnums::getScope($this->agent->app));
 
         try {
-            $catalogTool = new CapabilityProvider()
-                ->getActiveTools($this->agent, CapabilityFrameworkEnum::NEURON->value)
-                ->first(fn ($tool): bool => $tool->name === $this->toolName);
-
-            if ($catalogTool === null) {
-                throw new ValidationException("Agent has no active tool named '{$this->toolName}'.");
-            }
-
-            $handlerClass = $catalogTool->handler;
-            if (empty($handlerClass) || ! class_exists($handlerClass)) {
-                throw new ValidationException("Tool '{$this->toolName}' has no runnable handler.");
-            }
-
-            $handler = app($handlerClass);
-            if (! $handler instanceof NeuronTool) {
-                throw new ValidationException("Tool '{$this->toolName}' is not executable.");
-            }
+            $handler = $this->resolveHandler();
 
             // Wire the agent's tenant context onto tools that accept it (withContext
             // from HasKanvasContext). app/company come from the agent; the acting
@@ -98,5 +82,58 @@ class RunVoiceAgentToolAction
             Bouncer::scope()->to($previousScope);
             app()->instance(Apps::class, $previousApp);
         }
+    }
+
+    /**
+     * Resolve the runnable handler for $this->toolName among the agent's active
+     * NEURON tools.
+     *
+     * The name to match is the HANDLER's own name ($handler->getName(), a valid
+     * function-call identifier like `inventory_search`) — that is what
+     * VoiceAgentSpecService advertises to the runtime and therefore what the LLM
+     * calls back with. The catalog `Tool.name` column is a human display label
+     * (e.g. `Inventory Search`) and does NOT match; keying off it made every tool
+     * whose display name differs from its handler name uncallable mid-call. The
+     * catalog name is kept only as a fallback for tools whose two names coincide.
+     */
+    private function resolveHandler(): NeuronTool
+    {
+        $tools = new CapabilityProvider()
+            ->getActiveTools($this->agent, CapabilityFrameworkEnum::NEURON->value);
+
+        $fallback = null;
+
+        foreach ($tools as $catalogTool) {
+            $handlerClass = $catalogTool->handler;
+            if (empty($handlerClass) || ! class_exists($handlerClass)) {
+                continue;
+            }
+
+            try {
+                $handler = app($handlerClass);
+            } catch (Throwable) {
+                // A handler that can't be built is skipped, not fatal — mirrors
+                // VoiceAgentSpecService, so run-time selection matches advertise-time.
+                continue;
+            }
+
+            if (! $handler instanceof NeuronTool) {
+                continue;
+            }
+
+            if ($handler->getName() === $this->toolName) {
+                return $handler;
+            }
+
+            if ($fallback === null && $catalogTool->name === $this->toolName) {
+                $fallback = $handler;
+            }
+        }
+
+        if ($fallback !== null) {
+            return $fallback;
+        }
+
+        throw new ValidationException("Agent has no active tool named '{$this->toolName}'.");
     }
 }

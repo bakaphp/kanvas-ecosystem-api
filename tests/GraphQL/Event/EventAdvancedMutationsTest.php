@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventType;
+use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\EventVersionDate;
 use Kanvas\Event\Events\Models\EventVersionParticipant;
 use Kanvas\Event\Facilitators\Models\EventVersionFacilitator;
@@ -355,5 +356,37 @@ class EventAdvancedMutationsTest extends TestCase
 
         // Version may or may not have a currency assigned depending on seed; just ensure the field resolves.
         $this->assertArrayHasKey('currency', $r->json('data.eventVersions.data.0'));
+    }
+
+    public function testCreateEventPersistsConfigAsVersionMetadata(): void
+    {
+        $this->runEventSetup();
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $config = ['dealer_event_id' => 123, 'source' => 'dealer_app_center'];
+
+        $input = [
+            'name' => 'Config Event ' . uniqid(),
+            'category_id' => EventCategory::fromCompany($company)->fromApp($app)->first()->getId(),
+            'type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
+            'dates' => [[
+                'date' => Carbon::now()->addWeeks(2)->toDateString(),
+                'start_time' => '10:00',
+                'end_time' => '12:00',
+            ]],
+            'config' => $config,
+        ];
+
+        $r = $this->graphQL('
+            mutation($input: EventInput!) {
+                createEvent(input: $input) { id versions { data { id } } }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        $versionId = $r->json('data.createEvent.versions.data.0.id');
+
+        $this->assertEquals($config, EventVersion::find($versionId)->metadata);
     }
 }
