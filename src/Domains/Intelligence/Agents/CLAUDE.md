@@ -529,6 +529,23 @@ A `find_*` tool that returns an empty result set should also say the retry is po
 `count: 0`, see `find_customer` / `find_vendor`). A bare `count: 0` reads as "try again" and the model
 re-calls with the same arguments until the budget trips — same crash, different cause.
 
+### A read whose answer can't change in a turn should answer the repeat, not re-run it
+
+`HasRunKey` bounds the waste; it never tells the model *why* it stopped, so a model with nothing else
+to try keeps calling until the cap kills the turn. For a **read** whose answer cannot change within one
+turn, add [`GuardsRepeatCalls`](Neuron/Tools/Traits/GuardsRepeatCalls.php) as well and wrap the body in
+`oncePerTurn($inputs, fn () => …)`: the second identical call gets the first call's own result back,
+labelled `outcome: noop` with an instruction to stop. `ReadChannelWindowTool` is the reference
+(KANVAS-ECOSYSTEM-6A1 — an agent woken on a task it had no tool for re-read one channel ten times).
+
+**Call `initRepeatGuard()` in the tool's constructor.** NeuronAI hands each call a shallow `clone` of
+the registered tool, so the ledger is only shared if it exists before the first clone; build it lazily
+and every call gets its own empty one and the guard silently never fires — which is how the trait sat
+unused and broken until 6A1. `GuardsRepeatCallsTest` fails if a guarded tool forgets it.
+
+Opt in per tool. A status poll or job check is *supposed* to return something different on the second
+identical call — guarding those would hide real progress.
+
 Reference/coverage: [`HumanResourcesAgentToolsTest::testBulkCreateToolsBudgetRunsPerInputsNotPerToolName`](../../../../tests/GraphQL/HumanResources/HumanResourcesAgentToolsTest.php),
 plus the per-domain equivalents in [`AccountsReceivableAgentToolsTest`](../../../../tests/Scribe/Intelligence/AccountsReceivableAgentToolsTest.php),
 [`AccountsPayableAgentToolsTest`](../../../../tests/Scribe/Intelligence/AccountsPayableAgentToolsTest.php),
