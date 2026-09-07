@@ -42,23 +42,28 @@ class InventorySearchTool extends Tool
 
     public function __invoke(string $product_name): array
     {
+        // Products::search() queries `name,description`, where `name` is the
+        // translation resolved for a SINGLE locale at index time. A product whose
+        // name is only stored under `en` but indexed while another locale was
+        // active then can't be found by its English name. `translations.name` /
+        // `translations.description` hold EVERY locale joined, so query those too
+        // to make the search locale-independent.
+        //
+        // But a collection created before those fields existed in the schema
+        // rejects them ("Could not find a field named `translations.name`"), so
+        // fall back to the always-present base fields — search still works
+        // pre-reindex, and gains the locale-independent match once reindexed.
         try {
-            // Products::search() queries `name,description`, where `name` is the
-            // translation resolved for a SINGLE locale at index time. A product
-            // whose name is only stored under `en` but indexed while another
-            // locale was active then can't be found by its English name. The
-            // `translations.name` / `translations.description` fields hold EVERY
-            // locale joined, so query those too to make the search
-            // locale-independent. Typesense-only; other engines ignore the extra
-            // fields. This overrides the query_by set inside Products::search().
-            $products = Products::search($product_name)
-                ->options([
-                    'query_by' => 'name,description,translations.name,translations.description',
-                ])
-                ->take(10)
-                ->get();
+            $products = $this->searchProducts($product_name, 'name,description,translations.name,translations.description');
         } catch (Throwable $e) {
-            return ['message' => "Search failed: {$e->getMessage()}"];
+            if (! str_contains($e->getMessage(), 'Could not find a field named')) {
+                return ['message' => "Search failed: {$e->getMessage()}"];
+            }
+            try {
+                $products = $this->searchProducts($product_name, 'name,description');
+            } catch (Throwable $retry) {
+                return ['message' => "Search failed: {$retry->getMessage()}"];
+            }
         }
 
         if ($products->isEmpty()) {
@@ -99,5 +104,20 @@ class InventorySearchTool extends Tool
                 })->toArray(),
             ];
         })->toArray();
+    }
+
+    /**
+     * Run the Scout search with an explicit Typesense `query_by`, overriding the
+     * value Products::search() sets. Split out so __invoke can retry with a
+     * narrower field set when the collection's schema lacks the wider ones.
+     *
+     * @return \Illuminate\Support\Collection<int, Products>
+     */
+    private function searchProducts(string $query, string $queryBy): \Illuminate\Support\Collection
+    {
+        return Products::search($query)
+            ->options(['query_by' => $queryBy])
+            ->take(10)
+            ->get();
     }
 }
