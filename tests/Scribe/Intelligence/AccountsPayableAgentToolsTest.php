@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
+use Kanvas\Guild\Organizations\Actions\ImportVendorApproversFromRowsAction;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -19,6 +20,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportVendorApproversTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
@@ -1120,5 +1122,58 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             $this->assertNotEquals($keyOne, $keyTwo, $tool->getName() . ': distinct records must not share a run budget.');
             $this->assertEquals($keyOneAgain, $keyOne, $tool->getName() . ': identical calls must collapse so a loop is still capped.');
         }
+    }
+
+    public function test_import_vendor_approvers_reports_file_not_found_for_unknown_filesystem_id(): void
+    {
+        $result = new ImportVendorApproversTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(filesystem_id: 999999999);
+
+        $this->assertFalse($result['imported']);
+        $this->assertSame('file_not_found', $result['reason']);
+    }
+
+    public function test_import_vendor_approvers_reports_file_not_found_for_a_cross_tenant_file(): void
+    {
+        $foreign = $this->createFilesystemRow(appsId: 999999998, extension: 'xlsx', fileType: 'xlsx');
+
+        $result = new ImportVendorApproversTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(filesystem_id: $foreign->getId());
+
+        $this->assertFalse($result['imported']);
+        $this->assertSame('file_not_found', $result['reason']);
+    }
+
+    public function test_import_vendor_approvers_from_rows_links_and_creates_and_reports_skips(): void
+    {
+        $vendor = $this->seedTestOrganization('Import Rows Match Test Corp');
+        $newVendorName = 'Import Rows Brand New Vendor ' . uniqid();
+
+        $rows = [
+            ['Vendor Name', 'Approver Name', 'Approver Email'],
+            ['Import Rows Match Test Corp', 'Someone', 'match-approver@example.test'],
+            [$newVendorName, 'Someone Else', 'new-vendor-approver@example.test'],
+            ['No Email Vendor ' . uniqid(), 'Inventory supplier', ''],
+        ];
+
+        $result = new ImportVendorApproversFromRowsAction($this->kanvasApp, $this->company, $rows)->execute();
+
+        $this->assertSame(1, $result['updated']);
+        $this->assertSame(1, $result['created']);
+        $this->assertCount(1, $result['no_email']);
+        $this->assertSame([], $result['ambiguous']);
+
+        $vendor->refresh();
+        $this->assertSame('match-approver@example.test', $vendor->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value));
+
+        $created = Organization::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('name', $newVendorName)
+            ->first();
+        $this->assertNotNull($created);
+        $this->assertSame('new-vendor-approver@example.test', $created->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value));
     }
 }
