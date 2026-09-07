@@ -17,6 +17,10 @@ use Kanvas\Intelligence\Agents\Enums\KanvasReleaseFeedEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\CustomerSuccess\CustomerUpdateAgent;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
 use RuntimeException;
 use Tests\TestCase;
 use Throwable;
@@ -26,6 +30,9 @@ final class DraftCustomerUpdateActionTest extends TestCase
     use DatabaseTransactions;
 
     protected array $connectionsToTransact = ['mysql', 'crm', 'intelligence', 'social', 'ecosystem'];
+
+    /** Distinctive enough that counting occurrences in the prompt means something. */
+    private const string NOTE_MARKER = 'pay through CardNet';
 
     /**
      * @param array<int, array<string, mixed>> $releases
@@ -194,6 +201,80 @@ final class DraftCustomerUpdateActionTest extends TestCase
         $prompt = implode("\n", $handler->seen);
         $this->assertStringContainsString('piloting it for a Q3 launch', $prompt);
         $this->assertStringContainsString('[note', $prompt, 'each note is labelled by kind');
+    }
+
+    /**
+     * The account's history is not reliably in the channel called `Notes` — humans write it to
+     * `Activities`, while `Notes` fills up with what this action itself posted. Reading only `notes`
+     * fed the agent its own previous newsletters as the whole of "everything you know about them",
+     * and every draft came out a generic changelog.
+     */
+    public function testNotesOutsideTheNotesChannelStillReachTheModel(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+        $organization = $this->seedOrganization();
+        $note = $this->seedNote($organization);
+
+        // Exactly the production shape: the note lives on another channel on the same account, and
+        // the one named `Notes` does not hold it.
+        $organization->notes->messages()->detach($note->getId());
+        $this->seedActivityChannel($organization)->addMessage($note);
+
+        $handler = $this->handler('Something about cigars.');
+
+        new DraftCustomerUpdateAction($organization->refresh(), $this->seedAgent(), $handler)->execute();
+
+        $this->assertStringContainsString(self::NOTE_MARKER, implode("\n", $handler->seen));
+    }
+
+    /**
+     * A note attached to two channels on the same account is one note, not two. Reading every channel
+     * makes this reachable, and a model handed the same paragraph twice weights it twice.
+     */
+    public function testANoteOnTwoChannelsIsNotHandedToTheModelTwice(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+        $organization = $this->seedOrganization();
+
+        // Left on Notes AND attached to Activity, as a note ends up when someone reconciles the threads.
+        $this->seedActivityChannel($organization)->addMessage($this->seedNote($organization));
+
+        $handler = $this->handler('Something about cigars.');
+
+        new DraftCustomerUpdateAction($organization->refresh(), $this->seedAgent(), $handler)->execute();
+
+        $this->assertSame(
+            1,
+            substr_count(implode("\n", $handler->seen), self::NOTE_MARKER),
+            'the note is on two channels but must reach the model once'
+        );
+    }
+
+    private function seedNote(Organization $organization): Message
+    {
+        return new RecordOrganizationNoteAction($organization)->execute(
+            body: 'They run a luxury cigar retail chain and ' . self::NOTE_MARKER . '.',
+            tag: 'note',
+            actingUser: auth()->user(),
+            fromIa: false,
+        );
+    }
+
+    /** A second channel on the same account, standing in for the one humans actually write notes to. */
+    private function seedActivityChannel(Organization $organization): Channel
+    {
+        return new CreateChannelAction(
+            new ChannelDto(
+                apps: $organization->app,
+                companies: $organization->company,
+                users: auth()->user(),
+                entity_id: $organization->getId(),
+                entity_namespace: $organization::class,
+                name: 'Activity',
+                description: 'Organization activity channel.',
+                slug: 'organization-activity-' . $organization->getId(),
+            )
+        )->execute();
     }
 
     public function testSaysSoPlainlyWhenTheAccountHasNoNotes(): void
