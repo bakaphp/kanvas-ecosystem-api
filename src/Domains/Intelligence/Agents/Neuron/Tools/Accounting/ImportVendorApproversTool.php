@@ -21,7 +21,9 @@ use Throwable;
  * Bulk version of add_organization_approver — imports a whole Vendor Name / Approver Email
  * spreadsheet (xlsx/csv) in one call, from a file already attached to this conversation. Shares
  * its matching/linking rules with the scribe:import-vendor-approvers CLI command via
- * ImportVendorApproversFromRowsAction, so both stay in sync.
+ * ImportVendorApproversFromRowsAction, so both stay in sync — including linking a vendor to its
+ * one plausible existing match rather than leaving it for manual resolution, and skipping a vendor
+ * whose approver is already exactly what the sheet says.
  */
 #[AgentTool(name: 'Import Vendor Approvers', category: 'accounting')]
 class ImportVendorApproversTool extends Tool
@@ -34,10 +36,13 @@ class ImportVendorApproversTool extends Tool
             name: 'import_vendor_approvers',
             description: 'Imports a whole vendor/approver spreadsheet (xlsx/csv) in one call — sets each vendor '
                 . 'Organization\'s approver email and links a real Kanvas User as its approver, creating the '
-                . 'Organization when nothing matches. The sheet needs a "Vendor Name" column and an "Approver '
-                . 'Email" column (any other columns, e.g. "Approver Name", are ignored). Use this when the user '
-                . 'attaches an updated vendor/approver list and asks to load it — never guess column names, the '
-                . 'sheet must have these exact headers somewhere in it. Safe to re-run with an updated file.',
+                . 'Organization when nothing matches and linking to the closest existing one when there is '
+                . 'exactly one plausible candidate. Only a genuine tie between several similarly-plausible '
+                . 'candidates is left for manual resolution. Re-running with the same or an updated sheet only '
+                . 'touches vendors whose recorded approver actually differs. The sheet needs a "Vendor Name" '
+                . 'column and an "Approver Email" column (any other columns, e.g. "Approver Name", are ignored) '
+                . '— never guess column names, the sheet must have these exact headers somewhere in it. Use '
+                . 'this when the user attaches an updated vendor/approver list and asks to load it.',
         );
     }
 
@@ -117,10 +122,14 @@ class ImportVendorApproversTool extends Tool
             'imported' => true,
             'updated' => $result['updated'],
             'created' => $result['created'],
+            'unchanged' => $result['unchanged'],
+            'resolved_single_candidate' => $result['resolved_single_candidate'],
             'ambiguous' => $result['ambiguous'],
             'no_email' => $result['no_email'],
-            'next' => 'Report the counts plainly, and if ambiguous/no_email are non-empty, list those vendors '
-                . 'by name so the user knows exactly which ones still need manual attention.',
+            'next' => 'Report updated/created/unchanged counts plainly. If resolved_single_candidate is '
+                . 'non-empty, mention those vendors were linked to their closest existing match. If '
+                . 'ambiguous/no_email are non-empty, list those vendors by name so the user knows exactly which '
+                . 'ones still need manual attention.',
         ];
     }
 }

@@ -17,10 +17,10 @@ use Maatwebsite\Excel\Facades\Excel;
  * and links a real Kanvas User as its OrganizationApprover (creating a minimal User record if no
  * Kanvas account matches that email yet), from a spreadsheet mapping Vendor Name -> Approver Email
  * (e.g. the AP Vendor-Approver List finance maintains). A vendor with no existing Organization match
- * at all gets one created on the fly, so the whole sheet ends up linked — a vendor with SEVERAL
- * possible matches is still skipped for manual resolution, since auto-picking one could silently
- * misfile it against the wrong existing Organization. Re-run whenever the sheet changes — it's
- * idempotent, safe to run again with an updated file.
+ * at all gets one created on the fly, so the whole sheet ends up linked — only a genuine tie between
+ * SEVERAL similarly-plausible candidates is skipped for manual resolution. Re-run whenever the sheet
+ * changes — it's idempotent, safe to run again with an updated file, and only actually writes to a
+ * vendor whose recorded approver differs from what the sheet says.
  *
  * Thin CLI wrapper — the actual matching/linking rules live in ImportVendorApproversFromRowsAction,
  * shared with import_vendor_approvers (the agent-callable tool for the same job from an uploaded file).
@@ -50,7 +50,14 @@ class ImportVendorApproversCommand extends Command
             return;
         }
 
-        $this->info("Done. {$result['updated']} vendors updated, {$result['created']} vendor organizations created.");
+        $this->info(
+            "Done. {$result['updated']} vendors updated, {$result['created']} vendor organizations created, "
+                . "{$result['unchanged']} already up to date."
+        );
+
+        if ($result['resolved_single_candidate'] !== []) {
+            $this->info('Linked to their one plausible candidate: ' . implode('; ', $result['resolved_single_candidate']));
+        }
 
         if ($result['no_email'] !== []) {
             $this->warn('No approver email in the sheet (skipped): ' . implode(', ', $result['no_email']));
