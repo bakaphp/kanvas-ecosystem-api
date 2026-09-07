@@ -20,4 +20,15 @@ enum KanvasReleaseFeedEnum: string
      * Turning it on is a deliberate act by that app's operator.
      */
     case MONTHLY_UPDATE_ENABLED = 'kanvas_customer_update_monthly_enabled';
+
+    /**
+     * Where a customer's reply goes. A newsletter that answers to `noreply@` is the broken kind, but
+     * the From address is pinned to whatever domain is verified for sending — a From nobody has
+     * authorized fails DMARC and lands in spam. Reply-To carries no such constraint, so it is the one
+     * lever that can point at a real person today, before any mailbox exists to send from.
+     *
+     * Company setting wins over app: one app can serve several tenants, and the human who answers is
+     * theirs, not the platform's.
+     */
+    case REPLY_TO = 'kanvas_customer_update_reply_to';
 }
