@@ -56,8 +56,9 @@ enum ToolOutcomeEnum: string
                 . 'the same call unchanged.',
             self::NOT_FOUND => 'Nothing matched. Repeating this exact call will not find anything — either '
                 . 'search differently, or tell the user it does not exist.',
-            self::DENIED => 'You are not allowed to do this. Retrying cannot succeed. Tell the user what is '
-                . 'blocked and who can unblock it.',
+            self::DENIED => 'This did NOT happen. You are not allowed to do it and retrying cannot succeed. '
+                . 'Never report a denied write as done — tell the user plainly that it was blocked, what is '
+                . 'blocking it and who can unblock it.',
             self::TIMEOUT => 'This took too long and was stopped. If you try again, narrow it — a smaller '
                 . 'range or fewer records.',
             self::PROVIDER_ERROR => 'An external service failed. This is not something you can fix by '

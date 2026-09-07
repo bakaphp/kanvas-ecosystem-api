@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
+namespace Kanvas\Intelligence\Tools\Traits;
 
 use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 
@@ -27,14 +27,14 @@ trait ReportsToolOutcome
         array $payload = [],
         ?string $guidance = null,
     ): array {
-        $note = trim($guidance ?? '') !== ''
-            ? trim((string) $guidance) . ' ' . $outcome->guidance()
-            : $outcome->guidance();
+        $guidance = trim((string) $guidance);
 
         return [
             ...$payload,
             'outcome' => $outcome->value,
-            'note' => $note,
+            'note' => $guidance !== ''
+                ? $guidance . ' ' . $outcome->guidance()
+                : $outcome->guidance(),
         ];
     }
 
@@ -57,5 +57,44 @@ trait ReportsToolOutcome
     protected function notFound(array $payload = [], ?string $guidance = null): array
     {
         return $this->withOutcome(ToolOutcomeEnum::NOT_FOUND, $payload, $guidance);
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    protected function ok(array $payload = [], ?string $guidance = null): array
+    {
+        return $this->withOutcome(ToolOutcomeEnum::OK, ['success' => true, ...$payload], $guidance);
+    }
+
+    /**
+     * The write was refused. Carries `success: false` because a model that reads only an `error` key
+     * still narrates the write as done — the incident this exists for: an agent was told it could not
+     * edit a template it did not own and reported back that it had updated it.
+     *
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    protected function denied(string $error, array $payload = [], ?string $guidance = null): array
+    {
+        return $this->withOutcome(
+            ToolOutcomeEnum::DENIED,
+            ['success' => false, 'error' => $error, ...$payload],
+            $guidance
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    protected function invalidArgs(string $error, array $payload = [], ?string $guidance = null): array
+    {
+        return $this->withOutcome(
+            ToolOutcomeEnum::INVALID_ARGS,
+            ['success' => false, 'error' => $error, ...$payload],
+            $guidance
+        );
     }
 }
