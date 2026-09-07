@@ -61,5 +61,6 @@ src/Baka/Search/KanvasDatabaseEngine.php
 /storage/*.sqlite
 /storage/*.HEIC
 /storage/certificados_renombrados_PA/
+/storage/certificado_renombre_2/
 /storage/framework/testing/
 .claude/settings.json
