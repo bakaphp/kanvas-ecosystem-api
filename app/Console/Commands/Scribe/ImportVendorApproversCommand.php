@@ -9,8 +9,6 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\Actions\ImportVendorApproversFromRowsAction;
-use Kanvas\Support\Excel\NullExcelImport;
-use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * One-off import: sets ap_approver_email AND ap_approver_vendor_name on each vendor Organization,
@@ -40,9 +38,7 @@ class ImportVendorApproversCommand extends Command
 
         $company = Companies::getById((int) $this->argument('company_id'));
 
-        $rows = Excel::toArray(new NullExcelImport(), $this->argument('file'))[0] ?? [];
-
-        $result = new ImportVendorApproversFromRowsAction($app, $company, $rows)->execute();
+        $result = ImportVendorApproversFromRowsAction::fromFilePath($app, $company, $this->argument('file'))->execute();
 
         if (isset($result['error'])) {
             $this->error($result['error']);
@@ -50,13 +46,17 @@ class ImportVendorApproversCommand extends Command
             return;
         }
 
+        foreach ($result['linked'] as $line) {
+            $this->info($line);
+        }
+
         $this->info(
             "Done. {$result['updated']} vendors updated, {$result['created']} vendor organizations created, "
                 . "{$result['unchanged']} already up to date."
         );
 
-        if ($result['resolved_single_candidate'] !== []) {
-            $this->info('Linked to their one plausible candidate: ' . implode('; ', $result['resolved_single_candidate']));
+        if ($result['linked_low_confidence'] !== []) {
+            $this->warn('Linked on a single, weak match — please double-check these: ' . implode('; ', $result['linked_low_confidence']));
         }
 
         if ($result['no_email'] !== []) {

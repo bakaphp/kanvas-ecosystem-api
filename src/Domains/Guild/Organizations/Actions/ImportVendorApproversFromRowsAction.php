@@ -11,6 +11,8 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationApprover;
 use Kanvas\Guild\Organizations\Services\OrganizationVendorMatcherService;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
+use Kanvas\Support\Excel\NullExcelImport;
+use Maatwebsite\Excel\Facades\Excel;
 
 /**
  * Sets ap_approver_email/ap_approver_vendor_name on each vendor Organization and links a real
@@ -18,12 +20,13 @@ use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
  * Email). Shared by ImportVendorApproversCommand (CLI, a file path) and ImportVendorApproversTool
  * (agent-callable, an uploaded Filesystem row) so both stay in sync with the same matching rules.
  *
- * A vendor with no existing Organization match gets one created on the fly. A vendor with a single
- * plausible-but-not-certain candidate is linked to it anyway — the real misfiling risk is picking
- * between SEVERAL similarly-plausible candidates, not accepting the only one there is — so only a
- * genuine multi-candidate tie is skipped for manual resolution. Idempotent — a vendor whose
- * approver is already exactly what the sheet says is left untouched and reported separately from
- * ones actually changed, so re-running with the same or an updated sheet only touches what's new.
+ * A vendor with no existing Organization match gets one created. A vendor with a single plausible
+ * candidate is linked to it — this is weaker evidence than OrganizationVendorMatcherService's own
+ * auto-match bar (a lone candidate reaches here specifically because its score sits below that bar),
+ * so every such link is reported back in `linked_low_confidence` for the caller to surface prominently
+ * rather than treated as a routine success. A genuine tie between several candidates is still skipped
+ * for manual resolution. Idempotent — a vendor whose approver is already exactly what the sheet says
+ * is left untouched and counted as `unchanged`.
  */
 class ImportVendorApproversFromRowsAction
 {
@@ -37,8 +40,13 @@ class ImportVendorApproversFromRowsAction
     ) {
     }
 
+    public static function fromFilePath(Apps $app, Companies $company, string $filePath): self
+    {
+        return new self($app, $company, Excel::toArray(new NullExcelImport(), $filePath)[0] ?? []);
+    }
+
     /**
-     * @return array{updated: int, created: int, unchanged: int, resolved_single_candidate: list<string>, ambiguous: list<string>, no_email: list<string>}|array{error: string}
+     * @return array{updated: int, created: int, unchanged: int, linked: list<string>, linked_low_confidence: list<string>, ambiguous: list<string>, no_email: list<string>}|array{error: string}
      */
     public function execute(): array
     {
@@ -50,12 +58,15 @@ class ImportVendorApproversFromRowsAction
 
         [$headerIndex, $vendorColumn, $emailColumn] = $header;
 
-        $updated = 0;
-        $created = 0;
-        $unchanged = 0;
-        $resolvedSingleCandidate = [];
-        $ambiguous = [];
-        $noEmail = [];
+        $report = [
+            'updated' => 0,
+            'created' => 0,
+            'unchanged' => 0,
+            'linked' => [],
+            'linked_low_confidence' => [],
+            'ambiguous' => [],
+            'no_email' => [],
+        ];
 
         foreach (array_slice($this->rows, $headerIndex + 1) as $row) {
             $vendorName = trim((string) ($row[$vendorColumn] ?? ''));
@@ -66,62 +77,67 @@ class ImportVendorApproversFromRowsAction
             }
 
             if ($approverEmail === '') {
-                $noEmail[] = $vendorName;
+                $report['no_email'][] = $vendorName;
 
                 continue;
             }
 
-            $match = OrganizationVendorMatcherService::match($this->app, $this->company, $vendorName);
-            $organization = $match->organization;
-
-            if (! $match->isMatched() && $match->candidates !== []) {
-                if (count($match->candidates) > 1) {
-                    $names = implode(', ', array_map(static fn (Organization $o): string => $o->name, $match->candidates));
-                    $ambiguous[] = "{$vendorName} (candidates: {$names})";
-
-                    continue;
-                }
-
-                // Exactly one plausible candidate — not confident enough to auto-select over a
-                // real runner-up, but there is no runner-up to be wrong about here.
-                $organization = $match->candidates[0];
-                $resolvedSingleCandidate[] = "{$vendorName} -> {$organization->name}";
-            }
-
-            if ($organization === null) {
-                $organization = new CreateOrganizationAction(
-                    new OrganizationData(
-                        company: $this->company,
-                        user: $this->company->user,
-                        app: $this->app,
-                        name: $vendorName,
-                    ),
-                )->execute();
-
-                $this->linkVendorApprover($organization, $vendorName, $approverEmail);
-                $created++;
-
-                continue;
-            }
-
-            if ($this->alreadyLinked($organization, $vendorName, $approverEmail)) {
-                $unchanged++;
-
-                continue;
-            }
-
-            $this->linkVendorApprover($organization, $vendorName, $approverEmail);
-            $updated++;
+            $this->importRow($vendorName, $approverEmail, $report);
         }
 
-        return [
-            'updated' => $updated,
-            'created' => $created,
-            'unchanged' => $unchanged,
-            'resolved_single_candidate' => $resolvedSingleCandidate,
-            'ambiguous' => $ambiguous,
-            'no_email' => $noEmail,
-        ];
+        return $report;
+    }
+
+    /**
+     * @param array{updated: int, created: int, unchanged: int, linked: list<string>, linked_low_confidence: list<string>, ambiguous: list<string>, no_email: list<string>} $report
+     */
+    private function importRow(string $vendorName, string $approverEmail, array &$report): void
+    {
+        $match = OrganizationVendorMatcherService::match($this->app, $this->company, $vendorName);
+        $organization = $match->organization;
+        $lowConfidence = false;
+
+        if ($organization === null && count($match->candidates) > 1) {
+            $names = implode(', ', array_map(static fn (Organization $o): string => $o->name, $match->candidates));
+            $report['ambiguous'][] = "{$vendorName} (candidates: {$names})";
+
+            return;
+        }
+
+        if ($organization === null && count($match->candidates) === 1) {
+            // Weaker evidence than an auto-match — see class docblock. Reported separately, not a
+            // routine success.
+            $organization = $match->candidates[0];
+            $lowConfidence = true;
+        }
+
+        if ($organization === null) {
+            $organization = new CreateOrganizationAction(
+                new OrganizationData(
+                    company: $this->company,
+                    user: $this->company->user,
+                    app: $this->app,
+                    name: $vendorName,
+                ),
+            )->execute();
+
+            $this->linkVendorApprover($organization, $vendorName, $approverEmail);
+            $report['created']++;
+            $report['linked'][] = "{$vendorName} -> {$organization->name} -> {$approverEmail}";
+
+            return;
+        }
+
+        if ($this->alreadyLinked($organization, $vendorName, $approverEmail)) {
+            $report['unchanged']++;
+
+            return;
+        }
+
+        $this->linkVendorApprover($organization, $vendorName, $approverEmail);
+        $report['updated']++;
+        $entry = "{$vendorName} -> {$organization->name} -> {$approverEmail}";
+        $report[$lowConfidence ? 'linked_low_confidence' : 'linked'][] = $entry;
     }
 
     /** True when this exact vendor name + approver email is already recorded — nothing to write. */
@@ -130,11 +146,14 @@ class ImportVendorApproversFromRowsAction
         $currentEmail = (string) $organization->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, '');
         $currentVendorName = (string) $organization->get(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, '');
 
-        if ($currentEmail !== $approverEmail || $currentVendorName !== $vendorName) {
+        // Emails are case-insensitive; a re-exported sheet routinely differs only in casing.
+        if (strcasecmp($currentEmail, $approverEmail) !== 0 || $currentVendorName !== $vendorName) {
             return false;
         }
 
-        return in_array($approverEmail, OrganizationApprover::emailsFor($organization), true);
+        $linkedEmails = array_map('strtolower', OrganizationApprover::emailsFor($organization));
+
+        return in_array(strtolower($approverEmail), $linkedEmails, true);
     }
 
     private function linkVendorApprover(Organization $organization, string $vendorName, string $approverEmail): void

@@ -1146,6 +1146,32 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame('file_not_found', $result['reason']);
     }
 
+    public function test_import_vendor_approvers_reports_file_not_found_for_a_cross_company_file(): void
+    {
+        $foreign = $this->createFilesystemRow(companiesId: 999999997, extension: 'xlsx', fileType: 'xlsx');
+
+        $result = new ImportVendorApproversTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(filesystem_id: $foreign->getId());
+
+        $this->assertFalse($result['imported']);
+        $this->assertSame('file_not_found', $result['reason']);
+    }
+
+    public function test_import_vendor_approvers_reports_file_not_found_for_a_soft_deleted_file(): void
+    {
+        $deleted = $this->createFilesystemRow(extension: 'xlsx', fileType: 'xlsx');
+        $deleted->is_deleted = true;
+        $deleted->save();
+
+        $result = new ImportVendorApproversTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(filesystem_id: $deleted->getId());
+
+        $this->assertFalse($result['imported']);
+        $this->assertSame('file_not_found', $result['reason']);
+    }
+
     public function test_import_vendor_approvers_from_rows_links_and_creates_and_reports_skips(): void
     {
         $vendor = $this->seedTestOrganization('Import Rows Match Test Corp');
@@ -1164,6 +1190,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame(1, $result['created']);
         $this->assertCount(1, $result['no_email']);
         $this->assertSame([], $result['ambiguous']);
+        $this->assertCount(2, $result['linked'], 'Both the matched and the newly-created vendor must appear in the audit trail.');
 
         $vendor->refresh();
         $this->assertSame('match-approver@example.test', $vendor->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value));
@@ -1193,8 +1220,9 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame(0, $first['created']);
         $this->assertSame(0, $first['unchanged']);
         $this->assertSame([], $first['ambiguous']);
-        $this->assertCount(1, $first['resolved_single_candidate']);
-        $this->assertStringContainsString($candidate->name, $first['resolved_single_candidate'][0]);
+        $this->assertSame([], $first['linked'], 'A low-confidence link must not be reported as a routine success.');
+        $this->assertCount(1, $first['linked_low_confidence']);
+        $this->assertStringContainsString($candidate->name, $first['linked_low_confidence'][0]);
 
         $candidate->refresh();
         $this->assertSame('single-candidate-approver@example.test', $candidate->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value));
@@ -1205,6 +1233,24 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame(0, $second['updated']);
         $this->assertSame(0, $second['created']);
         $this->assertSame(1, $second['unchanged']);
+    }
+
+    public function test_import_vendor_approvers_treats_an_email_case_difference_as_unchanged(): void
+    {
+        $vendor = $this->seedTestOrganization('Case Insensitive Test Corp ' . uniqid());
+
+        new ImportVendorApproversFromRowsAction($this->kanvasApp, $this->company, [
+            ['Vendor Name', 'Approver Name', 'Approver Email'],
+            [$vendor->name, 'Someone', 'Case.Approver@Example.test'],
+        ])->execute();
+
+        $result = new ImportVendorApproversFromRowsAction($this->kanvasApp, $this->company, [
+            ['Vendor Name', 'Approver Name', 'Approver Email'],
+            [$vendor->name, 'Someone', 'case.approver@example.test'],
+        ])->execute();
+
+        $this->assertSame(0, $result['updated']);
+        $this->assertSame(1, $result['unchanged']);
     }
 
     public function test_import_vendor_approvers_still_treats_a_real_tie_between_candidates_as_ambiguous(): void
@@ -1222,7 +1268,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $this->assertSame(0, $result['updated']);
         $this->assertSame(0, $result['created']);
-        $this->assertSame([], $result['resolved_single_candidate']);
+        $this->assertSame([], $result['linked_low_confidence']);
         $this->assertCount(1, $result['ambiguous']);
     }
 }
