@@ -24,7 +24,6 @@ use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadContextInfoAction;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadFirstEngagementMessageAction;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
@@ -77,8 +76,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
-                $leadAiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(new LeadConfigurationService()->getAiModeKey($lead)));
-                if ($leadAiMode?->isOff()) {
+                if ($lead->isAiMuted()) {
                     return [
                         'ai_mode is OFF',
                     ];
@@ -142,7 +140,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     }
                 }
 
-                $currentAiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(new LeadConfigurationService()->getAiModeKey($lead)));
+                $currentAiMode = $lead->resolveAiMode();
                 $disableSending = $currentAiMode?->isOff() ?? false;
 
                 $leadType = $lead->type()->first();
@@ -376,7 +374,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
     private function shouldSendFirstMessageNow(Lead $lead): bool
     {
-        $aiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(new LeadConfigurationService()->getAiModeKey($lead)));
+        $aiMode = $lead->resolveAiMode();
         if ($aiMode?->isOff()) {
             return false;
         }
@@ -389,7 +387,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
         if (! $isWithinWorkingHours) {
             return true;
-        } elseif ($lead->get(new LeadConfigurationService()->getAiModeKey($lead)) === IntelligenceModeEnum::SUPPORT->value) {
+        } elseif ($lead->isAiSupport()) {
             return false;
         } else {
             return true;

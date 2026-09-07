@@ -8,9 +8,7 @@ use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Leads\Enums\AgentReachOutConfigEnum;
-use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Throwable;
 
 /**
@@ -76,11 +74,7 @@ class AgentReachOutAction
         }
 
         // === AI-mode mute check ===
-        $leadAiMode = IntelligenceModeEnum::tryFrom(
-            (string) $this->lead->get(new LeadConfigurationService()->getAiModeKey($this->lead))
-        );
-
-        if ($leadAiMode?->isOff()) {
+        if ($this->lead->isAiMuted()) {
             $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_MUTED);
 
             return ['message' => 'Lead AI mode is off', 'status' => 'muted'];
@@ -127,6 +121,7 @@ class AgentReachOutAction
         $sentChannels = [];
         $sentMessageIds = [];
         $scheduledChannels = [];
+        $scheduledMessageIds = [];
         $errors = [];
         $deferDelivery = $this->lead->isAiSupport();
 
@@ -142,6 +137,7 @@ class AgentReachOutAction
                 )->execute();
                 if ($deferDelivery) {
                     $scheduledChannels[] = $pair['channel_type'];
+                    $scheduledMessageIds[] = $outbound->getId();
                 } else {
                     $sentChannels[] = $pair['channel_type'];
                     if (! $outbound->isLocked()) {
@@ -169,6 +165,8 @@ class AgentReachOutAction
                 'message' => 'Reach-out scheduled for support mode',
                 'status' => AgentReachOutConfigEnum::STATUS_SCHEDULED,
                 'channels_scheduled' => $scheduledChannels,
+                'message_ids_scheduled' => $scheduledMessageIds,
+                'message_ids_sent' => [],
                 'delay_minutes' => (int) ($this->lead->company->get(
                     CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value
                 ) ?? 60),
@@ -185,6 +183,7 @@ class AgentReachOutAction
             'status' => AgentReachOutConfigEnum::STATUS_SENT,
             'channels_sent' => $sentChannels,
             'message_ids_sent' => $sentMessageIds,
+            'message_ids_scheduled' => [],
             'errors' => $errors,
         ];
     }
