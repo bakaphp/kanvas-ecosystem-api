@@ -7,7 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Sales;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ReportsToolOutcome;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Souk\Orders\Models\Order;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;

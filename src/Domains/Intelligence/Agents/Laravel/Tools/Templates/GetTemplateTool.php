@@ -25,8 +25,8 @@ class GetTemplateTool implements KanvasToolInterface
     public function description(): Stringable|string
     {
         return 'Get a single template by id, including its full HTML body — use this to inspect the current markup '
-            . 'before fixing it with update_template. Returns an "owned" flag telling you whether you may edit or '
-            . 'delete it.';
+            . 'before fixing it with update_template. Returns an "owned" flag: when it is false you CANNOT edit or '
+            . 'delete that template, so check it before telling the user you will change it.';
     }
 
     #[Override]

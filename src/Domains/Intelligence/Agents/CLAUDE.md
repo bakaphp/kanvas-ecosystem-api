@@ -529,6 +529,41 @@ A `find_*` tool that returns an empty result set should also say the retry is po
 `count: 0`, see `find_customer` / `find_vendor`). A bare `count: 0` reads as "try again" and the model
 re-calls with the same arguments until the budget trips — same crash, different cause.
 
+### A refused or failed write MUST read as a failure, not just carry an `error` key
+
+A tool that returns `['error' => '...']` and nothing else gets narrated as the happy path. Real
+incident: `update_template` refused to edit a template the agent did not own, returned a bare `error`,
+and the agent told the user it had updated it. Nothing in the payload said "this did not happen", and
+`error` on its own is a word the model is free to summarise away.
+
+Every non-success return goes through [`ReportsToolOutcome`](../Tools/Traits/ReportsToolOutcome.php)
+(shared namespace `Kanvas\Intelligence\Tools\Traits`, so Neuron and Laravel tools both use it):
+
+```php
+return $this->denied(
+    sprintf('Template #%d belongs to someone else, so nothing was changed.', $templateId),
+    guidance: 'Say explicitly that this template was NOT updated.'
+);
+```
+
+That yields `success: false` + `outcome: denied` + a `note` carrying
+[`ToolOutcomeEnum::guidance()`](../Enums/ToolOutcomeEnum.php) — three independent signals instead of
+one. Use `ok()` on the success path so `success: true` and `outcome: ok` are the only shape a model
+ever sees for "it happened". `denied()` for a policy/permission refusal, `invalidArgs()` for a fixable
+argument, `notFound()` for a miss, `noop()` for "ran fine, changed nothing".
+
+The backstop is the platform-context line in `HasKanvasAgentBehavior::platformContext()` — it rides
+every agent turn and says a payload with `success: false` / an `error` / a denied outcome means the
+action did NOT happen. Prompt alone is not enough; the payload has to agree with it.
+
+A loud refusal still lands *after* the agent has promised the edit in front of the user, so the read
+that surfaces the permission flag has to say what the flag costs: `get_template` / `list_templates`
+attach "anything with `owned: false` … update_template WILL be refused on it, never promise the user an
+edit to one" whenever an unowned row is in the result. A flag the model can read past is not a warning.
+
+Coverage: `TemplateToolsTest::testUpdateNotOwnedTemplateIsFlaggedAsFailedNotSilent`,
+`testGetNotOwnedTemplateWarnsItCannotBeEdited`.
+
 ### A read whose answer can't change in a turn should answer the repeat, not re-run it
 
 `HasRunKey` bounds the waste; it never tells the model *why* it stopped, so a model with nothing else
