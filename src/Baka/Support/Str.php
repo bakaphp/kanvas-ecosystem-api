@@ -102,6 +102,30 @@ class Str extends IlluminateStr
         return $value === '' ? null : $value;
     }
 
+    /**
+     * Rich-text stored by an editor, flattened for somewhere that cannot render it — an LLM prompt, a
+     * plain-text email, a log line.
+     *
+     * Block tags become newlines BEFORE the strip, because `strip_tags` alone welds neighbouring
+     * blocks together: `<p>Santo Domingo.</p><p>Overview</p>` comes out `Santo Domingo.Overview`.
+     *
+     * Link text survives, the href does not: an editor writes
+     * `<a target="_blank" rel="noopener noreferrer nofollow" href="...">1</a>` for a one-character
+     * link, so flattening before any truncation is what stops the budget going on attributes.
+     */
+    public static function htmlToText(?string $html): string
+    {
+        $text = preg_replace('#<(br|/p|/div|/li|/h[1-6]|/tr)\b[^>]*>#i', "\n", (string) $html);
+        $text = html_entity_decode(strip_tags((string) $text), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        // Collapse the runs of blank lines the block substitution leaves behind, and the non-breaking
+        // spaces editors emit, which survive as U+00A0 and read as stray characters downstream.
+        $text = str_replace("\u{00A0}", ' ', $text);
+        $text = preg_replace('/[ \t]+/', ' ', $text);
+
+        return trim((string) preg_replace('/\n\s*\n\s*\n+/', "\n\n", (string) $text));
+    }
+
     public static function sanitizeEmail(string $email): string
     {
         return str_replace(['@', '.'], ['-at-', '-dot-'], $email);

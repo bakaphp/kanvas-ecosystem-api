@@ -47,6 +47,12 @@ class DraftCustomerUpdateAction
      */
     public const int MAX_WINDOW_DAYS = 120;
 
+    /**
+     * Per release, not for the whole set: a wide window is 20+ releases, and an uncapped changelog
+     * would crowd out the account notes that make the update worth sending.
+     */
+    private const int RELEASE_CHARS = 1500;
+
     private const int NOTES_WINDOW = 20;
     private const int NOTE_CHARS = 600;
     private const int CONTACT_WINDOW = 6;
@@ -96,7 +102,7 @@ class DraftCustomerUpdateAction
         $body = new RunNeuronChatAction(
             agent: $this->agent,
             session: null,
-            message: $this->brief($lastWrittenTo, $windowOpensAt, $windowDays),
+            message: $this->brief($lastWrittenTo, $windowOpensAt, $windowDays, $releases),
             app: $this->organization->app,
             user: $this->agent->user,
             handler: $this->handlerOverride ?? $this->handler(),
@@ -185,8 +191,15 @@ class DraftCustomerUpdateAction
         return $windowDays;
     }
 
-    private function brief(?Carbon $lastWrittenTo, Carbon $windowOpensAt, int $windowDays): string
-    {
+    /**
+     * @param array<int, GithubRelease> $releases
+     */
+    private function brief(
+        ?Carbon $lastWrittenTo,
+        Carbon $windowOpensAt,
+        int $windowDays,
+        array $releases
+    ): string {
         $brief = 'Draft this month\'s Kanvas update for organization ' . $this->organization->getId()
             . ' ("' . $this->organization->name . '").'
             . ' You have been given every Kanvas release published since '
@@ -199,6 +212,8 @@ class DraftCustomerUpdateAction
         $brief .= $this->historyInstruction($lastWrittenTo);
 
         $brief .= $this->relationshipContext();
+
+        $brief .= "\n\n" . $this->releaseNotes($releases);
 
         $notes = $this->accountNotes();
 
@@ -213,6 +228,36 @@ class DraftCustomerUpdateAction
             . $notes
             . "\n\nUse read_channel_window on channel " . implode(', ', $this->contextChannelIds())
             . ' if you need more than this.';
+    }
+
+    /**
+     * The releases, handed over rather than left to `get_kanvas_release_updates`.
+     *
+     * The action has already fetched them to decide whether to draft at all, and it stamps the newest
+     * one onto the draft as `coveredThrough` — which becomes the watermark that next month skips from.
+     * Leaving the agent to fetch its own set breaks that: the tool's `since` is the model's choice and
+     * defaults to 30 days, so a widened window could mark 60 days as covered while the email described
+     * 30, and the untold releases would never come round again.
+     *
+     * Bodies are capped because a release covers everything in it — infrastructure, refactors, a dozen
+     * connectors — and the agent needs enough to tell what is customer-facing, not the whole changelog.
+     * `get_kanvas_release_updates` is still there for the full text of one it wants to quote.
+     *
+     * No `html_url`: it points at the GitHub release page, which is not a link to put in front of a
+     * paying customer, and the agent may only use urls it was given.
+     *
+     * @param array<int, GithubRelease> $releases
+     */
+    private function releaseNotes(array $releases): string
+    {
+        $notes = array_map(
+            fn (GithubRelease $release): string => '### ' . $release->tag
+                . ' · ' . ($release->publishedAt?->toDateString() ?? '')
+                . "\n" . Str::limit(Str::htmlToText($release->body), self::RELEASE_CHARS),
+            $releases
+        );
+
+        return "What shipped, oldest first:\n\n" . implode("\n\n", $notes);
     }
 
     /**
@@ -386,7 +431,9 @@ class DraftCustomerUpdateAction
             ->map(function (Message $message): string {
                 $kind = $message->tags->first()?->slug ?? 'note';
                 $written = $message->created_at?->toDateString() ?? '';
-                $body = Str::limit(trim($message->contentText()), self::NOTE_CHARS);
+                // Flattened before the cap, not after: notes are written in a rich-text editor, and
+                // the markup otherwise eats the character budget the note itself needed.
+                $body = Str::limit(Str::htmlToText($message->contentText()), self::NOTE_CHARS);
 
                 return '[' . $kind . ' · ' . $written . '] ' . $body;
             })

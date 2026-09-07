@@ -277,6 +277,58 @@ final class DraftCustomerUpdateActionTest extends TestCase
         )->execute();
     }
 
+    /**
+     * `coveredThrough` becomes the watermark next month skips from, so the agent must be handed the
+     * same releases the action counted. Left to `get_kanvas_release_updates`, the model picks its own
+     * `since` — defaulting to 30 days — and a widened window would mark releases covered that the email
+     * never described, with no second chance to tell them.
+     */
+    public function testEveryReleaseTheActionCountedIsHandedToTheModel(): void
+    {
+        $this->fakeReleases([
+            $this->release('v1.0.2', now()->subDays(3)->toIso8601String()),
+            $this->release('v1.0.1', now()->subDays(50)->toIso8601String()),
+        ]);
+
+        $handler = $this->handler('An update.');
+
+        $result = new DraftCustomerUpdateAction(
+            organization: $this->seedOrganization(),
+            agent: $this->seedAgent(),
+            handlerOverride: $handler,
+            windowDays: 60,
+        )->execute();
+
+        $prompt = implode("\n", $handler->seen);
+
+        foreach ($result->draft->releaseTags as $tag) {
+            $this->assertStringContainsString(
+                $tag,
+                $prompt,
+                'a release counted into coveredThrough but never shown to the agent is silently lost'
+            );
+        }
+
+        $this->assertStringContainsString('Operators on attribute filters', $prompt, 'the notes come verbatim');
+    }
+
+    public function testALongReleaseBodyIsCappedSoItCannotCrowdOutTheAccountNotes(): void
+    {
+        $release = $this->release('v1.0.0', now()->subDays(2)->toIso8601String());
+        $release['body'] = str_repeat('a', 5000) . 'TAIL_THAT_MUST_BE_CUT';
+        $this->fakeReleases([$release]);
+
+        $organization = $this->seedOrganization();
+        $this->seedNote($organization);
+
+        $handler = $this->handler('An update.');
+        new DraftCustomerUpdateAction($organization->refresh(), $this->seedAgent(), $handler)->execute();
+
+        $prompt = implode("\n", $handler->seen);
+        $this->assertStringNotContainsString('TAIL_THAT_MUST_BE_CUT', $prompt);
+        $this->assertStringContainsString(self::NOTE_MARKER, $prompt, 'the account notes survive a long changelog');
+    }
+
     public function testSaysSoPlainlyWhenTheAccountHasNoNotes(): void
     {
         $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
