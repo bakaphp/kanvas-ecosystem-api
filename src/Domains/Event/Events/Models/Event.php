@@ -155,6 +155,16 @@ class Event extends BaseModel
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->description,
+            'files' => $this->getFiles()->take(5)->map(fn ($file) => [
+                'uuid' => $file->uuid,
+                'name' => $file->name,
+                'url' => $file->url,
+                'size' => $file->size,
+                'field_name' => $file->field_name,
+            ]),
+            // `config` from EventInput has no first-class column on `events` — it's persisted as
+            // the first EventVersion's `metadata` (see EventManagementMutation::create()).
+            'config' => $this->versions()->orderBy('version')->first()?->metadata,
             'apps_id' => $this->apps_id,
             'companies_id' => $this->companies_id,
         ];
@@ -171,9 +181,12 @@ class Event extends BaseModel
                 ['name' => 'name', 'type' => 'string'],
                 ['name' => 'slug', 'type' => 'string', 'optional' => true],
                 ['name' => 'description', 'type' => 'string', 'optional' => true],
+                ['name' => 'files', 'type' => 'object[]', 'optional' => true],
+                ['name' => 'config', 'type' => 'object', 'optional' => true],
                 ['name' => 'apps_id', 'type' => 'int64'],
                 ['name' => 'companies_id', 'type' => 'int64', 'facet' => true],
             ],
+            'enable_nested_fields' => true,
         ];
     }
 

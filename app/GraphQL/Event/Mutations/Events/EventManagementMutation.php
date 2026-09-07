@@ -31,7 +31,7 @@ class EventManagementMutation
             $input,
         );
 
-        $event = new CreateEventAction($eventDto)->execute();
+        $event = new CreateEventAction($eventDto, $eventDto->config ?? [])->execute();
 
         self::syncEntityRelatedInput($event, $input);
 
