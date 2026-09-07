@@ -6,10 +6,10 @@ namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Exception;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
-use Kanvas\Connectors\SalesAssist\Actions\EnsureFirstMessageEnabledAction;
-use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelForContactAction;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
+use Kanvas\Connectors\Elead\Actions\AddOutBoundPhoneCallActivityToLeadAction;
+use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelForContactAction;
+use Kanvas\Connectors\SalesAssist\Actions\EnsureFirstMessageEnabledAction;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Activities\AgentReachOutActivity;
