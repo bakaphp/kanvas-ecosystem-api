@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\GraphQL\Concerns;
 
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Social\Tags\Models\Tag;
 
 /**
  * Shared helpers for GraphQL mutations that apply the common
@@ -31,14 +32,7 @@ trait SyncsEntityRelatedInput
             return;
         }
 
-        $tagNames = [];
-        foreach ($input['tags'] as $tag) {
-            if (is_array($tag) && isset($tag['name'])) {
-                $tagNames[] = (string) $tag['name'];
-            } elseif (is_string($tag)) {
-                $tagNames[] = $tag;
-            }
-        }
+        $tagNames = Tag::normalizeNames($input['tags']);
 
         if (empty($tagNames) || ! method_exists($entity, 'syncTags')) {
             return;
