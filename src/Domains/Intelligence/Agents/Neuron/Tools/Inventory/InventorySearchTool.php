@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Products\Models\Products;
 use Laravel\Scout\Builder;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
@@ -16,6 +18,11 @@ use Throwable;
 #[AgentTool(name: 'Inventory Search', category: 'inventory')]
 class InventorySearchTool extends Tool
 {
+    // Lets the voice data plane hand this tool the AGENT's tenant
+    // (RunVoiceAgentToolAction::withContext), so the search binds the agent's app
+    // rather than trusting whatever app(Apps::class) happens to be.
+    use HasKanvasContext;
+
     public function __construct()
     {
         parent::__construct(
@@ -43,12 +50,35 @@ class InventorySearchTool extends Tool
 
     public function __invoke(string $product_name): array
     {
+        // Bind the search to the AGENT's app. Products::search() reads the ambient
+        // app(Apps::class) for both the Typesense index and the apps_id filter;
+        // the voice runtime authenticates as its own app-key app, so without this
+        // the tool searches the WRONG tenant's catalogue. withContext() (set by
+        // RunVoiceAgentToolAction) hands us the agent's app; bind it explicitly so
+        // the search can't drift to the runtime's app. Restored by the caller.
+        if ($this->hasTenantContext()) {
+            app()->instance(Apps::class, $this->app);
+        }
+
+        // query_by is widened to the all-locales `translations.*` fields so a
+        // product is found by its English name even when the indexed `name` was
+        // resolved under another locale. A collection created before those fields
+        // existed rejects them ("Could not find a field named `translations.name`"),
+        // so fall back to the always-present base fields — search still works
+        // pre-reindex and gains the locale-independent match once reindexed.
         try {
             $products = $this->searchQuery($product_name)
                 ->take(10)
                 ->get();
         } catch (Throwable $e) {
-            return ['message' => "Search failed: {$e->getMessage()}"];
+            if (! str_contains($e->getMessage(), 'Could not find a field named')) {
+                return ['message' => "Search failed: {$e->getMessage()}"];
+            }
+            try {
+                $products = $this->searchProducts($product_name, 'name,description');
+            } catch (Throwable $retry) {
+                return ['message' => "Search failed: {$retry->getMessage()}"];
+            }
         }
 
         if ($products->isEmpty()) {

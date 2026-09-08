@@ -6,7 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Capability;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ReportsToolOutcome;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\NervousSystem\Capability\Services\CapabilityLookupService;
 use Kanvas\NervousSystem\Plan\Actions\RecordCapabilityGapAction;
 use NeuronAI\Tools\HasRunKey;

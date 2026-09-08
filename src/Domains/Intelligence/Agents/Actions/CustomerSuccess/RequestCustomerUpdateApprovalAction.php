@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\CustomerSuccess;
 
+use Baka\Support\Str;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Actions\RecordOrganizationNoteAction;
 use Kanvas\Intelligence\Agents\Approvals\CustomerUpdateApprovalHandler;
@@ -27,11 +28,16 @@ class RequestCustomerUpdateApprovalAction
      * @param list<string> $recipients everyone this account's update goes to. A list rather than one
      *                                 address because the audience is "the people on this account
      *                                 tagged newsletter", which is normally more than one.
+     * @param ?string      $replyTo    who answers a reply, when this card should not use the
+     *                                 company/app default. Stamped on the card rather than read at
+     *                                 send time so the address an approver was shown is the one that
+     *                                 ships, even if the setting changes in between.
      */
     public function __construct(
         private readonly CustomerUpdateDraft $draft,
         private readonly Users $requestedBy,
         private readonly array $recipients,
+        private readonly ?string $replyTo = null,
     ) {
     }
 
@@ -70,6 +76,7 @@ class RequestCustomerUpdateApprovalAction
                 'recipients' => $this->recipients,
                 'covered_through' => $this->draft->coveredThrough?->toIso8601String(),
                 'release_tags' => $this->draft->releaseTags,
+                'reply_to' => Str::trimToNull($this->replyTo),
             ],
         )->execute();
 

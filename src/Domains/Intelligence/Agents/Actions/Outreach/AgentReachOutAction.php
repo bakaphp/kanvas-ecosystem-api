@@ -121,6 +121,7 @@ class AgentReachOutAction
         $sentChannels = [];
         $sentMessageIds = [];
         $scheduledChannels = [];
+        $scheduledMessageIds = [];
         $errors = [];
         $deferDelivery = $this->lead->isAiSupport();
 
@@ -136,6 +137,7 @@ class AgentReachOutAction
                 )->execute();
                 if ($deferDelivery) {
                     $scheduledChannels[] = $pair['channel_type'];
+                    $scheduledMessageIds[] = $outbound->getId();
                 } else {
                     $sentChannels[] = $pair['channel_type'];
                     if (! $outbound->isLocked()) {
@@ -163,6 +165,8 @@ class AgentReachOutAction
                 'message' => 'Reach-out scheduled for support mode',
                 'status' => AgentReachOutConfigEnum::STATUS_SCHEDULED,
                 'channels_scheduled' => $scheduledChannels,
+                'message_ids_scheduled' => $scheduledMessageIds,
+                'message_ids_sent' => [],
                 'delay_minutes' => (int) ($this->lead->company->get(
                     CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value
                 ) ?? 60),
@@ -179,6 +183,7 @@ class AgentReachOutAction
             'status' => AgentReachOutConfigEnum::STATUS_SENT,
             'channels_sent' => $sentChannels,
             'message_ids_sent' => $sentMessageIds,
+            'message_ids_scheduled' => [],
             'errors' => $errors,
         ];
     }

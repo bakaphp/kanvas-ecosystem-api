@@ -39,7 +39,8 @@ class DraftCustomerUpdateCommand extends Command
                             {--request-approval : post the draft to the account as a locked approval card}
                             {--ignore-watermark : draft as if the account had never been written to, for re-running the same month while tuning copy}
                             {--window-days= : how many days of releases to cover; defaults to the monthly window, widen to catch up an off-cycle run}
-                            {--recipient= : override who the email goes to; defaults to the newsletter-tagged people on the account}';
+                            {--recipient= : override who the email goes to; defaults to the newsletter-tagged people on the account}
+                            {--reply-to= : who answers a reply to this update; defaults to the company/app kanvas_customer_update_reply_to setting}';
 
     protected $description = 'Draft this month\'s Kanvas update for one customer account. Prints it, sends nothing.';
 
@@ -129,7 +130,12 @@ class DraftCustomerUpdateCommand extends Command
     {
         $recipients = $this->approvalRecipients($draft->organization);
 
-        $note = new RequestCustomerUpdateApprovalAction($draft, $agent->user, $recipients)->execute();
+        $note = new RequestCustomerUpdateApprovalAction(
+            $draft,
+            $agent->user,
+            $recipients,
+            replyTo: trim((string) $this->option('reply-to')) ?: null,
+        )->execute();
 
         if ($note === null) {
             $this->error('  Could not post the draft to the account notes — no approval was requested.');
