@@ -32,7 +32,11 @@ class InventorySearchTool extends Tool implements HasRunKey
             name: 'inventory_search',
             description: 'Search for products in the inventory using the search engine (Typesense/Algolia) '
                 . 'over name, description and translations. Accepts free-form natural-language queries '
-                . '(e.g. "toyota azul 5 puertas"); the search engine ranks results by relevance even when '
+                . '(e.g. "toyota azul 5 puertas"). Pass the customer\'s complete inventory request verbatim, '
+                . 'in their original language. Never paraphrase, summarize, translate, extract only keywords, '
+                . 'or replace the request with an inferred make, model, body style, or product name. Preserve '
+                . 'every stated preference and constraint in the query; the search engine must interpret them. '
+                . 'The search engine ranks results by relevance even when '
                 . 'not all terms map to indexed fields. Searches only within the company bound to the agent context. '
                 . 'Returns availability and stock levels. A no_matches result means only that this search found no '
                 . 'matching indexed inventory; it does not confirm dealership unavailability. When no_matches is '
@@ -47,8 +51,10 @@ class InventorySearchTool extends Tool implements HasRunKey
             new ToolProperty(
                 name: 'product_name',
                 type: ToolsPropertyType::STRING,
-                description: 'The free-form search query. Can be a product name, keywords, or a natural-language phrase. '
-                    . 'The search engine matches across name, description and translations.',
+                description: 'The customer\'s complete inventory request, copied verbatim in their original language. '
+                    . 'Do not paraphrase, summarize, translate, extract keywords, or substitute an inferred vehicle. '
+                    . 'Include every preference and constraint the customer stated. The search engine matches across '
+                    . 'name, description and translations.',
                 required: true,
             ),
         ];

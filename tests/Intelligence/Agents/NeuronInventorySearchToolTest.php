@@ -73,6 +73,16 @@ final class NeuronInventorySearchToolTest extends TestCase
         );
     }
 
+    public function testDescriptionRequiresTheCustomersVerbatimNaturalLanguageRequest(): void
+    {
+        $description = (new InventorySearchTool())->getDescription();
+
+        $this->assertStringContainsString('complete inventory request verbatim', $description);
+        $this->assertStringContainsString('Never paraphrase', $description);
+        $this->assertStringContainsString('inferred make, model, body style, or product name', $description);
+        $this->assertStringContainsString('Preserve every stated preference and constraint', $description);
+    }
+
     public function testRunBudgetIsTrackedByInputs(): void
     {
         $tool = new InventorySearchTool();
