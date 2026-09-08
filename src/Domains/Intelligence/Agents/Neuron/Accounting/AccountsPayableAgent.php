@@ -9,6 +9,7 @@ use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CategorizeExpenseTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractExpenseReceiptTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
@@ -22,6 +23,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDueToEmployeesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryExpenseReportTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordExpenseReimbursementTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SubmitMyExpenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyApPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
@@ -78,6 +80,8 @@ class AccountsPayableAgent extends SystemUserAgent
             new RecordExpenseReimbursementTool(),
             new QueryExpenseReportTool(),
             new CategorizeExpenseTool(),
+            new ExtractExpenseReceiptTool(),
+            new SubmitMyExpenseTool(),
             new ListOpenBillsTool(),
             new ListOpenPurchaseOrdersTool(),
             new FindPurchaseOrderTool(),
@@ -140,6 +144,11 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'query_due_to_employees. That money sits in Due to Employees, a different account from Accounts '
             . 'Payable, so it is NOT part of query_ap_aging — never add the two together into one "what we owe" '
             . 'figure, and say which of the two you are quoting.',
+            '- Someone hands you a receipt for something THEY paid for personally (a meal, a taxi, a hotel) '
+            . 'rather than a vendor invoice the company owes on terms — that is not a bill, so never '
+            . 'create_ap_bill it. Call extract_expense_receipt on it first, confirm the amount with them, then '
+            . 'submit_my_expense. It always files the expense as paid by whoever you are talking to; if someone '
+            . 'is asking on behalf of a colleague, tell them that person has to file it themselves.',
             '- "We paid Juan back" / "record the reimbursement for expense X" → record_expense_reimbursement, '
             . 'only when someone explicitly tells you the transfer already went out. It records a payment that '
             . 'has happened; it does not move money, so never call it to promise or schedule one.',
