@@ -99,10 +99,7 @@ final class SendReimbursementDigestTest extends ScribeTestCase
         $employee = $this->seedTestEmployee('digest-employee');
         $this->approveTestExpense(260.00, ExpensePaidByEnum::EMPLOYEE_PERSONAL, $employee->getId());
 
-        $foreignApp = Apps::query()
-            ->where('id', '!=', $this->kanvasApp->getId())
-            ->first();
-        $this->assertNotNull($foreignApp, 'need a second app to simulate a leaked scope.');
+        $foreignApp = $this->createForeignApp();
 
         try {
             app()->instance(Apps::class, $foreignApp);
@@ -118,6 +115,30 @@ final class SendReimbursementDigestTest extends ScribeTestCase
         } finally {
             app()->instance(Apps::class, $this->kanvasApp);
         }
+    }
+
+    /**
+     * A bare row is enough — it only ever stands in as the foreign binding the command must
+     * overwrite, so it never gets configured or read. Created rather than looked up because a CI
+     * database may hold nothing but the default app.
+     */
+    private function createForeignApp(): Apps
+    {
+        $unique = uniqid();
+
+        $app = new Apps();
+        $app->name = 'Foreign Scope App ' . $unique;
+        $app->url = 'https://foreign-' . $unique . '.example.com';
+        $app->domain = 'foreign-' . $unique . '.example.com';
+        $app->description = 'Cross-tenant scope leak test app';
+        $app->is_actived = 1;
+        $app->ecosystem_auth = 0;
+        $app->payments_active = 0;
+        $app->is_public = 1;
+        $app->domain_based = 0;
+        $app->saveOrFail();
+
+        return $app;
     }
 
     private function runDigestCommand(): PendingCommand
