@@ -9,19 +9,22 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Products\Models\Products;
 use Laravel\Scout\Builder;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
 #[AgentTool(name: 'Inventory Search', category: 'inventory')]
-class InventorySearchTool extends Tool
+class InventorySearchTool extends Tool implements HasRunKey
 {
     // Lets the voice data plane hand this tool the AGENT's tenant
     // (RunVoiceAgentToolAction::withContext), so the search binds the agent's app
     // rather than trusting whatever app(Apps::class) happens to be.
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Inventory\InventorySearchTool;
 use Laravel\Scout\Builder;
 use Mockery;
+use NeuronAI\Tools\HasRunKey;
 use Tests\TestCase;
 
 final class NeuronInventorySearchToolTest extends TestCase
@@ -38,6 +39,25 @@ final class NeuronInventorySearchToolTest extends TestCase
         $query = $this->tool()->exposeSearchQuery('BMW 760i');
 
         $this->assertArrayNotHasKey('query_by', $query->options);
+    }
+
+    public function testRunBudgetIsTrackedByInputs(): void
+    {
+        $tool = new InventorySearchTool();
+
+        $this->assertInstanceOf(HasRunKey::class, $tool);
+
+        $tool->setInputs(['product_name' => 'BMW 760i']);
+        $firstKey = $tool->getRunKey();
+
+        $tool->setInputs(['product_name' => 'BMW X7']);
+        $secondKey = $tool->getRunKey();
+
+        $this->assertNotSame($firstKey, $secondKey);
+
+        $tool->setInputs(['product_name' => 'BMW 760i']);
+
+        $this->assertSame($firstKey, $tool->getRunKey());
     }
 
     private function tool(): TestableInventorySearchTool
