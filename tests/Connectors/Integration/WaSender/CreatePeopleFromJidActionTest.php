@@ -56,6 +56,19 @@ final class CreatePeopleFromJidActionTest extends TestCase
         $this->assertSame($existing->getId(), $resolved?->getId());
     }
 
+    public function testKnownPersonKeepsExistingEmailWhenMatchedByPhone(): void
+    {
+        $tenDigits = '809557' . random_int(1000, 9999);
+        $email = fake()->unique()->safeEmail();
+        $existing = $this->peopleWithPhone($tenDigits);
+        $existing->addEmail($email, weight: 75);
+
+        $resolved = new CreatePeopleFromJidAction($this->receiver(), '1' . $tenDigits . '@s.whatsapp.net')->execute();
+
+        $this->assertSame($existing->getId(), $resolved?->getId());
+        $this->assertTrue($resolved?->getEmails()->contains('value', $email));
+    }
+
     public function testTheWhatsappJidCustomFieldIsStoredForLaterLookups(): void
     {
         $jid = '1809557' . random_int(1000, 9999) . '@s.whatsapp.net';

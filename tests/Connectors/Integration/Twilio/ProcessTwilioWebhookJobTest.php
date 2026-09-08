@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Twilio;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -12,6 +13,7 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioWebhookJob;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
@@ -21,6 +23,10 @@ use Tests\TestCase;
 
 class ProcessTwilioWebhookJobTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'crm', 'social', 'workflow'];
+
     private ReceiverWebhook $receiver;
 
     protected function setUp(): void
@@ -76,6 +82,35 @@ class ProcessTwilioWebhookJobTest extends TestCase
         $this->assertArrayHasKey('message_id', $result[0]);
         $this->assertArrayHasKey('channel_id', $result[0]);
         $this->assertFalse($result[0]['is_from_me']);
+    }
+
+    public function testIncomingSmsPreservesExistingContacts(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $phone = '+1' . fake()->numerify('##########');
+        $email = fake()->unique()->safeEmail();
+
+        $people = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->create();
+        $people->addCellPhone($phone, weight: 50);
+        $people->addEmail($email, weight: 75);
+
+        $payload = $this->buildTwilioPayload(['From' => $phone]);
+        Queue::fake();
+
+        $resolved = $this->makeWebhookJob($payload)->processContactFromMessage($payload);
+
+        $people->refresh();
+
+        $this->assertSame($people->getId(), $resolved->getId());
+        $this->assertTrue($people->getEmails()->contains('value', $email));
+        $this->assertTrue($people->getAllPhones()->contains('value', $phone));
+        $this->assertSame(substr($phone, 2), (string) $people->get('twilio_jid'));
     }
 
     public function testProcessStopMarksPhoneContactsAsOptedOut(): void
@@ -196,6 +231,13 @@ class ProcessTwilioWebhookJobTest extends TestCase
 
     private function dispatchWebhookJob(array $payload): array
     {
+        Queue::fake();
+
+        return $this->makeWebhookJob($payload)->handle() ?? [];
+    }
+
+    private function makeWebhookJob(array $payload): ProcessTwilioWebhookJob
+    {
         $request = Request::create(
             'https://localhost/v1/receiver/' . $this->receiver->uuid,
             'POST',
@@ -204,10 +246,6 @@ class ProcessTwilioWebhookJobTest extends TestCase
 
         $webhookRequest = new ProcessWebhookAttemptAction($this->receiver, $request)->execute();
 
-        Queue::fake();
-
-        $job = new ProcessTwilioWebhookJob($webhookRequest);
-
-        return $job->handle();
+        return new ProcessTwilioWebhookJob($webhookRequest);
     }
 }

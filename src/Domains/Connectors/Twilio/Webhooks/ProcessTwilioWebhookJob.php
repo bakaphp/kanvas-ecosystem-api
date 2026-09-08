@@ -14,7 +14,6 @@ use Kanvas\Connectors\Twilio\Actions\DownloadMessageFileAction;
 use Kanvas\Connectors\Twilio\Services\WebhookSignatureValidator;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\Actions\ProcessInboundConsentAction;
-use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
@@ -440,6 +439,16 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             return $existingCustomer;
         }
 
+        if ($existingCustomer) {
+            // An inbound webhook only knows the sender's phone. Treating that partial payload as
+            // an authoritative People update removes every existing email and alternate phone.
+            $existingCustomer->set('twilio_jid', $phoneNumber);
+            $existingCustomer->addTags(['sms', 'twilio']);
+            $existingCustomer->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $existingCustomer->app]);
+
+            return $existingCustomer->refresh();
+        }
+
         $contactData = [
             [
                 'value' => $phoneNumber,
@@ -452,20 +461,15 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             app: $this->receiver->app,
             branch: $this->receiver->company->defaultBranch,
             user: $this->receiver->user,
-            firstname: $existingCustomer ? $existingCustomer->firstname : $phoneNumber,
+            firstname: $phoneNumber,
             contacts: Contact::collect($contactData, DataCollection::class),
             address: Address::collect([], DataCollection::class),
-            lastname: $existingCustomer ? $existingCustomer->lastname : '',
+            lastname: '',
             custom_fields: [
                 'twilio_jid' => $phoneNumber,
             ],
             tags: ['sms', 'twilio']
         );
-
-        if ($existingCustomer) {
-            //$peopleDto->id = $existingCustomer->getId();
-            return new UpdatePeopleAction($existingCustomer, $peopleDto)->execute();
-        }
 
         return new CreatePeopleAction($peopleDto)->execute();
     }
