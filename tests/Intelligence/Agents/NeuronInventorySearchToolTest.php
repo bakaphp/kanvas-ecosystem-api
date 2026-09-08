@@ -41,6 +41,38 @@ final class NeuronInventorySearchToolTest extends TestCase
         $this->assertArrayNotHasKey('query_by', $query->options);
     }
 
+    public function testSearchIsExplicitlyScopedToContextCompanyForTypesense(): void
+    {
+        $this->assertSearchUsesContextCompany('typesense');
+    }
+
+    public function testSearchIsExplicitlyScopedToContextCompanyForAlgolia(): void
+    {
+        $this->assertSearchUsesContextCompany('algolia');
+    }
+
+    public function testInvokeFailsClosedWithoutTenantContext(): void
+    {
+        $result = (new InventorySearchTool())('BMW 760i');
+
+        $this->assertSame('no_tenant_context', $result['reason']);
+    }
+
+    public function testNoMatchesResponseDirectsAgentToRagBusinessRule(): void
+    {
+        $tool = $this->tool();
+        $result = $tool->exposeNoMatchesResponse('2024 Mercedes-Benz S-Class');
+
+        $this->assertStringContainsString('no_matches', $tool->getDescription());
+        $this->assertSame('no_matches', $result['status']);
+        $this->assertSame('no_matching_inventory', $result['reason']);
+        $this->assertFalse($result['inventory_availability_confirmed']);
+        $this->assertStringContainsString(
+            'No Matching Inventory Results — STRICT HANDOFF RULE',
+            $result['instruction'],
+        );
+    }
+
     public function testRunBudgetIsTrackedByInputs(): void
     {
         $tool = new InventorySearchTool();
@@ -77,6 +109,21 @@ final class NeuronInventorySearchToolTest extends TestCase
 
         app()->instance(Apps::class, $app);
     }
+
+    private function assertSearchUsesContextCompany(string $engine): void
+    {
+        $this->forceSearchEngine($engine);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $tool = $this->tool()->withContext(app(Apps::class), $company, $user);
+
+        $query = $tool->exposeSearchQuery('BMW 760i');
+        $companyFilters = collect($query->wheres)
+            ->where('field', 'companies_id')
+            ->where('value', $company->getId());
+
+        $this->assertNotEmpty($companyFilters);
+    }
 }
 
 final class TestableInventorySearchTool extends InventorySearchTool
@@ -84,5 +131,10 @@ final class TestableInventorySearchTool extends InventorySearchTool
     public function exposeSearchQuery(string $productName): Builder
     {
         return $this->searchQuery($productName);
+    }
+
+    public function exposeNoMatchesResponse(string $productName): array
+    {
+        return $this->noMatchesResponse($productName);
     }
 }
