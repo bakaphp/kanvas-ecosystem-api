@@ -8,8 +8,9 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesExpenseForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
+use Kanvas\Scribe\Expenses\Actions\RecategorizeExpenseAction;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
-use Kanvas\Scribe\Expenses\Models\ExpenseLine;
+use Kanvas\Scribe\Expenses\Exceptions\InvalidExpenseTransitionException;
 use Kanvas\Scribe\Ledger\Enums\AccountTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use NeuronAI\Tools\HasRunKey;
@@ -107,9 +108,18 @@ class CategorizeExpenseTool extends Tool implements HasRunKey
         }
 
         try {
-            ExpenseLine::query()
-                ->where('expense_id', $result->getId())
-                ->update(['expense_account_id' => $target->getId()]);
+            new RecategorizeExpenseAction(
+                expense: $result,
+                account: $target,
+                user: $this->contextUser(),
+            )->execute();
+        } catch (InvalidExpenseTransitionException $e) {
+            // The DRAFT check above raced an approval. A policy refusal, not a fault.
+            return $this->denied(
+                $e->getMessage(),
+                ['status' => 'not_draft'],
+                guidance: 'Say it was NOT recategorized. Once approved, Finance has to post a reclass entry.',
+            );
         } catch (Throwable $e) {
             report($e);
 

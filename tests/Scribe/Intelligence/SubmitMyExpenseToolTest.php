@@ -63,6 +63,15 @@ final class SubmitMyExpenseToolTest extends ScribeTestCase
         $this->assertNotSame($someoneElse->getId(), (int) $expense->paid_by_users_id);
     }
 
+    public function test_records_the_merchant_on_the_expense(): void
+    {
+        $employee = $this->seedTestEmployee('submit-expense');
+
+        $result = $this->submit($employee, 60.00, 'Client dinner');
+
+        $this->assertSame('La Cassina', Expense::getById($result['expense_id'])->vendor_display_name);
+    }
+
     public function test_splits_tax_out_of_the_total_rather_than_adding_to_it(): void
     {
         $employee = $this->seedTestEmployee('submit-expense');

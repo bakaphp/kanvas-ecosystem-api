@@ -195,4 +195,38 @@ class SmsOptOutNoticeServiceTest extends TestCase
 
         return compact('message', 'channel', 'messageType');
     }
+
+    public function testAppendIfFirstOutboundAppendsOnAnUntouchedChannel(): void
+    {
+        ['message' => $message, 'channel' => $channel] = $this->setupChannelAndMessage();
+
+        $this->assertStringContainsString(
+            SmsOptOutNoticeService::NOTICE,
+            SmsOptOutNoticeService::appendIfFirstOutbound($channel, 'Hi there', $message),
+        );
+    }
+
+    public function testAppendIfFirstOutboundLeavesALaterMessageAlone(): void
+    {
+        ['message' => $message, 'channel' => $channel] = $this->setupChannelAndMessage();
+        $channel->addMessage($message);
+
+        $this->assertSame(
+            'Hi there',
+            SmsOptOutNoticeService::appendIfFirstOutbound($channel, 'Hi there'),
+        );
+    }
+
+    /**
+     * A connector hands back whatever the agent produced, so the body is not guaranteed to be text.
+     */
+    public function testAppendIfFirstOutboundPassesANonStringBodyThrough(): void
+    {
+        ['message' => $message, 'channel' => $channel] = $this->setupChannelAndMessage();
+
+        $this->assertSame(
+            ['structured' => 'payload'],
+            SmsOptOutNoticeService::appendIfFirstOutbound($channel, ['structured' => 'payload'], $message),
+        );
+    }
 }

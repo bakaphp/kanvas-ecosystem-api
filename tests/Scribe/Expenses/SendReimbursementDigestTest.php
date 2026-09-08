@@ -6,6 +6,8 @@ namespace Tests\Scribe\Expenses;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Notification as NotificationFacade;
+use Illuminate\Testing\PendingCommand;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Scribe\Expenses\Actions\RecordExpenseReimbursementAction;
 use Kanvas\Scribe\Expenses\Actions\SendReimbursementDigestAction;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
@@ -67,6 +69,64 @@ final class SendReimbursementDigestTest extends ScribeTestCase
 
         $this->assertSame(0, $result['sent']);
         $this->assertSame(1, $result['skipped']);
+    }
+
+    public function test_command_emails_the_employee_for_a_pinned_tenant(): void
+    {
+        NotificationFacade::fake();
+
+        $employee = $this->seedTestEmployee('digest-employee');
+        $this->approveTestExpense(410.00, ExpensePaidByEnum::EMPLOYEE_PERSONAL, $employee->getId());
+
+        $this->runDigestCommand()->assertSuccessful();
+
+        NotificationFacade::assertSentTo($employee, ReimbursementDigestNotification::class);
+    }
+
+    /**
+     * Regression for the cross-tenant scope leak this command's shape is prone to: it fans out over
+     * (app, company) tuples in a long-lived worker, so whatever ran previously leaves `app(Apps)`
+     * bound to a foreign tenant. Without the per-tuple overwriteAppService() the digest would be
+     * composed and mailed under another app's configuration.
+     *
+     * Same failure mode as SendDailyLearningDigestCommand, which silently sent zero emails to ~90
+     * tenants for weeks. Here we pin the container to a foreign app BEFORE running the command.
+     */
+    public function test_command_rebinds_the_app_scope_per_tenant(): void
+    {
+        NotificationFacade::fake();
+
+        $employee = $this->seedTestEmployee('digest-employee');
+        $this->approveTestExpense(260.00, ExpensePaidByEnum::EMPLOYEE_PERSONAL, $employee->getId());
+
+        $foreignApp = Apps::query()
+            ->where('id', '!=', $this->kanvasApp->getId())
+            ->first();
+        $this->assertNotNull($foreignApp, 'need a second app to simulate a leaked scope.');
+
+        try {
+            app()->instance(Apps::class, $foreignApp);
+
+            $this->runDigestCommand()->assertSuccessful();
+
+            $this->assertSame(
+                $this->kanvasApp->getId(),
+                app(Apps::class)->getId(),
+                'the command must rebind the container app to the tenant it is processing.',
+            );
+            NotificationFacade::assertSentTo($employee, ReimbursementDigestNotification::class);
+        } finally {
+            app()->instance(Apps::class, $this->kanvasApp);
+        }
+    }
+
+    private function runDigestCommand(): PendingCommand
+    {
+        return $this->artisan('kanvas:scribe:send-reimbursement-digest', [
+            '--app' => $this->kanvasApp->getId(),
+            '--company' => $this->company->getId(),
+            '--as-of' => '2026-06-30',
+        ]);
     }
 
     /**

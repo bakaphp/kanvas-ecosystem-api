@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Services;
 
+use Baka\Support\Str;
 use Kanvas\Guild\Customers\Enums\ConsentSignalEnum;
 
 /**
@@ -21,15 +22,26 @@ use Kanvas\Guild\Customers\Enums\ConsentSignalEnum;
  */
 final class ConsentKeywordService
 {
+    /**
+     * FCC keywords that are also ordinary words in a sales conversation. They are honored exactly
+     * like the rest — the rule covers the whole set, and a customer who writes "cancel" meaning it
+     * must be obeyed — but a hit is recorded as AMBIGUOUS_KEYWORD so the lead note asks a human to
+     * confirm. Someone cancelling an appointment writes the same word as someone revoking consent,
+     * and the opt-out is person-wide across every channel and lead.
+     */
+    private const array AMBIGUOUS_STOP_KEYWORDS = [
+        'CANCEL',
+        'END',
+    ];
+
     private const array STOP_KEYWORDS = [
         'STOP',
         'STOPALL',
         'UNSUBSCRIBE',
-        'CANCEL',
-        'END',
         'QUIT',
         'REVOKE',
         'OPTOUT',
+        ...self::AMBIGUOUS_STOP_KEYWORDS,
     ];
 
     private const array START_KEYWORDS = [
@@ -120,13 +132,29 @@ final class ConsentKeywordService
      */
     private const int MAX_PHRASE_SCAN_LENGTH = 16384;
 
+    /**
+     * A revocation is a sentence, not a document. Anything past this is quoted thread or signature
+     * that survived extractReason(), and it is bound for a custom field plus a lead note per lead.
+     */
+    public const int MAX_REASON_LENGTH = 500;
+
     public static function detect(?string $body): ?ConsentSignalEnum
     {
-        foreach (self::candidates($body) as $candidate) {
-            $signal = self::match($candidate);
+        $keyword = self::matchedKeyword($body);
 
-            if ($signal !== null) {
-                return $signal;
+        return $keyword !== null ? self::match($keyword) : null;
+    }
+
+    /**
+     * The keyword that actually matched, so the signal and its tier are always read off the same
+     * one. Scanning the candidates separately per question lets the two answers describe different
+     * keywords.
+     */
+    private static function matchedKeyword(?string $body): ?string
+    {
+        foreach (self::candidates($body) as $candidate) {
+            if (self::match($candidate) !== null) {
+                return $candidate;
             }
         }
 
@@ -136,6 +164,15 @@ final class ConsentKeywordService
     public static function isStop(?string $body): bool
     {
         return self::detect($body) === ConsentSignalEnum::STOP;
+    }
+
+    /**
+     * Whether a detected STOP came from a keyword that is also ordinary conversation. Callers use it
+     * to pick the match tier — the stop is applied either way.
+     */
+    public static function stopKeywordIsAmbiguous(?string $body): bool
+    {
+        return in_array(self::matchedKeyword($body), self::AMBIGUOUS_STOP_KEYWORDS, true);
     }
 
     /**
@@ -244,14 +281,45 @@ final class ConsentKeywordService
                 continue;
             }
 
-            if (preg_match('/^(--\s*$|__|sent from |on .+ wrote:)/i', $line) === 1) {
-                return null;
-            }
-
-            return $line;
+            return self::isSignatureDelimiter($line) ? null : $line;
         }
 
         return null;
+    }
+
+    /**
+     * The part of an inbound message worth keeping as the reason an opt-out was applied.
+     *
+     * An email arrives with the person's own words on top and the whole prior thread quoted below,
+     * so storing the raw body writes an entire correspondence — signatures, phone numbers,
+     * everything ever discussed — into a custom field and a lead note, once per lead that person
+     * has. It also buries the one sentence a human needs in order to review a phrase-tier
+     * inference, which is the whole point of recording the reason.
+     */
+    public static function extractReason(?string $body, int $maxLength = self::MAX_REASON_LENGTH): ?string
+    {
+        $lines = [];
+
+        foreach (preg_split('/\R/', trim((string) $body)) ?: [] as $line) {
+            $line = trim($line);
+
+            if (self::isSignatureDelimiter($line)) {
+                break;
+            }
+
+            if ($line === '' || str_starts_with($line, '>')) {
+                continue;
+            }
+
+            $lines[] = $line;
+        }
+
+        return Str::trimToNull(Str::limit(implode(' ', $lines), $maxLength));
+    }
+
+    private static function isSignatureDelimiter(string $line): bool
+    {
+        return preg_match('/^(--\s*$|__|sent from |on .+ wrote:)/i', $line) === 1;
     }
 
     /**
