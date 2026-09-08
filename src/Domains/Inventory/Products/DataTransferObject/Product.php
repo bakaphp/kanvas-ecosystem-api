@@ -45,6 +45,7 @@ class Product extends Data
         public array $files = [],
         public ?string $slug = null,
         public ?float $weight = null,
+        public ?UserInterface $ownerUser = null,
     ) {
     }
 

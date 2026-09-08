@@ -53,7 +53,7 @@ class UpdateVariantsAction
                 'name' => $this->variantDto->name,
                 'slug' => $this->variantDto->slug ?? Str::slug($this->variantDto->name),
                 'sku' => $this->variantDto->sku,
-                'users_id' => $this->user->getId(),
+                'users_id' => ($this->variantDto->ownerUser ?? $this->user)->getId(),
                 'description' => $this->variantDto->getDescription() ?? $this->variant->description,
                 'short_description' => $this->variantDto->short_description ?? $this->variant->short_description,
                 'html_description' => ! empty($this->variantDto->html_description)
