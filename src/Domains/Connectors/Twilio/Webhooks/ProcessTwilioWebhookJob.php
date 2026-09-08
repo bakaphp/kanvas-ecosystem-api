@@ -459,11 +459,13 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             custom_fields: [
                 'twilio_jid' => $phoneNumber,
             ],
-            tags: ['sms', 'twilio']
+            tags: ['sms', 'twilio'],
+            // We only know the number the SMS came from — anything else the person has
+            // (email, other phones) must survive the update.
+            mergeContacts: true
         );
 
         if ($existingCustomer) {
-            //$peopleDto->id = $existingCustomer->getId();
             return new UpdatePeopleAction($existingCustomer, $peopleDto)->execute();
         }
 

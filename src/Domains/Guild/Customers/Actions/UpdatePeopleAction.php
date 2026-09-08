@@ -54,7 +54,11 @@ class UpdatePeopleAction
 
         $this->people->syncTags($this->peopleData->tags);
 
-        $this->syncContactsForUpdate($this->people, $this->peopleData->contacts);
+        $this->syncContactsForUpdate(
+            $this->people,
+            $this->peopleData->contacts,
+            (bool) $this->peopleData->mergeContacts
+        );
 
         if ($this->peopleData->address->count()) {
             $this->syncAddressesForUpdate();
