@@ -106,7 +106,7 @@ abstract class ScribeTestCase extends TestCase
 
     /**
      * Build a Filesystem row for tests that need an attached PDF / image. Defaults to the current
-     * tenant; pass a different $appsId to exercise cross-tenant guards.
+     * tenant; pass a different $appsId/$companiesId to exercise cross-tenant guards.
      */
     protected function createFilesystemRow(
         ?int $appsId = null,
@@ -114,10 +114,11 @@ abstract class ScribeTestCase extends TestCase
         string $fileType = 'pdf',
         ?string $url = null,
         ?string $name = null,
+        ?int $companiesId = null,
     ): Filesystem {
         $filesystem = new Filesystem();
         $filesystem->apps_id = $appsId ?? $this->kanvasApp->getId();
-        $filesystem->companies_id = $this->company->getId();
+        $filesystem->companies_id = $companiesId ?? $this->company->getId();
         $filesystem->users_id = static::$cachedUser->getId();
         $filesystem->name = $name ?? 'test-' . uniqid('', true) . '.' . $extension;
         $filesystem->path = 'inbound/' . $filesystem->name;

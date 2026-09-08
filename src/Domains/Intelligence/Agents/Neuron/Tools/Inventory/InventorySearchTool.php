@@ -70,7 +70,7 @@ class InventorySearchTool extends Tool implements HasRunKey
         // so fall back to the always-present base fields — search still works
         // pre-reindex and gains the locale-independent match once reindexed.
         try {
-            $products = $this->searchQuery($product_name, 'name,description,translations.name,translations.description')
+            $products = $this->searchQuery($product_name)
                 ->take(10)
                 ->get();
         } catch (Throwable $e) {

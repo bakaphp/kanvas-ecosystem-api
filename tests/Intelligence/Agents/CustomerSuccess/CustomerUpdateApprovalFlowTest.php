@@ -15,10 +15,12 @@ use Kanvas\Intelligence\Agents\Actions\CustomerSuccess\DraftCustomerUpdateAction
 use Kanvas\Intelligence\Agents\Actions\CustomerSuccess\RequestCustomerUpdateApprovalAction;
 use Kanvas\Intelligence\Agents\Approvals\CustomerUpdateApprovalHandler;
 use Kanvas\Intelligence\Agents\DataTransferObject\CustomerUpdateDraft;
+use Kanvas\Intelligence\Agents\Enums\KanvasReleaseFeedEnum;
 use Kanvas\Notifications\KanvasMailable;
 use Kanvas\Social\Messages\Actions\ApproveAgentMessageAction;
 use Kanvas\Social\Messages\Support\MessageApproval;
 use Kanvas\Users\Models\Users;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 /**
@@ -33,6 +35,7 @@ final class CustomerUpdateApprovalFlowTest extends TestCase
     protected $connectionsToTransact = ['mysql', 'crm', 'social', 'ecosystem', 'intelligence', 'workflow'];
 
     private const string RECIPIENT = 'customer@example.com';
+    private const string REPLY_TO = 'max@kanvas.dev';
 
     public function testRequestingApprovalPostsALockedPrivateCardAndSendsNothing(): void
     {
@@ -80,6 +83,55 @@ final class CustomerUpdateApprovalFlowTest extends TestCase
         $this->assertFalse($approved->isLocked());
         $this->assertSame(MessageApproval::STATUS_APPROVED, MessageApproval::status($approved));
         $this->assertNotNull($organization->get(DraftCustomerUpdateAction::WATERMARK_FIELD));
+    }
+
+    /**
+     * Serial: an app setting is written to Redis, which no transaction rolls back and every paratest
+     * process shares — see tests/CLAUDE.md.
+     */
+    #[Group('serial')]
+    public function testTheReplyToSettingIsWhatACustomerRepliesTo(): void
+    {
+        Mail::fake();
+
+        $app = app(Apps::class);
+        $app->set(KanvasReleaseFeedEnum::REPLY_TO->value, self::REPLY_TO);
+
+        try {
+            $note = new RequestCustomerUpdateApprovalAction(
+                $this->draft(),
+                $this->actingUser(),
+                [self::RECIPIENT],
+            )->execute();
+
+            new ApproveAgentMessageAction($note)->execute();
+
+            Mail::assertSent(
+                KanvasMailable::class,
+                fn (KanvasMailable $mail): bool => $mail->hasReplyTo(self::REPLY_TO),
+            );
+        } finally {
+            $app->del(KanvasReleaseFeedEnum::REPLY_TO->value);
+        }
+    }
+
+    public function testAPerCardReplyToIsWhatShips(): void
+    {
+        Mail::fake();
+
+        $note = new RequestCustomerUpdateApprovalAction(
+            $this->draft(),
+            $this->actingUser(),
+            [self::RECIPIENT],
+            replyTo: 'someone-else@kanvas.dev',
+        )->execute();
+
+        new ApproveAgentMessageAction($note)->execute();
+
+        Mail::assertSent(
+            KanvasMailable::class,
+            fn (KanvasMailable $mail): bool => $mail->hasReplyTo('someone-else@kanvas.dev'),
+        );
     }
 
     /**
