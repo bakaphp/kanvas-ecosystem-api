@@ -8,19 +8,23 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Products\Models\Products;
+use Laravel\Scout\Builder;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
 #[AgentTool(name: 'Inventory Search', category: 'inventory')]
-class InventorySearchTool extends Tool
+class InventorySearchTool extends Tool implements HasRunKey
 {
     // Lets the voice data plane hand this tool the AGENT's tenant
     // (RunVoiceAgentToolAction::withContext), so the search binds the agent's app
     // rather than trusting whatever app(Apps::class) happens to be.
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {
@@ -66,13 +70,18 @@ class InventorySearchTool extends Tool
         // so fall back to the always-present base fields — search still works
         // pre-reindex and gains the locale-independent match once reindexed.
         try {
-            $products = $this->searchProducts($product_name, 'name,description,translations.name,translations.description');
+            $products = $this->searchQuery($product_name, 'name,description,translations.name,translations.description')
+                ->take(10)
+                ->get();
         } catch (Throwable $e) {
             if (! str_contains($e->getMessage(), 'Could not find a field named')) {
                 return ['message' => "Search failed: {$e->getMessage()}"];
             }
+
             try {
-                $products = $this->searchProducts($product_name, 'name,description');
+                $products = $this->searchQuery($product_name, 'name,description')
+                    ->take(10)
+                    ->get();
             } catch (Throwable $retry) {
                 return ['message' => "Search failed: {$retry->getMessage()}"];
             }
@@ -118,18 +127,22 @@ class InventorySearchTool extends Tool
         })->toArray();
     }
 
-    /**
-     * Run the Scout search with an explicit Typesense `query_by`, overriding the
-     * value Products::search() sets. Split out so __invoke can retry with a
-     * narrower field set when the collection's schema lacks the wider ones.
-     *
-     * @return \Illuminate\Support\Collection<int, Products>
-     */
-    private function searchProducts(string $query, string $queryBy): \Illuminate\Support\Collection
+    protected function searchQuery(string $productName, string $queryBy = 'name,description,translations.name,translations.description'): Builder
     {
-        return Products::search($query)
-            ->options(['query_by' => $queryBy])
-            ->take(10)
-            ->get();
+        $query = Products::search($productName);
+
+        // Products::search() queries `name,description`, where `name` is the
+        // translation resolved for a SINGLE locale at index time. A product
+        // whose name is only stored under `en` but indexed while another
+        // locale was active then can't be found by its English name. The
+        // `translations.name` / `translations.description` fields hold EVERY
+        // locale joined, so query those too to make the search
+        // locale-independent. Typesense-only; other engines ignore the extra
+        // fields. This overrides the query_by set inside Products::search().
+        if ($query->model->isTypesense()) {
+            $query->options(['query_by' => $queryBy]);
+        }
+
+        return $query;
     }
 }
