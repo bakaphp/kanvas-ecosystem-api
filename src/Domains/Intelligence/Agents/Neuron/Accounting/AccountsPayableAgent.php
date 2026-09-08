@@ -12,6 +12,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportVendorApproversTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
@@ -76,6 +77,7 @@ class AccountsPayableAgent extends SystemUserAgent
             new FindVendorTool(),
             new MatchBillsForPaymentTool(),
             new AddOrganizationApproverTool(),
+            new ImportVendorApproversTool(),
             new CreateApBillTool(),
             new VoidApBillTool(),
             new ApplyApPaymentTool(),
@@ -133,6 +135,15 @@ class AccountsPayableAgent extends SystemUserAgent
             '- "Add/assign an approver for vendor X" → find_vendor first to resolve organization_id, then '
             . 'add_organization_approver with that id and the approver\'s email. A vendor can have more than '
             . 'one approver — this never replaces an existing one, only adds.',
+            '- If the user attaches an updated vendor/approver spreadsheet and asks to load/import it (e.g. '
+            . '"add this list", "it\'s updated now, upload it") → import_vendor_approvers with the '
+            . 'filesystem_id from the `[Attached file on this message...]` marker. Never re-type its rows by '
+            . 'hand or process it one vendor at a time — that is exactly what this tool is for. Report the '
+            . 'updated/created/unchanged counts plainly. If linked_low_confidence is non-empty, tell the user '
+            . 'plainly that those vendors were linked on a single weak match and should be double-checked, '
+            . 'listing them by name — never present them as a routine success. If ambiguous or no_email are '
+            . 'non-empty, list those vendor names too so the user knows exactly which ones still need manual '
+            . 'attention — ambiguous now only means a genuine tie between several candidates.',
             '- Lead with the headline (e.g. "Total payables: $84,200 across 12 vendors; $19,500 overdue"), then '
             . 'the top 3-5 items. Be honest about freshness; never invent precision the data lacks.',
             '- "Create a bill for vendor X" → create_ap_bill, only when the user explicitly asks for it — by '
