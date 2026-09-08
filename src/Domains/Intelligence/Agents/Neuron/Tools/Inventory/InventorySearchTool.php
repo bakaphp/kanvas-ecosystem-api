@@ -33,7 +33,10 @@ class InventorySearchTool extends Tool implements HasRunKey
             description: 'Search for products in the inventory using the search engine (Typesense/Algolia) '
                 . 'over name, description and translations. Accepts free-form natural-language queries '
                 . '(e.g. "toyota azul 5 puertas"); the search engine ranks results by relevance even when '
-                . 'not all terms map to indexed fields. Returns availability and stock levels.',
+                . 'not all terms map to indexed fields. Searches only within the company bound to the agent context. '
+                . 'Returns availability and stock levels. A no_matches result means only that this search found no '
+                . 'matching indexed inventory; it does not confirm dealership unavailability. When no_matches is '
+                . 'returned, follow the RAG business rule "No Matching Inventory Results — STRICT HANDOFF RULE".',
         );
     }
 
@@ -53,15 +56,17 @@ class InventorySearchTool extends Tool implements HasRunKey
 
     public function __invoke(string $product_name): array
     {
+        if (! $this->hasTenantContext()) {
+            return $this->tenantContextMissingError('inventory search');
+        }
+
         // Bind the search to the AGENT's app. Products::search() reads the ambient
         // app(Apps::class) for both the Typesense index and the apps_id filter;
         // the voice runtime authenticates as its own app-key app, so without this
         // the tool searches the WRONG tenant's catalogue. withContext() (set by
         // RunVoiceAgentToolAction) hands us the agent's app; bind it explicitly so
         // the search can't drift to the runtime's app. Restored by the caller.
-        if ($this->hasTenantContext()) {
-            app()->instance(Apps::class, $this->app);
-        }
+        app()->instance(Apps::class, $this->app);
 
         // query_by is widened to the all-locales `translations.*` fields so a
         // product is found by its English name even when the indexed `name` was
@@ -88,7 +93,7 @@ class InventorySearchTool extends Tool implements HasRunKey
         }
 
         if ($products->isEmpty()) {
-            return ['message' => "No products found matching '{$product_name}'."];
+            return $this->noMatchesResponse($product_name);
         }
 
         $products->load('variants');
@@ -131,6 +136,13 @@ class InventorySearchTool extends Tool implements HasRunKey
     {
         $query = Products::search($productName);
 
+        if ($this->hasTenantContext()) {
+            // Scout translates this where into Algolia `filters` or Typesense `filter_by`.
+            // `companies_id` is the flat, filterable tenant field shared by Algolia and
+            // Typesense. Enforce it from the agent context instead of auth state or app flags.
+            $query->where('companies_id', $this->company->getId());
+        }
+
         // Products::search() queries `name,description`, where `name` is the
         // translation resolved for a SINGLE locale at index time. A product
         // whose name is only stored under `en` but indexed while another
@@ -144,5 +156,17 @@ class InventorySearchTool extends Tool implements HasRunKey
         }
 
         return $query;
+    }
+
+    protected function noMatchesResponse(string $productName): array
+    {
+        return [
+            'status' => 'no_matches',
+            'reason' => 'no_matching_inventory',
+            'message' => "No products found matching '{$productName}' in the scoped inventory.",
+            'inventory_availability_confirmed' => false,
+            'instruction' => 'Do not interpret this result as confirmed dealership unavailability. '
+                . 'Follow the RAG business rule "No Matching Inventory Results — STRICT HANDOFF RULE".',
+        ];
     }
 }
