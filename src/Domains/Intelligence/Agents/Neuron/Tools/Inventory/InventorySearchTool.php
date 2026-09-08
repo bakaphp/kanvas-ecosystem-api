@@ -77,8 +77,11 @@ class InventorySearchTool extends Tool implements HasRunKey
             if (! str_contains($e->getMessage(), 'Could not find a field named')) {
                 return ['message' => "Search failed: {$e->getMessage()}"];
             }
+
             try {
-                $products = $this->searchProducts($product_name, 'name,description');
+                $products = $this->searchQuery($product_name, 'name,description')
+                    ->take(10)
+                    ->get();
             } catch (Throwable $retry) {
                 return ['message' => "Search failed: {$retry->getMessage()}"];
             }
@@ -124,7 +127,7 @@ class InventorySearchTool extends Tool implements HasRunKey
         })->toArray();
     }
 
-    protected function searchQuery(string $productName): Builder
+    protected function searchQuery(string $productName, string $queryBy = 'name,description,translations.name,translations.description'): Builder
     {
         $query = Products::search($productName);
 
@@ -137,9 +140,7 @@ class InventorySearchTool extends Tool implements HasRunKey
         // locale-independent. Typesense-only; other engines ignore the extra
         // fields. This overrides the query_by set inside Products::search().
         if ($query->model->isTypesense()) {
-            $query->options([
-                'query_by' => 'name,description,translations.name,translations.description',
-            ]);
+            $query->options(['query_by' => $queryBy]);
         }
 
         return $query;
