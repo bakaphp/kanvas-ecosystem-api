@@ -96,7 +96,9 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
             ->andReturn('+12722917870');
 
         $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('get')->andReturn(null)->byDefault();
         $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
+        $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
 
         $action = new class ($lead) extends SendMessageToLeadAction {
             public string $capturedFrom = '';
@@ -127,6 +129,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
             ->andReturnUsing(static fn (string $key) => $configuration[$key] ?? null);
 
         $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('get')->andReturn(null)->byDefault();
         $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
         $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
 
@@ -156,6 +159,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
             ->andReturn(null);
 
         $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('get')->andReturn(null)->byDefault();
         $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
         $lead->shouldReceive('getAttribute')->with('app')->andReturn($app);
 
@@ -211,6 +215,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
             ->andReturn(null);
 
         $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('get')->andReturn(null)->byDefault();
         $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
 
         $action = $this->makeAction($lead);
@@ -226,6 +231,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
             ->andReturn(true);
 
         $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('get')->andReturn(null)->byDefault();
         $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
 
         $action = $this->makeAction($lead);
@@ -248,6 +254,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
             ->andReturn(null);
 
         $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('get')->andReturn(null)->byDefault();
         $lead->shouldReceive('getAttribute')->with('people')->andReturn($people);
         $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
 
@@ -634,6 +641,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
             ->andReturn(1);
 
         $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('get')->andReturn(null)->byDefault();
         $lead->shouldReceive('getAttribute')->with('people')->andReturn($people);
         $lead->shouldReceive('getAttribute')->with('company')->andReturn(null);
         $lead->shouldReceive('getAttribute')->with('uuid')->andReturn('lead-uuid');
@@ -706,6 +714,7 @@ final class SendMessageToLeadActionTest extends TestCaseUnit
             ->andReturn(null);
 
         $lead = Mockery::mock(Lead::class);
+        $lead->shouldReceive('get')->andReturn(null)->byDefault();
         $lead->shouldReceive('getAttribute')->with('people')->andReturn(null);
         $lead->shouldReceive('getAttribute')->with('company')->andReturn($company);
         $lead->shouldReceive('getAttribute')->with('uuid')->andReturn('lead-uuid');

@@ -29,7 +29,7 @@ use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Filesystem\Actions\ProcessVideoWithGifAction;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
-use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
@@ -75,6 +75,7 @@ class SendMessageToLeadAction
     protected ?string $attemptedTo = null;
     protected int $retryNumber = 0;
     protected ?int $parentAttemptId = null;
+    protected bool $isOptOutConfirmation = false;
 
     public function __construct(
         protected Lead $lead,
@@ -86,6 +87,18 @@ class SendMessageToLeadAction
     {
         $this->parentAttemptId = $parentAttemptId;
         $this->retryNumber = $retryNumber;
+
+        return $this;
+    }
+
+    /**
+     * Sends through the do-not-contact guard. The ONLY legitimate caller is the single
+     * post-revocation acknowledgement the FCC permits — see SendOptOutConfirmationAction.
+     * Anything else reaching for this is a compliance bug.
+     */
+    public function allowOptOutConfirmation(): self
+    {
+        $this->isOptOutConfirmation = true;
 
         return $this;
     }
@@ -102,6 +115,8 @@ class SendMessageToLeadAction
         ?Agent $fromAgent = null
     ): array {
         try {
+            $this->guardDoNotContact();
+
             if ($files !== null && $files->isNotEmpty()) {
                 $this->processedFiles = $this->prepareFiles($files);
                 $this->createVideoEngagements();
@@ -362,6 +377,9 @@ class SendMessageToLeadAction
         if ($cellphone === null || $cellphone === '') {
             throw new LeadMissingContactException('Lead does not have a cellphone number');
         }
+
+        $this->guardDestinationOptOut((string) $cellphone, LeadCommunicationChannelEnum::WHATSAPP->value);
+
         $cellphone = $this->hijackPhoneNumber((string) $cellphone, '@s.whatsapp.net');
 
         $this->sendWhatsAppMediaFiles($whatsAppMessageService, $cellphone);
@@ -426,6 +444,10 @@ class SendMessageToLeadAction
         if ($cellphone === null || $cellphone === '') {
             throw new LeadMissingContactException('Lead does not have a cellphone number');
         }
+
+        // sendWhatsAppMessage hands off to here before reaching its own guard, so RespondIO needs
+        // its own or it becomes the one WhatsApp path that ignores a per-address opt-out.
+        $this->guardDestinationOptOut((string) $cellphone, LeadCommunicationChannelEnum::WHATSAPP->value);
 
         $cellphone = $this->hijackPhoneNumber((string) $cellphone, '@s.whatsapp.net');
         $cellphone = Str::toE164($cellphone);
@@ -781,6 +803,58 @@ class SendMessageToLeadAction
         return $client->messages->create($cellphone, $payload);
     }
 
+    /**
+     * Channel-agnostic and checked once per send, ahead of the channel dispatch: a stop request is
+     * person-wide, so it has to outrank whichever channel this particular call happens to use.
+     *
+     * The people-level flag is not redundant with the lead one. ApplyDoNotContactAction flags every
+     * lead that exists at the time, but a connector sync can create a NEW lead for the same person
+     * afterwards, and that lead carries no flag of its own.
+     */
+    protected function guardDoNotContact(): void
+    {
+        if ($this->isOptOutConfirmation) {
+            return;
+        }
+
+        $isFlagged = (bool) $this->lead->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value)
+            || (bool) $this->lead->people?->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value);
+
+        if ($isFlagged) {
+            throw new LeadOptedOutException(
+                'Lead is flagged do-not-contact; no further automated messages may be sent',
+            );
+        }
+    }
+
+    /**
+     * Per-address opt-out, for the ones a stop request never produced: a DMS sync pushing
+     * `doNotEmail`, or a hard bounce. guardDoNotContact covers the person-wide case.
+     */
+    protected function guardDestinationOptOut(string $destination, string $channel): void
+    {
+        if ($this->isOptOutConfirmation) {
+            return;
+        }
+
+        $isOptedOut = $this->lead->people?->contacts()
+            ->where('is_opt_out', 1)
+            ->get()
+            ->contains(fn (Contact $contact): bool => Contact::normalizeValue(
+                (string) $contact->value,
+                (int) $contact->contacts_types_id,
+            ) === Contact::normalizeValue(
+                $destination,
+                (int) $contact->contacts_types_id,
+            )) ?? false;
+
+        if ($isOptedOut) {
+            throw new LeadOptedOutException(
+                sprintf('Destination has opted out of %s communications', $channel),
+            );
+        }
+    }
+
     protected function guardSmsDestination(string $cellphone, ?string $from): void
     {
         $normalizedFrom = $from !== null ? Str::toE164($from) : null;
@@ -788,19 +862,7 @@ class SendMessageToLeadAction
             throw new InvalidArgumentException('Twilio To and From numbers must be different');
         }
 
-        $isOptedOut = $this->lead->people?->getAllPhones()->contains(
-            fn ($contact): bool => Contact::normalizeValue(
-                (string) $contact->value,
-                (int) $contact->contacts_types_id,
-            ) === Contact::normalizeValue(
-                $cellphone,
-                ContactTypeEnum::CELLPHONE->value,
-            ) && (int) $contact->is_opt_out === 1,
-        ) ?? false;
-
-        if ($isOptedOut) {
-            throw new LeadOptedOutException('Destination phone has opted out of SMS communications');
-        }
+        $this->guardDestinationOptOut($cellphone, LeadCommunicationChannelEnum::SMS->value);
     }
 
     protected function getTwilioStatusCallbackUrl(): ?string
@@ -917,6 +979,8 @@ class SendMessageToLeadAction
         if (! $leadEmail) {
             throw new LeadMissingContactException('Lead does not have an email address');
         }
+
+        $this->guardDestinationOptOut((string) $leadEmail, LeadCommunicationChannelEnum::EMAIL->value);
 
         $mailboxAddress = $fromAgent !== null
             ? new AgentMailboxService()->addressFor($fromAgent)
