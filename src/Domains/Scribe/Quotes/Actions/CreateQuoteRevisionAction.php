@@ -69,6 +69,7 @@ class CreateQuoteRevisionAction
                 origin: $this->newRevisionData->origin,
                 parent_quote_id: $this->originalQuote->id,
                 revision_number: $this->originalQuote->revision_number + 1,
+                contact: $this->newRevisionData->contact,
             );
 
             $newQuote = new CreateQuoteAction(

@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CategorizeExpenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
@@ -18,6 +19,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersToo
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDueToEmployeesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryExpenseReportTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordExpenseReimbursementTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyApPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
@@ -70,6 +74,10 @@ class AccountsPayableAgent extends SystemUserAgent
         $tools = array_merge(parent::tools(), $this->addToolContext([
             new QueryDataFreshnessTool(),
             new QueryApAgingTool(),
+            new QueryDueToEmployeesTool(),
+            new RecordExpenseReimbursementTool(),
+            new QueryExpenseReportTool(),
+            new CategorizeExpenseTool(),
             new ListOpenBillsTool(),
             new ListOpenPurchaseOrdersTool(),
             new FindPurchaseOrderTool(),
@@ -128,6 +136,18 @@ class AccountsPayableAgent extends SystemUserAgent
             '## How to handle Accounts-Payable questions',
             '- Call query_data_freshness first; if the sync is more than 2 days stale, say so before quoting numbers.',
             '- "What do we owe" / "how much is overdue to vendors" → query_ap_aging.',
+            '- "What do we owe our own staff" / "who is waiting on an expense reimbursement" → '
+            . 'query_due_to_employees. That money sits in Due to Employees, a different account from Accounts '
+            . 'Payable, so it is NOT part of query_ap_aging — never add the two together into one "what we owe" '
+            . 'figure, and say which of the two you are quoting.',
+            '- "We paid Juan back" / "record the reimbursement for expense X" → record_expense_reimbursement, '
+            . 'only when someone explicitly tells you the transfer already went out. It records a payment that '
+            . 'has happened; it does not move money, so never call it to promise or schedule one.',
+            '- "What did we spend on X last month" / an expense report for a period → query_expense_report '
+            . '(approved expenses only). "This one is software, not travel" → categorize_expense, which works '
+            . 'on DRAFT expenses only. Emailed and agent-filed receipts land on the Travel & Meals fallback '
+            . 'because nothing classifies them, so a report full of "travel" usually means uncategorized, not '
+            . 'a company that only travels — say so rather than reporting it at face value.',
             '- "Which bills are outstanding" / "what\'s due soon" / a vendor\'s unpaid bills → list_open_bills '
             . '(set only_overdue for past-due focus).',
             '- "What has vendor X got on order" / matching an invoice to a PO → list_open_purchase_orders.',

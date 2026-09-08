@@ -175,6 +175,7 @@ class AgentReachOutOnChannelAction
                 signature: false,
                 files: null,
                 to: $this->recipient,
+                fromAgent: $this->agent,
             );
             new StoreMessageSidAction($outbound)->execute($providerResponse);
         }

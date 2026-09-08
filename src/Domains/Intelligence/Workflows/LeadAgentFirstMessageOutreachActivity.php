@@ -43,6 +43,7 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 /**
  * @deprecated Pre-kernel outbound-first orchestrator. Generates first-touch messages
@@ -269,10 +270,11 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                                 if ($shouldSendFirstMessageNow) {
                                     $providerResponse = new SendMessageToLeadAction($lead)->execute(
-                                        $communicationChannel,
-                                        $firstLeadMessage['message'],
-                                        $params['from'] ?? null,
-                                        $firstLeadMessage['title'] ?? null,
+                                        channel: $communicationChannel,
+                                        message: $firstLeadMessage['message'],
+                                        from: $params['from'] ?? null,
+                                        title: $firstLeadMessage['title'] ?? null,
+                                        fromAgent: $this->resolveOutreachAgent($params, $app),
                                     );
                                     new StoreMessageSidAction($createMessage)->execute($providerResponse);
 
@@ -370,6 +372,27 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 ];
             }
         );
+    }
+
+    /**
+     * The agent this outreach speaks as, so an email goes out from its own mailbox when it has one.
+     * A rule wired without an agent_id, or pointing at a deleted agent, still sends — on the
+     * company identity, exactly as before.
+     */
+    private function resolveOutreachAgent(array $params, Apps $app): ?Agent
+    {
+        if (empty($params['agent_id'])) {
+            return null;
+        }
+
+        try {
+            /** @var Agent $agent */
+            $agent = Agent::getById((int) $params['agent_id'], $app);
+
+            return $agent;
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     private function shouldSendFirstMessageNow(Lead $lead): bool
