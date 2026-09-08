@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\HumanResources\Employees\Actions\CreateEmployeeAction;
 use Kanvas\HumanResources\Employees\DataTransferObject\Employee as EmployeeData;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\GetMyLeaveBalanceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\RequestMyLeaveTool;
 use Kanvas\Users\Models\Users;
@@ -76,5 +77,30 @@ class EmployeeSelfServiceToolsTest extends TestCase
         $request = new RequestMyLeaveTool()->withContext($app, $company, $stranger)
             ->__invoke('Vacation', '2026-09-01', '2026-09-07');
         $this->assertFalse($request['created']);
+    }
+
+    /**
+     * On an @mention or channel surface the "caller" handed to a self-service tool is routinely the
+     * agent's own user, not the person. Filing then books somebody's time off against a bot identity,
+     * and the employee who asked is told nothing went wrong.
+     */
+    public function testRequestMyLeaveRefusesWhenTheCallerIsAnAgentIdentity(): void
+    {
+        $type = $this->seedSelfEmployeeAndLeaveType();
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['name' => 'Polly', 'user_id' => $user->getId()]);
+
+        $request = new RequestMyLeaveTool()->withContext($app, $company, $user)
+            ->__invoke($type, '2026-09-01', '2026-09-07');
+
+        $this->assertFalse($request['created']);
+        $this->assertFalse($request['success']);
+        $this->assertEquals('agent_caller', $request['status']);
     }
 }

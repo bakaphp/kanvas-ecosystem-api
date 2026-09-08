@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesFilesystemForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\Expenses\Actions\AttachExpenseReceiptAction;
@@ -43,6 +44,7 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
     use ExtractsPdfPayloadValuesTrait;
     use HasKanvasContext;
     use ReportsToolOutcome;
+    use RequiresHumanCaller;
     use ResolvesFilesystemForTool;
     // Filing a trip's worth of receipts is one call per receipt. Keyed by name alone, the 11th would
     // trip the run budget and kill the whole turn; keyed by inputs, only a genuine repeat is capped.
@@ -130,12 +132,12 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
             return $this->tenantContextMissingError('expense');
         }
 
-        $user = $this->contextUser();
+        $user = $this->humanCallerOrError('file an expense');
 
-        if ($user === null) {
+        if (is_array($user)) {
             return $this->denied(
-                'I cannot tell who you are on this surface, so I cannot file an expense in your name.',
-                ['status' => 'no_user_context'],
+                (string) $user['message'],
+                ['status' => $user['status']],
                 guidance: 'Say plainly that NOTHING was filed.',
             );
         }

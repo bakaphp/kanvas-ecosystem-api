@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesExpenseForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\Expenses\Actions\VoidExpenseAction;
@@ -32,6 +33,7 @@ class CancelMyExpenseTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
     use ReportsToolOutcome;
+    use RequiresHumanCaller;
     use ResolvesExpenseForTool;
     use TrackByInputs;
 
@@ -76,13 +78,13 @@ class CancelMyExpenseTool extends Tool implements HasRunKey
             return $this->tenantContextMissingError('expense');
         }
 
-        $user = $this->contextUser();
+        $user = $this->humanCallerOrError('withdraw an expense');
 
-        if ($user === null) {
+        if (is_array($user)) {
             return $this->denied(
-                'I cannot tell who you are on this surface, so I cannot withdraw an expense for you.',
-                ['status' => 'no_user_context'],
-                guidance: 'Say plainly that NOTHING was changed.',
+                (string) $user['message'],
+                ['status' => $user['status']],
+                guidance: 'Say plainly that NOTHING was withdrawn.',
             );
         }
 

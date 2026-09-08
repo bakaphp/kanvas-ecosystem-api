@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Scribe\Intelligence;
 
 use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelMyExpenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractExpenseReceiptTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SubmitMyExpenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\WhatDoesTheCompanyOweMeTool;
@@ -92,6 +94,60 @@ final class SubmitMyExpenseToolTest extends ScribeTestCase
 
         $this->assertSame('submitted', $result['status']);
         $this->assertStringContainsString('99999999', $result['attachment_warning']);
+    }
+
+    /**
+     * A tool wired through addToolContext() is handed actingUser(), which on a SystemUserAgent is the
+     * AGENT'S user — so "the caller" is routinely a bot. Filing then books a Due to Employees credit
+     * owed to something that is not a person, which nobody claims and which breaks the reconciliation
+     * between the ledger and the employee report.
+     */
+    public function test_refuses_to_file_an_expense_in_an_agents_name(): void
+    {
+        $agentUser = $this->seedTestEmployee('agent-identity');
+        Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['name' => 'Polly', 'user_id' => $agentUser->getId()]);
+
+        $result = $this->submit($agentUser, 145.50, 'Dinner the bot did not eat');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('agent_caller', $result['status']);
+        $this->assertSame(ToolOutcomeEnum::DENIED->value, $result['outcome']);
+        $this->assertSame(0, Expense::query()->where('paid_by_users_id', $agentUser->getId())->count());
+    }
+
+    public function test_refuses_to_withdraw_an_expense_as_an_agent(): void
+    {
+        $agentUser = $this->seedTestEmployee('agent-identity');
+        Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['name' => 'Polly', 'user_id' => $agentUser->getId()]);
+
+        $expense = $this->draftTestExpense(60.00, $agentUser->getId());
+
+        $result = new CancelMyExpenseTool()
+            ->withContext($this->kanvasApp, $this->company, $agentUser)
+            ->__invoke(expense_id: $expense->getId());
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('agent_caller', $result['status']);
+        $this->assertSame(ExpenseStatusEnum::DRAFT, Expense::getById($expense->getId())->status);
+    }
+
+    public function test_a_person_who_is_not_an_agent_is_unaffected(): void
+    {
+        $employee = $this->seedTestEmployee('submit-expense');
+        Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['name' => 'Polly', 'user_id' => $this->seedTestEmployee('agent-identity')->getId()]);
+
+        $result = $this->submit($employee, 145.50, 'Dinner with ACME');
+
+        $this->assertSame('submitted', $result['status'], 'An unrelated agent must not gate a real person.');
     }
 
     public function test_rejects_a_zero_amount(): void
