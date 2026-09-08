@@ -21,6 +21,7 @@ use Kanvas\Connectors\WordPress\Activities\PushMessageToWordPressActivity;
 use Kanvas\Connectors\WordPress\DataTransferObject\WordPressPost;
 use Kanvas\Connectors\WordPress\Enums\ConfigurationEnum as WordPressConfigurationEnum;
 use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
@@ -294,6 +295,74 @@ final class AgentInboxWebhookJobTest extends TestCase
         $people = PeoplesRepository::getByEmail($stranger, $this->company, $this->kanvasApp);
         $this->assertNotNull($people, 'An open mailbox is an inbound funnel — the sender becomes a contact.');
         $this->assertSame('Jane Prospect', $people->name);
+    }
+
+    /**
+     * This receiver replies inline, so a stop request has to be settled before the responder runs.
+     * An agent mailbox answering "unsubscribe" with a sales pitch is the worst version of this.
+     */
+    public function testAStopRequestToTheAgentMailboxIsHonoredAndNotAnswered(): void
+    {
+        $this->fakeMailgun();
+        $this->agent->set(CustomFieldEnum::MAILBOX_ACCESS->value, MailboxAccessEnum::OPEN->value);
+        $prospect = 'optout-' . Str::random(6) . '@outside.test';
+
+        $result = $this->deliver([
+            'sender' => $prospect,
+            'from' => 'Jane Prospect <' . $prospect . '>',
+            'subject' => 'Unsubscribe',
+            'stripped-text' => 'please take me off your list',
+            'Message-Id' => '<stop-' . Str::random(10) . '@outside.test>',
+        ]);
+
+        $this->assertTrue($result['consent_applied'] ?? false, 'the stop request must be applied.');
+
+        $people = PeoplesRepository::getByEmail($prospect, $this->company, $this->kanvasApp);
+        $this->assertNotNull($people);
+        $this->assertSame(1, (int) $people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
+        $this->assertSame(
+            0,
+            $people->contacts()->where('is_opt_out', 0)->count(),
+            'every address of theirs is opted out, not just the one they wrote from.',
+        );
+
+        Http::assertNotSent(fn ($request): bool => str_contains($request->url(), '/messages'));
+    }
+
+    /**
+     * The subject is where a one-word unsubscribe usually lands, with nothing under it.
+     */
+    public function testAStopRequestInTheSubjectAloneIsHonored(): void
+    {
+        $this->fakeMailgun();
+        $this->agent->set(CustomFieldEnum::MAILBOX_ACCESS->value, MailboxAccessEnum::OPEN->value);
+        $prospect = 'subject-optout-' . Str::random(6) . '@outside.test';
+
+        $result = $this->deliver([
+            'sender' => $prospect,
+            'from' => 'Joe Prospect <' . $prospect . '>',
+            'subject' => 'UNSUBSCRIBE',
+            'stripped-text' => 'sent from my iPhone',
+            'Message-Id' => '<subject-stop-' . Str::random(10) . '@outside.test>',
+        ]);
+
+        $this->assertTrue($result['consent_applied'] ?? false);
+        Http::assertNotSent(fn ($request): bool => str_contains($request->url(), '/messages'));
+    }
+
+    public function testAnOrdinaryEmailToTheAgentMailboxIsStillAnswered(): void
+    {
+        $this->fakeMailgun();
+
+        $result = $this->deliver([
+            'sender' => $this->user->email,
+            'from' => 'Max <' . $this->user->email . '>',
+            'subject' => 'Quick question',
+            'stripped-text' => 'Can you stop by the Acme office tomorrow?',
+            'Message-Id' => '<ordinary-' . Str::random(10) . '@outside.test>',
+        ]);
+
+        $this->assertStringContainsString('Hola Mundo', (string) ($result['response'] ?? ''));
     }
 
     public function testTheAgentsOwnMailIsIgnored(): void

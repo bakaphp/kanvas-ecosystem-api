@@ -6,6 +6,8 @@ namespace Kanvas\Intelligence\Agents\Actions\Outreach;
 
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
+use Kanvas\Guild\Customers\Services\ConsentKeywordService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Leads\Enums\AgentReachOutConfigEnum;
@@ -81,7 +83,18 @@ class AgentReachOutAction
         }
 
         // === Do-not-contact guard ===
-        // Humans drop free-text like "do not reach out" / "no llamar" in the lead
+        // The flag first: this action names 'do_not_contact' as a skip reason but used to check only
+        // the description, so a prospect who actually asked to stop could still be cold-reached.
+        if ((bool) $this->lead->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value)
+            || (bool) $this->lead->people?->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value)
+        ) {
+            $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_SKIPPED);
+            $this->lead->set(AgentReachOutConfigEnum::REASON->value, 'do_not_contact');
+
+            return ['message' => 'Lead is flagged do-not-contact', 'status' => 'skipped'];
+        }
+
+        // Humans also drop free-text like "do not reach out" / "no llamar" in the lead
         // description; honor it before spending an agent turn on the lead.
         if ($this->descriptionRequestsNoContact()) {
             $this->lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_SKIPPED);
@@ -189,58 +202,11 @@ class AgentReachOutAction
     }
 
     /**
-     * Scan the free-text lead description for human-written do-not-contact intent.
-     * Matches common English/Spanish phrasings ("do not reach out", "no contact",
-     * "don't call", "no llamar", "remove me", "dnc") regardless of spacing,
-     * apostrophe style, or punctuation.
+     * Staff type do-not-contact intent straight into the lead description ("do not reach out",
+     * "no llamar"). Same matcher the inbound channels use — see ConsentKeywordService.
      */
     private function descriptionRequestsNoContact(): bool
     {
-        $description = (string) $this->lead->description;
-        if (trim($description) === '') {
-            return false;
-        }
-
-        // Normalize: lowercase, strip apostrophes (don't → dont), collapse any
-        // non-alphanumeric run to a single space so "do-not-contact" == "do not contact".
-        $normalized = strtolower($description);
-        $normalized = str_replace(["'", '’', '`'], '', $normalized);
-        $normalized = (string) preg_replace('/[^a-z0-9]+/', ' ', $normalized);
-        $normalized = trim((string) preg_replace('/\s+/', ' ', $normalized));
-
-        $patterns = [
-            'do not contact',
-            'dont contact',
-            'do not reach out',
-            'dont reach out',
-            'do not reachout',
-            'dont reachout',
-            'do not call',
-            'dont call',
-            'do not text',
-            'dont text',
-            'do not email',
-            'dont email',
-            'do not message',
-            'dont message',
-            'no contact',
-            'no llamar',
-            'no contactar',
-            'stop contacting',
-            'stop reaching out',
-            'remove me',
-            'unsubscribe',
-            'dnc',
-        ];
-
-        foreach ($patterns as $pattern) {
-            // Word-boundary match so "dnc" doesn't fire inside "abcdncxyz" and
-            // "no contact" doesn't match a substring of a longer unrelated token.
-            if (preg_match('/\b' . preg_quote($pattern, '/') . '\b/', $normalized) === 1) {
-                return true;
-            }
-        }
-
-        return false;
+        return ConsentKeywordService::matchesNoContactPhrase((string) $this->lead->description);
     }
 }

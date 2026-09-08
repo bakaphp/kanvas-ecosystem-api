@@ -25,4 +25,11 @@ enum ConfigurationEnum: string
     case TWILIO_MAX_MESSAGE_BODY_LENGTH = 'twilio_max_message_body_length';
     case TWILIO_MMS_BATCH_SIZE = 'twilio-mms-batch-size';
     case TWILIO_MMS_MAX_TOTAL_MEDIA = 'twilio-mms-max-total-media';
+
+    /**
+     * Whether Twilio answers STOP itself (default STOP filtering / Advanced Opt-Out), in which case
+     * we must NOT send our own acknowledgement. Defaults to true, because the FCC permits exactly
+     * one post-revocation message: sending none is legal, sending two is the violation.
+     */
+    case TWILIO_SENDS_OPT_OUT_REPLY = 'twilio_sends_opt_out_reply';
 }

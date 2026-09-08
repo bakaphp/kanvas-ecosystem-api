@@ -4,38 +4,35 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
-use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
-use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Actions\HandOffAction;
+use Kanvas\Guild\Customers\Actions\ApplyDoNotContactAction;
+use Kanvas\Guild\Customers\Enums\ConsentMatchEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
-use Kanvas\Intelligence\Enums\HandOffTypeEnum;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
-use Throwable;
 
+/**
+ * The half of opt-out handling that keywords cannot cover.
+ *
+ * ConsentKeywordService catches an exact "STOP" on the way in. The FCC requires honoring a
+ * revocation made in "any reasonable manner", and Twilio explicitly does not block non-keyword
+ * phrasing on our behalf — so "please take me off your list", "no me escribas más", "I'm not
+ * interested, don't contact me again" reach the agent, and this tool is how the agent honors them.
+ */
 #[AgentTool(name: 'Stop Contact', category: 'crm')]
 class StopContactTool extends Tool
 {
     use ResolvesLeadForTool;
-
-    private const EMAIL_CONTACT_TYPES = [
-        ContactTypeEnum::EMAIL->value,
-        ContactTypeEnum::PRIMARY_EMAIL->value,
-        ContactTypeEnum::SECONDARY_EMAIL->value,
-    ];
 
     public function __construct()
     {
         parent::__construct(
             name: 'stop_contact',
             description: 'Honor a prospect who asks to stop being contacted / unsubscribe / "stop" / "remove me" / "do not contact". '
-                . 'This is a full do-not-contact: it opts their phone AND email out of future messages, turns off automated replies, '
-                . 'logs a note on the lead, and notifies a human on the team. '
+                . 'This is a full do-not-contact: it opts every phone AND email this person has out of future messages across '
+                . 'SMS, WhatsApp and email, turns off automated replies on all of their leads, logs a note, and notifies a human. '
                 . 'Call it as soon as the prospect clearly asks to stop hearing from the business. '
                 . 'You may still send ONE short acknowledgement this turn (e.g. "Done — you won\'t hear from us again."), then stop.',
         );
@@ -65,71 +62,42 @@ class StopContactTool extends Tool
         ?string $reason = null,
     ): array {
         $result = $this->resolveLeadOrError($lead_id);
+
         if (is_array($result)) {
             return $result;
         }
+
         $lead = $result;
-
-        $optedOut = [];
         $people = $lead->people;
-        if ($people !== null) {
-            if ($people->optOutPhoneContacts() > 0) {
-                $optedOut[] = 'phone';
-            }
 
-            $emailsOptedOut = $people->contacts()
-                ->whereIn('contacts_types_id', self::EMAIL_CONTACT_TYPES)
-                ->where('is_opt_out', 0)
-                ->update(['is_opt_out' => 1]);
-            if ($emailsOptedOut > 0) {
-                $optedOut[] = 'email';
-            }
+        if ($people === null) {
+            return [
+                'status' => 'error',
+                'message' => 'This lead has no person record, so there is nothing to opt out. '
+                    . 'Tell the prospect a human will follow up and hand off instead.',
+            ];
         }
 
-        $lead->set('ai_mode', IntelligenceModeEnum::IDLE->value);
-        $lead->set('do_not_contact', 1);
-        if ($reason !== null && trim($reason) !== '') {
-            $lead->set('do_not_contact_reason', trim($reason));
-        }
-
-        $noteBody = 'Prospect opted out of contact'
-            . ($reason !== null && trim($reason) !== '' ? ' — "' . trim($reason) . '"' : '')
-            . '. Automated messaging disabled across channels.';
-        $noted = new RecordLeadNoteAction($lead)->execute($noteBody, 'opt-out') !== null;
-
-        $handoffNotified = $this->notifyTeam($lead);
+        $outcome = new ApplyDoNotContactAction(
+            people: $people,
+            sourceChannel: 'agent_tool',
+            lead: $lead,
+            reason: $reason,
+            match: ConsentMatchEnum::AGENT_TOOL,
+        )->execute();
 
         return [
             'status' => 'success',
             'lead_id' => $lead_id,
-            'opted_out' => $optedOut,
+            'already_opted_out' => $outcome->alreadyOptedOut,
+            'contacts_opted_out' => $outcome->contactsOptedOut,
+            'leads_flagged' => $outcome->leadsFlagged,
             'ai_disabled' => true,
-            'note_logged' => $noted,
-            'team_notified' => $handoffNotified,
-            'note' => 'Prospect opted out: all contacts marked do-not-contact, automated messaging disabled, note logged, team notified. '
-                . 'Send ONE brief acknowledgement, then do not message this person again.',
+            'note' => $outcome->alreadyOptedOut
+                ? 'This person was already opted out. Do not message them again; do not send another acknowledgement.'
+                : 'Prospect opted out: every phone and email marked do-not-contact across all of their leads, '
+                    . 'automated messaging disabled, note logged, team notified. '
+                    . 'Send ONE brief acknowledgement, then do not message this person again.',
         ];
-    }
-
-    /**
-     * Alert a human that this lead opted out — a COMPLIANCE_INTERNAL handoff (notifies owner +
-     * the handoff role via HandOffAction). Not a "keep chatting" handoff; it is an internal
-     * compliance alert. Best-effort: never let a notification failure break the opt-out.
-     */
-    private function notifyTeam(Lead $lead): bool
-    {
-        try {
-            new HandOffAction(
-                lead: $lead,
-                app: $lead->app,
-                params: ['handoff_type' => HandOffTypeEnum::COMPLIANCE_INTERNAL->value],
-            )->execute();
-
-            return true;
-        } catch (Throwable $e) {
-            report($e);
-
-            return false;
-        }
     }
 }
