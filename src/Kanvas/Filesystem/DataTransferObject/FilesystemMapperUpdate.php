@@ -35,7 +35,7 @@ class FilesystemMapperUpdate extends Data
             $branch,
             $user,
             $data['name'],
-            $data['header'] ?? $data['file_header'],
+            $data['header'] ?? $data['file_header'] ?? [],
             $data['mapping'],
             json_decode(json_encode($data['configuration'] ?? []), true),
             $data['is_default'] ?? false,
