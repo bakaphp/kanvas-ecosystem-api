@@ -114,19 +114,7 @@ trait HasTagsTrait
 
     public function syncTags(array $tags): void
     {
-        /**
-         * if we get tags as
-         * [
-         *   ['name' => 'tag1'],
-         *   ['name' => 'tag2'],
-         * ]
-         */
-        $tags = array_map(
-            fn ($tag) => $tag['name'] ?? $tag,
-            $tags
-        );
-
         $this->tags()->detach();
-        $this->addTags($tags);
+        $this->addTags(ModelsTag::normalizeNames($tags));
     }
 }
