@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
@@ -225,6 +226,18 @@ trait MergesRegisteredTools
 
             if ($human instanceof Users) {
                 $tool->forRequestingUser($human);
+            }
+        }
+
+        // A self-service tool acts AS the caller, so it needs the same human the admin guard needs —
+        // withContext() above carried actingUser(), which on a SystemUserAgent is the agent itself.
+        if (in_array(RequiresHumanCaller::class, $uses, true)) {
+            $human = method_exists($this, 'requestingHuman')
+                ? $this->requestingHuman()
+                : (property_exists($this, 'user') ? $this->user : null);
+
+            if ($human instanceof Users) {
+                $tool->forConversationHuman($human);
             }
         }
 
