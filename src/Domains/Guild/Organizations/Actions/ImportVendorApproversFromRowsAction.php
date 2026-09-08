@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Organizations\Actions;
 
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationData;
@@ -15,21 +16,32 @@ use Kanvas\Support\Excel\NullExcelImport;
 use Maatwebsite\Excel\Facades\Excel;
 
 /**
- * Sets ap_approver_email/ap_approver_vendor_name on each vendor Organization and links a real
- * Kanvas User as its OrganizationApprover, from raw spreadsheet rows (Vendor Name -> Approver
- * Email). Shared by ImportVendorApproversCommand (CLI, a file path) and ImportVendorApproversTool
- * (agent-callable, an uploaded Filesystem row) so both stay in sync with the same matching rules.
+ * Sets ap_approver_email/ap_approver_vendor_name on each vendor Organization and links a real Kanvas
+ * User as its OrganizationApprover, from raw Vendor Name -> Approver Email spreadsheet rows. Shared
+ * by ImportVendorApproversCommand (CLI, a file path) and ImportVendorApproversTool (agent-callable,
+ * an uploaded Filesystem row) so both stay in sync.
  *
- * A vendor with no existing Organization match gets one created. A vendor with a single plausible
- * candidate is linked to it — this is weaker evidence than OrganizationVendorMatcherService's own
- * auto-match bar (a lone candidate reaches here specifically because its score sits below that bar),
- * so every such link is reported back in `linked_low_confidence` for the caller to surface prominently
- * rather than treated as a routine success. A genuine tie between several candidates is still skipped
- * for manual resolution. Idempotent — a vendor whose approver is already exactly what the sheet says
- * is left untouched and counted as `unchanged`.
+ * A vendor with exactly one candidate is linked to it even though OrganizationVendorMatcherService
+ * declined to auto-match — a lone candidate reaches here specifically because its score sits below
+ * that bar — so those links are reported apart, in `linked_low_confidence`, rather than as routine
+ * successes.
  */
 class ImportVendorApproversFromRowsAction
 {
+    /**
+     * @var array{updated: int, created: int, unchanged: int, linked: list<string>, linked_low_confidence: list<string>, ambiguous: list<string>, invalid_email: list<string>, no_email: list<string>}
+     */
+    private array $report = [
+        'updated' => 0,
+        'created' => 0,
+        'unchanged' => 0,
+        'linked' => [],
+        'linked_low_confidence' => [],
+        'ambiguous' => [],
+        'invalid_email' => [],
+        'no_email' => [],
+    ];
+
     /**
      * @param array<int, array<int, mixed>> $rows raw Excel::toArray() rows, header included
      */
@@ -46,11 +58,11 @@ class ImportVendorApproversFromRowsAction
     }
 
     /**
-     * @return array{updated: int, created: int, unchanged: int, linked: list<string>, linked_low_confidence: list<string>, ambiguous: list<string>, no_email: list<string>}|array{error: string}
+     * @return array{updated: int, created: int, unchanged: int, linked: list<string>, linked_low_confidence: list<string>, ambiguous: list<string>, invalid_email: list<string>, no_email: list<string>}|array{error: string}
      */
     public function execute(): array
     {
-        $header = $this->findHeaderRow($this->rows);
+        $header = $this->findHeaderRow();
 
         if ($header === null) {
             return ['error' => 'Could not find a header row containing "Vendor Name" and "Approver Email" columns.'];
@@ -58,57 +70,49 @@ class ImportVendorApproversFromRowsAction
 
         [$headerIndex, $vendorColumn, $emailColumn] = $header;
 
-        $report = [
-            'updated' => 0,
-            'created' => 0,
-            'unchanged' => 0,
-            'linked' => [],
-            'linked_low_confidence' => [],
-            'ambiguous' => [],
-            'no_email' => [],
-        ];
-
         foreach (array_slice($this->rows, $headerIndex + 1) as $row) {
-            $vendorName = trim((string) ($row[$vendorColumn] ?? ''));
-            $approverEmail = trim((string) ($row[$emailColumn] ?? ''));
+            $vendorName = Str::trimToNull((string) ($row[$vendorColumn] ?? ''));
+            $approverEmail = Str::trimToNull((string) ($row[$emailColumn] ?? ''));
 
-            if ($vendorName === '') {
+            if ($vendorName === null) {
                 continue;
             }
 
-            if ($approverEmail === '') {
-                $report['no_email'][] = $vendorName;
+            if ($approverEmail === null) {
+                $this->report['no_email'][] = $vendorName;
 
                 continue;
             }
 
-            $this->importRow($vendorName, $approverEmail, $report);
+            if (! filter_var($approverEmail, FILTER_VALIDATE_EMAIL)) {
+                $this->report['invalid_email'][] = "{$vendorName} ({$approverEmail})";
+
+                continue;
+            }
+
+            $this->importRow($vendorName, $approverEmail);
         }
 
-        return $report;
+        return $this->report;
     }
 
-    /**
-     * @param array{updated: int, created: int, unchanged: int, linked: list<string>, linked_low_confidence: list<string>, ambiguous: list<string>, no_email: list<string>} $report
-     */
-    private function importRow(string $vendorName, string $approverEmail, array &$report): void
+    private function importRow(string $vendorName, string $approverEmail): void
     {
         $match = OrganizationVendorMatcherService::match($this->app, $this->company, $vendorName);
         $organization = $match->organization;
         $lowConfidence = false;
 
-        if ($organization === null && count($match->candidates) > 1) {
-            $names = implode(', ', array_map(static fn (Organization $o): string => $o->name, $match->candidates));
-            $report['ambiguous'][] = "{$vendorName} (candidates: {$names})";
+        if ($organization === null) {
+            if (count($match->candidates) > 1) {
+                $names = implode(', ', array_map(static fn (Organization $o): string => $o->name, $match->candidates));
+                $this->report['ambiguous'][] = "{$vendorName} (candidates: {$names})";
 
-            return;
-        }
+                return;
+            }
 
-        if ($organization === null && count($match->candidates) === 1) {
-            // Weaker evidence than an auto-match — see class docblock. Reported separately, not a
-            // routine success.
-            $organization = $match->candidates[0];
-            $lowConfidence = true;
+            // Weaker evidence than an auto-match — see the class docblock.
+            $lowConfidence = $match->candidates !== [];
+            $organization = $match->candidates[0] ?? null;
         }
 
         if ($organization === null) {
@@ -122,25 +126,24 @@ class ImportVendorApproversFromRowsAction
             )->execute();
 
             $this->linkVendorApprover($organization, $vendorName, $approverEmail);
-            $report['created']++;
-            $report['linked'][] = "{$vendorName} -> {$organization->name} -> {$approverEmail}";
+            $this->report['created']++;
+            $this->report['linked'][] = "{$vendorName} -> {$organization->name} -> {$approverEmail}";
 
             return;
         }
 
         if ($this->alreadyLinked($organization, $vendorName, $approverEmail)) {
-            $report['unchanged']++;
+            $this->report['unchanged']++;
 
             return;
         }
 
         $this->linkVendorApprover($organization, $vendorName, $approverEmail);
-        $report['updated']++;
-        $entry = "{$vendorName} -> {$organization->name} -> {$approverEmail}";
-        $report[$lowConfidence ? 'linked_low_confidence' : 'linked'][] = $entry;
+        $this->report['updated']++;
+        $key = $lowConfidence ? 'linked_low_confidence' : 'linked';
+        $this->report[$key][] = "{$vendorName} -> {$organization->name} -> {$approverEmail}";
     }
 
-    /** True when this exact vendor name + approver email is already recorded — nothing to write. */
     private function alreadyLinked(Organization $organization, string $vendorName, string $approverEmail): bool
     {
         $currentEmail = (string) $organization->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, '');
@@ -164,13 +167,11 @@ class ImportVendorApproversFromRowsAction
     }
 
     /**
-     * @param array<int, array<int, mixed>> $rows
-     *
      * @return array{0: int, 1: int, 2: int}|null
      */
-    private function findHeaderRow(array $rows): ?array
+    private function findHeaderRow(): ?array
     {
-        foreach ($rows as $index => $row) {
+        foreach ($this->rows as $index => $row) {
             $vendorColumn = array_search('Vendor Name', $row, true);
             $emailColumn = array_search('Approver Email', $row, true);
 

@@ -1204,6 +1204,30 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertSame('new-vendor-approver@example.test', $created->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value));
     }
 
+    public function test_import_vendor_approvers_skips_a_junk_email_cell_without_creating_anything(): void
+    {
+        $vendorName = 'Import Rows Junk Email Vendor ' . uniqid();
+
+        $rows = [
+            ['Vendor Name', 'Approver Name', 'Approver Email'],
+            [$vendorName, 'Someone', 'TBD'],
+        ];
+
+        $result = new ImportVendorApproversFromRowsAction($this->kanvasApp, $this->company, $rows)->execute();
+
+        $this->assertSame(0, $result['updated']);
+        $this->assertSame(0, $result['created']);
+        $this->assertCount(1, $result['invalid_email']);
+        $this->assertNull(
+            Organization::query()
+                ->where('apps_id', $this->kanvasApp->getId())
+                ->where('companies_id', $this->company->getId())
+                ->where('name', $vendorName)
+                ->first()
+        );
+        $this->assertNull(Users::query()->where('email', 'TBD')->first());
+    }
+
     public function test_import_vendor_approvers_links_a_single_weak_candidate_and_is_idempotent_on_rerun(): void
     {
         $tok = uniqid();

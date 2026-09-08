@@ -4,27 +4,22 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Baka\Http\SafeUrlFetcher;
-use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Organizations\Actions\ImportVendorApproversFromRowsAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesFilesystemForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-/**
- * Bulk version of add_organization_approver — imports a whole Vendor Name / Approver Email
- * spreadsheet (xlsx/csv) in one call, from a file already attached to this conversation. Shares
- * its matching/linking rules with the scribe:import-vendor-approvers CLI command via
- * ImportVendorApproversFromRowsAction, so both stay in sync.
- */
+/** Bulk version of add_organization_approver: a whole Vendor Name / Approver Email spreadsheet in one call, from a file attached to this conversation. */
 #[AgentTool(name: 'Import Vendor Approvers', category: 'accounting')]
 class ImportVendorApproversTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesFilesystemForTool;
 
     public function __construct()
     {
@@ -65,12 +60,7 @@ class ImportVendorApproversTool extends Tool
      */
     public function __invoke(int $filesystem_id): array
     {
-        $filesystem = Filesystem::query()
-            ->where('id', $filesystem_id)
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->first();
+        $filesystem = $this->findTenantFile($filesystem_id);
 
         if ($filesystem === null) {
             return [
@@ -80,21 +70,19 @@ class ImportVendorApproversTool extends Tool
             ];
         }
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'vendor_approvers_') . '.' . $this->spreadsheetExtension($filesystem->name);
-
         try {
-            file_put_contents($tempPath, SafeUrlFetcher::fetch((string) $filesystem->url));
-            $result = ImportVendorApproversFromRowsAction::fromFilePath($this->app, $this->company, $tempPath)->execute();
+            $result = $this->withDownloadedFile(
+                $filesystem,
+                'vendor_approvers_',
+                $this->spreadsheetExtension($filesystem->name),
+                fn (string $path): array => ImportVendorApproversFromRowsAction::fromFilePath($this->app, $this->company, $path)->execute()
+            );
         } catch (Throwable $e) {
             return [
                 'imported' => false,
                 'reason' => 'download_or_parse_failed',
                 'message' => 'Could not read that file as a spreadsheet: ' . $e->getMessage(),
             ];
-        } finally {
-            if (file_exists($tempPath)) {
-                unlink($tempPath);
-            }
         }
 
         if (isset($result['error'])) {
@@ -112,12 +100,12 @@ class ImportVendorApproversTool extends Tool
             'unchanged' => $result['unchanged'],
             'linked_low_confidence' => $result['linked_low_confidence'],
             'ambiguous' => $result['ambiguous'],
+            'invalid_email' => $result['invalid_email'],
             'no_email' => $result['no_email'],
-            'next' => 'Report updated/created/unchanged counts plainly. If linked_low_confidence is non-empty, '
-                . 'tell the user plainly that those vendors were linked on a single weak match and should be '
-                . 'double-checked, listing them by name — do not present them as a routine success. If '
-                . 'ambiguous/no_email are non-empty, list those vendors too so the user knows exactly which ones '
-                . 'still need manual attention.',
+            'next' => 'Report updated/created/unchanged counts plainly. List linked_low_confidence by name as '
+                . 'links made on a single weak match that need double-checking — never as a routine success. '
+                . 'List ambiguous/invalid_email/no_email by name too, as the rows still needing manual '
+                . 'attention.',
         ];
     }
 

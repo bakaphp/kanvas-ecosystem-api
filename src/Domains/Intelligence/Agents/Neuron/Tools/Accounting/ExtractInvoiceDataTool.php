@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesFilesystemForTool;
 use Kanvas\Scribe\PdfIngest\Contracts\PdfClassifierServiceInterface;
 use Kanvas\Scribe\PdfIngest\Services\GeminiPdfClassifierService;
 use NeuronAI\Tools\HasRunKey;
@@ -22,6 +22,7 @@ use Throwable;
 class ExtractInvoiceDataTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use ResolvesFilesystemForTool;
     use TrackByInputs;
 
     public function __construct()
@@ -69,15 +70,7 @@ class ExtractInvoiceDataTool extends Tool implements HasRunKey
      */
     public function __invoke(int $filesystem_id, ?string $from_email = null, ?string $subject = null): array
     {
-        // Company-scoped, not just app: filesystem_id comes from the model, so an app hosting
-        // several companies would otherwise read another company's invoice off a hallucinated or
-        // injected id.
-        $pdf = Filesystem::query()
-            ->where('id', $filesystem_id)
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->first();
+        $pdf = $this->findTenantFile($filesystem_id);
 
         if ($pdf === null) {
             return [

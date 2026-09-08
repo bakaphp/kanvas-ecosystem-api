@@ -11,17 +11,9 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\Actions\ImportVendorApproversFromRowsAction;
 
 /**
- * One-off import: sets ap_approver_email AND ap_approver_vendor_name on each vendor Organization,
- * and links a real Kanvas User as its OrganizationApprover (creating a minimal User record if no
- * Kanvas account matches that email yet), from a spreadsheet mapping Vendor Name -> Approver Email
- * (e.g. the AP Vendor-Approver List finance maintains). A vendor with no existing Organization match
- * at all gets one created on the fly, so the whole sheet ends up linked — only a genuine tie between
- * SEVERAL similarly-plausible candidates is skipped for manual resolution. Re-run whenever the sheet
- * changes — it's idempotent, safe to run again with an updated file, and only actually writes to a
- * vendor whose recorded approver differs from what the sheet says.
- *
- * Thin CLI wrapper — the actual matching/linking rules live in ImportVendorApproversFromRowsAction,
- * shared with import_vendor_approvers (the agent-callable tool for the same job from an uploaded file).
+ * Thin CLI wrapper over ImportVendorApproversFromRowsAction — the matching and linking rules live
+ * there, shared with the import_vendor_approvers agent tool. Safe to re-run whenever finance
+ * re-exports the sheet; only a vendor whose recorded approver differs is written to.
  */
 class ImportVendorApproversCommand extends Command
 {
@@ -57,6 +49,10 @@ class ImportVendorApproversCommand extends Command
 
         if ($result['linked_low_confidence'] !== []) {
             $this->warn('Linked on a single, weak match — please double-check these: ' . implode('; ', $result['linked_low_confidence']));
+        }
+
+        if ($result['invalid_email'] !== []) {
+            $this->warn('Not a valid email address in the sheet (skipped): ' . implode(', ', $result['invalid_email']));
         }
 
         if ($result['no_email'] !== []) {
