@@ -11,6 +11,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Actions\Outreach\AgentReachOutOnChannelAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
@@ -114,6 +115,14 @@ class AgentReachOutActivityEndToEndTest extends TestCase
 
         $this->assertNotNull($outbound, 'Outbound reach-out Message must be persisted on the channel');
         $this->assertStringContainsString('Hola Mundo', (string) ($outbound->message['content'] ?? ''));
+
+        // The agent's first SMS must carry the opt-out clause, and it has to be on the
+        // stored record — the deferred branch ships this body verbatim later.
+        $this->assertStringContainsString(
+            SmsOptOutNoticeService::NOTICE,
+            (string) ($outbound->message['content'] ?? ''),
+            'first agent SMS must carry the opt-out notice'
+        );
         $this->assertNotEmpty($outbound->message['session_id'] ?? null, 'Outbound must carry session_id');
 
         // Both Lead AND People polymorphically attached — People needed for cross-channel

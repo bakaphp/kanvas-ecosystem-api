@@ -429,10 +429,14 @@ that picks the destination can be prompt-injected into mailing a quote to `attac
   - Verified membership — `send_email_to_user` / `send_slack_direct_message` take `recipient_email` but
     resolve it through `UsersRepository::getUserOfAppByEmail()` + `belongsToCompany()`; a non-member errors out.
   - Allowlist against on-file contacts — `send_email`'s optional `cc` is filtered by `resolveCcRecipients()`
-    to addresses that case-insensitively match an existing deliverable contact on the lead's **person or
-    organization**; unknown addresses are silently dropped and returned in `cc_rejected` so the model can
-    tell the user. This is the reference pattern for "let the agent widen delivery without opening an
-    exfiltration hole" — copy it, don't invent a looser one.
+    to addresses that case-insensitively match an existing deliverable contact on the lead's **person, its
+    participants, or its organization**; unknown addresses are silently dropped and returned in
+    `cc_rejected` so the model can tell the user. Every candidate person is re-checked with
+    `fromApp` + `fromCompany` before its addresses count: the lead is tenant-scoped, but participants and
+    org members hang off it through raw FKs that connector imports, lead merges and the
+    `addLeadParticipant` mutation write, so the allowlist asserts the tenant itself rather than inheriting
+    it. No tenant context → no CC at all. This is the reference pattern for "let the agent widen delivery
+    without opening an exfiltration hole" — copy it, don't invent a looser one.
 
 If you need a genuinely new "send to X" capability, the recipient must be entity-derived or closed-set-verified.
 There is no approved path for a free-text external recipient.

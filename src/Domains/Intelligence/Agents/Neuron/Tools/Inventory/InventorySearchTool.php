@@ -138,8 +138,10 @@ class InventorySearchTool extends Tool implements HasRunKey
         })->toArray();
     }
 
-    protected function searchQuery(string $productName, string $queryBy = 'name,description,translations.name,translations.description'): Builder
-    {
+    protected function searchQuery(
+        string $productName,
+        string $queryBy = 'name,description,translations.name,translations.description'
+    ): Builder {
         $query = Products::search($productName);
 
         if ($this->hasTenantContext()) {

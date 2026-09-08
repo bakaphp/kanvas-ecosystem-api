@@ -11,6 +11,7 @@ use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -94,6 +95,13 @@ class AgentReachOutOnChannelAction
             }
         }
 
+        // No first-outbound gate: this lane is the first touch by construction, and its
+        // $channel is the cross-protocol People channel — a prior email would wrongly
+        // suppress it. Applied before persisting so deferDelivery locks the body it ships.
+        if ($this->channelType === ChannelCategoryEnum::SMS->value) {
+            $responseText = SmsOptOutNoticeService::appendTo($responseText);
+        }
+
         $messageTypeVerb = $this->resolveMessageTypeVerb();
         $type = MessageTypeService::getOrCreate($this->lead->app, $messageTypeVerb);
 
@@ -175,6 +183,7 @@ class AgentReachOutOnChannelAction
                 signature: false,
                 files: null,
                 to: $this->recipient,
+                fromAgent: $this->agent,
             );
             new StoreMessageSidAction($outbound)->execute($providerResponse);
         }

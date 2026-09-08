@@ -131,8 +131,12 @@ class ProcessTwilioWebhookJobTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame('STOP', $stopResult[0]['consent_type']);
+        $this->assertTrue($stopResult[0]['automated_response_suppressed']);
+
+        // START is reported but must NOT suppress the reply: someone asking to hear from us again
+        // and getting silence is the opposite of honoring it.
         $this->assertSame('START', $startResult[0]['consent_type']);
-        $this->assertTrue($startResult[0]['automated_response_suppressed']);
+        $this->assertFalse($startResult[0]['automated_response_suppressed']);
         $this->assertTrue(
             $lead->people->getAllPhones()
                 ->filter(fn ($contact) => $contact->getCleanPhone() === ltrim($phone, '+'))

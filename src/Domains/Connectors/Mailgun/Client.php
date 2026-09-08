@@ -144,6 +144,9 @@ class Client
      * other company domain would have the mail rejected or spam-foldered on arrival.
      *
      * @param array<string, string> $headers extra RFC-822 headers (In-Reply-To, References, …)
+     * @param array<int, string> $cc
+     * @param array<int, array{filename: string, contents: string}> $attachments already-read bytes,
+     *        never a URL — the caller fetches through the SSRF guard.
      *
      * @return string the queued Message-Id, needed to thread anything that replies to this
      */
@@ -155,6 +158,8 @@ class Client
         string $text,
         ?string $html = null,
         array $headers = [],
+        array $cc = [],
+        array $attachments = [],
     ): string {
         $parts = [
             ['name' => 'from', 'contents' => $from],
@@ -165,6 +170,23 @@ class Client
 
         if ($html !== null && $html !== '') {
             $parts[] = ['name' => 'html', 'contents' => $html];
+        }
+
+        // Mailgun takes one `cc` part per address, not a joined list.
+        foreach ($cc as $address) {
+            if (trim($address) === '') {
+                continue;
+            }
+
+            $parts[] = ['name' => 'cc', 'contents' => trim($address)];
+        }
+
+        foreach ($attachments as $attachment) {
+            $parts[] = [
+                'name' => 'attachment',
+                'contents' => $attachment['contents'],
+                'filename' => $attachment['filename'],
+            ];
         }
 
         foreach ($headers as $name => $value) {

@@ -10,7 +10,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Filesystem\Services\PdfService;
-use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\Actions\DeleteTemplateAction;
@@ -170,12 +169,8 @@ trait ManagesTemplatesTrait
                 array_merge(['app' => $app], $data)
             );
         } catch (Throwable $e) {
-            return $this->withOutcome(
-                ToolOutcomeEnum::PROVIDER_ERROR,
-                [
-                    'success' => false,
-                    'error' => sprintf('Could not render template "%s": %s', $templateName, $e->getMessage()),
-                ],
+            return $this->failed(
+                sprintf('Could not render template "%s": %s', $templateName, $e->getMessage()),
                 guidance: 'No PDF exists. Do NOT tell the user one was generated or attached.'
             );
         }

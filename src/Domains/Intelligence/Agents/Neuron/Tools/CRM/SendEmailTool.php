@@ -28,7 +28,11 @@ class SendEmailTool extends Tool
     /** Lead custom field the Mailgun responder and the follow-up engine read as the email thread subject. */
     private const string THREAD_SUBJECT_ANCHOR = 'title_email_follow_up';
 
-    private const array EMAIL_CONTACT_TYPES = [
+    /**
+     * Which email slot we write to first when a person has several. Membership of the set lives on
+     * Contact::EMAIL_TYPES; this only encodes the send preference.
+     */
+    private const array EMAIL_TYPE_PRIORITY = [
         ContactTypeEnum::PRIMARY_EMAIL->value,
         ContactTypeEnum::EMAIL->value,
         ContactTypeEnum::SECONDARY_EMAIL->value,
@@ -42,8 +46,9 @@ class SendEmailTool extends Tool
                 . 'Use it when they ask you to email them something (a quote, a summary, confirmation details, links, next steps) '
                 . 'or when what they need is too long to send over chat/SMS. '
                 . 'You cannot choose the primary recipient — the email always goes to the address on the lead. '
-                . 'You may optionally cc other people who are ALREADY contacts on this lead or its organization '
-                . '(e.g. a second decision-maker); addresses that are not on file are ignored. '
+                . 'You may optionally cc other people who are ALREADY contacts on this lead, its participants '
+                . '(co-buyers, spouses, referrers) or its organization (e.g. a second decision-maker); '
+                . 'addresses that are not on file are ignored. '
                 . 'This is NOT for internal messages to staff (use take_message) and NOT a way to keep chatting: '
                 . 'still answer the person in the conversation after sending.',
         );
@@ -77,7 +82,8 @@ class SendEmailTool extends Tool
                 name: 'cc',
                 type: PropertyType::STRING,
                 description: 'Optional. Comma-separated email addresses to CC on this email. '
-                    . 'Only addresses that already exist as contacts on this lead or its organization are allowed — '
+                    . 'Only addresses that already exist as contacts on this lead, on one of its participants '
+                    . '(co-buyer, spouse, referrer) or on its organization are allowed — '
                     . 'any address not on file is silently ignored (you cannot CC arbitrary people). '
                     . 'Leave empty to email only the primary contact.',
                 required: false,
@@ -134,6 +140,7 @@ class SendEmailTool extends Tool
                 title: $subject,
                 to: $contact->value,
                 cc: $ccResult['accepted'],
+                fromAgent: $this->contextAgent(),
             );
         } catch (Throwable $e) {
             report($e);
@@ -163,14 +170,15 @@ class SendEmailTool extends Tool
 
         $note = 'Email sent and logged on the lead. Tell the person it is on the way, in one short line.';
         if ($ccResult['rejected'] !== []) {
-            $note .= ' These CC addresses are not on file for this lead or its organization and were NOT copied: '
+            $note .= ' These CC addresses are not on file for this lead, its participants or its organization and were NOT copied: '
                 . implode(', ', $ccResult['rejected'])
-                . '. To include them, add them as a contact on the lead or organization first.';
+                . '. To include them, add them as a contact on the lead, a participant or the organization first.';
         }
 
         return [
             'status' => 'success',
             'lead_id' => $lead->getId(),
+            'from' => $sent['from'] ?? null,
             'to' => $contact->value,
             'cc' => $ccResult['accepted'],
             'cc_rejected' => $ccResult['rejected'],
@@ -222,37 +230,76 @@ class SendEmailTool extends Tool
     }
 
     /**
-     * Deliverable email addresses on file across the lead's person and its organization's people,
-     * keyed by lowercase value → the stored (canonical-cased) value we actually send to.
+     * Deliverable email addresses on file across the lead's person, its participants (co-buyers,
+     * spouses, referrers) and its organization's people, keyed by lowercase value → the stored
+     * (canonical-cased) value we actually send to.
+     *
+     * Every candidate is re-checked against this app + company before its addresses count. The lead
+     * itself is tenant-scoped, but the people hang off it through raw FKs that other write paths set
+     * without a tenant check (connector imports, lead merges, the addLeadParticipant mutation), so a
+     * row pointing at another tenant's person must not become a reachable CC target. No tenant
+     * context at all means no CC at all — fail closed.
      *
      * @return array<string, string>
      */
     private function allowedCcContacts(Lead $lead): array
     {
+        if (! $this->hasTenantContext()) {
+            return [];
+        }
+
+        $candidateIds = $this->ccCandidatePeopleIds($lead);
+        if ($candidateIds === []) {
+            return [];
+        }
+
+        $peopleIds = People::query()
+            ->fromCompany($this->company)
+            ->fromApp($this->app)
+            ->notDeleted()
+            ->whereIn('id', $candidateIds)
+            ->pluck('id')
+            ->all();
+
+        if ($peopleIds === []) {
+            return [];
+        }
+
+        $contacts = Contact::query()
+            ->whereIn('peoples_id', $peopleIds)
+            ->whereIn('contacts_types_id', Contact::EMAIL_TYPES)
+            ->notDeleted()
+            ->deliverable()
+            ->get();
+
         $allowed = [];
-
-        $collect = function (?People $people) use (&$allowed): void {
-            if ($people === null) {
-                return;
-            }
-
-            $contacts = $people->contacts()
-                ->whereIn('contacts_types_id', self::EMAIL_CONTACT_TYPES)
-                ->deliverable()
-                ->get();
-
-            foreach ($contacts as $contact) {
-                $allowed[strtolower(trim($contact->value))] = $contact->value;
-            }
-        };
-
-        $collect($lead->people);
-
-        foreach ($lead->organization?->peoples ?? [] as $person) {
-            $collect($person);
+        foreach ($contacts as $contact) {
+            $allowed[strtolower(trim($contact->value))] = $contact->value;
         }
 
         return $allowed;
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function ccCandidatePeopleIds(Lead $lead): array
+    {
+        $ids = [];
+
+        if ($lead->people !== null) {
+            $ids[] = $lead->people->getId();
+        }
+
+        foreach ($lead->participants()->notDeleted()->pluck('peoples_id') as $peopleId) {
+            $ids[] = (int) $peopleId;
+        }
+
+        foreach ($lead->organization?->peoples ?? [] as $person) {
+            $ids[] = $person->getId();
+        }
+
+        return array_values(array_unique($ids));
     }
 
     /**
@@ -274,7 +321,7 @@ class SendEmailTool extends Tool
     {
         return $this->emailContacts($lead)
             ?->deliverable()
-            ->orderByRaw('FIELD(contacts_types_id, ' . implode(',', self::EMAIL_CONTACT_TYPES) . ')')
+            ->orderByRaw('FIELD(contacts_types_id, ' . implode(',', self::EMAIL_TYPE_PRIORITY) . ')')
             ->first();
     }
 
@@ -282,7 +329,7 @@ class SendEmailTool extends Tool
     {
         return $lead->people
             ?->contacts()
-            ->whereIn('contacts_types_id', self::EMAIL_CONTACT_TYPES);
+            ->whereIn('contacts_types_id', Contact::EMAIL_TYPES);
     }
 
     /**
