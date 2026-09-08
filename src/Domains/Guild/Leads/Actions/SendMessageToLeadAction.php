@@ -13,6 +13,8 @@ use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
+use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
 use Kanvas\Connectors\Twilio\Actions\RecordMessageAttemptAction;
@@ -96,7 +98,8 @@ class SendMessageToLeadAction
         bool $signature = true,
         ?Collection $files = null,
         ?string $to = null,
-        ?array $cc = null
+        ?array $cc = null,
+        ?Agent $fromAgent = null
     ): array {
         try {
             if ($files !== null && $files->isNotEmpty()) {
@@ -111,7 +114,14 @@ class SendMessageToLeadAction
                     $message,
                     $to,
                 ),
-                LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title, $signature, $to, $cc),
+                LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage(
+                    $message,
+                    $title,
+                    $signature,
+                    $to,
+                    $cc,
+                    $fromAgent,
+                ),
                 LeadCommunicationChannelEnum::VOICE->value => $this->sendVoiceMessage($message),
                 default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
             };
@@ -879,7 +889,8 @@ class SendMessageToLeadAction
         ?string $title = null,
         bool $signature = true,
         ?string $to = null,
-        ?array $cc = null
+        ?array $cc = null,
+        ?Agent $fromAgent = null
     ): array {
         $attachments = [];
 
@@ -887,9 +898,6 @@ class SendMessageToLeadAction
         if (! empty($engagementUrls)) {
             $message .= "\n\n" . implode("\n", $engagementUrls);
         }
-
-        // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.
-        $message = MarkdownEmailRenderer::toEmailHtml($message);
 
         foreach ($this->processedFiles as $file) {
             if (isset($file['is_processed_video']) && $file['is_processed_video']) {
@@ -899,6 +907,45 @@ class SendMessageToLeadAction
                 $attachments[] = $file['url'];
             }
         }
+
+        $ccList = array_values(array_filter($cc ?? []));
+        $subject = $title ?? 'Message from ' . $this->lead->company->name;
+        $leadEmail = ($to !== null && $to !== '')
+            ? $to
+            : $this->lead->people->getEmails()->first()?->value;
+
+        if (! $leadEmail) {
+            throw new LeadMissingContactException('Lead does not have an email address');
+        }
+
+        $mailboxAddress = $fromAgent !== null
+            ? new AgentMailboxService()->addressFor($fromAgent)
+            : null;
+
+        if ($mailboxAddress !== null) {
+            new SendAsAgentMailboxAction(
+                agent: $fromAgent,
+                to: $leadEmail,
+                subject: $subject,
+                markdownBody: $message,
+                cc: $ccList,
+                attachmentUrls: $attachments,
+            )->execute();
+
+            return $this->emailResult(
+                to: $leadEmail,
+                ccList: $ccList,
+                body: $message,
+                attachments: $attachments,
+                engagementUrls: $engagementUrls,
+                template: 'agent-mailbox',
+                signature: false,
+                from: $mailboxAddress,
+            );
+        }
+
+        // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.
+        $message = MarkdownEmailRenderer::toEmailHtml($message);
 
         $notification = new Blank(
             'first-time-agent-engagement',
@@ -914,31 +961,56 @@ class SendMessageToLeadAction
             ! empty($attachments) ? $attachments : null
         );
         $notification->setFromUser($this->lead->user);
-        $notification->setSubject($title ?? 'Message from ' . $this->lead->company->name);
-        $ccList = array_values(array_filter($cc ?? []));
+        $notification->setSubject($subject);
         if ($ccList !== []) {
             $notification->setCc($ccList);
         }
-        $leadEmail = ($to !== null && $to !== '')
-            ? $to
-            : $this->lead->people->getEmails()->first()?->value;
-        if (! $leadEmail) {
-            throw new LeadMissingContactException('Lead does not have an email address');
-        }
         Notification::route('mail', $leadEmail)->notify($notification);
 
+        return $this->emailResult(
+            to: $leadEmail,
+            ccList: $ccList,
+            body: $message,
+            attachments: $attachments,
+            engagementUrls: $engagementUrls,
+            template: 'first-time-agent-engagement',
+            signature: $signature,
+        );
+    }
+
+    /**
+     * `from` is null on the SMTP lane because the address is the company's, resolved downstream by
+     * SmtpRuntimeConfiguration — only the agent-mailbox lane knows its own sender up front.
+     *
+     * @param array<int, string> $ccList
+     * @param array<int, string> $attachments
+     * @param array<int, string> $engagementUrls
+     *
+     * @return array<string, mixed>
+     */
+    private function emailResult(
+        string $to,
+        array $ccList,
+        string $body,
+        array $attachments,
+        array $engagementUrls,
+        string $template,
+        bool $signature,
+        ?string $from = null
+    ): array {
         return [
-          'channel' => 'email',
-          'to' => $leadEmail,
-          'cc' => $ccList,
-          'template' => 'first-time-agent-engagement',
-          'body_length' => strlen($message),
-          'signature' => $signature,
-          'engagement_urls' => array_values($engagementUrls),
-          'attachments' => $attachments,
-          'attachments_count' => count($attachments),
-          'lead_id' => $this->lead->getId(),
-          'lead_uuid' => $this->lead->uuid,
+            'channel' => 'email',
+            'to' => $to,
+            'cc' => $ccList,
+            'template' => $template,
+            'from' => $from,
+            'body_length' => strlen($body),
+            'signature' => $signature,
+            'engagement_urls' => array_values($engagementUrls),
+            'attachments' => $attachments,
+            'attachments_count' => count($attachments),
+            'lead_id' => $this->lead->getId(),
+            'lead_uuid' => $this->lead->uuid,
         ];
     }
 

@@ -60,6 +60,62 @@ class PdfIngestRoutingTest extends TestCase
         ]);
     }
 
+    /**
+     * A receipt rarely says who ultimately paid, so the hint is usually absent. Defaulting that to
+     * company-paid skips the Due to Employees credit entirely — the employee who forwarded their own
+     * receipt is then owed money with nothing on the books saying so. Their own mailbox is the signal.
+     */
+    public function test_unhinted_receipt_from_an_employees_own_mailbox_is_owed_back_to_them(): void
+    {
+        $expense = $this->ingestUnhintedReceipt(static::$cachedUser->email);
+
+        $this->assertSame(ExpensePaidByEnum::EMPLOYEE_PERSONAL, $expense->paid_by);
+        $this->assertSame(static::$cachedUser->getId(), (int) $expense->paid_by_users_id);
+        $this->assertTrue($expense->metadata['paid_by']['inferred_from_sender']);
+    }
+
+    public function test_unhinted_receipt_from_an_unknown_sender_stays_company_paid(): void
+    {
+        $expense = $this->ingestUnhintedReceipt('not-a-user-' . uniqid() . '@outside.test');
+
+        $this->assertSame(ExpensePaidByEnum::COMPANY_CARD, $expense->paid_by);
+        $this->assertNull($expense->paid_by_users_id);
+        $this->assertFalse($expense->metadata['paid_by']['inferred_from_sender']);
+    }
+
+    private function ingestUnhintedReceipt(string $fromEmail): Expense
+    {
+        $classifier = new FakePdfClassifier()->queue(new PdfClassificationResult(
+            document_type: PdfIngestDocumentTypeEnum::EXPENSE_RECEIPT,
+            confidence: 0.9,
+            reasoning: 'Restaurant slip, no indication of who settled it.',
+            extracted: [
+                'vendor_name' => 'La Cassina',
+                'issue_date' => '2026-06-15',
+                'currency' => 'USD',
+                'total' => 145.50,
+            ],
+        ));
+
+        $log = new ProcessAccountingPdfAction(
+            input: new PdfIngestInput(
+                app: $this->kanvasApp,
+                company: $this->company,
+                pdf: $this->createFilesystemRow(),
+                messageId: 'mailgun-' . uniqid() . '@example.test',
+                fromEmail: $fromEmail,
+                subject: 'Receipt',
+            ),
+            classifier: $classifier,
+        )->execute();
+
+        /** @var Expense $expense */
+        $expense = Expense::query()->where('id', $log->linked_entity_id)->first();
+        $this->assertNotNull($expense, 'The receipt should still have produced a draft expense.');
+
+        return $expense;
+    }
+
     public function test_expense_receipt_creates_draft_expense_and_attaches_pdf(): void
     {
         $pdf = $this->createFilesystemRow();

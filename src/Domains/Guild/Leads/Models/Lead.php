@@ -484,6 +484,7 @@ class Lead extends BaseModel implements EventResourceInterface
 
         $participant->leads_id = $this->id;
         $participant->peoples_id = $people->id;
+        $participant->participants_types_id ??= 0;
         $participant->is_deleted = 0;
 
         $participant->save();
