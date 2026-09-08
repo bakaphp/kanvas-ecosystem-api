@@ -13,6 +13,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Actions\CustomerSuccess\DraftCustomerUpdateAction;
 use Kanvas\Intelligence\Agents\Contracts\AgentApprovalHandler;
+use Kanvas\Intelligence\Agents\Enums\KanvasReleaseFeedEnum;
 use Kanvas\Intelligence\Agents\Services\CustomerSuccess\CustomerUpdateRenderer;
 use Kanvas\Notifications\KanvasMailable;
 use Kanvas\Social\Messages\Models\Message;
@@ -51,13 +52,18 @@ class CustomerUpdateApprovalHandler implements AgentApprovalHandler
 
         $smtp = new SmtpRuntimeConfiguration($app, $company);
         $from = $smtp->getFromEmail();
+        $replyTo = $this->replyTo($context, $company, $app);
 
-        Mail::send(
-            new KanvasMailable($smtp->loadSmtpSettings(), new CustomerUpdateRenderer()->toEmailHtml($markdown, $app, $company))
-                ->from($from['address'], $from['name'])
-                ->to($recipients)
-                ->subject((string) ($context['subject'] ?? ''))
-        );
+        $mailable = new KanvasMailable($smtp->loadSmtpSettings(), new CustomerUpdateRenderer()->toEmailHtml($markdown, $app, $company))
+            ->from($from['address'], $from['name'])
+            ->to($recipients)
+            ->subject((string) ($context['subject'] ?? ''));
+
+        if ($replyTo !== null) {
+            $mailable->replyTo($replyTo);
+        }
+
+        Mail::send($mailable);
 
         $this->markCovered($context, $company, $app);
     }
@@ -81,6 +87,21 @@ class CustomerUpdateApprovalHandler implements AgentApprovalHandler
                 (array) $candidates
             )
         )));
+    }
+
+    /**
+     * Who answers when a customer replies. Set `kanvas_customer_update_reply_to` on the company (or
+     * the app) to a monitored address; the per-card `reply_to` overrides it, the way `recipient` does.
+     * Absent, no Reply-To is set and replies go to the From address, which today is a `noreply@`.
+     *
+     * @param array<string, mixed> $context
+     */
+    private function replyTo(array $context, Companies $company, Apps $app): ?string
+    {
+        // Cast at each step: a setting is mixed, and strict_types rejects an int reaching a ?string.
+        return Str::trimToNull((string) ($context['reply_to'] ?? ''))
+            ?? Str::trimToNull((string) $company->get(KanvasReleaseFeedEnum::REPLY_TO->value))
+            ?? Str::trimToNull((string) $app->get(KanvasReleaseFeedEnum::REPLY_TO->value));
     }
 
     /**
