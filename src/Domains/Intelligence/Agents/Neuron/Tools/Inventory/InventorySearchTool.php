@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Products\Models\Products;
+use Laravel\Scout\Builder;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -66,13 +67,18 @@ class InventorySearchTool extends Tool
         // so fall back to the always-present base fields — search still works
         // pre-reindex and gains the locale-independent match once reindexed.
         try {
-            $products = $this->searchProducts($product_name, 'name,description,translations.name,translations.description');
+            $products = $this->searchQuery($product_name, 'name,description,translations.name,translations.description')
+                ->take(10)
+                ->get();
         } catch (Throwable $e) {
             if (! str_contains($e->getMessage(), 'Could not find a field named')) {
                 return ['message' => "Search failed: {$e->getMessage()}"];
             }
+
             try {
-                $products = $this->searchProducts($product_name, 'name,description');
+                $products = $this->searchQuery($product_name, 'name,description')
+                    ->take(10)
+                    ->get();
             } catch (Throwable $retry) {
                 return ['message' => "Search failed: {$retry->getMessage()}"];
             }
@@ -118,18 +124,15 @@ class InventorySearchTool extends Tool
         })->toArray();
     }
 
-    /**
-     * Run the Scout search with an explicit Typesense `query_by`, overriding the
-     * value Products::search() sets. Split out so __invoke can retry with a
-     * narrower field set when the collection's schema lacks the wider ones.
-     *
-     * @return \Illuminate\Support\Collection<int, Products>
-     */
-    private function searchProducts(string $query, string $queryBy): \Illuminate\Support\Collection
+    protected function searchQuery(string $productName, string $queryBy = 'name,description,translations.name,translations.description'): Builder
     {
-        return Products::search($query)
-            ->options(['query_by' => $queryBy])
-            ->take(10)
-            ->get();
+        $query = Products::search($productName);
+
+        // `query_by` is Typesense-specific; other engines reject it as an unknown parameter.
+        if ($query->model->isTypesense()) {
+            $query->options(['query_by' => $queryBy]);
+        }
+
+        return $query;
     }
 }
