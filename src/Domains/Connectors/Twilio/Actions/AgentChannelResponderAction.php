@@ -10,6 +10,7 @@ use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
@@ -70,6 +71,12 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         )->execute();
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
+
+        // A customer who texts us cold still gets the clause on our first reply. Applied
+        // before createMessage so the approval-hold branch stores the body it will ship.
+        if (SmsOptOutNoticeService::isFirstOutboundMessage($this->channel)) {
+            $responseText = SmsOptOutNoticeService::appendTo($responseText);
+        }
 
         $to = Str::toE164(Str::replace('twilio-', '', $this->channel->slug));
         $to = $this->hijackMessagePhone($to);

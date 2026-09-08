@@ -20,8 +20,10 @@ use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigur
 use Kanvas\Connectors\VoiceBridge\Jobs\LeadVoiceFollowUpJob;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadContextInfoAction;
@@ -171,6 +173,15 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                         continue;
                     }
                     $firstLeadMessage = new CreateLeadFirstEngagementMessageAction($lead, $template)->execute();
+
+                    // Applied here rather than at the send call so the stored message carries it too —
+                    // the delayed branch below locks the message and SendDelayMessageCommand sends that body.
+                    if (
+                        $communicationChannel === LeadCommunicationChannelEnum::SMS->value
+                        && is_string($firstLeadMessage['message'] ?? null)
+                    ) {
+                        $firstLeadMessage['message'] = SmsOptOutNoticeService::appendTo($firstLeadMessage['message']);
+                    }
 
                     $leadContext = $lead->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value);
                     $leadContext['first_message'] = $firstLeadMessage;

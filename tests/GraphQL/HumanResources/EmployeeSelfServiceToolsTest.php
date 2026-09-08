@@ -83,6 +83,9 @@ class EmployeeSelfServiceToolsTest extends TestCase
      * On an @mention or channel surface the "caller" handed to a self-service tool is routinely the
      * agent's own user, not the person. Filing then books somebody's time off against a bot identity,
      * and the employee who asked is told nothing went wrong.
+     *
+     * The agent has to be the one RUNNING the turn — a user that merely also backs some agent is
+     * still a person, and gating on that would lock real employees out of their own leave.
      */
     public function testRequestMyLeaveRefusesWhenTheCallerIsAnAgentIdentity(): void
     {
@@ -91,12 +94,12 @@ class EmployeeSelfServiceToolsTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        Agent::factory()
+        $agent = Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
             ->create(['name' => 'Polly', 'user_id' => $user->getId()]);
 
-        $request = new RequestMyLeaveTool()->withContext($app, $company, $user)
+        $request = new RequestMyLeaveTool()->withContext($app, $company, $user, $agent)
             ->__invoke($type, '2026-09-01', '2026-09-07');
 
         $this->assertFalse($request['created']);

@@ -105,12 +105,14 @@ final class SubmitMyExpenseToolTest extends ScribeTestCase
     public function test_refuses_to_file_an_expense_in_an_agents_name(): void
     {
         $agentUser = $this->seedTestEmployee('agent-identity');
-        Agent::factory()
+        $agent = Agent::factory()
             ->withAppId($this->kanvasApp->getId())
             ->withCompanyId($this->company->getId())
             ->create(['name' => 'Polly', 'user_id' => $agentUser->getId()]);
 
-        $result = $this->submit($agentUser, 145.50, 'Dinner the bot did not eat');
+        $result = new SubmitMyExpenseTool()
+            ->withContext($this->kanvasApp, $this->company, $agentUser, $agent)
+            ->__invoke(amount: 145.50, description: 'Dinner the bot did not eat');
 
         $this->assertFalse($result['success']);
         $this->assertSame('agent_caller', $result['status']);
@@ -121,7 +123,7 @@ final class SubmitMyExpenseToolTest extends ScribeTestCase
     public function test_refuses_to_withdraw_an_expense_as_an_agent(): void
     {
         $agentUser = $this->seedTestEmployee('agent-identity');
-        Agent::factory()
+        $agent = Agent::factory()
             ->withAppId($this->kanvasApp->getId())
             ->withCompanyId($this->company->getId())
             ->create(['name' => 'Polly', 'user_id' => $agentUser->getId()]);
@@ -129,7 +131,7 @@ final class SubmitMyExpenseToolTest extends ScribeTestCase
         $expense = $this->draftTestExpense(60.00, $agentUser->getId());
 
         $result = new CancelMyExpenseTool()
-            ->withContext($this->kanvasApp, $this->company, $agentUser)
+            ->withContext($this->kanvasApp, $this->company, $agentUser, $agent)
             ->__invoke(expense_id: $expense->getId());
 
         $this->assertFalse($result['success']);
@@ -137,17 +139,49 @@ final class SubmitMyExpenseToolTest extends ScribeTestCase
         $this->assertSame(ExpenseStatusEnum::DRAFT, Expense::getById($expense->getId())->status);
     }
 
-    public function test_a_person_who_is_not_an_agent_is_unaffected(): void
+    /**
+     * An agent's user is routinely a real person's — one user backs 28 agents in production, and on a
+     * dev box it is usually the developer's own login. Treating "this user backs an agent" as "this
+     * caller is a bot" locks that person out of their own expenses, which is the live failure this
+     * replaced: the check is now whether the AGENT RUNNING THE TURN owns the identity, not whether
+     * some agent somewhere does.
+     */
+    public function test_a_person_whose_user_also_backs_an_agent_can_still_file(): void
     {
         $employee = $this->seedTestEmployee('submit-expense');
         Agent::factory()
             ->withAppId($this->kanvasApp->getId())
             ->withCompanyId($this->company->getId())
-            ->create(['name' => 'Polly', 'user_id' => $this->seedTestEmployee('agent-identity')->getId()]);
+            ->create(['name' => 'Polly', 'user_id' => $employee->getId()]);
 
         $result = $this->submit($employee, 145.50, 'Dinner with ACME');
 
-        $this->assertSame('submitted', $result['status'], 'An unrelated agent must not gate a real person.');
+        $this->assertSame('submitted', $result['status'], (string) ($result['error'] ?? ''));
+        $this->assertSame($employee->getId(), (int) Expense::getById($result['expense_id'])->paid_by_users_id);
+    }
+
+    /**
+     * The live failure this exists for: a person chatting with the AP Clerk got refused, because a
+     * catalog-granted tool is wired with actingUser() — the agent's own user — and never sees them.
+     * MergesRegisteredTools hands the identified human over separately; that is who it must file for.
+     */
+    public function test_files_for_the_conversation_human_when_the_context_user_is_the_agent(): void
+    {
+        $agentUser = $this->seedTestEmployee('agent-identity');
+        Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['name' => 'AP Clerk', 'user_id' => $agentUser->getId()]);
+
+        $person = $this->seedTestEmployee('submit-expense');
+
+        $result = new SubmitMyExpenseTool()
+            ->withContext($this->kanvasApp, $this->company, $agentUser)
+            ->forConversationHuman($person)
+            ->__invoke(amount: 4.19, description: 'Office hygiene supplies');
+
+        $this->assertSame('submitted', $result['status'], (string) ($result['error'] ?? ''));
+        $this->assertSame($person->getId(), (int) Expense::getById($result['expense_id'])->paid_by_users_id);
     }
 
     public function test_rejects_a_zero_amount(): void

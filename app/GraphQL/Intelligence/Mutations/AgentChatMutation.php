@@ -383,19 +383,58 @@ class AgentChatMutation
             static fn (mixed $item): bool => $item instanceof UploadedFile,
         ));
 
-        if ($uploads === [] || $attachTo === null) {
-            return [$images, $files, $attachments];
-        }
-
-        foreach ($this->uploadFilesAndCollect($attachTo, $app, $user, $uploads) as $filesystem) {
-            if ($filesystem->mediaType()->isImage()) {
-                $images[] = $filesystem->url;
-            } else {
-                $files[] = $filesystem->url;
+        if ($uploads !== [] && $attachTo !== null) {
+            foreach ($this->uploadFilesAndCollect($attachTo, $app, $user, $uploads) as $filesystem) {
+                if ($filesystem->mediaType()->isImage()) {
+                    $images[] = $filesystem->url;
+                } else {
+                    $files[] = $filesystem->url;
+                }
+                $attachments[] = $filesystem;
             }
-            $attachments[] = $filesystem;
         }
 
-        return [$images, $files, $attachments];
+        // Keyed by id, because the URLs just uploaded are in $images/$files too and would otherwise
+        // resolve back to rows already collected — the same file, marked up twice in the prompt.
+        $collected = [];
+
+        foreach ([...$attachments, ...$this->resolveOwnedFilesystems([...$images, ...$files], $app, $user)] as $filesystem) {
+            $collected[$filesystem->getId()] = $filesystem;
+        }
+
+        return [$images, $files, array_values($collected)];
+    }
+
+    /**
+     * Filesystem rows behind URLs the client passed instead of uploading through this mutation.
+     *
+     * A client that uploads first and then sends the URL leaves `$attachments` empty, so the agent
+     * gets the image natively but no `filesystem_id` marker — it can read the receipt and then asks
+     * the person for a file id they have no way to know. Resolving the URL back gives the same
+     * marker the multipart path produces.
+     *
+     * Scoped to the caller's own app + company: the URL is client-supplied, so an unscoped lookup
+     * would hand back another tenant's filesystem_id, and every file tool keys on that id.
+     *
+     * @param  list<string>  $urls
+     * @return list<Filesystem>
+     */
+    private function resolveOwnedFilesystems(array $urls, Apps $app, Users $user): array
+    {
+        $urls = array_values(array_unique(array_filter($urls, static fn (mixed $url): bool => is_string($url) && $url !== '')));
+
+        if ($urls === []) {
+            return [];
+        }
+
+        $company = $user->getCurrentCompany();
+
+        return Filesystem::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->whereIn('url', $urls)
+            ->get()
+            ->all();
     }
 }
