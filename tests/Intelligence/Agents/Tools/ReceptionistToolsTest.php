@@ -123,6 +123,18 @@ class ReceptionistToolsTest extends TestCase
         $this->assertSame('human', $lead->get(ConfigurationEnum::AGENT_HAND_OFF_TYPE->value));
     }
 
+    public function testHandOffToolDescriptionDocumentsTypesAndTerminalConditions(): void
+    {
+        $description = new HandOffTool()->getDescription();
+
+        $this->assertStringContainsString('"human"', $description);
+        $this->assertStringContainsString('"service"', $description);
+        $this->assertStringContainsString('"compliance_internal"', $description);
+        $this->assertStringContainsString('appointment is completed', $description);
+        $this->assertStringContainsString('unexpected error', $description);
+        $this->assertStringContainsString('natural conclusion', $description);
+    }
+
     public function testHandOffToolRejectsUnsupportedTypeWithoutChangingLead(): void
     {
         $lead = $this->makeLead();

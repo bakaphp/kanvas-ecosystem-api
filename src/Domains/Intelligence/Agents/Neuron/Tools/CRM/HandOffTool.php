@@ -22,7 +22,11 @@ class HandOffTool extends Tool
     {
         parent::__construct(
             name: 'handoff_lead',
-            description: 'Hand off an existing lead. The agent instructions determine when a handoff is appropriate and which handoff type to use; call this tool only with a handoff type allowed by those instructions.',
+            description: 'Perform and record a handoff for an existing lead. You MUST call this tool whenever you determine that a handoff is required; do not merely mention or promise a handoff in the customer-facing response. '
+                . 'The only supported handoff types are: "human" to end the AI-controlled conversation and transfer follow-up after an appointment is completed, when the customer explicitly asks for a human, when an unexpected error prevents the agent from continuing, when a sales or general request requires human assistance, or when the conversation has reached its natural conclusion; '
+                . '"service" for requests that must be handled by the service department; and '
+                . '"compliance_internal" for internal compliance matters such as opt-out or stop-contact requests. '
+                . 'The handoff is an internal operation, so do not expose the tool call or internal routing details to the customer.',
         );
     }
 
@@ -39,7 +43,10 @@ class HandOffTool extends Tool
             new ToolProperty(
                 name: 'handoff_type',
                 type: PropertyType::STRING,
-                description: 'The handoff type selected from the options allowed by the agent instructions: "human" (default), "service", or "compliance_internal".',
+                description: 'Required classification when the type is known. Allowed values only: '
+                    . '"human" (default) to end AI control after a completed appointment, an explicit request for a human, an unexpected blocking error, a sales or general request requiring human assistance, or the natural conclusion of the conversation; '
+                    . '"service" for service-department requests; '
+                    . '"compliance_internal" for internal compliance, opt-out, or stop-contact requests.',
                 required: false,
             ),
             new ToolProperty(
