@@ -136,7 +136,7 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'add_organization_approver with that id and the approver\'s email. A vendor can have more than '
             . 'one approver — this never replaces an existing one, only adds.',
             '- If the user attaches an updated vendor/approver spreadsheet and asks to load/import it (e.g. '
-            . '"agrega esta lista", "ya está actualizada, súbela") → import_vendor_approvers with the '
+            . '"add this list", "it\'s updated now, upload it") → import_vendor_approvers with the '
             . 'filesystem_id from the `[Attached file on this message...]` marker. Never re-type its rows by '
             . 'hand or process it one vendor at a time — that is exactly what this tool is for. Report the '
             . 'updated/created/unchanged counts plainly. If linked_low_confidence is non-empty, tell the user '
