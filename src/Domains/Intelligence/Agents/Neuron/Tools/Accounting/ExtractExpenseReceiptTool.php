@@ -6,7 +6,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Baka\Traits\ScalarCoercionTrait;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesFilesystemForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
@@ -92,13 +91,9 @@ class ExtractExpenseReceiptTool extends Tool implements HasRunKey
         } catch (Throwable $e) {
             report($e);
 
-            return $this->withOutcome(
-                ToolOutcomeEnum::PROVIDER_ERROR,
-                [
-                    'success' => false,
-                    'reason' => 'extraction_failed',
-                    'error' => 'Could not read the receipt: ' . $e->getMessage(),
-                ],
+            return $this->failed(
+                'Could not read the receipt: ' . $e->getMessage(),
+                ['reason' => 'extraction_failed'],
                 guidance: 'Ask the person for the amount and date instead of retrying.',
             );
         }

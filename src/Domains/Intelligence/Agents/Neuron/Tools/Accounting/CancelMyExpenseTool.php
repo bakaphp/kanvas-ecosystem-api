@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesExpenseForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\Expenses\Actions\VoidExpenseAction;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
+use Kanvas\Scribe\Expenses\Exceptions\InvalidExpenseTransitionException;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -78,14 +78,10 @@ class CancelMyExpenseTool extends Tool implements HasRunKey
             return $this->tenantContextMissingError('expense');
         }
 
-        $user = $this->humanCallerOrError('withdraw an expense');
+        $user = $this->humanCallerOrDenial('withdraw an expense', 'Say plainly that NOTHING was withdrawn.');
 
         if (is_array($user)) {
-            return $this->denied(
-                (string) $user['message'],
-                ['status' => $user['status']],
-                guidance: 'Say plainly that NOTHING was withdrawn.',
-            );
+            return $user;
         }
 
         $result = $this->resolveMyExpenseOrError($expense_id, $user->getId());
@@ -123,16 +119,22 @@ class CancelMyExpenseTool extends Tool implements HasRunKey
                 voidReasonCode: trim((string) $reason) ?: 'withdrawn_by_employee',
                 user: $user,
             )->execute();
+        } catch (InvalidExpenseTransitionException $e) {
+            // ExpenseStateMachineService allows VOIDED only from DRAFT or APPROVED, so a
+            // PENDING_APPROVAL expense — the state submit_my_expense leaves one in — lands here. A
+            // policy refusal, not a fault: explain it rather than reporting it to Sentry.
+            return $this->denied(
+                $e->getMessage(),
+                ['status' => 'awaiting_approval'],
+                guidance: 'Say plainly that it was NOT withdrawn, and that their manager has to reject it '
+                    . 'instead. Do not call this again for the same expense.',
+            );
         } catch (Throwable $e) {
             report($e);
 
-            return $this->withOutcome(
-                ToolOutcomeEnum::PROVIDER_ERROR,
-                [
-                    'success' => false,
-                    'status' => 'not_withdrawn',
-                    'error' => 'I could not withdraw that expense: ' . $e->getMessage(),
-                ],
+            return $this->failed(
+                'I could not withdraw that expense: ' . $e->getMessage(),
+                ['status' => 'not_withdrawn'],
                 guidance: 'Say plainly that it was NOT withdrawn.',
             );
         }

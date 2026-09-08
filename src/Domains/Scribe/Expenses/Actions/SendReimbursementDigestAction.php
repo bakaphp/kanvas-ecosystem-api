@@ -60,14 +60,14 @@ class SendReimbursementDigestAction
             NotificationFacade::send(
                 [$recipient],
                 new ReimbursementDigestNotification(
-                    $this->company,
-                    $row->user_name ?? $recipient->email,
-                    $this->asOf->toDateString(),
-                    $row->total,
-                    $report->currency,
-                    $row->expense_count,
-                    $row->days_outstanding,
-                    $row->months->toArray(),
+                    company: $this->company,
+                    employeeName: $row->user_name ?? $recipient->email,
+                    asOf: $this->asOf->toDateString(),
+                    totalOwed: $row->total,
+                    currency: $report->currency,
+                    expenseCount: $row->expense_count,
+                    daysOutstanding: $row->days_outstanding,
+                    months: $row->months->toArray(),
                 ),
             );
             $sent++;
@@ -82,13 +82,11 @@ class SendReimbursementDigestAction
             return null;
         }
 
-        $user = Users::query()
+        return Users::query()
             ->where('id', $row->users_id)
             ->where('is_deleted', 0)
             ->whereNotNull('email')
             ->where('email', '!=', '')
             ->first();
-
-        return $user instanceof Users ? $user : null;
     }
 }

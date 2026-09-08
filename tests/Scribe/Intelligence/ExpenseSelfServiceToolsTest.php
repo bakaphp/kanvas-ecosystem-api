@@ -8,6 +8,7 @@ use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelMyExpenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListMyExpensesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordExpenseReimbursementTool;
+use Kanvas\Scribe\Expenses\Actions\SubmitExpenseForApprovalAction;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseReimbursementStatusEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
@@ -89,6 +90,27 @@ final class ExpenseSelfServiceToolsTest extends ScribeTestCase
         $this->assertFalse($result['success']);
         $this->assertSame('already_approved', $result['status']);
         $this->assertSame(ExpenseStatusEnum::APPROVED, Expense::getById($approved->getId())->status);
+    }
+
+    /**
+     * The state submit_my_expense actually leaves an expense in. ExpenseStateMachineService allows
+     * VOIDED only from DRAFT or APPROVED, so this is a refusal — it must read as one rather than as
+     * an uncaught throw reported to Sentry and narrated to the model as "an external service failed".
+     */
+    public function test_cancel_my_expense_refuses_one_already_sent_for_approval(): void
+    {
+        $employee = $this->seedTestEmployee('expense-selfservice');
+        $pending = new SubmitExpenseForApprovalAction(
+            expense: $this->draftTestExpense(90.00, $employee->getId()),
+            user: $employee,
+        )->execute();
+
+        $result = $this->cancel($employee, $pending->getId());
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('awaiting_approval', $result['status']);
+        $this->assertSame(ToolOutcomeEnum::DENIED->value, $result['outcome']);
+        $this->assertSame(ExpenseStatusEnum::PENDING_APPROVAL, Expense::getById($pending->getId())->status);
     }
 
     public function test_record_reimbursement_clears_the_liability(): void

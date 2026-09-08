@@ -86,6 +86,23 @@ trait ReportsToolOutcome
     }
 
     /**
+     * The write blew up on something outside the tool's control — a downstream service, a DB write,
+     * an unexpected throw. Same `success: false` + `error` shape as `denied()`, so a model cannot
+     * narrate it as the happy path; the difference is only which sentence the outcome carries.
+     *
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    protected function failed(string $error, array $payload = [], ?string $guidance = null): array
+    {
+        return $this->withOutcome(
+            ToolOutcomeEnum::PROVIDER_ERROR,
+            ['success' => false, 'error' => $error, ...$payload],
+            $guidance
+        );
+    }
+
+    /**
      * @param array<string, mixed> $payload
      * @return array<string, mixed>
      */

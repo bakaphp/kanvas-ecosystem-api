@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
 use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
@@ -27,6 +28,7 @@ class ListMyExpensesTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
     use ReportsToolOutcome;
+    use RequiresHumanCaller;
     use TrackByInputs;
 
     public function __construct()
@@ -77,13 +79,10 @@ class ListMyExpensesTool extends Tool implements HasRunKey
             return $this->tenantContextMissingError('expense list');
         }
 
-        $user = $this->contextUser();
+        $user = $this->knownCallerOrDenial('expenses');
 
-        if ($user === null) {
-            return $this->denied(
-                'I cannot tell who you are on this surface, so I cannot look up your expenses.',
-                ['status' => 'no_user_context'],
-            );
+        if (is_array($user)) {
+            return $user;
         }
 
         $statusFilter = ExpenseStatusEnum::tryFrom(trim((string) $status));

@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\Reports\Repositories\DueToEmployeesRepository;
 use NeuronAI\Tools\HasRunKey;
@@ -26,6 +27,7 @@ class WhatDoesTheCompanyOweMeTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
     use ReportsToolOutcome;
+    use RequiresHumanCaller;
     use TrackByInputs;
 
     public function __construct()
@@ -65,13 +67,10 @@ class WhatDoesTheCompanyOweMeTool extends Tool implements HasRunKey
             return $this->tenantContextMissingError('reimbursement lookup');
         }
 
-        $user = $this->contextUser();
+        $user = $this->knownCallerOrDenial('reimbursements');
 
-        if ($user === null) {
-            return $this->denied(
-                'I cannot tell who you are on this surface, so I cannot look up your reimbursements.',
-                ['status' => 'no_user_context'],
-            );
+        if (is_array($user)) {
+            return $user;
         }
 
         $asOf = $as_of !== null ? Carbon::parse($as_of) : Carbon::today();
@@ -85,8 +84,6 @@ class WhatDoesTheCompanyOweMeTool extends Tool implements HasRunKey
 
         $row = $data->rows->toCollection()->first();
 
-        // NOOP, not an error: a correct zero. Left unlabelled, a model reads it as a failed call and
-        // retries with the same arguments until the run budget kills the turn.
         if ($row === null) {
             return $this->noop(
                 [

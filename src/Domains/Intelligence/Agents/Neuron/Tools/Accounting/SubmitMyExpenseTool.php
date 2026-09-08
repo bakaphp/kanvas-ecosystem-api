@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesFilesystemForTool;
@@ -46,8 +45,6 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
     use ReportsToolOutcome;
     use RequiresHumanCaller;
     use ResolvesFilesystemForTool;
-    // Filing a trip's worth of receipts is one call per receipt. Keyed by name alone, the 11th would
-    // trip the run budget and kill the whole turn; keyed by inputs, only a genuine repeat is capped.
     use TrackByInputs;
 
     public function __construct()
@@ -132,14 +129,10 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
             return $this->tenantContextMissingError('expense');
         }
 
-        $user = $this->humanCallerOrError('file an expense');
+        $user = $this->humanCallerOrDenial('file an expense', 'Say plainly that NOTHING was filed.');
 
         if (is_array($user)) {
-            return $this->denied(
-                (string) $user['message'],
-                ['status' => $user['status']],
-                guidance: 'Say plainly that NOTHING was filed.',
-            );
+            return $user;
         }
 
         if ($amount <= 0) {
@@ -190,13 +183,9 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
         } catch (Throwable $e) {
             report($e);
 
-            return $this->withOutcome(
-                ToolOutcomeEnum::PROVIDER_ERROR,
-                [
-                    'success' => false,
-                    'status' => 'not_created',
-                    'error' => 'I could not file that expense: ' . $e->getMessage(),
-                ],
+            return $this->failed(
+                'I could not file that expense: ' . $e->getMessage(),
+                ['status' => 'not_created'],
                 guidance: 'Say plainly that the expense was NOT filed.',
             );
         }

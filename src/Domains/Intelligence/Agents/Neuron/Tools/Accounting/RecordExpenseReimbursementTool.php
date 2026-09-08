@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
-use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesExpenseForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
@@ -115,13 +114,9 @@ class RecordExpenseReimbursementTool extends Tool implements HasRunKey
         } catch (Throwable $e) {
             report($e);
 
-            return $this->withOutcome(
-                ToolOutcomeEnum::PROVIDER_ERROR,
-                [
-                    'success' => false,
-                    'status' => 'not_recorded',
-                    'error' => 'I could not record that reimbursement: ' . $e->getMessage(),
-                ],
+            return $this->failed(
+                'I could not record that reimbursement: ' . $e->getMessage(),
+                ['status' => 'not_recorded'],
                 guidance: 'Say plainly that NOTHING was recorded.',
             );
         }

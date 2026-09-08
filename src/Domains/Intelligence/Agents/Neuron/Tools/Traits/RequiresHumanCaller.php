@@ -10,10 +10,10 @@ use Throwable;
 
 /**
  * For a self-service tool that acts AS the caller — files something in their name, or gates on their
- * ownership of a record. Returns the person, or a structured error the host wraps in `denied()`.
+ * ownership of a record. Returns the person, or the finished `denied()` payload to return verbatim.
  *
- *   $caller = $this->humanCallerOrError('file an expense');
- *   if (is_array($caller)) { return $this->denied((string) $caller['message'], $caller); }
+ *   $caller = $this->humanCallerOrDenial('file an expense', 'Say plainly that NOTHING was filed.');
+ *   if (is_array($caller)) { return $caller; }
  *
  * The check that matters is the second one. A tool wired through `addToolContext()` gets
  * `actingUser()`, which on a SystemUserAgent is the AGENT'S OWN user, and `requestingHuman()` falls
@@ -24,36 +24,56 @@ use Throwable;
  * against the employee report.
  *
  * Refusing is the right failure: the model is told plainly that nothing happened and to ask the
- * person to do it from their own chat. Read-only "my …" tools do not need this — reporting an
- * agent's own empty position is useless, not harmful.
+ * person to do it from their own chat. A read-only "my …" tool wants `knownCallerOrDenial()`
+ * instead — reporting an agent's own empty position is useless, not harmful.
  *
- * Requires HasKanvasContext on the host for `$this->app` / `$this->company` / `contextUser()`.
+ * Requires HasKanvasContext (`$this->app` / `$this->company` / `contextUser()`) and
+ * ReportsToolOutcome (`denied()`) on the host.
  */
 trait RequiresHumanCaller
 {
     /**
-     * @return Users|array{status: string, message: string}
+     * @param array<string, mixed> $payload merged into the refusal, for a tool whose family carries
+     *        extra keys on a failed write (`created => false`, …)
+     * @return Users|array<string, mixed>
      */
-    protected function humanCallerOrError(string $action): Users|array
+    protected function humanCallerOrDenial(string $action, string $guidance, array $payload = []): Users|array
     {
         $user = $this->contextUser();
 
         if ($user === null) {
-            return [
-                'status' => 'no_user_context',
-                'message' => "I cannot tell who you are on this surface, so I cannot {$action} in your name.",
-            ];
+            return $this->denied(
+                "I cannot tell who you are on this surface, so I cannot {$action} in your name.",
+                ['status' => 'no_user_context', ...$payload],
+                guidance: $guidance,
+            );
         }
 
         if ($this->isAgentIdentity($user)) {
-            return [
-                'status' => 'agent_caller',
-                'message' => 'This conversation is running as an agent rather than as a person, so there is '
-                    . "nobody to {$action} for. Ask the person to do it from their own chat with me.",
-            ];
+            return $this->denied(
+                'This conversation is running as an agent rather than as a person, so there is '
+                . "nobody to {$action} for. Ask the person to do it from their own chat with me.",
+                ['status' => 'agent_caller', ...$payload],
+                guidance: $guidance,
+            );
         }
 
         return $user;
+    }
+
+    /**
+     * The read-only variant: a tool reporting the caller's OWN records still has to know who they
+     * are, but does not care whether that is a person — an agent asking after its own reimbursements
+     * gets a correct, empty answer.
+     *
+     * @return Users|array<string, mixed>
+     */
+    protected function knownCallerOrDenial(string $subject): Users|array
+    {
+        return $this->contextUser() ?? $this->denied(
+            "I cannot tell who you are on this surface, so I cannot look up your {$subject}.",
+            ['status' => 'no_user_context'],
+        );
     }
 
     private function isAgentIdentity(Users $user): bool

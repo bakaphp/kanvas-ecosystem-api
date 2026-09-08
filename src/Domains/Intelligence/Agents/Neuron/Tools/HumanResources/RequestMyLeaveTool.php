@@ -82,17 +82,14 @@ class RequestMyLeaveTool extends Tool implements HasRunKey
      */
     public function __invoke(string $leave_type, string $start_date, string $end_date, ?string $reason = null): array
     {
-        $caller = $this->humanCallerOrError('request time off');
+        $caller = $this->humanCallerOrDenial(
+            'request time off',
+            'Say plainly that NO request was filed.',
+            ['created' => false],
+        );
 
         if (is_array($caller)) {
-            return $this->denied(
-                (string) $caller['message'],
-                [
-                    'created' => false,
-                    'status' => $caller['status'],
-                ],
-                guidance: 'Say plainly that NO request was filed.',
-            );
+            return $caller;
         }
 
         $employee = new EmployeeIdentityResolver()->fromUser($caller, $this->company, $this->app);
