@@ -12,6 +12,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 #[WorkflowAction]
 class SubmitCreditApplicationActivity extends KanvasActivity
@@ -25,7 +26,7 @@ class SubmitCreditApplicationActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        $result = $this->executeIntegration(
+        return $this->executeIntegration(
             entity: $message,
             app: $app,
             integration: IntegrationsEnum::CREDIT700,
@@ -35,23 +36,29 @@ class SubmitCreditApplicationActivity extends KanvasActivity
                 // this activity picks up the message, so getEngagement() throws ModelNotFoundException.
                 sleep(20);
 
-                $result = new SubmitCreditApplicationAction($message)->execute();
+                try {
+                    $result = new SubmitCreditApplicationAction($message)->execute();
+                } catch (Throwable $e) {
+                    report($e);
+
+                    return [
+                        'message' => 'Credit application failed: ' . $e->getMessage(),
+                        'success' => false,
+                        'transaction_id' => null,
+                        'token' => null,
+                        'entity' => null,
+                    ];
+                }
 
                 if (! $result['success']) {
-                    $this->reportFailure($message, 'RouteOne rejected the credit application: ' . $this->rejectionReason($result['response']));
-
-                    return $this->failWorkflow([
-                        'message' => 'RouteOne rejected the credit application',
-                        'success' => false,
-                        'transaction_id' => $result['transaction_id'],
-                        'token' => $result['token'],
-                        'entity' => $result['response'],
-                    ]);
+                    report(new Exception('RouteOne rejected the credit application for message ' . $message->getId()));
                 }
 
                 return [
-                    'message' => 'Credit application submitted to RouteOne successfully',
-                    'success' => true,
+                    'message' => $result['success']
+                        ? 'Credit application submitted to RouteOne successfully'
+                        : 'RouteOne rejected the credit application',
+                    'success' => $result['success'],
                     'transaction_id' => $result['transaction_id'],
                     'token' => $result['token'],
                     'entity' => $result['response'],
@@ -59,50 +66,5 @@ class SubmitCreditApplicationActivity extends KanvasActivity
             },
             company: $message->company,
         );
-
-        // executeIntegration only report()s when the operation threw — those come back carrying a
-        // trace. Its config bail-outs (no company / region / integration) return an error with no
-        // trace and write no history row, so a credit app would vanish with nothing anywhere.
-        if (isset($result['error']) && ! isset($result['trace'])) {
-            $this->reportFailure($message, $result['error']);
-        }
-
-        return $result;
-    }
-
-    /**
-     * Keep the payload out of this — it carries the applicant's SSN, DL and address.
-     */
-    private function reportFailure(Model $message, string $reason): void
-    {
-        report(new Exception(sprintf(
-            'Credit700 credit application failed for message %s (app %s, company %s): %s',
-            $message->getId(),
-            $message->apps_id,
-            $message->companies_id,
-            $reason
-        )));
-    }
-
-    /**
-     * @param array<string, mixed> $response
-     */
-    private function rejectionReason(array $response): string
-    {
-        $error = $response['Creditsystem_Error'] ?? null;
-
-        if (is_array($error)) {
-            $error = implode(
-                ' ',
-                array_map(
-                    fn (mixed $value): string => is_scalar($value) ? (string) $value : json_encode($value),
-                    $error
-                )
-            );
-        }
-
-        return is_string($error) && $error !== ''
-            ? $error
-            : 'no error returned, RouteOne gave back no transaction id';
     }
 }
