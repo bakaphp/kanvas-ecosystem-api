@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Credit700\Workflow;
 
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Credit700\Actions\SubmitCreditApplicationAction;
@@ -24,7 +25,7 @@ class SubmitCreditApplicationActivity extends KanvasActivity
     {
         $this->overwriteAppService($app);
 
-        return $this->executeIntegration(
+        $result = $this->executeIntegration(
             entity: $message,
             app: $app,
             integration: IntegrationsEnum::CREDIT700,
@@ -36,11 +37,21 @@ class SubmitCreditApplicationActivity extends KanvasActivity
 
                 $result = new SubmitCreditApplicationAction($message)->execute();
 
+                if (! $result['success']) {
+                    $this->reportFailure($message, 'RouteOne rejected the credit application: ' . $this->rejectionReason($result['response']));
+
+                    return $this->failWorkflow([
+                        'message' => 'RouteOne rejected the credit application',
+                        'success' => false,
+                        'transaction_id' => $result['transaction_id'],
+                        'token' => $result['token'],
+                        'entity' => $result['response'],
+                    ]);
+                }
+
                 return [
-                    'message' => $result['success']
-                        ? 'Credit application submitted to RouteOne successfully'
-                        : 'RouteOne rejected the credit application',
-                    'success' => $result['success'],
+                    'message' => 'Credit application submitted to RouteOne successfully',
+                    'success' => true,
                     'transaction_id' => $result['transaction_id'],
                     'token' => $result['token'],
                     'entity' => $result['response'],
@@ -48,5 +59,50 @@ class SubmitCreditApplicationActivity extends KanvasActivity
             },
             company: $message->company,
         );
+
+        // executeIntegration only report()s when the operation threw — those come back carrying a
+        // trace. Its config bail-outs (no company / region / integration) return an error with no
+        // trace and write no history row, so a credit app would vanish with nothing anywhere.
+        if (isset($result['error']) && ! isset($result['trace'])) {
+            $this->reportFailure($message, $result['error']);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Keep the payload out of this — it carries the applicant's SSN, DL and address.
+     */
+    private function reportFailure(Model $message, string $reason): void
+    {
+        report(new Exception(sprintf(
+            'Credit700 credit application failed for message %s (app %s, company %s): %s',
+            $message->getId(),
+            $message->apps_id,
+            $message->companies_id,
+            $reason
+        )));
+    }
+
+    /**
+     * @param array<string, mixed> $response
+     */
+    private function rejectionReason(array $response): string
+    {
+        $error = $response['Creditsystem_Error'] ?? null;
+
+        if (is_array($error)) {
+            $error = implode(
+                ' ',
+                array_map(
+                    fn (mixed $value): string => is_scalar($value) ? (string) $value : json_encode($value),
+                    $error
+                )
+            );
+        }
+
+        return is_string($error) && $error !== ''
+            ? $error
+            : 'no error returned, RouteOne gave back no transaction id';
     }
 }
