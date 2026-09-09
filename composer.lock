@@ -384,16 +384,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.394.9",
+            "version": "3.394.10",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "c5e7a247fa6aeac7355d5be88f38873480789c71"
+                "reference": "3b7cbf17b8ba568f77546d1e5edd3f2071861c8f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c5e7a247fa6aeac7355d5be88f38873480789c71",
-                "reference": "c5e7a247fa6aeac7355d5be88f38873480789c71",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/3b7cbf17b8ba568f77546d1e5edd3f2071861c8f",
+                "reference": "3b7cbf17b8ba568f77546d1e5edd3f2071861c8f",
                 "shasum": ""
             },
             "require": {
@@ -475,9 +475,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.394.9"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.394.10"
             },
-            "time": "2026-09-04T18:07:00+00:00"
+            "time": "2026-09-08T18:07:43+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -4949,16 +4949,16 @@
         },
         {
             "name": "laravel/scout",
-            "version": "v11.6.1",
+            "version": "v11.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/scout.git",
-                "reference": "860f8246d5712fe6e18907119def44d2633b4622"
+                "reference": "176a97da0a33bbd66bc4eaa2884249bf629d3d31"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/scout/zipball/860f8246d5712fe6e18907119def44d2633b4622",
-                "reference": "860f8246d5712fe6e18907119def44d2633b4622",
+                "url": "https://api.github.com/repos/laravel/scout/zipball/176a97da0a33bbd66bc4eaa2884249bf629d3d31",
+                "reference": "176a97da0a33bbd66bc4eaa2884249bf629d3d31",
                 "shasum": ""
             },
             "require": {
@@ -5026,7 +5026,7 @@
                 "issues": "https://github.com/laravel/scout/issues",
                 "source": "https://github.com/laravel/scout"
             },
-            "time": "2026-08-25T20:32:21+00:00"
+            "time": "2026-09-08T15:48:21+00:00"
         },
         {
             "name": "laravel/serializable-closure",
@@ -7523,16 +7523,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.16.10",
+            "version": "3.16.11",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "a7dfcec9556064e2fcd77cddadd40a66919b75f1"
+                "reference": "3fc839e7ff9946665f6f3ec26bd0959f9a28c04b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/a7dfcec9556064e2fcd77cddadd40a66919b75f1",
-                "reference": "a7dfcec9556064e2fcd77cddadd40a66919b75f1",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/3fc839e7ff9946665f6f3ec26bd0959f9a28c04b",
+                "reference": "3fc839e7ff9946665f6f3ec26bd0959f9a28c04b",
                 "shasum": ""
             },
             "require": {
@@ -7583,7 +7583,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.16.10"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.16.11"
             },
             "funding": [
                 {
@@ -7591,7 +7591,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-09-04T12:48:42+00:00"
+            "time": "2026-09-08T17:49:16+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
@@ -8963,16 +8963,16 @@
         },
         {
             "name": "phpoffice/common",
-            "version": "1.0.5",
+            "version": "1.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPOffice/Common.git",
-                "reference": "5a2eeb82d4dfce4ce2163819063ba6f5a80c3e91"
+                "reference": "0982b6b36d9ebf0cae8d9214d345b8e23b529feb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPOffice/Common/zipball/5a2eeb82d4dfce4ce2163819063ba6f5a80c3e91",
-                "reference": "5a2eeb82d4dfce4ce2163819063ba6f5a80c3e91",
+                "url": "https://api.github.com/repos/PHPOffice/Common/zipball/0982b6b36d9ebf0cae8d9214d345b8e23b529feb",
+                "reference": "0982b6b36d9ebf0cae8d9214d345b8e23b529feb",
                 "shasum": ""
             },
             "require": {
@@ -8981,7 +8981,7 @@
             },
             "require-dev": {
                 "phpmd/phpmd": "2.*",
-                "phpstan/phpstan": "^0.12.88 || ^1.0.0",
+                "phpstan/phpstan": "^0.12.88 || ^1.0.0 || ^2.0.0",
                 "phpunit/phpunit": ">=7"
             },
             "type": "library",
@@ -9013,9 +9013,9 @@
             ],
             "support": {
                 "issues": "https://github.com/PHPOffice/Common/issues",
-                "source": "https://github.com/PHPOffice/Common/tree/1.0.5"
+                "source": "https://github.com/PHPOffice/Common/tree/1.1.0"
             },
-            "time": "2025-02-28T12:39:45+00:00"
+            "time": "2026-09-05T19:14:14+00:00"
         },
         {
             "name": "phpoffice/math",
@@ -9075,12 +9075,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPOffice/PHPPresentation.git",
-                "reference": "957bb90b83d2c0325f12604ec8ed0a84d53880dc"
+                "reference": "c4e95d92887a68052c3bf25b18634349a7fab607"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPOffice/PHPPresentation/zipball/957bb90b83d2c0325f12604ec8ed0a84d53880dc",
-                "reference": "957bb90b83d2c0325f12604ec8ed0a84d53880dc",
+                "url": "https://api.github.com/repos/PHPOffice/PHPPresentation/zipball/c4e95d92887a68052c3bf25b18634349a7fab607",
+                "reference": "c4e95d92887a68052c3bf25b18634349a7fab607",
                 "shasum": ""
             },
             "require": {
@@ -9138,7 +9138,7 @@
                 "issues": "https://github.com/PHPOffice/PHPPresentation/issues",
                 "source": "https://github.com/PHPOffice/PHPPresentation/tree/master"
             },
-            "time": "2026-09-03T05:03:55+00:00"
+            "time": "2026-09-08T18:54:09+00:00"
         },
         {
             "name": "phpoffice/phpspreadsheet",
@@ -12159,22 +12159,22 @@
         },
         {
             "name": "spatie/laravel-activitylog",
-            "version": "5.1.0",
+            "version": "5.1.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-activitylog.git",
-                "reference": "97c9f7e82033b18dc9db25de276f9b71e01449ea"
+                "reference": "8ce56d3b9d72f4e4551f4449d236a5ed06e71667"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-activitylog/zipball/97c9f7e82033b18dc9db25de276f9b71e01449ea",
-                "reference": "97c9f7e82033b18dc9db25de276f9b71e01449ea",
+                "url": "https://api.github.com/repos/spatie/laravel-activitylog/zipball/8ce56d3b9d72f4e4551f4449d236a5ed06e71667",
+                "reference": "8ce56d3b9d72f4e4551f4449d236a5ed06e71667",
                 "shasum": ""
             },
             "require": {
-                "illuminate/config": "^13.0",
-                "illuminate/database": "^13.0",
-                "illuminate/support": "^13.0",
+                "illuminate/config": "^12.0 || ^13.0",
+                "illuminate/database": "^12.0 || ^13.0",
+                "illuminate/support": "^12.0 || ^13.0",
                 "php": "^8.4",
                 "spatie/laravel-package-tools": "^1.6.3"
             },
@@ -12182,8 +12182,8 @@
                 "ext-json": "*",
                 "larastan/larastan": "^3.0",
                 "laravel/pint": "^1.29",
-                "orchestra/testbench": "^11.0",
-                "pestphp/pest": "^5.0"
+                "orchestra/testbench": "^10.0 || ^11.0",
+                "pestphp/pest": "^4.0 || ^5.0"
             },
             "type": "library",
             "extra": {
@@ -12236,7 +12236,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-activitylog/issues",
-                "source": "https://github.com/spatie/laravel-activitylog/tree/5.1.0"
+                "source": "https://github.com/spatie/laravel-activitylog/tree/5.1.1"
             },
             "funding": [
                 {
@@ -12248,7 +12248,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-12T12:07:38+00:00"
+            "time": "2026-09-08T12:16:25+00:00"
         },
         {
             "name": "spatie/laravel-data",
@@ -18729,16 +18729,16 @@
         },
         {
             "name": "laravel/boost",
-            "version": "v2.7.0",
+            "version": "v2.8.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/boost.git",
-                "reference": "b19e98a8637cb69b2aab7b5b6c5fe9e2c79d182f"
+                "reference": "ac0b51fbaf3cc19453aef7a1b188bce19a1ec049"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/boost/zipball/b19e98a8637cb69b2aab7b5b6c5fe9e2c79d182f",
-                "reference": "b19e98a8637cb69b2aab7b5b6c5fe9e2c79d182f",
+                "url": "https://api.github.com/repos/laravel/boost/zipball/ac0b51fbaf3cc19453aef7a1b188bce19a1ec049",
+                "reference": "ac0b51fbaf3cc19453aef7a1b188bce19a1ec049",
                 "shasum": ""
             },
             "require": {
@@ -18791,7 +18791,7 @@
                 "issues": "https://github.com/laravel/boost/issues",
                 "source": "https://github.com/laravel/boost"
             },
-            "time": "2026-08-26T21:39:22+00:00"
+            "time": "2026-09-08T17:07:40+00:00"
         },
         {
             "name": "laravel/doctor",
