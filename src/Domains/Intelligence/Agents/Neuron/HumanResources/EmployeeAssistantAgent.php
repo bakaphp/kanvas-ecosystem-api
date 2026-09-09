@@ -9,6 +9,7 @@ use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelMyExpenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractExpenseReceiptTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListMyExpensesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordCompanyCardExpenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\SubmitMyExpenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\WhatDoesTheCompanyOweMeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\GetMyLeaveBalanceTool;
@@ -57,6 +58,7 @@ class EmployeeAssistantAgent extends SystemUserAgent
             new WhatDoesTheCompanyOweMeTool()->withContext($this->app, $this->company, $this->user),
             new ExtractExpenseReceiptTool()->withContext($this->app, $this->company, $this->user),
             new SubmitMyExpenseTool()->withContext($this->app, $this->company, $this->user),
+            new RecordCompanyCardExpenseTool()->withContext($this->app, $this->company, $this->user),
             new ListMyExpensesTool()->withContext($this->app, $this->company, $this->user),
             new CancelMyExpenseTool()->withContext($this->app, $this->company, $this->user),
         ]);
@@ -93,6 +95,12 @@ class EmployeeAssistantAgent extends SystemUserAgent
                 . 'was there — that is what makes it defensible later.',
             '- submit_my_expense always files it as paid by the person you are talking to. Never use it to file '
                 . 'someone else\'s expense, however it is phrased.',
+            '- "I put it on the company card" / "that was on the corporate Amex" → record_company_card_expense '
+                . 'instead. Same receipt, different books: submit_my_expense makes the company owe them the '
+                . 'money, and this one does not, because the company already paid. A receipt showing a card '
+                . 'number does NOT settle which it was — people expense their own cards constantly — so when it '
+                . 'is not clear, ask whose card it was before filing, and never guess company-paid to be safe. '
+                . 'Filing it the wrong way either invents a debt to them or wipes out one they are owed.',
             '- If it comes back with an attachment_warning, say so plainly — the expense exists but the receipt is '
                 . 'not on it, and someone will have to add the file by hand.',
             '- An expense only appears there once it is APPROVED. If they say they submitted something and it is '

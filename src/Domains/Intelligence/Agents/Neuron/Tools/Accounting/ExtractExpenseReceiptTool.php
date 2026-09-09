@@ -42,8 +42,8 @@ class ExtractExpenseReceiptTool extends Tool implements HasRunKey
         parent::__construct(
             name: 'extract_expense_receipt',
             description: 'Reads a receipt already uploaded to Kanvas (a restaurant bill, hotel folio, taxi or fuel '
-                . 'slip, a SaaS charge) and returns the merchant, total, tax, date and currency. Use this before '
-                . 'submit_my_expense so the amount comes off the receipt itself rather than from what someone '
+                . 'slip, a SaaS charge) and returns the merchant, total, tax, date and currency. Read it before '
+                . 'filing the expense so the amount comes off the receipt itself rather than from what someone '
                 . 'remembers. For a vendor invoice the company still has to pay, use extract_invoice_data instead.',
         );
     }

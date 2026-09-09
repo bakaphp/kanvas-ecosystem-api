@@ -25,17 +25,26 @@ use Override;
 use Throwable;
 
 /**
- * Files an expense the CALLER paid out of pocket, and submits it for approval in the same call.
+ * Files a charge the COMPANY already paid on its own card, and submits it for approval.
  *
- * `paid_by` is fixed to EMPLOYEE_PERSONAL and `paid_by_users_id` comes from the acting user — neither
- * is a parameter. That is the point of the tool rather than a convenience: it is what creates the
- * Due to Employees liability, and it is what stops a model from filing someone else's expense or
- * quietly booking a personal outlay as company-paid (which would leave the employee owed money with
- * nothing on the books saying so). A charge the company itself paid is the sibling tool,
- * record_company_card_expense — a different credit, so a different tool rather than an argument.
+ * The counterpart to submit_my_expense, and the reason both exist rather than one tool with a
+ * paid_by argument: the two book opposite things. A personal outlay credits Due to Employees and
+ * leaves the company owing the employee; a card swipe credits Credit Card Liability and owes nobody
+ * anything. Handing that choice to a model as a parameter means one bad guess quietly invents — or
+ * quietly erases — a debt to a person. Fixing paid_by per tool makes the choice the caller's, made
+ * in words, before the tool is picked.
+ *
+ * `paid_by_users_id` stays null, matching what PDF ingest writes for a card receipt. The column is
+ * what the Due-to-Employees report pays out against, so a name in it on a company-paid row is a
+ * claim waiting to be honoured twice. Who filed this is already on `users_id`, which is the question
+ * anyone actually asks of a card charge.
+ *
+ * Approval is not ceremony here: the bank-feed reconciler only counts APPROVED expenses when it
+ * looks for a charge the books already hold (BankTransactionMatchService::findBookedExpense), so a
+ * card expense that never gets approved is one the Mercury feed will happily book a second time.
  */
-#[AgentTool(name: 'Submit My Expense', category: 'accounting')]
-class SubmitMyExpenseTool extends Tool implements HasRunKey
+#[AgentTool(name: 'Record Company Card Expense', category: 'accounting')]
+class RecordCompanyCardExpenseTool extends Tool implements HasRunKey
 {
     use FilesExpenseForTool;
     use HasKanvasContext;
@@ -47,13 +56,12 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
     public function __construct()
     {
         parent::__construct(
-            name: 'submit_my_expense',
-            description: 'Files an expense YOU paid out of pocket and submits it for approval — a client dinner, a '
-                . 'taxi, a hotel, anything you covered personally and want reimbursed. Always files it as paid by '
-                . 'the person you are talking to, so never call it on behalf of someone else, and not for a '
-                . 'charge the company already paid on its own card — that is record_company_card_expense. Read '
-                . 'the receipt with extract_expense_receipt first when there is one, and confirm the amount with '
-                . 'the person before filing.',
+            name: 'record_company_card_expense',
+            description: 'Files a purchase paid on a COMPANY card — a card the business issued, where the money '
+                . 'has already left the company and nobody is owed anything back. Not for money somebody paid '
+                . 'out of their own pocket and wants back — that is a reimbursement claim, a different entry on '
+                . 'the books — so ask whose card it was when the receipt does not say. Read the receipt with '
+                . 'extract_expense_receipt first when there is one.',
         );
     }
 
@@ -67,27 +75,27 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
             new ToolProperty(
                 name: 'amount',
                 type: PropertyType::NUMBER,
-                description: 'Total paid, in `currency`, including tax. Must be greater than zero.',
+                description: 'Total charged to the card, in `currency`, including tax. Must be greater than zero.',
                 required: true,
             ),
             new ToolProperty(
                 name: 'description',
                 type: PropertyType::STRING,
-                description: 'What it was for, in the employee\'s own words — e.g. "Dinner with ACME while '
-                    . 'closing the renewal". Include who was there for a client meal.',
+                description: 'What the company bought and what for — e.g. "Figma seats for the design team". '
+                    . 'Include who it was for on a client expense.',
                 required: true,
             ),
             new ToolProperty(
                 name: 'expense_date',
                 type: PropertyType::STRING,
-                description: 'ISO date (YYYY-MM-DD) the money was spent. Defaults to today when genuinely unknown '
-                    . '— prefer the date on the receipt.',
+                description: 'ISO date (YYYY-MM-DD) of the charge. Defaults to today when genuinely unknown — '
+                    . 'prefer the date on the receipt, since that is what the card statement will show.',
                 required: false,
             ),
             new ToolProperty(
                 name: 'merchant',
                 type: PropertyType::STRING,
-                description: 'Where it was spent (the restaurant, hotel, airline).',
+                description: 'Where it was spent (the store, airline, software vendor).',
                 required: false,
             ),
             new ToolProperty(
@@ -100,6 +108,14 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
                 name: 'currency',
                 type: PropertyType::STRING,
                 description: 'ISO currency of `amount`. Defaults to USD.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'card_last4',
+                type: PropertyType::STRING,
+                description: 'The last 4 digits of the card, when the receipt or the person gives them. Worth '
+                    . 'passing whenever you have it — it is what tells Finance which card on the statement this '
+                    . 'belongs to when several are in use.',
                 required: false,
             ),
             new ToolProperty(
@@ -121,13 +137,19 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
         ?string $merchant = null,
         ?float $tax_amount = null,
         ?string $currency = null,
+        ?string $card_last4 = null,
         ?int $filesystem_id = null,
     ): array {
         if (! $this->hasTenantContext()) {
             return $this->tenantContextMissingError('expense');
         }
 
-        $user = $this->humanCallerOrDenial('file an expense', 'Say plainly that NOTHING was filed.');
+        // Not the Due-to-Employees argument that guards submit_my_expense — nothing is owed here.
+        // This one posts a real credit against the company's card on approval, and an agent turn is
+        // steered by whatever it last read: an inbound invoice email, a scraped page. The person in
+        // the conversation is the assertion that the charge is real, and lands on `users_id` as the
+        // only audit trail the row will ever have.
+        $user = $this->humanCallerOrDenial('record a company-card expense', 'Say plainly that NOTHING was filed.');
 
         if (is_array($user)) {
             return $user;
@@ -146,6 +168,7 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
         }
 
         $tax = $tax_amount ?? 0.0;
+        $last4 = $this->normalizeCardLast4($card_last4);
 
         try {
             $expense = new CreateExpenseAction(
@@ -161,13 +184,13 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
                     expense_date: $expense_date !== null ? Carbon::parse($expense_date) : Carbon::today(),
                     currency: $currency ?? 'USD',
                     fx_rate_to_base: 1.0,
+                    paid_by: ExpensePaidByEnum::COMPANY_CARD,
                     vendor_display_name: Str::trimToNull($merchant),
-                    paid_by: ExpensePaidByEnum::EMPLOYEE_PERSONAL,
-                    paid_by_users_id: $user->getId(),
                     notes: $description,
-                    // `source` stays the default 'kanvas' — it is a DB enum of external systems of
-                    // record, and an agent-filed expense originates here. Provenance goes in metadata.
-                    metadata: ['submitted_via' => 'agent'],
+                    metadata: array_filter([
+                        'submitted_via' => 'agent',
+                        'card_last4' => $last4,
+                    ], fn (mixed $value): bool => $value !== null),
                 ),
                 user: $user,
             )->execute();
@@ -196,11 +219,24 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
                 'total' => (float) $submitted->total_native,
                 'currency' => $submitted->currency,
                 'expense_status' => $submitted->status->value,
-                'reimbursement_status' => $submitted->reimbursement_status->value,
+                'paid_by' => $submitted->paid_by->value,
+                'card_last4' => $last4,
                 'attachment_warning' => $attachmentWarning,
-                'message' => 'Filed as paid by you and sent for approval. It shows up in what the company owes '
-                    . 'you once a manager approves it.',
+                'message' => 'Filed as paid on the company card and sent for approval. Nobody is owed anything '
+                    . 'for it — the company has already paid.',
             ], fn (mixed $value): bool => $value !== null),
         );
+    }
+
+    /**
+     * Models hand this over however the receipt printed it — "****0768", "xxxx-0768", "Visa 0768".
+     * Keeping the digits is the whole value of the field, and a mangled one silently fails to line up
+     * against the statement later.
+     */
+    private function normalizeCardLast4(?string $cardLast4): ?string
+    {
+        $digits = (string) preg_replace('/\D/', '', (string) $cardLast4);
+
+        return strlen($digits) < 4 ? null : substr($digits, -4);
     }
 }

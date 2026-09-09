@@ -9,6 +9,7 @@ use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CategorizeExpenseTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractExpenseReceiptTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
@@ -21,6 +22,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDueToEmployeesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryExpenseReportTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordCompanyCardExpenseTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordExpenseReimbursementTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyApPaymentTool;
@@ -101,6 +103,9 @@ class AccountsPayableAgent extends SystemUserAgent
             new ReadEmailDetailsTool(),
             new DownloadAttachmentTool(),
             new ExtractInvoiceDataTool(),
+            // The receipt half of the same job: a card slip carries no invoice number, due date or
+            // line items, so extract_invoice_data has nothing to read off it.
+            new ExtractExpenseReceiptTool(),
             // extract_invoice_data and the inbound attachment markers both speak filesystem_id;
             // without this the agent quotes that id at a person who then has nothing to open.
             new GetFileLinkTool(),
@@ -116,9 +121,12 @@ class AccountsPayableAgent extends SystemUserAgent
         }
 
         // approve_pending_item must authorize against the real human, not actingUser() (the agent itself on @mention/channel surfaces).
+        // record_company_card_expense sits here for the same reason from the other direction: it books company
+        // money, and this agent reads inbound email, so it must never fire on a turn no person asked for.
         $requestingHuman = $this->requestingHuman();
         if ($requestingHuman !== null && $this->app !== null && $this->company !== null) {
             $tools[] = new ApprovePendingItemTool()->withContext($this->app, $this->company, $requestingHuman);
+            $tools[] = new RecordCompanyCardExpenseTool()->withContext($this->app, $this->company, $requestingHuman);
         }
 
         return $tools;
@@ -148,6 +156,16 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'on DRAFT expenses only. Emailed and agent-filed receipts land on the Travel & Meals fallback '
             . 'because nothing classifies them, so a report full of "travel" usually means uncategorized, not '
             . 'a company that only travels — say so rather than reporting it at face value.',
+            '- "Book this card charge" / "expense this receipt, it went on the company Amex" → read the slip '
+            . 'with extract_expense_receipt first (extract_invoice_data is for a vendor invoice the company '
+            . 'still owes; a card receipt carries no invoice number or due date for it to find), then '
+            . 'record_company_card_expense with the amount, date and merchant it returned — never an amount '
+            . 'someone recalls while the receipt is sitting right there. It credits the card rather than Due '
+            . 'to Employees, so it owes the person nothing, which makes it the wrong tool the moment somebody '
+            . 'paid with their own money and wants it back. That one is theirs to file from their own chat, '
+            . 'not yours to file for them. Approval matters here beyond policy: the bank feed only recognises '
+            . 'an APPROVED expense as already on the books, so a card charge left pending gets booked a second '
+            . 'time when the statement lands.',
             '- "Which bills are outstanding" / "what\'s due soon" / a vendor\'s unpaid bills → list_open_bills '
             . '(set only_overdue for past-due focus).',
             '- "What has vendor X got on order" / matching an invoice to a PO → list_open_purchase_orders.',
