@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationData;
 use Kanvas\Inventory\Products\Models\Products;
@@ -40,7 +41,7 @@ class PullPropertyContactAction
         // one field that's actually stable across those rows, so match on it first; the per-
         // relationship id stays as a fallback for the (rare) broker with no email on file, so a
         // re-sync of that same property still finds the same People instead of duplicating again.
-        $people = $email !== '' ? $this->findByEmail($email) : null;
+        $people = $email !== '' ? PeoplesRepository::getByEmail($email, $this->company, $this->app) : null;
 
         $people ??= People::getByCustomFieldTransactionSafe(
             CustomFieldEnum::SALESFORCE_LOCATION_CONTACT_ID->value,
@@ -95,22 +96,6 @@ class PullPropertyContactAction
         $parts = explode(' ', $fullName, 2);
 
         return [$parts[0], $parts[1] ?? $parts[0]];
-    }
-
-    // People::getByEmail() exists but only scopes by apps_id — using it as-is here would risk
-    // matching a person from a different company under the same app. Every other lookup in this
-    // file (getByCustomFieldTransactionSafe) is company-scoped, so this stays consistent with that.
-    private function findByEmail(string $email): ?People
-    {
-        return People::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('is_deleted', 0)
-            ->whereHas('contacts', function ($query) use ($email) {
-                $query->where('value', $email)
-                    ->where('contacts_types_id', ContactTypeEnum::EMAIL->value);
-            })
-            ->first();
     }
 
     private function syncContact(People $people, int $typeId, string $value): void
