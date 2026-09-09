@@ -31,7 +31,18 @@ class PullPropertyContactAction
             return null;
         }
 
-        $people = People::getByCustomFieldTransactionSafe(
+        $email = trim((string) ($this->payload['Contact_Email__c'] ?? ''));
+
+        // A broker manages many properties, and Salesforce creates a separate Location_Contact__c
+        // row per property-broker relationship — every property that broker manages gets its own
+        // Salesforce id for the "same" contact. Deduping by that id alone (the old behavior)
+        // therefore created one People per property instead of one per real broker. Email is the
+        // one field that's actually stable across those rows, so match on it first; the per-
+        // relationship id stays as a fallback for the (rare) broker with no email on file, so a
+        // re-sync of that same property still finds the same People instead of duplicating again.
+        $people = $email !== '' ? $this->findByEmail($email) : null;
+
+        $people ??= People::getByCustomFieldTransactionSafe(
             CustomFieldEnum::SALESFORCE_LOCATION_CONTACT_ID->value,
             $this->salesforceId,
             $this->company,
@@ -84,6 +95,22 @@ class PullPropertyContactAction
         $parts = explode(' ', $fullName, 2);
 
         return [$parts[0], $parts[1] ?? $parts[0]];
+    }
+
+    // People::getByEmail() exists but only scopes by apps_id — using it as-is here would risk
+    // matching a person from a different company under the same app. Every other lookup in this
+    // file (getByCustomFieldTransactionSafe) is company-scoped, so this stays consistent with that.
+    private function findByEmail(string $email): ?People
+    {
+        return People::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('is_deleted', 0)
+            ->whereHas('contacts', function ($query) use ($email) {
+                $query->where('value', $email)
+                    ->where('contacts_types_id', ContactTypeEnum::EMAIL->value);
+            })
+            ->first();
     }
 
     private function syncContact(People $people, int $typeId, string $value): void
