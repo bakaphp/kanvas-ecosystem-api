@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests\Guild\Customers;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Actions\ApplyDoNotContactAction;
 use Kanvas\Guild\Customers\Actions\ProcessInboundConsentAction;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Enums\ConsentMatchEnum;
+use Kanvas\Guild\Customers\Enums\ConsentSignalEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
@@ -97,6 +99,101 @@ final class ApplyDoNotContactActionTest extends TestCase
         $this->assertTrue($second->alreadyOptedOut);
         $this->assertFalse($second->applied);
         $this->assertSame(0, $second->contactsOptedOut);
+    }
+
+    /**
+     * The per-address guard used to normalize the destination with each contact row's OWN type, so
+     * an email was compared under phone normalization — which strips a value to its last 10 digits.
+     * An address carrying the same digits as an opted-out number therefore blocked itself.
+     */
+    public function test_an_opted_out_phone_does_not_block_an_email_with_the_same_digits(): void
+    {
+        $people = $this->seedPeople();
+        $phone = $this->seedContact($people, ContactTypeEnum::CELLPHONE, '+18095550147');
+        $phone->is_opt_out = 1;
+        $phone->saveOrFail();
+        $this->seedContact($people, ContactTypeEnum::EMAIL, 'contact8095550147@example.com');
+        $lead = $this->seedLead($people);
+
+        // The guard is what this asserts on, and it runs before delivery. Faking keeps the test off
+        // the mail template, which is seeded by other suites rather than by this one.
+        Notification::fake();
+
+        $result = new SendMessageToLeadAction($lead)->execute(
+            LeadCommunicationChannelEnum::EMAIL->value,
+            'Your quote is ready.',
+        );
+
+        $this->assertNotSame(
+            'opted_out',
+            $result['classification'] ?? null,
+            'An opted-out phone must not block email to an address that merely contains its digits.',
+        );
+    }
+
+    /**
+     * "cancel" is an FCC keyword and is honored, but it is also how someone cancels an appointment.
+     * The opt-out it triggers is person-wide and the customer cannot undo it, so the tier — and the
+     * review prompt it puts on the lead note — is the only way a wrong call gets found.
+     */
+    public function test_an_ambiguous_keyword_stops_but_is_recorded_for_review(): void
+    {
+        $people = $this->seedPeople();
+        $this->seedContact($people, ContactTypeEnum::CELLPHONE, '+18095550151');
+        $lead = $this->seedLead($people);
+
+        $outcome = new ProcessInboundConsentAction(
+            people: $people,
+            sourceChannel: LeadCommunicationChannelEnum::WHATSAPP->value,
+            body: 'cancel',
+            lead: $lead,
+        )->execute();
+
+        $this->assertTrue($outcome->applied, 'an FCC keyword must still be honored.');
+        $this->assertSame(ConsentMatchEnum::AMBIGUOUS_KEYWORD, $outcome->match);
+        $this->assertSame(
+            ConsentMatchEnum::AMBIGUOUS_KEYWORD->value,
+            $lead->refresh()->get(ConsentConfigurationEnum::DO_NOT_CONTACT_MATCH->value),
+        );
+        $this->assertNotNull(ConsentMatchEnum::AMBIGUOUS_KEYWORD->reviewNote());
+    }
+
+    public function test_an_unambiguous_keyword_is_not_flagged_for_review(): void
+    {
+        $people = $this->seedPeople();
+        $this->seedContact($people, ContactTypeEnum::CELLPHONE, '+18095550152');
+        $lead = $this->seedLead($people);
+
+        $outcome = new ProcessInboundConsentAction(
+            people: $people,
+            sourceChannel: LeadCommunicationChannelEnum::SMS->value,
+            body: 'STOP',
+            lead: $lead,
+        )->execute();
+
+        $this->assertSame(ConsentMatchEnum::EXACT, $outcome->match);
+        $this->assertNull(ConsentMatchEnum::EXACT->reviewNote());
+    }
+
+    /**
+     * Twilio's OptOutType means the carrier already unsubscribed the number — an act, not a reading
+     * of the text — so it stays EXACT even when the body is one of the ambiguous words.
+     */
+    public function test_a_provider_classification_is_exact_even_for_an_ambiguous_word(): void
+    {
+        $people = $this->seedPeople();
+        $this->seedContact($people, ContactTypeEnum::CELLPHONE, '+18095550153');
+        $lead = $this->seedLead($people);
+
+        $outcome = new ProcessInboundConsentAction(
+            people: $people,
+            sourceChannel: LeadCommunicationChannelEnum::SMS->value,
+            body: 'cancel',
+            lead: $lead,
+            detectedSignal: ConsentSignalEnum::STOP,
+        )->execute();
+
+        $this->assertSame(ConsentMatchEnum::EXACT, $outcome->match);
     }
 
     /**

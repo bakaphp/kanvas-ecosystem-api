@@ -50,7 +50,7 @@ final class ProcessInboundConsentAction
         $signal = $this->detectedSignal ?? ConsentKeywordService::detect($this->body);
 
         if ($signal !== null) {
-            return $this->applySignal($signal, ConsentMatchEnum::EXACT);
+            return $this->applySignal($signal, $this->keywordMatchTier($signal));
         }
 
         if (! ConsentKeywordService::matchesNoContactPhrase($this->body)) {
@@ -66,6 +66,22 @@ final class ProcessInboundConsentAction
         return $this->applySignal(ConsentSignalEnum::STOP, ConsentMatchEnum::PHRASE);
     }
 
+    /**
+     * A provider's own classification stays EXACT even for an ambiguous word: Twilio's OptOutType
+     * means the carrier already unsubscribed the number, which is an act, not a reading of the text.
+     * Only our own keyword match can be second-guessed.
+     */
+    private function keywordMatchTier(ConsentSignalEnum $signal): ConsentMatchEnum
+    {
+        if ($signal !== ConsentSignalEnum::STOP || $this->detectedSignal !== null) {
+            return ConsentMatchEnum::EXACT;
+        }
+
+        return ConsentKeywordService::stopKeywordIsAmbiguous($this->body)
+            ? ConsentMatchEnum::AMBIGUOUS_KEYWORD
+            : ConsentMatchEnum::EXACT;
+    }
+
     private function applySignal(ConsentSignalEnum $signal, ConsentMatchEnum $match): ConsentOutcome
     {
         return match ($signal) {
@@ -73,7 +89,7 @@ final class ProcessInboundConsentAction
                 people: $this->people,
                 sourceChannel: $this->sourceChannel,
                 lead: $this->lead,
-                reason: $this->body,
+                reason: ConsentKeywordService::extractReason($this->body),
                 match: $match,
             )->execute(),
             // "YES" is a re-subscribe keyword only for someone who is actually opted out. For everyone

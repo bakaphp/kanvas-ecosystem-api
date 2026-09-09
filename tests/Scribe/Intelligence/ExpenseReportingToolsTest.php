@@ -61,6 +61,29 @@ final class ExpenseReportingToolsTest extends ScribeTestCase
         $this->assertSame(ToolOutcomeEnum::NOOP->value, $result['outcome']);
     }
 
+    /**
+     * by_category shares the `expense_count` name with by_employee and by_paid_by, so it has to
+     * mean the same thing. Counting the underlying lines would report this single three-line
+     * expense as three.
+     */
+    public function test_expense_report_category_count_counts_expenses_not_lines(): void
+    {
+        $employee = $this->seedTestEmployee('expense-report');
+        $this->approveTestExpense(
+            300.00,
+            ExpensePaidByEnum::EMPLOYEE_PERSONAL,
+            $employee->getId(),
+            lineAmounts: [100.00, 100.00, 100.00],
+        );
+
+        $result = $this->report();
+
+        $this->assertSame('Travel & Meals', $result['by_category'][0]['label']);
+        $this->assertSame(1, $result['by_category'][0]['expense_count']);
+        $this->assertSame($result['expense_count'], $result['by_category'][0]['expense_count']);
+        $this->assertEqualsWithDelta(300.00, $result['by_category'][0]['total'], 0.005);
+    }
+
     public function test_categorize_expense_moves_every_line_to_the_named_account(): void
     {
         $employee = $this->seedTestEmployee('expense-report');

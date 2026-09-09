@@ -23,6 +23,26 @@ class SmsOptOutNoticeService
         'opt-out',
     ];
 
+    /**
+     * Append the clause only if nothing outbound has gone out on this channel yet.
+     *
+     * The condition lives here so the two callers that hold a Channel cannot drift apart on it.
+     * `$body` is `mixed` because a connector hands back whatever the agent produced; a non-string
+     * passes through untouched.
+     *
+     * Callers that are the first touch BY CONSTRUCTION (cold outreach, the first-message workflow)
+     * want `appendTo()` instead: their channel is the cross-protocol People channel, where a prior
+     * email would wrongly suppress the clause on the first SMS.
+     */
+    public static function appendIfFirstOutbound(Channel $channel, mixed $body, ?Message $exclude = null): mixed
+    {
+        if (! is_string($body) || ! self::isFirstOutboundMessage($channel, $exclude)) {
+            return $body;
+        }
+
+        return self::appendTo($body);
+    }
+
     public static function appendTo(string $body): string
     {
         $body = trim($body);

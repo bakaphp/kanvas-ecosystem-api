@@ -206,7 +206,12 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             $message->addTag($consentType->value);
         }
 
-        if ($consentOutcome?->shouldHaltAgentTurn() === true) {
+        // HELP rides along with the stop case: Twilio answers it itself with the carrier advisory,
+        // so an agent turn on top is a second message nobody asked for. START is deliberately NOT
+        // here — someone asking to hear from us again should get a real reply.
+        $carrierAnswersItself = $consentOutcome?->signal === ConsentSignalEnum::HELP;
+
+        if ($consentOutcome?->shouldHaltAgentTurn() === true || $carrierAnswersItself) {
             $this->cancelPendingWorkflow($batchKey);
 
             if (isset($lead) && $consentOutcome->applied) {
@@ -459,11 +464,13 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             custom_fields: [
                 'twilio_jid' => $phoneNumber,
             ],
-            tags: ['sms', 'twilio']
+            tags: ['sms', 'twilio'],
+            // We only know the number the SMS came from — anything else the person has
+            // (email, other phones) must survive the update.
+            mergeContacts: true
         );
 
         if ($existingCustomer) {
-            //$peopleDto->id = $existingCustomer->getId();
             return new UpdatePeopleAction($existingCustomer, $peopleDto)->execute();
         }
 

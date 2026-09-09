@@ -172,12 +172,8 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $message->addTag('engagement');
 
-                if (
-                    $channelType === LeadCommunicationChannelEnum::SMS->value
-                    && is_string($content)
-                    && SmsOptOutNoticeService::isFirstOutboundMessage($channel, $message)
-                ) {
-                    $content = SmsOptOutNoticeService::appendTo($content);
+                if ($channelType === LeadCommunicationChannelEnum::SMS->value) {
+                    $content = SmsOptOutNoticeService::appendIfFirstOutbound($channel, $content, $message);
                 }
 
                 $result = new SendMessageToLeadAction($lead)->execute(
