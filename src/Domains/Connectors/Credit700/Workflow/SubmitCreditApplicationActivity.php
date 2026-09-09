@@ -41,13 +41,13 @@ class SubmitCreditApplicationActivity extends KanvasActivity
                 } catch (Throwable $e) {
                     report($e);
 
-                    return [
+                    return $this->failWorkflow([
                         'message' => 'Credit application failed: ' . $e->getMessage(),
                         'success' => false,
                         'transaction_id' => null,
                         'token' => null,
                         'entity' => null,
-                    ];
+                    ]);
                 }
 
                 if (! $result['success']) {
