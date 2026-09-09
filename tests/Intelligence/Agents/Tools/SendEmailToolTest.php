@@ -15,7 +15,9 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendEmailTool;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
 
@@ -68,6 +70,18 @@ class SendEmailToolTest extends TestCase
         $this->assertSame('success', $result['status']);
         $this->assertSame('prospect@example.com', $result['to']);
         $this->assertSame('Your quote', $result['subject']);
+
+        $channel = Channel::getById($result['channel_id']);
+        $outbound = Message::getById($result['message_id'], app(Apps::class));
+
+        $this->assertSame(
+            SessionChannelService::createChannelSlug('email', 'prospect@example.com'),
+            $channel->slug,
+        );
+        $this->assertSame('mailgun-email', $outbound->messageType->verb);
+        $this->assertSame('Here is the **quote** you asked for.', $outbound->message['content']);
+        $this->assertSame('Your quote', $outbound->get('title'));
+        $this->assertTrue($channel->messages()->whereKey($outbound->getId())->exists());
 
         Notification::assertSentOnDemand(
             Blank::class,

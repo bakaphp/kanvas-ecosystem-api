@@ -98,6 +98,22 @@ class PullPropertyContactAction
         return [$parts[0], $parts[1] ?? $parts[0]];
     }
 
+    // People::getByEmail() exists but only scopes by apps_id — using it as-is here would risk
+    // matching a person from a different company under the same app. Every other lookup in this
+    // file (getByCustomFieldTransactionSafe) is company-scoped, so this stays consistent with that.
+    private function findByEmail(string $email): ?People
+    {
+        return People::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('is_deleted', 0)
+            ->whereHas('contacts', function ($query) use ($email) {
+                $query->where('value', $email)
+                    ->where('contacts_types_id', ContactTypeEnum::EMAIL->value);
+            })
+            ->first();
+    }
+
     private function syncContact(People $people, int $typeId, string $value): void
     {
         $exists = $people->contacts()

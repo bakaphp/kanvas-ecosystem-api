@@ -10,6 +10,7 @@ use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Actions\Outreach\PersistToolOutboundMessageAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use NeuronAI\Tools\PropertyType;
@@ -100,6 +101,15 @@ class SendSmsTool extends Tool
             ];
         }
 
+        $persisted = new PersistToolOutboundMessageAction(
+            lead: $lead,
+            user: $this->contextUser() ?? $lead->company->getAiAgentUserOrFail(),
+            channelType: LeadCommunicationChannelEnum::SMS->value,
+            recipient: $contact->value,
+            content: $message,
+            agent: $this->contextAgent(),
+        )->execute($sent);
+
         new RecordLeadNoteAction($lead)->execute(
             'SMS sent to the prospect: ' . $message,
             'agent-sms',
@@ -111,6 +121,8 @@ class SendSmsTool extends Tool
             'channel' => LeadCommunicationChannelEnum::SMS->value,
             'to' => $contact->value,
             'message_length' => strlen($message),
+            'message_id' => $persisted['message']->getId(),
+            'channel_id' => $persisted['channel']->getId(),
             'provider_response' => $sent,
         ];
     }

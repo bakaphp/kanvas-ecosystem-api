@@ -56,8 +56,8 @@ class HireAgentTool extends Tool
                 . 'exists, including coding agents that work in a sandbox and open pull requests. You must give '
                 . 'it complete instructions describing its job. It gets its '
                 . 'own identity, so its work is attributed to it and not to you, and you can retune it later. '
-                . 'Check first whether an existing agent already does this job — assign the work to that one '
-                . 'instead of hiring a duplicate.',
+                . 'Call list_agents FIRST: if an agent already does this job, assign the work to it — a '
+                . 'duplicate hire splits one job across two teammates that then drift.',
         );
     }
 

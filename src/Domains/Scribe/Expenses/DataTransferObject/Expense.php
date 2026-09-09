@@ -28,6 +28,12 @@ class Expense extends Data
         public readonly float $fx_rate_to_base,
         public readonly ExpensePaidByEnum $paid_by,
         public readonly ?PayeeInterface $vendor = null,
+        /**
+         * Where the money was spent, when there is no Organization to point `vendor` at — a
+         * restaurant or taxi an employee expensed. Written straight through on create so a caller
+         * does not have to patch the row afterwards.
+         */
+        public readonly ?string $vendor_display_name = null,
         public readonly ?int $paid_by_users_id = null,
         public readonly ?int $payment_method_id = null,
         public readonly ?int $bank_account_id = null,

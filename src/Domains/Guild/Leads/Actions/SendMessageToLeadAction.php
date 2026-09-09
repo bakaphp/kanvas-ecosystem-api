@@ -30,6 +30,7 @@ use Kanvas\Filesystem\Actions\ProcessVideoWithGifAction;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
@@ -837,16 +838,25 @@ class SendMessageToLeadAction
             return;
         }
 
+        $isEmail = $channel === LeadCommunicationChannelEnum::EMAIL->value;
+
+        // Normalize the destination once, against the type we are actually sending to — not against
+        // each row's own type. Phone normalization strips a value to its last 10 digits, so an email
+        // address compared under it collapses to whatever digits it contains and can match a real
+        // number. Filtering the rows by channel also stops us comparing an address to a phone at all.
+        $normalizedDestination = Contact::normalizeValue(
+            $destination,
+            $isEmail ? ContactTypeEnum::EMAIL->value : ContactTypeEnum::CELLPHONE->value,
+        );
+
         $isOptedOut = $this->lead->people?->contacts()
             ->where('is_opt_out', 1)
+            ->whereIn('contacts_types_id', $isEmail ? Contact::EMAIL_TYPES : Contact::PHONE_TYPES)
             ->get()
             ->contains(fn (Contact $contact): bool => Contact::normalizeValue(
                 (string) $contact->value,
                 (int) $contact->contacts_types_id,
-            ) === Contact::normalizeValue(
-                $destination,
-                (int) $contact->contacts_types_id,
-            )) ?? false;
+            ) === $normalizedDestination) ?? false;
 
         if ($isOptedOut) {
             throw new LeadOptedOutException(

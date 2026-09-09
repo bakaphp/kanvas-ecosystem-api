@@ -6,12 +6,12 @@ namespace Kanvas\Guild\Customers\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Guild\Customers\DataTransferObject\ConsentOutcome;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Enums\ConsentMatchEnum;
 use Kanvas\Guild\Customers\Enums\ConsentSignalEnum;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Services\ConsentKeywordService;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -52,13 +52,10 @@ final class ApplyDoNotContactAction
             );
         }
 
-        [$contactsOptedOut, $leadsFlagged] = DB::connection('crm')->transaction(
-            fn (): array => $this->flag(),
-        );
+        [$contactsOptedOut, $leadsFlagged] = $this->flag();
 
-        // Notes, the compliance handoff and the ledger write all live outside the transaction and
-        // are individually best-effort: they reach other connections and other services, and none
-        // of them failing is a reason to leave the person still contactable.
+        // The audit trail runs after the flags and is individually best-effort: it reaches other
+        // services, and none of them failing is a reason to leave the person still contactable.
         $this->recordNotes($contactsOptedOut, $leadsFlagged);
         $this->notifyTeam();
         $this->emitLedgerEvent($contactsOptedOut, $leadsFlagged);
@@ -73,23 +70,38 @@ final class ApplyDoNotContactAction
     }
 
     /**
+     * Not transactional, deliberately. The person and lead flags are custom fields, which live on
+     * the `ecosystem` connection, while the contact opt-outs live on `crm` — so no single
+     * transaction can cover both. Wrapping this in one only ever protected the contact update while
+     * implying an atomicity the flags never had: a throw mid-loop rolled back the opt-outs and left
+     * the flags standing.
+     *
+     * Ordered instead. The People stamp goes first because it is the flag every outbound guard
+     * reads and the only one that covers leads created after this point, so a failure anywhere
+     * below it still leaves the person silenced — the safe direction to fail.
+     *
      * @return array{0: int, 1: int} contacts opted out, leads flagged
      */
     private function flag(): array
     {
+        $this->stamp($this->people);
+
         $contactsOptedOut = $this->people->contacts()
             ->where('is_opt_out', 0)
             ->update(['is_opt_out' => 1]);
-
-        $this->stamp($this->people);
 
         $leadsFlagged = 0;
 
         // The person-level flag above is what protects leads created AFTER this point; this loop
         // covers the ones that already exist, since every outbound guard reads the lead.
         foreach ($this->people->leads()->fromApp($this->people->app)->get() as $lead) {
-            if ($this->flagLead($lead)) {
-                $leadsFlagged++;
+            try {
+                if ($this->flagLead($lead)) {
+                    $leadsFlagged++;
+                }
+            } catch (Throwable $e) {
+                // One lead failing must not leave the remaining ones contactable.
+                report($e);
             }
         }
 
@@ -119,11 +131,21 @@ final class ApplyDoNotContactAction
         $entity->set(ConsentConfigurationEnum::DO_NOT_CONTACT_SOURCE->value, $this->sourceChannel);
         $entity->set(ConsentConfigurationEnum::DO_NOT_CONTACT_MATCH->value, $this->match->value);
 
-        $reason = Str::trimToNull($this->reason);
+        $reason = $this->storedReason();
 
         if ($reason !== null) {
             $entity->set(ConsentConfigurationEnum::DO_NOT_CONTACT_REASON->value, $reason);
         }
+    }
+
+    /**
+     * The reason as it goes into the audit trail — a custom field on the person and on every one of
+     * their leads, plus a lead note. Clamped here rather than only at the inbound boundary because
+     * every caller writes to those same places; `stop_contact` passes whatever the model wrote.
+     */
+    private function storedReason(): ?string
+    {
+        return Str::trimToNull(Str::limit((string) $this->reason, ConsentKeywordService::MAX_REASON_LENGTH));
     }
 
     private function recordNotes(int $contactsOptedOut, int $leadsFlagged): void
@@ -143,7 +165,7 @@ final class ApplyDoNotContactAction
 
     private function noteBody(int $contactsOptedOut, int $leadsFlagged): string
     {
-        $reason = Str::trimToNull($this->reason);
+        $reason = $this->storedReason();
 
         return sprintf(
             'Do-not-contact honored from %s%s. %d contact(s) opted out, %d lead(s) flagged. '
@@ -152,11 +174,7 @@ final class ApplyDoNotContactAction
             $reason !== null ? sprintf(' — "%s"', $reason) : '',
             $contactsOptedOut,
             $leadsFlagged,
-            // An inferred opt-out says so in the note a human reads, so a wrong call is findable and
-            // reversible rather than quietly standing forever.
-            $this->match->warrantsReview()
-                ? sprintf(' Inferred from %s rather than an explicit request — review if this looks wrong.', $this->match->value)
-                : '',
+            $this->match->reviewNote() ?? '',
         );
     }
 
@@ -189,7 +207,7 @@ final class ApplyDoNotContactAction
                 payload: [
                     'source_channel' => $this->sourceChannel,
                     'match' => $this->match->value,
-                    'reason' => Str::trimToNull($this->reason),
+                    'reason' => $this->storedReason(),
                     'people_id' => $this->people->getId(),
                     'contacts_opted_out' => $contactsOptedOut,
                     'leads_flagged' => $leadsFlagged,

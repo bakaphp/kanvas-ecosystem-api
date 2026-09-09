@@ -269,28 +269,37 @@ abstract class ScribeTestCase extends TestCase
     }
 
     /**
-     * Submit + approve a one-line Expense end-to-end. The line lands on Travel & Meals (the
-     * seeded sub-type) so reports pick it up under operating expenses.
+     * Submit + approve an Expense end-to-end. Lines land on Travel & Meals (the seeded sub-type)
+     * so reports pick it up under operating expenses.
+     *
+     * `$lineAmounts` splits the same expense across several lines on that one account — the shape
+     * that separates "how many expenses" from "how many rows" in a category report.
+     *
+     * @param  array<int, float>|null  $lineAmounts defaults to one line for the whole `$amount`
      */
     protected function approveTestExpense(
         float $amount,
         ExpensePaidByEnum $paidBy = ExpensePaidByEnum::COMPANY_CARD,
         ?int $paidByUsersId = null,
         ?string $expenseDate = null,
+        ?array $lineAmounts = null,
     ): Expense {
         $travelAccountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
+
+        $lines = array_map(
+            fn (float $lineAmount): ExpenseLineData => new ExpenseLineData(
+                description: 'Test expense line',
+                amount_native: $lineAmount,
+                expense_account_id: $travelAccountId,
+            ),
+            $lineAmounts ?? [$amount],
+        );
 
         $draft = new CreateExpenseAction(
             data: new ExpenseData(
                 app: $this->kanvasApp,
                 company: $this->company,
-                lines: new DataCollection(ExpenseLineData::class, [
-                    new ExpenseLineData(
-                        description: 'Test expense line',
-                        amount_native: $amount,
-                        expense_account_id: $travelAccountId,
-                    ),
-                ]),
+                lines: new DataCollection(ExpenseLineData::class, $lines),
                 expense_date: Carbon::parse($expenseDate ?? '2026-06-15'),
                 currency: 'USD',
                 fx_rate_to_base: 1.0,
