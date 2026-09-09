@@ -15,6 +15,8 @@ use Kanvas\Workflow\KanvasActivity;
 #[WorkflowAction]
 class SubmitCreditApplicationActivity extends KanvasActivity
 {
+    private const ENGAGEMENT_WAIT_SECONDS = 20;
+
     public $tries = 3;
 
     /**
@@ -30,6 +32,10 @@ class SubmitCreditApplicationActivity extends KanvasActivity
             integration: IntegrationsEnum::CREDIT700,
             additionalParams: $params,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams): array {
+                // The engagement row is written by a separate flow that can still be in-flight when
+                // this activity picks up the message, so getEngagement() throws ModelNotFoundException.
+                sleep(self::ENGAGEMENT_WAIT_SECONDS);
+
                 $result = new SubmitCreditApplicationAction($message)->execute();
 
                 return [
