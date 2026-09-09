@@ -10,6 +10,7 @@ use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\OrganizationNameNormalizerService;
 use Kanvas\Scribe\Banking\DataTransferObject\MatchCandidate;
 use Kanvas\Scribe\Banking\Enums\BankTransactionMatchedToTypeEnum;
+use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Scribe\Banking\Models\BankTransaction;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
@@ -310,6 +311,75 @@ class BankTransactionMatchService
             }
 
             return $expense;
+        }
+
+        return null;
+    }
+
+    /**
+     * The other direction of findBookedExpense: the charge whose statement row landed BEFORE anyone
+     * approved the receipt, so the feed parked the debit in Suspense and credited the card on its own.
+     *
+     * Approving the expense afterwards must drain that parked amount rather than credit the card a second
+     * time — one real charge, one credit. Only the approval side can ask this question, because until it
+     * runs there is no approved expense for the feed to find.
+     *
+     * Deliberately not filtered on match_status: a REVIEW row is unmatched by definition, and an
+     * AMBIGUOUS one is a shortlist nobody has chosen from. What disqualifies a row is having been
+     * explained already — linked to something, or its Suspense drained.
+     */
+    public function findSuspendedChargeFor(Expense $expense): ?BankTransaction
+    {
+        $cardAccountIds = BankAccount::query()
+            ->where('apps_id', $expense->apps_id)
+            ->where('companies_id', $expense->companies_id)
+            ->whereHas(
+                'glAccount',
+                fn ($query) => $query->where('account_sub_type', $expense->paid_by->creditAccountSubType()->value)
+            )
+            ->pluck('id');
+
+        if ($cardAccountIds->isEmpty()) {
+            return null;
+        }
+
+        $total = (float) $expense->total_native;
+        $window = $expense->expense_date;
+
+        // Narrowed in SQL rather than filtered in PHP: this runs on EVERY expense approval, and the
+        // unfiltered set is every unmatched statement row the company has ever had.
+        $candidates = BankTransaction::query()
+            ->with('bankAccount.glAccount')
+            ->whereIn('bank_account_id', $cardAccountIds)
+            ->where('apps_id', $expense->apps_id)
+            ->where('companies_id', $expense->companies_id)
+            ->where('is_deleted', false)
+            ->whereNotNull('journal_entry_id')
+            ->whereNull('matched_to_id')
+            ->whereBetween('amount_native', [$total - self::AMOUNT_TOLERANCE, $total + self::AMOUNT_TOLERANCE])
+            ->whereBetween('transaction_date', [
+                $window->copy()->subDays(self::DATE_PROXIMITY_DAYS),
+                $window->copy()->addDays(self::DATE_PROXIMITY_DAYS),
+            ])
+            ->get();
+
+        foreach ($candidates as $candidate) {
+            // An expense credits an account when money LEAVES. A deposit can never be one.
+            if ($candidate->direction->isMoneyIn()) {
+                continue;
+            }
+
+            // A recognized category never went to Suspense — it booked straight to its own P&L account,
+            // so there is nothing parked and the approval JE is the only entry this charge should get.
+            if ($candidate->category->isRecognized()) {
+                continue;
+            }
+
+            if (! $this->datedNear($candidate, $expense->expense_date)) {
+                continue;
+            }
+
+            return $candidate;
         }
 
         return null;

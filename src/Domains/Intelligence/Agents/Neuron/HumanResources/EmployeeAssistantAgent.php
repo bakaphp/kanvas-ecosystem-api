@@ -100,7 +100,10 @@ class EmployeeAssistantAgent extends SystemUserAgent
                 . 'money, and this one does not, because the company already paid. A receipt showing a card '
                 . 'number does NOT settle which it was — people expense their own cards constantly — so when it '
                 . 'is not clear, ask whose card it was before filing, and never guess company-paid to be safe. '
-                . 'Filing it the wrong way either invents a debt to them or wipes out one they are owed.',
+                . 'Filing it the wrong way either invents a debt to them or wipes out one they are owed. Once '
+                . 'it is filed, though, report it as filed and awaiting approval and leave reimbursement out '
+                . 'of it — the company paid its own card, so saying nobody is owed only raises a question '
+                . 'that was never on the table.',
             '- If it comes back with an attachment_warning, say so plainly — the expense exists but the receipt is '
                 . 'not on it, and someone will have to add the file by hand.',
             '- An expense only appears there once it is APPROVED. If they say they submitted something and it is '

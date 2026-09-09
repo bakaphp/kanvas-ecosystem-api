@@ -221,6 +221,104 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
     }
 
     /**
+     * A restaurant receipt filed from chat carries a merchant NAME and no vendor Organization, so the
+     * policy's organization_approver step resolves nobody. The request is still written — deliberately,
+     * so a misconfigured step sticks rather than disappearing — but with `metadata.unassigned` set and
+     * no approver, which means the expense can never post and the charge strands in Suspense once its
+     * statement row lands. This is the shape every agent-filed card expense has.
+     */
+    public function test_an_expense_with_no_vendor_organization_strands_without_a_fallback(): void
+    {
+        $this->seedPolicy(
+            Expense::class,
+            'approve_expense',
+            'vendor',
+            ApproveExpenseHandler::class,
+        );
+
+        $request = $this->submitVendorlessExpense()->pendingApproval();
+
+        $this->assertNotNull($request, 'The request is opened either way — that is the point.');
+        $this->assertSame([], $request->pendingApproverEmails());
+        $this->assertTrue($request->metadata['unassigned'] ?? false);
+    }
+
+    public function test_the_fallback_resolver_gives_a_vendorless_expense_someone_to_approve_it(): void
+    {
+        $this->seedPolicy(
+            Expense::class,
+            'approve_expense',
+            'vendor',
+            ApproveExpenseHandler::class,
+            fallbackResolver: 'company_owner',
+        );
+
+        $request = $this->submitVendorlessExpense()->pendingApproval();
+
+        $this->assertNotEmpty($request->pendingApproverEmails());
+        $this->assertFalse($request->metadata['unassigned'] ?? false);
+        $this->assertSame([$this->company->user->email], $request->pendingApproverEmails());
+    }
+
+    /**
+     * The rescue for requests ALREADY stranded. Approver rows are written once, at request time, so
+     * backfilling the policy's fallback does nothing for a request that was saved with nobody on it —
+     * every expense filed before the fix would otherwise stay unapprovable forever.
+     *
+     * allow_authority_override is read by ApproverSelfAssignService when someone tries to DECIDE, not
+     * when the request was written, so flipping it on the policy reaches backwards. That is what makes a
+     * data-fixing command unnecessary.
+     */
+    public function test_an_owner_can_take_a_request_that_was_already_stranded(): void
+    {
+        $policy = $this->seedPolicy(
+            Expense::class,
+            'approve_expense',
+            'vendor',
+            ApproveExpenseHandler::class,
+        );
+
+        $expense = $this->submitVendorlessExpense();
+        $request = $expense->pendingApproval();
+        $this->assertSame([], $request->pendingApproverEmails(), 'Stranded exactly as it is in production.');
+
+        // Nothing touches the request — only the policy it reads at decision time.
+        $policy->allow_authority_override = true;
+        $policy->saveOrFail();
+
+        new ApproveAction($request->refresh(), $this->company->user)->execute();
+
+        $this->assertSame(ApprovalStatusEnum::APPROVED, $request->refresh()->status);
+        $this->assertSame(ExpenseStatusEnum::APPROVED, $expense->refresh()->status);
+        $this->assertNotEmpty($request->metadata['self_assigned_approvers'] ?? [], 'Who took it stays on the record.');
+    }
+
+    private function submitVendorlessExpense(): Expense
+    {
+        $draft = new CreateExpenseAction(
+            data: new ExpenseData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                lines: new DataCollection(ExpenseLineData::class, [
+                    new ExpenseLineData(
+                        description: 'Mouthwash for the office',
+                        amount_native: 4.19,
+                        expense_account_id: $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS),
+                    ),
+                ]),
+                expense_date: Carbon::parse('2026-06-15'),
+                currency: 'USD',
+                fx_rate_to_base: 1.0,
+                paid_by: ExpensePaidByEnum::COMPANY_CARD,
+                vendor_display_name: 'CVS Pharmacy',
+            ),
+            user: static::$cachedUser,
+        )->execute();
+
+        return new SubmitExpenseForApprovalAction($draft, static::$cachedUser)->execute();
+    }
+
+    /**
      * The cutover: with a policy in place the tool must route through the generic engine and still
      * return the exact shape Apex's guidance reads.
      */
@@ -377,7 +475,9 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
         string $model,
         string $approvalType,
         string $relation,
-        string $handler
+        string $handler,
+        ?string $fallbackResolver = null,
+        bool $allowAuthorityOverride = false,
     ): ApprovalPolicy {
         return ApprovalPolicy::create([
             'apps_id' => $this->kanvasApp->getId(),
@@ -391,6 +491,8 @@ class GenericApprovalDualWriteTest extends ScribeTestCase
                 'required_approvals' => 1,
             ]],
             'handler' => $handler,
+            'fallback_resolver' => $fallbackResolver,
+            'allow_authority_override' => $allowAuthorityOverride,
             'trigger' => ApprovalTriggerEnum::MANUAL,
         ]);
     }

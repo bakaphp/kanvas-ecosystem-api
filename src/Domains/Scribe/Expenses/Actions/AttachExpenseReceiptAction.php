@@ -47,6 +47,9 @@ class AttachExpenseReceiptAction
             $receipt->metadata = $this->metadata;
             $receipt->save();
 
+            // Keyed per receipt, never a constant 'receipt': with filesystem_allow_duplicate_files_by_name
+            // off (the default) AttachFilesystemAction rebinds the row already holding that field_name
+            // rather than adding one, so a second receipt would silently replace the first under `files`.
             $this->expense->addFile($this->filesystem, 'receipt_' . $receipt->getKey());
 
             return $receipt->refresh();
