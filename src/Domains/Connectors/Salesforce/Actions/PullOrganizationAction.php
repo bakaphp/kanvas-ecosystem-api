@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Models\OrganizationType;
 
 class PullOrganizationAction
 {
@@ -39,6 +40,15 @@ class PullOrganizationAction
                     $organization->apps_id = $this->app->getId();
                     $organization->companies_id = $this->company->getId();
                     $organization->users_id = $this->company->user->getId();
+                    // Only stamped on creation — an existing Organization keeps whatever type a
+                    // user already assigned it in the UI, sync never overwrites that back to default.
+                    $organization->organization_type_id = OrganizationType::query()
+                        ->fromApp($this->app)
+                        ->fromCompany($this->company)
+                        ->where('is_default', 1)
+                        ->notDeleted()
+                        ->first()
+                        ?->getId();
                 }
 
                 $organization->name = (string) ($this->payload['Name'] ?? $organization->name ?? 'Unknown Account');
