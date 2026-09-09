@@ -5,28 +5,23 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Baka\Support\Str;
-use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\FilesExpenseForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesFilesystemForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use Kanvas\Scribe\Expenses\Actions\AttachExpenseReceiptAction;
 use Kanvas\Scribe\Expenses\Actions\CreateExpenseAction;
 use Kanvas\Scribe\Expenses\Actions\SubmitExpenseForApprovalAction;
 use Kanvas\Scribe\Expenses\DataTransferObject\Expense as ExpenseData;
-use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseLine as ExpenseLineData;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
-use Kanvas\Scribe\Expenses\Models\Expense;
-use Kanvas\Scribe\PdfIngest\Traits\ExtractsPdfPayloadValuesTrait;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
-use Spatie\LaravelData\DataCollection;
 use Throwable;
 
 /**
@@ -36,12 +31,13 @@ use Throwable;
  * is a parameter. That is the point of the tool rather than a convenience: it is what creates the
  * Due to Employees liability, and it is what stops a model from filing someone else's expense or
  * quietly booking a personal outlay as company-paid (which would leave the employee owed money with
- * nothing on the books saying so).
+ * nothing on the books saying so). A charge the company itself paid is the sibling tool,
+ * record_company_card_expense — a different credit, so a different tool rather than an argument.
  */
 #[AgentTool(name: 'Submit My Expense', category: 'accounting')]
 class SubmitMyExpenseTool extends Tool implements HasRunKey
 {
-    use ExtractsPdfPayloadValuesTrait;
+    use FilesExpenseForTool;
     use HasKanvasContext;
     use ReportsToolOutcome;
     use RequiresHumanCaller;
@@ -54,9 +50,10 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
             name: 'submit_my_expense',
             description: 'Files an expense YOU paid out of pocket and submits it for approval — a client dinner, a '
                 . 'taxi, a hotel, anything you covered personally and want reimbursed. Always files it as paid by '
-                . 'the person you are talking to, so never call it on behalf of someone else. Read the receipt with '
-                . 'extract_expense_receipt first when there is one, and confirm the amount with the person before '
-                . 'filing.',
+                . 'the person you are talking to, so never call it on behalf of someone else, and not for a '
+                . 'charge the company already paid on its own card — that is record_company_card_expense. Read '
+                . 'the receipt with extract_expense_receipt first when there is one, and confirm the amount with '
+                . 'the person before filing.',
         );
     }
 
@@ -136,22 +133,16 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
             return $user;
         }
 
-        if ($amount <= 0) {
-            return $this->invalidArgs(
-                'An expense needs an amount greater than zero.',
-                ['status' => 'invalid_amount'],
-                guidance: 'Ask the person for the amount before calling again.',
-            );
+        $refusal = $this->nonPositiveAmountRefusal($amount);
+
+        if ($refusal !== null) {
+            return $refusal;
         }
 
-        $expenseAccountId = $this->resolveDefaultExpenseAccountId();
+        $expenseAccountId = $this->expenseAccountOrDenial();
 
-        if ($expenseAccountId === null) {
-            return $this->denied(
-                'This company\'s chart of accounts has no expense account to book this against.',
-                ['status' => 'no_expense_account'],
-                guidance: 'Say the expense was NOT filed and that Finance needs to set up an expense account.',
-            );
+        if (is_array($expenseAccountId)) {
+            return $expenseAccountId;
         }
 
         $tax = $tax_amount ?? 0.0;
@@ -161,14 +152,12 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
                 data: new ExpenseData(
                     app: $this->app,
                     company: $this->company,
-                    lines: new DataCollection(ExpenseLineData::class, [
-                        new ExpenseLineData(
-                            description: $description,
-                            amount_native: $amount - $tax,
-                            expense_account_id: $expenseAccountId,
-                            tax_amount_native: $tax,
-                        ),
-                    ]),
+                    lines: $this->singleExpenseLine(
+                        $description,
+                        $amount,
+                        $tax,
+                        $expenseAccountId,
+                    ),
                     expense_date: $expense_date !== null ? Carbon::parse($expense_date) : Carbon::today(),
                     currency: $currency ?? 'USD',
                     fx_rate_to_base: 1.0,
@@ -192,7 +181,7 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
             );
         }
 
-        $attachmentWarning = $this->attachReceipt($expense, $filesystem_id, $user);
+        $attachmentWarning = $this->attachExpenseReceipt($expense, $filesystem_id, $user);
 
         $submitted = new SubmitExpenseForApprovalAction(
             expense: $expense,
@@ -213,35 +202,5 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
                     . 'you once a manager approves it.',
             ], fn (mixed $value): bool => $value !== null),
         );
-    }
-
-    /**
-     * A receipt that fails to attach must not sink an otherwise valid expense — the amount is already
-     * on the books and the file can be added later, so this reports rather than throws.
-     */
-    private function attachReceipt(Expense $expense, ?int $filesystemId, UserInterface $user): ?string
-    {
-        if ($filesystemId === null) {
-            return null;
-        }
-
-        $receipt = $this->findTenantFile($filesystemId);
-
-        if ($receipt === null) {
-            return "No file with filesystem_id {$filesystemId} for this app — the expense was filed without it.";
-        }
-
-        try {
-            new AttachExpenseReceiptAction(
-                expense: $expense,
-                filesystem: $receipt,
-                user: $user,
-                metadata: ['attached_via' => 'agent'],
-            )->execute();
-        } catch (Throwable $e) {
-            return 'The expense was filed but the receipt could not be attached: ' . $e->getMessage();
-        }
-
-        return null;
     }
 }
