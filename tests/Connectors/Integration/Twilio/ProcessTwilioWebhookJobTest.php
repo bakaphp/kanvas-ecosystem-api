@@ -144,6 +144,43 @@ class ProcessTwilioWebhookJobTest extends TestCase
         );
     }
 
+    public function testProcessHelpSuppressesTheAgentTurnBecauseTwilioAnswersItItself(): void
+    {
+        $phone = '+1' . fake()->numerify('##########');
+
+        $result = $this->dispatchWebhookJob($this->buildTwilioPayload([
+            'From' => $phone,
+            'Body' => 'HELP',
+            'OptOutType' => 'HELP',
+        ]));
+
+        // Twilio replies to HELP with the carrier advisory on its own. An agent turn on top is a
+        // second message the customer did not ask for.
+        $this->assertSame('HELP', $result[0]['consent_type']);
+        $this->assertTrue($result[0]['automated_response_suppressed']);
+        $this->assertTrue(Cache::has(
+            "workflow_job:message_batch:{$this->receiver->getId()}:{$phone}:cancelled"
+        ));
+    }
+
+    public function testProcessAffirmativeYesIsNotTreatedAsAConsentEvent(): void
+    {
+        $phone = '+1' . fake()->numerify('##########');
+
+        $result = $this->dispatchWebhookJob($this->buildTwilioPayload([
+            'From' => $phone,
+            'Body' => 'yes',
+        ]));
+
+        // "YES" is in Twilio's START set, but from someone who was never opted out it is just an
+        // affirmative — "yes, book me in". The agent must still answer.
+        $this->assertNull($result[0]['consent_type']);
+        $this->assertFalse($result[0]['automated_response_suppressed']);
+        $this->assertFalse(Cache::has(
+            "workflow_job:message_batch:{$this->receiver->getId()}:{$phone}:cancelled"
+        ));
+    }
+
     public function testProcessIncomingSmsWithMediaAttachesToLead(): void
     {
         Http::fake([

@@ -203,4 +203,89 @@ final class ConsentKeywordServiceTest extends TestCaseUnit
 
         $this->assertTrue(ConsentKeywordService::matchesNoContactPhrase($body));
     }
+
+    public static function ambiguousStopKeywordProvider(): array
+    {
+        return [
+            'cancel' => ['CANCEL'],
+            'cancel lowercase' => ['cancel'],
+            'cancel punctuated' => ['Cancel.'],
+            'end' => ['END'],
+            'end lowercase' => ['end'],
+        ];
+    }
+
+    /**
+     * Both are FCC keywords, so they are honored like any other — but they are also what someone
+     * writes to cancel an appointment, and the opt-out they trigger is person-wide across every
+     * channel and lead. The tier is what puts the review prompt on the lead note.
+     */
+    #[DataProvider('ambiguousStopKeywordProvider')]
+    public function testAmbiguousStopKeywordsStillStopButAreFlaggedForReview(string $body): void
+    {
+        $this->assertSame(ConsentSignalEnum::STOP, ConsentKeywordService::detect($body));
+        $this->assertTrue(ConsentKeywordService::stopKeywordIsAmbiguous($body));
+    }
+
+    public static function unambiguousStopKeywordProvider(): array
+    {
+        return [
+            'stop' => ['STOP'],
+            'unsubscribe' => ['unsubscribe'],
+            'stopall' => ['STOPALL'],
+            'quit' => ['QUIT'],
+            'revoke' => ['revoke'],
+            'optout' => ['opt-out'],
+        ];
+    }
+
+    #[DataProvider('unambiguousStopKeywordProvider')]
+    public function testUnambiguousStopKeywordsNeedNoReview(string $body): void
+    {
+        $this->assertSame(ConsentSignalEnum::STOP, ConsentKeywordService::detect($body));
+        $this->assertFalse(ConsentKeywordService::stopKeywordIsAmbiguous($body));
+    }
+
+    public function testAnOrdinaryMessageIsNotAnAmbiguousKeyword(): void
+    {
+        $this->assertFalse(ConsentKeywordService::stopKeywordIsAmbiguous('can we cancel the 3pm and meet Friday?'));
+        $this->assertFalse(ConsentKeywordService::stopKeywordIsAmbiguous(null));
+    }
+
+    public function testExtractReasonDropsTheQuotedThreadAndSignature(): void
+    {
+        $body = <<<'EMAIL'
+            Please take me off your list.
+
+            --
+            Jane Doe · VP Sales · 809-555-0147
+
+            > On Mon, Sep 7, 2026, sales@dealer.com wrote:
+            > Following up on the Civic you looked at. Financing is approved at 6.9%.
+            EMAIL;
+
+        $this->assertSame(
+            'Please take me off your list.',
+            ConsentKeywordService::extractReason($body),
+        );
+    }
+
+    /**
+     * The reason is stored on the person, on every one of their leads, and in a lead note, so a
+     * body with no signature to stop at still must not write an unbounded blob.
+     */
+    public function testExtractReasonClampsALongBody(): void
+    {
+        $reason = ConsentKeywordService::extractReason(str_repeat('remove me from your list. ', 200));
+
+        $this->assertNotNull($reason);
+        $this->assertLessThanOrEqual(ConsentKeywordService::MAX_REASON_LENGTH + 3, mb_strlen($reason));
+    }
+
+    public function testExtractReasonIsNullWhenThereIsNothingToStore(): void
+    {
+        $this->assertNull(ConsentKeywordService::extractReason(null));
+        $this->assertNull(ConsentKeywordService::extractReason('   '));
+        $this->assertNull(ConsentKeywordService::extractReason("> only a quoted line\n> and another"));
+    }
 }

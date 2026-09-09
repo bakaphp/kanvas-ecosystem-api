@@ -111,9 +111,18 @@ class ExpenseSummaryRepository
                 'label' => $line->expenseAccount?->name ?? "Account {$accountId}",
                 'expense_count' => 0,
                 'total' => 0.0,
+                // Counting rows here would make expense_count mean something different from the
+                // same field on by_employee / by_paid_by — a 3-line expense on one account would
+                // report as 3. Dedup on the expense so every group's count is a count of expenses.
+                'expense_ids' => [],
             ];
-            $byAccount[$accountId]['expense_count']++;
+            $byAccount[$accountId]['expense_ids'][(int) $line->expense_id] = true;
             $byAccount[$accountId]['total'] += (float) $line->amount_base + (float) $line->tax_amount_base;
+        }
+
+        foreach ($byAccount as $accountId => $bucket) {
+            $byAccount[$accountId]['expense_count'] = count($bucket['expense_ids']);
+            unset($byAccount[$accountId]['expense_ids']);
         }
 
         return $this->toGroups($byAccount);

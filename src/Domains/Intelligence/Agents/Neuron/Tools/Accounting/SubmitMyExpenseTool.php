@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -171,6 +172,7 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
                     expense_date: $expense_date !== null ? Carbon::parse($expense_date) : Carbon::today(),
                     currency: $currency ?? 'USD',
                     fx_rate_to_base: 1.0,
+                    vendor_display_name: Str::trimToNull($merchant),
                     paid_by: ExpensePaidByEnum::EMPLOYEE_PERSONAL,
                     paid_by_users_id: $user->getId(),
                     notes: $description,
@@ -188,11 +190,6 @@ class SubmitMyExpenseTool extends Tool implements HasRunKey
                 ['status' => 'not_created'],
                 guidance: 'Say plainly that the expense was NOT filed.',
             );
-        }
-
-        if ($merchant !== null) {
-            $expense->vendor_display_name = $merchant;
-            $expense->save();
         }
 
         $attachmentWarning = $this->attachReceipt($expense, $filesystem_id, $user);

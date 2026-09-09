@@ -72,6 +72,11 @@ class CreateExpenseAction
                 $expense->vendor_organization_id = $this->data->vendor->getPayeeId();
             }
 
+            // The exception to "snapshot fields stay null until Approval": a merchant with no
+            // Organization behind it has nothing else to carry its name, and the expense would show
+            // as blank in the list until someone approved it.
+            $expense->vendor_display_name = $this->data->vendor_display_name;
+
             $expense->save();
 
             $sortOrder = 0;

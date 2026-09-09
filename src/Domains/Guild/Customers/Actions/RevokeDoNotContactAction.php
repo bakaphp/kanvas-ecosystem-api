@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Actions;
 
-use Illuminate\Support\Facades\DB;
 use Kanvas\Guild\Customers\DataTransferObject\ConsentOutcome;
 use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Enums\ConsentSignalEnum;
@@ -36,9 +35,7 @@ final class RevokeDoNotContactAction
             return new ConsentOutcome(signal: ConsentSignalEnum::START);
         }
 
-        [$contactsOptedIn, $leadsCleared] = DB::connection('crm')->transaction(
-            fn (): array => $this->clear(),
-        );
+        [$contactsOptedIn, $leadsCleared] = $this->clear();
 
         return new ConsentOutcome(
             signal: ConsentSignalEnum::START,
@@ -49,12 +46,17 @@ final class RevokeDoNotContactAction
     }
 
     /**
+     * Not transactional, for the same reason as ApplyDoNotContactAction: the flags are custom
+     * fields on `ecosystem` and the contact rows are on `crm`, so one transaction cannot span them.
+     *
+     * Ordered the opposite way round, though. Here the person-level flag is cleared LAST, so a
+     * failure part way through leaves the person still silenced rather than half re-subscribed —
+     * for a revocation the safe direction to fail is "stays opted out".
+     *
      * @return array{0: int, 1: int} contacts opted back in, leads cleared
      */
     private function clear(): array
     {
-        $this->people->set(ConsentConfigurationEnum::DO_NOT_CONTACT->value, 0);
-
         $contactsOptedIn = $this->optInSourceContact();
 
         $leadsCleared = 0;
@@ -70,8 +72,15 @@ final class RevokeDoNotContactAction
             // lead-type / company default, which is where the lead was before it was silenced.
             $lead->set(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value, false);
 
+            // The acknowledgement allowance is per revocation, not per lifetime — a stamp left
+            // standing silences the acknowledgement for every later stop request on this lead.
+            // Deleted, not set to null: the gate reads `get(...) !== null`, and a stored null passes.
+            $lead->del(ConsentConfigurationEnum::CONFIRMATION_SENT_AT->value);
+
             $leadsCleared++;
         }
+
+        $this->people->set(ConsentConfigurationEnum::DO_NOT_CONTACT->value, 0);
 
         return [$contactsOptedIn, $leadsCleared];
     }

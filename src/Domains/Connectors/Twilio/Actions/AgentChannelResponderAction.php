@@ -74,9 +74,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         // A customer who texts us cold still gets the clause on our first reply. Applied
         // before createMessage so the approval-hold branch stores the body it will ship.
-        if (SmsOptOutNoticeService::isFirstOutboundMessage($this->channel)) {
-            $responseText = SmsOptOutNoticeService::appendTo($responseText);
-        }
+        $responseText = SmsOptOutNoticeService::appendIfFirstOutbound($this->channel, $responseText);
 
         $to = Str::toE164(Str::replace('twilio-', '', $this->channel->slug));
         $to = $this->hijackMessagePhone($to);
