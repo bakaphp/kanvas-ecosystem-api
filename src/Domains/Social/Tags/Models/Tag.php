@@ -55,6 +55,44 @@ class Tag extends BaseModel
         return 'Tag';
     }
 
+    /**
+     * Tag input reaches us in three shapes: a GraphQL `[TagInput!]`
+     * (`[['name' => 'a']]`), a plain name list (`['a', 'b']`), and a raw CSV
+     * cell (`'a, b'`). Flatten all three to a de-duplicated name list here so
+     * every caller — mutations, importers, connectors — agrees on the shape.
+     */
+    public static function normalizeNames(mixed $tags): array
+    {
+        if (is_string($tags)) {
+            $tags = explode(',', $tags);
+        }
+
+        if (! is_array($tags)) {
+            return [];
+        }
+
+        $names = [];
+        foreach ($tags as $tag) {
+            $name = is_array($tag) ? ($tag['name'] ?? null) : $tag;
+
+            // addTag() takes a name or a tag id; anything else (a nested array,
+            // an object with no __toString) would fatal on the cast below.
+            if (! is_string($name) && ! is_int($name)) {
+                continue;
+            }
+
+            $name = is_string($name) ? trim($name) : $name;
+
+            if ($name === '') {
+                continue;
+            }
+
+            $names[(string) $name] = $name;
+        }
+
+        return array_values($names);
+    }
+
     public function taggables(): HasMany
     {
         return $this->hasMany(TagEntity::class, 'tags_id');

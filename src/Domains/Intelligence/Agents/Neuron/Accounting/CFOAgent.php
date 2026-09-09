@@ -11,6 +11,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryBalanceSheetTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryCashPositionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDueToEmployeesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryExpenseReportTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryPnlTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryRecentExpensesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryTrialBalanceTool;
@@ -56,6 +58,8 @@ class CFOAgent extends BaseRagAgent
             new TopLatePayersTool(),
             new QueryCashPositionTool(),
             new QueryRecentExpensesTool(),
+            new QueryDueToEmployeesTool(),
+            new QueryExpenseReportTool(),
         ]));
     }
 
@@ -79,6 +83,12 @@ class CFOAgent extends BaseRagAgent
             'For "who owes us money" / "who is late" questions, use top_late_payers or list_overdue_invoices.',
             'For "how much cash do we have", use query_cash_position — sums every active Cash-class account.',
             'For "what did we spend on lately", use query_recent_expenses with a reasonable days_back default.',
+            'For "what do we owe our own staff" / "who is waiting on a reimbursement", use query_due_to_employees. '
+            . 'That liability is Due to Employees, a separate account from Accounts Payable — never fold it into '
+            . 'AP numbers or answer it with query_ap_aging.',
+            'For "what did we spend on X last month" / an expense report for a period / the employee-paid vs '
+            . 'company-paid split, use query_expense_report. It counts approved expenses only, so say so when '
+            . 'the number looks lower than someone expects — pending claims are not in it.',
             'When the user asks about a specific date range, use the user\'s date range — never substitute today.',
         ];
 

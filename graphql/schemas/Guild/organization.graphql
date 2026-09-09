@@ -6,14 +6,10 @@ type Organization {
     name: String!
     email: String
     phone: String
-    "Legacy free-text address. Kept for the code that still reads it — use `addresses` for anything structured (invoicing, shipping, external billing APIs)."
     address: String
-    "Structured addresses — typically one Billing and one Shipping. This is what Scribe invoices and external billing APIs read."
     addresses: [OrganizationAddress!]! @hasMany(relation: "addresses")
-    "The address an invoice bills to: the one tagged Billing, else the default, else whichever exists."
     billing_address: OrganizationAddress @method(name: "billingAddress")
     organization_type: OrganizationType @belongsTo(relation: "organizationType")
-    "The Kanvas Users who may approve this organization's AP/AR items."
     approvers: [OrganizationApprover!]! @hasMany(relation: "approvers")
     leads: [Lead!]!
         @paginate(

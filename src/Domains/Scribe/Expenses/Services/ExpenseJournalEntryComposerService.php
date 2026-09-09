@@ -40,7 +40,15 @@ class ExpenseJournalEntryComposerService
     ) {
     }
 
-    public function composeApproval(Expense $expense): JournalEntryData
+    /**
+     * `$creditAccountOverride` is for the charge the bank feed already booked. The feed credits the card
+     * the moment the statement row lands, whether or not a human has approved the receipt yet, and parks
+     * the debit in Suspense. Crediting the card again here would credit one real charge twice, so the
+     * approval instead drains Suspense: same per-line debits, `CR Suspense` in place of `CR <paid_by>`.
+     * Composed here rather than through ReclassifySuspenseAction because that one drains to a SINGLE
+     * account, and an expense may spread across several.
+     */
+    public function composeApproval(Expense $expense, ?Account $creditAccountOverride = null): JournalEntryData
     {
         $app = $expense->app;
         $company = $expense->company;
@@ -86,7 +94,7 @@ class ExpenseJournalEntryComposerService
 
         // Single CR line on the credit side — totals to the expense total. The credit account depends on
         // paid_by; the employee-paid case tags the line with the user_id so reporting can sum "Due to Juan".
-        $creditAccount = $this->resolveCreditAccount($expense);
+        $creditAccount = $creditAccountOverride ?? $this->resolveCreditAccount($expense);
         $totalNative = (float) $expense->total_native;
         $totalBase = (float) $expense->total_base;
 
@@ -105,7 +113,10 @@ class ExpenseJournalEntryComposerService
         // For employee-paid expenses, tag the credit line with the user via vendor_billable so reports can
         // sum "Due to Employees" by user. Stored on the vendor_billable_* columns since "the company owes
         // user X" is structurally vendor-shaped.
-        if ($expense->paid_by === ExpensePaidByEnum::EMPLOYEE_PERSONAL && $expense->paid_by_users_id !== null) {
+        if ($creditAccountOverride === null
+            && $expense->paid_by === ExpensePaidByEnum::EMPLOYEE_PERSONAL
+            && $expense->paid_by_users_id !== null
+        ) {
             $creditLine = new JournalEntryLineData(
                 account_id: $creditAccount->id,
                 debit_native: 0.0,

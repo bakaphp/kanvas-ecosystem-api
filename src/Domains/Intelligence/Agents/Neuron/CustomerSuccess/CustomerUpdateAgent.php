@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\AddOrganizationNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CustomerSuccess\GetKanvasReleaseUpdatesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Social\ReadChannelWindowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadEntityContextTool;
+use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\Users\Models\Users;
 use Override;
 
@@ -121,6 +122,10 @@ class CustomerUpdateAgent extends SystemUserAgent
             $tools[] = new ReadEntityContextTool($this->entity);
         }
 
-        return $tools;
+        return $this->mergeRegisteredTools(
+            $tools,
+            $this->agent,
+            CapabilityFrameworkEnum::NEURON,
+        );
     }
 }

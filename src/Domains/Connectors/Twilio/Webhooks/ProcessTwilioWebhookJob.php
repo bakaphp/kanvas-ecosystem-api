@@ -13,19 +13,24 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Twilio\Actions\DownloadMessageFileAction;
 use Kanvas\Connectors\Twilio\Services\WebhookSignatureValidator;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Guild\Customers\Actions\ProcessInboundConsentAction;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
+use Kanvas\Guild\Customers\Enums\ConsentSignalEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\People as PeopleModel;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Guild\Customers\Services\ConsentKeywordService;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
+use Kanvas\Guild\Leads\Actions\SendOptOutConfirmationAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
@@ -94,6 +99,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         $isFromMe = $request['From'] === $request['To'];
         $consentType = $this->consentType($request);
+        $consentOutcome = null;
         $batch = Cache::get($batchKey, [
                         'messages' => [],
                         'first_message_time' => now(),
@@ -102,14 +108,20 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         if (! $isFromMe) {
             $people = $this->processContactFromMessage($request);
-            if ($consentType === 'STOP') {
-                $people->setPhoneOptOut((string) $request['From']);
-            } elseif ($consentType === 'START') {
-                $people->setPhoneOptOut((string) $request['From'], false);
-            }
 
             $lead = $this->createLeadFromPeople($people);
             $lead->set(LeadsEnumsConfigurationEnum::IS_ENGAGEMENT->value, true);
+
+            // After the lead exists: a stop request is person-wide and every outbound guard reads
+            // the lead, so the lead has to be there for the flag to land anywhere useful.
+            $consentOutcome = new ProcessInboundConsentAction(
+                people: $people,
+                sourceChannel: LeadCommunicationChannelEnum::SMS->value,
+                body: $request['Body'] ?? null,
+                lead: $lead,
+                contactValue: (string) $request['From'],
+                detectedSignal: $consentType,
+            )->execute();
         }
 
         $messageSlug = $this->createMessageSlug($request['SmsMessageSid'], $request['From']);
@@ -186,12 +198,27 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
         $channel->addMessage($message);
 
+        // Tag on any recognised keyword, but suppress the agent only for a real stop. A bare "YES"
+        // matches Twilio's START set and used to cancel the turn for everyone — including a prospect
+        // answering "yes, book me in", who then got silence back.
         if ($consentType !== null) {
             $message->addTag('twilio-consent');
-            $message->addTag(strtolower($consentType));
+            $message->addTag($consentType->value);
+        }
+
+        // HELP rides along with the stop case: Twilio answers it itself with the carrier advisory,
+        // so an agent turn on top is a second message nobody asked for. START is deliberately NOT
+        // here — someone asking to hear from us again should get a real reply.
+        $carrierAnswersItself = $consentOutcome?->signal === ConsentSignalEnum::HELP;
+
+        if ($consentOutcome?->shouldHaltAgentTurn() === true || $carrierAnswersItself) {
             $this->cancelPendingWorkflow($batchKey);
 
-            return [[
+            if (isset($lead) && $consentOutcome->applied) {
+                new SendOptOutConfirmationAction($lead, LeadCommunicationChannelEnum::SMS->value)->execute();
+            }
+
+            return [array_merge([
                 'message_id' => $message->getId(),
                 'uuid' => $message->uuid,
                 'channel_id' => $channel->getId(),
@@ -199,9 +226,13 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 'text' => $request['Body'] ?? '',
                 'is_from_me' => false,
                 'type' => $message->messageType->name,
-                'consent_type' => $consentType,
+                // From the outcome, not $consentType: a phrase-tier stop is recognised inside
+                // ProcessInboundConsentAction and leaves the keyword matcher's result null.
+                // Uppercase is the shape this payload has always had; the enum is lowercase because
+                // it also has to match Twilio's own OptOutType casing on the way in.
+                'consent_type' => strtoupper((string) $consentOutcome->signal?->value),
                 'automated_response_suppressed' => true,
-            ]];
+            ], $consentOutcome->toArray())];
         }
 
         for ($i = 0; isset($request["MediaUrl{$i}"]); $i++) {
@@ -265,7 +296,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         })->delay(now()->addSeconds($this->batchDelaySeconds));
 
         return [
-            [
+            array_merge([
                 'message_id' => $message->getId(),
                 'uuid' => $message->uuid,
                 'channel_id' => $channel->getId(),
@@ -273,7 +304,13 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 'text' => $request['Body'],
                 'is_from_me' => $request['From'] === $request['To'],
                 'type' => $messageTypeModel->name,
-            ],
+                // A recognised keyword that did not stop the conversation — START, HELP, or a "YES"
+                // from someone who was never opted out. Reported, but the agent still answers.
+                'consent_type' => $consentOutcome?->signal !== null
+                    ? strtoupper($consentOutcome->signal->value)
+                    : null,
+                'automated_response_suppressed' => false,
+            ], $consentOutcome?->toArray() ?? []),
         ];
     }
 
@@ -286,21 +323,17 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         Cache::put($workflowJobKey . ':cancelled', true, now()->addMinutes(15));
     }
 
-    protected function consentType(array $request): ?string
+    /**
+     * Twilio's own classification wins when present — it reflects what the carrier actually did to
+     * the number. Otherwise fall through to the shared matcher, which is the same keyword set every
+     * other inbound channel uses.
+     */
+    protected function consentType(array $request): ?ConsentSignalEnum
     {
-        $optOutType = strtoupper(trim((string) ($request['OptOutType'] ?? '')));
-        if (in_array($optOutType, ['STOP', 'START', 'HELP'], true)) {
-            return $optOutType;
-        }
+        $optOutType = strtolower(trim((string) ($request['OptOutType'] ?? '')));
+        $providerSignal = ConsentSignalEnum::tryFrom($optOutType);
 
-        $body = strtoupper(trim((string) ($request['Body'] ?? '')));
-
-        return match (true) {
-            in_array($body, ['STOP', 'STOPALL', 'UNSUBSCRIBE', 'CANCEL', 'END', 'QUIT'], true) => 'STOP',
-            in_array($body, ['START', 'YES', 'UNSTOP'], true) => 'START',
-            $body === 'HELP' => 'HELP',
-            default => null,
-        };
+        return $providerSignal ?? ConsentKeywordService::detect($request['Body'] ?? null);
     }
 
     public function createLeadFromPeople(PeopleModel $people): Lead
@@ -431,11 +464,13 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             custom_fields: [
                 'twilio_jid' => $phoneNumber,
             ],
-            tags: ['sms', 'twilio']
+            tags: ['sms', 'twilio'],
+            // We only know the number the SMS came from — anything else the person has
+            // (email, other phones) must survive the update.
+            mergeContacts: true
         );
 
         if ($existingCustomer) {
-            //$peopleDto->id = $existingCustomer->getId();
             return new UpdatePeopleAction($existingCustomer, $peopleDto)->execute();
         }
 

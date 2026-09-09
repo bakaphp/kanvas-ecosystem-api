@@ -61,6 +61,9 @@
     @if ($customer['legal_name'] && $customer['legal_name'] !== $customer['name'])
         <div class="muted">{{ $customer['legal_name'] }}</div>
     @endif
+    @if ($customer['attention'] ?? null)
+        <div class="muted">Attn: {{ $customer['attention'] }}</div>
+    @endif
     @foreach ($customer['address_lines'] as $line)
         <div class="muted">{{ $line }}</div>
     @endforeach

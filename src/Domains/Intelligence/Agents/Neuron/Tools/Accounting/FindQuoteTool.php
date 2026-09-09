@@ -79,6 +79,7 @@ class FindQuoteTool extends Tool implements HasRunKey
             'quote_id' => $quote->getId(),
             'quote_number' => $quote->quote_number,
             'customer' => $quote->billable_display_name ?? $quote->customer?->name,
+            'contact' => $quote->contact?->getDisplayName(),
             'status' => $quote->status->value,
             'currency' => $quote->currency,
             'subtotal' => $quote->subtotal_native,
