@@ -47,6 +47,8 @@ class AttachExpenseReceiptAction
             $receipt->metadata = $this->metadata;
             $receipt->save();
 
+            $this->expense->addFile($this->filesystem, 'receipt_' . $receipt->getKey());
+
             return $receipt->refresh();
         });
     }
