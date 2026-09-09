@@ -12,6 +12,7 @@ use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Actions\Outreach\PersistToolOutboundMessageAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use NeuronAI\Tools\PropertyType;
@@ -151,6 +152,16 @@ class SendEmailTool extends Tool
             ];
         }
 
+        $persisted = new PersistToolOutboundMessageAction(
+            lead: $lead,
+            user: $this->contextUser() ?? $lead->company->getAiAgentUserOrFail(),
+            channelType: LeadCommunicationChannelEnum::EMAIL->value,
+            recipient: $contact->value,
+            content: $body,
+            subject: $subject,
+            agent: $this->contextAgent(),
+        )->execute($sent);
+
         // First touch wins: the inbound Mailgun responder and the cron follow-up engine both read
         // title_email_follow_up as their outbound subject, so anchoring here is what keeps the reply
         // and every later follow-up in one email thread. Never overwrite an existing anchor.
@@ -184,6 +195,8 @@ class SendEmailTool extends Tool
             'cc_rejected' => $ccResult['rejected'],
             'subject' => $subject,
             'body_length' => strlen($body),
+            'message_id' => $persisted['message']->getId(),
+            'channel_id' => $persisted['channel']->getId(),
             'attachments_count' => $sent['attachments_count'] ?? 0,
             'note' => $note,
         ];
