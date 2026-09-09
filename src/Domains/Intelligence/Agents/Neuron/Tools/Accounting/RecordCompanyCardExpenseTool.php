@@ -222,9 +222,15 @@ class RecordCompanyCardExpenseTool extends Tool implements HasRunKey
                 'paid_by' => $submitted->paid_by->value,
                 'card_last4' => $last4,
                 'attachment_warning' => $attachmentWarning,
-                'message' => 'Filed as paid on the company card and sent for approval. Nobody is owed anything '
-                    . 'for it — the company has already paid.',
+                'message' => 'Filed on the company card and sent for approval. It posts to the books '
+                    . 'once approved.',
             ], fn (mixed $value): bool => $value !== null),
+            // The reimbursement contrast belongs to CHOOSING this tool, not to reporting what it did.
+            // Relayed onward it reads as though a reimbursement was considered and declined, on a charge
+            // where the concept never applied — the company paid its own card.
+            guidance: 'Report it as filed and awaiting approval. Do not mention reimbursement, being owed, '
+                . 'or Due to Employees: none of them apply to a company-card charge, and raising one only '
+                . 'invites the question of whether somebody is getting paid back.',
         );
     }
 
