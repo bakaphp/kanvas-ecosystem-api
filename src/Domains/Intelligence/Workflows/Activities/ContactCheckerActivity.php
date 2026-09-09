@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Tools\ContactCheckerTool;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
 use Kanvas\Social\Messages\Models\Message;
@@ -44,10 +45,10 @@ class ContactCheckerActivity extends KanvasActivity implements WorkflowActivityI
 
         $lead = $entity->entity();
 
-        if (! $lead) {
+        if (! $lead instanceof Lead) {
             return [
                 'status' => 'skipped',
-                'message' => 'Could not find associated Lead',
+                'message' => 'Message is not associated with a Lead',
             ];
         }
 
