@@ -293,21 +293,12 @@ class MatchBankTransactionAction
      */
     private function linkToBookedExpense(Expense $expense): void
     {
-        $this->bankTransaction->match_status = BankTransactionMatchStatusEnum::AUTO_MATCHED;
-        $this->bankTransaction->matched_to_type = BankTransactionMatchedToTypeEnum::EXPENSE;
-        $this->bankTransaction->matched_to_id = $expense->getId();
-        $this->bankTransaction->matched_at = Carbon::now();
-        $this->bankTransaction->matched_by = BankTransactionMatchedByEnum::SYSTEM;
-        $this->bankTransaction->journal_entry_id = $this->expenseJournalEntryId($expense);
-        $this->bankTransaction->save();
-
-        $this->bankTransaction->emitLedgerEvent('accounting.bank_transaction.matched', payload: [
-            'matched_to_type' => BankTransactionMatchedToTypeEnum::EXPENSE->value,
-            'expense_id' => $expense->getId(),
-            'expense_number' => $expense->expense_number,
-            'amount_native' => $this->bankTransaction->amount_native,
-            'already_booked' => true,
-        ]);
+        new LinkBankTransactionToExpenseAction(
+            bankTransaction: $this->bankTransaction,
+            expense: $expense,
+            journalEntryId: $this->expenseJournalEntryId($expense),
+            user: $this->user,
+        )->execute();
     }
 
     private function expenseJournalEntryId(Expense $expense): ?int

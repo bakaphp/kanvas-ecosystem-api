@@ -105,6 +105,33 @@ final class RecordCompanyCardExpenseToolTest extends ScribeTestCase
         $this->assertArrayNotHasKey($employeeAccount, $credits);
     }
 
+    /**
+     * The CEO's complaint, as a test. Reimbursement is how a caller CHOOSES between this tool and
+     * submit_my_expense; relayed onward it reads as though a reimbursement was weighed and refused on
+     * a charge where the concept never applied, which is worse than saying nothing at all.
+     */
+    public function test_says_nothing_about_reimbursement_when_reporting_a_card_charge(): void
+    {
+        $result = $this->record($this->seedTestEmployee('card-expense'), 4.19, 'Mouthwash');
+
+        $message = strtolower((string) $result['message']);
+
+        foreach (['reimburs', 'owed', 'due to employees'] as $term) {
+            $this->assertStringNotContainsString(
+                $term,
+                $message,
+                "The message a person sees must not raise '{$term}' on a company-card charge.",
+            );
+        }
+
+        $this->assertStringContainsString('approval', $message);
+        $this->assertStringContainsString(
+            'reimbursement',
+            strtolower((string) $result['note']),
+            'The model still has to be told to leave it out — that steer belongs in note, not in the message.',
+        );
+    }
+
     public function test_splits_tax_out_of_the_total_rather_than_adding_to_it(): void
     {
         $employee = $this->seedTestEmployee('card-expense');
