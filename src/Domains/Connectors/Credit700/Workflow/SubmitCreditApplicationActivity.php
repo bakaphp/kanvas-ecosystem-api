@@ -30,6 +30,10 @@ class SubmitCreditApplicationActivity extends KanvasActivity
             integration: IntegrationsEnum::CREDIT700,
             additionalParams: $params,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams): array {
+                // The engagement row is written by a separate flow that can still be in-flight when
+                // this activity picks up the message, so getEngagement() throws ModelNotFoundException.
+                sleep(20);
+
                 $result = new SubmitCreditApplicationAction($message)->execute();
 
                 return [
