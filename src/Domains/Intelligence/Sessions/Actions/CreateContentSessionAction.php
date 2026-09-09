@@ -184,13 +184,13 @@ class CreateContentSessionAction
 
     protected function mapPeople(People $people, ?Lead $lead = null): array
     {
-        $checkList = $lead !== null ? $this->generateChecklistEngagementUrls($lead) : [];
+        // $checkList = $lead !== null ? $this->generateChecklistEngagementUrls($lead) : [];
         $data = array_merge([
             'customerName' => null,
             'leadEmail' => null,
             'leadOwnerName' => null,
             'leadOwnerEmail' => null,
-        ], $checkList);
+        ], []);
 
         $similarRecommendedVehicles = [];
         $hasPotentialAdditionalVehicleInterest = false;
