@@ -19,25 +19,26 @@ class SecondaryAlgoliaIndexService
 {
     private SearchClient $client;
 
-    public function __construct(private Apps $app)
+    public function __construct(private Apps $app, ?SearchClient $client = null)
+    {
+        $this->client = $client ?? $this->buildClient();
+    }
+
+    public function indexProduct(Products $product, string $indexName): void
+    {
+        $this->client->saveObject($indexName, $product->toSearchableArray());
+    }
+
+    public function removeProduct(Products $product, string $indexName): void
+    {
+        $this->client->deleteObject($indexName, $product->uuid);
+    }
+
+    private function buildClient(): SearchClient
     {
         $searchSettings = $this->app->get('algolia_search_settings') ?? [];
         $credentials = SearchEngineResolver::algoliaCredentialsFromSettings($searchSettings);
 
-        $this->client = SearchClient::create($credentials['app_id'], $credentials['api_key']);
-    }
-
-    public function indexProduct(Products $product, string $indexName): bool
-    {
-        $this->client->saveObject($indexName, $product->toSearchableArray());
-
-        return true;
-    }
-
-    public function removeProduct(Products $product, string $indexName): bool
-    {
-        $this->client->deleteObject($indexName, $product->uuid);
-
-        return true;
+        return SearchClient::create($credentials['app_id'], $credentials['api_key']);
     }
 }

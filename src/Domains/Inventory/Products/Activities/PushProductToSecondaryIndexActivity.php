@@ -15,15 +15,12 @@ use RuntimeException;
 use Throwable;
 
 /**
- * Pushes a Product into a SECOND search index, independent of its normal `searchableAs()` index —
- * e.g. a product published to a specific channel (a dealer's "popular" publisher channel) also
- * needs to land in that channel's own dedicated index. `index_name` is required in $params; there
- * is no per-channel setting to fall back to, since which channel maps to which index is a decision
- * the caller (whatever fires this activity on channel-publish) already has to make.
+ * `index_name` has no per-channel setting to fall back to — which channel maps to which index is a
+ * decision the caller (whatever fires this activity on channel-publish) already has to make.
  *
- * `search_engine` defaults to 'algolia' — the only backend implemented so far. It is NOT resolved
- * from the tenant's `products_search_engine` app setting (unlike the normal single-index Scout
- * flow); the caller states explicitly which engine the secondary index lives on.
+ * `search_engine` is NOT resolved from the tenant's `products_search_engine` app setting (unlike the
+ * normal single-index Scout flow); the caller states explicitly which engine the secondary index
+ * lives on, since a product can be mirrored to a different backend than its primary index.
  */
 #[WorkflowAction(
     description: 'Pushes a Product into a secondary search index, separate from its normal single index — e.g. a channel-specific catalog.',
