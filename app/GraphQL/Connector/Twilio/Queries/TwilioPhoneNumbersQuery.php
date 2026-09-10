@@ -37,7 +37,7 @@ class TwilioPhoneNumbersQuery
         $ctx = $this->actingContext();
 
         try {
-            $numbers = new ListCompanyPhoneNumbersAction($ctx->company)->execute();
+            $numbers = new ListCompanyPhoneNumbersAction($ctx->company, $ctx->app)->execute();
         } catch (Throwable) {
             return [];
         }

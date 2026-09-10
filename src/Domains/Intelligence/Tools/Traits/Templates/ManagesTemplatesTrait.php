@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Filesystem\Services\PdfService;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Templates\Actions\CreateTemplateAction;
 use Kanvas\Templates\Actions\DeleteTemplateAction;
 use Kanvas\Templates\Actions\UpdateTemplateAction;
@@ -20,6 +21,8 @@ use Throwable;
 
 trait ManagesTemplatesTrait
 {
+    use ReportsToolOutcome;
+
     /**
      * @return array<string, mixed>
      */
@@ -34,7 +37,7 @@ trait ManagesTemplatesTrait
     ): array {
         $name = trim($name);
         if ($name === '' || trim($body) === '') {
-            return ['error' => 'Both a template name and an HTML body are required.'];
+            return $this->invalidArgs('Both a template name and an HTML body are required.');
         }
 
         $template = new CreateTemplateAction(
@@ -50,21 +53,26 @@ trait ManagesTemplatesTrait
         )->execute(overwrite: false);
 
         if (! $template->wasRecentlyCreated) {
-            return [
-                'error' => sprintf(
-                    'A template named "%s" already exists (#%d). Use update_template to change it.',
-                    $template->name,
-                    $template->getId()
-                ),
-            ];
+            return $this->noop(
+                [
+                    'success' => false,
+                    'error' => sprintf(
+                        'A template named "%s" already exists (#%d), so nothing was created.',
+                        $template->name,
+                        $template->getId()
+                    ),
+                    'template_id' => $template->getId(),
+                ],
+                guidance: 'Do NOT tell the user you created it. Either call update_template on that id, or '
+                    . 'create it under a different name.'
+            );
         }
 
-        return [
-            'success' => true,
+        return $this->ok([
             'template_id' => $template->getId(),
             'name' => $template->name,
             'message' => 'Template created. Use generate_template_pdf with this name to render it to a PDF.',
-        ];
+        ]);
     }
 
     /**
@@ -80,7 +88,7 @@ trait ManagesTemplatesTrait
         ?string $title = null,
     ): array {
         if ($body === null && $subject === null && $title === null) {
-            return ['error' => 'Nothing to update. Pass at least one of html, subject, or title.'];
+            return $this->invalidArgs('Nothing to update. Pass at least one of html, subject, or title.');
         }
 
         $owned = $this->resolveOwnedTemplate($app, $company, $user, $templateId);
@@ -95,12 +103,11 @@ trait ManagesTemplatesTrait
                 $title
             );
 
-        return [
-            'success' => true,
+        return $this->ok([
             'template_id' => $template->getId(),
             'name' => $template->name,
             'message' => 'Template updated.',
-        ];
+        ]);
     }
 
     /**
@@ -119,11 +126,10 @@ trait ManagesTemplatesTrait
 
         new DeleteTemplateAction($owned['template'])->execute();
 
-        return [
-            'success' => true,
+        return $this->ok([
             'template_id' => $templateId,
             'message' => 'Template deleted.',
-        ];
+        ]);
     }
 
     /**
@@ -140,16 +146,16 @@ trait ManagesTemplatesTrait
         array $data = [],
     ): array {
         if ($entity === null) {
-            return ['error' => 'There is no record in scope to attach the PDF to.'];
+            return $this->denied('There is no record in scope to attach the PDF to.');
         }
 
         if (! method_exists($entity, 'addFile')) {
-            return ['error' => 'The record in scope does not support file attachments.'];
+            return $this->denied('The record in scope does not support file attachments.');
         }
 
         $templateName = trim($templateName);
         if ($templateName === '') {
-            return ['error' => 'Provide the name of the template to render.'];
+            return $this->invalidArgs('Provide the name of the template to render.');
         }
 
         $fileName = $this->normalizePdfFileName($fileName ?? $templateName);
@@ -163,20 +169,22 @@ trait ManagesTemplatesTrait
                 array_merge(['app' => $app], $data)
             );
         } catch (Throwable $e) {
-            return ['error' => sprintf('Could not render template "%s": %s', $templateName, $e->getMessage())];
+            return $this->failed(
+                sprintf('Could not render template "%s": %s', $templateName, $e->getMessage()),
+                guidance: 'No PDF exists. Do NOT tell the user one was generated or attached.'
+            );
         }
 
         $entity->addFile($pdfFile, $fileName);
 
-        return [
-            'success' => true,
+        return $this->ok([
             'file_id' => $pdfFile->getId(),
             'file_url' => $pdfFile->url,
             'file_name' => $fileName,
             'entity' => class_basename($entity),
             'entity_id' => $entity->getKey(),
             'message' => 'PDF generated and attached to the record.',
-        ];
+        ]);
     }
 
     /**
@@ -199,18 +207,24 @@ trait ManagesTemplatesTrait
             ->limit(50)
             ->get();
 
-        return [
-            'success' => true,
-            'count' => $templates->count(),
-            'templates' => $templates->map(fn (Templates $template) => [
-                'template_id' => $template->getId(),
-                'name' => $template->name,
-                'subject' => $template->subject,
-                'title' => $template->title,
-                'owned' => $this->ownsTemplate($template, $user),
-                'is_system' => (bool) $template->is_system,
-            ])->all(),
-        ];
+        $rows = $templates->map(fn (Templates $template) => [
+            'template_id' => $template->getId(),
+            'name' => $template->name,
+            'subject' => $template->subject,
+            'title' => $template->title,
+            'owned' => $this->ownsTemplate($template, $user),
+            'is_system' => (bool) $template->is_system,
+        ])->all();
+
+        return $this->ok(
+            [
+                'count' => count($rows),
+                'templates' => $rows,
+            ],
+            guidance: $this->editabilityGuidance(
+                in_array(false, array_column($rows, 'owned'), true)
+            )
+        );
     }
 
     /**
@@ -228,19 +242,43 @@ trait ManagesTemplatesTrait
             ->first();
 
         if ($template === null) {
-            return ['error' => sprintf('Template #%d not found in this company.', $templateId)];
+            return $this->notFound([
+                'success' => false,
+                'error' => sprintf('Template #%d not found in this company.', $templateId),
+            ]);
         }
 
-        return [
-            'success' => true,
-            'template_id' => $template->getId(),
-            'name' => $template->name,
-            'subject' => $template->subject,
-            'title' => $template->title,
-            'html' => $template->template,
-            'owned' => $this->ownsTemplate($template, $user),
-            'is_system' => (bool) $template->is_system,
-        ];
+        $owned = $this->ownsTemplate($template, $user);
+
+        return $this->ok(
+            [
+                'template_id' => $template->getId(),
+                'name' => $template->name,
+                'subject' => $template->subject,
+                'title' => $template->title,
+                'html' => $template->template,
+                'owned' => $owned,
+                'is_system' => (bool) $template->is_system,
+            ],
+            guidance: $this->editabilityGuidance(! $owned)
+        );
+    }
+
+    /**
+     * What `owned: false` actually costs the agent, said in the read that surfaces the flag rather
+     * than only in the refusal that follows it. Without this the flag is a word the model can read
+     * past, then promise the user an edit that update_template will refuse.
+     */
+    private function editabilityGuidance(bool $anyUnowned): ?string
+    {
+        if (! $anyUnowned) {
+            return null;
+        }
+
+        return 'Anything with "owned": false was created by someone else: update_template and '
+            . 'delete_template WILL be refused on it and nothing will change. Never promise the user an '
+            . 'edit to one — say its owner has to make the change, or offer to create_template a new '
+            . 'template and hand back the new id.';
     }
 
     /**
@@ -283,16 +321,29 @@ trait ManagesTemplatesTrait
             /** @var Templates $template */
             $template = Templates::getByIdFromCompanyApp($templateId, $company, $app);
         } catch (Throwable) {
-            return ['error' => sprintf('Template #%d not found in this company.', $templateId)];
+            return $this->notFound([
+                'success' => false,
+                'error' => sprintf('Template #%d not found in this company.', $templateId),
+            ]);
         }
 
         if ($template->is_system) {
-            return ['error' => 'System templates cannot be modified or deleted.'];
+            return $this->denied(
+                sprintf('Template #%d is a system template and was NOT changed.', $templateId)
+            );
         }
 
         $ownerId = (int) $template->users_id;
         if ($ownerId === AppEnums::GLOBAL_USER_ID->getValue() || $ownerId !== $user->getId()) {
-            return ['error' => 'You can only modify or delete templates you created.'];
+            return $this->denied(
+                sprintf(
+                    'Template #%d belongs to someone else, so nothing was changed. You may only edit templates '
+                    . 'you created yourself.',
+                    $templateId
+                ),
+                guidance: 'Say explicitly that this template was NOT updated. Offer the alternatives: its owner '
+                    . 'can paste your HTML into it, or you can create_template a new one and hand back that id.'
+            );
         }
 
         return ['template' => $template];

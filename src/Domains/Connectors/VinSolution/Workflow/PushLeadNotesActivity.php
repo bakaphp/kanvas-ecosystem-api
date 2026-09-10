@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
-use Exception;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
@@ -47,7 +46,9 @@ class PushLeadNotesActivity extends KanvasActivity
         $lead = $message->entity();
 
         if (! $lead) {
-            throw new Exception('Lead not found');
+            return $this->failWorkflow([
+                'error' => 'Lead not found',
+            ]);
         }
 
         return $this->executeIntegration(

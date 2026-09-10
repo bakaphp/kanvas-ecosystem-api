@@ -18,6 +18,7 @@ use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Approvals\Models\ApprovalRequest;
+use Kanvas\Approvals\Services\ApproverSelfAssignService;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\NervousSystem\Ledger\Models\Event;
@@ -397,10 +398,81 @@ final class ApproveActionTest extends TestCase
     }
 
     /**
-     * @param list<array{required_approvals?: int, approvers?: int}> $stepSpecs
-     *
      * @return array{0: ApprovalRequest, 1: list<Users>, 2: ApprovableOrganization}
      */
+    /**
+     * The default, and the one that matters most: adopting approvals must never quietly make every
+     * admin an approver of everything. On a bill the approver list IS the control.
+     */
+    public function test_an_owner_cannot_decide_a_policy_that_did_not_opt_into_authority_override(): void
+    {
+        [$request] = $this->chain([['required_approvals' => 1, 'approvers' => 1]]);
+
+        /** @var Users $owner */
+        $owner = auth()->user();
+        $this->assertTrue($request->company->isOwner($owner));
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('not an approver');
+
+        new ApproveAction($request, $owner)->execute();
+    }
+
+    public function test_an_owner_may_decide_when_the_policy_opts_into_authority_override(): void
+    {
+        [$request] = $this->chain(
+            [['required_approvals' => 1, 'approvers' => 1]],
+            ['allow_authority_override' => true]
+        );
+
+        /** @var Users $owner */
+        $owner = auth()->user();
+
+        $result = new ApproveAction($request, $owner)->execute();
+
+        $this->assertSame(ApprovalOutcomeEnum::APPROVED, $result->outcome);
+        $this->assertSame($owner->getId(), $request->refresh()->resolved_by_users_id);
+
+        // Self-assigned, not waived: the decision is still backed by an approver row, and the row says
+        // it was taken on authority rather than because anyone asked.
+        $this->assertSame(
+            ApprovalDecisionEnum::APPROVED,
+            $request->approvers()->where('users_id', $owner->getId())->first()?->decision
+        );
+        $this->assertSame(
+            ApproverSelfAssignService::OWNER,
+            $request->metadata['self_assigned_approvers'][0]['authority'] ?? null
+        );
+    }
+
+    /**
+     * Self-assignment must not resurrect a decision. Under `reject_policy: step` a single "no" leaves
+     * the request open, so without the guard the same person could come back through the authority
+     * path and have their recorded rejection quietly rewritten into an approval.
+     */
+    public function test_authority_override_cannot_overwrite_a_decision_its_holder_already_made(): void
+    {
+        [$request] = $this->chain(
+            [['required_approvals' => 2, 'approvers' => 2]],
+            ['allow_authority_override' => true, 'reject_policy' => 'step']
+        );
+
+        /** @var Users $owner */
+        $owner = auth()->user();
+
+        new RejectAction($request, $owner, 'not this one')->execute();
+        $this->assertSame(ApprovalStatusEnum::PENDING, $request->refresh()->status, 'quorum is still reachable');
+        $this->assertSame(
+            ApprovalDecisionEnum::REJECTED,
+            $request->approvers()->where('users_id', $owner->getId())->first()?->decision
+        );
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('not an approver');
+
+        new ApproveAction($request, $owner)->execute();
+    }
+
     private function chain(array $stepSpecs, array $policyOverrides = []): array
     {
         $entity = $this->seedEntity('Chain Corp ' . uniqid());

@@ -28,6 +28,7 @@ use Kanvas\SystemModules\Models\SystemModules;
  * @property array|null $fallback_config
  * @property string $notify
  * @property int|null $expires_after_hours
+ * @property bool $allow_authority_override
  * @property bool $is_deleted
  */
 class ApprovalPolicy extends BaseModel
@@ -37,6 +38,7 @@ class ApprovalPolicy extends BaseModel
 
     protected $casts = [
         'is_deleted' => 'boolean',
+        'allow_authority_override' => 'boolean',
         'trigger' => ApprovalTriggerEnum::class,
         'steps' => Json::class,
         'trigger_condition' => Json::class,

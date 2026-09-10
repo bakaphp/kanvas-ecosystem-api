@@ -17,14 +17,15 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Traits\DispatchesAttachmentDescriptionTrait;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
-use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\Actions\MarkLeadMessagesAsRespondedAction;
+use Kanvas\Social\Messages\Actions\RequestMessageApprovalAction;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Support\MessageApproval;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
@@ -75,14 +76,14 @@ class BaseAgentChannelReplyAction
             }
         }
 
-        $configService = new LeadConfigurationService();
-        $aiModeKey = $lead instanceof Lead
-            ? $configService->getAiModeKey($lead)
-            : 'ai_mode';
+        if ($this->respectsLeadAiMode) {
+            $isAiMuted = $lead instanceof Lead
+                ? $lead->isAiMuted()
+                : IntelligenceModeEnum::tryFrom((string) $lead->get('ai_mode'))?->isOff() ?? false;
 
-        $mode = IntelligenceModeEnum::tryFrom((string) $lead->get($aiModeKey));
-        if ($this->respectsLeadAiMode && $mode?->isOff()) {
-            throw new AgentReplySkippedException('Ai Agent Off for this lead');
+            if ($isAiMuted) {
+                throw new AgentReplySkippedException('Ai Agent Off for this lead');
+            }
         }
 
         if ($message->is_un_response) {
@@ -156,11 +157,16 @@ class BaseAgentChannelReplyAction
             }
         }
 
-        // Company in APPROVAL mode → persist as a locked draft; a human approves before it ships.
-        // Scoped to connectors that implement the approve→send path ($supportsHumanApproval).
-        // is_public stays 1 so the draft remains visible to the reviewer's feed.
+        // Company in APPROVAL mode → hold as a draft and open an approval; a human signs off before
+        // it ships. Scoped to connectors that implement the approve→send path ($supportsHumanApproval).
+        // Not private: is_public stays 1 so the draft shows in the reviewer's own feed, which is where
+        // they find it.
         if ($this->supportsHumanApproval && $this->companyRequiresHumanApproval()) {
-            $newMessage->setLock();
+            new RequestMessageApprovalAction(
+                message: $newMessage,
+                kind: MessageApproval::KIND_EMAIL_DRAFT,
+                private: false,
+            )->execute();
         }
 
         $newMessage->fireWorkflow(

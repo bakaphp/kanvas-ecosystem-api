@@ -184,13 +184,13 @@ class CreateContentSessionAction
 
     protected function mapPeople(People $people, ?Lead $lead = null): array
     {
-        $checkList = $lead !== null ? $this->generateChecklistEngagementUrls($lead) : [];
+        // $checkList = $lead !== null ? $this->generateChecklistEngagementUrls($lead) : [];
         $data = array_merge([
             'customerName' => null,
             'leadEmail' => null,
             'leadOwnerName' => null,
             'leadOwnerEmail' => null,
-        ], $checkList);
+        ], []);
 
         $similarRecommendedVehicles = [];
         $hasPotentialAdditionalVehicleInterest = false;
@@ -217,8 +217,6 @@ class CreateContentSessionAction
             'leads' => [LeadsRepository::getPeopleActiveLead($people)?->toArray()],
             'address' => $people->address->toArray(),
             'contacts' => $people->contacts->toArray(),
-            'checklist' => $checkList,
-            'check_list_status' => $this->getCheckListStatus($lead) ?? [],
             'similar_recommended_vehicles' => $similarRecommendedVehicles,
             'has_potential_additional_vehicle_interest' => $hasPotentialAdditionalVehicleInterest,
             'leadEmail' => $data['leadEmail'],

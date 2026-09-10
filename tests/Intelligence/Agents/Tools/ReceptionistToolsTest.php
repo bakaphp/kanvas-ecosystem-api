@@ -9,6 +9,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Support\Setup;
+use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\BookingOptionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\EventConfigurationTool;
@@ -121,6 +123,18 @@ class ReceptionistToolsTest extends TestCase
         $lead->refresh();
         $this->assertEquals(1, $lead->get(ConfigurationEnum::AGENT_HAND_OFF->value));
         $this->assertSame('human', $lead->get(ConfigurationEnum::AGENT_HAND_OFF_TYPE->value));
+    }
+
+    public function testHandOffToolDescriptionDocumentsTypesAndTerminalConditions(): void
+    {
+        $description = new HandOffTool()->getDescription();
+
+        $this->assertStringContainsString('"human"', $description);
+        $this->assertStringContainsString('"service"', $description);
+        $this->assertStringContainsString('"compliance_internal"', $description);
+        $this->assertStringContainsString('appointment is completed', $description);
+        $this->assertStringContainsString('unexpected error', $description);
+        $this->assertStringContainsString('natural conclusion', $description);
     }
 
     public function testHandOffToolRejectsUnsupportedTypeWithoutChangingLead(): void
@@ -268,13 +282,17 @@ class ReceptionistToolsTest extends TestCase
 
         $this->assertSame('success', $result['status']);
         $this->assertTrue($result['ai_disabled']);
-        $this->assertTrue($result['note_logged']);
-        $this->assertContains('phone', $result['opted_out']);
-        $this->assertContains('email', $result['opted_out']);
+        $this->assertFalse($result['already_opted_out']);
+        $this->assertGreaterThanOrEqual(2, $result['contacts_opted_out'], 'phone and email both opt out.');
+        $this->assertGreaterThanOrEqual(1, $result['leads_flagged']);
 
         $fresh = Lead::getById($lead->getId());
         $this->assertSame(IntelligenceModeEnum::IDLE->value, $fresh->get('ai_mode'));
         $this->assertSame(1, (int) $fresh->get('do_not_contact'));
+
+        // Without the manual pin the lead-type config can outrank the stored mode and the lead
+        // quietly starts replying again.
+        $this->assertTrue((bool) $fresh->get(LeadConfigurationEnum::AI_MODE_IS_MANUAL->value));
 
         $this->assertTrue(
             $lead->people->contacts()->where('value', 'optout@example.com')->where('is_opt_out', 1)->exists()
@@ -283,9 +301,24 @@ class ReceptionistToolsTest extends TestCase
             $lead->people->contacts()->where('value', '18095559999')->where('is_opt_out', 1)->exists()
         );
 
-        // Team is alerted via a best-effort compliance handoff (deep notification delivery is
-        // HandOffAction's concern; the tool just reports whether it ran).
-        $this->assertIsBool($result['team_notified']);
+        // Person-wide, not lead-wide: this is what silences SMS, WhatsApp and email together, and
+        // what blocks a lead created for this person after the opt-out.
+        $this->assertSame(1, (int) $lead->people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value));
+    }
+
+    public function testStopContactIsIdempotent(): void
+    {
+        Notification::fake();
+        $lead = $this->makeLead();
+        $lead->people->addCellPhone('+18095559998');
+
+        $this->withTenant(new StopContactTool())->__invoke(lead_id: $lead->getId());
+        $second = $this->withTenant(new StopContactTool())->__invoke(lead_id: $lead->getId());
+
+        $this->assertSame('success', $second['status']);
+        $this->assertTrue($second['already_opted_out']);
+        $this->assertSame(0, $second['contacts_opted_out']);
+        $this->assertStringContainsString('already opted out', $second['note']);
     }
 
     public function testFaqLookupReturnsCompanyFaqsAndIsTenantScoped(): void

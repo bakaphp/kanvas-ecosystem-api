@@ -9,6 +9,9 @@ use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendSmsTool;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
 
 class SendSmsToolTest extends TestCase
@@ -42,6 +45,28 @@ class SendSmsToolTest extends TestCase
         $this->assertSame('sms', $result['channel']);
         $this->assertSame('Hello from Sally', $delivery['message']);
         $this->assertSame('15551234567', $delivery['to']);
+
+        $channel = Channel::getById($result['channel_id']);
+        $outbound = Message::getById($result['message_id'], app(Apps::class));
+
+        $this->assertSame(SessionChannelService::createChannelSlug('sms', '15551234567'), $channel->slug);
+        $this->assertSame('twilio-sms', $outbound->messageType->verb);
+        $this->assertSame('Hello from Sally', $outbound->message['content']);
+        $this->assertTrue($channel->messages()->whereKey($outbound->getId())->exists());
+
+        $secondResult = $tool->__invoke($lead->getId(), 'A second message');
+
+        $this->assertSame($result['channel_id'], $secondResult['channel_id']);
+        $this->assertSame(
+            1,
+            Channel::query()
+                ->where('apps_id', app(Apps::class)->getId())
+                ->where('companies_id', auth()->user()->getCurrentCompany()->getId())
+                ->where('entity_namespace', Lead::class)
+                ->where('entity_id', $lead->getId())
+                ->where('slug', SessionChannelService::createChannelSlug('sms', '15551234567'))
+                ->count(),
+        );
     }
 
     public function testRefusesOptedOutPhone(): void

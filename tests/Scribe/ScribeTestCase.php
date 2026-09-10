@@ -17,6 +17,8 @@ use Kanvas\Scribe\Expenses\Actions\SubmitExpenseForApprovalAction;
 use Kanvas\Scribe\Expenses\DataTransferObject\Expense as ExpenseData;
 use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseLine as ExpenseLineData;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
+use Kanvas\Scribe\Expenses\Enums\ExpenseReimbursementStatusEnum;
+use Kanvas\Scribe\Expenses\Enums\ExpenseStatusEnum;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\IssueInvoiceAction;
@@ -28,6 +30,7 @@ use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\FiscalPeriod;
 use Kanvas\Scribe\Ledger\Services\ChartOfAccountsSeederService;
+use Kanvas\Users\Models\Users;
 use Spatie\LaravelData\DataCollection;
 use Tests\TestCase;
 
@@ -106,20 +109,23 @@ abstract class ScribeTestCase extends TestCase
 
     /**
      * Build a Filesystem row for tests that need an attached PDF / image. Defaults to the current
-     * tenant; pass a different $appsId to exercise cross-tenant guards.
+     * tenant; pass a different $appsId/$companiesId to exercise cross-tenant guards.
      */
     protected function createFilesystemRow(
         ?int $appsId = null,
         string $extension = 'pdf',
         string $fileType = 'pdf',
+        ?string $url = null,
+        ?string $name = null,
+        ?int $companiesId = null,
     ): Filesystem {
         $filesystem = new Filesystem();
         $filesystem->apps_id = $appsId ?? $this->kanvasApp->getId();
-        $filesystem->companies_id = $this->company->getId();
+        $filesystem->companies_id = $companiesId ?? $this->company->getId();
         $filesystem->users_id = static::$cachedUser->getId();
-        $filesystem->name = 'test-' . uniqid('', true) . '.' . $extension;
+        $filesystem->name = $name ?? 'test-' . uniqid('', true) . '.' . $extension;
         $filesystem->path = 'inbound/' . $filesystem->name;
-        $filesystem->url = 'https://example.test/' . $filesystem->path;
+        $filesystem->url = $url ?? 'https://example.test/' . $filesystem->path;
         $filesystem->size = '12345';
         $filesystem->file_type = $fileType;
         $filesystem->save();
@@ -232,28 +238,69 @@ abstract class ScribeTestCase extends TestCase
     }
 
     /**
-     * Submit + approve a one-line Expense end-to-end. The line lands on Travel & Meals (the
-     * seeded sub-type) so reports pick it up under operating expenses.
+     * A Users row to stand in for an employee who pays expenses out of pocket. The unique email
+     * keeps parallel runs from colliding on the users table, which is not transaction-rolled here.
+     */
+    protected function seedTestEmployee(string $prefix = 'employee'): Users
+    {
+        return Users::factory()->create(['email' => $prefix . '-' . uniqid() . '@example.test']);
+    }
+
+    /**
+     * An employee-paid expense sitting at DRAFT.
+     *
+     * Approves then rewinds, because tests reaching for this care about the status gate rather than
+     * how the row got there.
+     *
+     * The approval JE it posted on the way through is NOT reversed — the expense reads as a draft
+     * while the GL still carries its credit. Harmless for a status-gate assertion, wrong for anything
+     * that reconciles against the ledger; build those from CreateExpenseAction directly.
+     */
+    protected function draftTestExpense(float $amount, int $paidByUsersId): Expense
+    {
+        $expense = $this->approveTestExpense($amount, ExpensePaidByEnum::EMPLOYEE_PERSONAL, $paidByUsersId);
+
+        $expense->status = ExpenseStatusEnum::DRAFT;
+        $expense->reimbursement_status = ExpenseReimbursementStatusEnum::PENDING;
+        $expense->approved_at = null;
+        $expense->save();
+
+        return $expense->refresh();
+    }
+
+    /**
+     * Submit + approve an Expense end-to-end. Lines land on Travel & Meals (the seeded sub-type)
+     * so reports pick it up under operating expenses.
+     *
+     * `$lineAmounts` splits the same expense across several lines on that one account — the shape
+     * that separates "how many expenses" from "how many rows" in a category report.
+     *
+     * @param  array<int, float>|null  $lineAmounts defaults to one line for the whole `$amount`
      */
     protected function approveTestExpense(
         float $amount,
         ExpensePaidByEnum $paidBy = ExpensePaidByEnum::COMPANY_CARD,
         ?int $paidByUsersId = null,
+        ?string $expenseDate = null,
+        ?array $lineAmounts = null,
     ): Expense {
         $travelAccountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
+
+        $lines = array_map(
+            fn (float $lineAmount): ExpenseLineData => new ExpenseLineData(
+                description: 'Test expense line',
+                amount_native: $lineAmount,
+                expense_account_id: $travelAccountId,
+            ),
+            $lineAmounts ?? [$amount],
+        );
 
         $draft = new CreateExpenseAction(
             data: new ExpenseData(
                 app: $this->kanvasApp,
                 company: $this->company,
-                lines: new DataCollection(ExpenseLineData::class, [
-                    new ExpenseLineData(
-                        description: 'Test expense line',
-                        amount_native: $amount,
-                        expense_account_id: $travelAccountId,
-                    ),
-                ]),
-                expense_date: Carbon::parse('2026-06-15'),
+                lines: new DataCollection(ExpenseLineData::class, $lines),
+                expense_date: Carbon::parse($expenseDate ?? '2026-06-15'),
                 currency: 'USD',
                 fx_rate_to_base: 1.0,
                 paid_by: $paidBy,

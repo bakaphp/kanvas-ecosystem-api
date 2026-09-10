@@ -50,6 +50,12 @@ type ScribeQuote {
     contact: People @belongsTo(relation: "contact")
     lines: [ScribeQuoteLine!]! @hasMany(relation: "lines")
     parent_quote: ScribeQuote @belongsTo(relation: "parentQuote")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     created_at: DateTime!
     updated_at: DateTime!
 }

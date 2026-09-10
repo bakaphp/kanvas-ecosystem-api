@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Event\Events\Models;
 
+use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
@@ -18,7 +19,6 @@ use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
-use Kanvas\Event\Events\Observers\EventObserver;
 use Kanvas\Event\Models\BaseModel;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
@@ -32,7 +32,7 @@ use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 
-#[ObservedBy([EventObserver::class])]
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class Event extends BaseModel
 {
     use UuidTrait;
@@ -155,6 +155,16 @@ class Event extends BaseModel
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->description,
+            'files' => $this->getFiles()->take(5)->map(fn ($file) => [
+                'uuid' => $file->uuid,
+                'name' => $file->name,
+                'url' => $file->url,
+                'size' => $file->size,
+                'field_name' => $file->field_name,
+            ]),
+            // `config` from EventInput has no first-class column on `events` — it's persisted as
+            // the first EventVersion's `metadata` (see EventManagementMutation::create()).
+            'config' => $this->versions()->orderBy('version')->first()?->metadata,
             'apps_id' => $this->apps_id,
             'companies_id' => $this->companies_id,
         ];
@@ -171,9 +181,12 @@ class Event extends BaseModel
                 ['name' => 'name', 'type' => 'string'],
                 ['name' => 'slug', 'type' => 'string', 'optional' => true],
                 ['name' => 'description', 'type' => 'string', 'optional' => true],
+                ['name' => 'files', 'type' => 'object[]', 'optional' => true],
+                ['name' => 'config', 'type' => 'object', 'optional' => true],
                 ['name' => 'apps_id', 'type' => 'int64'],
                 ['name' => 'companies_id', 'type' => 'int64', 'facet' => true],
             ],
+            'enable_nested_fields' => true,
         ];
     }
 

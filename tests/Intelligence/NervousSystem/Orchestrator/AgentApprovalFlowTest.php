@@ -18,6 +18,7 @@ use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\ApproveAgentMessageAction;
+use Kanvas\Social\Messages\Support\MessageApproval;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
@@ -25,7 +26,8 @@ class AgentApprovalFlowTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'workflow'];
+    // ecosystem carries the approval_requests / approval_policies rows the card now projects.
+    protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'workflow', 'ecosystem'];
 
     /**
      * @return array{0: Apps, 1: Companies, 2: Users}
@@ -68,6 +70,10 @@ class AgentApprovalFlowTest extends TestCase
         )->execute();
 
         $this->assertTrue($message->isLocked());
+        $this->assertFalse(
+            $message->isPublic(),
+            'a draft awaiting sign-off must not be readable in public feeds — is_public defaults to 1'
+        );
         $this->assertSame(ProjectRoutingApprovalHandler::class, $message->message['approval']['handler']);
         $this->assertSame('pending', $message->message['approval']['status']);
     }
@@ -99,6 +105,12 @@ class AgentApprovalFlowTest extends TestCase
         )->execute();
 
         $this->assertFalse($approved->isLocked());
+        $this->assertSame(
+            MessageApproval::STATUS_APPROVED,
+            MessageApproval::status($approved),
+            'the card renders off approval.status, so an approved draft that still says pending keeps '
+            . 'offering a live Approve button'
+        );
 
         // The held signal was forwarded to the human-chosen project (not the suggested 999).
         $this->assertDatabaseHas('nervous_system_events', [
@@ -115,13 +127,23 @@ class AgentApprovalFlowTest extends TestCase
         /** @var Channel $channel */
         $channel = $inbox->defaultChannel;
 
-        $this->expectException(ValidationException::class);
-        new RequestAgentApprovalAction(
-            channel: $channel,
-            author: $user,
-            content: 'x',
-            kind: 'demo',
-            handler: self::class, // not an AgentApprovalHandler
-        )->execute();
+        $before = $channel->messages()->count();
+
+        try {
+            new RequestAgentApprovalAction(
+                channel: $channel,
+                author: $user,
+                content: 'x',
+                kind: 'demo',
+                handler: self::class, // not an AgentApprovalHandler
+            )->execute();
+            $this->fail('an unusable handler must be refused');
+        } catch (ValidationException) {
+            // expected
+        }
+
+        // The refusal has to land before the message is posted. Rejecting it afterwards would leave an
+        // ungated draft on the channel that nothing can ever approve.
+        $this->assertSame($before, $channel->messages()->count());
     }
 }

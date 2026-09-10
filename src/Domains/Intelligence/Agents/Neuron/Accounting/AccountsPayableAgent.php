@@ -8,15 +8,22 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CategorizeExpenseTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractExpenseReceiptTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportVendorApproversTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDueToEmployeesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryExpenseReportTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordCompanyCardExpenseTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordExpenseReimbursementTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyApPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
@@ -24,6 +31,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ResendBillAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\CheckApprovalStatusTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
@@ -68,6 +76,10 @@ class AccountsPayableAgent extends SystemUserAgent
         $tools = array_merge(parent::tools(), $this->addToolContext([
             new QueryDataFreshnessTool(),
             new QueryApAgingTool(),
+            new QueryDueToEmployeesTool(),
+            new RecordExpenseReimbursementTool(),
+            new QueryExpenseReportTool(),
+            new CategorizeExpenseTool(),
             new ListOpenBillsTool(),
             new ListOpenPurchaseOrdersTool(),
             new FindPurchaseOrderTool(),
@@ -75,6 +87,7 @@ class AccountsPayableAgent extends SystemUserAgent
             new FindVendorTool(),
             new MatchBillsForPaymentTool(),
             new AddOrganizationApproverTool(),
+            new ImportVendorApproversTool(),
             new CreateApBillTool(),
             new VoidApBillTool(),
             new ApplyApPaymentTool(),
@@ -90,6 +103,12 @@ class AccountsPayableAgent extends SystemUserAgent
             new ReadEmailDetailsTool(),
             new DownloadAttachmentTool(),
             new ExtractInvoiceDataTool(),
+            // The receipt half of the same job: a card slip carries no invoice number, due date or
+            // line items, so extract_invoice_data has nothing to read off it.
+            new ExtractExpenseReceiptTool(),
+            // extract_invoice_data and the inbound attachment markers both speak filesystem_id;
+            // without this the agent quotes that id at a person who then has nothing to open.
+            new GetFileLinkTool(),
             new MarkEmailAsReadTool(),
             new ReplyToEmailTool(),
         ]));
@@ -102,9 +121,12 @@ class AccountsPayableAgent extends SystemUserAgent
         }
 
         // approve_pending_item must authorize against the real human, not actingUser() (the agent itself on @mention/channel surfaces).
+        // record_company_card_expense sits here for the same reason from the other direction: it books company
+        // money, and this agent reads inbound email, so it must never fire on a turn no person asked for.
         $requestingHuman = $this->requestingHuman();
         if ($requestingHuman !== null && $this->app !== null && $this->company !== null) {
             $tools[] = new ApprovePendingItemTool()->withContext($this->app, $this->company, $requestingHuman);
+            $tools[] = new RecordCompanyCardExpenseTool()->withContext($this->app, $this->company, $requestingHuman);
         }
 
         return $tools;
@@ -122,6 +144,30 @@ class AccountsPayableAgent extends SystemUserAgent
             '## How to handle Accounts-Payable questions',
             '- Call query_data_freshness first; if the sync is more than 2 days stale, say so before quoting numbers.',
             '- "What do we owe" / "how much is overdue to vendors" → query_ap_aging.',
+            '- "What do we owe our own staff" / "who is waiting on an expense reimbursement" → '
+            . 'query_due_to_employees. That money sits in Due to Employees, a different account from Accounts '
+            . 'Payable, so it is NOT part of query_ap_aging — never add the two together into one "what we owe" '
+            . 'figure, and say which of the two you are quoting.',
+            '- "We paid Juan back" / "record the reimbursement for expense X" → record_expense_reimbursement, '
+            . 'only when someone explicitly tells you the transfer already went out. It records a payment that '
+            . 'has happened; it does not move money, so never call it to promise or schedule one.',
+            '- "What did we spend on X last month" / an expense report for a period → query_expense_report '
+            . '(approved expenses only). "This one is software, not travel" → categorize_expense, which works '
+            . 'on DRAFT expenses only. Emailed and agent-filed receipts land on the Travel & Meals fallback '
+            . 'because nothing classifies them, so a report full of "travel" usually means uncategorized, not '
+            . 'a company that only travels — say so rather than reporting it at face value.',
+            '- "Book this card charge" / "expense this receipt, it went on the company Amex" → read the slip '
+            . 'with extract_expense_receipt first (extract_invoice_data is for a vendor invoice the company '
+            . 'still owes; a card receipt carries no invoice number or due date for it to find), then '
+            . 'record_company_card_expense with the amount, date and merchant it returned — never an amount '
+            . 'someone recalls while the receipt is sitting right there. It is the wrong tool the moment '
+            . 'somebody paid with their own money and wants it back — that one is theirs to file from their '
+            . 'own chat, not yours to file for them. When you report a card charge back, say it is filed and '
+            . 'awaiting approval and stop there: reimbursement, being owed and Due to Employees are how you '
+            . 'PICK between the two tools, never what you tell someone about a charge the company already '
+            . 'paid. Approval matters here beyond policy: the bank feed only recognises '
+            . 'an APPROVED expense as already on the books, so a card charge left pending gets booked a second '
+            . 'time when the statement lands.',
             '- "Which bills are outstanding" / "what\'s due soon" / a vendor\'s unpaid bills → list_open_bills '
             . '(set only_overdue for past-due focus).',
             '- "What has vendor X got on order" / matching an invoice to a PO → list_open_purchase_orders.',
@@ -129,6 +175,15 @@ class AccountsPayableAgent extends SystemUserAgent
             '- "Add/assign an approver for vendor X" → find_vendor first to resolve organization_id, then '
             . 'add_organization_approver with that id and the approver\'s email. A vendor can have more than '
             . 'one approver — this never replaces an existing one, only adds.',
+            '- If the user attaches an updated vendor/approver spreadsheet and asks to load/import it (e.g. '
+            . '"add this list", "it\'s updated now, upload it") → import_vendor_approvers with the '
+            . 'filesystem_id from the `[Attached file on this message...]` marker. Never re-type its rows by '
+            . 'hand or process it one vendor at a time — that is exactly what this tool is for. Report the '
+            . 'updated/created/unchanged counts plainly. If linked_low_confidence is non-empty, tell the user '
+            . 'plainly that those vendors were linked on a single weak match and should be double-checked, '
+            . 'listing them by name — never present them as a routine success. If ambiguous or no_email are '
+            . 'non-empty, list those vendor names too so the user knows exactly which ones still need manual '
+            . 'attention — ambiguous now only means a genuine tie between several candidates.',
             '- Lead with the headline (e.g. "Total payables: $84,200 across 12 vendors; $19,500 overdue"), then '
             . 'the top 3-5 items. Be honest about freshness; never invent precision the data lacks.',
             '- "Create a bill for vendor X" → create_ap_bill, only when the user explicitly asks for it — by '
@@ -157,10 +212,11 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'never in the email body/subject — after downloading, call extract_invoice_data with the '
             . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet).',
             '- If your own message this turn contains a line like `[Attached file on this message — '
-            . 'filesystem_id: 123, filename: "invoice.pdf"]`, an invoice arrived directly to your own inbox '
-            . '(not via the Gmail search tools) — call extract_invoice_data(filesystem_id: 123) straight away, '
-            . 'skipping list_emails/read_email_details/download_attachment entirely (there is no Gmail message '
-            . 'to look up). Use that exact filesystem_id — never one from an earlier turn.',
+            . 'filesystem_id: 123, filename: "invoice.pdf"]`, someone handed you the file directly — your own '
+            . 'inbox, Slack, or this chat — rather than through the Gmail search tools. Call '
+            . 'extract_invoice_data(filesystem_id: 123) straight away, skipping '
+            . 'list_emails/read_email_details/download_attachment entirely (there is no Gmail message to look '
+            . 'up). Use that exact filesystem_id — never one from an earlier turn.',
             '- **Never reuse a `[Attachment: ...]` description from your own chat history as if it were '
             . 'attached to the CURRENT message.** That marker is a saved summary of a file from a *previous* '
             . 'turn — a different invoice, even if this email looks similar (same sender, same boilerplate '
@@ -172,8 +228,8 @@ class AccountsPayableAgent extends SystemUserAgent
             . '(1) Get the real vendor/total/dates/due date and the file\'s identifier — either list_emails → '
             . 'read_email_details → download_attachment → extract_invoice_data (Gmail), or, if this message '
             . 'already carries a `[Attached file...]` marker, extract_invoice_data(filesystem_id) directly. '
-            . '(2) create_ap_bill with push_to_acumatica: false and source_attachment_url/'
-            . 'source_attachment_filename set to the file\'s url/filename from step 1, using that real data. '
+            . '(2) create_ap_bill with push_to_acumatica: false and source_attachment_filesystem_id set to the '
+            . 'file\'s filesystem_id from step 1, using that real data. '
             . 'Pass due_date verbatim from extract_invoice_data\'s own due_date field when the invoice shows '
             . 'one — never compute or guess it yourself, and never leave it out just because computing it '
             . 'looked hard. If the invoice has more than one line item, pass all of them via the lines param, '

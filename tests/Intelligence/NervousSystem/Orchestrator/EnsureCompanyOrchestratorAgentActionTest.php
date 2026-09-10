@@ -14,6 +14,7 @@ use Kanvas\NervousSystem\Orchestrator\Webhooks\ProcessOrchestratorSignalJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 class EnsureCompanyOrchestratorAgentActionTest extends TestCase
@@ -90,6 +91,14 @@ class EnsureCompanyOrchestratorAgentActionTest extends TestCase
         $this->assertSame($first->user_id, $second->user_id);
     }
 
+    /**
+     * Serial: soft-deleting the global `apps_id = 0` catalog row takes an X lock on it for the rest of
+     * this transaction, while every parallel process inserting an agent takes the FK parent lock on that
+     * same row — the two lock it through different indexes and deadlock (1213), which surfaces as an
+     * unrelated `DeadlockException` in whichever test loses. Nothing that mutates a shared global
+     * catalog can run inside the parallel lane.
+     */
+    #[Group('serial')]
     public function testFailsClearlyWhenTypeNotSynced(): void
     {
         [$app, $company] = $this->context();

@@ -71,6 +71,7 @@ Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `src/Domains/Connectors/CLAUDE.md` — connector-tree-specific gotchas (Octane SDK rule, Activities/ folder, AgentRuntime caveat).
 - `graphql/schemas/CLAUDE.md` — directive conventions, FK-id-vs-relation rule, schema folder rule.
 - `src/Domains/Intelligence/FollowUp/CLAUDE.md` — generic-core vs per-entity-executor split for the agent-driven follow-up engine. Recipe for adopting follow-up on a new entity (Deal, Order, etc.).
+- `src/Domains/Guild/Customers/CLAUDE.md` — consent & do-not-contact: why a STOP on one channel silences all of them person-wide, the keyword-vs-agent split, every guard that enforces it, and why `do_not_contact` must never be renamed.
 - `src/Domains/Guild/Leads/CLAUDE.md` — receiver → lead → email flow: why the email template comes from the **rotation config** (not the job/receiver), the `user-`/`lead-` template-name prefixing, the `notification_mode`/`notification_user_mode` knobs, and how company onboarding differs from the `kanvas:sa-setup-receivers` default.
 - `src/Domains/Inventory/CLAUDE.md` — product search engine (dynamic per-tenant Algolia/Typesense/Meilisearch resolution + precedence), index naming, `shouldBeSearchable` gating, the tenant-aware reindex command, and Typesense Natural Language Search config for the recommendation agent.
 - `app/Console/Commands/Inventory/CLAUDE.md` — what each inventory command does and the order the discovery ones must run in (enrich → index → search → score).
@@ -158,17 +159,23 @@ class Foo extends BaseModel
 
 ### Required on the Observer
 
+Most models need nothing but the invalidation, so attach the shared observer instead of writing one:
+
 ```php
-class FooObserver
-{
-    public function updating(Foo $foo): void
-    {
-        $foo->clearLightHouseCache(withKanvasConfiguration: false);
-    }
-}
+use Baka\Observers\ClearsLightHouseCacheObserver;
+
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
+class Foo extends BaseModel
 ```
 
-- Use `updating()` (fires before the save) so the cache is gone before any listener reads it post-save.
+A model that also needs its own lifecycle work keeps its own observer and calls
+`clearLightHouseCache(withKanvasConfiguration: false)` from a `saved()` hook.
+
+- Use `saved()`, not `updating()`. Clearing *before* the write leaves a window where a concurrent
+  read re-warms the cache from the uncommitted row, and that stale entry then survives until the next
+  write. `saved()` also covers inserts — a no-op for a brand-new id, which has no cache key yet, but
+  it means one hook instead of two. (Observers still on `updating()` predate this and are not yet
+  migrated; don't copy them.)
 - `withKanvasConfiguration: false` is the right default — file-relation regeneration is handled automatically by `AttachFilesystemAction` when files are attached. `true` eagerly regenerates custom_fields/files cache inside the observer, which is usually overkill and creates extra Redis writes.
 
 ### How file uploads trigger invalidation
@@ -186,7 +193,7 @@ So any `addMultipleFilesFromUrl()` / `addFileFromUrl()` call automatically inval
 - [ ] `HasLightHouseCache` trait on the model
 - [ ] `getGraphTypeName()` returning the GraphQL type name
 - [ ] `HasFilesystemTrait` (usually inherited from `BaseModel`)
-- [ ] Observer `updating()` hook calling `clearLightHouseCache(withKanvasConfiguration: false)`
+- [ ] `#[ObservedBy([ClearsLightHouseCacheObserver::class])]` on the model — or, if it needs its own observer, a `saved()` hook calling `clearLightHouseCache(withKanvasConfiguration: false)`
 - [ ] GraphQL type uses `files: [Filesystem!]! @cacheRedis @paginate(...)` with the shared `FilesystemQuery@getFileByGraphType` builder (so the cache key shape matches what `generateFilesLighthouseCache()` writes)
 - [ ] Smoke test: upload a file via `updateX(files: [...])`, query `x.files` in the same or next request, confirm the new file appears without a manual cache flush
 

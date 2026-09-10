@@ -13,6 +13,8 @@ use InvalidArgumentException;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\Connectors\Mailgun\Actions\SendAsAgentMailboxAction;
+use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Connectors\RespondIO\Client as RespondIOClient;
 use Kanvas\Connectors\RespondIO\Enums\ConfigurationEnum as RespondIOConfigurationEnum;
 use Kanvas\Connectors\Twilio\Actions\RecordMessageAttemptAction;
@@ -27,6 +29,7 @@ use Kanvas\Connectors\WaSender\Services\MessageService;
 use Kanvas\Filesystem\Actions\ProcessVideoWithGifAction;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
@@ -73,6 +76,7 @@ class SendMessageToLeadAction
     protected ?string $attemptedTo = null;
     protected int $retryNumber = 0;
     protected ?int $parentAttemptId = null;
+    protected bool $isOptOutConfirmation = false;
 
     public function __construct(
         protected Lead $lead,
@@ -88,6 +92,18 @@ class SendMessageToLeadAction
         return $this;
     }
 
+    /**
+     * Sends through the do-not-contact guard. The ONLY legitimate caller is the single
+     * post-revocation acknowledgement the FCC permits — see SendOptOutConfirmationAction.
+     * Anything else reaching for this is a compliance bug.
+     */
+    public function allowOptOutConfirmation(): self
+    {
+        $this->isOptOutConfirmation = true;
+
+        return $this;
+    }
+
     public function execute(
         string $channel,
         string $message,
@@ -96,9 +112,12 @@ class SendMessageToLeadAction
         bool $signature = true,
         ?Collection $files = null,
         ?string $to = null,
-        ?array $cc = null
+        ?array $cc = null,
+        ?Agent $fromAgent = null
     ): array {
         try {
+            $this->guardDoNotContact();
+
             if ($files !== null && $files->isNotEmpty()) {
                 $this->processedFiles = $this->prepareFiles($files);
                 $this->createVideoEngagements();
@@ -111,7 +130,14 @@ class SendMessageToLeadAction
                     $message,
                     $to,
                 ),
-                LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage($message, $title, $signature, $to, $cc),
+                LeadCommunicationChannelEnum::EMAIL->value => $this->sendEmailMessage(
+                    $message,
+                    $title,
+                    $signature,
+                    $to,
+                    $cc,
+                    $fromAgent,
+                ),
                 LeadCommunicationChannelEnum::VOICE->value => $this->sendVoiceMessage($message),
                 default => throw new InvalidArgumentException('Unsupported communication channel ' . $channel),
             };
@@ -352,6 +378,9 @@ class SendMessageToLeadAction
         if ($cellphone === null || $cellphone === '') {
             throw new LeadMissingContactException('Lead does not have a cellphone number');
         }
+
+        $this->guardDestinationOptOut((string) $cellphone, LeadCommunicationChannelEnum::WHATSAPP->value);
+
         $cellphone = $this->hijackPhoneNumber((string) $cellphone, '@s.whatsapp.net');
 
         $this->sendWhatsAppMediaFiles($whatsAppMessageService, $cellphone);
@@ -416,6 +445,10 @@ class SendMessageToLeadAction
         if ($cellphone === null || $cellphone === '') {
             throw new LeadMissingContactException('Lead does not have a cellphone number');
         }
+
+        // sendWhatsAppMessage hands off to here before reaching its own guard, so RespondIO needs
+        // its own or it becomes the one WhatsApp path that ignores a per-address opt-out.
+        $this->guardDestinationOptOut((string) $cellphone, LeadCommunicationChannelEnum::WHATSAPP->value);
 
         $cellphone = $this->hijackPhoneNumber((string) $cellphone, '@s.whatsapp.net');
         $cellphone = Str::toE164($cellphone);
@@ -771,6 +804,67 @@ class SendMessageToLeadAction
         return $client->messages->create($cellphone, $payload);
     }
 
+    /**
+     * Channel-agnostic and checked once per send, ahead of the channel dispatch: a stop request is
+     * person-wide, so it has to outrank whichever channel this particular call happens to use.
+     *
+     * The people-level flag is not redundant with the lead one. ApplyDoNotContactAction flags every
+     * lead that exists at the time, but a connector sync can create a NEW lead for the same person
+     * afterwards, and that lead carries no flag of its own.
+     */
+    protected function guardDoNotContact(): void
+    {
+        if ($this->isOptOutConfirmation) {
+            return;
+        }
+
+        $isFlagged = (bool) $this->lead->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value)
+            || (bool) $this->lead->people?->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value);
+
+        if ($isFlagged) {
+            throw new LeadOptedOutException(
+                'Lead is flagged do-not-contact; no further automated messages may be sent',
+            );
+        }
+    }
+
+    /**
+     * Per-address opt-out, for the ones a stop request never produced: a DMS sync pushing
+     * `doNotEmail`, or a hard bounce. guardDoNotContact covers the person-wide case.
+     */
+    protected function guardDestinationOptOut(string $destination, string $channel): void
+    {
+        if ($this->isOptOutConfirmation) {
+            return;
+        }
+
+        $isEmail = $channel === LeadCommunicationChannelEnum::EMAIL->value;
+
+        // Normalize the destination once, against the type we are actually sending to — not against
+        // each row's own type. Phone normalization strips a value to its last 10 digits, so an email
+        // address compared under it collapses to whatever digits it contains and can match a real
+        // number. Filtering the rows by channel also stops us comparing an address to a phone at all.
+        $normalizedDestination = Contact::normalizeValue(
+            $destination,
+            $isEmail ? ContactTypeEnum::EMAIL->value : ContactTypeEnum::CELLPHONE->value,
+        );
+
+        $isOptedOut = $this->lead->people?->contacts()
+            ->where('is_opt_out', 1)
+            ->whereIn('contacts_types_id', $isEmail ? Contact::EMAIL_TYPES : Contact::PHONE_TYPES)
+            ->get()
+            ->contains(fn (Contact $contact): bool => Contact::normalizeValue(
+                (string) $contact->value,
+                (int) $contact->contacts_types_id,
+            ) === $normalizedDestination) ?? false;
+
+        if ($isOptedOut) {
+            throw new LeadOptedOutException(
+                sprintf('Destination has opted out of %s communications', $channel),
+            );
+        }
+    }
+
     protected function guardSmsDestination(string $cellphone, ?string $from): void
     {
         $normalizedFrom = $from !== null ? Str::toE164($from) : null;
@@ -778,19 +872,7 @@ class SendMessageToLeadAction
             throw new InvalidArgumentException('Twilio To and From numbers must be different');
         }
 
-        $isOptedOut = $this->lead->people?->getAllPhones()->contains(
-            fn ($contact): bool => Contact::normalizeValue(
-                (string) $contact->value,
-                (int) $contact->contacts_types_id,
-            ) === Contact::normalizeValue(
-                $cellphone,
-                ContactTypeEnum::CELLPHONE->value,
-            ) && (int) $contact->is_opt_out === 1,
-        ) ?? false;
-
-        if ($isOptedOut) {
-            throw new LeadOptedOutException('Destination phone has opted out of SMS communications');
-        }
+        $this->guardDestinationOptOut($cellphone, LeadCommunicationChannelEnum::SMS->value);
     }
 
     protected function getTwilioStatusCallbackUrl(): ?string
@@ -879,7 +961,8 @@ class SendMessageToLeadAction
         ?string $title = null,
         bool $signature = true,
         ?string $to = null,
-        ?array $cc = null
+        ?array $cc = null,
+        ?Agent $fromAgent = null
     ): array {
         $attachments = [];
 
@@ -887,9 +970,6 @@ class SendMessageToLeadAction
         if (! empty($engagementUrls)) {
             $message .= "\n\n" . implode("\n", $engagementUrls);
         }
-
-        // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.
-        $message = MarkdownEmailRenderer::toEmailHtml($message);
 
         foreach ($this->processedFiles as $file) {
             if (isset($file['is_processed_video']) && $file['is_processed_video']) {
@@ -899,6 +979,47 @@ class SendMessageToLeadAction
                 $attachments[] = $file['url'];
             }
         }
+
+        $ccList = array_values(array_filter($cc ?? []));
+        $subject = $title ?? 'Message from ' . $this->lead->company->name;
+        $leadEmail = ($to !== null && $to !== '')
+            ? $to
+            : $this->lead->people->getEmails()->first()?->value;
+
+        if (! $leadEmail) {
+            throw new LeadMissingContactException('Lead does not have an email address');
+        }
+
+        $this->guardDestinationOptOut((string) $leadEmail, LeadCommunicationChannelEnum::EMAIL->value);
+
+        $mailboxAddress = $fromAgent !== null
+            ? new AgentMailboxService()->addressFor($fromAgent)
+            : null;
+
+        if ($mailboxAddress !== null) {
+            new SendAsAgentMailboxAction(
+                agent: $fromAgent,
+                to: $leadEmail,
+                subject: $subject,
+                markdownBody: $message,
+                cc: $ccList,
+                attachmentUrls: $attachments,
+            )->execute();
+
+            return $this->emailResult(
+                to: $leadEmail,
+                ccList: $ccList,
+                body: $message,
+                attachments: $attachments,
+                engagementUrls: $engagementUrls,
+                template: 'agent-mailbox',
+                signature: false,
+                from: $mailboxAddress,
+            );
+        }
+
+        // Agent replies are Markdown; the mail layout renders raw HTML, so convert here.
+        $message = MarkdownEmailRenderer::toEmailHtml($message);
 
         $notification = new Blank(
             'first-time-agent-engagement',
@@ -914,31 +1035,56 @@ class SendMessageToLeadAction
             ! empty($attachments) ? $attachments : null
         );
         $notification->setFromUser($this->lead->user);
-        $notification->setSubject($title ?? 'Message from ' . $this->lead->company->name);
-        $ccList = array_values(array_filter($cc ?? []));
+        $notification->setSubject($subject);
         if ($ccList !== []) {
             $notification->setCc($ccList);
         }
-        $leadEmail = ($to !== null && $to !== '')
-            ? $to
-            : $this->lead->people->getEmails()->first()?->value;
-        if (! $leadEmail) {
-            throw new LeadMissingContactException('Lead does not have an email address');
-        }
         Notification::route('mail', $leadEmail)->notify($notification);
 
+        return $this->emailResult(
+            to: $leadEmail,
+            ccList: $ccList,
+            body: $message,
+            attachments: $attachments,
+            engagementUrls: $engagementUrls,
+            template: 'first-time-agent-engagement',
+            signature: $signature,
+        );
+    }
+
+    /**
+     * `from` is null on the SMTP lane because the address is the company's, resolved downstream by
+     * SmtpRuntimeConfiguration — only the agent-mailbox lane knows its own sender up front.
+     *
+     * @param array<int, string> $ccList
+     * @param array<int, string> $attachments
+     * @param array<int, string> $engagementUrls
+     *
+     * @return array<string, mixed>
+     */
+    private function emailResult(
+        string $to,
+        array $ccList,
+        string $body,
+        array $attachments,
+        array $engagementUrls,
+        string $template,
+        bool $signature,
+        ?string $from = null
+    ): array {
         return [
-          'channel' => 'email',
-          'to' => $leadEmail,
-          'cc' => $ccList,
-          'template' => 'first-time-agent-engagement',
-          'body_length' => strlen($message),
-          'signature' => $signature,
-          'engagement_urls' => array_values($engagementUrls),
-          'attachments' => $attachments,
-          'attachments_count' => count($attachments),
-          'lead_id' => $this->lead->getId(),
-          'lead_uuid' => $this->lead->uuid,
+            'channel' => 'email',
+            'to' => $to,
+            'cc' => $ccList,
+            'template' => $template,
+            'from' => $from,
+            'body_length' => strlen($body),
+            'signature' => $signature,
+            'engagement_urls' => array_values($engagementUrls),
+            'attachments' => $attachments,
+            'attachments_count' => count($attachments),
+            'lead_id' => $this->lead->getId(),
+            'lead_uuid' => $this->lead->uuid,
         ];
     }
 

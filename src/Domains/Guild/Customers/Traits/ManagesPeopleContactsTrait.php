@@ -150,7 +150,12 @@ trait ManagesPeopleContactsTrait
         return true;
     }
 
-    protected function syncContactsForUpdate(People $people, DataCollection $contacts): void
+    /**
+     * $merge = the incoming list is a partial payload (one webhook's phone, one enrichment email),
+     * so contacts it doesn't mention are left alone. Default stays authoritative: whatever is
+     * missing from the list is removed, which is what a full form/provider sync means.
+     */
+    protected function syncContactsForUpdate(People $people, DataCollection $contacts, bool $merge = false): void
     {
         if (! $contacts->count()) {
             return;
@@ -199,6 +204,10 @@ trait ManagesPeopleContactsTrait
             foreach ($savedContacts as $saved) {
                 $keepIds[] = $saved->id;
             }
+        }
+
+        if ($merge) {
+            return;
         }
 
         if (! empty($keepIds)) {

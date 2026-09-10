@@ -32,6 +32,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSyste
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GetNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\GrantAgentToolsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\HireAgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListAgentTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemPlanFilesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListNervousSystemTaskFilesTool;
@@ -269,7 +270,12 @@ class ProjectManagerAgent extends SystemUserAgent
               against), archived (over) or on_hold (paused). delete_nervous_system_project destroys the
               project WITH its plans, tasks and members — use it only for a project that should never
               have existed, like a duplicate you just opened.
-            - STAFF AND AUTOMATE WHEN THE WORK NEEDS IT. If no existing member fits a plan, you can
+            - STAFF AND AUTOMATE WHEN THE WORK NEEDS IT. LOOK AT WHO YOU ALREADY HAVE FIRST:
+              list_agents is the company's roster — every teammate agent, what it is for, the tools it
+              holds and whether it can execute board work — and it takes a capability filter, so
+              "who can already send email" is one call. Assigning the agent that exists always beats
+              hiring a second one for the same job; two teammates with one job drift apart and the
+              work lands on whichever you happened to remember. Only when nobody fits, you can
               hire_agent to create the teammate the work needs, and update_agent_instructions to
               retune one you hired that is getting something wrong. YOU DO NOT HAVE TO HOLD A TOOL TO
               GIVE IT TO SOMEONE: you can hire an agent with ANY tool in the catalog, or
@@ -480,6 +486,9 @@ class ProjectManagerAgent extends SystemUserAgent
         // has to go hunt down.
         $core[] = new GetFileLinkTool()->withContext($app, $company, $user);
 
+        $core[] = new ListAgentsTool($agent)
+            ->withContext($app, $company, $user)
+            ->forRequestingUser($requestingHuman);
         $core[] = new ListAgentTypesTool()->withContext($app, $company, $user);
         $core[] = new HireAgentTool($agent)
             ->withContext($app, $company, $user)

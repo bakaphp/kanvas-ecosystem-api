@@ -30,6 +30,7 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehou
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 use Kanvas\Inventory\Warehouses\Services\WarehouseService;
+use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
@@ -74,6 +75,18 @@ class VariantService
             if (isset($variant['attributes'])) {
                 $attributes = array_merge($attributes, $variant['attributes']); // to do: refactor for default attributes variant
                 $variantModel->addAttributes($user, $attributes);
+            }
+
+            $variantTags = Tag::normalizeNames($variant['tags'] ?? []);
+            if ($variantTags !== []) {
+                $variantModel->syncTags($variantTags);
+
+                // Attaching tags doesn't touch the variant row, so Scout's save
+                // hook never fires — re-index by hand or the tags never reach
+                // the variant document.
+                if ($variantModel->shouldBeSearchable()) {
+                    $variantModel->searchable();
+                }
             }
 
             if (isset($variant['status']['id'])) {

@@ -6,7 +6,6 @@ namespace Kanvas\Approvals\Actions;
 
 use Kanvas\Approvals\DataTransferObject\ApprovalResult;
 use Kanvas\Approvals\Enums\ApprovalDecisionEnum;
-use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Approvals\Services\ApprovalCompletionService;
 use Kanvas\Exceptions\ValidationException;
@@ -37,11 +36,7 @@ class SystemApproveAction
             throw new ValidationException('A system approval must record why no human approved it.');
         }
 
-        if ($this->request->status !== ApprovalStatusEnum::PENDING) {
-            throw new ValidationException(
-                "This approval is already {$this->request->status->value}, not pending."
-            );
-        }
+        $this->request->assertPending();
 
         // AUTO_APPROVED, not APPROVED: a report has to be able to separate "a person signed this"
         // from "a rule closed it".

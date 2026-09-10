@@ -8,11 +8,10 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Approvals\DataTransferObject\ApprovalResult;
 use Kanvas\Approvals\Enums\ApprovalDecisionEnum;
-use Kanvas\Approvals\Enums\ApprovalStatusEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Approvals\Services\ApprovalCompletionService;
 use Kanvas\Approvals\Services\ApprovalWorkflowService;
-use Kanvas\Exceptions\ValidationException;
+use Kanvas\Approvals\Services\ApproverSelfAssignService;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 /**
@@ -24,22 +23,31 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
  */
 class ApproveAction
 {
+    /**
+     * @param array<string, mixed> $context the approver's own input for the policy's handler — the
+     *                                       project they redirected a routing approval to, the text
+     *                                       they edited. Persisted on the request before the handler
+     *                                       runs, so what the handler acted on is auditable and not
+     *                                       just a value that passed through a call.
+     */
     public function __construct(
         protected readonly ApprovalRequest $request,
         protected readonly UserInterface $approver,
         protected readonly ?string $comment = null,
+        protected readonly array $context = [],
         protected readonly ApprovalCompletionService $completion = new ApprovalCompletionService(),
         protected readonly ApprovalWorkflowService $workflow = new ApprovalWorkflowService(),
+        protected readonly ApproverSelfAssignService $selfAssign = new ApproverSelfAssignService(),
     ) {
     }
 
     public function execute(): ApprovalResult
     {
-        if ($this->request->status !== ApprovalStatusEnum::PENDING) {
-            throw new ValidationException(
-                "This approval is already {$this->request->status->value}, not pending."
-            );
-        }
+        $this->request->assertPending();
+
+        // No-op unless the policy opted in, and even then it writes an approver row rather than
+        // waiving the check below — so authorization still comes from the rows and nowhere else.
+        $this->selfAssign->ensureCanDecide($this->request, $this->approver);
 
         $row = $this->request->requireApproverRow($this->approver);
         $row->decision = ApprovalDecisionEnum::APPROVED;
@@ -58,7 +66,12 @@ class ApproveAction
 
         return $nextStep !== null
             ? $this->advanceTo($nextStep)
-            : $this->completion->complete($this->request, $this->approver, $this->comment);
+            : $this->completion->complete(
+                $this->request,
+                $this->approver,
+                $this->comment,
+                $this->context !== [] ? ['decision_context' => $this->context] : [],
+            );
     }
 
     private function advanceTo(int $step): ApprovalResult

@@ -50,6 +50,12 @@ type ScribePayment {
     metadata: Mixed
     user: User @belongsTo(relation: "user")
     company: Company! @belongsTo(relation: "company")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     created_at: DateTime!
     updated_at: DateTime!
 }

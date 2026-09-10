@@ -26,7 +26,9 @@ use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
+use Kanvas\Scribe\Expenses\Actions\ApproveExpenseAction;
 use Kanvas\Scribe\Expenses\Actions\CreateExpenseAction;
+use Kanvas\Scribe\Expenses\Actions\SubmitExpenseForApprovalAction;
 use Kanvas\Scribe\Expenses\DataTransferObject\Expense as ExpenseData;
 use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseLine as ExpenseLineData;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
@@ -395,6 +397,71 @@ final class BankTransactionMatchingTest extends ScribeTestCase
                 ->count(),
             'The bank feed must post NO entry of its own — the Expense already booked this charge.'
         );
+    }
+
+    /**
+     * The mirror of testACardChargeAlreadyBookedAsAnExpenseIsLinkedNotPostedAgain, and the order that
+     * actually happens: the receipt is filed at the register, the statement row lands the next day, the
+     * manager approves on Thursday. The feed credits the card and parks the debit in Suspense; without the
+     * drain, approving afterwards credits the card a SECOND time and strands the parked amount — $150 of
+     * charge becoming $300 of credit.
+     */
+    public function testApprovingAnExpenseAfterItsStatementRowDrainsSuspenseInsteadOfCreditingTheCardTwice(): void
+    {
+        $card = new CreateBankAccountAction(
+            data: new BankAccountData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                account_name: 'Company Credit Card',
+                gl_account_id: $this->accountIdBySubType(AccountSubTypeEnum::CREDIT_CARD_LIABILITY),
+                currency: 'USD',
+                source: 'mercury',
+                external_id: 'credit-' . uniqid('', true),
+            ),
+            user: static::$cachedUser,
+        )->execute();
+
+        $expense = new CreateExpenseAction(
+            data: new ExpenseData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                lines: new DataCollection(ExpenseLineData::class, [
+                    new ExpenseLineData(
+                        description: 'Team dinner',
+                        amount_native: 150.00,
+                        expense_account_id: $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS),
+                    ),
+                ]),
+                expense_date: Carbon::parse('2026-06-15'),
+                currency: 'USD',
+                fx_rate_to_base: 1.0,
+                paid_by: ExpensePaidByEnum::COMPANY_CARD,
+            ),
+            user: static::$cachedUser,
+        )->execute();
+
+        $transaction = $this->landTransaction(
+            direction: BankTransactionDirectionEnum::DEBIT,
+            amount: 150.00,
+            counterpartyName: 'La Cassina',
+            bankAccount: $card,
+        );
+        new MatchBankTransactionAction($transaction, static::$cachedUser)->execute();
+
+        $this->assertSame(-150.00, $this->netMovementOn(AccountSubTypeEnum::CREDIT_CARD_LIABILITY));
+        $this->assertSame(150.00, $this->netMovementOn(AccountSubTypeEnum::SUSPENSE));
+
+        new SubmitExpenseForApprovalAction($expense, static::$cachedUser)->execute();
+        new ApproveExpenseAction(expense: $expense->refresh(), approver: static::$cachedUser)->execute();
+
+        // THE assertion. One real charge, one credit to the card. Not two.
+        $this->assertSame(-150.00, $this->netMovementOn(AccountSubTypeEnum::CREDIT_CARD_LIABILITY));
+        $this->assertSame(0.0, $this->netMovementOn(AccountSubTypeEnum::SUSPENSE), 'Suspense was drained, not stranded.');
+        $this->assertSame(150.00, $this->netMovementOn(AccountSubTypeEnum::TRAVEL_AND_MEALS), 'The debit landed on the expense account.');
+
+        $transaction->refresh();
+        $this->assertSame(BankTransactionMatchedToTypeEnum::EXPENSE, $transaction->matched_to_type);
+        $this->assertSame($expense->getId(), $transaction->matched_to_id);
     }
 
     public function testAnUnapprovedExpenseDoesNotSuppressTheBankEntry(): void
