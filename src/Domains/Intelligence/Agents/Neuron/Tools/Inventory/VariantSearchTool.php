@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Variants\Models\Variants;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
@@ -16,12 +15,19 @@ use Override;
 #[AgentTool(name: 'Variant Search', category: 'inventory')]
 class VariantSearchTool extends Tool
 {
+    // The tenant comes from the AGENT context (RunVoiceAgentToolAction::withContext),
+    // never from the model. app/company arrived as LLM-supplied `apps_id`/`companies_id`
+    // arguments before — untrusted, prompt-injectable input that let a caller steer the
+    // search into another tenant's variants. Scope to the agent's own app + company only.
+    use HasKanvasContext;
+
     public function __construct()
     {
         parent::__construct(
             name: 'variant_search',
             description: 'Search product variants by name or SKU. '
                 . 'Returns variant details including SKU, price, stock, and its parent product name. '
+                . 'Searches only within the company bound to the agent context. '
                 . 'Use this when the user asks about a specific SKU or variant name.',
         );
     }
@@ -36,32 +42,21 @@ class VariantSearchTool extends Tool
                 description: 'Name or SKU to search for. Partial matches are supported.',
                 required: true,
             ),
-            new ToolProperty(
-                name: 'companies_id',
-                type: ToolsPropertyType::INTEGER,
-                description: 'The ID of the company to search within.',
-                required: true,
-            ),
-            new ToolProperty(
-                name: 'apps_id',
-                type: ToolsPropertyType::INTEGER,
-                description: 'The ID of the app context.',
-                required: true,
-            ),
         ];
     }
 
-    public function __invoke(string $keyword, int $companies_id, int $apps_id): array
+    public function __invoke(string $keyword): array
     {
+        if (! $this->hasTenantContext()) {
+            return $this->tenantContextMissingError('variant search');
+        }
+
         if ($keyword === '') {
             return ['message' => 'Please provide a keyword (name or SKU) to search for variants.'];
         }
 
-        $app = Apps::getById($apps_id);
-        $company = Companies::getById($companies_id);
-
-        $variants = Variants::fromApp($app)
-            ->fromCompany($company)
+        $variants = Variants::fromApp($this->app)
+            ->fromCompany($this->company)
             ->notDeleted()
             ->where(function ($q) use ($keyword) {
                 $q->where('name', 'like', '%' . $keyword . '%')
