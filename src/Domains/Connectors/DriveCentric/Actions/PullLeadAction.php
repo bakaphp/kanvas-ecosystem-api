@@ -14,7 +14,7 @@ use Kanvas\Connectors\DriveCentric\Exceptions\DriveCentricException;
 use Kanvas\Connectors\DriveCentric\Services\LeadService;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Services\LeadPullResultService;
+use Kanvas\Guild\Leads\Services\LeadPullResult;
 use Throwable;
 
 class PullLeadAction
@@ -236,6 +236,6 @@ class PullLeadAction
 
     public function getFormattedResponse(Lead $lead): array
     {
-        return LeadPullResultService::toArray($lead);
+        return LeadPullResult::for($lead)->toArray();
     }
 }

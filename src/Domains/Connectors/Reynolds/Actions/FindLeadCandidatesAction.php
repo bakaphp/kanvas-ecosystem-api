@@ -12,7 +12,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleMatchScore;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
-use Kanvas\Guild\Leads\Services\LeadPullResultService;
+use Kanvas\Guild\Leads\Services\LeadPullResult;
 
 /**
  * Finds the leads already in Kanvas that could be the Reynolds prospect the
@@ -37,7 +37,7 @@ class FindLeadCandidatesAction
     }
 
     /**
-     * @return array<int, array<string, mixed>> LeadPullResultService shape, best match first
+     * @return array<int, array<string, mixed>> LeadPullResult shape, best match first
      */
     public function execute(
         ?string $clientId = null,
@@ -50,14 +50,20 @@ class FindLeadCandidatesAction
             return [];
         }
 
-        /** @var array<int, array{lead: Lead, rank: float, anchored: bool}> $candidates */
+        /** @var array<int, LeadPullResult> $candidates */
         $candidates = [];
+        /** @var array<int, true> $anchoredIds */
+        $anchoredIds = [];
 
         foreach ($this->leadsAnchoredOnClientId($clientId) as $lead) {
-            // An external id match is identity, not similarity. Ranking it 1.0
-            // rather than sorting on a separate flag keeps the wire shape free of
-            // a match-reason field the client would have to understand.
-            $candidates[$lead->getId()] = ['lead' => $lead, 'rank' => 1.0, 'anchored' => true];
+            // An external id match is identity, not similarity, so it takes the
+            // top rank. It still needs its own tiebreak: a lone exact email also
+            // scores 1.0 (one term supplied, one matched), and without this the
+            // newer of the two wins on id and the anchor loses its own search.
+            // Tracked beside the results rather than on LeadPullResult — it is
+            // Reynolds' notion of a match, and it must not reach the wire.
+            $candidates[$lead->getId()] = LeadPullResult::for($lead, 1.0);
+            $anchoredIds[$lead->getId()] = true;
         }
 
         foreach ($this->peopleMatchingContacts($email, $phone) as $people) {
@@ -74,7 +80,7 @@ class FindLeadCandidatesAction
                     continue;
                 }
 
-                $candidates[$lead->getId()] = ['lead' => $lead, 'rank' => $rank, 'anchored' => false];
+                $candidates[$lead->getId()] = LeadPullResult::for($lead, $rank);
             }
         }
 
@@ -82,14 +88,18 @@ class FindLeadCandidatesAction
 
         usort(
             $candidates,
-            fn (array $a, array $b) => [$b['rank'], $b['anchored'], $b['lead']->getId()]
-                <=> [$a['rank'], $a['anchored'], $a['lead']->getId()]
+            fn (LeadPullResult $a, LeadPullResult $b) => [
+                $b->rank,
+                isset($anchoredIds[$b->lead->getId()]),
+                $b->lead->getId(),
+            ] <=> [
+                $a->rank,
+                isset($anchoredIds[$a->lead->getId()]),
+                $a->lead->getId(),
+            ]
         );
 
-        return array_map(
-            fn (array $candidate) => LeadPullResultService::toArray($candidate['lead'], $candidate['rank']),
-            $candidates
-        );
+        return array_map(fn (LeadPullResult $candidate) => $candidate->toArray(), $candidates);
     }
 
     /**

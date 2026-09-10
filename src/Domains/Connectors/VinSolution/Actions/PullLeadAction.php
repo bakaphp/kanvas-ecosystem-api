@@ -29,7 +29,7 @@ use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
-use Kanvas\Guild\Leads\Services\LeadPullResultService;
+use Kanvas\Guild\Leads\Services\LeadPullResult;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
@@ -127,7 +127,7 @@ class PullLeadAction
                 $lead->refresh();
 
                 return [
-                    LeadPullResultService::toArray($lead),
+                    LeadPullResult::for($lead)->toArray(),
                 ];
             }
 

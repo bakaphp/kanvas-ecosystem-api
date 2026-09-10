@@ -22,7 +22,7 @@ use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
-use Kanvas\Guild\Leads\Services\LeadPullResultService;
+use Kanvas\Guild\Leads\Services\LeadPullResult;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -115,7 +115,7 @@ class PullPeopleLeadFromSearchActivity extends KanvasActivity
                 $lead = new SyncLeadByThirdPartyCustomFieldAction($leadDto)->execute();
                 $lead->searchable();
 
-                $results[] = LeadPullResultService::toArray($lead);
+                $results[] = LeadPullResult::for($lead)->toArray();
             } catch (ELeadException $e) {
                 // No opportunity for this customer — skip, nothing to sync.
                 continue;
@@ -230,7 +230,7 @@ class PullPeopleLeadFromSearchActivity extends KanvasActivity
                         $lead = new SyncLeadByThirdPartyCustomFieldAction($leadDto)->execute();
                         $lead->searchable();
 
-                        $results[] = LeadPullResultService::toArray($lead);
+                        $results[] = LeadPullResult::for($lead)->toArray();
                     } catch (Throwable $e) {
                         report($e);
                     }

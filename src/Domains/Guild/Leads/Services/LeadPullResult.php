@@ -7,17 +7,32 @@ namespace Kanvas\Guild\Leads\Services;
 use Kanvas\Guild\Leads\Models\Lead;
 
 /**
- * The wire shape every CRM connector returns from a lead pull or search.
+ * One candidate from a CRM lead pull or search: the lead, plus how well it
+ * matched what the caller asked for.
  *
- * It exists because this array was hand-written in seven places across the
- * connectors and drifted on three axes — status casing, nullability, and which
- * accessor fed owner/phone — so the same lead came back differently depending on
- * which dealer's CRM produced it. Clients live in a separate repo and consume it
- * structurally, so every key here is contract surface: add one only when a client
- * needs it, and never drop one.
+ * It exists because the wire array below was hand-written in eight places across
+ * the connectors and drifted on three axes — status casing, nullability, and
+ * which accessor fed owner/phone — so the same lead came back differently
+ * depending on which dealer's CRM produced it.
+ *
+ * It holds the Lead rather than copying its fields, so there is one source of
+ * truth and no 16-argument constructor. toArray() is the boundary: clients live
+ * in a separate repo and read the result structurally, so every key it emits is
+ * contract surface. Add one only when a client needs it, and never drop one.
  */
-class LeadPullResultService
+final class LeadPullResult
 {
+    private function __construct(
+        public readonly Lead $lead,
+        public readonly float $rank,
+    ) {
+    }
+
+    public static function for(Lead $lead, float $rank = 1.0): self
+    {
+        return new self($lead, $rank);
+    }
+
     /**
      * @return array{
      *     id: int,
@@ -38,8 +53,10 @@ class LeadPullResultService
      *     updated_at: mixed
      * }
      */
-    public static function toArray(Lead $lead, float $rank = 1.0): array
+    public function toArray(): array
     {
+        $lead = $this->lead;
+
         return [
             'id' => $lead->id,
             'uuid' => $lead->uuid,
@@ -56,7 +73,7 @@ class LeadPullResultService
             'owner' => $lead->owner?->name,
             'owner_id' => $lead->leads_owner_id,
             'custom_fields' => $lead->getAllCustomFields(),
-            'rank' => $rank,
+            'rank' => $this->rank,
             'recentlyCreated' => $lead->wasRecentlyCreated,
             'updated_at' => $lead->updated_at,
         ];

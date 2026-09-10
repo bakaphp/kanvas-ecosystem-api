@@ -8,10 +8,10 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Services\LeadPullResultService;
+use Kanvas\Guild\Leads\Services\LeadPullResult;
 use Tests\TestCase;
 
-final class LeadPullResultServiceTest extends TestCase
+final class LeadPullResultTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -43,7 +43,7 @@ final class LeadPullResultServiceTest extends TestCase
      */
     public function testEmitsExactlyTheContractKeys(): void
     {
-        $result = LeadPullResultService::toArray($this->createLead());
+        $result = LeadPullResult::for($this->createLead())->toArray();
 
         $this->assertSame(self::EXPECTED_KEYS, array_keys($result));
     }
@@ -52,7 +52,7 @@ final class LeadPullResultServiceTest extends TestCase
     {
         $lead = $this->createLead();
 
-        $result = LeadPullResultService::toArray($lead);
+        $result = LeadPullResult::for($lead)->toArray();
 
         $this->assertSame($lead->id, $result['id']);
         $this->assertSame($lead->uuid, $result['uuid']);
@@ -67,7 +67,7 @@ final class LeadPullResultServiceTest extends TestCase
     {
         $lead = $this->createLead();
 
-        $result = LeadPullResultService::toArray($lead);
+        $result = LeadPullResult::for($lead)->toArray();
 
         $this->assertSame(strtolower($result['status']), $result['status']);
     }
@@ -82,7 +82,7 @@ final class LeadPullResultServiceTest extends TestCase
         $lead->leads_status_id = 0;
         $lead->saveOrFail();
 
-        $result = LeadPullResultService::toArray($lead->refresh());
+        $result = LeadPullResult::for($lead->refresh())->toArray();
 
         $this->assertSame('', $result['status']);
     }
@@ -92,7 +92,7 @@ final class LeadPullResultServiceTest extends TestCase
         $lead = $this->createLead();
         $lead->people->addCellPhone('2296466762');
 
-        $result = LeadPullResultService::toArray($lead->refresh());
+        $result = LeadPullResult::for($lead->refresh())->toArray();
 
         $this->assertNotNull($result['phone']);
     }
@@ -101,15 +101,30 @@ final class LeadPullResultServiceTest extends TestCase
     {
         $lead = $this->createLead();
 
-        $this->assertSame(1.0, LeadPullResultService::toArray($lead)['rank']);
-        $this->assertSame(0.67, LeadPullResultService::toArray($lead, 0.67)['rank']);
+        $this->assertSame(1.0, LeadPullResult::for($lead)->toArray()['rank']);
+        $this->assertSame(0.67, LeadPullResult::for($lead, 0.67)->toArray()['rank']);
+    }
+
+    /**
+     * Callers rank and sort candidates before serializing, so the lead and its
+     * rank have to be readable off the value object itself — toArray() is the
+     * wire boundary, not the only way in.
+     */
+    public function testExposesTheLeadAndRankWithoutSerializing(): void
+    {
+        $lead = $this->createLead();
+
+        $result = LeadPullResult::for($lead, 0.5);
+
+        $this->assertSame($lead->getId(), $result->lead->getId());
+        $this->assertSame(0.5, $result->rank);
     }
 
     public function testRecentlyCreatedIsFalseForALeadReadBackFromTheDatabase(): void
     {
         $lead = $this->createLead();
 
-        $result = LeadPullResultService::toArray(Lead::getById($lead->id));
+        $result = LeadPullResult::for(Lead::getById($lead->id))->toArray();
 
         $this->assertFalse($result['recentlyCreated']);
     }

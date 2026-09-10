@@ -22,7 +22,7 @@ use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
-use Kanvas\Guild\Leads\Services\LeadPullResultService;
+use Kanvas\Guild\Leads\Services\LeadPullResult;
 use Kanvas\Locations\Models\Countries;
 use Throwable;
 
@@ -98,7 +98,7 @@ class PullLeadAction
             )->value;
 
             return [
-                LeadPullResultService::toArray($lead, $nameRank),
+                LeadPullResult::for($lead, $nameRank)->toArray(),
             ];
         }
 
@@ -177,7 +177,7 @@ class PullLeadAction
                     $this->setContactStatus($lead, $eLead->subStatus);
                     //$results[] = $lead;
 
-                    $results[] = LeadPullResultService::toArray($lead, (float) $customer['rank']);
+                    $results[] = LeadPullResult::for($lead, (float) $customer['rank'])->toArray();
                     $filterResults[$lead->id] = $lead->id;
                 } catch (Throwable $th) {
                     //ignore the error
@@ -234,7 +234,7 @@ class PullLeadAction
                                     continue;
                                 }
 
-                                $results[] = LeadPullResultService::toArray($closedLead, $nameRank);
+                                $results[] = LeadPullResult::for($closedLead, $nameRank)->toArray();
                                 $filterResults[$closedLead->id] = $closedLead->id;
                             }
                         }
