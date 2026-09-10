@@ -30,11 +30,13 @@ class Integrations extends BaseModel
         'apps_id',
         'name',
         'config',
+        'metadata',
         'handler',
     ];
 
     protected $casts = [
         'config' => Json::class,
+        'metadata' => Json::class,
         'is_deleted' => 'boolean',
     ];
 

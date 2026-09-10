@@ -6,8 +6,10 @@ namespace Kanvas\Intelligence\Agents\Traits;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Mcp\RemoteMcpToolkit;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
@@ -17,6 +19,7 @@ use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
 use Kanvas\NervousSystem\Plan\Support\VerifierToolPolicy;
 use Kanvas\NervousSystem\Plan\Support\WorkerToolPolicy;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\Toolkits\ToolkitInterface;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionParameter;
@@ -111,6 +114,13 @@ trait MergesRegisteredTools
             return $tools;
         }
 
+        // A toolkit answers to neither getName() nor name(), so an MCP grant would otherwise be kept
+        // wholesale under the worker policy (unfiltered) and dropped wholesale under the verifier.
+        // Expanding first makes every MCP tool face the policy on its own name, which is the only way
+        // the boundary means anything here. Guidelines are lost in this mode — restricted execution is
+        // the right place to trade prompt framing for an enforceable allow-list.
+        $tools = $this->expandToolkits($tools);
+
         return array_values(array_filter(
             $tools,
             static function (object $tool) use ($verifying): bool {
@@ -136,16 +146,74 @@ trait MergesRegisteredTools
     }
 
     /**
+     * @param list<object> $tools
+     * @return list<object>
+     */
+    protected function expandToolkits(array $tools): array
+    {
+        $expanded = [];
+
+        foreach ($tools as $tool) {
+            if (! $tool instanceof ToolkitInterface) {
+                $expanded[] = $tool;
+
+                continue;
+            }
+
+            foreach ($tool->tools() as $inner) {
+                $expanded[] = $inner;
+            }
+        }
+
+        return $expanded;
+    }
+
+    /**
      * Override to add framework-specific resolution (e.g. wrap sub-agents).
      * Delegate to defaultRegisteredToolResolver() for the standard path.
      */
     protected function resolveRegisteredTool(Tool $tool): ?object
     {
+        if ($tool->isMcp()) {
+            return $this->resolveRegisteredMcpTool($tool);
+        }
+
         if ($tool->agents_id !== null && method_exists($this, 'resolveRegisteredSubAgentTool')) {
             return $this->resolveRegisteredSubAgentTool($tool);
         }
 
         return $this->defaultRegisteredToolResolver($tool);
+    }
+
+    /**
+     * An MCP row is backed by an `integrations` row rather than a PHP handler, and resolves to a
+     * toolkit so Neuron expands it lazily into whatever the server currently publishes.
+     */
+    protected function resolveRegisteredMcpTool(Tool $tool): ?object
+    {
+        // Unaudited third-party tools must never reach a prospect — the same reasoning that keeps
+        // read_file off a customer surface. The grant is refused at write time as well, but a marker
+        // can be added to an agent that already holds one, and only this catches that.
+        if ($this instanceof ConversesWithCustomer) {
+            return null;
+        }
+
+        if ($tool->integrations_id === null) {
+            return null;
+        }
+
+        $candidates = $this instanceof ProvidesToolDependencies
+            ? $this->toolDependencyCandidates()
+            : [];
+
+        $app = $this->firstCandidateOfType($candidates, Apps::class);
+        $company = $this->firstCandidateOfType($candidates, Companies::class);
+
+        if (! $app instanceof Apps || ! $company instanceof Companies) {
+            return null;
+        }
+
+        return new RemoteMcpToolkit($app, $company, $tool);
     }
 
     protected function defaultRegisteredToolResolver(Tool $tool): ?object

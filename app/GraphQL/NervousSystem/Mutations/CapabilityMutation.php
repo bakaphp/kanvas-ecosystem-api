@@ -202,6 +202,18 @@ class CapabilityMutation
             ));
         }
 
+        // An MCP server is unaudited third-party surface. Reaching a prospect it could be talked into
+        // acting on the company's Jira, so the grant is refused here where an admin is told why — the
+        // resolver filters it again at runtime, because this marker can be added to an agent that
+        // already holds the grant and only that check catches it.
+        if ($enabled && $tool->isMcp() && $agent->conversesWithCustomer()) {
+            throw new ValidationException(sprintf(
+                'Agent "%s" talks to customers, so it cannot be granted the MCP server "%s".',
+                $agent->name,
+                $tool->name,
+            ));
+        }
+
         // withTrashed so soft-deleted rows are visible: toggling off then on must reactivate the same row, not insert a duplicate.
         $existing = AgentTool::query()
             ->withTrashed()

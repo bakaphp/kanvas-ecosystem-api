@@ -55,7 +55,8 @@ class IntegrationsMutation
             app: $integrationDto->app,
             company: $integrationDto->company,
             region: $integrationDto->region,
-            data: $integrationDto->config
+            data: $integrationDto->config,
+            integration: $integration
         );
 
         if ($handlerInstance->setup()) {
