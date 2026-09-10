@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Repositories;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Traits\SearchableTrait;
 use Illuminate\Contracts\Database\Query\Builder;
@@ -87,5 +88,48 @@ class LeadsRepository
     {
         /** @psalm-suppress LessSpecificReturnStatement */
         return self::getPeopleClosedLeads($people)->first();
+    }
+
+    /**
+     * The statuses that mean a lead is done, for the callers that need to exclude
+     * them rather than whitelist the live ones.
+     *
+     * @return array<int, string>
+     */
+    public static function closedStatusNames(CompanyInterface $company): array
+    {
+        $mappingStatus = $company->get(ConfigurationEnum::MAPPING_STATUS_CRM->value);
+
+        if (is_array($mappingStatus)
+            && isset($mappingStatus['closed'])
+            && is_array($mappingStatus['closed'])
+            && ! empty($mappingStatus['closed'])
+        ) {
+            return $mappingStatus['closed'];
+        }
+
+        return ['closed', 'sold', 'lost'];
+    }
+
+    /**
+     * Leads that are not in a terminal status — the exclusion counterpart to
+     * getPeopleActiveLeads().
+     *
+     * The difference matters for CRMs whose vocabulary we do not control:
+     * Reynolds dealers publish prospects as "Open", which the active whitelist
+     * (['active', 'created'], or whatever MAPPING_STATUS_CRM['active'] names)
+     * rejects, so those leads look closed to a whitelist and live to this.
+     */
+    public static function getPeopleNonClosedLeads(People $people): Builder
+    {
+        return Lead::fromApp($people->app)
+                    ->fromCompany($people->company)
+                    ->notDeleted()
+                    ->where('people_id', $people->id)
+                        ->whereHas(
+                            'status',
+                            fn ($query) => $query->whereNotIn('name', self::closedStatusNames($people->company))
+                        )
+                        ->orderBy('id', 'desc');
     }
 }

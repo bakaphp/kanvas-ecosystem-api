@@ -10,7 +10,6 @@ use GuzzleHttp\Exception\ClientException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Enums\ConfigurationEnum as CompaniesConfigurationEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DealerSocket\Actions\PullPeopleAction;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum as DealerSocketEnumsCustomFieldEnum;
@@ -192,20 +191,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
             return null;
         }
 
-        // Exclude terminal statuses instead of whitelisting "active" — Reynolds
-        // dealers publish prospects as "Open" which the auto-seed creates, and
-        // Kanvas defaults use "active" / "created". Exclusion covers both plus
-        // any custom pipeline stage the dealer configures. MAPPING_STATUS_CRM
-        // overrides the default when the company has a mapping installed.
-        $closedStatuses = ['closed', 'sold', 'lost'];
-        $mappingStatus = $company->get(CompaniesConfigurationEnum::MAPPING_STATUS_CRM->value);
-        if (is_array($mappingStatus)
-            && isset($mappingStatus['closed'])
-            && is_array($mappingStatus['closed'])
-            && ! empty($mappingStatus['closed'])
-        ) {
-            $closedStatuses = $mappingStatus['closed'];
-        }
+        $closedStatuses = LeadsRepository::closedStatusNames($company);
 
         $emailTypes = [
             ContactTypeEnum::EMAIL->value,
