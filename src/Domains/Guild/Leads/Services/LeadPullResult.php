@@ -8,17 +8,14 @@ use Kanvas\Guild\Leads\Models\Lead;
 
 /**
  * One candidate from a CRM lead pull or search: the lead, plus how well it
- * matched what the caller asked for.
- *
- * It exists because the wire array below was hand-written in eight places across
- * the connectors and drifted on three axes — status casing, nullability, and
- * which accessor fed owner/phone — so the same lead came back differently
- * depending on which dealer's CRM produced it.
+ * matched what the caller asked for. Every connector returns this shape.
  *
  * It holds the Lead rather than copying its fields, so there is one source of
- * truth and no 16-argument constructor. toArray() is the boundary: clients live
- * in a separate repo and read the result structurally, so every key it emits is
- * contract surface. Add one only when a client needs it, and never drop one.
+ * truth and no 16-argument constructor.
+ *
+ * toArray() is the boundary: clients live in a separate repo and read the result
+ * structurally, so every key it emits is contract surface. Add one only when a
+ * client needs it, and never drop one.
  */
 final class LeadPullResult
 {

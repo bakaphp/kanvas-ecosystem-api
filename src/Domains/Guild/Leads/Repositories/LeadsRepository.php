@@ -36,14 +36,19 @@ class LeadsRepository
                     ->firstOrFail();
     }
 
+    private static function leadsForPeople(People $people): Builder
+    {
+        return Lead::fromApp($people->app)
+                    ->fromCompany($people->company)
+                    ->notDeleted()
+                    ->where('people_id', $people->id);
+    }
+
     public static function getPeopleActiveLeads(People $people): Builder
     {
         $mappingStatus = $people->company->get(ConfigurationEnum::MAPPING_STATUS_CRM->value);
 
-        return Lead::fromApp($people->app)
-                    ->fromCompany($people->company)
-                    ->notDeleted()
-                    ->where('people_id', $people->id)
+        return self::leadsForPeople($people)
                         ->whereHas('status', function ($query) use ($mappingStatus) {
                             if ($mappingStatus && is_array($mappingStatus) && key_exists('active', $mappingStatus) && is_array($mappingStatus['active'])) {
                                 $query->whereIn('name', $mappingStatus['active']);
@@ -64,23 +69,25 @@ class LeadsRepository
     public static function getPeopleLastLead(People $people): ?Lead
     {
         /** @psalm-suppress LessSpecificReturnStatement */
-        return Lead::fromApp($people->app)
-                    ->fromCompany($people->company)
-                    ->notDeleted()
-                    ->where('people_id', $people->id)
+        return self::leadsForPeople($people)
                     ->orderBy('id', 'desc')
                     ->first();
     }
 
+    /**
+     * Careful: this excludes the *live* names, so it answers "not active", not
+     * "terminal" — and it does not read MAPPING_STATUS_CRM the way its active
+     * counterpart does. A status in neither list therefore satisfies both this
+     * and getPeopleNonClosedLeads(): a Reynolds "Open" lead reads as closed here
+     * and as live there. Left as-is because eLead's fallback and DriveCentric
+     * depend on the current behaviour and neither path has coverage; fixing it
+     * means deciding what "closed" means platform-wide, which is the `is_closed`
+     * column the Lead model already has a TODO for.
+     */
     public static function getPeopleClosedLeads(People $people): Builder
     {
-        return Lead::fromApp($people->app)
-                    ->fromCompany($people->company)
-                    ->notDeleted()
-                    ->where('people_id', $people->id)
-                        ->whereHas('status', function ($query) {
-                            $query->whereNotIn('name', ['active', 'created']);
-                        })
+        return self::leadsForPeople($people)
+                        ->whereHas('status', fn ($query) => $query->whereNotIn('name', ['active', 'created']))
                         ->orderBy('id', 'desc');
     }
 
@@ -122,10 +129,7 @@ class LeadsRepository
      */
     public static function getPeopleNonClosedLeads(People $people): Builder
     {
-        return Lead::fromApp($people->app)
-                    ->fromCompany($people->company)
-                    ->notDeleted()
-                    ->where('people_id', $people->id)
+        return self::leadsForPeople($people)
                         ->whereHas(
                             'status',
                             fn ($query) => $query->whereNotIn('name', self::closedStatusNames($people->company))
