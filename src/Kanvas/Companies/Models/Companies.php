@@ -6,6 +6,7 @@ namespace Kanvas\Companies\Models;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\DateHelper;
 use Baka\Traits\AddressTraitRelationship;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HashTableTrait;
@@ -14,7 +15,6 @@ use Baka\Users\Contracts\UserInterface;
 use Bavix\Wallet\Interfaces\Customer;
 use Bavix\Wallet\Traits\CanPayFloat;
 use Carbon\Carbon;
-use DateTimeZone;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
@@ -62,7 +62,6 @@ use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Override;
-use Throwable;
 
 /**
  * Companies Model.
@@ -685,29 +684,21 @@ class Companies extends BaseModel implements CompanyInterface, Customer
     }
 
     /**
-     * The `timezone` column is nullable and free-form, so it holds both NULL and
-     * strings that look IANA but aren't (`America/Indiana` without its city
-     * suffix, `EST`). Both blow up whatever Carbon call they reach, so validate
-     * here and let callers pick their own fallback.
+     * The `timezone` column is nullable and free-form despite the `@property
+     * string` docblock, so it holds both NULL and unusable values. Returns null
+     * for either; callers pick their own fallback.
      */
     public function getTimezone(): ?string
     {
         /** @psalm-suppress RedundantCastGivenDocblockType */
-        $timezone = trim((string) $this->timezone);
+        $stored = trim((string) $this->timezone);
+        $timezone = DateHelper::validTimezone($stored);
 
-        if ($timezone === '') {
-            return null;
-        }
-
-        try {
-            new DateTimeZone($timezone);
-        } catch (Throwable) {
+        if ($timezone === null && $stored !== '') {
             Log::warning('Invalid timezone stored on company; falling back', [
                 'company_id' => $this->getId(),
-                'invalid_value' => $timezone,
+                'invalid_value' => $stored,
             ]);
-
-            return null;
         }
 
         return $timezone;

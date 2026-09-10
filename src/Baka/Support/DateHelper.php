@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Baka\Support;
 
+use DateTimeZone;
 use Illuminate\Support\Carbon;
 use Throwable;
 
@@ -68,6 +69,35 @@ class DateHelper
             'years' => (int) ($parts[0] ?? 0),
             'months' => (int) ($parts[1] ?? 0),
         ];
+    }
+
+    /**
+     * Returns the timezone only when DateTimeZone accepts it, null otherwise.
+     *
+     * Tenant-supplied zones include strings that look IANA but aren't —
+     * `America/Indiana` without its city suffix, `Eastern Time` — and those
+     * throw wherever they eventually reach Carbon, far from where they were
+     * read. Validate at the read, let each caller pick its own fallback.
+     */
+    public static function validTimezone(mixed $timezone): ?string
+    {
+        if (! is_string($timezone)) {
+            return null;
+        }
+
+        $timezone = trim($timezone);
+
+        if ($timezone === '') {
+            return null;
+        }
+
+        try {
+            new DateTimeZone($timezone);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return $timezone;
     }
 
     // Returns null instead of throwing on garbage / non-strings / empty input.
