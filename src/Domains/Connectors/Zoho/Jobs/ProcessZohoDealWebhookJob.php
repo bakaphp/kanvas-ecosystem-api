@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Zoho\Jobs;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -13,6 +12,7 @@ use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Filesystem\Actions\AttachFilesystemAction;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Deals\Actions\CreateDealAction;
 use Kanvas\Guild\Deals\Actions\UpdateDealAction;
 use Kanvas\Guild\Deals\DataTransferObject\Deal as DealData;
@@ -141,17 +141,7 @@ class ProcessZohoDealWebhookJob extends ProcessWebhookJob
             return null;
         }
 
-        /** @var People|null $people */
-        $people = People::fromApp($app)
-            ->fromCompany($company)
-            ->notDeleted()
-            ->whereHas(
-                'contacts',
-                fn (Builder $q) => $q->where('value', $email)
-            )
-            ->first();
-
-        return $people;
+        return PeoplesRepository::getByEmail($email, $company, $app);
     }
 
     protected function mapCustomFields(Deal $deal, array $zohoDealInfo, Companies $company): void

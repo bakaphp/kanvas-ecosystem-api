@@ -589,49 +589,6 @@ class People extends BaseModel
     }
 
     /**
-     * Get person by email.
-     */
-    public static function getByEmail(string $email, ?Apps $app = null): ?self
-    {
-        $app = $app ?? app(Apps::class);
-
-        return self::whereHas('contacts', function ($query) use ($email) {
-            $query->where('value', $email)
-                  ->where('contacts_types_id', ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId());
-        })->where('apps_id', $app->getId())
-          ->where('is_deleted', 0)
-          ->first();
-    }
-
-    /**
-     * Get person by phone matching (strips non-numeric characters for comparison).
-     */
-    public static function getByPhoneMatchingValue(string $phone, Companies $company, Apps $app): ?self
-    {
-        return self::whereHas('contacts', function ($query) use ($phone) {
-            $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') = REGEXP_REPLACE(?, '[^0-9]', '')", [$phone])
-                  ->whereIn('contacts_types_id', [
-                      ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
-                      ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
-                  ]);
-        })->where('apps_id', $app->getId())
-          ->where('companies_id', $company?->getId())
-          ->where('is_deleted', 0)
-          ->first();
-    }
-
-    public static function getByMatchingValue(string $value, Companies $company, Apps $app): ?self
-    {
-        return self::whereHas('contacts', function ($query) use ($value) {
-            $query->where('value', $value);
-        })
-            ->where('companies_id', $company->getId())
-            ->where('apps_id', $app->getId())
-            ->where('is_deleted', 0)
-            ->first();
-    }
-
-    /**
      * Get all people by phone matching (strips non-numeric characters for comparison).
      */
     public static function getAllByPhoneMatchingValue(string $phone, Companies $company, Apps $app): Collection
