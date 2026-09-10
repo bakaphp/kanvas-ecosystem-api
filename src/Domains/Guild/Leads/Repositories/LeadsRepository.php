@@ -101,6 +101,16 @@ class LeadsRepository
      * The statuses that mean a lead is done, for the callers that need to exclude
      * them rather than whitelist the live ones.
      *
+     * @todo The default is known-incomplete and the override is unused. Of the
+     * status names in leads_status only 'Closed', 'Sold' and 'Lost' are matched:
+     * 'Close' (a separate row from 'Closed'), 'Won', 'Complete', 'Duplicate',
+     * 'Bad' and 'Inactive' all fall through and read as live. No company has
+     * MAPPING_STATUS_CRM set, so every tenant gets this default. Widening the
+     * list is not the fix — the names are per-tenant and unbounded. The fix is
+     * the `is_closed` column on leads_status that Lead's own TODO already calls
+     * for, so the lifecycle is declared by the data instead of by string lists
+     * in three places. Until then, treat "not closed" as "not obviously closed".
+     *
      * @return array<int, string>
      */
     public static function closedStatusNames(CompanyInterface $company): array
@@ -122,10 +132,17 @@ class LeadsRepository
      * Leads that are not in a terminal status — the exclusion counterpart to
      * getPeopleActiveLeads().
      *
-     * The difference matters for CRMs whose vocabulary we do not control:
-     * Reynolds dealers publish prospects as "Open", which the active whitelist
-     * (['active', 'created'], or whatever MAPPING_STATUS_CRM['active'] names)
-     * rejects, so those leads look closed to a whitelist and live to this.
+     * It exists for CRMs whose vocabulary we do not control: Reynolds dealers
+     * publish prospects as "Open", which the active whitelist rejects, so a live
+     * lead reads as closed to a whitelist.
+     *
+     * Exclusion is the lesser of two wrong answers here, not a correct one. It
+     * errs toward showing a dead lead; the whitelist errs toward hiding a live
+     * one. Neither is a definition of the lifecycle — see closedStatusNames()
+     * for why, and for what would actually fix it.
+     *
+     * This is also why it is not the negation of getPeopleClosedLeads(): the two
+     * exclude different lists, so a status in neither satisfies both.
      */
     public static function getPeopleNonClosedLeads(People $people): Builder
     {

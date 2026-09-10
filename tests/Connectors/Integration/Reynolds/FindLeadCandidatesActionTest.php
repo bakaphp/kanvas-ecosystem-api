@@ -94,6 +94,10 @@ final class FindLeadCandidatesActionTest extends TestCase
      * Reynolds dealers publish prospects as "Open", which the active-status
      * whitelist rejects. Excluding terminal statuses instead is the whole reason
      * this action does not reuse getPeopleActiveLeads().
+     *
+     * Note this only pins the direction, not correctness: the terminal list is
+     * known-incomplete, so statuses like "Won" also survive the exclusion and
+     * surface as live candidates. See LeadsRepository::closedStatusNames().
      */
     public function testIncludesAnOpenStatusTheActiveWhitelistWouldReject(): void
     {
