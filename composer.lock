@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "89d5db9313c0d3af2bf331b3630036e0",
+    "content-hash": "8d702ca07f8c13b23dc4bad1bd4d7258",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -153,6 +153,68 @@
                 "source": "https://github.com/algolia/scout-extended/tree/v5.0.0"
             },
             "time": "2026-04-28T12:56:21+00:00"
+        },
+        {
+            "name": "apache/avro",
+            "version": "1.12.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/apache/avro.git",
+                "reference": "8fa2067f70e3012cb3fd9a8839cd97e8c7cc1772"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/apache/avro/zipball/8fa2067f70e3012cb3fd9a8839cd97e8c7cc1772",
+                "reference": "8fa2067f70e3012cb3fd9a8839cd97e8c7cc1772",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^7.1 || ^8.0"
+            },
+            "require-dev": {
+                "ext-curl": "*",
+                "ext-json": "*",
+                "ext-pcntl": "*",
+                "ext-xml": "*",
+                "php-mock/php-mock-phpunit": "^2.10",
+                "phpunit/phpunit": "^7.5 || ^8.5 || ^9.5",
+                "squizlabs/php_codesniffer": "3.*"
+            },
+            "type": "library",
+            "extra": {
+                "branch-alias": {
+                    "dev-master": "1.0.x-dev"
+                }
+            },
+            "autoload": {
+                "psr-4": {
+                    "Apache\\Avro\\": "lang/php/lib/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "Apache-2.0"
+            ],
+            "authors": [
+                {
+                    "name": "Apache Avro Developers",
+                    "email": "dev@avro.apache.org",
+                    "homepage": "http://avro.apache.org"
+                }
+            ],
+            "description": "Apache Avro™ is a data serialization system.",
+            "homepage": "http://avro.apache.org",
+            "keywords": [
+                "avro",
+                "data",
+                "serialization"
+            ],
+            "support": {
+                "email": "dev@avro.apache.org",
+                "issues": "https://issues.apache.org/jira/browse/AVRO",
+                "source": "https://github.com/apache/avro/tree/release-1.12.2"
+            },
+            "time": "2026-08-07T12:56:37+00:00"
         },
         {
             "name": "asad/oauth2-zoho",
@@ -1836,30 +1898,36 @@
         },
         {
             "name": "durable-workflow/workflow",
-            "version": "1.0.82",
+            "version": "2.0.8",
             "source": {
                 "type": "git",
                 "url": "https://github.com/durable-workflow/workflow.git",
-                "reference": "c3120b5d5d4742115a9f1274dbaf47adbc21caac"
+                "reference": "12c7e8b88d5d71d5e2273b0d182aa9cf22809590"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/c3120b5d5d4742115a9f1274dbaf47adbc21caac",
-                "reference": "c3120b5d5d4742115a9f1274dbaf47adbc21caac",
+                "url": "https://api.github.com/repos/durable-workflow/workflow/zipball/12c7e8b88d5d71d5e2273b0d182aa9cf22809590",
+                "reference": "12c7e8b88d5d71d5e2273b0d182aa9cf22809590",
                 "shasum": ""
             },
             "require": {
-                "laravel/framework": "^9.0|^10.0|^11.0|^12.0|^13.0",
+                "apache/avro": "^1.12",
+                "laravel/framework": "^9.52.17|^10.48.29|^11.44.1|^12.61.1|^13.12.0",
                 "php": "^8.1",
-                "react/promise": "^2.9|^3.0"
+                "react/promise": "^2.9|^3.0",
+                "symfony/yaml": "^6.0|^7.0|^8.0"
             },
             "replace": {
                 "laravel-workflow/laravel-workflow": "self.version"
             },
             "require-dev": {
-                "orchestra/testbench": "^8.0",
+                "doctrine/dbal": "^3.7",
+                "orchestra/testbench": "^8.0|^11.0",
                 "phpstan/phpstan": "^2.0",
                 "symplify/easy-coding-standard": "^11.0"
+            },
+            "suggest": {
+                "durable-workflow/sdk": "Framework-neutral client and remote-worker SDK for the standalone Durable Workflow server."
             },
             "type": "library",
             "extra": {
@@ -1867,11 +1935,20 @@
                     "providers": [
                         "Workflow\\Providers\\WorkflowServiceProvider"
                     ]
+                },
+                "branch-alias": {
+                    "dev-main": "2.0.x-dev"
+                },
+                "durable-workflow": {
+                    "product-train": "2.0.8",
+                    "laravel-embedded-upgrade-contract": "resources/laravel-embedded-upgrade-contract.json",
+                    "laravel-dependency-security-policy": "resources/laravel-dependency-security-policy.json"
                 }
             },
             "autoload": {
                 "files": [
-                    "src/functions.php"
+                    "src/functions.php",
+                    "src/V2/functions.php"
                 ],
                 "psr-4": {
                     "Workflow\\": "src/"
@@ -1887,12 +1964,12 @@
                     "email": "support@durable-workflow.com"
                 }
             ],
-            "description": "Durable workflow engine that allows users to write long running persistent distributed workflows (orchestrations) in PHP powered by Laravel queues.",
+            "description": "Embedded durable workflow runtime and orchestration engine for Laravel applications.",
             "support": {
                 "issues": "https://github.com/durable-workflow/workflow/issues",
-                "source": "https://github.com/durable-workflow/workflow/tree/1.0.82"
+                "source": "https://github.com/durable-workflow/workflow/tree/2.0.8"
             },
-            "time": "2026-08-27T20:28:21+00:00"
+            "time": "2026-09-08T13:40:56+00:00"
         },
         {
             "name": "dyrynda/laravel-cascade-soft-deletes",
@@ -7091,16 +7168,16 @@
         },
         {
             "name": "monolog/monolog",
-            "version": "3.11.0",
+            "version": "3.12.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Seldaek/monolog.git",
-                "reference": "147f303310f06334f03f409e49d7ad1e275ff05a"
+                "reference": "72c534fc0ab181ef52d92a68382318631e301608"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Seldaek/monolog/zipball/147f303310f06334f03f409e49d7ad1e275ff05a",
-                "reference": "147f303310f06334f03f409e49d7ad1e275ff05a",
+                "url": "https://api.github.com/repos/Seldaek/monolog/zipball/72c534fc0ab181ef52d92a68382318631e301608",
+                "reference": "72c534fc0ab181ef52d92a68382318631e301608",
                 "shasum": ""
             },
             "require": {
@@ -7126,6 +7203,7 @@
                 "phpstan/phpstan-strict-rules": "^2",
                 "phpunit/phpunit": "^10.5.17 || ^11.0.7",
                 "predis/predis": "^1.1 || ^2",
+                "psr/clock": "^1.0",
                 "rollbar/rollbar": "^4.0",
                 "ruflin/elastica": "^7 || ^8",
                 "symfony/mailer": "^5.4 || ^6",
@@ -7144,6 +7222,7 @@
                 "graylog2/gelf-php": "Allow sending log messages to a GrayLog2 server",
                 "mongodb/mongodb": "Allow sending log messages to a MongoDB server (via library)",
                 "php-amqplib/php-amqplib": "Allow sending log messages to an AMQP server using php-amqplib",
+                "psr/clock": "Required to pass a clock to the Logger and control the timestamp of log records",
                 "rollbar/rollbar": "Allow sending log messages to Rollbar",
                 "ruflin/elastica": "Allow sending log messages to an Elastic Search server"
             },
@@ -7178,7 +7257,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Seldaek/monolog/issues",
-                "source": "https://github.com/Seldaek/monolog/tree/3.11.0"
+                "source": "https://github.com/Seldaek/monolog/tree/3.12.0"
             },
             "funding": [
                 {
@@ -7190,7 +7269,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-02T12:39:56+00:00"
+            "time": "2026-09-09T08:34:20+00:00"
         },
         {
             "name": "mtdowling/jmespath.php",
