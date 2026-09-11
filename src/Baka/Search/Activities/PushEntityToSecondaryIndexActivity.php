@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Baka\Search\Activities;
 
+use Baka\Search\Contracts\SecondaryIndexServiceInterface;
 use Baka\Search\SecondaryAlgoliaIndexService;
 use Baka\Search\SecondaryTypesenseIndexService;
 use Illuminate\Database\Eloquent\Model;
@@ -61,11 +62,7 @@ class PushEntityToSecondaryIndexActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             integrationOperation: function () use ($entity, $app, $indexName, $searchEngine): array {
                 try {
-                    $service = match ($searchEngine) {
-                        'algolia' => new SecondaryAlgoliaIndexService($app),
-                        'typesense' => new SecondaryTypesenseIndexService($app),
-                        default => throw new RuntimeException("Secondary indexing for search engine '{$searchEngine}' is not implemented"),
-                    };
+                    $service = $this->resolveSecondaryIndexService($searchEngine, $app);
 
                     if (! $entity->shouldBeSearchable()) {
                         $service->removeEntity($entity, $indexName);
@@ -94,5 +91,19 @@ class PushEntityToSecondaryIndexActivity extends KanvasActivity
             additionalParams: $params,
             company: $entity->company,
         );
+    }
+
+    /**
+     * Extracted so tests can override it and substitute a fake service — neither concrete class
+     * accepts an injected SDK client through this call site, and building one for real would mean
+     * a live Algolia/Typesense backend, which CI does not have.
+     */
+    protected function resolveSecondaryIndexService(string $searchEngine, Apps $app): SecondaryIndexServiceInterface
+    {
+        return match ($searchEngine) {
+            'algolia' => new SecondaryAlgoliaIndexService($app),
+            'typesense' => new SecondaryTypesenseIndexService($app),
+            default => throw new RuntimeException("Secondary indexing for search engine '{$searchEngine}' is not implemented"),
+        };
     }
 }
