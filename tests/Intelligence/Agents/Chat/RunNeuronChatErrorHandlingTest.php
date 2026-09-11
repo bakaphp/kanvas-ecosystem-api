@@ -44,7 +44,7 @@ class RunNeuronChatErrorHandlingTest extends TestCase
     {
         $response = $this->runChatWithThrowingHandler(new RuntimeException('Gemini returned STOP with no parts'));
 
-        $this->assertStringContainsString('I ran into a hiccup processing that', $response);
+        $this->assertStringContainsString('Something went wrong partway through that', $response);
         $this->assertStringNotContainsString('RuntimeException', $response);
         $this->assertStringNotContainsString('Gemini returned STOP', $response);
     }
@@ -102,7 +102,7 @@ class RunNeuronChatErrorHandlingTest extends TestCase
 
         $this->assertStringContainsString('overloaded', $response);
         $this->assertStringContainsString('again', $response);
-        $this->assertStringNotContainsString('I ran into a hiccup', $response);
+        $this->assertStringNotContainsString('Something went wrong partway through', $response);
         $this->assertStringNotContainsString('rephrasing', $response);
     }
 
@@ -125,7 +125,7 @@ class RunNeuronChatErrorHandlingTest extends TestCase
     {
         $response = $this->runChatWithThrowingHandler($this->providerOverload(400));
 
-        $this->assertStringContainsString('I ran into a hiccup', $response);
+        $this->assertStringContainsString('Something went wrong partway through', $response);
         $this->assertStringNotContainsString('overloaded', $response);
     }
 

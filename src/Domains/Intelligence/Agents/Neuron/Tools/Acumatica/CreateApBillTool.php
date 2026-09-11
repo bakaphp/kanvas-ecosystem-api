@@ -24,6 +24,7 @@ use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
+use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
 use NeuronAI\Tools\ArrayProperty;
@@ -258,6 +259,28 @@ class CreateApBillTool extends Tool implements HasRunKey
         /** @var Organization $vendor */
         $vendor = $match->organization;
         $vendorDisplayName = trim((string) $vendor->get(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, '')) ?: $vendor->name;
+
+        // Guards against the same invoice being filed twice — e.g. a payment reminder resending the
+        // same PDF re-triggers this flow, or a person resends after a turn appeared to fail partway.
+        $existingBill = Bill::query()
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->where('vendor_organization_id', $vendor->getId())
+            ->where('bill_number', $invoice_number)
+            ->where('is_deleted', false)
+            ->first();
+
+        if ($existingBill !== null) {
+            return [
+                'created' => false,
+                'reason' => 'duplicate_bill',
+                'bill_id' => $existingBill->getId(),
+                'document_status' => $existingBill->document_status->value,
+                'message' => "Invoice \"{$invoice_number}\" from {$vendorDisplayName} is already in Kanvas as bill "
+                    . "#{$existingBill->getId()} ({$existingBill->document_status->value}) — not creating a "
+                    . 'duplicate. Tell the user it is already filed instead of trying again.',
+            ];
+        }
 
         $lineInputs = $lines !== null && $lines !== [] ? $lines : [[
             'gl_account_number' => $gl_account_number,

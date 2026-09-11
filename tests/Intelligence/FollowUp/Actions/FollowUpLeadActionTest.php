@@ -1232,7 +1232,7 @@ class FollowUpLeadActionTest extends TestCase
 
         $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
         $this->assertStringStartsWith('agent_call_failed: ', (string) $outcome->reason);
-        $this->assertStringContainsString("I ran into a hiccup processing that", (string) $outcome->reason);
+        $this->assertStringContainsString('Something went wrong partway through that', (string) $outcome->reason);
         $this->assertStringNotContainsString('RuntimeException', (string) $outcome->reason);
         $this->assertStringNotContainsString('Simulated Gemini timeout', (string) $outcome->reason);
 

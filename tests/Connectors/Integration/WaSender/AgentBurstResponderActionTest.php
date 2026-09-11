@@ -162,7 +162,7 @@ final class AgentBurstResponderActionTest extends TestCase
     {
         $result = $this->runBurst(shouldReply: true, handler: PartlessNeuronAgentStub::class);
 
-        $this->assertStringContainsString('I ran into a hiccup processing that', (string) $result['response']);
+        $this->assertStringContainsString('Something went wrong partway through that', (string) $result['response']);
         $this->assertCount(1, self::$sent);
     }
 
