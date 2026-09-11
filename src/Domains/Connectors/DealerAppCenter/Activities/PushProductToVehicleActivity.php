@@ -13,11 +13,15 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
 /**
- * Workflow-facing entry point for the reverse migration: Kanvas Product -> dealer-api `vehicles` row.
  * Mapping/insert logic is shared with MigrateProductsToVehiclesCommand via MapProductToVehicleAction
  * and PushVehicleToDealerAction — this Activity only adds the workflow retry/integration wrapper.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    description: 'Maps a Kanvas Product to a dealer-api Vehicle row (equipment/photos/vehicle-types included) and inserts it directly into the dealer-api database.',
+    params: [
+        'rooftop_id' => "Target dealer-api rooftop id. If omitted, falls back to the product's company DEALER_LEGACY_ROOFTOP setting.",
+    ],
+)]
 class PushProductToVehicleActivity extends KanvasActivity
 {
     public $tries = 3;
