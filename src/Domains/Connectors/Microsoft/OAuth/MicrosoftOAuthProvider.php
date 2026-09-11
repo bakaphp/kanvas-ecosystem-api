@@ -117,8 +117,7 @@ class MicrosoftOAuthProvider implements OAuthProviderInterface
         $redirectUrl = (string) ($config['oauth_callback_url'] ?? $app->get('microsoft-oauth-redirect-url') ?? '');
 
         if ($redirectUrl === '') {
-            $appUrl = (string) config('app.url');
-            $redirectUrl = $appUrl . '/v1/oauth/' . $receiver->uuid . '/callback';
+            $redirectUrl = $receiver->getOAuthCallbackUrl();
         }
 
         return $redirectUrl;

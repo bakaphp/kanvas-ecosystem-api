@@ -4,36 +4,36 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mcp\Services;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Mcp\DataTransferObject\McpServerConfig;
+use Kanvas\Connectors\Mcp\Enums\McpAuthEnum;
+use Kanvas\Connectors\Mcp\Enums\McpConnectionStatusEnum;
 use Kanvas\Connectors\Mcp\Transports\GuardedHttpMcpTransport;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Mcp\CachedMcpConnector;
-use Kanvas\Workflow\Enums\StatusEnum;
-use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
-use Kanvas\Workflow\Integrations\Models\Status;
+use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
+use Kanvas\NervousSystem\Capability\Models\AgentTool;
+use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Workflow\Models\Integrations;
 use NeuronAI\MCP\McpTransportInterface;
 use Throwable;
 
 /**
- * Everything needed to talk to one company's instance of one MCP server: is it switched on, what does
- * its descriptor say, and a connector wired to our guarded transport.
+ * One agent's connection to one MCP server: whether it is usable, the server's descriptor, and a
+ * connector wired to the guarded transport.
  *
- * `$app` is passed rather than derived from `$integration->app` — curated MCP rows sit at `apps_id=0`
- * and are shared by every app, so the row's own app relation is not the acting tenant.
+ * Its state lives on the agent's grant for the server's tool (`config.mcp`) — connecting grants the tool
+ * and revoking it deletes the credential, so "is this agent connected" has one home.
  */
 class McpConnectionService
 {
     private ?McpServerConfig $config = null;
 
     /**
-     * $transport is an injection point, not configuration: production always wants the guarded one, and
-     * tests swap in NeuronAI's FakeMcpTransport so no suite ever opens a socket.
+     * $transport is a test seam; production always uses the guarded transport.
      */
     public function __construct(
-        private readonly Apps $app,
-        private readonly Companies $company,
+        private readonly Agent $agent,
         private readonly Integrations $integration,
         private readonly ?McpTransportInterface $transport = null,
     ) {
@@ -44,39 +44,92 @@ class McpConnectionService
         return $this->config ??= McpServerConfig::fromIntegration($this->integration);
     }
 
-    public function integrationCompany(): ?IntegrationsCompany
+    public function tool(): ?Tool
     {
-        return IntegrationsCompany::query()
-            ->fromCompany($this->company)
+        return Tool::query()
+            ->where('tool_type', ToolTypeEnum::MCP->value)
             ->where('integrations_id', $this->integration->getId())
-            ->where('is_active', 1)
-            ->where('is_deleted', 0)
-            ->with('status')
+            ->fromAppOrGlobal($this->agent->app)
+            ->active()
+            ->first();
+    }
+
+    public function grant(): ?AgentTool
+    {
+        $tool = $this->tool();
+
+        if ($tool === null) {
+            return null;
+        }
+
+        return AgentTool::query()
+            ->where('agent_id', $this->agent->getId())
+            ->where('tool_id', $tool->getId())
+            ->active()
             ->first();
     }
 
     /**
-     * A company that never connected the server, disabled it, or whose credential was rejected has no
-     * capability here — the caller resolves no tools rather than dialling out to be told the same.
+     * Checked before any cache read, so a revoked or failed connection is never served from a warm entry.
      */
     public function isEnabled(): bool
     {
-        $row = $this->integrationCompany();
+        $grant = $this->grant();
 
-        if ($row === null) {
+        if ($grant === null) {
             return false;
         }
 
-        return ($row->status->slug ?? null) === StatusEnum::ACTIVE->value;
+        if ((self::stateOf($grant)['status'] ?? null) === McpConnectionStatusEnum::FAILED->value) {
+            return false;
+        }
+
+        return new McpCredentialService($this->agent, $this->integration)->rawToken() !== null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function stateOf(?AgentTool $grant): array
+    {
+        $config = $grant !== null && is_array($grant->config) ? $grant->config : [];
+
+        return is_array($config['mcp'] ?? null) ? $config['mcp'] : [];
+    }
+
+    public function recordConnected(McpAuthEnum $method): void
+    {
+        $this->writeState([
+            'status' => McpConnectionStatusEnum::ACTIVE->value,
+            'auth' => $method->value,
+            'connected_at' => Carbon::now()->toIso8601String(),
+            'last_error' => null,
+        ]);
+    }
+
+    /**
+     * Only this agent's grant — one agent's rejected credential never switches the server off for others.
+     */
+    public function markFailed(string $reason): void
+    {
+        try {
+            $this->writeState([
+                'status' => McpConnectionStatusEnum::FAILED->value,
+                'last_error' => mb_substr($reason, 0, 500),
+            ]);
+        } catch (Throwable) {
+            // Best effort: failing to record why must not break the turn that is already degrading.
+        }
     }
 
     public function connector(): CachedMcpConnector
     {
         return new CachedMcpConnector([
+            // A URL each connection supplies is read by the transport from the credential at send time,
+            // like the token, so it never lands in a serialized payload.
             'transport' => $this->transport ?? new GuardedHttpMcpTransport(
-                url: $this->config()->url,
-                appsId: $this->app->getId(),
-                companiesId: $this->company->getId(),
+                url: $this->config()->urlPerConnection ? null : $this->config()->url,
+                agentsId: $this->agent->getId(),
                 integrationsId: $this->integration->getId(),
                 timeoutMs: $this->config()->timeoutMs,
                 transport: $this->config()->transport->value,
@@ -85,40 +138,44 @@ class McpConnectionService
     }
 
     /**
-     * A live `tools/list`, minus the platform denylist. Used by `setup()` to prove a credential and by
-     * the cache layer on a miss — never called on a warm turn.
+     * A live `tools/list` minus the platform denylist — a connect or a cache miss, never a warm turn.
      *
      * @return list<array<string, mixed>>
      */
     public function fetchDescriptors(): array
     {
-        $tools = $this->connector()->fetchRemoteDescriptors();
         $config = $this->config();
 
         $tools = array_values(array_filter(
-            $tools,
+            $this->connector()->fetchRemoteDescriptors(),
             fn (array $tool): bool => ! $config->isExcluded((string) ($tool['name'] ?? '')),
         ));
 
-        // Deterministic order: an unstable tool list rewrites the LLM prompt prefix every turn and
-        // throws away the provider's prompt cache even when nothing actually changed.
+        // Deterministic order: an unstable list rewrites the LLM prompt prefix every turn and throws away
+        // the provider's prompt cache even when nothing changed.
         usort($tools, fn (array $a, array $b): int => strcmp((string) ($a['name'] ?? ''), (string) ($b['name'] ?? '')));
 
         return $tools;
     }
 
-    public function markFailed(): void
+    /**
+     * @param array<string, mixed> $changes
+     */
+    private function writeState(array $changes): void
     {
-        try {
-            $row = $this->integrationCompany();
-            $failed = Status::where('slug', StatusEnum::FAILED->value)->where('apps_id', 0)->first();
+        $grant = $this->grant();
 
-            if ($row !== null && $failed !== null) {
-                $row->setStatus($failed);
-            }
-        } catch (Throwable) {
-            // Best effort: the caller is already degrading a turn, and failing to record why must not
-            // turn that into an exception the agent surfaces.
+        if ($grant === null) {
+            return;
         }
+
+        $config = is_array($grant->config) ? $grant->config : [];
+        $config['mcp'] = [
+            ...self::stateOf($grant),
+            ...$changes,
+        ];
+
+        $grant->config = $config;
+        $grant->saveOrFail();
     }
 }

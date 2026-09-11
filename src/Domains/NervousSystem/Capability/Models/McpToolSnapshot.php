@@ -11,15 +11,18 @@ use Illuminate\Support\Carbon;
 use Override;
 
 /**
- * Last known good `tools/list` for one (company, MCP server) pair — the durable tier behind Redis.
+ * Last known good `tools/list` for one agent's connection to one MCP server — the durable tier behind
+ * Redis. Per agent because each agent signs in with its own credential, and what a server exposes
+ * depends on who is asking.
  *
  * Append-only-ish: there is no `is_deleted` column, so `KanvasModelTrait`'s static lookups
  * (`getById`, `getByIdFromCompanyApp`) will error — they call `notDeleted()`. Read with
- * `query()->fromApp($app)->...` instead.
+ * `query()->where(...)` instead.
  *
  * @property int $id
  * @property int $apps_id
  * @property int $companies_id
+ * @property int $agents_id
  * @property int $integrations_id
  * @property array $payload
  * @property string $payload_hash
@@ -44,6 +47,7 @@ class McpToolSnapshot extends Model
         return [
             'apps_id' => 'integer',
             'companies_id' => 'integer',
+            'agents_id' => 'integer',
             'integrations_id' => 'integer',
             'payload' => Json::class,
             'tool_count' => 'integer',
@@ -52,20 +56,13 @@ class McpToolSnapshot extends Model
     }
 
     /**
-     * Sorted before hashing so a vendor returning the same tools in a different order does not read as
-     * a change — an unstable tool list rewrites the LLM prompt prefix and throws away the provider's
-     * prompt cache every turn.
+     * Order-sensitive: callers pass the list already sorted (McpConnectionService::fetchDescriptors),
+     * so the same tools from a vendor in a different order hash the same and are not rewritten.
      *
      * @param array<int, array<string, mixed>> $descriptors
      */
     public static function hashFor(array $descriptors): string
     {
         return sha1((string) json_encode($descriptors));
-    }
-
-    public function isOlderThan(int $seconds): bool
-    {
-        return $this->fetched_at === null
-            || $this->fetched_at->lt(Carbon::now()->subSeconds($seconds));
     }
 }

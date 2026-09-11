@@ -32,6 +32,7 @@ class Integrations extends BaseModel
         'config',
         'metadata',
         'handler',
+        'type',
     ];
 
     protected $casts = [

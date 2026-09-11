@@ -9,27 +9,36 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Mcp\Actions\ConnectMcpServerAction;
+use Kanvas\Connectors\Mcp\Enums\McpAuthEnum;
 use Kanvas\Connectors\Mcp\Handlers\McpHandler;
+use Kanvas\Connectors\Mcp\Services\McpConnectionService;
+use Kanvas\Connectors\Mcp\Services\McpCredentialService;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\NervousSystem\Capability\Actions\SetAgentToolAction;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
+use Kanvas\NervousSystem\Capability\Models\AgentTool;
 use Kanvas\NervousSystem\Capability\Models\Tool;
-use Kanvas\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
-use Kanvas\Workflow\Enums\StatusEnum;
-use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
-use Kanvas\Workflow\Integrations\Models\Status;
+use Kanvas\Workflow\Enums\IntegrationTypeEnum;
 use Kanvas\Workflow\Models\Integrations;
+use NeuronAI\MCP\McpTransportInterface;
+use Tests\Stubs\Connectors\Mcp\FakeMcpServer;
 use Tests\TestCase;
+use Throwable;
 
 abstract class McpTestCase extends TestCase
 {
     use DatabaseTransactions;
 
     /**
-     * Both non-default connections the MCP path writes to. Anything written on a connection that is
-     * not listed here COMMITS and survives the test, and the symptom shows up as the *next* test in
-     * the file failing on data this one leaked.
+     * Every connection the MCP path writes to. Anything written on a connection that is not listed
+     * here COMMITS and survives the test, and the symptom shows up as the *next* test in the file
+     * failing on data this one leaked. `ecosystem` holds the agents' custom fields — the credentials —
+     * and app settings; without it every run left credential rows behind for agents that no longer exist.
      */
-    protected array $connectionsToTransact = ['mysql', 'workflow', 'intelligence'];
+    protected array $connectionsToTransact = ['mysql', 'ecosystem', 'workflow', 'intelligence'];
 
     protected Apps $mcpApp;
 
@@ -50,7 +59,7 @@ abstract class McpTestCase extends TestCase
 
         $this->mcpUser = $this->resolveSharedUser();
         // Resolvers read the acting user's current company, so the fixture company and the
-        // authenticated one have to be the same or every "connected" assertion reads false.
+        // authenticated one have to be the same or every agent lookup misses.
         $this->actingAs($this->mcpUser, 'api');
 
         $this->mcpApp = app(Apps::class);
@@ -62,7 +71,9 @@ abstract class McpTestCase extends TestCase
         if (self::$sharedUserId !== null) {
             $existing = Users::query()->where('id', self::$sharedUserId)->first();
 
-            if ($existing instanceof Users) {
+            // Its company lives on `ecosystem`, which rolls back after every test, so the user can outlive
+            // the company it was created with.
+            if ($existing instanceof Users && $this->hasCompany($existing)) {
                 return $existing;
             }
         }
@@ -87,11 +98,21 @@ abstract class McpTestCase extends TestCase
         throw $lastFailure;
     }
 
+    private function hasCompany(Users $user): bool
+    {
+        try {
+            $user->getCurrentCompany();
+
+            return true;
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
     /**
-     * Every test gets its OWN integrations row, and the credential key is derived from that row's id.
-     * That is deliberate: `HashTableTrait::set()` writes to Redis first and then upserts on
-     * `ecosystem` — Redis is shared by every parallel process and rolls back never, so a fixed key
-     * would leak a token across the whole run.
+     * Every test gets its OWN integrations row, and the credential keys are derived from that row's id.
+     * That is deliberate: a custom-field write lands in Redis first — shared by every parallel process
+     * and never rolled back — so a fixed key would leak a token across the whole run.
      *
      * @param array<string, mixed> $metadataOverrides
      */
@@ -102,13 +123,13 @@ abstract class McpTestCase extends TestCase
         $integration->name = 'mcp_test_' . Str::random(12);
         $integration->handler = McpHandler::class;
         $integration->apps_id = 0;
+        $integration->type = IntegrationTypeEnum::MCP->value;
         $integration->config = ['token' => ['type' => 'text', 'required' => true]];
         $integration->metadata = [
-            'kind' => 'mcp',
             'vendor' => 'fakevendor',
             'url' => 'https://mcp.example.test/mcp',
             'transport' => 'http',
-            'auth' => 'bearer',
+            'auth_methods' => ['bearer'],
             'prefix' => 'fake',
             'exclude' => [],
             'timeout_ms' => 5000,
@@ -118,24 +139,6 @@ abstract class McpTestCase extends TestCase
         $integration->saveOrFail();
 
         return $integration;
-    }
-
-    protected function enableForCompany(Integrations $integration, string $status = 'active'): IntegrationsCompany
-    {
-        $statusRow = Status::where('slug', $status === 'active' ? StatusEnum::ACTIVE->value : StatusEnum::FAILED->value)
-            ->where('apps_id', 0)
-            ->firstOrFail();
-
-        $row = new IntegrationsCompany();
-        $row->companies_id = $this->mcpCompany->getId();
-        $row->integrations_id = $integration->getId();
-        $row->status_id = $statusRow->getId();
-        $row->region_id = Regions::query()->first()?->getId() ?? 1;
-        $row->is_active = 1;
-        $row->is_deleted = 0;
-        $row->saveOrFail();
-
-        return $row;
     }
 
     protected function makeMcpTool(Integrations $integration): Tool
@@ -154,5 +157,86 @@ abstract class McpTestCase extends TestCase
         $tool->saveOrFail();
 
         return $tool;
+    }
+
+    /**
+     * An agent type with no provider, so the grant skips the framework-compatibility check the way a
+     * freshly configured agent does. Pass a ConversesWithCustomer handler for a customer-facing agent.
+     */
+    protected function makeAgent(?string $handler = null): Agent
+    {
+        $type = AgentType::factory()
+            ->withAppId($this->mcpApp->getId())
+            ->create(['handler' => $handler]);
+
+        return Agent::factory()
+            ->withAppId($this->mcpApp->getId())
+            ->withCompanyId($this->mcpCompany->getId())
+            ->create(['agent_type_id' => $type->getId()]);
+    }
+
+    /**
+     * The production connect path end to end — grant, credential, probe, snapshot — with the server
+     * faked over its transport.
+     */
+    protected function connectAgent(
+        Agent $agent,
+        Tool $tool,
+        ?McpTransportInterface $transport = null,
+        string $token = 'agent-token',
+        ?string $serverUrl = null
+    ): int {
+        return new ConnectMcpServerAction(
+            agent: $agent,
+            tool: $tool,
+            actor: $this->mcpUser,
+            method: McpAuthEnum::BEARER,
+            grant: [
+                'token' => $token,
+                'server_url' => $serverUrl,
+            ],
+            transport: $transport ?? FakeMcpServer::listing(FakeMcpServer::twoTools()),
+        )->execute();
+    }
+
+    /**
+     * A grant plus a stored credential that was never proven against the server — the state an agent
+     * is in when its server cannot be reached.
+     */
+    protected function grantWithCredential(Agent $agent, Tool $tool, string $token = 'agent-token'): AgentTool
+    {
+        $grant = new SetAgentToolAction(
+            agent: $agent,
+            tool: $tool,
+            enabled: true,
+            actor: $this->mcpUser,
+        )->execute();
+
+        $this->credentials($agent, $tool->integration)->store($token);
+
+        return $grant;
+    }
+
+    protected function grantFor(Agent $agent, Tool $tool): ?AgentTool
+    {
+        return AgentTool::query()
+            ->where('agent_id', $agent->getId())
+            ->where('tool_id', $tool->getId())
+            ->where('is_active', 1)
+            ->where('is_deleted', 0)
+            ->first();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function connectionState(Agent $agent, Tool $tool): array
+    {
+        return McpConnectionService::stateOf($this->grantFor($agent, $tool));
+    }
+
+    protected function credentials(Agent $agent, Integrations $integration): McpCredentialService
+    {
+        return new McpCredentialService($agent, $integration);
     }
 }

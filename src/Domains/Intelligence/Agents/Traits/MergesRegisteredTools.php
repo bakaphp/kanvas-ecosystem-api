@@ -206,14 +206,15 @@ trait MergesRegisteredTools
             ? $this->toolDependencyCandidates()
             : [];
 
-        $app = $this->firstCandidateOfType($candidates, Apps::class);
-        $company = $this->firstCandidateOfType($candidates, Companies::class);
+        // Every connection belongs to one agent, which signs in with its own vendor account — so without
+        // the calling agent there is no credential to act with, and nothing to resolve.
+        $agent = $this->firstCandidateOfType($candidates, Agent::class);
 
-        if (! $app instanceof Apps || ! $company instanceof Companies) {
+        if (! $agent instanceof Agent) {
             return null;
         }
 
-        return new RemoteMcpToolkit($app, $company, $tool);
+        return new RemoteMcpToolkit($agent, $tool);
     }
 
     protected function defaultRegisteredToolResolver(Tool $tool): ?object

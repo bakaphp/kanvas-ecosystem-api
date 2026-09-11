@@ -6,20 +6,20 @@ namespace Kanvas\Connectors\Mcp\Services;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Mcp\Exceptions\McpAuthException;
 use Kanvas\Connectors\Mcp\Jobs\RefreshMcpToolSnapshotJob;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Models\McpToolSnapshot;
 use Kanvas\Workflow\Models\Integrations;
 use Throwable;
 
 /**
- * Two-tier descriptor cache: Redis is the hot path, the DB snapshot is the system of record.
+ * Two-tier descriptor cache for one agent's connection: Redis is the hot path, the DB snapshot the system
+ * of record. Per agent, because what a server exposes depends on whose credential asks.
  *
- * Redis alone would be wrong. A flush, an eviction or a cold deploy sends every agent turn across
- * every company at the vendor simultaneously — and if the vendor happens to be down at that moment,
- * every agent silently holds zero tools. The DB tier means a cold Redis costs a query, not an outage.
+ * Redis alone would be wrong: a flush or a cold deploy sends every turn at the vendor at once, and if the
+ * vendor is down right then every agent silently holds zero tools. With the DB tier a cold Redis costs a
+ * query, not an outage.
  */
 class McpToolCacheService
 {
@@ -29,26 +29,21 @@ class McpToolCacheService
     /** Redis entry lifetime; the DB snapshot outlives it and has no expiry. */
     private const int HARD_TTL_SECONDS = 86400;
 
-    /** How long a failing server is left alone. One bad vendor must not tax every turn. */
+    /** How long a failing server is left alone, so one bad vendor does not tax every turn. */
     private const int BREAKER_TTL_SECONDS = 60;
 
     private const int LOCK_SECONDS = 15;
 
-    private ?McpConnectionService $connection = null;
-
     public function __construct(
-        private readonly Apps $app,
-        private readonly Companies $company,
+        private readonly Agent $agent,
         private readonly Integrations $integration,
         private readonly string $toolVersion = '1.0.0',
-        ?McpConnectionService $connection = null,
+        private ?McpConnectionService $connection = null,
     ) {
-        $this->connection = $connection;
     }
 
     /**
-     * The descriptor list for this company's instance of this server, or `[]` when there is nothing
-     * safe to serve. Never throws: a turn losing one toolset must not lose the turn.
+     * Never throws: a turn losing one toolset must not lose the turn.
      *
      * @return list<array<string, mixed>>
      */
@@ -79,84 +74,60 @@ class McpToolCacheService
         try {
             return $this->refresh();
         } catch (Throwable) {
-            // refresh() has already opened the breaker and, where it could, recorded the cause.
             return [];
         }
     }
 
     /**
-     * Force a network read and write both tiers.
-     *
      * @return list<array<string, mixed>>
      */
     public function refresh(): array
     {
         $lock = Cache::lock($this->lockKey(), self::LOCK_SECONDS);
 
-        // Ten simultaneous turns on an expired key must not fan out into ten concurrent handshakes at
-        // the vendor. Whoever loses the lock falls back to whatever is already durable.
+        // Ten turns on an expired key must not become ten concurrent handshakes at the vendor; whoever
+        // loses the lock serves what is already durable.
         if (! $lock->get()) {
             return $this->lastKnownGood();
         }
 
         try {
-            $descriptors = $this->connection()->fetchDescriptors();
-        } catch (McpAuthException $e) {
-            // The credential is dead, not the network. The capability is genuinely gone, so serving a
-            // stale list would only produce tool calls that 401 one by one.
-            $this->connection()->markFailed();
-            $this->openBreaker();
-            $lock->release();
+            $descriptors = $this->fetch();
+            $this->store($descriptors);
 
-            throw $e;
-        } catch (Throwable $e) {
-            $this->openBreaker();
+            return $descriptors;
+        } finally {
             $lock->release();
-
-            throw $e;
         }
-
-        $this->store($descriptors);
-        $lock->release();
-
-        return $descriptors;
     }
 
     /**
-     * Serve-stale on a fetch failure: the tools almost certainly still exist and the outage is
-     * probably transient, so an invoke that fails cleanly beats an agent that quietly lost a skill.
-     *
-     * @return list<array<string, mixed>>
+     * The durable snapshot is kept: a reconnect is then instantly warm, and a revoked connection is
+     * signalled by the grant, never by a missing snapshot.
      */
-    public function lastKnownGood(): array
-    {
-        $snapshot = $this->snapshot();
-
-        return $snapshot === null ? [] : $this->normalize($snapshot->payload);
-    }
-
     public function forget(): void
     {
         Cache::forget($this->cacheKey());
+        Cache::forget($this->breakerKey());
     }
 
     public function snapshot(): ?McpToolSnapshot
     {
         return McpToolSnapshot::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
+            ->where('apps_id', $this->agent->apps_id)
+            ->where('companies_id', $this->agent->companies_id)
+            ->where('agents_id', $this->agent->getId())
             ->where('integrations_id', $this->integration->getId())
             ->first();
     }
 
     public function connection(): McpConnectionService
     {
-        return $this->connection ??= new McpConnectionService($this->app, $this->company, $this->integration);
+        return $this->connection ??= new McpConnectionService($this->agent, $this->integration);
     }
 
     /**
-     * A failed fetch must never overwrite a good snapshot — that is the whole point of the durable
-     * tier, so only a successful `tools/list` reaches this.
+     * Only a successful `tools/list` reaches this — a failed fetch must never overwrite a good snapshot.
      *
      * @param list<array<string, mixed>> $descriptors
      */
@@ -164,19 +135,18 @@ class McpToolCacheService
     {
         $hash = McpToolSnapshot::hashFor($descriptors);
         $now = Carbon::now();
-
         $existing = $this->snapshot();
 
         if ($existing !== null && $existing->payload_hash === $hash) {
-            // Nothing changed: touch only the freshness stamp. Rewriting an identical payload would
-            // churn updated_at and, worse, restate the LLM prompt prefix for no reason.
+            // Unchanged: move only the freshness stamp, so neither updated_at nor the prompt prefix churns.
             $existing->fetched_at = $now;
             $existing->saveOrFail();
         } else {
             McpToolSnapshot::query()->updateOrCreate(
                 [
-                    'apps_id' => $this->app->getId(),
-                    'companies_id' => $this->company->getId(),
+                    'apps_id' => $this->agent->apps_id,
+                    'companies_id' => $this->agent->companies_id,
+                    'agents_id' => $this->agent->getId(),
                     'integrations_id' => $this->integration->getId(),
                 ],
                 [
@@ -200,6 +170,60 @@ class McpToolCacheService
     public function openBreaker(): void
     {
         Cache::put($this->breakerKey(), true, self::BREAKER_TTL_SECONDS);
+    }
+
+    /**
+     * The tool row's version is in the key, so bumping it force-refreshes every agent at once. Static so
+     * tests address the entry exactly as production writes it.
+     */
+    public static function cacheKeyFor(
+        int $appsId,
+        int $companiesId,
+        int $agentsId,
+        int $integrationsId,
+        string $toolVersion
+    ): string {
+        return sprintf(
+            'mcp:tools:%d:%d:%d:%d:%s',
+            $appsId,
+            $companiesId,
+            $agentsId,
+            $integrationsId,
+            $toolVersion
+        );
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function fetch(): array
+    {
+        try {
+            return $this->connection()->fetchDescriptors();
+        } catch (Throwable $e) {
+            // A rejected credential means the capability is gone, not the network — serving a stale list
+            // would only produce tool calls that 401 one by one.
+            if ($e instanceof McpAuthException) {
+                $this->connection()->markFailed($e->getMessage());
+            }
+
+            $this->openBreaker();
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Serve-stale while another request refreshes: the tools almost certainly still exist, and an
+     * invoke that fails cleanly beats an agent that quietly lost a skill.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function lastKnownGood(): array
+    {
+        $snapshot = $this->snapshot();
+
+        return $snapshot === null ? [] : $this->normalize($snapshot->payload);
     }
 
     /**
@@ -248,7 +272,7 @@ class McpToolCacheService
             return;
         }
 
-        RefreshMcpToolSnapshotJob::dispatch($this->app, $this->company, $this->integration, $this->toolVersion);
+        RefreshMcpToolSnapshotJob::dispatch($this->agent, $this->integration, $this->toolVersion);
     }
 
     /**
@@ -263,28 +287,12 @@ class McpToolCacheService
         return array_values(array_filter($payload, 'is_array'));
     }
 
-    /**
-     * The tool row's version is part of the key so bumping it is a force-refresh lever for every
-     * company at once.
-     *
-     * Static and public because the invalidation observer has to build the same key from an
-     * `integration_companies` row it holds no service for — a second hand-rolled `sprintf` there would
-     * drift the day this format changes and silently stop invalidating anything.
-     */
-    public static function cacheKeyFor(
-        int $appsId,
-        int $companiesId,
-        int $integrationsId,
-        string $toolVersion
-    ): string {
-        return sprintf('mcp:tools:%d:%d:%d:%s', $appsId, $companiesId, $integrationsId, $toolVersion);
-    }
-
     private function cacheKey(): string
     {
         return self::cacheKeyFor(
-            $this->app->getId(),
-            $this->company->getId(),
+            $this->agent->apps_id,
+            $this->agent->companies_id,
+            $this->agent->getId(),
             $this->integration->getId(),
             $this->toolVersion
         );
@@ -294,8 +302,8 @@ class McpToolCacheService
     {
         return sprintf(
             'mcp:breaker:%d:%d:%d',
-            $this->app->getId(),
-            $this->company->getId(),
+            $this->agent->apps_id,
+            $this->agent->getId(),
             $this->integration->getId()
         );
     }

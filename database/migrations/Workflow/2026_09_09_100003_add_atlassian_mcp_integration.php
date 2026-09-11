@@ -13,10 +13,13 @@ use Kanvas\Connectors\Mcp\Handlers\McpHandler;
  * `metadata` is the platform-side descriptor (never a company form field); `config` is the company
  * form — one token, the same shape every MCP row uses.
  *
- * Atlassian's remote MCP is OAuth 2.1, so a company connects it by pasting an access token obtained
- * through the OAuth app registered for this integration; `McpOAuthService` keeps it alive from there.
- * Verify `url` against Atlassian's current docs when wiring the OAuth app — a wrong value fails
- * `McpHandler::setup()` immediately with the vendor's own error rather than half-working.
+ * A key connection uses an Atlassian service-account API key, sent as `Bearer`. An org admin must
+ * enable "Allow API token authentication" under Rovo MCP server → Authentication first. OAuth is added
+ * by 2026_09_11_100002.
+ *
+ * `v2/mcp` (Streamable HTTP), not `v1/sse`: GuardedHttpMcpTransport POSTs JSON-RPC straight to `url`,
+ * and the legacy SSE endpoint only accepts POSTs to the per-session URL its GET stream hands out — a
+ * direct POST answers 404 "Missing sessionId parameter".
  */
 return new class () extends Migration {
     protected $connection = 'workflow';
@@ -43,18 +46,13 @@ return new class () extends Migration {
                 'token' => ['type' => 'text', 'required' => true],
             ]),
             'metadata' => json_encode([
-                'kind' => 'mcp',
                 'vendor' => 'atlassian',
-                'url' => 'https://mcp.atlassian.com/v1/sse',
-                'transport' => 'sse',
-                'auth' => 'oauth',
+                'url' => 'https://mcp.atlassian.com/v2/mcp',
+                'transport' => 'http',
+                'auth_methods' => ['bearer'],
                 'prefix' => 'jira',
                 'exclude' => [],
                 'timeout_ms' => 20000,
-                'oauth' => [
-                    'token_url' => 'https://auth.atlassian.com/oauth/token',
-                    'authorize_url' => 'https://auth.atlassian.com/authorize',
-                ],
             ]),
             'is_deleted' => 0,
             'created_at' => now(),

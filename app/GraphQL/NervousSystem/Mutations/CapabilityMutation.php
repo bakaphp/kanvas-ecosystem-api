@@ -7,7 +7,6 @@ namespace App\GraphQL\NervousSystem\Mutations;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\NervousSystem\Capability\Actions\AttachToolToAgentTypeAction;
@@ -15,9 +14,8 @@ use Kanvas\NervousSystem\Capability\Actions\CreateSkillAction;
 use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
 use Kanvas\NervousSystem\Capability\Actions\DetachToolFromAgentTypeAction;
 use Kanvas\NervousSystem\Capability\Actions\GrantSkillToAgentAction;
-use Kanvas\NervousSystem\Capability\Actions\GrantToolToAgentAction;
 use Kanvas\NervousSystem\Capability\Actions\RevokeSkillFromAgentAction;
-use Kanvas\NervousSystem\Capability\Actions\RevokeToolFromAgentAction;
+use Kanvas\NervousSystem\Capability\Actions\SetAgentToolAction;
 use Kanvas\NervousSystem\Capability\Actions\UpdateSkillAction;
 use Kanvas\NervousSystem\Capability\Actions\UpdateToolAction;
 use Kanvas\NervousSystem\Capability\DataTransferObject\Skill as SkillData;
@@ -202,64 +200,12 @@ class CapabilityMutation
             ));
         }
 
-        // An MCP server is unaudited third-party surface. Reaching a prospect it could be talked into
-        // acting on the company's Jira, so the grant is refused here where an admin is told why — the
-        // resolver filters it again at runtime, because this marker can be added to an agent that
-        // already holds the grant and only that check catches it.
-        if ($enabled && $tool->isMcp() && $agent->conversesWithCustomer()) {
-            throw new ValidationException(sprintf(
-                'Agent "%s" talks to customers, so it cannot be granted the MCP server "%s".',
-                $agent->name,
-                $tool->name,
-            ));
-        }
-
-        // withTrashed so soft-deleted rows are visible: toggling off then on must reactivate the same row, not insert a duplicate.
-        $existing = AgentTool::query()
-            ->withTrashed()
-            ->where('agent_id', $agent->getId())
-            ->where('tool_id', $tool->getId())
-            ->first();
-
-        if ($enabled) {
-            $grant = new GrantToolToAgentAction(
-                agent: $agent,
-                tool: $tool,
-                grantedByUserId: $user->getId(),
-                config: $config,
-            )->execute();
-
-            $agent->selectedTools()->syncWithoutDetaching([$tool->getId()]);
-            new RebuildAgentToolInstructionsAction($agent, $app)->execute();
-
-            return $grant;
-        }
-
-        $agent->selectedTools()->detach($tool->getId());
-        new RebuildAgentToolInstructionsAction($agent, $app)->execute();
-
-        if ($existing !== null && $existing->is_deleted) {
-            return $existing;
-        }
-
-        if ($existing === null) {
-            // Tool was only "selected" via the agent type's defaults — persist an explicit revocation so the read query subtracts it.
-            return AgentTool::create([
-                'apps_id' => $agent->apps_id,
-                'companies_id' => $agent->companies_id,
-                'agent_id' => $agent->getId(),
-                'tool_id' => $tool->getId(),
-                'granted_by_users_id' => $user->getId(),
-                'granted_at' => Carbon::now(),
-                'is_active' => false,
-                'is_deleted' => true,
-                'config' => $config,
-            ]);
-        }
-
-        return new RevokeToolFromAgentAction(
-            grant: $existing,
-            actorUserId: $user->getId(),
+        return new SetAgentToolAction(
+            agent: $agent,
+            tool: $tool,
+            enabled: $enabled,
+            actor: $user,
+            config: $config,
         )->execute();
     }
 

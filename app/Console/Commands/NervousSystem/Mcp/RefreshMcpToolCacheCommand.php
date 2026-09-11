@@ -6,17 +6,16 @@ namespace App\Console\Commands\NervousSystem\Mcp;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Mcp\Services\McpToolCacheService;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
+use Kanvas\NervousSystem\Capability\Models\AgentTool;
 use Kanvas\NervousSystem\Capability\Models\Tool;
-use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Throwable;
 
 /**
- * Re-primes every connected company's descriptor snapshot on a schedule, so cold-start cost lands in
- * the background instead of on somebody's first chat of the day.
+ * Re-primes every connected agent's tool snapshot on a schedule, so cold-start cost lands in the
+ * background instead of on somebody's first chat of the day.
  */
 class RefreshMcpToolCacheCommand extends Command
 {
@@ -24,7 +23,7 @@ class RefreshMcpToolCacheCommand extends Command
 
     protected $signature = 'kanvas:mcp:refresh-tool-cache {--integration= : Limit to one integrations_id}';
 
-    protected $description = 'Refresh the cached MCP tool list for every company with a connected MCP server.';
+    protected $description = 'Refresh the cached MCP tool list for every agent with a working MCP connection.';
 
     public function handle(): int
     {
@@ -36,7 +35,8 @@ class RefreshMcpToolCacheCommand extends Command
                 $this->option('integration') !== null,
                 fn ($query) => $query->where('integrations_id', (int) $this->option('integration'))
             )
-            ->get();
+            ->get()
+            ->keyBy('id');
 
         if ($tools->isEmpty()) {
             $this->info('No MCP tools registered.');
@@ -44,62 +44,51 @@ class RefreshMcpToolCacheCommand extends Command
             return self::SUCCESS;
         }
 
+        $grants = AgentTool::query()
+            ->whereIn('tool_id', $tools->keys()->all())
+            ->active()
+            ->with('agent')
+            ->get();
+
         $refreshed = 0;
+        $skipped = 0;
         $failed = 0;
 
-        foreach ($tools as $tool) {
+        foreach ($grants as $grant) {
+            $tool = $tools[$grant->tool_id];
             $integration = $tool->integration;
+            $agent = $grant->agent;
 
-            if ($integration === null) {
+            if ($integration === null || ! $agent instanceof Agent || $agent->is_deleted) {
                 continue;
             }
 
-            $rows = IntegrationsCompany::query()
-                ->where('integrations_id', $integration->getId())
-                ->where('is_active', 1)
-                ->where('is_deleted', 0)
-                ->get();
+            // Per iteration: the worker's Bouncer scope and bound app would otherwise leak between tenants.
+            $this->overwriteAppService($agent->app);
 
-            foreach ($rows as $row) {
-                $company = Companies::query()->where('id', $row->companies_id)->first();
+            $cache = new McpToolCacheService(
+                agent: $agent,
+                integration: $integration,
+                toolVersion: $tool->version,
+            );
 
-                if ($company === null) {
-                    continue;
-                }
+            // A failed or credential-less connection waits on a person to reconnect; dialling would 401.
+            if (! $cache->connection()->isEnabled()) {
+                $skipped++;
 
-                $app = Apps::query()->where('id', $tool->apps_id > 0 ? $tool->apps_id : $company->apps_id)->first();
+                continue;
+            }
 
-                if (! $app instanceof Apps) {
-                    continue;
-                }
-
-                // Mandatory when iterating apps/companies: the worker and this process are long-lived,
-                // and Bouncer's scope plus the container-bound Apps both survive between iterations —
-                // omitting it silently serves every later tenant under the first one's scope.
-                $this->overwriteAppService($app);
-
-                try {
-                    new McpToolCacheService(
-                        app: $app,
-                        company: $company,
-                        integration: $integration,
-                        toolVersion: $tool->version,
-                    )->refresh();
-
-                    $refreshed++;
-                } catch (Throwable $e) {
-                    $failed++;
-                    $this->warn(sprintf(
-                        'company %d / %s: %s',
-                        $company->getId(),
-                        $integration->name,
-                        $e->getMessage()
-                    ));
-                }
+            try {
+                $cache->refresh();
+                $refreshed++;
+            } catch (Throwable $e) {
+                $failed++;
+                $this->warn(sprintf('agent %d / %s: %s', $agent->getId(), $integration->name, $e->getMessage()));
             }
         }
 
-        $this->info(sprintf('Refreshed %d MCP tool list(s), %d failed.', $refreshed, $failed));
+        $this->info(sprintf('Refreshed %d MCP tool list(s), %d skipped, %d failed.', $refreshed, $skipped, $failed));
 
         return self::SUCCESS;
     }

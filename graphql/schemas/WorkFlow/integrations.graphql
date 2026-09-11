@@ -2,6 +2,12 @@ type Integrations {
     id: ID!
     name: String!
     uuid: String!
+    """
+    How the integration is connected: `key` (credentials pasted into the config form), `oauth`
+    (consent screen) or `mcp` (an MCP server — connected per agent through
+    connectNervousSystemMcpServer, never through integrationCompany).
+    """
+    type: String!
     status: Status @method(name: "getIntegrationStatus")
     integrations: [IntegrationsCompanies!]!
         @method(name: "getIntegrationsByCompany")
@@ -104,7 +110,7 @@ enum WorkFlowIntegrationsHistoryEnumColumn {
 extend type Query @guard {
     integrations(
         search: String @search
-        where: _ @whereConditions(columns: ["id", "name"])
+        where: _ @whereConditions(columns: ["id", "name", "type"])
         orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
     ): [Integrations!]!
         @paginate(

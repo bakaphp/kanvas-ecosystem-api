@@ -9,12 +9,11 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Psr7\Request;
 use JsonException;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Mcp\Enums\McpTransportEnum;
 use Kanvas\Connectors\Mcp\Exceptions\McpAuthException;
 use Kanvas\Connectors\Mcp\Exceptions\McpFetchException;
 use Kanvas\Connectors\Mcp\Services\McpCredentialService;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Models\Integrations;
 use NeuronAI\MCP\McpTransportInterface;
 use Override;
@@ -28,8 +27,8 @@ use Throwable;
  * redirects by default and reads an unbounded body — none of which is acceptable for a URL that can
  * come from tenant input on the BYO path.
  *
- * It also resolves the credential HERE, at send time, rather than accepting one in config. That is
- * what keeps the token out of `McpConnector::__serialize()`, which stores its whole config verbatim
+ * It also resolves the agent's credential HERE, at send time, rather than accepting one in config. That
+ * is what keeps the token out of `McpConnector::__serialize()`, which stores its whole config verbatim
  * into whatever persists an interrupted workflow.
  */
 class GuardedHttpMcpTransport implements McpTransportInterface
@@ -44,14 +43,17 @@ class GuardedHttpMcpTransport implements McpTransportInterface
 
     private bool $tokenResolved = false;
 
+    private ?McpCredentialService $credentials = null;
+
+    private bool $credentialsResolved = false;
+
     private ?string $sessionId = null;
 
     private ?ResponseInterface $lastResponse = null;
 
     public function __construct(
-        private string $url,
-        private int $appsId,
-        private int $companiesId,
+        private ?string $url,
+        private int $agentsId,
         private int $integrationsId,
         private int $timeoutMs = 20000,
         private string $transport = McpTransportEnum::HTTP->value,
@@ -67,8 +69,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
     {
         return [
             'url' => $this->url,
-            'appsId' => $this->appsId,
-            'companiesId' => $this->companiesId,
+            'agentsId' => $this->agentsId,
             'integrationsId' => $this->integrationsId,
             'timeoutMs' => $this->timeoutMs,
             'transport' => $this->transport,
@@ -78,14 +79,15 @@ class GuardedHttpMcpTransport implements McpTransportInterface
     public function __unserialize(array $data): void
     {
         $this->url = $data['url'];
-        $this->appsId = $data['appsId'];
-        $this->companiesId = $data['companiesId'];
+        $this->agentsId = $data['agentsId'];
         $this->integrationsId = $data['integrationsId'];
         $this->timeoutMs = $data['timeoutMs'];
         $this->transport = $data['transport'];
         $this->httpClient = null;
         $this->token = null;
         $this->tokenResolved = false;
+        $this->credentials = null;
+        $this->credentialsResolved = false;
         $this->sessionId = null;
         $this->lastResponse = null;
     }
@@ -93,10 +95,8 @@ class GuardedHttpMcpTransport implements McpTransportInterface
     #[Override]
     public function connect(): void
     {
-        // The curated catalog sets this URL by migration, but the BYO path takes it from tenant input —
-        // and the guard also re-checks on every reconnect, which a one-time validation at write would
-        // miss if DNS later resolves somewhere private.
-        SafeUrl::assertSafe($this->url);
+        // On every connect, not only when the URL was saved: DNS can later resolve somewhere private.
+        SafeUrl::assertSafe($this->resolveUrl());
     }
 
     #[Override]
@@ -126,7 +126,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         try {
             $response = $this->client()->send(new Request(
                 'POST',
-                $this->url,
+                $this->resolveUrl(),
                 $headers,
                 $body
             ));
@@ -245,25 +245,48 @@ class GuardedHttpMcpTransport implements McpTransportInterface
 
     private function resolveToken(): ?string
     {
-        if ($this->tokenResolved) {
-            return $this->token;
-        }
+        if (! $this->tokenResolved) {
+            $this->tokenResolved = true;
 
-        $this->tokenResolved = true;
-
-        try {
-            /** @var Apps $app */
-            $app = Apps::getById($this->appsId);
-            $company = Companies::getById($this->companiesId);
-            /** @var Integrations $integration */
-            $integration = Integrations::getById($this->integrationsId);
-
-            $this->token = new McpCredentialService($app, $company, $integration)->token();
-        } catch (Throwable) {
-            $this->token = null;
+            try {
+                $this->token = $this->credentials()?->token();
+            } catch (Throwable) {
+                $this->token = null;
+            }
         }
 
         return $this->token;
+    }
+
+    /**
+     * A server whose address each connection supplies is read from the agent's credential, like the
+     * token — some providers put the secret in the URL itself, so it must not be serialized either.
+     */
+    private function resolveUrl(): string
+    {
+        $url = $this->url ?? $this->credentials()?->serverUrl();
+
+        if ($url === null) {
+            throw new McpFetchException('This MCP connection has no server URL — connect it again.');
+        }
+
+        return $url;
+    }
+
+    private function credentials(): ?McpCredentialService
+    {
+        if (! $this->credentialsResolved) {
+            $this->credentialsResolved = true;
+
+            $agent = Agent::query()->where('id', $this->agentsId)->first();
+            $integration = Integrations::query()->where('id', $this->integrationsId)->first();
+
+            $this->credentials = $agent instanceof Agent && $integration instanceof Integrations
+                ? new McpCredentialService($agent, $integration)
+                : null;
+        }
+
+        return $this->credentials;
     }
 
     private function client(): Client

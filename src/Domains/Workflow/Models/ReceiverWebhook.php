@@ -104,6 +104,20 @@ class ReceiverWebhook extends BaseModel
         return (string) Config::get('app.url') . '/v1/receiver/' . $this->uuid;
     }
 
+    public function getOAuthUrl(): string
+    {
+        return (string) Config::get('app.url') . '/v1/oauth/' . $this->uuid;
+    }
+
+    /**
+     * The redirect_uri every OAuth provider falls back to when its configuration names none — one
+     * definition, so a route change cannot leave one provider registering a callback that no longer exists.
+     */
+    public function getOAuthCallbackUrl(): string
+    {
+        return $this->getOAuthUrl() . '/callback';
+    }
+
     public function searchableAs(): string
     {
         $app = app(Apps::class);

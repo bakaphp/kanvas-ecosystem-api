@@ -5,73 +5,130 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Mcp\Services;
 
 use Baka\Support\Str;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Mcp\DataTransferObject\McpServerConfig;
+use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Mcp\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Models\Integrations;
 use Throwable;
 
 /**
- * Reads and writes the per-company credential for one MCP server.
+ * The only reader and writer of one agent's credential for one MCP server — the agent's own vendor
+ * login, never the connecting admin's — kept as one custom field per server.
  *
- * `$app` is passed rather than derived from `$integration->app`: curated MCP rows live at `apps_id=0`
- * and are shared by every app, so the model's own app relation is not the acting tenant.
- *
- * The token lands in company settings the way every other connector stores one (Calendly, ChromeData,
- * ClaudeAgent). Those are plaintext key/value via Baka's HashTableTrait — MCP does not lower that bar,
- * but platform-wide credential encryption is its own ticket.
+ * Custom fields have no visibility flag yet (plan §19), so this is as exposed as the Slack and GitHub
+ * tokens already stored there.
  */
 class McpCredentialService
 {
     public function __construct(
-        private readonly Apps $app,
-        private readonly Companies $company,
+        private readonly Agent $agent,
         private readonly Integrations $integration,
     ) {
     }
 
+    /**
+     * Only a grant stored with an expiry (OAuth) is refreshed. Decided by the stored credential, not the
+     * server's row: a server can offer both methods, and a pasted key must never reach a token endpoint.
+     */
     public function token(): ?string
     {
-        $config = McpServerConfig::fromIntegration($this->integration);
-
-        if ($config->auth->needsRefresh()) {
-            return new McpOAuthService($this->app, $this->company, $this->integration)->accessToken();
+        if ($this->expiresAt() !== null) {
+            return new McpOAuthService($this->agent, $this->integration)->accessToken();
         }
 
         return $this->rawToken();
     }
 
-    /**
-     * The stored value with no refresh logic — the OAuth path calls this for the token it may then
-     * decide to refresh.
-     */
     public function rawToken(): ?string
     {
-        try {
-            $token = $this->company->get(
-                ConfigurationEnum::TOKEN_PREFIX->forIntegration($this->integration->getId())
-            );
-        } catch (Throwable) {
-            return null;
-        }
-
-        return Str::trimToNull(is_string($token) ? $token : null);
+        return $this->field('access_token');
     }
 
-    public function storeToken(string $token): void
+    public function refreshToken(): ?string
     {
-        $this->company->set(
-            ConfigurationEnum::TOKEN_PREFIX->forIntegration($this->integration->getId()),
-            $token
-        );
+        return $this->field('refresh_token');
+    }
+
+    public function expiresAt(): ?string
+    {
+        return $this->field('expires_at');
+    }
+
+    /**
+     * Kept with the token, not on the grant: some providers put the secret in the URL.
+     */
+    public function serverUrl(): ?string
+    {
+        return $this->field('server_url');
+    }
+
+    /**
+     * A null keeps the stored value: a provider that does not rotate omits the refresh token on refresh.
+     * A new grant calls forget() first, so the previous grant's expiry cannot outlive it.
+     *
+     * Workflows are off because every custom-field write fires CREATE_CUSTOM_FIELD, and refreshes write
+     * hourly per agent per server — events no rule is waiting for.
+     */
+    public function store(
+        string $accessToken,
+        ?string $refreshToken = null,
+        ?int $expiresIn = null,
+        ?string $serverUrl = null
+    ): void {
+        $credentials = [
+            ...$this->credentials(),
+            'access_token' => $accessToken,
+        ];
+
+        if ($refreshToken !== null) {
+            $credentials['refresh_token'] = $refreshToken;
+        }
+
+        if ($expiresIn !== null) {
+            $credentials['expires_at'] = Carbon::now()->addSeconds($expiresIn)->toIso8601String();
+        }
+
+        if ($serverUrl !== null) {
+            $credentials['server_url'] = $serverUrl;
+        }
+
+        $this->agent->disableWorkflows();
+
+        try {
+            $this->agent->set($this->key(), $credentials);
+        } finally {
+            $this->agent->enableWorkflows();
+        }
     }
 
     public function forget(): void
     {
-        $this->company->set(
-            ConfigurationEnum::TOKEN_PREFIX->forIntegration($this->integration->getId()),
-            ''
-        );
+        $this->agent->del($this->key());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function credentials(): array
+    {
+        try {
+            $value = $this->agent->get($this->key());
+        } catch (Throwable) {
+            return [];
+        }
+
+        return is_array($value) ? $value : [];
+    }
+
+    private function field(string $name): ?string
+    {
+        $value = $this->credentials()[$name] ?? null;
+
+        return Str::trimToNull(is_string($value) ? $value : null);
+    }
+
+    private function key(): string
+    {
+        return ConfigurationEnum::CREDENTIALS_PREFIX->forIntegration($this->integration->getId());
     }
 }

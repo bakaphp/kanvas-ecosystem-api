@@ -4,28 +4,30 @@ declare(strict_types=1);
 
 namespace App\GraphQL\NervousSystem\Queries;
 
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use App\GraphQL\Concerns\ResolvesActingContext;
+use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Mcp\DataTransferObject\McpServerConfig;
+use Kanvas\Connectors\Mcp\Enums\McpAuthEnum;
 use Kanvas\Connectors\Mcp\Services\McpConnectionService;
 use Kanvas\Connectors\Mcp\Services\McpToolCacheService;
 use Kanvas\Connectors\Mcp\Support\McpToolName;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\NervousSystem\Capability\Models\AgentTool;
 use Kanvas\NervousSystem\Capability\Models\Tool;
-use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\Integrations;
 use Throwable;
 
 /**
- * "What can this agent actually do?" for an MCP grant.
- *
- * Under server-level grants the method list is deliberately never a set of catalog rows, so this reads
- * the durable snapshot rather than the registry — which is also why it costs no network and works while
- * the vendor is down. Nested under the server rather than flattened into `tools`, so "this one is
- * FAILED" and "last synced 3h ago" stay expressible.
+ * An MCP server's methods are never catalog rows, so this reads the agent's snapshot rather than the
+ * registry — no network, and it still answers while the vendor is down.
  */
 class McpQuery
 {
+    use ResolvesActingContext;
+
     /**
+     * Connection fields only for the agent in `agent_id` — every connection belongs to one agent.
+     *
      * @return array<string, mixed>|null
      */
     public function serverState(mixed $rootValue, array $args): ?array
@@ -33,38 +35,104 @@ class McpQuery
         /** @var Tool $tool */
         $tool = $rootValue;
 
-        if (! $tool->isMcp() || $tool->integrations_id === null) {
+        if (! $tool->isMcp() || ! $tool->integration instanceof Integrations) {
             return null;
         }
-
-        $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
-        $company = Companies::getById($user->getCurrentCompany()->getId());
 
         $integration = $tool->integration;
+        $config = $this->configOf($integration);
 
-        if (! $integration instanceof Integrations) {
-            return null;
+        $catalog = [
+            'vendor' => $config?->vendor,
+            'auth_methods' => array_map(
+                fn (McpAuthEnum $method): string => $method->value,
+                $config?->authMethods ?? []
+            ),
+            'url_per_connection' => $config?->urlPerConnection ?? false,
+        ];
+
+        if (! isset($args['agent_id'])) {
+            return [
+                ...$catalog,
+                ...$this->connectionFields([]),
+                'connected' => false,
+                'fetched_at' => null,
+                'tool_count' => 0,
+                'tools' => [],
+            ];
         }
 
-        $config = $this->configOf($integration);
-        $connection = new McpConnectionService($app, $company, $integration);
-        $row = $connection->integrationCompany();
+        $ctx = $this->actingContext();
+
+        /** @var Agent $agent */
+        $agent = Agent::getByIdFromCompanyApp((int) $args['agent_id'], $ctx->company, $ctx->app);
+
+        $connection = new McpConnectionService($agent, $integration);
         $snapshot = new McpToolCacheService(
-            app: $app,
-            company: $company,
+            agent: $agent,
             integration: $integration,
             toolVersion: $tool->version,
         )->snapshot();
 
         return [
-            'vendor' => $config?->vendor,
+            ...$catalog,
+            ...$this->connectionFields(McpConnectionService::stateOf($connection->grant())),
             'connected' => $connection->isEnabled(),
-            'status' => $row?->status->slug,
             'fetched_at' => $snapshot?->fetched_at,
             'tool_count' => $snapshot?->tool_count ?? 0,
             'tools' => $this->describe($snapshot?->payload, $config?->prefix ?? $tool->name),
+        ];
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function connections(mixed $rootValue, array $args): array
+    {
+        $ctx = $this->actingContext();
+
+        $tool = Tool::query()
+            ->where('id', (int) $args['tool_id'])
+            ->fromAppOrGlobal($ctx->app)
+            ->first();
+
+        if ($tool === null || ! $tool->isMcp()) {
+            return [];
+        }
+
+        return AgentTool::query()
+            ->where('tool_id', $tool->getId())
+            ->where('apps_id', $ctx->app->getId())
+            ->where('companies_id', $ctx->company->getId())
+            ->active()
+            ->with('agent')
+            ->get()
+            ->toBase()
+            ->filter(fn (AgentTool $grant): bool => $grant->agent !== null)
+            ->map(fn (AgentTool $grant): array => [
+                'agent' => $grant->agent,
+                ...$this->connectionFields(McpConnectionService::stateOf($grant)),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * `connected_at` is stored as ISO-8601; the DateTime scalar wants a Carbon, not the string.
+     *
+     * @param array<string, mixed> $mcp
+     * @return array<string, mixed>
+     */
+    private function connectionFields(array $mcp): array
+    {
+        $connectedAt = $mcp['connected_at'] ?? null;
+
+        return [
+            'auth' => $mcp['auth'] ?? null,
+            'status' => $mcp['status'] ?? null,
+            'connected_at' => is_string($connectedAt) && $connectedAt !== '' ? Carbon::parse($connectedAt) : null,
+            'connected_as' => $mcp['connected_as'] ?? null,
+            'last_error' => $mcp['last_error'] ?? null,
         ];
     }
 

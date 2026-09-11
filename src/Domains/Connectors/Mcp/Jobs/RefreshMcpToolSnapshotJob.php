@@ -10,21 +10,15 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Mcp\Services\McpToolCacheService;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Models\Integrations;
 use Throwable;
 
 /**
- * Revalidates one company's descriptor snapshot out of band, so a stale-but-serving turn never pays
- * the three round trips itself.
- *
- * Deliberately on the DEFAULT queue: a dedicated queue would need a worker service added to all three
- * docker-compose files, and this fires at most once per soft-TTL per (company, server).
- *
- * Eloquent models on the constructor rather than a DTO — a Spatie Data object holding models flattens
- * on serialize and comes back with the typed properties uninitialized.
+ * Revalidates one agent's tool snapshot out of band, so a stale-but-serving turn never pays the round
+ * trips itself. On the default queue on purpose: it fires at most once per soft TTL per (agent, server),
+ * too little to justify a dedicated worker.
  */
 class RefreshMcpToolSnapshotJob implements ShouldQueue
 {
@@ -37,8 +31,7 @@ class RefreshMcpToolSnapshotJob implements ShouldQueue
     public int $tries = 2;
 
     public function __construct(
-        public readonly Apps $app,
-        public readonly Companies $company,
+        public readonly Agent $agent,
         public readonly Integrations $integration,
         public readonly string $toolVersion,
     ) {
@@ -46,19 +39,16 @@ class RefreshMcpToolSnapshotJob implements ShouldQueue
 
     public function handle(): void
     {
-        $this->overwriteAppService($this->app);
+        $this->overwriteAppService($this->agent->app);
 
         try {
             new McpToolCacheService(
-                app: $this->app,
-                company: $this->company,
+                agent: $this->agent,
                 integration: $this->integration,
                 toolVersion: $this->toolVersion,
             )->refresh();
         } catch (Throwable) {
-            // A revalidation that cannot reach the server is not a fault — the cache layer has already
-            // recorded the failure and the stale snapshot keeps serving. Reporting here would page
-            // someone every time a vendor has a slow minute.
+            // Not a fault: the cache already recorded it and the stale snapshot keeps serving.
         }
     }
 }

@@ -5,25 +5,22 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Mcp;
 
 use Kanvas\Connectors\Mcp\Support\McpToolName;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Models\Tool as CapabilityTool;
+use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
+use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
+use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use NeuronAI\MCP\McpConnector;
 use NeuronAI\Tools\ToolInterface;
 use Override;
 use Throwable;
 
 /**
- * An McpConnector that builds its tools from a cached descriptor list instead of dialling the server,
- * and that meters what it spends.
+ * An McpConnector that builds its tools from cached descriptors — the parent's `tools()` costs three
+ * round trips before the model sees a tool — and meters what the model spends.
  *
- * The parent's `tools()` always goes to the network, because it calls `client()` — and constructing
- * the client is `connect()` + `initialize()` + `notifications/initialized`, then `listTools()`, i.e.
- * three HTTP round trips before the LLM sees a single tool. On a warm turn we already know the answer,
- * so `toolsFromDescriptors()` maps the stored payload through the parent's own `createTool()` and
- * touches no socket. The client is still built lazily if the model actually invokes something.
- *
- * Everything the model calls funnels through `invokeTool()`, which is why the per-turn budget and the
- * ledger emission live here rather than in a wrapper closure — a closure could not survive the
- * serialization that lets MCP tools cross an interrupt.
+ * The budget and the ledger live in `invokeTool()`, not a wrapper closure: a closure could not survive
+ * the serialization that carries MCP tools across an interrupt.
  */
 class CachedMcpConnector extends McpConnector
 {
@@ -105,8 +102,6 @@ class CachedMcpConnector extends McpConnector
     }
 
     /**
-     * A live `tools/list`. Only the cache-miss and `setup()` paths should reach this.
-     *
      * @return list<array<string, mixed>>
      */
     public function fetchRemoteDescriptors(): array
@@ -171,25 +166,40 @@ class CachedMcpConnector extends McpConnector
     }
 
     /**
-     * Emitted from the capability row, with the agent as actor — so the agent's own ledger memory
-     * records what it did in an external system, not merely that a call happened.
+     * The agent is the actor and the tenant: curated servers are platform-wide (apps_id 0), so the
+     * capability row has no app of its own to emit under.
      */
     protected function emitLedger(string $remoteName, string $publicName): void
     {
-        if ($this->toolId === null) {
+        if ($this->toolId === null || $this->agentId === null) {
             return;
         }
 
         try {
-            $tool = CapabilityTool::query()->where('id', $this->toolId)->first();
+            $agent = Agent::query()->where('id', $this->agentId)->first();
 
-            $tool?->emitLedgerEvent('mcp.tool.invoked', payload: [
-                'tool' => $publicName,
-                'remote_tool' => $remoteName,
-                'agent_id' => $this->agentId,
-            ]);
-        } catch (Throwable) {
-            // Never let bookkeeping break a tool call the model is waiting on.
+            if (! $agent instanceof Agent) {
+                return;
+            }
+
+            new AppendEventAction(new EventData(
+                app: $agent->app,
+                company: $agent->company,
+                sourceDomain: 'NervousSystem',
+                eventType: 'mcp.tool.invoked',
+                status: EventStatusEnum::INFO,
+                sourceEntityType: CapabilityTool::class,
+                sourceEntityId: $this->toolId,
+                actorType: 'Agent',
+                actorId: $agent->getId(),
+                payload: [
+                    'tool' => $publicName,
+                    'remote_tool' => $remoteName,
+                ],
+            ))->execute();
+        } catch (Throwable $e) {
+            // Bookkeeping must never break a tool call the model is waiting on — reported, not swallowed.
+            report($e);
         }
     }
 }

@@ -5,16 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Workflow\Integrations\Models;
 
 use Baka\Casts\Json;
-use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Regions\Models\Regions;
-use Kanvas\Workflow\Integrations\Observers\IntegrationsCompanyObserver;
 use Kanvas\Workflow\Models\BaseModel;
 use Kanvas\Workflow\Models\Integrations;
 
-#[ObservedBy([IntegrationsCompanyObserver::class])]
 class IntegrationsCompany extends BaseModel
 {
     protected $table = 'integration_companies';

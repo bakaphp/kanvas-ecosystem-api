@@ -69,7 +69,11 @@ class IntegrationsMutation
                             ->first();
         }
 
-        $integrationCompany = (new CreateIntegrationCompanyAction($integrationDto, $user, $status))->execute();
+        $integrationCompany = new CreateIntegrationCompanyAction(
+            $integrationDto,
+            $user,
+            $status
+        )->execute();
 
         return $integrationCompany;
     }

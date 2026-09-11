@@ -4,55 +4,93 @@ declare(strict_types=1);
 
 namespace App\GraphQL\NervousSystem\Mutations;
 
+use App\GraphQL\Concerns\ResolvesActingContext;
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Mcp\Actions\ConnectMcpServerAction;
+use Kanvas\Connectors\Mcp\Actions\CreateMcpOAuthReceiverAction;
+use Kanvas\Connectors\Mcp\DataTransferObject\McpServerConfig;
+use Kanvas\Connectors\Mcp\Enums\McpAuthEnum;
+use Kanvas\Connectors\Mcp\Services\McpCredentialService;
 use Kanvas\Connectors\Mcp\Services\McpToolCacheService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\NervousSystem\Capability\Actions\SetAgentToolAction;
 use Kanvas\NervousSystem\Capability\Models\Tool;
-use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\Integrations;
 use Throwable;
 
 class McpMutation
 {
+    use ResolvesActingContext;
+
     /**
-     * Force a re-read of a server's tool list.
+     * Connect an MCP server for one agent. A key connects immediately. With no key, a server that offers
+     * OAuth returns the consent URL a browser opens, and the vendor redirects back through
+     * OAuthIntegrationController. Either way the agent ends up holding the tool — connecting is granting.
      *
-     * The descriptor cache is long-lived on purpose — a stale entry is recoverable, and churn throws
-     * away the provider's prompt cache — so an admin who has just changed something on the vendor side
-     * needs a way to say "look again now" rather than waiting out the TTL.
+     * @return array{url: string|null, connected: bool}
+     */
+    public function connectServer(mixed $rootValue, array $request): array
+    {
+        $ctx = $this->actingContext();
+        [$tool, $integration] = $this->mcpToolOrFail((int) $request['tool_id'], $ctx->app);
+        $agent = $this->agentOrFail((int) $request['agent_id']);
+
+        SetAgentToolAction::assertMayHold($agent, $tool);
+
+        $config = McpServerConfig::fromIntegration($integration);
+        $serverUrl = $this->serverUrlFor($config, $agent, $integration, $request['server_url'] ?? null);
+        $token = Str::trimToNull($request['token'] ?? null);
+
+        if ($token === null && $config->supports(McpAuthEnum::OAUTH)) {
+            return [
+                'url' => new CreateMcpOAuthReceiverAction(
+                    agent: $agent,
+                    tool: $tool,
+                    user: $ctx->user,
+                    redirectUrl: $this->redirectUrlFrom($request['redirect_url'] ?? null),
+                    serverUrl: $serverUrl,
+                )->execute()->getOAuthUrl(),
+                'connected' => false,
+            ];
+        }
+
+        new ConnectMcpServerAction(
+            agent: $agent,
+            tool: $tool,
+            actor: $ctx->user,
+            method: McpAuthEnum::BEARER,
+            grant: [
+                'token' => $token,
+                'server_url' => $serverUrl,
+            ],
+        )->execute();
+
+        return [
+            'url' => null,
+            'connected' => true,
+        ];
+    }
+
+    /**
+     * The tool cache is long-lived on purpose; this is the admin's "look again now" after changing
+     * something on the vendor side.
      */
     public function refreshTools(mixed $rootValue, array $request): bool
     {
-        $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
-        $company = Companies::getById($user->getCurrentCompany()->getId());
-
-        $tool = Tool::query()
-            ->where('id', (int) $request['tool_id'])
-            ->fromAppOrGlobal($app)
-            ->first();
-
-        if ($tool === null || ! $tool->isMcp()) {
-            throw new ValidationException(sprintf('Tool #%d is not an MCP server.', (int) $request['tool_id']));
-        }
-
-        $integration = $tool->integration;
-
-        if (! $integration instanceof Integrations) {
-            throw new ValidationException('This MCP tool is not linked to an integration.');
-        }
+        $ctx = $this->actingContext();
+        [$tool, $integration] = $this->mcpToolOrFail((int) $request['tool_id'], $ctx->app);
+        $agent = $this->agentOrFail((int) $request['agent_id']);
 
         $cache = new McpToolCacheService(
-            app: $app,
-            company: $company,
+            agent: $agent,
             integration: $integration,
             toolVersion: $tool->version,
         );
 
         if (! $cache->connection()->isEnabled()) {
-            throw new ValidationException('This company has not connected that MCP server.');
+            throw new ValidationException(sprintf('%s has no working connection to that MCP server.', $agent->name));
         }
 
         try {
@@ -62,5 +100,84 @@ class McpMutation
         }
 
         return true;
+    }
+
+    /**
+     * A reconnect may leave the address out and keep the one the agent already uses — the Reconnect
+     * button should not make an admin retype it. Validated here too, before an OAuth receiver carries it
+     * off to a consent screen.
+     */
+    private function serverUrlFor(
+        McpServerConfig $config,
+        Agent $agent,
+        Integrations $integration,
+        mixed $requested
+    ): ?string {
+        $requested = Str::trimToNull(is_string($requested) ? $requested : null);
+
+        if (! $config->urlPerConnection) {
+            if ($requested !== null) {
+                throw new ValidationException(sprintf('"%s" has a fixed address; server_url is not accepted.', $integration->name));
+            }
+
+            return null;
+        }
+
+        return McpServerConfig::connectionUrl(
+            $requested ?? new McpCredentialService($agent, $integration)->serverUrl(),
+            $integration->name
+        );
+    }
+
+    /**
+     * @return array{0: Tool, 1: Integrations}
+     */
+    private function mcpToolOrFail(int $toolId, Apps $app): array
+    {
+        $tool = Tool::query()
+            ->where('id', $toolId)
+            ->fromAppOrGlobal($app)
+            ->first();
+
+        if ($tool === null || ! $tool->isMcp()) {
+            throw new ValidationException(sprintf('Tool #%d is not an MCP server.', $toolId));
+        }
+
+        $integration = $tool->integration;
+
+        if (! $integration instanceof Integrations) {
+            throw new ValidationException('This MCP tool is not linked to an integration.');
+        }
+
+        return [$tool, $integration];
+    }
+
+    private function agentOrFail(int $agentId): Agent
+    {
+        $ctx = $this->actingContext();
+
+        /** @var Agent $agent */
+        $agent = Agent::getByIdFromCompanyApp($agentId, $ctx->company, $ctx->app);
+
+        return $agent;
+    }
+
+    /**
+     * The browser is sent here after the callback, so only an http(s) URL is accepted — rejected now,
+     * where the admin sees why, rather than silently ignored after the vendor's consent screen.
+     */
+    private function redirectUrlFrom(mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $scheme = strtolower((string) parse_url($value, PHP_URL_SCHEME));
+
+        if (filter_var($value, FILTER_VALIDATE_URL) === false || ! in_array($scheme, ['http', 'https'], true)) {
+            throw new ValidationException('redirect_url must be an http(s) URL.');
+        }
+
+        return $value;
     }
 }

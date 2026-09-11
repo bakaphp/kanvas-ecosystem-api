@@ -5,24 +5,22 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Mcp;
 
 use Illuminate\Support\Facades\Log;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Mcp\Services\McpConnectionService;
 use Kanvas\Connectors\Mcp\Services\McpToolCacheService;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Models\Tool as CapabilityTool;
+use NeuronAI\MCP\McpTransportInterface;
 use NeuronAI\Tools\ToolInterface;
 use NeuronAI\Tools\Toolkits\ToolkitInterface;
 use Override;
 use Throwable;
 
 /**
- * One granted MCP server, presented to Neuron as a toolkit.
+ * One agent's connection to one MCP server, presented to Neuron as a toolkit — Neuron expands it lazily
+ * into the server's tools and folds `guidelines()` into the system prompt.
  *
  * Composition rather than extending McpConnector: `only()`/`exclude()` return `McpConnector` on the
  * parent and `ToolkitInterface` on the interface, and no class can satisfy both signatures.
- *
- * Neuron expands toolkits lazily at bootstrap and folds `guidelines()` into the system prompt, so the
- * 1-to-N expansion and the per-server framing both come for free — which is the reason MCP is wrapped
- * as a toolkit at all instead of resolved to a flat tool list.
  */
 class RemoteMcpToolkit implements ToolkitInterface
 {
@@ -33,78 +31,38 @@ class RemoteMcpToolkit implements ToolkitInterface
 
     private ?McpToolCacheService $cache = null;
 
+    /**
+     * $transport is a test seam; production always uses the guarded transport.
+     */
     public function __construct(
-        private readonly Apps $app,
-        private readonly Companies $company,
+        private readonly Agent $agent,
         private readonly CapabilityTool $tool,
+        private readonly ?McpTransportInterface $transport = null,
     ) {
     }
 
     /**
-     * Never throws. A dead vendor costs the agent one toolset, not the turn — so every failure path
-     * here degrades to an empty list and a log line.
-     *
      * @return list<ToolInterface>
      */
     #[Override]
     public function tools(): array
     {
-        if ($this->resolved !== null) {
-            return $this->resolved;
-        }
-
-        $this->resolved = [];
-
-        try {
-            $integration = $this->tool->integration;
-
-            if ($integration === null) {
-                return $this->resolved;
-            }
-
-            $cache = $this->cache();
-
-            if (! $cache->connection()->isEnabled()) {
-                return $this->resolved;
-            }
-
-            $descriptors = $cache->descriptors();
-
-            if ($descriptors === []) {
-                return $this->resolved;
-            }
-
-            $this->resolved = $this->connector()->toolsFromDescriptors(
-                $descriptors,
-                $cache->connection()->config()->prefix
-            );
-        } catch (Throwable $e) {
-            Log::warning('MCP toolkit resolution failed', [
-                'tool_id' => $this->tool->getId(),
-                'companies_id' => $this->company->getId(),
-                'error' => $e->getMessage(),
-            ]);
-
-            $this->resolved = [];
-        }
-
-        return $this->resolved;
+        return $this->resolved ??= $this->resolve();
     }
 
     /**
-     * Neuron titles this block with the toolkit's class short name, which is identical for every MCP
-     * server — so the server's own name has to lead the text or three granted servers render as three
-     * indistinguishable `# RemoteMcpToolkit` headings and the grouping is worthless to the model.
+     * Neuron heads this block with the class short name — the same for every MCP server — so the
+     * server's own name has to lead the text.
      */
     #[Override]
     public function guidelines(): ?string
     {
         try {
             $config = $this->cache()->connection()->config();
-            $vendor = $config->vendor ?? (string) $this->tool->name;
+            $vendor = $config->vendor ?? $this->tool->name;
 
             return sprintf(
-                '%s (via MCP). Tools below are prefixed `%s__` and act on the live %s account this company connected. Prefer reading before writing, and never invent identifiers — look them up first.',
+                '%s (via MCP). Tools below are prefixed `%s__` and act on your own %s account. Prefer reading before writing, and never invent identifiers — look them up first.',
                 ucfirst($vendor),
                 $config->prefix,
                 $vendor
@@ -115,9 +73,8 @@ class RemoteMcpToolkit implements ToolkitInterface
     }
 
     /**
-     * The platform denylist in `integrations.metadata` is the real filter and is applied before the
-     * descriptors are ever cached. These exist to satisfy the interface; Neuron calls neither on a
-     * toolkit it did not build itself.
+     * The platform denylist in `integrations.metadata` is the real filter, applied before anything is
+     * cached; Neuron never calls these on a toolkit it did not build.
      *
      * @param array<array-key, class-string> $classes
      */
@@ -142,14 +99,32 @@ class RemoteMcpToolkit implements ToolkitInterface
         return $this;
     }
 
-    public function callCount(): int
+    /**
+     * Never throws: a dead vendor or a broken row costs the agent one toolset, not the turn.
+     *
+     * @return list<ToolInterface>
+     */
+    private function resolve(): array
     {
-        return $this->connector?->callCount() ?? 0;
-    }
+        try {
+            if ($this->tool->integration === null || ! $this->cache()->connection()->isEnabled()) {
+                return [];
+            }
 
-    public function elapsedMs(): int
-    {
-        return $this->connector?->elapsedMs() ?? 0;
+            $descriptors = $this->cache()->descriptors();
+
+            return $descriptors === []
+                ? []
+                : $this->connector()->toolsFromDescriptors($descriptors, $this->cache()->connection()->config()->prefix);
+        } catch (Throwable $e) {
+            Log::warning('MCP toolkit resolution failed', [
+                'tool_id' => $this->tool->getId(),
+                'agents_id' => $this->agent->getId(),
+                'error' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
     }
 
     private function connector(): CachedMcpConnector
@@ -157,19 +132,16 @@ class RemoteMcpToolkit implements ToolkitInterface
         return $this->connector ??= $this->cache()
             ->connection()
             ->connector()
-            ->withLedgerContext($this->tool->getId(), $this->tool->agents_id);
+            ->withLedgerContext($this->tool->getId(), $this->agent->getId());
     }
 
     private function cache(): McpToolCacheService
     {
-        // Neuron calls guidelines() and tools() in the same bootstrap, and connector() again on the
-        // first invoke — rebuilding the service each time re-parses the descriptor and re-runs the
-        // isEnabled() lookup for no gain.
         return $this->cache ??= new McpToolCacheService(
-            app: $this->app,
-            company: $this->company,
+            agent: $this->agent,
             integration: $this->tool->integration,
-            toolVersion: (string) ($this->tool->version ?? '1.0.0'),
+            toolVersion: $this->tool->version,
+            connection: new McpConnectionService($this->agent, $this->tool->integration, $this->transport),
         );
     }
 }
