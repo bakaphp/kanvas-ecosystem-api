@@ -188,9 +188,7 @@ class RunNeuronChatAction
                 . 'Ask me the same thing again in a moment and it should go through.';
         }
 
-        // A multi-step turn (e.g. create a bill, then log it to a sheet, then notify an approver) can
-        // fail on a LATER step after an earlier one already committed for real — never imply nothing
-        // happened, or a person retrying on that belief can end up creating a duplicate.
+        // A later step in a multi-step turn can fail after an earlier one already committed for real — never imply nothing happened, or a retry could duplicate it.
         return 'Something went wrong partway through that. If I was creating or updating something, it may '
             . 'have already gone through — please check before asking me to try again, so we don\'t end up '
             . 'with a duplicate. Let me know if you\'d like me to look into what happened, or hand off to a human.';

@@ -260,8 +260,7 @@ class CreateApBillTool extends Tool implements HasRunKey
         $vendor = $match->organization;
         $vendorDisplayName = trim((string) $vendor->get(OrganizationApproverCustomFieldEnum::VENDOR_NAME->value, '')) ?: $vendor->name;
 
-        // Guards against the same invoice being filed twice — e.g. a payment reminder resending the
-        // same PDF re-triggers this flow, or a person resends after a turn appeared to fail partway.
+        // Guards against filing the same invoice twice — a resent reminder or a retry after an apparent failure would otherwise duplicate it.
         $existingBill = Bill::query()
             ->where('apps_id', $app->getId())
             ->where('companies_id', $company->getId())
