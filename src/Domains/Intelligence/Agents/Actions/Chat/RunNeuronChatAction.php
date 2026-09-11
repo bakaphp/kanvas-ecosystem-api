@@ -8,6 +8,7 @@ use Baka\Http\SafeUrlFetcher;
 use finfo;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -113,6 +114,22 @@ class RunNeuronChatAction
             }
         } catch (Throwable $e) {
             $fallback = $this->humanizedFallback($e);
+
+            // Logged on both paths: report() only captures Issues, and a rethrown failure is reported
+            // by a caller that no longer knows which agent, session or handler it came from.
+            Log::error('Neuron chat turn failed', [
+                'agent_id' => $this->agent->getId(),
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->agent->companies_id,
+                'users_id' => $this->user->getId(),
+                'session_id' => $sessionId,
+                'handler' => get_class($this->handler),
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile() . ':' . $e->getLine(),
+                'fallback_on_failure' => $this->fallbackOnFailure,
+                'fallback' => $fallback,
+            ]);
 
             if (! $selfRecords) {
                 new KanvasConversationStore()->logTurn(
