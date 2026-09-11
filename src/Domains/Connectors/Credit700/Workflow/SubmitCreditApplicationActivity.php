@@ -51,14 +51,27 @@ class SubmitCreditApplicationActivity extends KanvasActivity
                 }
 
                 if (! $result['success']) {
-                    report(new Exception('RouteOne rejected the credit application for message ' . $message->getId()));
+                    $error = $result['response']['Creditsystem_Error']['@attributes'] ?? [];
+
+                    report(new Exception(sprintf(
+                        'RouteOne rejected the credit application for message %s: [%s] %s',
+                        $message->getId(),
+                        $error['id'] ?? 'no id',
+                        $error['message'] ?? 'no transaction id returned'
+                    )));
+
+                    return $this->failWorkflow([
+                        'message' => 'RouteOne rejected the credit application',
+                        'success' => false,
+                        'transaction_id' => $result['transaction_id'],
+                        'token' => $result['token'],
+                        'entity' => $result['response'],
+                    ]);
                 }
 
                 return [
-                    'message' => $result['success']
-                        ? 'Credit application submitted to RouteOne successfully'
-                        : 'RouteOne rejected the credit application',
-                    'success' => $result['success'],
+                    'message' => 'Credit application submitted to RouteOne successfully',
+                    'success' => true,
                     'transaction_id' => $result['transaction_id'],
                     'token' => $result['token'],
                     'entity' => $result['response'],
