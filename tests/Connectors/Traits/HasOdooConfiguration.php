@@ -6,8 +6,8 @@ namespace Tests\Connectors\Traits;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Kanvas\Connectors\Odoo\Client;
 use Kanvas\Connectors\Odoo\Enums\ConfigurationEnum;
 
 /**
@@ -30,7 +30,7 @@ trait HasOdooConfiguration
         $company->set(ConfigurationEnum::USERNAME->value, 'test@example.com');
         $company->set(ConfigurationEnum::API_KEY->value, 'test-api-key');
 
-        Cache::forget('odoo_uid_' . $app->getId() . '_' . $company->getId());
+        Client::forgetUid($app, $company);
     }
 
     /**

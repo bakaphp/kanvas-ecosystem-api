@@ -59,6 +59,9 @@ class OdooBackfillCommand extends Command
                 $company->name,
             ));
 
+            // TODO: chunk this. The whole result set goes into a single queue payload, so a large
+            // Odoo instance means a multi-MB Redis entry and an OOM risk in the worker —
+            // array_chunk before dispatch. SalesforceBackfillCommand has the same problem.
             if ($records !== []) {
                 OdooBackfillImportJob::dispatch(
                     $app,

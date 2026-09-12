@@ -9,6 +9,32 @@ Per-connector `CLAUDE.md` (load when working in that connector's tree):
 - [`WaSender/CLAUDE.md`](WaSender/CLAUDE.md) — inbound WhatsApp: the three conversation shapes (lead DM / assistant DM / group) and how they route, the full `receiver_webhooks.configuration` key table, burst debouncing, which entity each workflow event carries (and why group traffic must never hit the DM event), and the lid-addressing + `slug`-vs-`uuid` foot-guns.
 - [`Yusen/CLAUDE.md`](Yusen/CLAUDE.md) — 3PL Item Balance XML → discrepancy report: the exact POST Yusen makes (multipart vs raw body), why the connector writes no stock (a per-source warehouse double-counts `Variants::setTotalQuantity()`), the lot-summing assumption and its `multi_record_items` tripwire, and the synthetic-fixture rule.
 
+## Known duplication — flagged, not yet resolved
+
+### Salesforce and Odoo are structurally the same CRM connector
+
+`Odoo/` was built as a fork of `Salesforce/`, so the following pairs are near-verbatim copies:
+
+| Salesforce | Odoo |
+|---|---|
+| `Actions/Concerns/UpsertsByExternalId.php` | same |
+| `Actions/PullOrganizationAction.php` / `PullPeopleAction.php` / `PullLeadAction.php` | same |
+| `Activities/Push{Lead,People,Organization}Activity.php` | same |
+| `app/Console/Commands/Connectors/*/…BackfillCommand.php` | same |
+| `Jobs/…BackfillImportJob.php` | same |
+
+The two backfill **jobs** are the strongest candidate to unify — the record loop, the
+processed/failed counters, the per-record `try/catch → report()` and the summary log line are
+byte-identical, differing only in the id key (`Id` vs `id`) and which `Pull*Action` each entity
+type maps to. A shared abstract job taking those two as template methods would collapse both.
+
+The three `Push*Activity` classes are **not** worth unifying — the framework discovers one class
+per `#[WorkflowAction]` attribute, so that repetition is structural, not accidental.
+
+Deliberately left alone for now (2026-09-12): merging would mean editing the live Salesforce
+connector from an unrelated PR. Do it as its own change, with the Salesforce suite green, before
+a third CRM connector lands and makes it three copies.
+
 ## Hard rules specific to this tree
 
 ### AgentRuntime is a primary domain, NOT a connector
