@@ -27,6 +27,7 @@ class ContactObserver
     public function updated(Contact $contact): void
     {
         $this->runWorkflow($contact);
+        $this->logOptOutChange($contact);
     }
 
     private function cleanPhoneNumber(Contact $contact): void
@@ -50,5 +51,12 @@ class ContactObserver
                'app' => $contact->people->app,
             ]
         );
+    }
+
+    private function logOptOutChange(Contact $contact): void
+    {
+        if (! $contact->wasChanged('is_opt_out')) {
+            return;
+        }
     }
 }
