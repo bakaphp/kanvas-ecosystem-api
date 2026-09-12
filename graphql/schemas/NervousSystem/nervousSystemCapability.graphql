@@ -30,8 +30,49 @@ type NervousSystemTool {
     is_active: Boolean!
     agent: AgentAi @belongsTo(relation: "agent")
     agentTypes: [agentType!]! @belongsToMany(relation: "agentTypes")
+    mcp(agent_id: ID): NervousSystemMcpServerState
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Queries\\McpQuery@serverState"
+        )
     created_at: DateTime!
     updated_at: DateTime
+}
+
+type NervousSystemMcpServerState {
+    vendor: String
+    auth_methods: [String!]!
+    url_per_connection: Boolean!
+    auth: String
+    connected: Boolean!
+    status: String
+    connected_at: DateTime
+    connected_as: String
+    last_error: String
+    fetched_at: DateTime
+    tool_count: Int!
+    tools: [NervousSystemMcpTool!]!
+}
+
+type NervousSystemMcpTool {
+    name: String!
+    remote_name: String!
+    description: String
+}
+
+"One agent's connection to one MCP server."
+type NervousSystemMcpConnection {
+    agent: AgentAi!
+    "bearer | oauth"
+    auth: String
+    status: String
+    connected_at: DateTime
+    connected_as: String
+    last_error: String
+}
+
+type NervousSystemMcpConnectResult {
+    url: String
+    connected: Boolean!
 }
 
 type NervousSystemToolCategory {
@@ -232,6 +273,29 @@ extend type Query @guard {
 }
 
 extend type Mutation @guardByAdmin {
+    "Force a re-read of an MCP server's tool list for one agent — the escape hatch after a change on the vendor side, since the list is cached for hours."
+    refreshNervousSystemMcpTools(tool_id: ID!, agent_id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\McpMutation@refreshTools"
+        )
+
+    """
+    Connect an MCP server for one agent — connecting also turns the tool on for that agent. Pass `token`
+    to connect immediately; omit it on an OAuth server to get back a consent URL instead. `redirect_url`
+    is where the browser lands after consent, with `?status=success` or `?status=error&message=…` appended.
+    """
+    connectNervousSystemMcpServer(
+        tool_id: ID!
+        agent_id: ID!
+        token: String
+        "Required when the server's `url_per_connection` is true (https only); a reconnect may omit it to keep the stored one."
+        server_url: String
+        redirect_url: String
+    ): NervousSystemMcpConnectResult!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\McpMutation@connectServer"
+        )
+
     createNervousSystemSkill(
         input: CreateNervousSystemSkillInput!
     ): NervousSystemSkill!
@@ -318,5 +382,13 @@ extend type Mutation @guardByAdmin {
     ): NervousSystemToolCategory!
         @field(
             resolver: "App\\GraphQL\\NervousSystem\\Mutations\\CapabilityMutation@updateToolCategory"
+        )
+}
+
+extend type Query @guardByAdmin {
+    "Every agent's connection to one MCP server in the current company, for the integrations page."
+    nervousSystemMcpConnections(tool_id: ID!): [NervousSystemMcpConnection!]!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Queries\\McpQuery@connections"
         )
 }

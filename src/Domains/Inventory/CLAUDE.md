@@ -211,10 +211,32 @@ For NL to honor budget / availability, the collection must define
 These must be added to `toSearchableArray()` **and** the collection schema, then
 reindexed.
 
-> Open item: this repo has no `typesense.model-settings.*.collection-schema` in
-> `config/scout.php`, and the model's `typesenseCollectionSchema()` method is not
-> referenced anywhere — confirm how the products collection schema is actually
-> created in your Typesense environments before relying on field-level config.
+### Schema drift — why a field change needs more than a reindex
+
+A collection is created once, from `typesenseCollectionSchema()`, and Scout never
+revisits it. Editing the method changes what *new* collections are born with; the
+live one keeps the shape it already has, and rejects every document that disagrees
+with it. Two ways that bites (both are Sentry KANVAS-ECOSYSTEM-628):
+
+- **A field auto-typed as int.** `json_encode` drops the zero fraction, so a price
+  of `100.00` goes over the wire as `100`, the field locks to `int64`, and the next
+  `99.99` is rejected forever — *"Field `warehouses.price` must be an array of int64."*
+- **A field the collection still requires.** Mark it `optional` in the model after
+  the fact and the live one stays required, so every null is rejected —
+  *"Field `barcode` must be a string."*
+
+Repair in place — Typesense re-types a field by dropping and re-adding it,
+re-indexed from the stored documents:
+
+```bash
+php artisan kanvas:search:typesense-sync-schema "Kanvas\\Inventory\\Variants\\Models\\Variants" --dry-run
+php artisan kanvas:search:typesense-sync-schema "Kanvas\\Inventory\\Variants\\Models\\Variants"
+```
+
+Defaults to widening only (`int -> float`, required -> optional), which is safe on a
+live collection because nothing already indexed becomes invalid. `--all` also applies
+lossy re-types. `--app=` limits the sweep; without it every app indexing that model
+into Typesense is visited, each distinct collection once.
 
 ### d) Optional: semantic / hybrid (vector) search
 Independent of NL search. Add an auto-embedding field:

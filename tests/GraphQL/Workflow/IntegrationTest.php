@@ -19,163 +19,16 @@ class IntegrationTest extends TestCase
     use InventoryCases;
     use HasShopifyConfiguration;
 
-    /**
-     * testCreate.
-     */
     public function testIntegrationCompanySave(): void
     {
-        $response = $this->graphQL('
-            query {
-                integrations {
-                    data {
-                        id,
-                        name
-                    }
-                }
-            }');
+        $integrationCompany = $this->createShopifyIntegrationCompany();
 
-        $this->assertArrayHasKey('id', $response->json()['data']['integrations']['data'][0]);
-
-        $regionSlug = 'test-region-' . uniqid();
-        $region = [
-            'name' => 'Test Region ' . $regionSlug,
-            'slug' => $regionSlug,
-            'short_slug' => $regionSlug,
-            'is_default' => 1,
-            'currency_id' => 1,
-        ];
-        $regionResponse = $this->graphQL('
-            mutation($data: RegionInput!) {
-                createRegion(input: $data)
-                {
-                    id
-                    name
-                    slug
-                    short_slug
-                    currency_id
-                    is_default
-                }
-            }
-        ', [
-            'data' => $region,
-        ])->assertSuccessful();
-        $regionResponse = $regionResponse->decodeResponseJson();
-
-        $integration = collect($response->json()['data']['integrations']['data'])
-            ->firstWhere('name', IntegrationsEnum::SHOPIFY->value);
-        $this->assertNotNull($integration, 'Shopify integration must be present in integrations query');
-        $company = auth()->user()->getCurrentCompany();
-        $credentials = [
-            'client_id' => getenv('TEST_SHOPIFY_API_KEY'),
-            'client_secret' => getenv('TEST_SHOPIFY_API_SECRET'),
-            'shop_url' => getenv('TEST_SHOPIFY_SHOP_URL'),
-        ];
-
-        $data = [
-            'integration' => [
-                'id' => $integration['id'],
-            ],
-            'company_id' => $company->getId(),
-            'region' => [
-                'id' => $regionResponse['data']['createRegion']['id'],
-            ],
-            'config' => [
-                'client_id' => $credentials['client_id'],
-                'client_secret' => $credentials['client_secret'],
-                'shop_url' => $credentials['shop_url'],
-            ],
-        ];
-
-        $integrationCompanyResponse = $this->graphQL('
-        mutation($data: IntegrationsCompaniesInput!) {
-            integrationCompany(input: $data)
-            {
-                id
-            }
-        }', ['data' => $data]);
-
-        $this->assertArrayHasKey('id', $integrationCompanyResponse->json()['data']['integrationCompany']);
+        $this->assertArrayHasKey('id', $integrationCompany);
     }
 
-    /**
-     * testSearch.
-     */
     public function testRemoveIntegrationCompany(): void
     {
-        $response = $this->graphQL('
-            query {
-                integrations {
-                    data {
-                        id,
-                        name
-                    }
-                }
-            }');
-
-        $this->assertArrayHasKey('id', $response->json()['data']['integrations']['data'][0]);
-
-        $regionSlug = 'test-region-' . uniqid();
-        $region = [
-            'name' => 'Test Region ' . $regionSlug,
-            'slug' => $regionSlug,
-            'short_slug' => $regionSlug,
-            'is_default' => 1,
-            'currency_id' => 1,
-        ];
-        $regionResponse = $this->graphQL('
-            mutation($data: RegionInput!) {
-                createRegion(input: $data)
-                {
-                    id
-                    name
-                    slug
-                    short_slug
-                    currency_id
-                    is_default
-                }
-            }
-        ', [
-            'data' => $region,
-        ])->assertSuccessful();
-        $regionResponse = $regionResponse->decodeResponseJson();
-
-        $integration = collect($response->json()['data']['integrations']['data'])
-            ->firstWhere('name', IntegrationsEnum::SHOPIFY->value);
-        $this->assertNotNull($integration, 'Shopify integration must be present in integrations query');
-        $company = auth()->user()->getCurrentCompany();
-
-        $credentials = [
-            'client_id' => getenv('TEST_SHOPIFY_API_KEY'),
-            'client_secret' => getenv('TEST_SHOPIFY_API_SECRET'),
-            'shop_url' => getenv('TEST_SHOPIFY_SHOP_URL'),
-        ];
-
-        $data = [
-            'integration' => [
-                'id' => $integration['id'],
-            ],
-            'company_id' => $company->getId(),
-            'region' => [
-                'id' => $regionResponse['data']['createRegion']['id'],
-            ],
-            'config' => [
-                'client_id' => $credentials['client_id'],
-                'client_secret' => $credentials['client_secret'],
-                'shop_url' => $credentials['shop_url'],
-            ],
-        ];
-
-        $integrationCompanyResponse = $this->graphQL('
-        mutation($data: IntegrationsCompaniesInput!) {
-            integrationCompany(input: $data)
-            {
-                id
-            }
-        }', ['data' => $data]);
-
-        $this->assertArrayHasKey('id', $integrationCompanyResponse->json()['data']['integrationCompany']);
-
-        $integrationCompany = $integrationCompanyResponse->json()['data']['integrationCompany'];
+        $integrationCompany = $this->createShopifyIntegrationCompany();
 
         $this->graphQL('
         mutation($id: ID!) {
@@ -225,6 +78,99 @@ class IntegrationTest extends TestCase
         }');
 
         $this->assertNotEmpty($response->json()['data']['workflowIntegrationsHistory']['data'][0]);
+    }
+
+    /**
+     * The catalog holds far more integrations than the query's page size and `integrations` has no
+     * default ordering, so filtering by name is the only way to reach Shopify — CI seeds it last,
+     * which puts it well past page one.
+     */
+    protected function fetchShopifyIntegration(): array
+    {
+        $response = $this->graphQL('
+            query($where: QueryIntegrationsWhereWhereConditions) {
+                integrations(where: $where) {
+                    data {
+                        id
+                        name
+                    }
+                }
+            }
+        ', [
+            'where' => [
+                'column' => 'NAME',
+                'operator' => 'EQ',
+                'value' => IntegrationsEnum::SHOPIFY->value,
+            ],
+        ])->assertSuccessful();
+
+        $integration = collect($response->json()['data']['integrations']['data'])
+            ->firstWhere('name', IntegrationsEnum::SHOPIFY->value);
+
+        $this->assertNotNull($integration, 'Shopify integration must be present in integrations query');
+
+        return $integration;
+    }
+
+    protected function createTestRegion(): array
+    {
+        $regionSlug = 'test-region-' . uniqid();
+
+        $response = $this->graphQL('
+            mutation($data: RegionInput!) {
+                createRegion(input: $data)
+                {
+                    id
+                    name
+                    slug
+                    short_slug
+                    currency_id
+                    is_default
+                }
+            }
+        ', [
+            'data' => [
+                'name' => 'Test Region ' . $regionSlug,
+                'slug' => $regionSlug,
+                'short_slug' => $regionSlug,
+                'is_default' => 1,
+                'currency_id' => 1,
+            ],
+        ])->assertSuccessful();
+
+        return $response->json()['data']['createRegion'];
+    }
+
+    protected function createShopifyIntegrationCompany(): array
+    {
+        $integration = $this->fetchShopifyIntegration();
+        $region = $this->createTestRegion();
+        $company = auth()->user()->getCurrentCompany();
+
+        $data = [
+            'integration' => [
+                'id' => $integration['id'],
+            ],
+            'company_id' => $company->getId(),
+            'region' => [
+                'id' => $region['id'],
+            ],
+            'config' => [
+                'client_id' => env('TEST_SHOPIFY_API_KEY'),
+                'client_secret' => env('TEST_SHOPIFY_API_SECRET'),
+                'shop_url' => env('TEST_SHOPIFY_SHOP_URL'),
+            ],
+        ];
+
+        $response = $this->graphQL('
+        mutation($data: IntegrationsCompaniesInput!) {
+            integrationCompany(input: $data)
+            {
+                id
+            }
+        }', ['data' => $data])->assertSuccessful();
+
+        return $response->json()['data']['integrationCompany'];
     }
 
     protected function createProduct()

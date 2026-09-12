@@ -43,6 +43,7 @@ class VariantDetailTool extends Tool
     public function __invoke(int $variant_id): array
     {
         try {
+            /** @var Variants $variant */
             $variant = Variants::getById($variant_id, app(Apps::class));
         } catch (Throwable $e) {
             return ['message' => "Variant #{$variant_id} not found."];
