@@ -13,8 +13,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\KanvasModules\Models\KanvasModule;
+use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
+use Kanvas\Workflow\Models\Integrations;
 use Override;
 
 /**
@@ -31,6 +33,7 @@ use Override;
  * @property string $tool_type
  * @property int|null $tool_category_id
  * @property string|null $handler
+ * @property int|null $integrations_id
  * @property array|null $input_schema
  * @property array|null $output_schema
  * @property array|null $requires_permission
@@ -57,6 +60,7 @@ class Tool extends BaseModel
     {
         return [
             'apps_id' => 'integer',
+            'integrations_id' => 'integer',
             'input_schema' => Json::class,
             'output_schema' => Json::class,
             'requires_permission' => Json::class,
@@ -64,6 +68,21 @@ class Tool extends BaseModel
             'is_active' => 'boolean',
             'is_deleted' => 'boolean',
         ];
+    }
+
+    /**
+     * Cross-DB: `integrations` lives on the `workflow` connection, so this resolves with its own
+     * query. Never reach it through `whereHas` — a subquery cannot bridge schemas and silently
+     * returns zero rows.
+     */
+    public function integration(): BelongsTo
+    {
+        return $this->belongsTo(Integrations::class, 'integrations_id', 'id');
+    }
+
+    public function isMcp(): bool
+    {
+        return $this->tool_type === ToolTypeEnum::MCP->value;
     }
 
     public function agentTypes(): BelongsToMany

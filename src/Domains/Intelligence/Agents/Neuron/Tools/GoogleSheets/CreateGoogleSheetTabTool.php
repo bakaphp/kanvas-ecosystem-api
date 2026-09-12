@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets;
 use Kanvas\Connectors\GoogleSheets\Actions\CreateSheetTabAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesGoogleSheetsServiceForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesSpreadsheetIdForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -26,6 +27,7 @@ use Throwable;
 class CreateGoogleSheetTabTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesGoogleSheetsServiceForTool;
     use ResolvesSpreadsheetIdForTool;
 
     public function __construct()
@@ -33,11 +35,11 @@ class CreateGoogleSheetTabTool extends Tool
         parent::__construct(
             name: 'create_google_sheet_tab',
             description: 'Adds a new tab (worksheet) to an EXISTING Google Sheets document — e.g. a "Q3 Invoices" '
-                . 'tab alongside the ones already there. This does NOT create a new spreadsheet, and no tool '
-                . 'does: if the user asked for a new sheet document, tell them so and ask which existing document '
-                . 'to work in. Requires the sheet link — unlike the other sheets tools it will not fall back to a '
-                . 'default document. Does not touch or remove any existing tab. The sheet must already be shared '
-                . 'as an Editor with this app\'s Google service account.',
+                . 'tab alongside the ones already there. This does NOT create a new spreadsheet: use '
+                . 'create_google_spreadsheet for that. Requires the sheet link — unlike the other sheets tools it '
+                . 'will not fall back to a default document. Does not touch or remove any existing tab. Works on '
+                . 'any sheet the Google account this agent is connected to can open; where the app uses a shared '
+                . 'service account instead, the sheet must be shared with that account as an Editor.',
         );
     }
 
@@ -49,8 +51,8 @@ class CreateGoogleSheetTabTool extends Tool
     {
         return [
             // Deliberately not schema-required: an omitted reference has to reach __invoke() so the
-            // refusal can explain that no tool creates a spreadsheet. A schema error would reject
-            // the call without ever teaching the model why it was the wrong tool to reach for.
+            // refusal can point at create_google_spreadsheet. A schema error would reject the call
+            // without ever teaching the model which tool it should have reached for.
             new ToolProperty(
                 name: 'sheet_url_or_id',
                 type: PropertyType::STRING,
@@ -79,7 +81,12 @@ class CreateGoogleSheetTabTool extends Tool
         }
 
         try {
-            $result = new CreateSheetTabAction($this->app, $spreadsheetId, $title)->execute();
+            $result = new CreateSheetTabAction(
+                $this->app,
+                $spreadsheetId,
+                $title,
+                $this->sheetsServiceForAgent(),
+            )->execute();
         } catch (Throwable $e) {
             return [
                 'success' => false,

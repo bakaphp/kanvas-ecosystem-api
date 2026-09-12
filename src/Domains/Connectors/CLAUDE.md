@@ -83,11 +83,11 @@ All calls to `$this->executeIntegration()` in workflow activities must include `
 When shipping a new connector, provide the SQL insert for the `integrations` table:
 
 ```sql
-INSERT INTO integrations (name, uuid, apps_id, config, handler, actions_id, receivers_id, is_deleted, created_at, updated_at)
-VALUES ('{name}', UUID(), 0, '{"api_key": {"type": "text", "required": true}}', 'Kanvas\\Connectors\\{Name}\\Handlers\\{Name}Handler', NULL, NULL, 0, NOW(), NOW());
+INSERT INTO integrations (name, uuid, apps_id, config, handler, type, actions_id, receivers_id, is_deleted, created_at, updated_at)
+VALUES ('{name}', UUID(), 0, '{"api_key": {"type": "text", "required": true}}', 'Kanvas\\Connectors\\{Name}\\Handlers\\{Name}Handler', 'key', NULL, NULL, 0, NOW(), NOW());
 ```
 
-`apps_id = 0` means global (available to all apps). Reference the `DriveCentric` row for format.
+`apps_id = 0` means global (available to all apps). Reference the `DriveCentric` row for format. `type` (`IntegrationTypeEnum`: `key` | `oauth` | `mcp`) is what the UIs filter on — see the `kanvas-connector` skill.
 
 ### Register workflow activities
 

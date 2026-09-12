@@ -317,11 +317,13 @@ enum IntegrationsEnum: string
 Seed a row in the `integrations` table mapping the name to the handler class. Always provide the SQL insert when shipping a new connector:
 
 ```sql
-INSERT INTO integrations (name, uuid, apps_id, config, handler, actions_id, receivers_id, is_deleted, created_at, updated_at)
-VALUES ('{connector_name}', UUID(), 0, '{"api_key": {"type": "text", "required": true}, "api_secret": {"type": "text", "required": true}}', 'Kanvas\\Connectors\\{ConnectorName}\\Handlers\\{ConnectorName}Handler', NULL, NULL, 0, NOW(), NOW());
+INSERT INTO integrations (name, uuid, apps_id, config, handler, type, actions_id, receivers_id, is_deleted, created_at, updated_at)
+VALUES ('{connector_name}', UUID(), 0, '{"api_key": {"type": "text", "required": true}, "api_secret": {"type": "text", "required": true}}', 'Kanvas\\Connectors\\{ConnectorName}\\Handlers\\{ConnectorName}Handler', 'key', NULL, NULL, 0, NOW(), NOW());
 ```
 
 `config` JSON describes the setup fields the handler expects (`type: text`, `required: true/false`). `apps_id = 0` means global (available to all apps). Reference the `DriveCentric` row for format.
+
+`type` (`IntegrationTypeEnum`) says how the row is connected, and the UIs filter on it: `key` (default — credentials pasted into the `config` form), `oauth` (connected through a consent screen, not the form), `mcp` (an MCP server — connected per agent via `connectNervousSystemMcpServer`; `McpServerConfig` only reads rows typed `mcp`).
 
 ## Connector Checklist
 
