@@ -142,9 +142,9 @@ class McpToolCacheService
         $existing = $this->snapshot();
 
         if ($existing !== null && $existing->payload_hash === $hash) {
-            // Unchanged: stamp freshness without rewriting the descriptor blob, which is the whole tool
-            // list for this connection. `updated_at` still moves — the model keeps timestamps, and
-            // nothing reads it as "the tool list changed"; `payload_hash` is what answers that.
+            // Unchanged: stamp freshness without rewriting the descriptor blob. `updated_at` still moves
+            // — the model keeps timestamps — and nothing reads it as "the list changed"; that is
+            // `payload_hash`.
             $existing->fetched_at = $now;
             $existing->saveOrFail();
         } else {
@@ -265,11 +265,9 @@ class McpToolCacheService
     }
 
     /**
-     * The refresh lock only serializes the work; it does not stop it happening N times. Every turn that
-     * read a soft-stale entry dispatched its own job, and each job that ran after the previous one
-     * released the lock dialled the vendor again — so a busy agent turned one expiry into a queue of
-     * identical handshakes. `Cache::add` is the atomic claim: first dispatcher wins, the rest no-op until
-     * the debounce expires.
+     * The refresh lock serializes the work but does not stop N jobs being queued for it, and `refresh()`
+     * re-fetches unconditionally — so the dispatch needs its own atomic claim or one expiry becomes a
+     * queue of identical vendor handshakes. First dispatcher wins; the rest no-op until it expires.
      */
     private function revalidateIfSoftStale(?string $fetchedAt): void
     {
@@ -315,6 +313,10 @@ class McpToolCacheService
         );
     }
 
+    /**
+     * Deliberately coarser than cacheKey(): a vendor being unreachable is not specific to a tool version,
+     * and the agent id already pins the company.
+     */
     private function breakerKey(): string
     {
         return sprintf(

@@ -53,9 +53,9 @@ class McpConnectionService
     }
 
     /**
-     * Resolved once: a single `serverState` field asks for the grant and then for `isEnabled()`, and each
-     * of those used to re-query the catalog row as well — four queries for one answer that cannot change
-     * mid-resolver. The flags exist because null is a real result here, so `??=` would re-query it.
+     * Resolved once — `serverState` asks for the grant and then for `isEnabled()`, and neither the catalog
+     * row nor the grant can change mid-resolver. A flag rather than `??=` because null is a real result
+     * here, which `??=` would re-query every call.
      */
     public function tool(): ?Tool
     {
@@ -207,8 +207,8 @@ class McpConnectionService
         $grant->config = $config;
         $grant->saveOrFail();
 
-        // The row this service memoized is the one just written, but `active()` no longer matching (a
-        // revocation elsewhere) would leave a stale memo behind an isEnabled() call.
+        // Dropped, not updated: `active()` may no longer match this row after a revocation elsewhere, and
+        // isEnabled() behind a stale memo would report a connection that is gone.
         $this->grantResolved = false;
         $this->grant = null;
     }

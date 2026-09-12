@@ -152,6 +152,9 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             $this->sessionId = $response->getHeader('Mcp-Session-Id')[0];
         }
 
+        // Streaming means an unread body is an open socket, not just bytes — a caller that sends twice
+        // without receiving would otherwise leak the first one until GC.
+        $this->discardBody();
         $this->lastResponse = $response;
     }
 
@@ -182,6 +185,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
     public function disconnect(): void
     {
         $this->sessionId = null;
+        $this->discardBody();
         $this->lastResponse = null;
     }
 
@@ -210,9 +214,16 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             'body' => mb_substr($this->redact($body), 0, 1000),
         ]);
 
+        $response->getBody()->close();
+
         throw $status === 401 || $status === 403
             ? new McpAuthException(trim('MCP server rejected the credential (HTTP ' . $status . '). ' . $reason))
             : new McpFetchException(trim('MCP server returned HTTP ' . $status . '. ' . $reason));
+    }
+
+    private function discardBody(): void
+    {
+        $this->lastResponse?->getBody()->close();
     }
 
     /**
@@ -252,10 +263,8 @@ class GuardedHttpMcpTransport implements McpTransportInterface
     }
 
     /**
-     * Read with a hard ceiling. This only bounds anything because the client runs with `stream => true`:
-     * Guzzle then hands back the live socket and aborting here stops the transfer. Buffered (the default)
-     * it would already have downloaded and spooled the whole body to php://temp before the first check,
-     * so the cap would bound the parse and nothing else.
+     * Read with a hard ceiling. It bounds the transfer itself only while client() keeps `stream => true`;
+     * buffered, the body is already spooled in full before the first check and the cap bounds the parse.
      */
     private function readCapped(ResponseInterface $response): string
     {
@@ -272,6 +281,8 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             $content .= $chunk;
 
             if (strlen($content) > self::MAX_RESPONSE_BYTES) {
+                $stream->close();
+
                 throw new McpFetchException('MCP response exceeded the ' . self::MAX_RESPONSE_BYTES . ' byte cap.');
             }
         }
@@ -358,8 +369,10 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             'allow_redirects' => false,
             'http_errors' => false,
             'verify' => true,
-            // Returns once the headers are in, so readCapped() bounds the bytes actually pulled off the
-            // socket instead of a body Guzzle has already spooled to disk in full.
+            // Hands back the live socket so readCapped() can abort a hostile body mid-transfer instead
+            // of capping one Guzzle already spooled to php://temp in full. Guzzle routes this to its
+            // StreamHandler, which needs allow_url_fopen and ignores connect_timeout above — `timeout`
+            // bounds the exchange there, and without the ini it degrades to the buffered curl path.
             'stream' => true,
         ]);
     }

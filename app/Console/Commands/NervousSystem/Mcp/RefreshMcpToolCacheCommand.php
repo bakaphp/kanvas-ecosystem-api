@@ -47,7 +47,9 @@ class RefreshMcpToolCacheCommand extends Command
         $grants = AgentTool::query()
             ->whereIn('tool_id', $tools->keys()->all())
             ->active()
-            ->with('agent')
+            // app and company too: the cache service scopes every lookup by the agent's own tenant, so
+            // lazy-loading them here is a pair of queries per grant on an hourly fan-out.
+            ->with(['agent.app', 'agent.company'])
             ->get();
 
         $refreshed = 0;

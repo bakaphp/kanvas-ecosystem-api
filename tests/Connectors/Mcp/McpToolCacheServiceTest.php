@@ -163,11 +163,6 @@ final class McpToolCacheServiceTest extends McpTestCase
         $this->assertTrue($second->fetched_at->gt($first->fetched_at));
     }
 
-    /**
-     * The refresh lock serializes the work but does not stop it being queued N times, so a busy agent
-     * used to turn one expiry into a queue of identical vendor handshakes — every turn that read the
-     * stale entry dispatched its own.
-     */
     public function testABurstOfStaleReadsQueuesOneRevalidation(): void
     {
         Queue::fake();

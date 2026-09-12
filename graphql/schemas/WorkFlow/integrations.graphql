@@ -2,7 +2,6 @@ type Integrations {
     id: ID!
     name: String!
     uuid: String!
-    "How it is connected: `key` (config form), `oauth` (consent screen), or `mcp` — an MCP server, connected per agent via connectNervousSystemMcpServer, never via integrationCompany."
     type: String!
     status: Status @method(name: "getIntegrationStatus")
     integrations: [IntegrationsCompanies!]!

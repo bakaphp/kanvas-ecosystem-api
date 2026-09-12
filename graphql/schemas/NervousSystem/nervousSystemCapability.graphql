@@ -30,39 +30,31 @@ type NervousSystemTool {
     is_active: Boolean!
     agent: AgentAi @belongsTo(relation: "agent")
     agentTypes: [agentType!]! @belongsToMany(relation: "agentTypes")
-    "Live state of an MCP server row; null on every other tool_type. Pass `agent_id` for that agent's connection — without it only the catalog fields (vendor, auth_methods, url_per_connection) are filled."
     mcp(agent_id: ID): NervousSystemMcpServerState
-        @field(resolver: "App\\GraphQL\\NervousSystem\\Queries\\McpQuery@serverState")
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Queries\\McpQuery@serverState"
+        )
     created_at: DateTime!
     updated_at: DateTime
 }
 
 type NervousSystemMcpServerState {
     vendor: String
-    "Every way this server can be connected — `bearer` (paste a key) and/or `oauth` (Connect button). Offer the admin each one listed; always filled, with or without `agent_id`."
     auth_methods: [String!]!
-    "True when the server runs at each company's own address (a self-hosted n8n) — show a server URL field and pass it as `server_url` when connecting."
     url_per_connection: Boolean!
-    "How this agent connected: `bearer` | `oauth`. Null when it isn't connected or no `agent_id` was given."
     auth: String
-    "The agent holds the tool, has a credential, and the vendor has not rejected it."
     connected: Boolean!
-    "active | failed | null (never connected)."
     status: String
     connected_at: DateTime
-    "The vendor account the agent signed in with, when the server tells us."
     connected_as: String
     last_error: String
-    "When the tool list was last confirmed against the server."
     fetched_at: DateTime
     tool_count: Int!
     tools: [NervousSystemMcpTool!]!
 }
 
 type NervousSystemMcpTool {
-    "What the model calls it: {prefix}__{remote_name}, normalised to what providers accept."
     name: String!
-    "What the server published, and what it is called by on invoke."
     remote_name: String!
     description: String
 }
@@ -79,9 +71,7 @@ type NervousSystemMcpConnection {
 }
 
 type NervousSystemMcpConnectResult {
-    "OAuth servers: the consent URL to open in a browser. Token servers: null."
     url: String
-    "Token servers: true once the token has been checked against the server."
     connected: Boolean!
 }
 
