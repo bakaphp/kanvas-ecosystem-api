@@ -7,12 +7,11 @@ namespace Kanvas\Connectors\Internal\Activities;
 use Baka\Contracts\AppInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\ActionEngine\Actions\Models\Action;
-use Kanvas\ActionEngine\Actions\Models\CompanyAction;
-use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Tasks\Actions\ChangeTaskEngagementItemStatusAction;
+use Kanvas\ActionEngine\Tasks\Actions\TrackChecklistPdfGenerationAction;
+use Kanvas\ActionEngine\Tasks\Enums\ChecklistPdfGenerationEnum;
 use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
-use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
+use Kanvas\ActionEngine\Tasks\Support\ChecklistPdfContext;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -20,6 +19,7 @@ use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Throwable;
 
 #[WorkflowAction(
     name: 'Generate PDF From Template',
@@ -66,54 +66,69 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
                     ];
                 }
 
+                $checklistContext = null;
+
+                if ($entity instanceof Message && isset($entity->message['checkListId'])) {
+                    try {
+                        $checklistContext = ChecklistPdfContext::fromMessage($entity, $app);
+                    } catch (Exception $e) {
+                        $errorMessage = $e->getMessage() . $e->getTraceAsString();
+                    }
+                }
+
+                if ($checklistContext !== null) {
+                    new TrackChecklistPdfGenerationAction(context: $checklistContext, status: ChecklistPdfGenerationEnum::GENERATING)->execute();
+                }
+
                 $pdfData = array_merge([
                     'app' => $app,
                 ], $params);
 
-                $pdfFile = PdfService::generatePdfFromTemplate(
-                    $app,
-                    $entity->user,
-                    $pdfTemplate,
-                    $entity,
-                    $pdfData
-                );
+                try {
+                    $pdfFile = PdfService::generatePdfFromTemplate(
+                        $app,
+                        $entity->user,
+                        $pdfTemplate,
+                        $entity,
+                        $pdfData
+                    );
 
-                $entity->addFile($pdfFile, $pdfFileName);
+                    $entity->addFile($pdfFile, $pdfFileName);
 
-                //@todo any better way to do this?
-                if ($entity instanceof Message && $entity->parent) {
-                    $entity->parent->addFile($pdfFile, $pdfFileName);
+                    //@todo any better way to do this?
+                    if ($entity instanceof Message && $entity->parent) {
+                        $entity->parent->addFile($pdfFile, $pdfFileName);
+                    }
+                } catch (Throwable $e) {
+                    if ($checklistContext !== null) {
+                        new TrackChecklistPdfGenerationAction(context: $checklistContext, status: ChecklistPdfGenerationEnum::FAILED)->execute();
+                    }
+
+                    throw $e;
                 }
 
                 /**
                  * @todo MOVE THIS TO ITS OWN ACTIVITY
                  */
-                if ($entity instanceof Message && isset($entity->message['checkListId'])) {
+                if ($checklistContext !== null) {
                     try {
-                        $action = Action::getBySlug($entity->message['verb'], $entity->company);
-                        $companyAction = CompanyAction::getByAction($action, $entity->company, $app);
-                        $engagement = Engagement::getByMessageId($entity->getId());
-
-                        $companyTaskList = TaskListItem::query()->where('companies_action_id', $companyAction->getId())
-                            ->where('task_list_id', $entity->message['checkListId'])
-                            ->where('is_deleted', 0)
-                            ->first();
-
-                        //$entity->message['checkListId'] = $entity->message['checkListId'];
-                        if ($companyTaskList) {
-                            new ChangeTaskEngagementItemStatusAction(
-                                taskListItem: $companyTaskList,
-                                lead: $engagement->lead,
-                                status: TaskStatusEnum::COMPLETED->value,
-                                user: $engagement->user,
-                                app: $app,
-                                company: $engagement->company,
-                                message: $entity
-                            )->execute();
-                        }
+                        new ChangeTaskEngagementItemStatusAction(
+                            taskListItem: $checklistContext->taskListItem,
+                            lead: $checklistContext->engagement->lead,
+                            status: TaskStatusEnum::COMPLETED->value,
+                            user: $checklistContext->engagement->user,
+                            app: $app,
+                            company: $checklistContext->engagement->company,
+                            message: $entity
+                        )->execute();
                     } catch (Exception $e) {
                         $errorMessage = $e->getMessage() . $e->getTraceAsString();
                     }
+
+                    // Cleared even when the status change failed: the PDF itself generated and is
+                    // attached, so leaving a spinner up for an unrelated failure is worse than the
+                    // task row lagging — that lands on its own lead-tasks channel.
+                    new TrackChecklistPdfGenerationAction(context: $checklistContext, status: null)->execute();
                 }
 
                 if ($errorMessage !== null) {
