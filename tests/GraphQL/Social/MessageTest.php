@@ -1194,6 +1194,40 @@ class MessageTest extends TestCase
         $this->assertCount(1, Channel::where('slug', $channelUuid)->first()->messages);
     }
 
+    public function testCreateMessageInChannelByUuid()
+    {
+        $messageType = MessageType::factory()->create();
+        $channelSlug = Str::uuid()->toString();
+        $mutation = '
+            mutation createMessage($input: MessageInput!) {
+                createMessage(input: $input) {
+                    id
+                }
+            }
+        ';
+
+        $this->graphQL($mutation, [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+                'channel_slug' => $channelSlug,
+            ],
+        ])->assertSuccessful();
+
+        $channel = Channel::where('slug', $channelSlug)->firstOrFail();
+
+        $this->graphQL($mutation, [
+            'input' => [
+                'message' => fake()->text(),
+                'message_verb' => $messageType->verb,
+                'channel_uuid' => $channel->uuid,
+            ],
+        ])->assertSuccessful();
+
+        $this->assertCount(2, $channel->messages()->get());
+        $this->assertSame(1, Channel::where('slug', $channelSlug)->count());
+    }
+
     public function testCreateMessageWithCategory()
     {
         $messageType = MessageType::factory()->create();
