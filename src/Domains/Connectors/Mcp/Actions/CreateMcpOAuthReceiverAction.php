@@ -93,8 +93,8 @@ class CreateMcpOAuthReceiverAction
     private function existing(WorkflowAction $action): ?ReceiverWebhook
     {
         return ReceiverWebhook::query()
-            ->where('apps_id', $this->agent->apps_id)
-            ->where('companies_id', $this->agent->companies_id)
+            ->fromApp($this->agent->app)
+            ->fromCompany($this->agent->company)
             ->where('action_id', $action->getId())
             ->where('is_deleted', 0)
             ->get()

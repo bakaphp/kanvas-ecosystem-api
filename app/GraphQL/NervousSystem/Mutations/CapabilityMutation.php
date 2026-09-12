@@ -218,7 +218,7 @@ class CapabilityMutation
         // App owns this row — platform globals (apps_id=0) are read-only.
         $category = ToolCategory::query()
             ->where('id', (int) $request['id'])
-            ->where('apps_id', $ctx->app->getId())
+            ->fromApp($ctx->app)
             ->firstOrFail();
 
         $category->update(array_filter([

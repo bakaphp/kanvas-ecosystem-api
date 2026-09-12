@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\Internal\Jobs\OAuthCallbackJob;
 use Kanvas\Connectors\Mcp\Actions\CreateMcpOAuthReceiverAction;
 use Kanvas\Connectors\Mcp\OAuth\McpOAuthProvider;
+use Kanvas\Connectors\Mcp\Services\McpConnectionService;
 use Kanvas\Connectors\Mcp\Services\McpOAuthClientService;
 use Kanvas\Connectors\Mcp\Services\McpOAuthDiscoveryService;
 use Kanvas\Connectors\Mcp\Transports\GuardedHttpMcpTransport;
@@ -21,6 +22,7 @@ use Kanvas\Workflow\Models\WorkflowAction;
 use NeuronAI\MCP\McpTransportInterface;
 use Override;
 use PHPUnit\Framework\Attributes\DataProvider;
+use ReflectionProperty;
 use Tests\Stubs\Connectors\Mcp\FakeMcpServer;
 
 /**
@@ -97,6 +99,26 @@ final class McpServerUrlPerConnectionTest extends McpTestCase
             'private address' => ['https://10.0.0.5/mcp'],
             'not a url' => ['n8n.internal'],
         ];
+    }
+
+    /**
+     * Every other test here injects a fake transport, so the one branch that builds the REAL one — the
+     * `??` fallback in McpConnectionService::connector() — was never executed by the suite. A constructor
+     * signature it no longer matched shipped green and only surfaced as "Unknown named parameter" when an
+     * admin pressed Refresh. This test is the guard: it takes that branch and nothing else.
+     */
+    public function testTheConnectorBuildsTheRealGuardedTransportWhenNoneIsInjected(): void
+    {
+        $agent = $this->makeAgent();
+
+        foreach ([$this->makeIntegration(), $this->selfHostedIntegration()] as $integration) {
+            $connector = new McpConnectionService($agent, $integration)->connector();
+
+            $this->assertInstanceOf(
+                GuardedHttpMcpTransport::class,
+                new ReflectionProperty($connector, 'config')->getValue($connector)['transport'],
+            );
+        }
     }
 
     public function testTheTransportReadsTheUrlFromTheCredentialAndNeverSerializesIt(): void

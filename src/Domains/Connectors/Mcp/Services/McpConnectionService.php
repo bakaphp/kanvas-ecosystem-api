@@ -29,6 +29,14 @@ class McpConnectionService
 {
     private ?McpServerConfig $config = null;
 
+    private ?Tool $tool = null;
+
+    private bool $toolResolved = false;
+
+    private ?AgentTool $grant = null;
+
+    private bool $grantResolved = false;
+
     /**
      * $transport is a test seam; production always uses the guarded transport.
      */
@@ -44,29 +52,43 @@ class McpConnectionService
         return $this->config ??= McpServerConfig::fromIntegration($this->integration);
     }
 
+    /**
+     * Resolved once: a single `serverState` field asks for the grant and then for `isEnabled()`, and each
+     * of those used to re-query the catalog row as well — four queries for one answer that cannot change
+     * mid-resolver. The flags exist because null is a real result here, so `??=` would re-query it.
+     */
     public function tool(): ?Tool
     {
-        return Tool::query()
-            ->where('tool_type', ToolTypeEnum::MCP->value)
-            ->where('integrations_id', $this->integration->getId())
-            ->fromAppOrGlobal($this->agent->app)
-            ->active()
-            ->first();
+        if (! $this->toolResolved) {
+            $this->toolResolved = true;
+
+            $this->tool = Tool::query()
+                ->where('tool_type', ToolTypeEnum::MCP->value)
+                ->where('integrations_id', $this->integration->getId())
+                ->fromAppOrGlobal($this->agent->app)
+                ->active()
+                ->first();
+        }
+
+        return $this->tool;
     }
 
     public function grant(): ?AgentTool
     {
-        $tool = $this->tool();
+        if (! $this->grantResolved) {
+            $this->grantResolved = true;
+            $tool = $this->tool();
 
-        if ($tool === null) {
-            return null;
+            $this->grant = $tool === null
+                ? null
+                : AgentTool::query()
+                    ->where('agent_id', $this->agent->getId())
+                    ->where('tool_id', $tool->getId())
+                    ->active()
+                    ->first();
         }
 
-        return AgentTool::query()
-            ->where('agent_id', $this->agent->getId())
-            ->where('tool_id', $tool->getId())
-            ->active()
-            ->first();
+        return $this->grant;
     }
 
     /**
@@ -139,7 +161,6 @@ class McpConnectionService
                 agentsId: $this->agent->getId(),
                 integrationsId: $this->integration->getId(),
                 timeoutMs: $this->config()->timeoutMs,
-                transport: $this->config()->transport->value,
                 authQueryParam: $this->config()->authQueryParam,
             ),
         ]);
@@ -185,5 +206,10 @@ class McpConnectionService
 
         $grant->config = $config;
         $grant->saveOrFail();
+
+        // The row this service memoized is the one just written, but `active()` no longer matching (a
+        // revocation elsewhere) would leave a stale memo behind an isEnabled() call.
+        $this->grantResolved = false;
+        $this->grant = null;
     }
 }

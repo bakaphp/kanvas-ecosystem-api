@@ -10,7 +10,6 @@ use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Psr7\Request;
 use Illuminate\Support\Facades\Log;
 use JsonException;
-use Kanvas\Connectors\Mcp\Enums\McpTransportEnum;
 use Kanvas\Connectors\Mcp\Exceptions\McpAuthException;
 use Kanvas\Connectors\Mcp\Exceptions\McpFetchException;
 use Kanvas\Connectors\Mcp\Services\McpCredentialService;
@@ -32,6 +31,11 @@ use Throwable;
  * It also resolves the agent's credential HERE, at send time, rather than accepting one in config. That
  * is what keeps the token out of `McpConnector::__serialize()`, which stores its whole config verbatim
  * into whatever persists an interrupted workflow.
+ *
+ * Remote HTTP only, and `stdio` will never be added: NeuronAI's StdioTransport executes a configured
+ * command with caller-supplied env, which is remote code execution on the API container. A stdio MCP
+ * server belongs inside the per-tenant OpenClaw/Hermes containers, not here. A server advertising SSE is
+ * served by this same class — `decode()` reads the `data:` frame off the single POST.
  */
 class GuardedHttpMcpTransport implements McpTransportInterface
 {
@@ -58,7 +62,6 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         private int $agentsId,
         private int $integrationsId,
         private int $timeoutMs = 20000,
-        private string $transport = McpTransportEnum::HTTP->value,
         private ?string $authQueryParam = null,
     ) {
     }
@@ -75,7 +78,6 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             'agentsId' => $this->agentsId,
             'integrationsId' => $this->integrationsId,
             'timeoutMs' => $this->timeoutMs,
-            'transport' => $this->transport,
             'authQueryParam' => $this->authQueryParam,
         ];
     }
@@ -86,7 +88,6 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         $this->agentsId = $data['agentsId'];
         $this->integrationsId = $data['integrationsId'];
         $this->timeoutMs = $data['timeoutMs'];
-        $this->transport = $data['transport'];
         $this->authQueryParam = $data['authQueryParam'] ?? null;
         $this->httpClient = null;
         $this->token = null;
@@ -251,8 +252,10 @@ class GuardedHttpMcpTransport implements McpTransportInterface
     }
 
     /**
-     * Read with a hard ceiling — an unbounded read of a third-party response is a memory DoS, and
-     * Guzzle will happily buffer whatever it is handed.
+     * Read with a hard ceiling. This only bounds anything because the client runs with `stream => true`:
+     * Guzzle then hands back the live socket and aborting here stops the transfer. Buffered (the default)
+     * it would already have downloaded and spooled the whole body to php://temp before the first check,
+     * so the cap would bound the parse and nothing else.
      */
     private function readCapped(ResponseInterface $response): string
     {
@@ -355,6 +358,9 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             'allow_redirects' => false,
             'http_errors' => false,
             'verify' => true,
+            // Returns once the headers are in, so readCapped() bounds the bytes actually pulled off the
+            // socket instead of a body Guzzle has already spooled to disk in full.
+            'stream' => true,
         ]);
     }
 }

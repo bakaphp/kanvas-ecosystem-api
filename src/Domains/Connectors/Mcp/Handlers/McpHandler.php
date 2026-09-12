@@ -10,7 +10,7 @@ use Override;
 
 /**
  * MCP servers are never connected for a whole company: every connection belongs to one agent, which
- * signs in with its own vendor account (plan §18). The `integrations` rows still name this handler
+ * signs in with its own vendor account. The `integrations` rows still name this handler
  * because they remain the server catalog, so the generic integrations form lands here — and is pointed
  * at the per-agent flow instead of storing a company-wide credential.
  */

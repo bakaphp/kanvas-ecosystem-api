@@ -102,8 +102,8 @@ class McpQuery
 
         return AgentTool::query()
             ->where('tool_id', $tool->getId())
-            ->where('apps_id', $ctx->app->getId())
-            ->where('companies_id', $ctx->company->getId())
+            ->fromApp($ctx->app)
+            ->fromCompany($ctx->company)
             ->active()
             ->with('agent')
             ->get()

@@ -15,8 +15,8 @@ use Throwable;
  * The only reader and writer of one agent's credential for one MCP server — the agent's own vendor
  * login, never the connecting admin's — kept as one custom field per server.
  *
- * Custom fields have no visibility flag yet (plan §19), so this is as exposed as the Slack and GitHub
- * tokens already stored there.
+ * Custom fields carry no visibility flag, so anyone who can read an agent's custom fields can read this
+ * token — the same exposure the Slack and GitHub tokens already stored there have.
  */
 class McpCredentialService
 {

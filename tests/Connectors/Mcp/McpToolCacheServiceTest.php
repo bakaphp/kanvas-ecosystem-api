@@ -6,9 +6,11 @@ namespace Tests\Connectors\Mcp;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Queue;
 use Kanvas\Connectors\Mcp\Enums\McpConnectionStatusEnum;
 use Kanvas\Connectors\Mcp\Exceptions\McpAuthException;
 use Kanvas\Connectors\Mcp\Exceptions\McpFetchException;
+use Kanvas\Connectors\Mcp\Jobs\RefreshMcpToolSnapshotJob;
 use Kanvas\Connectors\Mcp\Services\McpConnectionService;
 use Kanvas\Connectors\Mcp\Services\McpToolCacheService;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -159,6 +161,51 @@ final class McpToolCacheServiceTest extends McpTestCase
         // cache is not thrown away on every revalidation.
         $this->assertSame($first->payload_hash, $second->payload_hash);
         $this->assertTrue($second->fetched_at->gt($first->fetched_at));
+    }
+
+    /**
+     * The refresh lock serializes the work but does not stop it being queued N times, so a busy agent
+     * used to turn one expiry into a queue of identical vendor handshakes — every turn that read the
+     * stale entry dispatched its own.
+     */
+    public function testABurstOfStaleReadsQueuesOneRevalidation(): void
+    {
+        Queue::fake();
+
+        $agent = $this->makeAgent();
+        $integration = $this->makeIntegration();
+        $this->cacheFor($agent, $integration, FakeMcpServer::listing(FakeMcpServer::twoTools()))->descriptors();
+
+        Carbon::setTestNow(Carbon::now()->addHours(2));
+
+        foreach (range(1, 5) as $ignored) {
+            new McpToolCacheService(agent: $agent, integration: $integration)->descriptors();
+        }
+
+        Carbon::setTestNow();
+
+        Queue::assertPushed(RefreshMcpToolSnapshotJob::class, 1);
+    }
+
+    public function testAnOpenBreakerDoesNotQueueABackgroundRevalidation(): void
+    {
+        Queue::fake();
+
+        $agent = $this->makeAgent();
+        $integration = $this->makeIntegration();
+        $cache = $this->cacheFor($agent, $integration, FakeMcpServer::listing(FakeMcpServer::twoTools()));
+        $cache->descriptors();
+
+        // The breaker outlives a failure by a minute and an entry goes soft-stale after an hour, so the
+        // overlap only exists if the breaker is opened once the entry is already stale — trip it there.
+        Carbon::setTestNow(Carbon::now()->addHours(2));
+        $cache->openBreaker();
+        new McpToolCacheService(agent: $agent, integration: $integration)->descriptors();
+        Carbon::setTestNow();
+
+        // Dialling a vendor already known to be failing costs a round trip to learn what the breaker
+        // already recorded.
+        Queue::assertNotPushed(RefreshMcpToolSnapshotJob::class);
     }
 
     public function testDescriptorsComeBackSortedSoThePromptPrefixIsStable(): void

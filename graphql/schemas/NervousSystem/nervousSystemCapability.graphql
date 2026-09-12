@@ -30,12 +30,7 @@ type NervousSystemTool {
     is_active: Boolean!
     agent: AgentAi @belongsTo(relation: "agent")
     agentTypes: [agentType!]! @belongsToMany(relation: "agentTypes")
-    """
-    Live state of an MCP server row. Null on every other tool_type. Nested rather than flattened into
-    the tool list so "this server is FAILED" and "last synced 3h ago" stay expressible — a flat list
-    of methods cannot say either. Pass `agent_id` for that agent's connection; without it only the
-    catalog fields (vendor, auth) are filled, because every connection belongs to one agent.
-    """
+    "Live state of an MCP server row; null on every other tool_type. Pass `agent_id` for that agent's connection — without it only the catalog fields (vendor, auth_methods, url_per_connection) are filled."
     mcp(agent_id: ID): NervousSystemMcpServerState
         @field(resolver: "App\\GraphQL\\NervousSystem\\Queries\\McpQuery@serverState")
     created_at: DateTime!
@@ -44,15 +39,9 @@ type NervousSystemTool {
 
 type NervousSystemMcpServerState {
     vendor: String
-    """
-    Every way this server can be connected — `bearer` (paste a key) and/or `oauth` (Connect button).
-    Offer the admin each one listed; always filled, with or without `agent_id`.
-    """
+    "Every way this server can be connected — `bearer` (paste a key) and/or `oauth` (Connect button). Offer the admin each one listed; always filled, with or without `agent_id`."
     auth_methods: [String!]!
-    """
-    True when the server runs at each company's own address (a self-hosted n8n, any open-source MCP
-    server) — show a server URL field and pass it as `server_url` when connecting.
-    """
+    "True when the server runs at each company's own address (a self-hosted n8n) — show a server URL field and pass it as `server_url` when connecting."
     url_per_connection: Boolean!
     "How this agent connected: `bearer` | `oauth`. Null when it isn't connected or no `agent_id` was given."
     auth: String
@@ -64,13 +53,9 @@ type NervousSystemMcpServerState {
     "The vendor account the agent signed in with, when the server tells us."
     connected_as: String
     last_error: String
-    "When the durable snapshot was last proven against the server."
+    "When the tool list was last confirmed against the server."
     fetched_at: DateTime
     tool_count: Int!
-    """
-    Read from the durable snapshot, never from the catalog — the methods a server exposes are
-    deliberately not grantable rows, so this costs no network and still answers while the vendor is down.
-    """
     tools: [NervousSystemMcpTool!]!
 }
 
@@ -298,20 +283,16 @@ extend type Query @guard {
 }
 
 extend type Mutation @guardByAdmin {
-    """
-    Force a re-read of an MCP server's tool list for one agent's connection. The cache is long-lived by
-    design, so this is the escape hatch after a change on the vendor side.
-    """
+    "Force a re-read of an MCP server's tool list for one agent — the escape hatch after a change on the vendor side, since the list is cached for hours."
     refreshNervousSystemMcpTools(tool_id: ID!, agent_id: ID!): Boolean!
         @field(
             resolver: "App\\GraphQL\\NervousSystem\\Mutations\\McpMutation@refreshTools"
         )
 
     """
-    Connect an MCP server for one agent — connecting also turns the tool on for that agent. Token servers
-    take `token` and connect immediately; OAuth servers return the consent URL, and the vendor redirects
-    back to Kanvas, which stores the grant. `redirect_url` is where the browser lands afterwards, with
-    `?status=success` or `?status=error&message=…` appended.
+    Connect an MCP server for one agent — connecting also turns the tool on for that agent. Pass `token`
+    to connect immediately; omit it on an OAuth server to get back a consent URL instead. `redirect_url`
+    is where the browser lands after consent, with `?status=success` or `?status=error&message=…` appended.
     """
     connectNervousSystemMcpServer(
         tool_id: ID!

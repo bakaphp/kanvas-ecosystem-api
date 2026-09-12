@@ -8,7 +8,6 @@ use Baka\Http\Exceptions\SsrfException;
 use Baka\Http\SafeUrl;
 use Baka\Support\Str;
 use Kanvas\Connectors\Mcp\Enums\McpAuthEnum;
-use Kanvas\Connectors\Mcp\Enums\McpTransportEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Enums\IntegrationTypeEnum;
 use Kanvas\Workflow\Models\Integrations;
@@ -36,7 +35,6 @@ final readonly class McpServerConfig
      */
     public function __construct(
         public ?string $url,
-        public McpTransportEnum $transport,
         public array $authMethods,
         public string $prefix,
         public array $exclude = [],
@@ -66,7 +64,6 @@ final readonly class McpServerConfig
 
         return new self(
             url: $urlPerConnection ? null : $url,
-            transport: McpTransportEnum::tryFrom((string) ($metadata['transport'] ?? '')) ?? McpTransportEnum::HTTP,
             authMethods: self::authMethodsFrom($metadata['auth_methods'] ?? null),
             prefix: trim((string) ($metadata['prefix'] ?? $integration->name)),
             exclude: array_values(array_map('strval', (array) ($metadata['exclude'] ?? []))),

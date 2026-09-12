@@ -17,8 +17,8 @@ use Throwable;
 
 /**
  * Revalidates one agent's tool snapshot out of band, so a stale-but-serving turn never pays the round
- * trips itself. On the default queue on purpose: it fires at most once per soft TTL per (agent, server),
- * too little to justify a dedicated worker.
+ * trips itself. On the default queue on purpose: McpToolCacheService debounces the dispatch, so the
+ * volume is a couple of jobs per hour per (agent, server) — too little to justify a dedicated worker.
  */
 class RefreshMcpToolSnapshotJob implements ShouldQueue
 {

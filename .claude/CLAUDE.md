@@ -1056,6 +1056,21 @@ Forgetting step 1 → "Trait/Class not found" at runtime even though the file ex
 
 For docker test commands, suites, `RefreshDatabase` ban, AppKey-guarded patterns, and Bouncer setup, see `tests/CLAUDE.md` (loads automatically when work touches `tests/`).
 
+### Type-check is part of "done"
+
+Before declaring any PHP change done, run PHPStan on the trees you touched — it is the only check
+here that crosses file boundaries, and CI runs it at `level: 0` on every push:
+
+```bash
+docker exec phpkanvas-ecosystem bash -c "cd /var/www/html && vendor/bin/phpstan analyse \
+  --configuration=phpstan.neon.dist --no-progress src/Domains/YourTree"
+```
+
+`php -l` parses one file in isolation and php-cs-fixer only reformats, so **neither can see a call
+site that no longer matches the signature it calls** — including a stale named argument, which is a
+fatal at runtime. Level 0 catches it in seconds. Command, cost and the `??` test-seam trap that hides
+these from PHPUnit: [`tests/CLAUDE.md`](../tests/CLAUDE.md).
+
 ### Tests are part of "done"
 
 Code without tests is not done. Code where the relevant test suite has not been run green is not done either. Both are non-negotiable for:

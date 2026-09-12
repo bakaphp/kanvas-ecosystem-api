@@ -34,6 +34,9 @@ class McpToolCacheService
 
     private const int LOCK_SECONDS = 15;
 
+    /** How long one dispatched revalidation suppresses the next, so a burst of stale reads is one job. */
+    private const int REVALIDATE_DEBOUNCE_SECONDS = 120;
+
     public function __construct(
         private readonly Agent $agent,
         private readonly Integrations $integration,
@@ -109,13 +112,14 @@ class McpToolCacheService
     {
         Cache::forget($this->cacheKey());
         Cache::forget($this->breakerKey());
+        Cache::forget($this->revalidateKey());
     }
 
     public function snapshot(): ?McpToolSnapshot
     {
         return McpToolSnapshot::query()
-            ->where('apps_id', $this->agent->apps_id)
-            ->where('companies_id', $this->agent->companies_id)
+            ->fromApp($this->agent->app)
+            ->fromCompany($this->agent->company)
             ->where('agents_id', $this->agent->getId())
             ->where('integrations_id', $this->integration->getId())
             ->first();
@@ -138,7 +142,9 @@ class McpToolCacheService
         $existing = $this->snapshot();
 
         if ($existing !== null && $existing->payload_hash === $hash) {
-            // Unchanged: move only the freshness stamp, so neither updated_at nor the prompt prefix churns.
+            // Unchanged: stamp freshness without rewriting the descriptor blob, which is the whole tool
+            // list for this connection. `updated_at` still moves — the model keeps timestamps, and
+            // nothing reads it as "the tool list changed"; `payload_hash` is what answers that.
             $existing->fetched_at = $now;
             $existing->saveOrFail();
         } else {
@@ -258,9 +264,16 @@ class McpToolCacheService
         );
     }
 
+    /**
+     * The refresh lock only serializes the work; it does not stop it happening N times. Every turn that
+     * read a soft-stale entry dispatched its own job, and each job that ran after the previous one
+     * released the lock dialled the vendor again — so a busy agent turned one expiry into a queue of
+     * identical handshakes. `Cache::add` is the atomic claim: first dispatcher wins, the rest no-op until
+     * the debounce expires.
+     */
     private function revalidateIfSoftStale(?string $fetchedAt): void
     {
-        if ($fetchedAt === null) {
+        if ($fetchedAt === null || $this->breakerIsOpen()) {
             return;
         }
 
@@ -269,6 +282,10 @@ class McpToolCacheService
                 return;
             }
         } catch (Throwable) {
+            return;
+        }
+
+        if (! Cache::add($this->revalidateKey(), true, self::REVALIDATE_DEBOUNCE_SECONDS)) {
             return;
         }
 
@@ -311,5 +328,10 @@ class McpToolCacheService
     private function lockKey(): string
     {
         return $this->cacheKey() . ':lock';
+    }
+
+    private function revalidateKey(): string
+    {
+        return $this->cacheKey() . ':revalidating';
     }
 }
