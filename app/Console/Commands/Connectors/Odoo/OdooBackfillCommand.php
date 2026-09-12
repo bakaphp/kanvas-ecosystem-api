@@ -6,6 +6,7 @@ namespace App\Console\Commands\Connectors\Odoo;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Odoo\Actions\PullAllLeadsAction;
@@ -14,10 +15,6 @@ use Kanvas\Connectors\Odoo\Actions\PullAllPeopleAction;
 use Kanvas\Connectors\Odoo\Jobs\OdooBackfillImportJob;
 
 /**
- * Bulk-pulls Organizations/People/Leads from a company's Odoo instance and dispatches
- * `OdooBackfillImportJob` to upsert them into Kanvas via the existing `Pull*Action` pipeline.
- * Same shape as `SalesforceBackfillCommand`.
- *
  * Recommended (not enforced): run Organization before People — `PullPeopleAction` links a person
  * to its Organization only if that Organization is already synced; running People first just
  * skips the link, it doesn't fail.
@@ -42,47 +39,36 @@ class OdooBackfillCommand extends Command
         $objects = array_filter(array_map('trim', explode(',', (string) $this->option('objects'))));
 
         foreach ($objects as $object) {
-            match ($object) {
-                'Organization' => $this->backfillOrganizations($app, $company),
-                'People' => $this->backfillPeople($app, $company),
-                'Lead' => $this->backfillLeads($app, $company),
-                default => $this->warn("Skipping unsupported object: {$object}"),
+            $records = match ($object) {
+                'Organization' => new PullAllOrganizationsAction($app, $company)->execute(),
+                'People' => new PullAllPeopleAction($app, $company)->execute(),
+                'Lead' => new PullAllLeadsAction($app, $company)->execute(),
+                default => null,
             };
+
+            if ($records === null) {
+                $this->warn("Skipping unsupported object: {$object}");
+
+                continue;
+            }
+
+            $this->line(sprintf(
+                'Pulled %d %s from Odoo for company %s',
+                count($records),
+                Str::plural($object, count($records)),
+                $company->name,
+            ));
+
+            if ($records !== []) {
+                OdooBackfillImportJob::dispatch(
+                    $app,
+                    $company,
+                    $object,
+                    $records,
+                );
+            }
         }
 
         return self::SUCCESS;
-    }
-
-    private function backfillOrganizations(Apps $app, Companies $company): void
-    {
-        $records = new PullAllOrganizationsAction($app, $company)->execute();
-
-        $this->line('Pulled ' . count($records) . " Organization(s) from Odoo for company {$company->name}");
-
-        if (count($records) > 0) {
-            OdooBackfillImportJob::dispatch($app, $company, 'Organization', $records);
-        }
-    }
-
-    private function backfillPeople(Apps $app, Companies $company): void
-    {
-        $records = new PullAllPeopleAction($app, $company)->execute();
-
-        $this->line('Pulled ' . count($records) . " People from Odoo for company {$company->name}");
-
-        if (count($records) > 0) {
-            OdooBackfillImportJob::dispatch($app, $company, 'People', $records);
-        }
-    }
-
-    private function backfillLeads(Apps $app, Companies $company): void
-    {
-        $records = new PullAllLeadsAction($app, $company)->execute();
-
-        $this->line('Pulled ' . count($records) . " Lead(s) from Odoo for company {$company->name}");
-
-        if (count($records) > 0) {
-            OdooBackfillImportJob::dispatch($app, $company, 'Lead', $records);
-        }
     }
 }

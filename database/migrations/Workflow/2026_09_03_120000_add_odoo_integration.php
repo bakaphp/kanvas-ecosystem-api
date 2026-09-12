@@ -7,10 +7,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * Registers Odoo against the generic integration mechanism, same shape as
- * `2026_07_15_120000_add_salesforce_integration.php`. Setup runs through the shared
- * `integrationCompany` mutation, which reads `handler` from this row and calls
- * OdooHandler::setup() — so the connector ships no GraphQL of its own.
+ * Setup runs through the shared `integrationCompany` mutation, which reads `handler` from this
+ * row and calls `OdooHandler::setup()` — which is why the connector ships no GraphQL of its own.
  */
 return new class () extends Migration {
     protected $connection = 'workflow';

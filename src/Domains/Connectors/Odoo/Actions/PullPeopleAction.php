@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Odoo\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Kanvas\Connectors\Odoo\Actions\Concerns\ParsesOdooPayload;
 use Kanvas\Connectors\Odoo\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
@@ -34,15 +35,12 @@ class PullPeopleAction
     public function execute(): People
     {
         $branch = $this->company->defaultBranch ?? $this->company->user->getCurrentCompany()->branch;
-        [$firstName, $lastName] = $this->splitName((string) ($this->payload['name'] ?? 'Unknown'));
 
-        $contacts = [];
-        if (! empty($this->payload['email'])) {
-            $contacts[] = ['value' => $this->payload['email'], 'contacts_types_id' => 1, 'weight' => 0];
-        }
-        if (! empty($this->payload['phone'])) {
-            $contacts[] = ['value' => $this->payload['phone'], 'contacts_types_id' => 2, 'weight' => 0];
-        }
+        ['firstname' => $firstName, 'lastname' => $lastName] = Str::parseFullName(
+            $this->payloadString('name') ?? 'Unknown'
+        );
+
+        $contacts = $this->contactsFromPayload('email', 'phone');
 
         $peopleData = new PeopleData(
             app: $this->app,
@@ -56,9 +54,9 @@ class PullPeopleAction
                 CustomFieldEnum::ODOO_CONTACT_ID->value => $this->odooId,
             ],
             runWorkflow: false,
-            // Matching already happens above by the Odoo partner id — a shared phone/email with
-            // an unrelated existing People is a duplicate for the merge/dedup flow to catch, not
-            // a reason to silently fold this contact into that other record.
+            // Identity comes from the Odoo partner id custom field above — a shared phone/email
+            // with an unrelated existing People is a duplicate for the merge/dedup flow to catch,
+            // not a reason to silently fold this contact into that other record.
             skipDuplicateContactCheck: true,
         );
 

@@ -24,9 +24,14 @@ class OdooHandler extends BaseIntegration
             throw new ValidationException('Odoo url/db/username/api_key are all required for ' . $this->company->name);
         }
 
-        // Verifies the credentials actually authenticate before persisting them — same principle
-        // as SalesforceHandler::setup() checking describeGlobal(), just with Odoo's own auth call.
-        $uid = OdooApiClient::authenticate((string) $url, (string) $database, (string) $username, (string) $apiKey);
+        // Never persist credentials Odoo hasn't accepted — same principle as
+        // SalesforceHandler::setup() checking describeGlobal() first.
+        $uid = OdooApiClient::authenticate(
+            (string) $url,
+            (string) $database,
+            (string) $username,
+            (string) $apiKey,
+        );
 
         if ($uid === null) {
             throw new ValidationException('Odoo rejected these credentials for ' . $this->company->name);

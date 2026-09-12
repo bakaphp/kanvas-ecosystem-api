@@ -12,11 +12,10 @@ use Kanvas\Connectors\Odoo\Services\OdooApiClient;
 use Kanvas\Exceptions\ValidationException;
 
 /**
- * Kanvas is multi-tenant: every Company holds its own Odoo instance credentials, so this resolves
- * fresh per call rather than caching an `OdooApiClient` instance (Octane rule — see the
- * kanvas-connector skill's "never cache SDK instances in static properties" section). Only the
- * resolved `uid` is cached (via Laravel's cache backend, not a static property), since
- * authenticating is the one network round-trip worth avoiding on every call.
+ * Every Company holds its own Odoo credentials, so the client is rebuilt per call rather than
+ * held in a static property (Octane rule — see the kanvas-connector skill). Only the resolved
+ * `uid` is cached, in Laravel's cache backend, since authenticating is the one round-trip worth
+ * avoiding on every call.
  */
 class Client
 {
@@ -63,7 +62,12 @@ class Client
             self::uidCacheKey($app, $company),
             self::UID_TTL_SECONDS,
             function () use ($config) {
-                $uid = OdooApiClient::authenticate($config['url'], $config['database'], $config['username'], $config['api_key']);
+                $uid = OdooApiClient::authenticate(
+                    $config['url'],
+                    $config['database'],
+                    $config['username'],
+                    $config['api_key'],
+                );
 
                 if ($uid === null) {
                     throw new ValidationException('Unable to authenticate against Odoo — credentials were rejected');

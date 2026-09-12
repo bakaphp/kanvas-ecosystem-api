@@ -9,15 +9,10 @@ use Illuminate\Support\Facades\Http;
 use Kanvas\Exceptions\ValidationException;
 
 /**
- * Thin JSON-RPC wrapper over Odoo's External API (`POST {baseUrl}/jsonrpc`) — deliberately not a
- * third-party package. Odoo has already announced XML-RPC/JSON-RPC's `common`/`object` services
- * for removal in Odoo 22 (fall 2028) in favor of a new JSON-2 (HTTP + Bearer) API introduced in
- * Odoo 19, and every available PHP package targets the old protocol. A thin wrapper here means
- * swapping to JSON-2 later only touches this file, not every `Pull*Action` — same reasoning as
- * `SalesforceApiClient` not depending on an SDK.
- *
- * Unlike Salesforce's reusable Bearer token, every `execute_kw` call needs `db`/`uid`/`apiKey`
- * explicitly — there's no session/token to attach once and forget.
+ * Hand-rolled rather than an SDK: Odoo has announced JSON-RPC's `common`/`object` services for
+ * removal in Odoo 22 in favor of the JSON-2 (HTTP + Bearer) API introduced in Odoo 19, and every
+ * available PHP package targets the old protocol. Keeping the protocol in one file means the
+ * eventual swap doesn't touch a single `Pull*Action`.
  */
 final class OdooApiClient
 {
@@ -32,13 +27,21 @@ final class OdooApiClient
     }
 
     /**
-     * Resolves the `uid` a set of credentials authenticates as — `null` means the credentials
-     * were rejected. Called once by `Client::getInstance()` and cached there; never call this
-     * per-request.
+     * `null` means the credentials were rejected. Costs a round-trip, so it is called once by
+     * `Client::getInstance()` and cached there — never per-request.
      */
-    public static function authenticate(string $baseUrl, string $database, string $username, string $apiKey): ?int
-    {
-        $result = self::call($baseUrl, 'common', 'authenticate', [$database, $username, $apiKey, []]);
+    public static function authenticate(
+        string $baseUrl,
+        string $database,
+        string $username,
+        string $apiKey
+    ): ?int {
+        $result = self::call(
+            $baseUrl,
+            'common',
+            'authenticate',
+            [$database, $username, $apiKey, []],
+        );
 
         return is_int($result) ? $result : null;
     }
@@ -52,8 +55,13 @@ final class OdooApiClient
      * @param list<string> $fields
      * @return list<array<string, mixed>>
      */
-    public function searchRead(string $model, array $domain, array $fields, int $limit = 0, int $offset = 0): array
-    {
+    public function searchRead(
+        string $model,
+        array $domain,
+        array $fields,
+        int $limit = 0,
+        int $offset = 0
+    ): array {
         $kwargs = ['fields' => $fields, 'offset' => $offset];
         if ($limit > 0) {
             $kwargs['limit'] = $limit;
@@ -65,9 +73,6 @@ final class OdooApiClient
     }
 
     /**
-     * Pages through `searchRead()` until a short page signals the end — every `PullAll*Action`
-     * needs this same loop, so it lives here once instead of once per action.
-     *
      * @param array<int, mixed> $domain
      * @param list<string> $fields
      * @return list<array<string, mixed>>
@@ -78,7 +83,13 @@ final class OdooApiClient
         $offset = 0;
 
         do {
-            $page = $this->searchRead($model, $domain, $fields, self::PAGE_SIZE, $offset);
+            $page = $this->searchRead(
+                $model,
+                $domain,
+                $fields,
+                self::PAGE_SIZE,
+                $offset,
+            );
             $records = [...$records, ...$page];
             $offset += self::PAGE_SIZE;
         } while (count($page) === self::PAGE_SIZE);
@@ -87,12 +98,16 @@ final class OdooApiClient
     }
 
     /**
-     * Whether a record with this id is still there — Odoo has no per-id GET, so this is a
-     * `search_read` narrowed to the id with the smallest possible payload.
+     * Odoo has no per-id GET, so existence is a `search_read` narrowed to the id.
      */
     public function exists(string $model, int $id): bool
     {
-        return count($this->searchRead($model, [['id', '=', $id]], ['id'], 1)) > 0;
+        return count($this->searchRead(
+            $model,
+            [['id', '=', $id]],
+            ['id'],
+            1,
+        )) > 0;
     }
 
     /**
@@ -111,8 +126,12 @@ final class OdooApiClient
         return (bool) $this->executeKw($model, 'write', [[$id], $values]);
     }
 
-    private function executeKw(string $model, string $method, array $args, array $kwargs = []): mixed
-    {
+    private function executeKw(
+        string $model,
+        string $method,
+        array $args,
+        array $kwargs = []
+    ): mixed {
         return self::call(
             $this->baseUrl,
             'object',
@@ -121,8 +140,12 @@ final class OdooApiClient
         );
     }
 
-    private static function call(string $baseUrl, string $service, string $method, array $args): mixed
-    {
+    private static function call(
+        string $baseUrl,
+        string $service,
+        string $method,
+        array $args
+    ): mixed {
         SafeUrl::assertSafe($baseUrl);
 
         $response = Http::timeout(30)->post(rtrim($baseUrl, '/') . '/jsonrpc', [

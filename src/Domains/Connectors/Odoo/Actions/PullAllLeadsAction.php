@@ -9,9 +9,8 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Odoo\Client;
 
 /**
- * Bulk-pulls every `crm.lead` with `type = 'lead'` (Odoo's equivalent of Salesforce's Lead).
- * `type = 'opportunity'` rows are excluded — see `PullLeadAction`'s docblock for why Opportunity
- * mapping is out of scope for this pass.
+ * `type = 'opportunity'` rows share the `crm.lead` model and are excluded here — see
+ * `PullLeadAction` for why Opportunity mapping is out of scope for this pass.
  */
 class PullAllLeadsAction
 {

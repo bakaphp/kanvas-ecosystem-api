@@ -8,10 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Odoo\Client;
 
-/**
- * Bulk-pulls every `res.partner` with `is_company = false` (Odoo's equivalent of Salesforce's
- * Contact). See `PullAllOrganizationsAction` for the `is_company = true` counterpart.
- */
 class PullAllPeopleAction
 {
     private const array FIELDS = ['id', 'name', 'email', 'phone', 'parent_id'];

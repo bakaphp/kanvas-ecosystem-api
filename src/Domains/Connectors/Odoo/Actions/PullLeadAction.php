@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Odoo\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\Str;
 use Kanvas\Connectors\Odoo\Actions\Concerns\ParsesOdooPayload;
 use Kanvas\Connectors\Odoo\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
@@ -39,15 +40,12 @@ class PullLeadAction
     public function execute(): Lead
     {
         $branch = $this->company->defaultBranch ?? $this->company->user->getCurrentCompany()->branch;
-        [$firstName, $lastName] = $this->splitName((string) ($this->payload['contact_name'] ?? 'Unknown'));
 
-        $contacts = [];
-        if (! empty($this->payload['email_from'])) {
-            $contacts[] = ['value' => $this->payload['email_from'], 'contacts_types_id' => 1, 'weight' => 0];
-        }
-        if (! empty($this->payload['phone'])) {
-            $contacts[] = ['value' => $this->payload['phone'], 'contacts_types_id' => 2, 'weight' => 0];
-        }
+        ['firstname' => $firstName, 'lastname' => $lastName] = Str::parseFullName(
+            $this->payloadString('contact_name') ?? 'Unknown'
+        );
+
+        $contacts = $this->contactsFromPayload('email_from', 'phone');
 
         $leadStatus = LeadStatus::query()
             ->fromApp($this->app)
@@ -70,7 +68,7 @@ class PullLeadAction
             app: $this->app,
             branch: $branch,
             user: $this->company->user,
-            title: (string) ($this->payload['name'] ?? trim($firstName . ' ' . $lastName)),
+            title: $this->payloadString('name') ?? trim($firstName . ' ' . $lastName),
             pipeline_stage_id: $pipelineStage?->getId() ?? 0,
             people: new PeopleData(
                 app: $this->app,
@@ -86,7 +84,7 @@ class PullLeadAction
                 runWorkflow: false,
             ),
             status_id: $leadStatus->getId(),
-            description: $this->payload['description'] ?? null,
+            description: $this->payloadString('description'),
             custom_fields: [
                 CustomFieldEnum::ODOO_LEAD_ID->value => $this->odooId,
             ],

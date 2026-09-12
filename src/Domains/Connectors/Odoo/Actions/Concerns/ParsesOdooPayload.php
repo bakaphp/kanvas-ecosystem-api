@@ -4,24 +4,27 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Odoo\Actions\Concerns;
 
+use Baka\Support\Str;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+
 /**
- * Shared by `PullPeopleAction` and `PullLeadAction` — both split a single Odoo `name`/`contact_name`
- * field into first/last, and both read a many2one relation field.
+ * Requires a `protected array $payload` holding one raw Odoo record.
  */
 trait ParsesOdooPayload
 {
     /**
-     * @return array{0: string, 1: string}
+     * Odoo's JSON-RPC serializes an unset char/text field as the boolean `false`, not `null` or
+     * `""` — handing that straight to a `?string` DTO property is a TypeError.
      */
-    private function splitName(string $fullName): array
+    private function payloadString(string $key): ?string
     {
-        $parts = explode(' ', trim($fullName), 2);
+        $value = $this->payload[$key] ?? null;
 
-        return [$parts[0], $parts[1] ?? $parts[0]];
+        return is_string($value) ? Str::trimToNull($value) : null;
     }
 
     /**
-     * Odoo's JSON-RPC serializes an unset many2one field as `false` and a set one as
+     * Same `false`-for-unset convention as `payloadString()`, except a set many2one arrives as
      * `[id, "display_name"]` — never a bare id.
      */
     private function relationId(mixed $value): ?string
@@ -32,5 +35,23 @@ trait ParsesOdooPayload
     private function relationName(mixed $value): ?string
     {
         return is_array($value) && isset($value[1]) ? (string) $value[1] : null;
+    }
+
+    /**
+     * @return list<array{value: string, contacts_types_id: int, weight: int}>
+     */
+    private function contactsFromPayload(string $emailKey, string $phoneKey): array
+    {
+        $contacts = [];
+
+        foreach ([ContactTypeEnum::EMAIL->value => $emailKey, ContactTypeEnum::PHONE->value => $phoneKey] as $type => $key) {
+            $value = $this->payloadString($key);
+
+            if ($value !== null) {
+                $contacts[] = ['value' => $value, 'contacts_types_id' => $type, 'weight' => 0];
+            }
+        }
+
+        return $contacts;
     }
 }

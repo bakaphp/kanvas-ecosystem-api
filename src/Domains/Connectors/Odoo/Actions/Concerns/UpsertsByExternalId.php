@@ -33,6 +33,6 @@ trait UpsertsByExternalId
             }
         }
 
-        return $data + ['id' => $externalId];
+        return $data + ['id' => (int) $externalId];
     }
 }

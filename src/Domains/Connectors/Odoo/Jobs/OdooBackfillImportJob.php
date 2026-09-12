@@ -20,16 +20,12 @@ use Kanvas\Exceptions\ValidationException;
 use Throwable;
 
 /**
- * Runs the heavy per-record upsert outside the console process — dispatched by
- * `OdooBackfillCommand` with the full page of raw records collected by
- * `PullAllOrganizationsAction`/`PullAllPeopleAction`/`PullAllLeadsAction`. Reuses the
- * already-tested `Pull*Action` classes (same custom-field matching, same `disableWorkflows()`/
- * `runWorkflow: false` anti-loop guard) instead of reimplementing the upsert here — same shape as
- * `SalesforceBackfillImportJob`.
+ * Runs the per-record upsert outside the console process, reusing the `Pull*Action` classes so
+ * the backfill inherits their custom-field matching and `runWorkflow: false` anti-loop guard.
  *
- * Uses "Organization"/"People"/"Lead" as the entity type, not the raw Odoo model name — Odoo maps
- * both Organization and People onto the same `res.partner` model (split by `is_company`), so the
- * Odoo model name alone can't disambiguate which `Pull*Action` a record belongs to.
+ * The entity type is "Organization"/"People"/"Lead", not the Odoo model name — Odoo maps both
+ * Organization and People onto `res.partner` (split by `is_company`), so the model name alone
+ * can't say which `Pull*Action` a record belongs to.
  */
 class OdooBackfillImportJob implements ShouldQueue
 {
@@ -38,6 +34,8 @@ class OdooBackfillImportJob implements ShouldQueue
     use KanvasJobsTrait;
     use Queueable;
     use SerializesModels;
+
+    private const array SUPPORTED_ENTITY_TYPES = ['Organization', 'People', 'Lead'];
 
     public function __construct(
         public readonly Apps $app,
@@ -51,7 +49,7 @@ class OdooBackfillImportJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
-        if (! in_array($this->entityType, ['Organization', 'People', 'Lead'], true)) {
+        if (! in_array($this->entityType, self::SUPPORTED_ENTITY_TYPES, true)) {
             Log::error('Odoo backfill import received an unsupported entity type', [
                 'apps_id' => $this->app->getId(),
                 'companies_id' => $this->company->getId(),
@@ -95,10 +93,24 @@ class OdooBackfillImportJob implements ShouldQueue
     private function importRecord(string $odooId, array $record): void
     {
         match ($this->entityType) {
-            'Organization' => new PullOrganizationAction($this->app, $this->company, $record, $odooId)->execute(),
-            'People' => new PullPeopleAction($this->app, $this->company, $record, $odooId)->execute(),
-            'Lead' => new PullLeadAction($this->app, $this->company, $record, $odooId)->execute(),
-            default => throw new ValidationException("Unsupported Odoo entity type: {$this->entityType}"),
+            'Organization' => new PullOrganizationAction(
+                $this->app,
+                $this->company,
+                $record,
+                $odooId,
+            )->execute(),
+            'People' => new PullPeopleAction(
+                $this->app,
+                $this->company,
+                $record,
+                $odooId,
+            )->execute(),
+            'Lead' => new PullLeadAction(
+                $this->app,
+                $this->company,
+                $record,
+                $odooId,
+            )->execute(),
         };
     }
 }

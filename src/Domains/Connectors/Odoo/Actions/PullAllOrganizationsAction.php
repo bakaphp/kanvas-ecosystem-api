@@ -9,9 +9,8 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Odoo\Client;
 
 /**
- * Bulk-pulls every `res.partner` with `is_company = true` (Odoo's equivalent of Salesforce's
- * Account) from the Odoo instance. Mirrors `PullAllOrganizationsAction` from the Salesforce
- * connector — collects every raw record first, no per-record processing here.
+ * Odoo has no Account object: a `res.partner` with `is_company = true` is the organization,
+ * the same model with `is_company = false` is a person (see `PullAllPeopleAction`).
  */
 class PullAllOrganizationsAction
 {
