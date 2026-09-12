@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Intellicheck\Jobs\AttachDriverLicenseImagesJob;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
@@ -258,14 +259,13 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
     }
 
     /**
-     * A participant/co-buyer verification carries the participant's own id in
-     * $params['participant']['peopleId']; a main-buyer verification omits it. Resolve
-     * that person (tenant-scoped) so a participant's result never lands on the main
-     * people; fall back to the lead's main people when there is no participant id.
-     */
-    /**
      * Idempotent; drops the base64 only once both submitted sides are confirmed attached,
      * so a run that races the base64 write never loses the images.
+     *
+     * @deprecated Reads the `people.driver_license_images` base64 hand-off, which dies with
+     *             `after-id-verification`. The `generate-id-verification` path takes the images from the
+     *             engagement's own message (receiver) or from the `images` param (mobile), so neither
+     *             needs a custom field as a mailbox. See `VerifyPeopleIdAction::customFieldImages()`.
      */
     private function attachDriverLicenseImagesIfMissing(Message $message, People $people, array $reportData): void
     {
@@ -311,6 +311,12 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         }
     }
 
+    /**
+     * A participant/co-buyer verification carries the participant's own id in
+     * $params['participant']['peopleId']; a main-buyer verification omits it. Resolve
+     * that person (tenant-scoped) so a participant's result never lands on the main
+     * people; fall back to the lead's main people when there is no participant id.
+     */
     private function resolveVerifiedPeople(Lead $lead, array $params, AppInterface $app): People
     {
         $participantPeopleId = $params['participant']['peopleId'] ?? null;
@@ -331,8 +337,23 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
         return $lead->people;
     }
 
+    /**
+     * Reuses this person's engagement rather than creating a root, which is what put the report in a
+     * second folder — see `VerifyPeopleIdAction::resolveEngagement()`.
+     */
     private function createIdVerificationEngagement(Lead $lead, People $people): ?Engagement
     {
+        $existing = EngagementRepository::findEngagementForLeadPeople(
+            $lead,
+            $people,
+            ConfigurationEnum::ID_VERIFICATION->value,
+            ActionStatusEnum::SUBMITTED->value
+        );
+
+        if ($existing?->message !== null) {
+            return $existing;
+        }
+
         $user = $this->resolveEngagementUser($lead, $people);
 
         if ($user === null) {

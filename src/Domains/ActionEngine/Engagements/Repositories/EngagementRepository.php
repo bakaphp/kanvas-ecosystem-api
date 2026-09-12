@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 
 class EngagementRepository
@@ -42,6 +43,30 @@ class EngagementRepository
         )->where(
             'entity_uuid',
             $entityUuid
+        )->first();
+    }
+
+    /**
+     * A lead's ID-verification engagements are per-person: the main buyer and every co-buyer get
+     * their own. `findEngagementForLead` filters only by lead + stage, so on a lead with participants
+     * it returns whichever row is newest — which is how a co-buyer's report ends up attached to the
+     * main buyer's message.
+     */
+    public static function findEngagementForLeadPeople(
+        Lead $lead,
+        People $people,
+        string $actionSlug,
+        string $stage,
+        string $order = 'DESC'
+    ): ?Engagement {
+        return self::findEngagementForLeadBuilder(
+            $lead,
+            $actionSlug,
+            $stage,
+            $order
+        )->where(
+            'people_id',
+            $people->getId()
         )->first();
     }
 

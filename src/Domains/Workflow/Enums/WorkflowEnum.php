@@ -32,7 +32,16 @@ enum WorkflowEnum: string
     case AFTER_RUNNING_RECEIVER = 'after-running-receiver';
     case AFTER_MESSAGE_INTERACTION = 'after-message-interaction';
     case AFTER_PAYMENT_INTENT = 'after-payment-intent';
+    /**
+     * @deprecated Fired by the legacy Phalcon controller (`/v2/webhooks/intellicheck`) and by the
+     *             current frontend, both through `runWorkflowFromEntity`. Neither sends the target
+     *             engagement, so the report lands on a fresh root message and the UI renders a second
+     *             folder. The new path enters through `IdVerificationReceiverJob` and uses
+     *             GENERATE_ID_VERIFICATION, which carries the `eid` and threads as a child. Drop this
+     *             case and its `rules_types` row once both producers have migrated.
+     */
     case AFTER_ID_VERIFICATION = 'after-id-verification';
+    case GENERATE_ID_VERIFICATION = 'generate-id-verification';
     case DURING_WORKFLOW = 'during-workflow';
     case AFTER_ADDING_MESSAGE_TO_CHANNEL = 'after-adding-message-to-channel';
     case BEFORE_ACTION = 'before-action';
