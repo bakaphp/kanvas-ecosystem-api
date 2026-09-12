@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\Mcp\Actions\ConnectMcpServerAction;
 use Kanvas\Connectors\Mcp\DataTransferObject\McpServerConfig;
 use Kanvas\Connectors\Mcp\Enums\McpAuthEnum;
-use Kanvas\Workflow\Enums\IntegrationTypeEnum;
 use Kanvas\Connectors\Mcp\Enums\McpConnectionStatusEnum;
 use Kanvas\Connectors\Mcp\Exceptions\McpAuthException;
 use Kanvas\Connectors\Mcp\Services\McpConnectionService;
@@ -17,6 +16,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\NervousSystem\Capability\Actions\SetAgentToolAction;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use Kanvas\Workflow\Enums\IntegrationTypeEnum;
 use NeuronAI\MCP\McpTransportInterface;
 
 /**
