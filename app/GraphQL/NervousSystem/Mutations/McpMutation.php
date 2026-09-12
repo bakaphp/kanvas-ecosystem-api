@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\NervousSystem\Mutations;
 
+use App\GraphQL\Concerns\ActingContext;
 use App\GraphQL\Concerns\ResolvesActingContext;
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
@@ -35,12 +36,17 @@ class McpMutation
     {
         $ctx = $this->actingContext();
         [$tool, $integration] = $this->mcpToolOrFail((int) $request['tool_id'], $ctx->app);
-        $agent = $this->agentOrFail((int) $request['agent_id']);
+        $agent = $this->agentOrFail((int) $request['agent_id'], $ctx);
 
         SetAgentToolAction::assertMayHold($agent, $tool);
 
         $config = McpServerConfig::fromIntegration($integration);
-        $serverUrl = $this->serverUrlFor($config, $agent, $integration, $request['server_url'] ?? null);
+        $serverUrl = $this->serverUrlFor(
+            $config,
+            $agent,
+            $integration,
+            $request['server_url'] ?? null
+        );
         $token = Str::trimToNull($request['token'] ?? null);
 
         if ($token === null && $config->supports(McpAuthEnum::OAUTH)) {
@@ -56,11 +62,15 @@ class McpMutation
             ];
         }
 
+        // A server that offers `none` is connected by address alone — Browserbase carries the API key in
+        // the query string. Anywhere else a missing key stays a missing key, so the error says so.
+        $keyless = $token === null && $config->supports(McpAuthEnum::NONE);
+
         new ConnectMcpServerAction(
             agent: $agent,
             tool: $tool,
             actor: $ctx->user,
-            method: McpAuthEnum::BEARER,
+            method: $keyless ? McpAuthEnum::NONE : McpAuthEnum::BEARER,
             grant: [
                 'token' => $token,
                 'server_url' => $serverUrl,
@@ -81,7 +91,7 @@ class McpMutation
     {
         $ctx = $this->actingContext();
         [$tool, $integration] = $this->mcpToolOrFail((int) $request['tool_id'], $ctx->app);
-        $agent = $this->agentOrFail((int) $request['agent_id']);
+        $agent = $this->agentOrFail((int) $request['agent_id'], $ctx);
 
         $cache = new McpToolCacheService(
             agent: $agent,
@@ -113,7 +123,7 @@ class McpMutation
         Integrations $integration,
         mixed $requested
     ): ?string {
-        $requested = Str::trimToNull(is_string($requested) ? $requested : null);
+        $requested = Str::trimmedStringOrNull($requested);
 
         if (! $config->urlPerConnection) {
             if ($requested !== null) {
@@ -152,10 +162,8 @@ class McpMutation
         return [$tool, $integration];
     }
 
-    private function agentOrFail(int $agentId): Agent
+    private function agentOrFail(int $agentId, ActingContext $ctx): Agent
     {
-        $ctx = $this->actingContext();
-
         /** @var Agent $agent */
         $agent = Agent::getByIdFromCompanyApp($agentId, $ctx->company, $ctx->app);
 

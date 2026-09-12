@@ -8,11 +8,13 @@ use Baka\Http\SafeUrl;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Psr7\Request;
+use Illuminate\Support\Facades\Log;
 use JsonException;
 use Kanvas\Connectors\Mcp\Enums\McpTransportEnum;
 use Kanvas\Connectors\Mcp\Exceptions\McpAuthException;
 use Kanvas\Connectors\Mcp\Exceptions\McpFetchException;
 use Kanvas\Connectors\Mcp\Services\McpCredentialService;
+use Kanvas\Connectors\Mcp\Support\McpErrorReason;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Models\Integrations;
 use NeuronAI\MCP\McpTransportInterface;
@@ -57,13 +59,14 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         private int $integrationsId,
         private int $timeoutMs = 20000,
         private string $transport = McpTransportEnum::HTTP->value,
+        private ?string $authQueryParam = null,
     ) {
     }
 
     /**
      * Only ids and scalars cross the wire. The Guzzle client holds handlers that cannot serialize, and
      * the token must never be written into a serialized payload — both are rebuilt lazily on the far
-     * side.
+     * side. The query parameter is a field name, not a secret; the key it carries is added at send time.
      */
     public function __serialize(): array
     {
@@ -73,6 +76,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             'integrationsId' => $this->integrationsId,
             'timeoutMs' => $this->timeoutMs,
             'transport' => $this->transport,
+            'authQueryParam' => $this->authQueryParam,
         ];
     }
 
@@ -83,6 +87,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         $this->integrationsId = $data['integrationsId'];
         $this->timeoutMs = $data['timeoutMs'];
         $this->transport = $data['transport'];
+        $this->authQueryParam = $data['authQueryParam'] ?? null;
         $this->httpClient = null;
         $this->token = null;
         $this->tokenResolved = false;
@@ -109,7 +114,10 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         ];
 
         $token = $this->resolveToken();
-        if ($token !== null) {
+
+        // A vendor that reads its key from the query string gets it there and nowhere else — sending the
+        // same secret in a header it never reads would only widen where it can leak.
+        if ($token !== null && $this->authQueryParam === null) {
             $headers['Authorization'] = 'Bearer ' . $token;
         }
 
@@ -131,17 +139,12 @@ class GuardedHttpMcpTransport implements McpTransportInterface
                 $body
             ));
         } catch (GuzzleException $e) {
-            throw new McpFetchException('MCP request failed: ' . $e->getMessage(), $e->getCode(), $e);
+            // Guzzle puts the whole URL in its message, and on this path the URL carries the key.
+            throw new McpFetchException('MCP request failed: ' . $this->redact($e->getMessage()), $e->getCode(), $e);
         }
 
-        $status = $response->getStatusCode();
-
-        if ($status === 401 || $status === 403) {
-            throw new McpAuthException('MCP server rejected the credential (HTTP ' . $status . ').');
-        }
-
-        if ($status >= 400) {
-            throw new McpFetchException('MCP server returned HTTP ' . $status . '.');
+        if ($response->getStatusCode() >= 400) {
+            $this->throwForErrorStatus($response);
         }
 
         if ($response->hasHeader('Mcp-Session-Id')) {
@@ -179,6 +182,36 @@ class GuardedHttpMcpTransport implements McpTransportInterface
     {
         $this->sessionId = null;
         $this->lastResponse = null;
+    }
+
+    /**
+     * A rejected credential and an unreachable server are different outcomes to the cache: one strips the
+     * capability, the other serves the last good snapshot.
+     *
+     * @throws McpAuthException|McpFetchException always
+     */
+    private function throwForErrorStatus(ResponseInterface $response): never
+    {
+        $status = $response->getStatusCode();
+        $body = $response->getBody()->read(4096);
+        $reason = $this->redact(McpErrorReason::fromBody($body, $response->getHeaderLine('WWW-Authenticate')));
+
+        // The request's own headers carry the token; only the response's are logged, minus cookies.
+        Log::warning('MCP server returned an error status', [
+            'status' => $status,
+            'agents_id' => $this->agentsId,
+            'integrations_id' => $this->integrationsId,
+            'headers' => array_filter(
+                $response->getHeaders(),
+                fn (int|string $name): bool => strtolower((string) $name) !== 'set-cookie',
+                ARRAY_FILTER_USE_KEY
+            ),
+            'body' => mb_substr($this->redact($body), 0, 1000),
+        ]);
+
+        throw $status === 401 || $status === 403
+            ? new McpAuthException(trim('MCP server rejected the credential (HTTP ' . $status . '). ' . $reason))
+            : new McpFetchException(trim('MCP server returned HTTP ' . $status . '. ' . $reason));
     }
 
     /**
@@ -261,6 +294,9 @@ class GuardedHttpMcpTransport implements McpTransportInterface
     /**
      * A server whose address each connection supplies is read from the agent's credential, like the
      * token — some providers put the secret in the URL itself, so it must not be serialized either.
+     *
+     * A vendor that wants its key as a query parameter has it appended here, at send time, so the admin
+     * still pastes only the key and the stored address stays free of it.
      */
     private function resolveUrl(): string
     {
@@ -270,7 +306,29 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             throw new McpFetchException('This MCP connection has no server URL — connect it again.');
         }
 
-        return $url;
+        if ($this->authQueryParam === null) {
+            return $url;
+        }
+
+        $token = $this->resolveToken();
+
+        if ($token === null) {
+            return $url;
+        }
+
+        return $url
+            . (str_contains($url, '?') ? '&' : '?')
+            . rawurlencode($this->authQueryParam) . '=' . rawurlencode($token);
+    }
+
+    /** Keeps a key that travels in the URL out of exception messages, logs and the grant's last_error. */
+    private function redact(string $message): string
+    {
+        $token = $this->authQueryParam === null ? null : $this->resolveToken();
+
+        return $token === null || $token === ''
+            ? $message
+            : str_replace([$token, rawurlencode($token)], '***', $message);
     }
 
     private function credentials(): ?McpCredentialService

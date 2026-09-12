@@ -33,6 +33,7 @@ use Override;
  * @property string $tool_type
  * @property int|null $tool_category_id
  * @property string|null $handler
+ * @property int|null $integrations_id
  * @property array|null $input_schema
  * @property array|null $output_schema
  * @property array|null $requires_permission

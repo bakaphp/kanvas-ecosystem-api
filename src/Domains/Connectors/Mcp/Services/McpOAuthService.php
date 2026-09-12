@@ -74,7 +74,7 @@ class McpOAuthService
     public function refresh(): ?string
     {
         $refreshToken = $this->credentials()->refreshToken();
-        $client = new McpOAuthClientService($this->agent->app, $this->integration, $this->resolvedServerUrl())->stored();
+        $client = $this->storedClient();
 
         if ($refreshToken === null || $client === null) {
             return null;
@@ -110,7 +110,7 @@ class McpOAuthService
      */
     public function exchangeCode(string $code, string $redirectUri, string $codeVerifier): array
     {
-        $client = new McpOAuthClientService($this->agent->app, $this->integration, $this->resolvedServerUrl())->stored();
+        $client = $this->storedClient();
 
         if ($client === null) {
             throw new ValidationException('No OAuth client is registered for this MCP server — start the connection again.');
@@ -180,6 +180,14 @@ class McpOAuthService
                 'client_id' => $client['client_id'],
                 'client_secret' => $client['client_secret'],
             ];
+    }
+
+    /**
+     * @return array{client_id: string, client_secret: string|null}|null
+     */
+    private function storedClient(): ?array
+    {
+        return new McpOAuthClientService($this->agent->app, $this->integration, $this->resolvedServerUrl())->stored();
     }
 
     private function resolvedServerUrl(): ?string

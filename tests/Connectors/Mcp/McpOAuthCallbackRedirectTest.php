@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Mcp;
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Testing\TestResponse;
 use Kanvas\Connectors\Internal\Jobs\OAuthCallbackJob;
 use Kanvas\Connectors\Mcp\Actions\CreateMcpOAuthReceiverAction;
+use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
 
@@ -57,6 +59,31 @@ final class McpOAuthCallbackRedirectTest extends McpTestCase
         $this->forgedCallback($this->receiver(null))
             ->assertStatus(500)
             ->assertJson(['error' => 'Authentication error']);
+    }
+
+    public function testTheSharedCallbackFindsTheReceiverFromState(): void
+    {
+        $receiver = $this->receiver('https://app.example.test/agents/5');
+        $call = new ProcessWebhookAttemptAction($receiver, Request::create('/'))->execute();
+
+        Redis::setex('mcp_oauth:' . $receiver->uuid, 1800, json_encode([
+            'nonce' => (string) $call->uuid,
+            'app_id' => $this->mcpApp->getId(),
+        ]));
+
+        $response = $this->get(ReceiverWebhook::sharedOAuthCallbackUrl() . '?state=' . $call->uuid . '&code=stolen');
+
+        // It reached this receiver's provider, which refused the code: no verifier was issued for it.
+        $this->assertStringStartsWith(
+            'https://app.example.test/agents/5?status=error',
+            (string) $response->headers->get('Location')
+        );
+    }
+
+    public function testTheSharedCallbackRefusesAnUnknownState(): void
+    {
+        $this->get(ReceiverWebhook::sharedOAuthCallbackUrl() . '?state=never-issued&code=stolen')
+            ->assertStatus(400);
     }
 
     private function receiver(?string $redirectUrl): ReceiverWebhook

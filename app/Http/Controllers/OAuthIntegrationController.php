@@ -140,6 +140,23 @@ class OAuthIntegrationController extends BaseController
     }
 
     /**
+     * The one callback URL for providers that accept only redirect URIs registered in advance (Google):
+     * the receiver comes from `state`, which is the ReceiverWebhookCall uuid auth() issued.
+     */
+    public function callbackByState(Request $request): JsonResponse|RedirectResponse|Redirector
+    {
+        $state = (string) $request->input('state', '');
+        $call = $state === '' ? null : ReceiverWebhookCall::where('uuid', $state)->notDeleted()->first();
+        $receiver = $call?->receiverWebhook;
+
+        if (! $receiver instanceof ReceiverWebhook) {
+            return response()->json(['error' => 'OAuth state expired or invalid'], 400);
+        }
+
+        return $this->callback($receiver->uuid, $request);
+    }
+
+    /**
      * @return array{receiver: ReceiverWebhook, app: Apps}|JsonResponse
      */
     private function getReceiverAndApp(string $uuid, Request $request): array|JsonResponse

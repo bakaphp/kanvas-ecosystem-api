@@ -70,15 +70,17 @@ class McpCredentialService
      * hourly per agent per server — events no rule is waiting for.
      */
     public function store(
-        string $accessToken,
+        ?string $accessToken,
         ?string $refreshToken = null,
         ?int $expiresIn = null,
         ?string $serverUrl = null
     ): void {
-        $credentials = [
-            ...$this->credentials(),
-            'access_token' => $accessToken,
-        ];
+        $credentials = $this->credentials();
+
+        // Null on the `none` path, where the address IS the credential and there is no token to keep.
+        if ($accessToken !== null) {
+            $credentials['access_token'] = $accessToken;
+        }
 
         if ($refreshToken !== null) {
             $credentials['refresh_token'] = $refreshToken;
@@ -124,7 +126,7 @@ class McpCredentialService
     {
         $value = $this->credentials()[$name] ?? null;
 
-        return Str::trimToNull(is_string($value) ? $value : null);
+        return Str::trimmedStringOrNull($value);
     }
 
     private function key(): string

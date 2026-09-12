@@ -8,6 +8,7 @@ use Illuminate\Http\Client\Request as ClientRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Kanvas\Connectors\Contracts\OAuthProviderFactory;
 use Kanvas\Connectors\Internal\Jobs\OAuthCallbackJob;
 use Kanvas\Connectors\Mcp\Actions\CreateMcpOAuthReceiverAction;
@@ -72,7 +73,7 @@ final class McpOAuthProviderTest extends McpTestCase
         $this->assertStringStartsWith(self::AUTH_SERVER . '/authorize?', $url);
         $this->assertSame('nonce-123', $query['state']);
         $this->assertSame('registered-client', $query['client_id']);
-        $this->assertSame($receiver->getOAuthCallbackUrl(), $query['redirect_uri']);
+        $this->assertSame(ReceiverWebhook::sharedOAuthCallbackUrl(), $query['redirect_uri']);
         $this->assertSame(self::MCP_URL, $query['resource']);
         $this->assertSame('S256', $query['code_challenge_method']);
 
@@ -124,7 +125,65 @@ final class McpOAuthProviderTest extends McpTestCase
 
         Http::assertSent(fn (ClientRequest $request): bool => str_ends_with($request->url(), '/register')
             && $request['token_endpoint_auth_method'] === 'none'
-            && $request['redirect_uris'] === [$receiver->getOAuthCallbackUrl()]);
+            && $request['redirect_uris'] === [ReceiverWebhook::sharedOAuthCallbackUrl()]);
+    }
+
+    public function testEveryAgentConsentsThroughOneRegisteredClient(): void
+    {
+        $this->fakeAuthorizationServer();
+        $tool = $this->oauthTool();
+        $provider = new McpOAuthProvider();
+
+        $first = $provider->getAuthorizationUrl(
+            $this->receiverFor($this->makeAgent(), $tool),
+            $this->mcpApp,
+            Request::create('/'),
+            'first-agent'
+        );
+        $second = $provider->getAuthorizationUrl(
+            $this->receiverFor($this->makeAgent(), $tool),
+            $this->mcpApp,
+            Request::create('/'),
+            'second-agent'
+        );
+
+        parse_str((string) parse_url($first, PHP_URL_QUERY), $firstQuery);
+        parse_str((string) parse_url($second, PHP_URL_QUERY), $secondQuery);
+
+        // A second registration would replace the client the first agent's refresh token was issued to.
+        $registrations = collect(Http::recorded())
+            ->filter(fn (array $pair): bool => str_ends_with($pair[0]->url(), '/register'))
+            ->count();
+
+        $this->assertSame(1, $registrations);
+        $this->assertSame($firstQuery['client_id'], $secondQuery['client_id']);
+        $this->assertSame($firstQuery['redirect_uri'], $secondQuery['redirect_uri']);
+    }
+
+    public function testServersSharingAClientKeyUseOneHandMadeClient(): void
+    {
+        $this->fakeAuthorizationServer(registration: false);
+        $clientKey = 'test_' . Str::lower(Str::random(12));
+        $this->mcpApp->set(ConfigurationEnum::OAUTH_CLIENT_ID_PREFIX->value . $clientKey, 'shared-google-client');
+
+        $sharing = [
+            'url' => self::MCP_URL,
+            'auth_methods' => ['oauth'],
+            'oauth' => ['client_key' => $clientKey],
+        ];
+
+        foreach ([$this->makeIntegration($sharing), $this->makeIntegration($sharing)] as $integration) {
+            $url = new McpOAuthProvider()->getAuthorizationUrl(
+                $this->receiverFor($this->makeAgent(), $this->makeMcpTool($integration)),
+                $this->mcpApp,
+                Request::create('/'),
+                'nonce-' . $integration->getId()
+            );
+
+            $this->assertStringContainsString('client_id=shared-google-client', $url);
+        }
+
+        Http::assertNotSent(fn (ClientRequest $request): bool => str_ends_with($request->url(), '/register'));
     }
 
     public function testPinningAnotherAuthorizationServerRegistersANewClientThere(): void

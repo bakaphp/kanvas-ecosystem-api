@@ -202,9 +202,7 @@ trait MergesRegisteredTools
             return null;
         }
 
-        $candidates = $this instanceof ProvidesToolDependencies
-            ? $this->toolDependencyCandidates()
-            : [];
+        $candidates = $this->dependencyCandidates();
 
         // Every connection belongs to one agent, which signs in with its own vendor account — so without
         // the calling agent there is no credential to act with, and nothing to resolve.
@@ -228,11 +226,7 @@ trait MergesRegisteredTools
             return $this->fillKanvasContext(new $tool->handler());
         }
 
-        // Hosts without a dependency context (non-agent trait users) fall back to
-        // resolving only all-optional-constructor tools — the historical behaviour.
-        $candidates = $this instanceof ProvidesToolDependencies
-            ? $this->toolDependencyCandidates()
-            : [];
+        $candidates = $this->dependencyCandidates();
 
         $args = [];
         foreach ($ctor->getParameters() as $param) {
@@ -264,9 +258,7 @@ trait MergesRegisteredTools
         $uses = class_uses_recursive($tool);
 
         if (in_array(HasKanvasContext::class, $uses, true)) {
-            $candidates = $this instanceof ProvidesToolDependencies
-                ? $this->toolDependencyCandidates()
-                : [];
+            $candidates = $this->dependencyCandidates();
 
             $app = $this->firstCandidateOfType($candidates, Apps::class);
             $company = $this->firstCandidateOfType($candidates, Companies::class);
@@ -317,6 +309,19 @@ trait MergesRegisteredTools
         }
 
         return $tool;
+    }
+
+    /**
+     * Hosts without a dependency context (non-agent trait users) contribute nothing, so every resolver
+     * falls back to the historical all-optional-constructor behaviour.
+     *
+     * @return list<object>
+     */
+    private function dependencyCandidates(): array
+    {
+        return $this instanceof ProvidesToolDependencies
+            ? $this->toolDependencyCandidates()
+            : [];
     }
 
     /**

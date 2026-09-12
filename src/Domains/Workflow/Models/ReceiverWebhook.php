@@ -118,6 +118,15 @@ class ReceiverWebhook extends BaseModel
         return $this->getOAuthUrl() . '/callback';
     }
 
+    /**
+     * One redirect_uri for every receiver; OAuthIntegrationController::callbackByState finds the receiver
+     * from `state`.
+     */
+    public static function sharedOAuthCallbackUrl(): string
+    {
+        return (string) Config::get('app.url') . '/v1/oauth/callback';
+    }
+
     public function searchableAs(): string
     {
         $app = app(Apps::class);

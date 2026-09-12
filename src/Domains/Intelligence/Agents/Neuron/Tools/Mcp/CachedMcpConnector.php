@@ -10,7 +10,9 @@ use Kanvas\NervousSystem\Capability\Models\Tool as CapabilityTool;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use NeuronAI\MCP\CallableMcpTool;
 use NeuronAI\MCP\McpConnector;
+use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolInterface;
 use Override;
 use Throwable;
@@ -127,15 +129,34 @@ class CachedMcpConnector extends McpConnector
             $publicName = McpToolName::format($prefix, $remoteName);
             $this->nameMap[$publicName] = $remoteName;
 
-            $tools[] = parent::createTool([...$descriptor, 'name' => $publicName]);
+            $tools[] = $this->createTool([...$descriptor, 'name' => $publicName]);
         }
 
         return $tools;
     }
 
     /**
-     * The model calls the prefixed name; the server only answers to its own. Translating here rather
-     * than at tool-build time means the parent's whole schema-mapping path is reused untouched.
+     * The parent's schema mapping flattens nested schemas into shapes Gemini rejects — see McpToolSchema.
+     */
+    #[Override]
+    protected function createTool(array $item): ToolInterface
+    {
+        $tool = Tool::make(
+            name: $item['name'],
+            description: $item['description'] ?? null,
+            annotations: $item['annotations'] ?? [],
+        )->setCallable(new CallableMcpTool(connector: $this, item: $item));
+
+        foreach (new McpToolSchema()->properties((array) ($item['inputSchema'] ?? [])) as $property) {
+            $tool->addProperty($property);
+        }
+
+        return $tool;
+    }
+
+    /**
+     * The model calls the prefixed name and passes free-form objects as JSON strings; the server answers
+     * only to its own name and expects the objects.
      */
     #[Override]
     public function invokeTool(array $item, array $arguments): mixed
@@ -148,6 +169,7 @@ class CachedMcpConnector extends McpConnector
 
         $publicName = (string) ($item['name'] ?? '');
         $item['name'] = $this->nameMap[$publicName] ?? $publicName;
+        $arguments = new McpToolSchema()->decodeArguments((array) ($item['inputSchema'] ?? []), $arguments);
 
         $startedAt = microtime(true);
 

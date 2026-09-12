@@ -193,11 +193,16 @@ class McpOAuthProvider implements OAuthProviderInterface
         return is_string($serverUrl) && $serverUrl !== '' ? $serverUrl : null;
     }
 
+    /**
+     * One callback for every receiver: Google accepts only redirect URIs registered in advance, and a
+     * registered client is tied to its redirect_uri — a per-receiver URL would re-register the client each
+     * time another agent connects, orphaning every earlier agent's refresh token.
+     */
     private function redirectUri(ReceiverWebhook $receiver): string
     {
         $override = $this->configuration($receiver)['oauth_callback_url'] ?? null;
 
-        return is_string($override) && $override !== '' ? $override : $receiver->getOAuthCallbackUrl();
+        return is_string($override) && $override !== '' ? $override : ReceiverWebhook::sharedOAuthCallbackUrl();
     }
 
     /**

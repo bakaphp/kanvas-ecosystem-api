@@ -29,6 +29,10 @@ final readonly class McpServerConfig
      * @param list<string> $exclude
      * @param array<string, mixed> $oauth optional `metadata.oauth` block — endpoint overrides, scopes,
      *                                    and vendor-specific authorize parameters
+     * @param string|null $authQueryParam the query parameter this vendor wants its key in rather than an
+     *                                    Authorization header (Browserbase: `browserbaseApiKey`). The
+     *                                    admin still pastes only the key; the transport appends it at
+     *                                    send time, so the secret never reaches a stored URL.
      */
     public function __construct(
         public ?string $url,
@@ -40,6 +44,7 @@ final readonly class McpServerConfig
         public ?string $vendor = null,
         public array $oauth = [],
         public bool $urlPerConnection = false,
+        public ?string $authQueryParam = null,
     ) {
     }
 
@@ -69,6 +74,7 @@ final readonly class McpServerConfig
             vendor: isset($metadata['vendor']) ? (string) $metadata['vendor'] : null,
             oauth: is_array($metadata['oauth'] ?? null) ? $metadata['oauth'] : [],
             urlPerConnection: $urlPerConnection,
+            authQueryParam: Str::trimmedStringOrNull($metadata['auth_query_param'] ?? null),
         );
     }
 

@@ -11,7 +11,8 @@ shares a link to — e.g. an invoice tracking list a team keeps outside Kanvas.
 | `write_google_sheet(range, values, sheet_url_or_id?)` | Appends one or more new rows after the last row of data — never overwrites. `values` is a JSON-encoded string (e.g. `'[["1498","Vendor",250.00,"Pending"]]'`), not a native array — see note below. |
 | `update_google_sheet_cell(range, value, sheet_url_or_id?)` | Overwrites a specific cell in place, e.g. flipping a status column to "Approved". |
 | `clear_google_sheet_range(range, sheet_url_or_id?)` | Wipes the values in a cell/row/range without deleting the row itself — the safe alternative to a structural delete. |
-| `create_google_sheet_tab(title, sheet_url_or_id)` | Adds a tab to an EXISTING document, without touching any existing tab. **Does not create a spreadsheet**, and unlike the other four it will NOT fall back to the default sheet — see below. |
+| `create_google_sheet_tab(title, sheet_url_or_id)` | Adds a tab to an EXISTING document, without touching any existing tab. **Does not create a spreadsheet** (`create_google_spreadsheet` does), and unlike the other four it will NOT fall back to the default sheet — see below. |
+| `create_google_spreadsheet(title)` | Creates a NEW, empty spreadsheet and returns its id and URL. **Only on the agent-sign-in path** — it refuses with `no_google_account_connected` under the service account, whose documents are owned by an account no person can open. |
 
 All five accept either a full Sheets URL or a bare spreadsheet id — the id is extracted with a
 regex (`SpreadsheetUrlParser::extractId()`), never asked of the LLM directly. `write_google_sheet`
@@ -43,9 +44,28 @@ naturally be an array/object, until NeuronAI adds `items`/`properties` sub-schem
 
 ## Configuration
 
-Auth is a Google **service account** — a machine identity, not a per-user OAuth login. The raw
-service-account JSON key is stored per Kanvas app via the standard custom-fields mechanism,
-under the key `google-sheets-credentials` (`ConfigurationEnum::GOOGLE_SHEETS_CREDENTIALS`).
+There are **two** Google identities a tool can act with, and they are not interchangeable:
+
+| | Agent sign-in (preferred) | Service account |
+|---|---|---|
+| Who it acts as | the Google account **that agent** signed in with | one machine identity for the whole app |
+| Reaches | whatever that person can open | only sheets explicitly shared with it |
+| Set up by | Connect on the agent's Google Sheets MCP server, once per agent | an admin, once per app |
+| Sharing step | none | every sheet shared as Editor (or domain-wide delegation) |
+
+`Client::forAgent()` resolves the first from the agent's MCP credential (renewing an expired token)
+and returns null when the agent has not connected — the tools then pass null to the action, which
+falls back to `Client::getInstance()` and the service account below. So the Apex/Arc invoice flow is
+unchanged, and an agent with its own connection needs no sharing at all.
+
+`GoogleSheetsReadinessService` reports ready on **either** identity. It is asked per app, never per
+agent, so the sign-in half answers only "an agent could connect here"; an agent that has not connected
+is refused by the tool, naming the fix. Without that, `ToolGrantResolver` would refuse the sheets tools
+and the agent would be told Google Sheets is not set up while its own connection would have worked.
+
+The rest of this section is the **service-account** path. The raw service-account JSON key is stored
+per Kanvas app via the standard custom-fields mechanism, under the key `google-sheets-credentials`
+(`ConfigurationEnum::GOOGLE_SHEETS_CREDENTIALS`).
 
 ### One-time setup (per Google Cloud project)
 

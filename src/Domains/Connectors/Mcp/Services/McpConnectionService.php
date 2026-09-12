@@ -80,8 +80,15 @@ class McpConnectionService
             return false;
         }
 
-        if ((self::stateOf($grant)['status'] ?? null) === McpConnectionStatusEnum::FAILED->value) {
+        $state = self::stateOf($grant);
+
+        if (($state['status'] ?? null) === McpConnectionStatusEnum::FAILED->value) {
             return false;
+        }
+
+        // Nothing to look for on a `none` connection: its credential, if any, lives in the address.
+        if (($state['auth'] ?? null) === McpAuthEnum::NONE->value) {
+            return true;
         }
 
         return new McpCredentialService($this->agent, $this->integration)->rawToken() !== null;
@@ -133,6 +140,7 @@ class McpConnectionService
                 integrationsId: $this->integration->getId(),
                 timeoutMs: $this->config()->timeoutMs,
                 transport: $this->config()->transport->value,
+                authQueryParam: $this->config()->authQueryParam,
             ),
         ]);
     }

@@ -36,4 +36,23 @@ final class StrTrimToNullTest extends TestCase
     {
         $this->assertSame('Ana  Perez', Str::trimToNull('  Ana  Perez  '));
     }
+
+    public function testTrimmedStringOrNullTrimsAStringAndKeepsZero(): void
+    {
+        $this->assertSame('https://mcp.example.com', Str::trimmedStringOrNull(' https://mcp.example.com '));
+        $this->assertSame('0', Str::trimmedStringOrNull('0'));
+        $this->assertNull(Str::trimmedStringOrNull('   '));
+        $this->assertNull(Str::trimmedStringOrNull(null));
+    }
+
+    /**
+     * The difference from `ScalarCoercionTrait::stringOrNull`, which casts: a metadata key that arrives as
+     * an array or a number must read as absent, never as a string a caller then treats as a URL or a token.
+     */
+    public function testTrimmedStringOrNullTreatsANonStringAsAbsent(): void
+    {
+        $this->assertNull(Str::trimmedStringOrNull(['https://mcp.example.com']));
+        $this->assertNull(Str::trimmedStringOrNull(42));
+        $this->assertNull(Str::trimmedStringOrNull(true));
+    }
 }

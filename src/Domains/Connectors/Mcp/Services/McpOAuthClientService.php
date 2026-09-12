@@ -8,7 +8,9 @@ use Baka\Http\SafeUrl;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Mcp\DataTransferObject\McpServerConfig;
 use Kanvas\Connectors\Mcp\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Mcp\Support\McpErrorReason;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Models\Integrations;
 use Throwable;
@@ -23,6 +25,8 @@ use Throwable;
  */
 class McpOAuthClientService
 {
+    private ?McpServerConfig $config = null;
+
     public function __construct(
         private readonly Apps $app,
         private readonly Integrations $integration,
@@ -106,10 +110,15 @@ class McpOAuthClientService
         }
 
         $payload = $response->successful() ? $response->json() : null;
-        $clientId = is_array($payload) ? Str::trimToNull(is_string($payload['client_id'] ?? null) ? $payload['client_id'] : null) : null;
+        $clientId = is_array($payload) ? Str::trimmedStringOrNull($payload['client_id'] ?? null) : null;
 
         if ($clientId === null) {
-            throw new ValidationException('MCP client registration was rejected (HTTP ' . $response->status() . ').');
+            // Without the vendor's own words a rejection is undebuggable: Meta advertises a registration
+            // endpoint and then answers "Dynamic registration is not available for this client".
+            throw new ValidationException(trim(
+                'MCP client registration was rejected (HTTP ' . $response->status() . '). '
+                . McpErrorReason::fromBody((string) $response->body())
+            ));
         }
 
         $secret = is_string($payload['client_secret'] ?? null) ? $payload['client_secret'] : '';
@@ -139,11 +148,25 @@ class McpOAuthClientService
             return null;
         }
 
-        return Str::trimToNull(is_string($value) ? $value : null);
+        return Str::trimmedStringOrNull($value);
     }
 
+    /**
+     * `metadata.oauth.client_key` lets servers share one hand-made client — Google's Workspace servers all
+     * take the same OAuth client. Otherwise the client is per server, and per address when self-hosted.
+     */
     private function key(ConfigurationEnum $key): string
     {
-        return $key->forServer($this->integration->getId(), $this->serverUrl);
+        $shared = $this->config()->oauth['client_key'] ?? null;
+
+        return is_string($shared) && $shared !== ''
+            ? $key->value . $shared
+            : $key->forServer($this->integration->getId(), $this->serverUrl);
+    }
+
+    /** Parsed once: `key()` runs up to eight times per `clientFor()`, and the row cannot change mid-call. */
+    private function config(): McpServerConfig
+    {
+        return $this->config ??= McpServerConfig::fromIntegration($this->integration);
     }
 }

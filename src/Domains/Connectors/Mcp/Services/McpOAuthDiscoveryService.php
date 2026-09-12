@@ -198,7 +198,7 @@ class McpOAuthDiscoveryService
 
     private function nonEmpty(mixed $value): ?string
     {
-        return Str::trimToNull(is_string($value) ? $value : null);
+        return Str::trimmedStringOrNull($value);
     }
 
     private function cacheKey(): string

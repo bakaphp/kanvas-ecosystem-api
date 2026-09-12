@@ -68,7 +68,9 @@ class ConnectMcpServerAction
 
         $token = Str::trimToNull($this->grant['token'] ?? null);
 
-        if ($token === null) {
+        // A `none` server carries its own credential in its address — Browserbase puts the API key in the
+        // query string — or wants none at all, so there is no token to demand.
+        if ($token === null && $this->method !== McpAuthEnum::NONE) {
             throw new ValidationException('An MCP access token is required.');
         }
 
@@ -86,10 +88,10 @@ class ConnectMcpServerAction
         // forget() first: this is a NEW grant, and a previous grant's expiry must not outlive it.
         $credentials->forget();
         $credentials->store(
-            $token,
-            Str::trimToNull($this->grant['refresh_token'] ?? null),
-            is_numeric($this->grant['expires_in'] ?? null) ? (int) $this->grant['expires_in'] : null,
-            $serverUrl
+            accessToken: $token,
+            refreshToken: Str::trimToNull($this->grant['refresh_token'] ?? null),
+            expiresIn: is_numeric($this->grant['expires_in'] ?? null) ? (int) $this->grant['expires_in'] : null,
+            serverUrl: $serverUrl,
         );
 
         $connection = new McpConnectionService($this->agent, $integration, $this->transport);
