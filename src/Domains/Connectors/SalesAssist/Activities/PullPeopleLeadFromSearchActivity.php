@@ -22,6 +22,7 @@ use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
+use Kanvas\Guild\Leads\Services\LeadPullResult;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
@@ -114,23 +115,7 @@ class PullPeopleLeadFromSearchActivity extends KanvasActivity
                 $lead = new SyncLeadByThirdPartyCustomFieldAction($leadDto)->execute();
                 $lead->searchable();
 
-                $results[] = [
-                    'id' => $lead->id,
-                    'uuid' => $lead->uuid,
-                    'people_id' => $lead->people->id,
-                    'firstname' => $lead->people->firstname,
-                    'middlename' => $lead->people->middlename,
-                    'lastname' => $lead->people->lastname,
-                    'email' => $lead->people?->getEmails()->first()?->value,
-                    'phone' => $lead->people?->getPhones()->first()?->value,
-                    'status' => $lead->status()?->first()?->name,
-                    'lead_type' => $lead->type?->name,
-                    'owner' => $lead->owner?->name,
-                    'owner_id' => $lead->leads_owner_id,
-                    'custom_fields' => $lead->getAllCustomFields(),
-                    'updated_at' => $lead->updated_at,
-                    'rank' => 1,
-                ];
+                $results[] = LeadPullResult::for($lead)->toArray();
             } catch (ELeadException $e) {
                 // No opportunity for this customer — skip, nothing to sync.
                 continue;
@@ -245,23 +230,7 @@ class PullPeopleLeadFromSearchActivity extends KanvasActivity
                         $lead = new SyncLeadByThirdPartyCustomFieldAction($leadDto)->execute();
                         $lead->searchable();
 
-                        $results[] = [
-                            'id' => $lead->id,
-                            'uuid' => $lead->uuid,
-                            'people_id' => $lead->people->id,
-                            'firstname' => $lead->people->firstname,
-                            'middlename' => $lead->people->middlename,
-                            'lastname' => $lead->people->lastname,
-                            'email' => $lead->people?->getEmails()->first()?->value,
-                            'phone' => $lead->people?->getPhones()->first()?->value,
-                            'status' => $lead->status()?->first()?->name,
-                            'lead_type' => $lead->type?->name,
-                            'owner' => $lead->owner?->name,
-                            'owner_id' => $lead->leads_owner_id,
-                            'custom_fields' => $lead->getAllCustomFields(),
-                            'updated_at' => $lead->updated_at,
-                            'rank' => 1,
-                        ];
+                        $results[] = LeadPullResult::for($lead)->toArray();
                     } catch (Throwable $e) {
                         report($e);
                     }
