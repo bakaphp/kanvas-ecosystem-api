@@ -1,5 +1,13 @@
+# Docker's json-file driver never rotates by default, and every `queue:work` prints a line per job.
+x-logging: &default-logging
+    driver: json-file
+    options:
+        max-size: "20m"
+        max-file: "3"
+
 x-common-queue-settings: &common-queue-settings
     restart: always
+    logging: *default-logging
     build:
         context: .
         dockerfile: development.Dockerfile
@@ -25,6 +33,7 @@ x-common-queue-settings: &common-queue-settings
 services:
     php:
         container_name: php${APP_CONTAINER_NAME}
+        logging: *default-logging
         build:
             context: .
             dockerfile: development.Dockerfile
@@ -220,6 +229,7 @@ services:
     nginx:
         image: nginx:latest
         container_name: nginx${APP_CONTAINER_NAME}
+        logging: *default-logging
         ports:
             - "80:80"
         links:
