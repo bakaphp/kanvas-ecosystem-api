@@ -59,8 +59,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
     apt-get install -y nodejs && \
     npm install -g chokidar-cli
 
-# Copy application files
-COPY . /var/www/html/
+# --chown here instead of a later `chown -R`/`chmod -R` over the tree: a recursive metadata change
+# rewrites every file into a new layer, duplicating the whole app once per such RUN.
+COPY --chown=www-data:www-data . /var/www/html/
 
 WORKDIR /var/www/html/
 
@@ -78,9 +79,6 @@ RUN echo "Installing chokidar for Laravel Octane..." && \
 # Install composer globally
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Set appropriate ownership for the application
-RUN chown -R www-data:www-data /var/www/html
-
 # Copy configuration files
 # COPY ./docker/unit.json /docker-entrypoint.d/
 COPY docker/docker-php-ext-opcache-prod.ini /usr/local/etc/php/conf.d/docker-php-ext-opcache.ini
@@ -89,10 +87,10 @@ COPY docker/php.ini /usr/local/etc/php/conf.d/zx-app-config.ini
 # Set git safe directory
 RUN git config --global --add safe.directory /var/www/html
 
-# Set proper permissions
-RUN chmod -R 755 /var/www/html/ && \
-    chmod -R 777 /var/www/html/storage/ && \
-    chmod -R 777 /var/www/html/storage/logs/
+# storage/ and bootstrap/cache/ are .dockerignored, so recreate the skeleton Laravel expects
+RUN mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache && \
+    chown -R www-data:www-data storage bootstrap/cache node_modules && \
+    chmod -R 777 storage bootstrap/cache
 
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader

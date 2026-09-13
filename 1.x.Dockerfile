@@ -54,8 +54,9 @@ RUN ARCH=$(dpkg --print-architecture) && \
     dpkg -i /tmp/wkhtmltox.deb || apt-get install -f -y && \
     rm /tmp/wkhtmltox.deb
 
-# Copy application files
-COPY . /var/www/html/
+# --chown here instead of a later `chown -R`/`chmod -R` over the tree: a recursive metadata change
+# rewrites every file into a new layer, which doubled the image (two 14.9 GB layers).
+COPY --chown=www-data:www-data . /var/www/html/
 
 # Set the working directory
 WORKDIR /var/www/html/
@@ -63,11 +64,10 @@ WORKDIR /var/www/html/
 # Install Composer globally
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
-# Set appropriate ownership and permissions
-RUN chown -R www-data:www-data /var/www/html && \
-    chmod -R 755 /var/www/html/ && \
-    chmod -R 777 /var/www/html/storage/ && \
-    chmod -R 777 /var/www/html/storage/logs/
+# storage/ and bootstrap/cache/ are .dockerignored, so recreate the skeleton Laravel expects
+RUN mkdir -p storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs bootstrap/cache && \
+    chown -R www-data:www-data storage bootstrap/cache && \
+    chmod -R 777 storage bootstrap/cache
 
 # Copy configuration files
 # COPY ./docker/unit.json /docker-entrypoint.d/
