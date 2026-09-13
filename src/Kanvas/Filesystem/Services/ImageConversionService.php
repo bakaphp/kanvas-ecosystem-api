@@ -7,6 +7,7 @@ namespace Kanvas\Filesystem\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
+use Baka\Support\TempFile;
 use Exception;
 use Illuminate\Http\File;
 use Illuminate\Support\Facades\Log;
@@ -106,10 +107,7 @@ class ImageConversionService
 
             return $filesystem;
         } finally {
-            // Clean up temp file
-            if (file_exists($convertedPath)) {
-                @unlink($convertedPath);
-            }
+            TempFile::delete($convertedPath);
         }
     }
 
@@ -143,22 +141,23 @@ class ImageConversionService
         }
 
         $sourceExtension = strtolower(pathinfo($imagePath, PATHINFO_EXTENSION));
-        self::validateSourceFormat($sourceExtension);
-
-        // If source and target are the same, just return the path
-        if (self::isSameFormat($sourceExtension, $targetFormat)) {
-            return $imagePath;
-        }
+        $returnsSource = false;
 
         try {
-            return self::convertImage($imagePath, $targetFormat, $quality);
-        } catch (Exception $e) {
-            // Clean up the downloaded file on error
-            if (file_exists($imagePath)) {
-                @unlink($imagePath);
+            self::validateSourceFormat($sourceExtension);
+
+            // Same format: the download itself is the result, so the caller owns deleting it
+            if (self::isSameFormat($sourceExtension, $targetFormat)) {
+                $returnsSource = true;
+
+                return $imagePath;
             }
 
-            throw $e;
+            return self::convertImage($imagePath, $targetFormat, $quality);
+        } finally {
+            if (! $returnsSource) {
+                TempFile::delete($imagePath);
+            }
         }
     }
 
