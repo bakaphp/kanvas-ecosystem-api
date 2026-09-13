@@ -150,6 +150,44 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         return $this->hasMany(LeadVariantInterest::class, 'variants_id');
     }
 
+    /**
+     * Reads the loaded variantAttributes relation, unlike searchableAttributes() which queries per call —
+     * so a batch of eager-loaded variants costs no extra queries.
+     *
+     * @return Collection<int, array{name: string, value: string}>
+     */
+    public function loadedSearchableAttributes(): Collection
+    {
+        return $this->variantAttributes
+            ->filter(fn (VariantsAttributes $value): bool => ! $value->is_deleted && (bool) $value->attribute?->is_searchable)
+            ->map(fn (VariantsAttributes $value): array => [
+                'name' => (string) $value->attribute?->name,
+                'value' => $this->flattenAttributeValue($value->value),
+            ])
+            ->filter(fn (array $attribute): bool => $attribute['name'] !== '' && $attribute['value'] !== '')
+            ->values();
+    }
+
+    public function defaultChannelPrice(): ?float
+    {
+        $price = $this->channels
+            ->first(fn ($channel): bool => (bool) $channel->is_default && (bool) $channel->pivot?->is_published)
+            ?->pivot?->price;
+
+        return $price !== null ? (float) $price : null;
+    }
+
+    private function flattenAttributeValue(mixed $value): string
+    {
+        if (is_scalar($value)) {
+            return trim((string) $value);
+        }
+
+        return is_array($value)
+            ? collect($value)->flatten()->filter(fn (mixed $item): bool => is_scalar($item))->implode(', ')
+            : '';
+    }
+
     #[Override]
     public function getActivityLogName(): string
     {

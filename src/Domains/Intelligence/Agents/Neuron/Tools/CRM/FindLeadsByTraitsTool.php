@@ -21,9 +21,9 @@ use Override;
  * eligible to be contacted (dedups people, drops do-not-contact and undeliverable/opted-out) and
  * reports why each excluded lead was dropped, so the manager can review before confirming a send.
  *
- * Company-wide, internal-teammate capability (managers), not the customer-facing surface. v1 filters
- * the reliable structured traits only (source, status, stage, salesperson, rooftop, dates,
- * staleness and generic product/variant interests.
+ * Company-wide, internal-teammate capability (managers), not the customer-facing surface. Filters
+ * structured traits only (source, status, stage, salesperson, rooftop, dates, staleness, variant
+ * interests, engagement progress, last-message state) — never free-text or RAG matches.
  */
 #[AgentTool(name: 'Find Leads By Traits', category: 'crm')]
 class FindLeadsByTraitsTool extends Tool implements HasRunKey
@@ -48,7 +48,7 @@ class FindLeadsByTraitsTool extends Tool implements HasRunKey
                 . 'keyword matches when this structured filter returns zero. '
                 . 'Communication filters use the latest structured message sender: awaiting_team_response means the '
                 . 'last communication is from the customer; never_replied means outbound exists but no customer message exists. '
-                . 'status, source, stage, salesperson, rooftop/store, created dates and days-since-last-update. Returns the eligible '
+                . 'Also filters by status, source, stage, salesperson, rooftop/store, created dates and days-since-last-update. Returns the eligible '
                 . 'recipients plus the leads that were excluded (opted-out, do-not-contact, no contact info, duplicate) '
                 . 'with reasons. THIS DOES NOT SEND ANYTHING — it is the review step. After the manager confirms the '
                 . 'list and the message, call send_batch_message with the eligible lead_ids.',

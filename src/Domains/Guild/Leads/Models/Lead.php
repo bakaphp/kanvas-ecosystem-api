@@ -711,12 +711,7 @@ class Lead extends BaseModel implements EventResourceInterface
 
     protected function makeAllSearchableUsing(Builder $query): Builder
     {
-        return $query->with([
-            'people',
-            'variantInterests.variant.product',
-            'variantInterests.variant.channels',
-            'variantInterests.variant.variantAttributes.attribute',
-        ]);
+        return $query->with(['people', ...LeadVariantInterestProjectionService::RELATIONS]);
     }
 
     public function startShowRoom(): void

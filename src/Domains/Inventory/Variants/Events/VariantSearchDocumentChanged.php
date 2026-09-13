@@ -11,12 +11,23 @@ final class VariantSearchDocumentChanged
 {
     use Dispatchable;
 
-    public function __construct(public readonly int $variantId, public readonly int $appId, public readonly int $companyId)
-    {
+    public function __construct(
+        public readonly int $variantId,
+        public readonly int $appId,
+        public readonly int $companyId
+    ) {
     }
 
-    public static function dispatchFor(Variants $variant): void
+    public static function dispatchFor(?Variants $variant): void
     {
-        self::dispatch((int) $variant->getId(), (int) $variant->apps_id, (int) $variant->companies_id);
+        if ($variant === null) {
+            return;
+        }
+
+        self::dispatch(
+            (int) $variant->getId(),
+            (int) $variant->apps_id,
+            (int) $variant->companies_id
+        );
     }
 }

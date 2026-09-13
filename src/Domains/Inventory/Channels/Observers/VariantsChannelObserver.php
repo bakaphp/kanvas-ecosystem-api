@@ -21,18 +21,11 @@ class VariantsChannelObserver
             )->execute();
         }
 
-        $this->reindexInterests($variantChannel);
+        VariantSearchDocumentChanged::dispatchFor($variantChannel->variant);
     }
 
     public function deleted(VariantsChannels $variantChannel): void
     {
-        $this->reindexInterests($variantChannel);
-    }
-
-    private function reindexInterests(VariantsChannels $variantChannel): void
-    {
-        if ($variantChannel->variant !== null) {
-            VariantSearchDocumentChanged::dispatchFor($variantChannel->variant);
-        }
+        VariantSearchDocumentChanged::dispatchFor($variantChannel->variant);
     }
 }

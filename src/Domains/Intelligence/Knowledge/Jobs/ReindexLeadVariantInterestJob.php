@@ -29,6 +29,15 @@ final class ReindexLeadVariantInterestJob implements ShouldBeUnique, ShouldQueue
     {
     }
 
+    /**
+     * Dispatches on ids alone: handle() re-resolves the lead tenant-scoped and skips a missing or
+     * deleted one, so callers need not load it first.
+     */
+    public static function dispatchForLead(int $leadId, int $appId, int $companyId): void
+    {
+        self::dispatch(new KnowledgeEntity(Lead::class, $leadId, $appId, $companyId))->afterCommit();
+    }
+
     public function handle(): void
     {
         $lead = Lead::query()

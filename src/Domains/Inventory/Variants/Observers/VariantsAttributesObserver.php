@@ -22,19 +22,12 @@ class VariantsAttributesObserver
     public function saved(VariantsAttributes $variantAttribute): void
     {
         $variantAttribute->variant?->clearLightHouseCache(withKanvasConfiguration: false, cleanGlobalKey: true);
-        $this->reindexInterests($variantAttribute);
+        VariantSearchDocumentChanged::dispatchFor($variantAttribute->variant);
     }
 
     public function deleted(VariantsAttributes $variantAttribute): void
     {
         $variantAttribute->variant?->clearLightHouseCache(withKanvasConfiguration: false, cleanGlobalKey: true);
-        $this->reindexInterests($variantAttribute);
-    }
-
-    private function reindexInterests(VariantsAttributes $variantAttribute): void
-    {
-        if ($variantAttribute->variant !== null) {
-            VariantSearchDocumentChanged::dispatchFor($variantAttribute->variant);
-        }
+        VariantSearchDocumentChanged::dispatchFor($variantAttribute->variant);
     }
 }

@@ -8,20 +8,21 @@ use Illuminate\Support\Collection;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadVariantInterest;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 
 final class LeadVariantInterestProjectionService
 {
+    public const array RELATIONS = [
+        'variantInterests.variant.product',
+        'variantInterests.variant.channels',
+        'variantInterests.variant.variantAttributes.attribute',
+    ];
+
     /**
      * @return array{items: list<array<string, mixed>>, search_text: string}
      */
     public function build(Lead $lead): array
     {
-        $lead->loadMissing([
-            'variantInterests.variant.product',
-            'variantInterests.variant.channels',
-            'variantInterests.variant.variantAttributes.attribute',
-        ]);
+        $lead->loadMissing(self::RELATIONS);
 
         $items = $lead->variantInterests
             ->filter(fn (LeadVariantInterest $interest): bool => $this->isIndexable($lead, $interest))
@@ -55,17 +56,6 @@ final class LeadVariantInterestProjectionService
     private function item(LeadVariantInterest $interest): array
     {
         $variant = $interest->variant;
-        $attributes = $variant->variantAttributes
-            ->filter(fn (VariantsAttributes $value): bool => ! $value->is_deleted && (bool) $value->attribute?->is_searchable)
-            ->map(fn (VariantsAttributes $value): array => [
-                'name' => (string) $value->attribute?->name,
-                'value' => $this->stringValue($value->value),
-            ])
-            ->filter(fn (array $value): bool => $value['name'] !== '' && $value['value'] !== '')
-            ->values();
-
-        $defaultChannel = $variant->channels
-            ->first(fn ($channel): bool => (bool) $channel->is_default && (bool) $channel->pivot?->is_published);
 
         return [
             'variant_id' => (int) $variant->getId(),
@@ -74,13 +64,11 @@ final class LeadVariantInterestProjectionService
             'sku' => (string) $variant->sku,
             'product_name' => (string) $variant->product->name,
             'interest_type' => (string) $interest->interest_type,
-            'current_price' => $defaultChannel?->pivot?->price !== null
-                ? (float) $defaultChannel->pivot->price
-                : null,
+            'current_price' => $variant->defaultChannelPrice(),
             'price_at_interest' => $interest->price_at_interest !== null
                 ? (float) $interest->price_at_interest
                 : null,
-            'attributes' => $attributes->all(),
+            'attributes' => $variant->loadedSearchableAttributes()->all(),
         ];
     }
 
@@ -101,21 +89,5 @@ final class LeadVariantInterestProjectionService
             ->map(fn (mixed $value): string => trim((string) $value))
             ->unique()
             ->implode(' ');
-    }
-
-    private function stringValue(mixed $value): string
-    {
-        if (is_scalar($value)) {
-            return trim((string) $value);
-        }
-
-        if (is_array($value)) {
-            return collect($value)
-                ->flatten()
-                ->filter(fn (mixed $item): bool => is_scalar($item))
-                ->implode(', ');
-        }
-
-        return '';
     }
 }

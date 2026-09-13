@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\BatchRecipientResolverService;
+use Kanvas\Guild\Leads\Services\LeadVariantInterestProjectionService;
 use Kanvas\Intelligence\Agents\Filters\CommunicationLeadFilter;
 use Kanvas\Intelligence\Agents\Filters\EngagementLeadFilter;
 use Kanvas\Intelligence\Agents\Filters\LeadBaseFilter;
@@ -17,6 +18,10 @@ use Kanvas\Intelligence\Agents\Filters\VariantInterestLeadFilter;
 
 class FindLeadsByTraitsService
 {
+    private const string ENGAGEMENT_AUTHORITY = 'Action Engine Engagement records are the source of truth. A zero result '
+        . 'means no lead satisfies this engagement state. Lead titles, messages and RAG context are not evidence that an '
+        . 'engagement was started or submitted.';
+
     public function __construct(
         private readonly LeadBaseFilter $baseFilter = new LeadBaseFilter(),
         private readonly VariantInterestLeadFilter $variantFilter = new VariantInterestLeadFilter(),
@@ -38,20 +43,12 @@ class FindLeadsByTraitsService
         $criteria = $this->baseFilter->apply($query, $company, $filters) + ['channel' => $channel];
 
         try {
-            [$engagementCriteria, $engagementAuthority] = $this->applyEngagement(
+            $engagement = $this->applyEngagement(
                 $query,
                 $app,
                 $company,
                 $filters
             );
-        } catch (InvalidArgumentException $exception) {
-            return ['status' => 'error', 'message' => $exception->getMessage()];
-        }
-        if ($engagementCriteria !== null) {
-            $criteria['engagement'] = $engagementCriteria;
-        }
-
-        try {
             $communication = $this->communicationFilter->apply(
                 $query,
                 $app,
@@ -60,6 +57,9 @@ class FindLeadsByTraitsService
             );
         } catch (InvalidArgumentException $exception) {
             return ['status' => 'error', 'message' => $exception->getMessage()];
+        }
+        if ($engagement !== null) {
+            $criteria['engagement'] = $engagement;
         }
         if ($communication['active']) {
             $criteria['communication'] = $communication['criteria'];
@@ -76,10 +76,7 @@ class FindLeadsByTraitsService
         }
 
         $leads = $query
-            ->with([
-                'people', 'owner', 'stage', 'variantInterests.variant.product',
-                'variantInterests.variant.channels', 'variantInterests.variant.variantAttributes.attribute',
-            ])
+            ->with(['people', 'owner', 'stage', ...LeadVariantInterestProjectionService::RELATIONS])
             ->orderByDesc('updated_at')
             ->limit($limit)
             ->get();
@@ -103,24 +100,24 @@ class FindLeadsByTraitsService
             ],
             'recipients' => $resolved['eligible'],
             'excluded_sample' => array_slice($resolved['excluded'], 0, 25),
-            'engagement_authority' => $engagementAuthority,
+            'engagement_authority' => $engagement !== null ? self::ENGAGEMENT_AUTHORITY : null,
             'note' => 'This is a REVIEW list — nothing has been sent. Show the manager the interpreted_criteria and '
                 . 'recipient count. Only after explicit confirmation call send_batch_message or schedule_batch_message. '
                 . 'The send tool re-checks eligibility.',
         ];
     }
 
-    /** @return array{0: array<string, mixed>|null, 1: string|null} */
+    /** @return array<string, mixed>|null */
     private function applyEngagement(
         Builder $query,
         Apps $app,
         Companies $company,
         array $filters
-    ): array {
+    ): ?array {
         $action = trim((string) ($filters['engagement_action'] ?? ''));
         $completion = strtolower(trim((string) ($filters['engagement_completion'] ?? '')));
         if ($action === '' && $completion === '') {
-            return [null, null];
+            return null;
         }
         if ($action === '' || $completion === '') {
             throw new InvalidArgumentException('Both engagement_action and engagement_completion are required together.');
@@ -132,17 +129,15 @@ class FindLeadsByTraitsService
             $action,
             $completion
         );
-        $leadIds = $selection['lead_ids'];
         $selection['exclude']
-            ? $query->whereNotIn('id', $leadIds)
-            : $query->whereIn('id', $leadIds === [] ? [-1] : $leadIds);
+            ? $query->whereNotIn('id', $selection['lead_ids'])
+            : $query->whereIn('id', $selection['lead_ids']);
 
-        return [[
+        return [
             'action' => $action,
             'resolved_slugs' => $selection['slugs'],
             'completion' => $completion,
             'matching_engagements' => $selection['matching_engagements'],
-        ], 'Action Engine Engagement records are the source of truth. A zero result means no lead satisfies this '
-            . 'engagement state. Lead titles, messages and RAG context are not evidence that an engagement was started or submitted.'];
+        ];
     }
 }

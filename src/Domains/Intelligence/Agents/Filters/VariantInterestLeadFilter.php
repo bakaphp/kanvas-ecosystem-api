@@ -46,7 +46,7 @@ class VariantInterestLeadFilter
             $query->whereHas('variantInterests', fn ($interest) => $interest
                 ->where('is_active', 1)
                 ->where('is_deleted', 0)
-                ->whereIn('variants_id', $variantIds === [] ? [-1] : $variantIds)
+                ->whereIn('variants_id', $variantIds)
                 ->when($minimumPrice !== null, fn ($price) => $price->where('price_at_interest', '>=', $minimumPrice))
                 ->when($maximumPrice !== null, fn ($price) => $price->where('price_at_interest', '<=', $maximumPrice)));
         }

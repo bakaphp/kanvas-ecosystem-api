@@ -15,6 +15,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadVariantInterest;
+use Kanvas\Guild\Leads\Services\LeadVariantInterestProjectionService;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\SystemModules\Models\SystemModules;
 
@@ -45,7 +46,7 @@ final class BackfillLeadVariantInterestsCommand extends Command
         $company = Companies::getById($companyId);
         $this->overwriteAppService($app);
 
-        $variants = $this->variantLookup($appId, $companyId);
+        $variants = $this->variantLookup($app, $company);
         $rows = $this->customFieldQuery($appId, $companyId)->get();
         $dryRun = (bool) $this->option('dry-run');
         $force = (bool) $this->option('force');
@@ -136,14 +137,14 @@ final class BackfillLeadVariantInterestsCommand extends Command
     /**
      * @return array{sku: array<string, list<Variants>>, name: array<string, list<Variants>>}
      */
-    private function variantLookup(int $appId, int $companyId): array
+    private function variantLookup(Apps $app, Companies $company): array
     {
         $lookup = ['sku' => [], 'name' => []];
 
         Variants::query()
-            ->where('apps_id', $appId)
-            ->where('companies_id', $companyId)
-            ->where('is_deleted', false)
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
             ->where('is_published', true)
             ->whereHas('product', fn ($query) => $query->where('is_deleted', false)->where('is_published', true))
             ->with('product')
@@ -211,29 +212,33 @@ final class BackfillLeadVariantInterestsCommand extends Command
     {
         foreach (['vin', 'stockNumber', 'stock_number', 'sku'] as $field) {
             $key = $this->normalize((string) ($value[$field] ?? ''));
-            if ($key === '' || ! isset($lookup['sku'][$key])) {
-                continue;
+            if ($key !== '' && isset($lookup['sku'][$key])) {
+                return $this->pickUnambiguous($lookup['sku'][$key], $field);
             }
-
-            return count($lookup['sku'][$key]) === 1
-                ? [$lookup['sku'][$key][0], $field, false]
-                : [null, $field, true];
         }
 
-        $name = implode(' ', array_filter([
+        $key = $this->normalize(implode(' ', array_filter([
             $value['year'] ?? $value['yearFrom'] ?? null,
             $value['make'] ?? null,
             $value['model'] ?? null,
             $value['trim'] ?? null,
-        ]));
-        $key = $this->normalize($name);
+        ])));
         if ($key === '' || ! isset($lookup['name'][$key])) {
             return [null, 'name', false];
         }
 
-        return count($lookup['name'][$key]) === 1
-            ? [$lookup['name'][$key][0], 'name', false]
-            : [null, 'name', true];
+        return $this->pickUnambiguous($lookup['name'][$key], 'name');
+    }
+
+    /**
+     * @param list<Variants> $matches
+     * @return array{0: ?Variants, 1: string, 2: bool}
+     */
+    private function pickUnambiguous(array $matches, string $matchedBy): array
+    {
+        return count($matches) === 1
+            ? [$matches[0], $matchedBy, false]
+            : [null, $matchedBy, true];
     }
 
     private function normalize(string $value): string
@@ -253,20 +258,14 @@ final class BackfillLeadVariantInterestsCommand extends Command
     private function reindexLeads(Apps $app, Companies $company, array $leadIds): void
     {
         collect($leadIds)->chunk(100)->each(function (Collection $chunk) use ($app, $company): void {
-            $leads = Lead::query()
-                ->where('apps_id', $app->getId())
-                ->where('companies_id', $company->getId())
+            Lead::query()
+                ->fromApp($app)
+                ->fromCompany($company)
                 ->whereIn('id', $chunk)
                 ->notDeleted()
-                ->with([
-                    'people',
-                    'variantInterests.variant.product',
-                    'variantInterests.variant.channels',
-                    'variantInterests.variant.variantAttributes.attribute',
-                ])
-                ->get();
-
-            $leads->searchable();
+                ->with(['people', ...LeadVariantInterestProjectionService::RELATIONS])
+                ->get()
+                ->searchable();
         });
     }
 }

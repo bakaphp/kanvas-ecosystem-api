@@ -11,9 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadVariantInterest;
-use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
 
 final class ReindexVariantInterestLeadsJob implements ShouldBeUnique, ShouldQueue
 {
@@ -42,15 +40,8 @@ final class ReindexVariantInterestLeadsJob implements ShouldBeUnique, ShouldQueu
             ->where('is_deleted', false)
             ->select(['id', 'leads_id'])
             ->chunkById(250, function ($interests): void {
-                $leads = Lead::query()
-                    ->whereIn('id', $interests->pluck('leads_id')->unique())
-                    ->where('apps_id', $this->appId)
-                    ->where('companies_id', $this->companyId)
-                    ->notDeleted()
-                    ->get();
-
-                foreach ($leads as $lead) {
-                    ReindexLeadVariantInterestJob::dispatch(KnowledgeEntity::fromModel($lead));
+                foreach ($interests->pluck('leads_id')->unique() as $leadId) {
+                    ReindexLeadVariantInterestJob::dispatchForLead((int) $leadId, $this->appId, $this->companyId);
                 }
             });
     }

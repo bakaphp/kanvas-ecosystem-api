@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Services;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 use Laravel\Scout\Builder as ScoutBuilder;
 
 class VariantSearchService
@@ -41,15 +40,9 @@ class VariantSearchService
             'product' => $variant->product?->name,
             'is_published' => (bool) $variant->is_published,
             'stock' => $variant->getTotalQuantity(),
-            'price' => $variant->channels
-                ->first(fn ($channel): bool => (bool) $channel->is_default && (bool) $channel->pivot?->is_published)
-                ?->pivot?->price,
-            'attributes' => $variant->variantAttributes
-                ->filter(fn (VariantsAttributes $value): bool => ! $value->is_deleted && (bool) $value->attribute?->is_searchable)
-                ->mapWithKeys(fn (VariantsAttributes $value): array => [
-                    (string) $value->attribute?->name => $this->stringValue($value->value),
-                ])
-                ->filter(fn (string $value, string $name): bool => $name !== '' && $value !== '')
+            'price' => $variant->defaultChannelPrice(),
+            'attributes' => $variant->loadedSearchableAttributes()
+                ->mapWithKeys(fn (array $attribute): array => [$attribute['name'] => $attribute['value']])
                 ->all(),
         ])->toArray();
     }
@@ -70,16 +63,5 @@ class VariantSearchService
         $search->query(fn ($query) => $query
             ->where('apps_id', $app->getId())
             ->whereRelation('product', 'companies_id', $company->getId()));
-    }
-
-    private function stringValue(mixed $value): string
-    {
-        if (is_scalar($value)) {
-            return trim((string) $value);
-        }
-
-        return is_array($value)
-            ? collect($value)->flatten()->filter(fn (mixed $item): bool => is_scalar($item))->implode(', ')
-            : '';
     }
 }

@@ -63,7 +63,7 @@ class CommunicationLeadFilter
         $leadIds = $matching->pluck('lead_id')->map(fn (mixed $id): int => (int) $id)->unique()->values()->all();
         $state === 'no_messages'
             ? $query->whereNotIn('id', $leadIds)
-            : $query->whereIn('id', $leadIds === [] ? [-1] : $leadIds);
+            : $query->whereIn('id', $leadIds);
 
         return [
             'active' => true,

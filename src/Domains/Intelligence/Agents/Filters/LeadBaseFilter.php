@@ -30,6 +30,7 @@ class LeadBaseFilter
             $criteria['stage'] = $stage;
         }
         if (($salesperson = trim((string) ($filters['salesperson'] ?? ''))) !== '') {
+            // Owners live on the ecosystem connection; a whereHas would join across databases.
             $ownerIds = Users::query()
                 ->where(fn ($owner) => $owner->where('firstname', 'like', "%{$salesperson}%")
                     ->orWhere('lastname', 'like', "%{$salesperson}%")
