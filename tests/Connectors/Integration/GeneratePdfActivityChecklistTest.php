@@ -61,9 +61,6 @@ final class GeneratePdfActivityChecklistTest extends TestCase
         $this->registerInternalIntegration();
     }
 
-    /**
-     * Redis survives DatabaseTransactions, so a leftover marker would leak into the next test.
-     */
     protected function tearDown(): void
     {
         $this->lead->del(TrackChecklistPdfGenerationAction::CUSTOM_FIELD);
@@ -105,11 +102,8 @@ final class GeneratePdfActivityChecklistTest extends TestCase
         $this->assertCount(1, $entries);
         $this->assertSame(ChecklistPdfGenerationEnum::FAILED->value, $entries[0]['status']);
         $this->assertSame($taskListItem->getId(), $entries[0]['task_id']);
-        // executeIntegration swallowed the rethrow, so the activity returns an error array rather
-        // than propagating — see the retries section of the plan.
+        // executeIntegration swallows the rethrow and returns an error array.
         $this->assertArrayHasKey('trace', $result);
-
-        // One for `generating`, one for `failed` — the client refetches on each.
         Event::assertDispatchedTimes(ChecklistGeneratePdfEvent::class, 2);
     }
 
@@ -123,7 +117,7 @@ final class GeneratePdfActivityChecklistTest extends TestCase
         $activity = new GeneratePdfActivity(
             0,
             now()->toDateTimeString(),
-            StoredWorkflow::make(),
+            new StoredWorkflow(),
             []
         );
 
@@ -147,7 +141,12 @@ final class GeneratePdfActivityChecklistTest extends TestCase
             'checkListId' => $wiring['taskList']->getId(),
         ]);
 
-        $this->makeChecklistEngagement($this->lead, $wiring['companyAction'], $slug, $message->getId());
+        $this->makeChecklistEngagement(
+            $this->lead,
+            $wiring['companyAction'],
+            $slug,
+            $message->getId()
+        );
 
         return [
             'message' => $message,

@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\ActionEngine\Tasks\Enums;
 
 /**
- * Only the states that get stored. A finished PDF has no entry at all — success is the absence of
- * the record, so there is deliberately no COMPLETED case to persist.
+ * No COMPLETED case on purpose: a finished PDF's entry is removed, so success is its absence.
  */
 enum ChecklistPdfGenerationEnum: string
 {

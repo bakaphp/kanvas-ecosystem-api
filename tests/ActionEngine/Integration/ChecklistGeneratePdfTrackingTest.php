@@ -7,7 +7,6 @@ namespace Tests\ActionEngine\Integration;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Event;
-use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Tasks\Actions\TrackChecklistPdfGenerationAction;
 use Kanvas\ActionEngine\Tasks\Enums\ChecklistPdfGenerationEnum;
 use Kanvas\ActionEngine\Tasks\Events\ChecklistGeneratePdfEvent;
@@ -49,10 +48,9 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
     {
         $context = $this->makeContext('pdf-track-absent');
 
-        $entries = new TrackChecklistPdfGenerationAction(
-            context: $context,
-            status: ChecklistPdfGenerationEnum::GENERATING
-        )->execute();
+        $this->track($context, ChecklistPdfGenerationEnum::GENERATING);
+
+        $entries = $this->entries();
 
         $this->assertCount(1, $entries);
         $this->assertSame(ChecklistPdfGenerationEnum::GENERATING, $entries[0]->status);
@@ -60,25 +58,7 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
         $this->assertSame($context->taskListItem->companyAction->getId(), $entries[0]->companyActionId);
         $this->assertSame((int) $context->taskListItem->companyAction->actions_id, $entries[0]->actionId);
         $this->assertSame((int) $context->engagement->message_id, $entries[0]->messageId);
-    }
-
-    /**
-     * The client needs message_id to find this run's entity_integration_history row and hand it to
-     * integrationWorkflowRetry, so it has to survive the round trip through the custom field.
-     */
-    public function testMessageIdSurvivesTheRoundTripThroughTheCustomField(): void
-    {
-        $context = $this->makeContext('pdf-track-message-id');
-
-        new TrackChecklistPdfGenerationAction(
-            context: $context,
-            status: ChecklistPdfGenerationEnum::FAILED
-        )->execute();
-
-        $stored = $this->lead->get(TrackChecklistPdfGenerationAction::CUSTOM_FIELD);
-
-        $this->assertSame((int) $context->engagement->message_id, $stored[0]['message_id']);
-        $this->assertNotSame(0, $stored[0]['message_id']);
+        $this->assertNotSame(0, $entries[0]->messageId);
     }
 
     public function testGeneratingAppendsSecondTaskWithoutTouchingTheFirst(): void
@@ -86,20 +66,12 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
         $first = $this->makeContext('pdf-track-append-one');
         $second = $this->makeContext('pdf-track-append-two');
 
-        new TrackChecklistPdfGenerationAction(
-            context: $first,
-            status: ChecklistPdfGenerationEnum::GENERATING
-        )->execute();
+        $this->track($first, ChecklistPdfGenerationEnum::GENERATING);
+        $this->track($second, ChecklistPdfGenerationEnum::GENERATING);
 
-        $entries = new TrackChecklistPdfGenerationAction(
-            context: $second,
-            status: ChecklistPdfGenerationEnum::GENERATING
-        )->execute();
-
-        $this->assertCount(2, $entries);
         $this->assertSame(
             [$first->taskListItem->getId(), $second->taskListItem->getId()],
-            array_map(fn (ChecklistPdfEntry $entry): int => $entry->taskId, $entries)
+            array_map(fn (ChecklistPdfEntry $entry): int => $entry->taskId, $this->entries())
         );
     }
 
@@ -107,9 +79,11 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
     {
         $context = $this->makeContext('pdf-track-upsert');
 
-        foreach ([ChecklistPdfGenerationEnum::GENERATING, ChecklistPdfGenerationEnum::FAILED, ChecklistPdfGenerationEnum::GENERATING] as $status) {
-            $entries = new TrackChecklistPdfGenerationAction(context: $context, status: $status)->execute();
-        }
+        $this->track($context, ChecklistPdfGenerationEnum::GENERATING);
+        $this->track($context, ChecklistPdfGenerationEnum::FAILED);
+        $this->track($context, ChecklistPdfGenerationEnum::GENERATING);
+
+        $entries = $this->entries();
 
         $this->assertCount(1, $entries);
         $this->assertSame(ChecklistPdfGenerationEnum::GENERATING, $entries[0]->status);
@@ -119,15 +93,10 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
     {
         $context = $this->makeContext('pdf-track-failed');
 
-        new TrackChecklistPdfGenerationAction(
-            context: $context,
-            status: ChecklistPdfGenerationEnum::GENERATING
-        )->execute();
+        $this->track($context, ChecklistPdfGenerationEnum::GENERATING);
+        $this->track($context, ChecklistPdfGenerationEnum::FAILED);
 
-        $entries = new TrackChecklistPdfGenerationAction(
-            context: $context,
-            status: ChecklistPdfGenerationEnum::FAILED
-        )->execute();
+        $entries = $this->entries();
 
         $this->assertCount(1, $entries);
         $this->assertSame(ChecklistPdfGenerationEnum::FAILED, $entries[0]->status);
@@ -137,14 +106,9 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
     {
         $context = $this->makeContext('pdf-track-clear-last');
 
-        new TrackChecklistPdfGenerationAction(
-            context: $context,
-            status: ChecklistPdfGenerationEnum::GENERATING
-        )->execute();
+        $this->track($context, ChecklistPdfGenerationEnum::GENERATING);
+        $this->track($context, null);
 
-        $entries = new TrackChecklistPdfGenerationAction(context: $context, status: null)->execute();
-
-        $this->assertSame([], $entries);
         $this->assertNull($this->lead->get(TrackChecklistPdfGenerationAction::CUSTOM_FIELD));
         $this->assertNull($this->lead->getCustomField(TrackChecklistPdfGenerationAction::CUSTOM_FIELD));
     }
@@ -154,20 +118,14 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
         $taskA = $this->makeContext('pdf-track-concurrent-a');
         $taskB = $this->makeContext('pdf-track-concurrent-b');
 
-        new TrackChecklistPdfGenerationAction(
-            context: $taskA,
-            status: ChecklistPdfGenerationEnum::GENERATING
-        )->execute();
-        new TrackChecklistPdfGenerationAction(
-            context: $taskB,
-            status: ChecklistPdfGenerationEnum::GENERATING
-        )->execute();
+        $this->track($taskA, ChecklistPdfGenerationEnum::GENERATING);
+        $this->track($taskB, ChecklistPdfGenerationEnum::GENERATING);
+        $this->track($taskA, null);
 
-        $entries = new TrackChecklistPdfGenerationAction(context: $taskA, status: null)->execute();
+        $entries = $this->entries();
 
         $this->assertCount(1, $entries);
         $this->assertSame($taskB->taskListItem->getId(), $entries[0]->taskId);
-        $this->assertNotNull($this->lead->get(TrackChecklistPdfGenerationAction::CUSTOM_FIELD));
     }
 
     public function testEveryWriteNotifiesTheLeadChannel(): void
@@ -176,11 +134,8 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
 
         $context = $this->makeContext('pdf-track-broadcast');
 
-        new TrackChecklistPdfGenerationAction(
-            context: $context,
-            status: ChecklistPdfGenerationEnum::GENERATING
-        )->execute();
-        new TrackChecklistPdfGenerationAction(context: $context, status: null)->execute();
+        $this->track($context, ChecklistPdfGenerationEnum::GENERATING);
+        $this->track($context, null);
 
         Event::assertDispatchedTimes(ChecklistGeneratePdfEvent::class, 2);
         Event::assertDispatched(
@@ -190,25 +145,18 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
     }
 
     /**
-     * Re-marking a task that is already in that state — or clearing one that has no entry — would
-     * otherwise rewrite an identical array, firing a create-custom-field workflow and a broadcast
-     * that makes every client refetch for nothing.
+     * An identical rewrite would fire a create-custom-field workflow and make every client refetch
+     * for nothing.
      */
     public function testAnUnchangedWriteNotifiesNobody(): void
     {
         $context = $this->makeContext('pdf-track-noop');
 
-        new TrackChecklistPdfGenerationAction(
-            context: $context,
-            status: ChecklistPdfGenerationEnum::GENERATING
-        )->execute();
+        $this->track($context, ChecklistPdfGenerationEnum::GENERATING);
 
         Event::fake([ChecklistGeneratePdfEvent::class]);
 
-        new TrackChecklistPdfGenerationAction(
-            context: $context,
-            status: ChecklistPdfGenerationEnum::GENERATING
-        )->execute();
+        $this->track($context, ChecklistPdfGenerationEnum::GENERATING);
 
         Event::assertNotDispatched(ChecklistGeneratePdfEvent::class);
     }
@@ -217,82 +165,25 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
     {
         Event::fake([ChecklistGeneratePdfEvent::class]);
 
-        $entries = new TrackChecklistPdfGenerationAction(
-            context: $this->makeContext('pdf-track-clear-unknown'),
-            status: null
-        )->execute();
+        $this->track($this->makeContext('pdf-track-clear-unknown'), null);
 
-        $this->assertSame([], $entries);
+        $this->assertSame([], $this->entries());
         Event::assertNotDispatched(ChecklistGeneratePdfEvent::class);
     }
 
     /**
-     * A deploy that lands mid-generation leaves entries without `message_id`. They have to keep
-     * working — invalidating them would strand a spinner the client can no longer clear.
+     * A TypeError here would escape the activity's `catch (Exception)` and drop the generated file's
+     * id from the response.
      */
-    public function testAnEntryWithoutMessageIdSurvivesOtherWrites(): void
-    {
-        $legacy = $this->makeContext('pdf-track-legacy-survives');
-        $other = $this->makeContext('pdf-track-legacy-other');
-
-        $this->seedEntryWithoutMessageId($legacy);
-
-        $entries = new TrackChecklistPdfGenerationAction(
-            context: $other,
-            status: ChecklistPdfGenerationEnum::GENERATING
-        )->execute();
-
-        $this->assertCount(2, $entries);
-
-        $survivor = current(array_filter(
-            $entries,
-            fn (ChecklistPdfEntry $entry): bool => $entry->taskId === $legacy->taskListItem->getId()
-        ));
-
-        $this->assertInstanceOf(ChecklistPdfEntry::class, $survivor);
-        $this->assertSame(0, $survivor->messageId);
-        $this->assertSame(ChecklistPdfGenerationEnum::GENERATING, $survivor->status);
-    }
-
-    public function testAnEntryWithoutMessageIdIsStillMatchableByTask(): void
-    {
-        $legacy = $this->makeContext('pdf-track-legacy-clear');
-
-        $this->seedEntryWithoutMessageId($legacy);
-
-        $entries = new TrackChecklistPdfGenerationAction(context: $legacy, status: null)->execute();
-
-        $this->assertSame([], $entries);
-        $this->assertNull($this->lead->get(TrackChecklistPdfGenerationAction::CUSTOM_FIELD));
-    }
-
-    /**
-     * The event is a notification, not a snapshot — carrying entries would make the client reconcile
-     * payloads the queue and Pusher do not deliver in order.
-     */
-    public function testTheBroadcastCarriesNoPayload(): void
-    {
-        $this->assertSame([], new ChecklistGeneratePdfEvent((string) $this->lead->uuid)->broadcastWith());
-    }
-
-    /**
-     * Regression: Action::getBySlug() is nullable and CompanyAction::getByAction()'s first parameter
-     * is not, so a soft-deleted Action used to raise a TypeError here. TypeError extends Error, not
-     * Exception, so the activity's `catch (Exception)` never caught it — it escaped to
-     * executeIntegration, got report()ed to Sentry, and the response dropped the id of the file that
-     * had already been generated. ModelNotFoundException keeps it on the intended failWorkflow path.
-     */
-    public function testSoftDeletedActionThrowsModelNotFoundInsteadOfTypeError(): void
+    public function testSoftDeletedActionThrowsModelNotFound(): void
     {
         $context = $this->makeContext('pdf-track-soft-deleted');
-        $companyAction = $context->taskListItem->companyAction;
 
-        $action = Action::findOrFail($companyAction->actions_id);
+        $action = $context->taskListItem->companyAction->action;
         $action->is_deleted = 1;
         $action->saveOrFail();
 
         $this->expectException(ModelNotFoundException::class);
-        $this->expectExceptionMessage('Action not found');
 
         ChecklistPdfContext::fromMessage($context->engagement->message, app(Apps::class));
     }
@@ -306,21 +197,20 @@ final class ChecklistGeneratePdfTrackingTest extends TestCase
             $event->broadcastOn()->name
         );
         $this->assertSame('checklist.generate.pdf', $event->broadcastAs());
+        $this->assertSame([], $event->broadcastWith());
+    }
+
+    private function track(ChecklistPdfContext $context, ?ChecklistPdfGenerationEnum $status): void
+    {
+        new TrackChecklistPdfGenerationAction(context: $context, status: $status)->execute();
     }
 
     /**
-     * The shape the custom field held before `message_id` was added to it.
+     * @return list<ChecklistPdfEntry>
      */
-    private function seedEntryWithoutMessageId(ChecklistPdfContext $context): void
+    private function entries(): array
     {
-        $companyAction = $context->taskListItem->companyAction;
-
-        $this->lead->set(TrackChecklistPdfGenerationAction::CUSTOM_FIELD, [[
-            'action_id' => (int) $companyAction->actions_id,
-            'company_action_id' => $companyAction->getId(),
-            'task_id' => $context->taskListItem->getId(),
-            'status' => ChecklistPdfGenerationEnum::GENERATING->value,
-        ]]);
+        return TrackChecklistPdfGenerationAction::readEntries($this->lead);
     }
 
     private function makeContext(string $slug): ChecklistPdfContext

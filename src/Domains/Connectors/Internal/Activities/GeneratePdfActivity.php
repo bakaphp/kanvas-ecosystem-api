@@ -76,9 +76,13 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
                     }
                 }
 
-                if ($checklistContext !== null) {
-                    new TrackChecklistPdfGenerationAction(context: $checklistContext, status: ChecklistPdfGenerationEnum::GENERATING)->execute();
-                }
+                $trackChecklist = function (?ChecklistPdfGenerationEnum $status) use ($checklistContext): void {
+                    if ($checklistContext !== null) {
+                        new TrackChecklistPdfGenerationAction(context: $checklistContext, status: $status)->execute();
+                    }
+                };
+
+                $trackChecklist(ChecklistPdfGenerationEnum::GENERATING);
 
                 $pdfData = array_merge([
                     'app' => $app,
@@ -100,9 +104,7 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
                         $entity->parent->addFile($pdfFile, $pdfFileName);
                     }
                 } catch (Throwable $e) {
-                    if ($checklistContext !== null) {
-                        new TrackChecklistPdfGenerationAction(context: $checklistContext, status: ChecklistPdfGenerationEnum::FAILED)->execute();
-                    }
+                    $trackChecklist(ChecklistPdfGenerationEnum::FAILED);
 
                     throw $e;
                 }
@@ -128,7 +130,7 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
                     // Cleared even when the status change failed: the PDF itself generated and is
                     // attached, so leaving a spinner up for an unrelated failure is worse than the
                     // task row lagging — that lands on its own lead-tasks channel.
-                    new TrackChecklistPdfGenerationAction(context: $checklistContext, status: null)->execute();
+                    $trackChecklist(null);
                 }
 
                 if ($errorMessage !== null) {

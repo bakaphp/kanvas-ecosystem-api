@@ -16,8 +16,7 @@ class TrackChecklistPdfGenerationAction
     public const string CUSTOM_FIELD = 'checklist.generate.pdf';
 
     /**
-     * A null status means the generation is over and the entry goes away — success is the absence of
-     * a record, see ChecklistPdfGenerationEnum.
+     * A null status clears the task's entry.
      */
     public function __construct(
         protected ChecklistPdfContext $context,
@@ -25,37 +24,25 @@ class TrackChecklistPdfGenerationAction
     ) {
     }
 
-    /**
-     * @return list<ChecklistPdfEntry>
-     */
-    public function execute(): array
+    public function execute(): void
     {
         /** @var Lead $lead */
         $lead = $this->context->engagement->lead;
-        $taskId = $this->context->taskListItem->getId();
 
         // Keyed by lead, not by task: a task finishing must not del() the field out from under
         // another task on the same lead that just started generating.
-        $lockKey = 'checklist_generate_pdf:' . $lead->getId();
+        $changed = Cache::lock('checklist_generate_pdf:' . $lead->getId(), 10)
+            ->block(10, fn (): bool => $this->writeEntries($lead));
 
-        [$entries, $changed] = Cache::lock($lockKey, 10)
-            ->block(10, fn (): array => $this->writeEntries($lead, $taskId));
-
-        // Re-marking a task that is already in this state writes nothing, so there is nothing for
-        // the client to re-read either.
         if ($changed) {
             ChecklistGeneratePdfEvent::dispatch((string) $lead->uuid);
         }
-
-        return $entries;
     }
 
-    /**
-     * @return array{0: list<ChecklistPdfEntry>, 1: bool}
-     */
-    private function writeEntries(Lead $lead, int $taskId): array
+    private function writeEntries(Lead $lead): bool
     {
-        $current = $this->readEntries($lead);
+        $taskId = $this->context->taskListItem->getId();
+        $current = self::readEntries($lead);
 
         $entries = array_values(array_filter(
             $current,
@@ -77,7 +64,7 @@ class TrackChecklistPdfGenerationAction
         $stored = self::toStoredArray($entries);
 
         if ($stored === self::toStoredArray($current)) {
-            return [$entries, false];
+            return false;
         }
 
         // set() ends in fireWorkflow(CREATE_CUSTOM_FIELD), which would re-evaluate every
@@ -98,13 +85,13 @@ class TrackChecklistPdfGenerationAction
             $lead->enableWorkflows();
         }
 
-        return [$entries, true];
+        return true;
     }
 
     /**
      * @return list<ChecklistPdfEntry>
      */
-    private function readEntries(Lead $lead): array
+    public static function readEntries(Lead $lead): array
     {
         return array_values(array_filter(array_map(
             ChecklistPdfEntry::fromArray(...),
@@ -114,8 +101,6 @@ class TrackChecklistPdfGenerationAction
 
     /**
      * @param list<ChecklistPdfEntry> $entries
-     *
-     * @return list<array{action_id: int, company_action_id: int, task_id: int, status: string}>
      */
     private static function toStoredArray(array $entries): array
     {

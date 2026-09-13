@@ -14,9 +14,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
- * The checklist a PDF-generating message belongs to, resolved once so the activity can both track
- * the generation up front and advance the task afterwards without repeating the lookups.
- *
  * Not a Spatie Data DTO on purpose: it holds Eloquent models, which would make it unsafe to store on
  * a queued job.
  */
@@ -29,31 +26,19 @@ readonly class ChecklistPdfContext
     }
 
     /**
-     * Null means the message simply isn't a checklist submission — the PDF still generates.
-     *
-     * A throw means it claims to be one but its wiring is broken, which the activity turns into
-     * `failWorkflow`.
+     * Null when the message isn't wired to a checklist item; throws when its action or engagement is
+     * missing, which the activity reports through failWorkflow.
      *
      * @throws ModelNotFoundException
      */
     public static function fromMessage(Message $message, AppInterface $app): ?self
     {
-        $verb = $message->message['verb'] ?? null;
-
-        // getBySlug is nullable and getByAction's first parameter is not, so a missing verb or an
-        // Action soft-deleted after the engagement was created would raise a TypeError — an Error,
-        // which the activity's `catch (Exception)` does not catch, so it escapes to Sentry and drops
-        // the generated file's id from the response. Throwing keeps it on the failWorkflow path.
-        $action = $verb === null ? null : Action::getBySlug($verb, $message->company);
-
-        if ($action === null) {
-            throw new ModelNotFoundException('Action not found');
-        }
+        $action = Action::query()
+            ->where('slug', $message->message['verb'] ?? '')
+            ->notDeleted()
+            ->firstOrFail();
 
         $companyAction = CompanyAction::getByAction($action, $message->company, $app);
-
-        // Resolved before the task item so a missing engagement still surfaces as a failure, the way
-        // it did when these lookups lived inline in the activity.
         $engagement = Engagement::getByMessageId($message->getId());
 
         $taskListItem = TaskListItem::query()
