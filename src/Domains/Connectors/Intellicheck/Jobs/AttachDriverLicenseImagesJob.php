@@ -16,10 +16,6 @@ use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Social\Messages\Models\Message;
 
-/**
- * @deprecated Only waits for the late `people.driver_license_images` write that `after-id-verification`
- *             depends on. Delete with that verb.
- */
 class AttachDriverLicenseImagesJob implements ShouldQueue
 {
     use Dispatchable;
