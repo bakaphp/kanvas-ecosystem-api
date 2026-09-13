@@ -37,7 +37,7 @@ class IdVerificationReportActivity extends KanvasActivity implements WorkflowAct
 
                 $people = $this->resolveVerifiedPeople($lead, $params);
 
-                // The caller writes the licence base64 onto the person a few seconds after firing this verb.
+                // The caller writes the license base64 onto the person a few seconds after firing this verb.
                 sleep(20);
 
                 $images = $people->get('driver_license_images');
