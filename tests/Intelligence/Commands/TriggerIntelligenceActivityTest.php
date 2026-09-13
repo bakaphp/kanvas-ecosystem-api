@@ -26,6 +26,7 @@ use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
+use ReflectionClass;
 use Symfony\Component\Console\Input\ArrayInput;
 use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\TestCase;
@@ -140,8 +141,66 @@ class TriggerIntelligenceActivityTest extends TestCase
         $this->assertFalse(method_exists($type->handler, 'sendDataToAgent'));
 
         /** @var TestableTriggerIntelligenceActivity $activity */
-        $activity = new \ReflectionClass(TestableTriggerIntelligenceActivity::class)->newInstanceWithoutConstructor();
+        $activity = new ReflectionClass(TestableTriggerIntelligenceActivity::class)->newInstanceWithoutConstructor();
         $activity->sendDataForTest($lead, IntelligenceModeEnum::FULL_ON->value);
+    }
+
+    public function testOrchestrationSkipsSessionWithMissingAgent(): void
+    {
+        $this->assertLaterSessionsStillRun($this->sessionWith(null));
+    }
+
+    public function testOrchestrationSkipsSessionWithMissingAgentType(): void
+    {
+        $agent = new Agent();
+        $agent->setRelation('type', null);
+
+        $this->assertLaterSessionsStillRun($this->sessionWith($agent));
+    }
+
+    public function testOrchestrationSkipsSessionWhenTheHandlerClassIsGone(): void
+    {
+        $agent = new Agent();
+        $agent->setRelation('type', new AgentType(['handler' => 'Kanvas\\Intelligence\\Agents\\Handlers\\Gone']));
+
+        $this->assertLaterSessionsStillRun($this->sessionWith($agent));
+    }
+
+    /**
+     * A session the loop cannot resolve a handler for used to fatal on the spot, taking every other
+     * session on the lead down with it — so the assertion that matters is that the one behind it
+     * still ran, not merely that nothing threw.
+     */
+    private function assertLaterSessionsStillRun(Session $broken): void
+    {
+        IntelligenceHandlerWithoutSendData::$constructed = 0;
+
+        $lead = $this->createLead('Internet');
+        $lead->setRelation('aiSession', collect([$broken, $this->healthySession()]));
+
+        $activity = new ReflectionClass(TestableTriggerIntelligenceActivity::class)->newInstanceWithoutConstructor();
+        $activity->sendDataForTest($lead, IntelligenceModeEnum::FULL_ON->value);
+
+        $this->assertSame(1, IntelligenceHandlerWithoutSendData::$constructed);
+    }
+
+    private function sessionWith(?Agent $agent): Session
+    {
+        $session = new Session(['uuid' => 'unresolvable-session']);
+        $session->setRelation('agent', $agent);
+
+        return $session;
+    }
+
+    private function healthySession(): Session
+    {
+        $agent = new Agent();
+        $agent->setRelation('type', new AgentType(['handler' => IntelligenceHandlerWithoutSendData::class]));
+
+        $session = new Session(['uuid' => 'local-neuron-session']);
+        $session->setRelation('agent', $agent);
+
+        return $session;
     }
 
     public function testOffModeBlocksAiTakeover(): void
@@ -555,6 +614,12 @@ final class TestableTriggerIntelligenceActivity extends TriggerIntelligenceActiv
 
 final class IntelligenceHandlerWithoutSendData
 {
+    public static int $constructed = 0;
+
+    public function __construct()
+    {
+        self::$constructed++;
+    }
 }
 
 final class TestableSendDelayMessageCommand extends SendDelayMessageCommand
