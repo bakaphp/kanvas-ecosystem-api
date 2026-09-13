@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Guild;
 
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -32,7 +33,7 @@ class OrganizationTest extends TestCase
     {
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
-        $name = fake()->company();
+        $name = $this->uniqueOrganizationName();
 
         if (empty($input)) {
             $input = [
@@ -53,12 +54,21 @@ class OrganizationTest extends TestCase
         ])->json();
     }
 
+    /**
+     * Never fake()->company(): it appends legal suffixes ("Hansen Inc") that
+     * OrganizationNameNormalizerService strips, and CreateOrganizationAction is a
+     * firstOrCreate on name, so a common faker name resolves to another test's row.
+     */
+    protected function uniqueOrganizationName(string $prefix = 'Org'): string
+    {
+        return $prefix . '-' . Str::uuid();
+    }
+
     public function testOrganizationLead()
     {
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
-        // Suffix-free name so OrganizationNameNormalizerService leaves it untouched.
-        $name = 'Org-' . fake()->unique()->word() . '-' . time();
+        $name = $this->uniqueOrganizationName();
 
         $input = [
             'name' => $name,
@@ -86,7 +96,7 @@ class OrganizationTest extends TestCase
     {
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
-        $name = fake()->company();
+        $name = $this->uniqueOrganizationName();
 
         $input = [
             'name' => $name,
@@ -97,8 +107,7 @@ class OrganizationTest extends TestCase
 
         $organizationId = $response['data']['createOrganization']['id'];
 
-        // Suffix-free name so OrganizationNameNormalizerService leaves it untouched.
-        $newName = 'Org-' . fake()->unique()->word() . '-' . time();
+        $newName = $this->uniqueOrganizationName();
 
         $input = [
             'name' => $newName,
@@ -128,7 +137,7 @@ class OrganizationTest extends TestCase
     {
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
-        $name = fake()->company();
+        $name = $this->uniqueOrganizationName();
 
         $input = [
             'name' => $name,
@@ -266,10 +275,7 @@ class OrganizationTest extends TestCase
 
     public function testCreateOrganizationNormalizesAndSavesPhone(): void
     {
-        // Suffix-free name: fake()->company() randomly appends a legal suffix (LLC,
-        // Inc, ...) that OrganizationNameNormalizerService strips on save, which would
-        // make the name assertion flaky. This test only cares about phone normalization.
-        $name = 'OrgPhone-' . fake()->unique()->word() . '-' . time();
+        $name = $this->uniqueOrganizationName('OrgPhone');
         $digits = fake()->unique()->numerify('1##########');
 
         $response = $this->graphQL('
@@ -313,7 +319,7 @@ class OrganizationTest extends TestCase
         ', [
             'id' => $organizationId,
             'input' => [
-                'name' => fake()->company(),
+                'name' => $this->uniqueOrganizationName(),
                 'phone' => '(' . substr($digits, 1, 3) . ') ' . substr($digits, 4, 3) . '-' . substr($digits, 7),
             ],
         ])
@@ -328,7 +334,7 @@ class OrganizationTest extends TestCase
         $digits = fake()->unique()->numerify('1##########');
 
         $this->createOrganizationAndGetResponse([
-            'name' => fake()->company(),
+            'name' => $this->uniqueOrganizationName(),
             'phone' => '+' . $digits,
         ]);
 
@@ -356,7 +362,7 @@ class OrganizationTest extends TestCase
     {
         $user = auth()->user();
         $branch = $user->getCurrentBranch();
-        $name = fake()->company();
+        $name = $this->uniqueOrganizationName();
 
         $input = [
             'name' => $name,
@@ -514,7 +520,7 @@ class OrganizationTest extends TestCase
     public function testCreateOrganizationWithType(): void
     {
         $typeId = $this->createOrganizationTypeAndGetId();
-        $name = fake()->company();
+        $name = $this->uniqueOrganizationName();
 
         $this->graphQL('
             mutation($input: OrganizationInput!) {
@@ -555,7 +561,7 @@ class OrganizationTest extends TestCase
         ', [
             'id' => $organizationId,
             'input' => [
-                'name' => fake()->company(),
+                'name' => $this->uniqueOrganizationName(),
                 'organization_type_id' => $typeId,
             ],
         ])
@@ -566,7 +572,7 @@ class OrganizationTest extends TestCase
     public function testFilterOrganizationsByType(): void
     {
         $typeId = $this->createOrganizationTypeAndGetId();
-        $name = fake()->company();
+        $name = $this->uniqueOrganizationName();
 
         $this->createOrganizationAndGetResponse([
             'name' => $name,
