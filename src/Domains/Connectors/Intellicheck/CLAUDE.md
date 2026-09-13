@@ -79,12 +79,14 @@ depend on it.
 
 `VerifyPeopleIdAction` is shared, and `VinSolution\Workflow\PushCoBuyerActivity` is the other production
 caller — it runs ID verification on a co-buyer inline, and has **no test coverage**. Two of the new
-behaviours would silently move where that flow's files land, so both hang off one flag that only
-`GenerateIdVerificationActivity` passes:
+behaviours would silently move where that flow's files land, so both hang off one flag that both
+Intellicheck activities pass. `IdVerificationReportActivity` is a thin wrapper over the action: it reads
+`driver_license_images` itself, hands it in as `images`, and keeps the deprecated 20s wait + delayed
+`AttachDriverLicenseImagesJob` for late-arriving images.
 
 | `reuseExistingEngagement` | engagement | `driver_license_images` |
 |---|---|---|
-| `true` (the new verb) | reuse this person's submitted engagement, or thread under `parentEngagement` | never read |
+| `true` (both Intellicheck activities) | reuse this person's submitted engagement, or thread under `parentEngagement` | never read by the action |
 | `false` (default) | always create a root, as before the folder fix | read as a last resort |
 
 They travel together deliberately: a caller that threads into an existing folder is the new path, which
@@ -139,5 +141,7 @@ Downstream consumers (CRM push, frontend, checklist) read these:
 `intellicheck_workflow_response` diverges between the legacy (raw report value) and `VerifyPeopleIdAction` (`'passed'` where the status is `'green'`). Confirm with consumers before changing either.
 
 ## Report dedup is time-boxed on purpose
+
+The email goes to `company_manager` users + the company's Managers + the lead owner, each once, and is skipped entirely when the company sets `disable_id_verification_email` — the PDF and engagement are still filed. `id_verification` is always written on the verified person, and on the lead only for the main buyer.
 
 `VerifyPeopleIdAction::sendNotification()` guards on a 3-minute cache keyed by **lead id + verified person id**. Not a persisted flag: a queue retry must not send a second report, but a customer re-scanning after a failed check must get one — a permanent flag silently killed the report, the PDF and the engagement for every later verification of that person. And not keyed by display name: a participant whose document is unreadable resolves the name back to the main buyer's, so a name-keyed guard makes the two skip each other.

@@ -16,7 +16,6 @@ use Kanvas\Apps\Actions\SyncEmailTemplateAction;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdAction;
 use Kanvas\Connectors\Intellicheck\Activities\GenerateIdVerificationActivity;
-use Kanvas\Connectors\Intellicheck\Activities\IdVerificationReportActivity;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Customers\Models\People;
@@ -387,10 +386,7 @@ final class IdVerificationEngagementReuseTest extends TestCase
 
     private function createEngagement(Lead $lead, People $people): ?Engagement
     {
-        $activity = new ReflectionClass(IdVerificationReportActivity::class)->newInstanceWithoutConstructor();
-
-        return new ReflectionMethod(IdVerificationReportActivity::class, 'createIdVerificationEngagement')
-            ->invoke($activity, $lead, $people);
+        return new VerifyPeopleIdAction($people, $lead)->resolveEngagement(reuseExistingEngagement: true);
     }
 
     private function findForPeople(Lead $lead, People $people): ?Engagement

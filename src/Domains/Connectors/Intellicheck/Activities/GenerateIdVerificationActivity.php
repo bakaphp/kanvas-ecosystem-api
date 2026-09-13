@@ -29,9 +29,9 @@ use Throwable;
             . 'send it or the result lands on the main buyer.',
         'intellicheck' => 'The Intellicheck result, unwrapped: idcheck / OCR / ocr_match / facial / ipqs.',
         'images' => 'Optional {front, back, face}. Each side is either a base64 image or the uuid of a '
-            . 'file already uploaded to filesystem. Any side left out falls back to the '
-            . "person's driver_license_images custom field; `face` falls back to the payload's "
-            . 'facial.data.photoFace, which is the only place a selfie ever comes from.',
+            . 'file already uploaded to filesystem. A front or back left out is re-linked from the '
+            . "eid engagement's message; `face` falls back to the payload's facial.data.photoFace, "
+            . 'which is the only place a selfie ever comes from.',
     ],
     requiredParams: ['intellicheck'],
 )]
@@ -55,19 +55,14 @@ class GenerateIdVerificationActivity extends KanvasActivity
                     return $this->failWorkflow(['message' => 'No Intellicheck payload to score']);
                 }
 
-                // Mobile sends no engagement reference at all, so a missing `eid` is a normal call: the
-                // action then resolves the person's existing submitted engagement. An `eid` that is
-                // present but does not resolve is a different thing — that one is a caller bug.
-                $engagement = null;
+                // Mobile has no engagement reference, so a missing `eid` is normal; one that is present
+                // but does not resolve is a caller bug.
+                $engagement = $this->resolveEngagement($lead, $params);
 
-                if (($params['eid'] ?? null) !== null && $params['eid'] !== '') {
-                    $engagement = $this->resolveEngagement($lead, $params);
-
-                    if ($engagement === null) {
-                        return $this->failWorkflow([
-                            'message' => 'Engagement ' . $params['eid'] . ' not found for this lead',
-                        ]);
-                    }
+                if ($engagement === null && ($params['eid'] ?? '') !== '') {
+                    return $this->failWorkflow([
+                        'message' => 'Engagement ' . $params['eid'] . ' not found for this lead',
+                    ]);
                 }
 
                 $people = $this->resolvePeople($lead, $engagement, $params);
@@ -128,14 +123,10 @@ class GenerateIdVerificationActivity extends KanvasActivity
         }
 
         if ($engagement?->people_id !== null && (int) $engagement->people_id !== (int) $lead->people_id) {
-            $participant = People::fromCompany($lead->company)
-                ->fromApp($lead->app)
-                ->where('id', (int) $engagement->people_id)
-                ->notDeleted()
-                ->first();
-
-            if ($participant !== null) {
-                return $participant;
+            try {
+                return People::getByIdFromCompanyApp((int) $engagement->people_id, $lead->company, $lead->app);
+            } catch (Throwable) {
+                // Fall back to the lead's main person.
             }
         }
 
@@ -143,12 +134,7 @@ class GenerateIdVerificationActivity extends KanvasActivity
     }
 
     /**
-     * Values pass through as-is: `VerifyPeopleIdAction::resolveFile()` decides whether a side is a
-     * base64 image or a filesystem uuid, so both callers can send whichever they hold.
-     *
-     * `face` has no caller-side source: a selfie only ever exists inside the Intellicheck payload, as
-     * `facial.data.photoFace`. Front and back are the opposite — a showroom scan writes them to the
-     * person's custom field, so leaving them out here is normal and the action falls back to it.
+     * Values pass through as-is: `VerifyPeopleIdAction::resolveFile()` tells base64 from a filesystem uuid.
      *
      * @return array{front: ?string, back: ?string, face: ?string}
      */

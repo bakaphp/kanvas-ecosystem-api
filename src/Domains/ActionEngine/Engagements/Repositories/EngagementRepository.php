@@ -47,10 +47,8 @@ class EngagementRepository
     }
 
     /**
-     * A lead's ID-verification engagements are per-person: the main buyer and every co-buyer get
-     * their own. `findEngagementForLead` filters only by lead + stage, so on a lead with participants
-     * it returns whichever row is newest — which is how a co-buyer's report ends up attached to the
-     * main buyer's message.
+     * Per-person engagements (main buyer + co-buyers): `findEngagementForLead` would return whichever
+     * person's row is newest.
      */
     public static function findEngagementForLeadPeople(
         Lead $lead,

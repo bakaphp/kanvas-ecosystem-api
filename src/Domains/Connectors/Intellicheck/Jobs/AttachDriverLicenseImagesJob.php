@@ -17,11 +17,8 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
- * @deprecated Exists only to wait for the `people.driver_license_images` base64 to be written by an
- *             external caller, which is a race `after-id-verification` created and nothing else has.
- *             `generate-id-verification` takes the images from the engagement's message (receiver) or
- *             the `images` param (mobile), both available at call time. Delete this job with the old
- *             verb. See `VerifyPeopleIdAction::customFieldImages()`.
+ * @deprecated Only waits for the late `people.driver_license_images` write that `after-id-verification`
+ *             depends on. Delete with that verb.
  */
 class AttachDriverLicenseImagesJob implements ShouldQueue
 {
