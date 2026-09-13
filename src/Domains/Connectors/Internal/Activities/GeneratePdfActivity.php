@@ -7,12 +7,17 @@ namespace Kanvas\Connectors\Internal\Activities;
 use Baka\Contracts\AppInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
+use Kanvas\ActionEngine\Actions\Models\Action;
+use Kanvas\ActionEngine\Actions\Models\CompanyAction;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Tasks\Actions\ChangeTaskEngagementItemStatusAction;
-use Kanvas\ActionEngine\Tasks\Actions\TrackChecklistPdfGenerationAction;
 use Kanvas\ActionEngine\Tasks\Enums\ChecklistPdfGenerationEnum;
 use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
-use Kanvas\ActionEngine\Tasks\Support\ChecklistPdfContext;
+use Kanvas\ActionEngine\Tasks\Events\ChecklistGeneratePdfEvent;
+use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Filesystem\Services\PdfService;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -34,6 +39,8 @@ use Throwable;
 )]
 class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    public const string CHECKLIST_PDF_CUSTOM_FIELD = 'checklist.generate.pdf';
+
     public $tries = 3;
 
     #[Override]
@@ -66,23 +73,30 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
                     ];
                 }
 
-                $checklistContext = null;
+                $engagement = null;
+                $taskListItem = null;
 
                 if ($entity instanceof Message && isset($entity->message['checkListId'])) {
                     try {
-                        $checklistContext = ChecklistPdfContext::fromMessage($entity, $app);
+                        $action = Action::query()
+                            ->where('slug', $entity->message['verb'] ?? '')
+                            ->notDeleted()
+                            ->firstOrFail();
+
+                        $companyAction = CompanyAction::getByAction($action, $entity->company, $app);
+                        $engagement = Engagement::getByMessageId($entity->getId());
+
+                        $taskListItem = TaskListItem::query()
+                            ->where('companies_action_id', $companyAction->getId())
+                            ->where('task_list_id', $entity->message['checkListId'])
+                            ->where('is_deleted', 0)
+                            ->first();
                     } catch (Exception $e) {
                         $errorMessage = $e->getMessage() . $e->getTraceAsString();
                     }
                 }
 
-                $trackChecklist = function (?ChecklistPdfGenerationEnum $status) use ($checklistContext): void {
-                    if ($checklistContext !== null) {
-                        new TrackChecklistPdfGenerationAction(context: $checklistContext, status: $status)->execute();
-                    }
-                };
-
-                $trackChecklist(ChecklistPdfGenerationEnum::GENERATING);
+                $this->trackChecklistPdf($engagement, $taskListItem, ChecklistPdfGenerationEnum::GENERATING);
 
                 $pdfData = array_merge([
                     'app' => $app,
@@ -104,7 +118,7 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
                         $entity->parent->addFile($pdfFile, $pdfFileName);
                     }
                 } catch (Throwable $e) {
-                    $trackChecklist(ChecklistPdfGenerationEnum::FAILED);
+                    $this->trackChecklistPdf($engagement, $taskListItem, ChecklistPdfGenerationEnum::FAILED);
 
                     throw $e;
                 }
@@ -112,26 +126,25 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
                 /**
                  * @todo MOVE THIS TO ITS OWN ACTIVITY
                  */
-                if ($checklistContext !== null) {
+                if ($engagement !== null && $taskListItem !== null) {
                     try {
                         new ChangeTaskEngagementItemStatusAction(
-                            taskListItem: $checklistContext->taskListItem,
-                            lead: $checklistContext->engagement->lead,
+                            taskListItem: $taskListItem,
+                            lead: $engagement->lead,
                             status: TaskStatusEnum::COMPLETED->value,
-                            user: $checklistContext->engagement->user,
+                            user: $engagement->user,
                             app: $app,
-                            company: $checklistContext->engagement->company,
+                            company: $engagement->company,
                             message: $entity
                         )->execute();
                     } catch (Exception $e) {
                         $errorMessage = $e->getMessage() . $e->getTraceAsString();
                     }
-
-                    // Cleared even when the status change failed: the PDF itself generated and is
-                    // attached, so leaving a spinner up for an unrelated failure is worse than the
-                    // task row lagging — that lands on its own lead-tasks channel.
-                    $trackChecklist(null);
                 }
+
+                // Cleared even when the status change failed: the PDF itself is attached, and the task
+                // row has its own lead-tasks channel.
+                $this->trackChecklistPdf($engagement, $taskListItem, null);
 
                 if ($errorMessage !== null) {
                     return $this->failWorkflow([
@@ -153,5 +166,61 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
             },
             company: $entity->company
         );
+    }
+
+    /**
+     * Upserts this task's entry in the lead's checklist PDF custom field (a null status removes it)
+     * and tells the lead channel to re-read it. UI state only, so a failure here is reported and
+     * never allowed to fail the PDF.
+     */
+    private function trackChecklistPdf(
+        ?Engagement $engagement,
+        ?TaskListItem $taskListItem,
+        ?ChecklistPdfGenerationEnum $status
+    ): void {
+        $lead = $engagement?->lead;
+
+        if ($taskListItem === null || ! $lead instanceof Lead) {
+            return;
+        }
+
+        try {
+            // Keyed by lead, not task: two checklist items on one lead can generate at the same time.
+            Cache::lock('checklist_generate_pdf:' . $lead->getId(), 10)->block(10, function () use ($lead, $engagement, $taskListItem, $status): void {
+                $entries = array_values(array_filter(
+                    (array) $lead->get(self::CHECKLIST_PDF_CUSTOM_FIELD, []),
+                    fn (mixed $entry): bool => is_array($entry) && (int) ($entry['task_id'] ?? 0) !== $taskListItem->getId()
+                ));
+
+                if ($status !== null) {
+                    $entries[] = [
+                        'action_id' => (int) $taskListItem->companyAction->actions_id,
+                        'company_action_id' => (int) $taskListItem->companies_action_id,
+                        'task_id' => $taskListItem->getId(),
+                        'message_id' => (int) $engagement->message_id,
+                        'status' => $status->value,
+                    ];
+                }
+
+                // set() fires CREATE_CUSTOM_FIELD workflows from inside this running workflow, and the
+                // same Lead instance goes to ChangeTaskEngagementItemStatusAction next, hence finally.
+                $lead->disableWorkflows();
+
+                try {
+                    // Never set([]): get() treats an empty Redis value as a miss and returns the stale DB row.
+                    if ($entries === []) {
+                        $lead->del(self::CHECKLIST_PDF_CUSTOM_FIELD);
+                    } else {
+                        $lead->set(self::CHECKLIST_PDF_CUSTOM_FIELD, $entries);
+                    }
+                } finally {
+                    $lead->enableWorkflows();
+                }
+            });
+
+            ChecklistGeneratePdfEvent::dispatch((string) $lead->uuid);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 }

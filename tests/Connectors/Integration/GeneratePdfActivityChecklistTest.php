@@ -6,16 +6,13 @@ namespace Tests\Connectors\Integration;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Event;
-use Kanvas\ActionEngine\Tasks\Actions\TrackChecklistPdfGenerationAction;
 use Kanvas\ActionEngine\Tasks\Enums\ChecklistPdfGenerationEnum;
 use Kanvas\ActionEngine\Tasks\Events\ChecklistGeneratePdfEvent;
-use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Internal\Activities\GeneratePdfActivity;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Templates\Models\Templates;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
@@ -25,6 +22,10 @@ use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\TestCase;
 use Tests\Traits\BuildsChecklistFixtures;
 
+/**
+ * Every run points at a template that doesn't exist, so rendering throws deterministically and the
+ * failure branch is exercised without depending on wkhtmltopdf or S3 being available.
+ */
 final class GeneratePdfActivityChecklistTest extends TestCase
 {
     use BuildsChecklistFixtures;
@@ -33,86 +34,105 @@ final class GeneratePdfActivityChecklistTest extends TestCase
     protected $connectionsToTransact = [null, 'crm', 'action_engine', 'social', 'ecosystem', 'workflow'];
 
     private Lead $lead;
-    private string $templateName;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $app = app(Apps::class);
-        $company = auth()->user()->getCurrentCompany();
-
         $this->lead = Lead::factory()
-            ->withAppAndCompany($app->getId(), $company->getId())
+            ->withAppAndCompany(app(Apps::class)->getId(), auth()->user()->getCurrentCompany()->getId())
             ->create();
-
-        $this->templateName = 'checklist-pdf-tracking-' . uniqid();
-
-        Templates::create([
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'users_id' => auth()->user()->getId(),
-            'name' => $this->templateName,
-            'template' => '<p>Checklist PDF</p>',
-            'parent_template_id' => 0,
-            'is_system' => false,
-        ]);
 
         $this->registerInternalIntegration();
     }
 
+    /**
+     * Redis is not rolled back by DatabaseTransactions, so a leftover field would leak into the next
+     * test through get()'s Redis-first read.
+     */
     protected function tearDown(): void
     {
-        $this->lead->del(TrackChecklistPdfGenerationAction::CUSTOM_FIELD);
+        $this->lead->del(GeneratePdfActivity::CHECKLIST_PDF_CUSTOM_FIELD);
 
         parent::tearDown();
     }
 
-    public function testMessageWithoutCheckListIdWritesNoMarker(): void
+    public function testMessageWithoutCheckListIdWritesNothing(): void
     {
         Event::fake([ChecklistGeneratePdfEvent::class]);
 
         $this->runActivity($this->makeChecklistMessage($this->lead, ['content' => 'no checklist here']));
 
-        $this->assertNull($this->lead->get(TrackChecklistPdfGenerationAction::CUSTOM_FIELD));
+        $this->assertNull($this->lead->get(GeneratePdfActivity::CHECKLIST_PDF_CUSTOM_FIELD));
         Event::assertNotDispatched(ChecklistGeneratePdfEvent::class);
     }
 
-    public function testNonMessageEntityWritesNoMarker(): void
+    public function testNonMessageEntityWritesNothing(): void
     {
         Event::fake([ChecklistGeneratePdfEvent::class]);
 
         $this->runActivity($this->lead);
 
-        $this->assertNull($this->lead->get(TrackChecklistPdfGenerationAction::CUSTOM_FIELD));
+        $this->assertNull($this->lead->get(GeneratePdfActivity::CHECKLIST_PDF_CUSTOM_FIELD));
         Event::assertNotDispatched(ChecklistGeneratePdfEvent::class);
     }
 
-    public function testGenerationFailureLeavesTheMarkerFailed(): void
+    public function testGenerationFailureMarksTheTaskFailed(): void
     {
         Event::fake([ChecklistGeneratePdfEvent::class]);
 
-        ['message' => $message, 'taskListItem' => $taskListItem] = $this->wireChecklist('failure');
+        ['message' => $message, 'wiring' => $wiring] = $this->wireChecklist('failure');
 
         $result = $this->runActivity($message);
 
-        $entries = $this->lead->get(TrackChecklistPdfGenerationAction::CUSTOM_FIELD);
-
-        $this->assertIsArray($entries);
-        $this->assertCount(1, $entries);
-        $this->assertSame(ChecklistPdfGenerationEnum::FAILED->value, $entries[0]['status']);
-        $this->assertSame($taskListItem->getId(), $entries[0]['task_id']);
+        $this->assertSame(
+            [[
+                'action_id' => $wiring['action']->getId(),
+                'company_action_id' => $wiring['companyAction']->getId(),
+                'task_id' => $wiring['taskListItem']->getId(),
+                'message_id' => $message->getId(),
+                'status' => ChecklistPdfGenerationEnum::FAILED->value,
+            ]],
+            $this->lead->get(GeneratePdfActivity::CHECKLIST_PDF_CUSTOM_FIELD)
+        );
         // executeIntegration swallows the rethrow and returns an error array.
         $this->assertArrayHasKey('trace', $result);
         Event::assertDispatchedTimes(ChecklistGeneratePdfEvent::class, 2);
     }
 
-    /**
-     * The PDF is never uploaded in this environment (no S3 credentials on the app), so every run
-     * ends in the failure branch. That still exercises the tracking, which is what these cases are
-     * about; the success branch is covered by ChecklistGeneratePdfTrackingTest.
-     */
-    private function runActivity(mixed $entity): array
+    public function testFailureKeepsAnotherTaskOnTheSameLead(): void
+    {
+        $otherTask = [
+            'action_id' => 1,
+            'company_action_id' => 1,
+            'task_id' => PHP_INT_MAX,
+            'message_id' => 1,
+            'status' => ChecklistPdfGenerationEnum::GENERATING->value,
+        ];
+
+        $this->lead->set(GeneratePdfActivity::CHECKLIST_PDF_CUSTOM_FIELD, [$otherTask]);
+
+        ['message' => $message, 'wiring' => $wiring] = $this->wireChecklist('concurrent');
+
+        $this->runActivity($message);
+
+        $entries = $this->lead->get(GeneratePdfActivity::CHECKLIST_PDF_CUSTOM_FIELD);
+
+        $this->assertCount(2, $entries);
+        $this->assertSame($otherTask, $entries[0]);
+        $this->assertSame($wiring['taskListItem']->getId(), $entries[1]['task_id']);
+    }
+
+    public function testBroadcastChannelAndEventName(): void
+    {
+        $event = new ChecklistGeneratePdfEvent((string) $this->lead->uuid);
+
+        $this->assertSame('checklist-generate-pdf-lead-' . $this->lead->uuid, $event->broadcastOn()->name);
+        $this->assertSame('checklist.generate.pdf', $event->broadcastAs());
+        $this->assertSame([], $event->broadcastWith());
+    }
+
+    private function runActivity(Message|Lead $entity): array
     {
         $activity = new GeneratePdfActivity(
             0,
@@ -122,14 +142,11 @@ final class GeneratePdfActivityChecklistTest extends TestCase
         );
 
         return $activity->execute($entity, app(Apps::class), [
-            'template_pdf' => $this->templateName,
+            'template_pdf' => 'checklist-pdf-missing-template-' . uniqid(),
             'pdf_file_name' => 'checklist-tracking.pdf',
         ]);
     }
 
-    /**
-     * @return array{message: Message, taskListItem: TaskListItem}
-     */
     private function wireChecklist(string $suffix): array
     {
         $slug = 'checklist-pdf-activity-' . $suffix . '-' . uniqid();
@@ -150,11 +167,11 @@ final class GeneratePdfActivityChecklistTest extends TestCase
 
         return [
             'message' => $message,
-            'taskListItem' => $wiring['taskListItem'],
+            'wiring' => $wiring,
         ];
     }
 
-    private function registerInternalIntegration(): IntegrationsCompany
+    private function registerInternalIntegration(): void
     {
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
@@ -168,7 +185,7 @@ final class GeneratePdfActivityChecklistTest extends TestCase
             'is_deleted' => 0,
         ]);
 
-        return IntegrationsCompany::firstOrCreate(
+        IntegrationsCompany::firstOrCreate(
             [
                 'companies_id' => $company->getId(),
                 'integrations_id' => Integrations::getByName(IntegrationsEnum::INTERNAL->value)->getId(),
