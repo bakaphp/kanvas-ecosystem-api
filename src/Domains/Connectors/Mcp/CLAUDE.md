@@ -66,7 +66,7 @@ Never print a credential while debugging — check presence (`rawToken() !== nul
 | Server | Quirk |
 |---|---|
 | Google Workspace + Analytics | One hand-made client shared through `client_key: google`. **Drive and Sheets MCP need the Cloud project enrolled in the Workspace Developer Preview**: Sheets says so, Drive only says "caller does not have permission". Each underlying API must also be enabled (Analytics Data API failed on this). |
-| Google Calendar | Google's setup guide lists only three **read-only** scopes, but the server publishes four tools that write (`create_event`, `update_event`, `delete_event`, `respond_to_event`). With read-only scopes each fails `403 insufficient_scope` while `list_events` works. The row adds `calendar.events`, the narrowest scope Google's challenge accepts for writes. Agents connected earlier must **reconnect** to gain it. |
+| Google Calendar | Google's setup guide lists only three **read-only** scopes, but the server publishes four tools that write (`create_event`, `update_event`, `delete_event`, `respond_to_event`). With read-only scopes each fails `403 insufficient_scope` while `list_events` works. The row adds `calendar.events`, the narrowest scope Google's challenge accepts for writes. Agents connected earlier must **reconnect** to gain it. A bad argument comes back as **HTTP 400 wrapping an `isError` result**; its text is the exception's reason. `attendees` is a list of `{email}` objects behind a `$ref` (a bare email list was KANVAS-ECOSYSTEM-6EC). |
 | Google Analytics | Two servers: data answers on `/mcp/v1`, admin on `/mcp`. **Admin publishes no metadata**, so its row pins `authorization_server: https://accounts.google.com`. |
 | Google Ads (official) | No hosted server — self-host only, read-only. `googleads.googleapis.com/mcp` has reserved metadata but every path 404s. |
 | Meta Ads (official) | **Hidden.** Metadata advertises registration, then refuses it: "Dynamic registration is not available for this client". Use `Meta Ads (Pipeboard)`. |
@@ -107,8 +107,9 @@ either, **probe the live endpoint**. Vendor docs were wrong or silent more often
 - **A tool-level error kills the whole agent turn.** Some vendors wrap a well-formed MCP error result in HTTP 403
   (Google), and timeouts throw. Both surface as a dead turn instead of reaching the model. Changing that touches
   the path that drives `markFailed` and credential deletion, so it needs a deliberate decision.
-- **`McpToolSchema` does not resolve `$ref` / `$defs`.** Referenced parameters reach the model as plain strings.
-  That is Gemini-safe but lossy, and it blunts Google Analytics' report tool.
+- **`McpToolSchema` inlines local `$ref`s, but a recursive one stops at the first repeat.** Past that point
+  the nested object travels as a JSON string and is decoded before the call (Google Analytics' filter
+  expressions). `readOnly` fields are never offered to the model. Remote (`https://…`) refs stay unresolved.
 - **`auth_methods: ["none"]` is not rendered by the frontend yet.** Microsoft Learn and self-hosted Playwright
   cannot be connected from the UI until it is.
 - **Not added, on purpose:** LinkedIn (no official server; community options breach its User Agreement §8.2) and

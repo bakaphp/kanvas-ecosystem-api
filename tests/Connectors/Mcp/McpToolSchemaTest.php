@@ -80,6 +80,50 @@ final class McpToolSchemaTest extends TestCase
         );
     }
 
+    public function testAReferencedItemKeepsTheShapeItPointsAt(): void
+    {
+        $attendees = $this->declarations()['calendar__create_event']['parameters']['properties']['attendees'];
+
+        $this->assertSame('Attendees of the event.', $attendees['description']);
+        $this->assertSame('object', $attendees['items']['type']);
+        $this->assertSame(['email'], $attendees['items']['required']);
+    }
+
+    public function testReadOnlyFieldsAreNotOffered(): void
+    {
+        $attendee = $this->declarations()['calendar__create_event']['parameters']['properties']['attendees']['items'];
+
+        $this->assertSame(['email', 'displayName'], array_keys($attendee['properties']));
+    }
+
+    public function testARecursiveReferenceStopsAtItsOwnAncestry(): void
+    {
+        $filter = $this->declarations()['analytics__run_report']['parameters']['properties']['dimension_filter'];
+        $nested = $filter['properties']['and_group']['items'];
+
+        $this->assertSame('string', $nested['type']);
+        $this->assertStringContainsString('JSON-encoded object', $nested['description']);
+    }
+
+    public function testTheServerReceivesARecursiveReferenceAsAnObject(): void
+    {
+        $transport = FakeMcpServer::handshakeThenCalls(['content' => [['type' => 'text', 'text' => 'ok']]]);
+        $connector = new CachedMcpConnector(['transport' => $transport]);
+        $connector->toolsFromDescriptors([$this->analyticsRunReport()], 'analytics');
+
+        $connector->invokeTool(
+            [...$this->analyticsRunReport(), 'name' => 'analytics__run_report'],
+            ['dimension_filter' => ['field_name' => 'country', 'and_group' => ['{"field_name": "city"}']]]
+        );
+
+        $call = array_values(array_filter($transport->getSent(), fn (array $m): bool => ($m['method'] ?? '') === 'tools/call'));
+
+        $this->assertSame(
+            ['dimension_filter' => ['field_name' => 'country', 'and_group' => [['field_name' => 'city']]]],
+            $call[0]['params']['arguments']
+        );
+    }
+
     /**
      * @return array<string, array<string, mixed>>
      */
@@ -90,6 +134,8 @@ final class McpToolSchemaTest extends TestCase
             ...$connector->toolsFromDescriptors([$this->sheetsUpdateValues()], 'sheets'),
             ...$connector->toolsFromDescriptors([$this->linearSaveIssue()], 'linear'),
             ...$connector->toolsFromDescriptors([$this->jiraCreateIssue()], 'jira'),
+            ...$connector->toolsFromDescriptors([$this->calendarCreateEvent()], 'calendar'),
+            ...$connector->toolsFromDescriptors([$this->analyticsRunReport()], 'analytics'),
         ];
 
         return array_column(new GeminiToolMapper()->map($tools)['functionDeclarations'], null, 'name');
@@ -153,6 +199,68 @@ final class McpToolSchemaTest extends TestCase
                 'properties' => [
                     'summary' => ['type' => 'string'],
                     'additional_fields' => ['type' => 'object', 'description' => 'Additional Jira fields.'],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Google Calendar `create_event`, trimmed: `attendees` only points at `$defs`.
+     *
+     * @return array<string, mixed>
+     */
+    private function calendarCreateEvent(): array
+    {
+        return [
+            'name' => 'create_event',
+            'inputSchema' => [
+                'type' => 'object',
+                'required' => ['summary'],
+                'properties' => [
+                    'summary' => ['type' => 'string'],
+                    'attendees' => [
+                        'type' => 'array',
+                        'items' => ['$ref' => '#/$defs/Attendee'],
+                        'description' => 'Attendees of the event.',
+                    ],
+                ],
+                '$defs' => [
+                    'Attendee' => [
+                        'type' => 'object',
+                        'required' => ['email'],
+                        'properties' => [
+                            'email' => ['type' => 'string'],
+                            'displayName' => ['type' => 'string'],
+                            'self' => ['type' => 'boolean', 'readOnly' => true],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Google Analytics `run_report`, trimmed: a filter expression that contains filter expressions.
+     *
+     * @return array<string, mixed>
+     */
+    private function analyticsRunReport(): array
+    {
+        return [
+            'name' => 'run_report',
+            'inputSchema' => [
+                'type' => 'object',
+                'properties' => [
+                    'dimension_filter' => ['$ref' => '#/$defs/FilterExpression'],
+                ],
+                '$defs' => [
+                    'FilterExpression' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'field_name' => ['type' => 'string'],
+                            'and_group' => ['type' => 'array', 'items' => ['$ref' => '#/$defs/FilterExpression']],
+                        ],
+                    ],
                 ],
             ],
         ];
