@@ -6,10 +6,12 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
 
 class UpdatePlanAction
 {
@@ -54,7 +56,21 @@ class UpdatePlanAction
             $this->plan->impact_summary = $this->data->impactSummary;
             $this->plan->status_pill = $this->data->statusPill;
 
-            $newStatus = $this->data->status->value;
+            if ($this->data->boardColumnKey !== null) {
+                if ($this->data->project === null) {
+                    throw new ValidationException('A board column requires a project.');
+                }
+
+                $column = new ProjectBoardColumns()->find(
+                    $this->data->project,
+                    $this->data->boardColumnKey,
+                );
+                $this->plan->board_column_key = $this->data->boardColumnKey;
+                $newStatus = $column['plan_status'];
+            } else {
+                $this->plan->board_column_key = null;
+                $newStatus = $this->data->status->value;
+            }
 
             // Asking for approval mid-flight has to actually gate, the way it already does at
             // creation. Setting the flag alone changed nothing: the plan stayed active, the loop kept

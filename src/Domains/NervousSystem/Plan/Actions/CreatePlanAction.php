@@ -12,6 +12,7 @@ use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 
 class CreatePlanAction
@@ -37,10 +38,25 @@ class CreatePlanAction
         new CreateInCurrentAppAction($this->data->app)->execute(Plan::class);
 
         return DB::connection('intelligence')->transaction(function (): Plan {
+            $boardColumn = null;
+            $requestedStatus = $this->data->status;
+
+            if ($this->data->boardColumnKey !== null) {
+                if ($this->data->project === null) {
+                    throw new ValidationException('A board column requires a project.');
+                }
+
+                $boardColumn = new ProjectBoardColumns()->find(
+                    $this->data->project,
+                    $this->data->boardColumnKey,
+                );
+                $requestedStatus = PlanStatusEnum::from($boardColumn['plan_status']);
+            }
+
             $effectiveStatus = $this->data->requiresHumanApproval
-                && $this->data->status === PlanStatusEnum::ACTIVE
+                && $requestedStatus === PlanStatusEnum::ACTIVE
                 ? PlanStatusEnum::AWAITING_APPROVAL
-                : $this->data->status;
+                : $requestedStatus;
 
             // Demote any existing active mission for this swarm BEFORE
             // saving the new plan, so the unique-active invariant holds
@@ -69,6 +85,9 @@ class CreatePlanAction
             $plan->title = $this->data->title;
             $plan->description = $this->data->description;
             $plan->status = $effectiveStatus->value;
+            if ($boardColumn !== null) {
+                $plan->board_column_key = $this->data->boardColumnKey;
+            }
             $plan->priority = $this->data->priority;
             $plan->completion_pct = 0;
             $plan->deadline_at = $this->data->deadlineAt;
