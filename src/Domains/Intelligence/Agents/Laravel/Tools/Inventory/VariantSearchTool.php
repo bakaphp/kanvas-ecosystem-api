@@ -22,6 +22,11 @@ class VariantSearchTool implements KanvasToolInterface
     {
     }
 
+    public function name(): string
+    {
+        return 'variant_search';
+    }
+
     #[Override]
     public function description(): Stringable|string
     {

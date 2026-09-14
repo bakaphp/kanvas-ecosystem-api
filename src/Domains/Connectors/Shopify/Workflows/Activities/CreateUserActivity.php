@@ -17,7 +17,16 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Shopify Create Customer',
+    description: 'Creates the Kanvas user as a customer in Shopify. Outbound one-way write, and it '
+        . 'deliberately suppresses Shopify\'s invite email, so the person is not contacted. Requires a '
+        . 'company param — without one it errors rather than guessing.',
+    integration: IntegrationsEnum::SHOPIFY,
+    params: [
+        'company' => 'The Companies model the customer belongs to. Required.',
+    ],
+)]
 class CreateUserActivity extends KanvasActivity
 {
     public function execute(Users $user, Apps $app, array $params): array

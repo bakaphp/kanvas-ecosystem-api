@@ -9,20 +9,27 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Tools\Traits\Guild\CreatesLeadTrait;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
  * Plain lead creation — a distinct lead per call with no session side effects, so an agent
  * can create leads for many people in one conversation (dedup is by the person's contact
  * inside createLead). Single-prospect agents use CaptureConversationLeadTool instead.
+ *
+ * Runs are tracked per argument set: a batch-sourcing turn legitimately creates a lead per
+ * prospect, and the name-keyed default budget killed the whole turn at the 10th distinct lead
+ * (KANVAS-ECOSYSTEM-6A1). Repeating the *same* lead still trips the loop guard.
  */
 #[AgentTool(name: 'Create Lead', category: 'crm')]
-class CreateLeadTool extends Tool
+class CreateLeadTool extends Tool implements HasRunKey
 {
     use CreatesLeadTrait;
+    use TrackByInputs;
 
     public function __construct(
         private readonly Apps $app,
@@ -91,7 +98,15 @@ class CreateLeadTool extends Tool
             new ToolProperty(
                 name: 'organization_id',
                 type: PropertyType::INTEGER,
-                description: 'Optional organization ID to link the lead to. Leave 0 if unknown.',
+                description: 'Optional ID of an EXISTING organization to link the lead to. Leave 0 if unknown — '
+                    . 'never guess an ID. Use organization_name instead when you only know the company name.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'organization_name',
+                type: PropertyType::STRING,
+                description: 'Optional company / account the person belongs to (e.g. "Brooklinen"). Created if it '
+                    . 'does not exist yet, and the person is added to it. Ignored when organization_id is given.',
                 required: false,
             ),
         ];
@@ -107,6 +122,7 @@ class CreateLeadTool extends Tool
         ?int $lead_type_id = null,
         ?int $lead_source_id = null,
         ?int $organization_id = null,
+        ?string $organization_name = null,
     ): array {
         return $this->createLead(
             app: $this->app,
@@ -121,6 +137,7 @@ class CreateLeadTool extends Tool
             leadTypeId: $lead_type_id ?? 0,
             leadSourceId: $lead_source_id ?? 0,
             organizationId: ($organization_id !== null && $organization_id > 0) ? $organization_id : null,
+            organizationName: $organization_name,
         );
     }
 }

@@ -6,8 +6,7 @@ namespace Kanvas\Scribe\Bills\Actions;
 
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
-use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
+use Kanvas\Scribe\Approvals\Actions\RequestApprovalAction;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Services\BillStateMachineService;
@@ -37,28 +36,40 @@ class SubmitBillForApprovalAction
             return $this->bill;
         }
 
+        $bill = $this->submit();
+
+        $this->openApproval($bill);
+
+        return $bill;
+    }
+
+    private function submit(): Bill
+    {
         return DB::connection('accounting')->transaction(function (): Bill {
             $bill = $this->bill;
 
             $bill->document_status = BillDocumentStatusEnum::PENDING_APPROVAL;
             $bill->save();
 
-            ApprovalQueueItem::create([
-                'apps_id' => $bill->apps_id,
-                'companies_id' => $bill->companies_id,
-                'requested_by_users_id' => $this->user?->getId(),
-                'action_type' => 'approve_bill',
-                'target_type' => 'bill',
-                'target_id' => $bill->id,
-                'payload' => [
-                    'total_native' => (float) $bill->total_native,
-                    'currency' => $bill->currency,
-                    'vendor_organization_id' => $bill->vendor_organization_id,
-                ],
-                'status' => ApprovalQueueStatusEnum::PENDING,
-            ]);
-
             return $bill->refresh();
         });
+    }
+
+    /**
+     * One call, one decision: RequestApprovalAction opens a generic request when the tenant has a
+     * policy and falls back to the legacy queue row when it does not. Never both.
+     */
+    private function openApproval(Bill $bill): void
+    {
+        new RequestApprovalAction(
+            entity: $bill,
+            targetType: 'bill',
+            requestedByUser: $this->user,
+            payload: [
+                'total_native' => (float) $bill->total_native,
+                'currency' => $bill->currency,
+                'vendor_organization_id' => $bill->vendor_organization_id,
+            ],
+        )->execute();
     }
 }

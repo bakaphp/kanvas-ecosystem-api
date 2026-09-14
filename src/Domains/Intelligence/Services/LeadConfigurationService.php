@@ -4,26 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Services;
 
-use Baka\Contracts\CompanyInterface;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 
 class LeadConfigurationService
 {
-    public function __construct(
-        private readonly bool $isV2 = false
-    ) {
-    }
-
-    public function isV2Enabled(CompanyInterface $company): bool
-    {
-        if ((bool) $company->get('intelligence_lead_type_mode_v2')) {
-            return true;
-        }
-
-        return $this->isV2;
-    }
-
     public function getStatusSuffix(Lead $lead): string
     {
         if ($lead->closeNotSold()) {

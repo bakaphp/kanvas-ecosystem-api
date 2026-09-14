@@ -627,6 +627,7 @@ final class FollowUpLeadAction
                 from: $twilioFrom,
                 title: $this->resolveEmailTitle(),
                 to: (string) $outboundContact->value,
+                fromAgent: $this->agent,
             );
             new StoreMessageSidAction($message)->execute($providerResponse);
         } catch (Throwable $e) {

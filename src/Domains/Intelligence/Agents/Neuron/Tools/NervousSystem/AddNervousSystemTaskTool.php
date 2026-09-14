@@ -67,7 +67,12 @@ class AddNervousSystemTaskTool extends Tool implements HasRunKey
             new ToolProperty(
                 name: 'sequence',
                 type: PropertyType::INTEGER,
-                description: 'Optional ordering position within the plan.',
+                description: 'Ordering position, and also what runs in parallel: tasks sharing a sequence '
+                    . 'number are worked AT THE SAME TIME, and a higher number waits until every lower one is '
+                    . 'finished. Give the same number to tasks that are independent of each other (chasing '
+                    . 'twelve different invoices), and increasing numbers when one task needs another\'s output '
+                    . '(write the client, then write the tests). Omit only when you genuinely do not know — the '
+                    . 'default makes every task wait for the one before it.',
                 required: false,
             ),
         ];

@@ -11,6 +11,8 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryArAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryBalanceSheetTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryCashPositionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDueToEmployeesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryExpenseReportTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryPnlTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryRecentExpensesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryTrialBalanceTool;
@@ -26,17 +28,8 @@ use Override;
  * The agent does NOT write to the books — no posting, no Voids, no Approves, no rate changes. CFO advice
  * is given on top of the deterministic numbers the tools return.
  *
- * Tools the agent has (9):
- *   - query_balance_sheet      → BalanceSheetRepository
- *   - query_pnl                 → ProfitAndLossRepository
- *   - query_trial_balance       → TrialBalanceRepository
- *   - query_ar_aging            → ArAgingRepository
- *   - list_overdue_invoices     → direct Invoice query (per-invoice detail aging can't give)
- *   - top_late_payers           → ArAgingRepository + ranking
- *   - query_cash_position       → AccountActivityRepository over Cash sub-types
- *   - query_recent_expenses     → direct Expense query
- *   - query_data_freshness      → meta query (must run FIRST on every turn so the agent knows how stale
- *                                  the data is before stating any number)
+ * query_data_freshness must run FIRST on every turn — the agent has to know how stale the books are
+ * before it states any number.
  *
  * Defaults to the agent's `role` JSON for system-prompt content (background/steps/output). When the agent
  * has no `role`, falls back to a hard-coded CFO-shaped prompt that emphasizes data-freshness checks.
@@ -65,6 +58,8 @@ class CFOAgent extends BaseRagAgent
             new TopLatePayersTool(),
             new QueryCashPositionTool(),
             new QueryRecentExpensesTool(),
+            new QueryDueToEmployeesTool(),
+            new QueryExpenseReportTool(),
         ]));
     }
 
@@ -88,6 +83,12 @@ class CFOAgent extends BaseRagAgent
             'For "who owes us money" / "who is late" questions, use top_late_payers or list_overdue_invoices.',
             'For "how much cash do we have", use query_cash_position — sums every active Cash-class account.',
             'For "what did we spend on lately", use query_recent_expenses with a reasonable days_back default.',
+            'For "what do we owe our own staff" / "who is waiting on a reimbursement", use query_due_to_employees. '
+            . 'That liability is Due to Employees, a separate account from Accounts Payable — never fold it into '
+            . 'AP numbers or answer it with query_ap_aging.',
+            'For "what did we spend on X last month" / an expense report for a period / the employee-paid vs '
+            . 'company-paid split, use query_expense_report. It counts approved expenses only, so say so when '
+            . 'the number looks lower than someone expects — pending claims are not in it.',
             'When the user asks about a specific date range, use the user\'s date range — never substitute today.',
         ];
 

@@ -29,13 +29,23 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
+use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist Pull Lead From CRM',
+    description: 'Brings a lead INTO Kanvas from whichever CRM this company runs, pulling the person with it '
+        . 'and opening the messaging channels. Inbound — the opposite direction to the push-lead steps. '
+        . 'It dispatches on the company\'s configured CRM, so it is the one to use when you do not want '
+        . 'to name a specific connector.',
+    integration: IntegrationsEnum::SALESASSIST,
+)]
 class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     protected ?Companies $company = null;
@@ -141,7 +151,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         $resolvedLead = match (true) {
             $isDriveCentric => $leadModel ?? null,
             $isDealerSocket => isset($people) ? LeadsRepository::getPeopleActiveLead($people) : null,
-            $isReynolds => $entity,
+            $isReynolds => $lead ?? null,
             $isVinSolutions, $isElead => isset($pullLead[0]['id'])
                 ? Lead::getByIdFromCompanyApp((int) $pullLead[0]['id'], $company, $app)
                 : null,
@@ -165,6 +175,18 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 )->execute();
 
                 new ApplyLeadClosingStatusAction($resolvedLead)->execute();
+
+                if ($resolvedLead->get('ai_mode') == null) {
+                    $resolvedLead->fireWorkflow(
+                        WorkflowEnum::TRIGGER_AI->value,
+                        true,
+                        [
+                            'app' => $resolvedLead->app,
+                            'company' => $resolvedLead->company,
+                            'trigger_type' => TriggersEnum::NEW_LEAD->value,
+                        ]
+                    );
+                }
             }
         } catch (Throwable $e) {
             report($e);

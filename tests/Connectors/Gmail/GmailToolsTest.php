@@ -12,6 +12,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReadEmailDetailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReplyToEmailTool;
 use Tests\TestCase;
 
 class GmailToolsTest extends TestCase
@@ -92,6 +93,18 @@ class GmailToolsTest extends TestCase
 
         $this->assertFalse($result['success']);
         $this->assertSame('mark_read_failed', $result['reason']);
+    }
+
+    public function test_reply_to_email_reports_no_approver_configured_when_missing(): void
+    {
+        [$app, $company] = $this->context();
+
+        $result = new ReplyToEmailTool()
+            ->withContext($app, $company, static::$cachedUser)
+            ->__invoke(message_id: 'MSG_1', note: 'Approved by Jane Doe on 2026-08-19', target_type: 'bill', target_id: 999999999);
+
+        $this->assertFalse($result['replied']);
+        $this->assertSame('no_approver_configured', $result['reason']);
     }
 
     /**

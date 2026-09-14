@@ -337,7 +337,7 @@ class UniversalSegurosProvider implements
      */
     protected function toQuoteResult(array $response): QuoteResult
     {
-        $quoteNumber = (string) ($response['numeroCotizacion'] ?? '');
+        $quoteNumber = (string) ($response['data']['numeroCotizacion'] ?? $response['numeroCotizacion'] ?? '');
         $terms = is_array($response['data']['terminos'] ?? null) ? $response['data']['terminos'] : [];
 
         $fixedPremium = $this->toFloat($terms['primaFija'] ?? null);
@@ -346,7 +346,7 @@ class UniversalSegurosProvider implements
             success: $quoteNumber !== '',
             message: $quoteNumber !== '' ? 'Quote created' : 'Universal Seguros did not return a quote number',
             quoteNumber: $quoteNumber,
-            premium: $fixedPremium ?? $this->toFloat($terms['prima'] ?? null),
+            premium: ($fixedPremium !== null && $fixedPremium > 0) ? $fixedPremium : $this->toFloat($terms['prima'] ?? null),
             ratePerKm: $fixedPremium !== null ? $this->toFloat($terms['primaKm'] ?? null) : null,
             tax: $this->toFloat($terms['impuesto'] ?? null),
             total: $this->toFloat($terms['totalCobro'] ?? null),

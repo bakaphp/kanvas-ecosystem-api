@@ -4,14 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Common;
 
+use Baka\Support\DateHelper;
 use Carbon\Carbon;
-use DateTimeZone;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
-use Throwable;
 
 #[AgentTool(name: 'Current Time', category: 'ecosystem')]
 class CurrentTimeTool extends Tool
@@ -60,20 +59,9 @@ class CurrentTimeTool extends Tool
 
     private function resolveTimezone(?string $timezone): string
     {
-        $trimmed = $timezone !== null ? trim($timezone) : '';
-        if ($trimmed === '') {
-            $trimmed = trim((string) $this->defaultTimezone);
-        }
-        if ($trimmed === '') {
-            return 'UTC';
-        }
+        $requested = trim((string) $timezone);
+        $candidate = $requested !== '' ? $requested : (string) $this->defaultTimezone;
 
-        try {
-            new DateTimeZone($trimmed);
-        } catch (Throwable) {
-            return 'UTC';
-        }
-
-        return $trimmed;
+        return DateHelper::validTimezone($candidate) ?? 'UTC';
     }
 }

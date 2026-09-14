@@ -85,8 +85,8 @@ final class LeadVariantInterestProjectionService
                     ->flatMap(fn (array $attribute): array => [$attribute['name'], $attribute['value']])
                     ->all(),
             ])
-            ->filter(fn (mixed $value): bool => trim((string) $value) !== '')
             ->map(fn (mixed $value): string => trim((string) $value))
+            ->filter(fn (string $value): bool => $value !== '')
             ->unique()
             ->implode(' ');
     }

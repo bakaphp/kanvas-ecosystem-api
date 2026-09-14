@@ -6,7 +6,10 @@ namespace Tests\Souk\Unit;
 
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderBreakdownTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderCommissionStatsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderFulfillmentStatsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderPaymentStatsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderProviderStatsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderTrendTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ParsesOrderTypesFilter;
 use NeuronAI\Tools\PropertyType;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -23,6 +26,9 @@ final class OrderReportToolSchemaTest extends TestCaseUnit
             'order_breakdown' => [OrderBreakdownTool::class],
             'order_payment_stats' => [OrderPaymentStatsTool::class],
             'order_commission_stats' => [OrderCommissionStatsTool::class],
+            'order_trend' => [OrderTrendTool::class],
+            'order_fulfillment_stats' => [OrderFulfillmentStatsTool::class],
+            'order_provider_stats' => [OrderProviderStatsTool::class],
         ];
     }
 

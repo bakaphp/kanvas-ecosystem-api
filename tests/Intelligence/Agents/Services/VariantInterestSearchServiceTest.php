@@ -30,7 +30,7 @@ class VariantInterestSearchServiceTest extends TestCase
                 ['id' => 12, 'price' => 25000, 'attributes' => ['Condition' => 'New', 'Type' => 'Truck']],
             ]);
 
-        $matches = (new VariantInterestSearchService($variantSearch))->resolve(
+        $matches = new VariantInterestSearchService($variantSearch)->resolve(
             $app,
             $company,
             'truck',
@@ -52,7 +52,7 @@ class VariantInterestSearchServiceTest extends TestCase
             1000
         )->andReturn([]);
 
-        $matches = (new VariantInterestSearchService($variantSearch))->resolve(
+        $matches = new VariantInterestSearchService($variantSearch)->resolve(
             $app,
             $company,
             '',

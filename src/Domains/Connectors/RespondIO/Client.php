@@ -28,12 +28,18 @@ class Client
         protected AppInterface $app,
         protected CompanyInterface $company
     ) {
-        $this->bearerToken = $company->get(ConfigurationEnum::BEARER_TOKEN->value)
+        // Settings round-trip through json_decode, so an all-digit token comes back as int
+        // and a token written as false/'' comes back as int 0 — both must not hit a string property.
+        $bearerToken = $company->get(ConfigurationEnum::BEARER_TOKEN->value)
             ?? $app->get(ConfigurationEnum::BEARER_TOKEN->value);
 
-        if (! $this->bearerToken) {
+        $bearerToken = is_scalar($bearerToken) ? trim((string) $bearerToken) : '';
+
+        if ($bearerToken === '' || $bearerToken === '0') {
             throw new ValidationException('Respond.io bearer token is not set.');
         }
+
+        $this->bearerToken = $bearerToken;
     }
 
     public function get(string $path, array $params = []): array

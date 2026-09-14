@@ -56,7 +56,7 @@ class TransitionOrderStateAction
         try {
             $transitioned = false;
 
-            DB::transaction(function () use ($orderStatusTransitions, $currentOrderStatus, $customDate, &$transitioned) {
+            DB::connection('commerce')->transaction(function () use ($orderStatusTransitions, $currentOrderStatus, $customDate, &$transitioned) {
                 // Lock the order row to prevent concurrent transitions
                 $locked = Order::lockForUpdate()->find($this->order->id);
 
@@ -66,19 +66,19 @@ class TransitionOrderStateAction
 
                 $transitioned = true;
 
-                // Update the order status transition
-                $current = OrderTransitionHistory::where('order_id', $this->order->id)
-                ->where('is_current', true)
-                ->first();
+                $openTransitions = OrderTransitionHistory::where('order_id', $this->order->id)
+                    ->where(
+                        fn ($query) => $query->whereNull('ended_at')->orWhere('is_current', true)
+                    )
+                    ->get();
 
-                if ($current) {
-                    $transitionDate = $customDate ? Carbon::parse($customDate) : Carbon::now();
-                    $duration = $current->changed_at->diffInSeconds($transitionDate);
+                $closedAt = $customDate ? Carbon::parse($customDate) : Carbon::now();
 
-                    $current->updateQuietly([
+                foreach ($openTransitions as $openTransition) {
+                    $openTransition->updateQuietly([
                         'is_current' => false,
-                        'ended_at' => $transitionDate,
-                        'duration_in_seconds' => $duration,
+                        'ended_at' => $closedAt,
+                        'duration_in_seconds' => $openTransition->changed_at->diffInSeconds($closedAt),
                         'ended_by' => $this->user->getId(),
                     ]);
                 }
@@ -91,8 +91,6 @@ class TransitionOrderStateAction
 
                 $this->order->updateQuietly($attributes);
 
-                // Insert into order_transitions_history
-                $transitionDate = $customDate ? Carbon::parse($customDate) : Carbon::now();
                 OrderTransitionHistory::create([
                     'apps_id' => $this->order->apps_id,
                     'companies_id' => $this->order->companies_id,
@@ -103,7 +101,7 @@ class TransitionOrderStateAction
                     'description' => 'Order status changed from ' . $currentOrderStatus->slug . ' to ' . $this->newOrderStatus->slug,
                     'metadata' => is_array($this->order->metadata) ? json_encode($this->order->metadata) : $this->order->metadata,
                     'is_current' => true,
-                    'changed_at' => $transitionDate,
+                    'changed_at' => $closedAt,
                     'changed_by' => $this->user->getId(),
                     ...$this->amountSnapshot(),
                 ]);

@@ -163,8 +163,17 @@ class InventoryAgentToolsTest extends TestCase
             ->handle(new Request(['keyword' => '']));
 
         $data = json_decode((string) $result, true);
-        $this->assertIsArray($data);
-        $this->assertContains($attribute->name, array_column($data, 'name'));
+
+        // An unfiltered call returns one page, never the whole catalog, so the row just created is
+        // only guaranteed to be counted — the tool has to say how many it left out.
+        $this->assertGreaterThanOrEqual($data['showing'], $data['total']);
+        $this->assertSame($data['showing'], count($data['attributes']));
+
+        $found = (new AttributeSearchTool())
+            ->withContext($this->kanvasApp, $company)
+            ->handle(new Request(['keyword' => $attribute->name]));
+
+        $this->assertContains($attribute->name, array_column(json_decode((string) $found, true)['attributes'], 'name'));
     }
 
     public function testAttributeSearchToolFiltersByKeyword(): void
@@ -185,9 +194,8 @@ class InventoryAgentToolsTest extends TestCase
             ->handle(new Request(['keyword' => $uniqueKey]));
 
         $data = json_decode((string) $result, true);
-        $this->assertIsArray($data);
-        $this->assertCount(1, $data);
-        $this->assertEquals($uniqueKey, $data[0]['name']);
+        $this->assertSame(1, $data['total']);
+        $this->assertEquals($uniqueKey, $data['attributes'][0]['name']);
     }
 
     public function testAttributeSearchToolReturnsNotFoundForUnknownKeyword(): void
@@ -217,8 +225,15 @@ class InventoryAgentToolsTest extends TestCase
             ->handle(new Request(['keyword' => '']));
 
         $data = json_decode((string) $result, true);
-        $this->assertIsArray($data);
-        $this->assertContains($category->name, array_column($data, 'name'));
+
+        $this->assertGreaterThanOrEqual($data['showing'], $data['total']);
+        $this->assertSame($data['showing'], count($data['categories']));
+
+        $found = (new CategorySearchTool())
+            ->withContext($this->kanvasApp, $company)
+            ->handle(new Request(['keyword' => $category->name]));
+
+        $this->assertContains($category->name, array_column(json_decode((string) $found, true)['categories'], 'name'));
     }
 
     public function testCategorySearchToolFiltersByKeyword(): void
@@ -239,9 +254,8 @@ class InventoryAgentToolsTest extends TestCase
             ->handle(new Request(['keyword' => $uniqueName]));
 
         $data = json_decode((string) $result, true);
-        $this->assertIsArray($data);
-        $this->assertCount(1, $data);
-        $this->assertEquals($uniqueName, $data[0]['name']);
+        $this->assertSame(1, $data['total']);
+        $this->assertEquals($uniqueName, $data['categories'][0]['name']);
     }
 
     public function testVariantSearchToolFindsByName(): void

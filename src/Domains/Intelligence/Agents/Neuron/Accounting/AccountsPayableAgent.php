@@ -6,24 +6,37 @@ namespace Kanvas\Intelligence\Agents\Neuron\Accounting;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AddOrganizationApproverTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CategorizeExpenseTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractExpenseReceiptTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ExtractInvoiceDataTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportVendorApproversTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryApAgingTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDataFreshnessTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryDueToEmployeesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\QueryExpenseReportTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordCompanyCardExpenseTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\RecordExpenseReimbursementTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyApPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ResendBillAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\VoidApBillTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Approvals\CheckApprovalStatusTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\DownloadAttachmentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ListEmailsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\MarkEmailAsReadTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReadEmailDetailsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Gmail\ReplyToEmailTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\AppendGoogleSheetRowsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\ClearGoogleSheetRangeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets\CreateGoogleSheetTabTool;
@@ -60,20 +73,27 @@ class AccountsPayableAgent extends SystemUserAgent
     #[Override]
     protected function tools(): array
     {
-        return array_merge(parent::tools(), $this->addToolContext([
+        $tools = array_merge(parent::tools(), $this->addToolContext([
             new QueryDataFreshnessTool(),
             new QueryApAgingTool(),
+            new QueryDueToEmployeesTool(),
+            new RecordExpenseReimbursementTool(),
+            new QueryExpenseReportTool(),
+            new CategorizeExpenseTool(),
             new ListOpenBillsTool(),
             new ListOpenPurchaseOrdersTool(),
             new FindPurchaseOrderTool(),
             new FindBillTool(),
             new FindVendorTool(),
             new MatchBillsForPaymentTool(),
+            new AddOrganizationApproverTool(),
+            new ImportVendorApproversTool(),
             new CreateApBillTool(),
             new VoidApBillTool(),
             new ApplyApPaymentTool(),
             new AddBillNoteTool(),
             new AttachBillFileTool(),
+            new ResendBillAttachmentTool(),
             new ReadGoogleSheetTool(),
             new AppendGoogleSheetRowsTool(),
             new UpdateGoogleSheetCellTool(),
@@ -83,8 +103,33 @@ class AccountsPayableAgent extends SystemUserAgent
             new ReadEmailDetailsTool(),
             new DownloadAttachmentTool(),
             new ExtractInvoiceDataTool(),
+            // The receipt half of the same job: a card slip carries no invoice number, due date or
+            // line items, so extract_invoice_data has nothing to read off it.
+            new ExtractExpenseReceiptTool(),
+            // extract_invoice_data and the inbound attachment markers both speak filesystem_id;
+            // without this the agent quotes that id at a person who then has nothing to open.
+            new GetFileLinkTool(),
             new MarkEmailAsReadTool(),
+            new ReplyToEmailTool(),
         ]));
+
+        // Read-only, so unlike approve_pending_item it is not gated on a requesting human: reporting
+        // where something stands authorizes nothing.
+        $statusUser = $this->requestingHuman() ?? $this->actingUser();
+        if ($statusUser !== null && $this->app !== null && $this->company !== null) {
+            $tools[] = new CheckApprovalStatusTool()->withContext($this->app, $this->company, $statusUser);
+        }
+
+        // approve_pending_item must authorize against the real human, not actingUser() (the agent itself on @mention/channel surfaces).
+        // record_company_card_expense sits here for the same reason from the other direction: it books company
+        // money, and this agent reads inbound email, so it must never fire on a turn no person asked for.
+        $requestingHuman = $this->requestingHuman();
+        if ($requestingHuman !== null && $this->app !== null && $this->company !== null) {
+            $tools[] = new ApprovePendingItemTool()->withContext($this->app, $this->company, $requestingHuman);
+            $tools[] = new RecordCompanyCardExpenseTool()->withContext($this->app, $this->company, $requestingHuman);
+        }
+
+        return $tools;
     }
 
     #[Override]
@@ -99,19 +144,61 @@ class AccountsPayableAgent extends SystemUserAgent
             '## How to handle Accounts-Payable questions',
             '- Call query_data_freshness first; if the sync is more than 2 days stale, say so before quoting numbers.',
             '- "What do we owe" / "how much is overdue to vendors" → query_ap_aging.',
+            '- "What do we owe our own staff" / "who is waiting on an expense reimbursement" → '
+            . 'query_due_to_employees. That money sits in Due to Employees, a different account from Accounts '
+            . 'Payable, so it is NOT part of query_ap_aging — never add the two together into one "what we owe" '
+            . 'figure, and say which of the two you are quoting.',
+            '- "We paid Juan back" / "record the reimbursement for expense X" → record_expense_reimbursement, '
+            . 'only when someone explicitly tells you the transfer already went out. It records a payment that '
+            . 'has happened; it does not move money, so never call it to promise or schedule one.',
+            '- "What did we spend on X last month" / an expense report for a period → query_expense_report '
+            . '(approved expenses only). "This one is software, not travel" → categorize_expense, which works '
+            . 'on DRAFT expenses only. Emailed and agent-filed receipts land on the Travel & Meals fallback '
+            . 'because nothing classifies them, so a report full of "travel" usually means uncategorized, not '
+            . 'a company that only travels — say so rather than reporting it at face value.',
+            '- "Book this card charge" / "expense this receipt, it went on the company Amex" → read the slip '
+            . 'with extract_expense_receipt first (extract_invoice_data is for a vendor invoice the company '
+            . 'still owes; a card receipt carries no invoice number or due date for it to find), then '
+            . 'record_company_card_expense with the amount, date and merchant it returned — never an amount '
+            . 'someone recalls while the receipt is sitting right there. It is the wrong tool the moment '
+            . 'somebody paid with their own money and wants it back — that one is theirs to file from their '
+            . 'own chat, not yours to file for them. When you report a card charge back, say it is filed and '
+            . 'awaiting approval and stop there: reimbursement, being owed and Due to Employees are how you '
+            . 'PICK between the two tools, never what you tell someone about a charge the company already '
+            . 'paid. Approval matters here beyond policy: the bank feed only recognises '
+            . 'an APPROVED expense as already on the books, so a card charge left pending gets booked a second '
+            . 'time when the statement lands.',
             '- "Which bills are outstanding" / "what\'s due soon" / a vendor\'s unpaid bills → list_open_bills '
             . '(set only_overdue for past-due focus).',
             '- "What has vendor X got on order" / matching an invoice to a PO → list_open_purchase_orders.',
             '- Resolving a vendor name off an invoice → find_vendor; if more than one candidate, confirm which.',
+            '- "Add/assign an approver for vendor X" → find_vendor first to resolve organization_id, then '
+            . 'add_organization_approver with that id and the approver\'s email. A vendor can have more than '
+            . 'one approver — this never replaces an existing one, only adds.',
+            '- If the user attaches an updated vendor/approver spreadsheet and asks to load/import it (e.g. '
+            . '"add this list", "it\'s updated now, upload it") → import_vendor_approvers with the '
+            . 'filesystem_id from the `[Attached file on this message...]` marker. Never re-type its rows by '
+            . 'hand or process it one vendor at a time — that is exactly what this tool is for. Report the '
+            . 'updated/created/unchanged counts plainly. If linked_low_confidence is non-empty, tell the user '
+            . 'plainly that those vendors were linked on a single weak match and should be double-checked, '
+            . 'listing them by name — never present them as a routine success. If ambiguous or no_email are '
+            . 'non-empty, list those vendor names too so the user knows exactly which ones still need manual '
+            . 'attention — ambiguous now only means a genuine tie between several candidates.',
             '- Lead with the headline (e.g. "Total payables: $84,200 across 12 vendors; $19,500 overdue"), then '
             . 'the top 3-5 items. Be honest about freshness; never invent precision the data lacks.',
-            '- "Create a bill for vendor X" → create_ap_bill, only when the user explicitly asks for it — it '
-            . 'writes straight to Acumatica, bypassing human approval.',
+            '- "Create a bill for vendor X" → create_ap_bill, only when the user explicitly asks for it — by '
+            . 'default it writes straight to Acumatica, bypassing human approval. Pass push_to_acumatica: false '
+            . 'only when you specifically want it to stop at pending_approval instead (e.g. the automatic '
+            . 'invoice-email flow below).',
             '- "Void/cancel/undo that bill" → void_ap_bill, given the bill_id from create_ap_bill.',
             '- "Pay a vendor bill" / "record a payment against bill Y" → apply_ap_payment, only when the user '
             . 'explicitly asks to record a real payment. Needs the bill_id, amount, and a payment reference.',
             '- "Add a note to bill Y" → add_bill_note; "attach this file to bill Y" → attach_bill_file. Both '
             . 'require the bill to already be pushed to Acumatica.',
+            '- "I didn\'t get the attachment" / "resend the invoice for bill Y" (an approver reporting a '
+            . 'missing PDF on a pending approval) → resend_bill_attachment with that bill_id. Works even before '
+            . 'the bill is pushed to Acumatica, unlike attach_bill_file. If it reports no_attachment_on_file, '
+            . 'say so plainly — there is genuinely nothing captured to resend, not a bug you can retry around.',
             '- "Read/check this Google Sheet" → read_google_sheet, given the URL the user shared. "Add these '
             . 'rows to the sheet" → write_google_sheet. "Mark that row as X in the sheet" → '
             . 'update_google_sheet_cell, only after confirming the exact cell with read_google_sheet first — '
@@ -124,24 +211,78 @@ class AccountsPayableAgent extends SystemUserAgent
             . 'file to Kanvas and returns a filesystem_id/url. The real vendor/total/dates are inside the PDF, '
             . 'never in the email body/subject — after downloading, call extract_invoice_data with the '
             . 'filesystem_id to read the amount and other fields before writing them anywhere (e.g. a sheet).',
+            '- If your own message this turn contains a line like `[Attached file on this message — '
+            . 'filesystem_id: 123, filename: "invoice.pdf"]`, someone handed you the file directly — your own '
+            . 'inbox, Slack, or this chat — rather than through the Gmail search tools. Call '
+            . 'extract_invoice_data(filesystem_id: 123) straight away, skipping '
+            . 'list_emails/read_email_details/download_attachment entirely (there is no Gmail message to look '
+            . 'up). Use that exact filesystem_id — never one from an earlier turn.',
+            '- **Never reuse a `[Attachment: ...]` description from your own chat history as if it were '
+            . 'attached to the CURRENT message.** That marker is a saved summary of a file from a *previous* '
+            . 'turn — a different invoice, even if this email looks similar (same sender, same boilerplate '
+            . 'wording, no subject). Only ever act on a filesystem_id explicitly given to you in the current '
+            . 'turn. If the current message has no attachment marker and no Gmail email to check, say plainly '
+            . 'that no attachment was provided this time — never fill the gap with a memory of an older one.',
             '- When you process an invoice email end-to-end, follow this exact order every time, without being '
             . 'asked — this is a standard step of processing an invoice email, not a separate favor: '
-            . '(1) list_emails → read_email_details → download_attachment → extract_invoice_data, to get the '
-            . 'real vendor/total/dates and the file\'s url. '
-            . '(2) create_ap_bill using that real data — this both creates the Kanvas bill and pushes it to '
-            . 'Acumatica, giving you the Kanvas bill_id and the Acumatica bill_ref. '
-            . '(3) attach_bill_file with the bill_id from step 2 and the url from step 1\'s download_attachment '
-            . '— no need to re-download or re-host the file anywhere. '
-            . '(4) write_google_sheet to log the row — range "Invoices!A1", omit sheet_url_or_id to use the '
+            . '(1) Get the real vendor/total/dates/due date and the file\'s identifier — either list_emails → '
+            . 'read_email_details → download_attachment → extract_invoice_data (Gmail), or, if this message '
+            . 'already carries a `[Attached file...]` marker, extract_invoice_data(filesystem_id) directly. '
+            . '(2) create_ap_bill with push_to_acumatica: false and source_attachment_filesystem_id set to the '
+            . 'file\'s filesystem_id from step 1, using that real data. '
+            . 'Pass due_date verbatim from extract_invoice_data\'s own due_date field when the invoice shows '
+            . 'one — never compute or guess it yourself, and never leave it out just because computing it '
+            . 'looked hard. If the invoice has more than one line item, pass all of them via the lines param, '
+            . 'each exactly as it appears on the invoice — never collapse several lines into one combined '
+            . 'total; use the singular amount/gl_account_number only for a genuinely one-line invoice. '
+            . 'Only set source_email_message_id when step 1 went through Gmail (there is no Gmail message_id '
+            . 'on the direct-inbox path — leave it out there). This creates the Kanvas bill and submits it for '
+            . 'approval (status: pending_approval), giving you the Kanvas bill_id. Do NOT push to Acumatica in '
+            . 'this flow — a human approves the bill later and the push happens as a separate, later step, not '
+            . 'something you do here. Skip attach_bill_file too — it requires the bill to already be pushed to '
+            . 'Acumatica, which hasn\'t happened yet; the file gets attached automatically at approval time '
+            . 'instead. If the result includes an attachment_warning, say so plainly in your final reply — '
+            . 'the approver will not see the invoice PDF with the approval request until this is fixed. '
+            . '(3) write_google_sheet to log the row — range "Invoices!A1", omit sheet_url_or_id to use the '
             . 'default sheet — with the ID invoice column set to the Kanvas bill_id from step 2 (NOT the '
-            . 'vendor\'s own invoice number), then [vendor_name, total, "Pending"]. '
-            . '(5) update_google_sheet_cell to flip that row\'s status column to "Approved". '
-            . '(6) mark_email_as_read on the message_id — only now, after every step above succeeded, so a '
-            . 'failed run can still be found and retried on the next "has:attachment is:unread" search. '
-            . '(7) In your final reply, always give the complete breakdown of everything that happened: Kanvas '
-            . 'bill_id, Acumatica bill_ref, vendor, invoice number, amount, GL account, subaccount, memo, '
-            . 'status, and the attached file — never a short summary, the user needs every field to look this '
-            . 'up in Acumatica and Kanvas afterward.',
+            . 'vendor\'s own invoice number), then [vendor_name, total, "Pending", "", '
+            . 'create_ap_bill\'s own approved_by_flag value verbatim] — that is columns B-F: vendor, total, '
+            . 'status, Approved Date (blank for a real approval), Approved By. approved_by_flag lands in column '
+            . 'F (Approved By), never column G (Acumatica Ref.) — count the array entries against the columns '
+            . 'before sending. approved_by_flag already carries "NOT IN APPROVER LIST" when there is no approver '
+            . 'configured, so this makes that visible directly in the sheet instead of only in your chat reply. '
+            . 'Never compose that text yourself — copy the tool\'s own value. '
+            . '(4) If step 1 went through Gmail, mark_email_as_read on the message_id now, after both steps '
+            . 'above succeeded, so a failed run can still be found and retried on the next '
+            . '"has:attachment is:unread" search. Not applicable on the direct-inbox path — skip it silently. '
+            . '(5) In your final reply, always give the complete breakdown of everything that happened so far: '
+            . 'Kanvas bill_id, vendor, invoice number, amount, GL account, subaccount, memo, and status '
+            . '(pending_approval in Kanvas / "Pending" in the sheet) — never a short summary. There is no '
+            . 'Acumatica reference yet at this stage — say so plainly rather than leaving it out; the push to '
+            . 'Acumatica happens later, once a human approves the bill.',
+            '- When someone says to approve a pending bill (e.g. "approve bill 1072") → approve_pending_item '
+            . 'with target_type: "bill" and the target_id they gave you. If it reports not_authorized, tell '
+            . 'them plainly only the approver configured for that bill\'s vendor can do this — never try to '
+            . 'work around it. If it reports no_approver_configured, tell them the vendor needs an approver '
+            . 'email set up before this bill can be approved. On success with pushed: true, do all of the '
+            . 'following before your final reply, in order: '
+            . '(1) add_bill_note on that bill_id with the evidence text "Approved by {approved_by} on '
+            . '{approved_at}". '
+            . '(2) If the result included a source_attachment_url, call attach_bill_file with that bill_id, '
+            . 'file_url, and file_name — the invoice PDF can only be attached now that the bill is actually '
+            . 'pushed to Acumatica. Skip this step silently when there is no source_attachment_url. '
+            . '(3) If the result included a source_email_message_id, call reply_to_email with that '
+            . 'message_id, target_type: "bill", target_id: the bill_id, and the same evidence text plus the '
+            . 'bill reference (e.g. "Approved by {approved_by} on {approved_at} — Bill #{bill_number}, '
+            . 'Acumatica ref {reference}."), so it lands as an internal note in the original invoice thread. '
+            . 'Skip this step silently when there is no source_email_message_id — not every bill comes from '
+            . 'an email. '
+            . '(4) read_google_sheet to find the row whose column A (ID invoice) matches this bill_id — never '
+            . 'guess the row. Then update_google_sheet_cell four times on that row: column D (Status) to '
+            . '"Approved", column E (Approved Date) to approved_at, column F (Approved By) to approved_by (the '
+            . 'approver\'s email), and column G (Acumatica Ref.) to the reference from this result. '
+            . '(5) Reply with the complete breakdown: bill_id, vendor, approved_by, approved_at, and the new '
+            . 'Acumatica reference.',
         ]);
     }
 }

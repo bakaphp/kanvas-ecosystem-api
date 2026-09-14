@@ -9,6 +9,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
+use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Override;
 
@@ -56,9 +57,11 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         $channelId = $this->hijackMessagePhone($fromEmail);
 
-        // Attachments are persisted to the message at ingest, deliberately NOT fed to the model
-        // here: an inbound email is a stored artifact, and pushing every PDF/image through the LLM
-        // on arrival is a token bill nobody asked for. The caption backfill still runs.
+        $messageConversation = AttachmentPromptBuilder::withFilesystemMarkers(
+            $messageConversation,
+            $this->message->files,
+        );
+
         $responseContent = new AgentChatKernel(
             agent: $this->agent,
             session: $this->session,
@@ -76,7 +79,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             $responseText,
             $channelId,
             $this->message,
-            $this->channel
+            $this->channel,
+            rawResponse: $responseContent
         );
 
         // Freeze the inbound subject on the outbound so SendAgentEmailAction can thread the reply
@@ -87,6 +91,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             'subject' => $this->message->message['subject'] ?? null,
             'email_message_id' => $this->message->message['email_message_id'] ?? null,
             'email_references' => $this->message->message['email_references'] ?? null,
+            'response_text' => $responseText,
         ]);
 
         if (! $messageResponse->is_locked) {

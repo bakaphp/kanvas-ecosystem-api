@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\AgentRuntime\Providers;
 
+use Kanvas\Connectors\ClaudeAgent\Providers\ClaudeProvider;
 use Kanvas\Connectors\Hermes\Providers\HermesProvider;
 use Kanvas\Connectors\OpenClaw\Providers\OpenClawProvider;
 use Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider;
@@ -19,6 +20,7 @@ final class AgentRuntimeProviderFactory
         return match ($provider) {
             AgentProviderEnum::OPENCLAW => new OpenClawProvider(),
             AgentProviderEnum::HERMES => new HermesProvider(),
+            AgentProviderEnum::CLAUDE => new ClaudeProvider(),
             default => throw new ValueError("Provider [{$provider->value}] has no runtime implementation."),
         };
     }

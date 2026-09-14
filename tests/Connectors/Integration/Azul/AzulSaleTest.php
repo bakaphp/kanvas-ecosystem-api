@@ -53,7 +53,7 @@ class AzulSaleTest extends AzulBase
         }
 
         $this->company = $this->user->getCurrentCompany();
-        $this->region  = Regions::getDefault($this->company, $this->apps);
+        $this->region = Regions::getDefault($this->company, $this->apps);
 
         $this->apps->set(ConfigurationEnum::AZUL_AUTH1->value, env('TEST_AZUL_AUTH1') ?? env('AZUL_AUTH1'));
         $this->apps->set(ConfigurationEnum::AZUL_AUTH2->value, env('TEST_AZUL_AUTH2') ?? env('AZUL_AUTH2'));
@@ -67,7 +67,7 @@ class AzulSaleTest extends AzulBase
         $this->setAllowNoPaymentStatus(true, $this->apps);
 
         $this->warehouseResponse = $this->createWarehouses((string) $this->region->getId())->json()['data']['createWarehouse'];
-        $this->channelResponse   = $this->createChannel()->json()['data']['createChannel'];
+        $this->channelResponse = $this->createChannel()->json()['data']['createChannel'];
 
         $productResponse = $this->createProduct()->json()['data']['createProduct'];
         $variant = Products::find($productResponse['id'])->variants()->first();
@@ -95,10 +95,10 @@ class AzulSaleTest extends AzulBase
     protected function getAzulCardData(): array
     {
         return [
-            'number'          => '5424180279791732',
+            'number' => '5424180279791732',
             'expiration_date' => '12/28',
-            'cvv'             => '732',
-            'processor'       => 'azul',
+            'cvv' => '732',
+            'processor' => 'azul',
         ];
     }
 
@@ -112,17 +112,17 @@ class AzulSaleTest extends AzulBase
             }
         ', [
             'input' => [
-                'cartId'           => 0,
-                'metadata'         => $metadata,
-                'customer'         => ['email' => fake()->email()],
-                'currency'         => 'USD',
+                'cartId' => 0,
+                'metadata' => $metadata,
+                'customer' => ['email' => fake()->email()],
+                'currency' => 'USD',
                 'shipping_address' => [
-                    'address'   => fake()->address(),
+                    'address' => fake()->address(),
                     'address_2' => fake()->postcode(),
-                    'city'      => fake()->city(),
-                    'state'     => fake()->state(),
+                    'city' => fake()->city(),
+                    'state' => fake()->state(),
                 ],
-                'items'      => [['variant_id' => $variantId, 'quantity' => $quantity]],
+                'items' => [['variant_id' => $variantId, 'quantity' => $quantity]],
                 'order_type' => 'order',
             ],
         ], [], [
@@ -149,9 +149,9 @@ class AzulSaleTest extends AzulBase
             }
         ', [
             'orderID' => $order->id,
-            'input'   => [
+            'input' => [
                 'payment_methods_id' => $this->azulPaymentMethod->id,
-                'payment_method'     => 'CARD',
+                'payment_method' => 'CARD',
             ],
         ], [], [
             'X-Kanvas-Location' => $this->company->branch->uuid,

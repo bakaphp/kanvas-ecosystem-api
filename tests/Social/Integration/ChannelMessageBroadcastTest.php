@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Social\Integration;
 
 use Illuminate\Broadcasting\BroadcastEvent;
+use Illuminate\Broadcasting\Channel as BroadcastChannel;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
@@ -88,6 +89,26 @@ final class ChannelMessageBroadcastTest extends TestCase
         $channel->addMessage($message, $this->actingUser);
 
         Event::assertNotDispatched(ChannelMessageCreatedEvent::class);
+    }
+
+    /** A plus-addressed sender survives the email slug, and Pusher rejects the `+` at broadcast time. */
+    public function testChannelNamesFromAPlusAddressedEmailSlugStayPusherSafe(): void
+    {
+        $channel = new Channel();
+        $channel->id = 42;
+        $channel->apps_id = $this->currentApp->getId();
+        $channel->slug = 'email-ap+caf_=acme-dot-ap-at-example-dot-com';
+
+        $names = array_map(
+            fn (BroadcastChannel $broadcastChannel): string => $broadcastChannel->name,
+            new ChannelMessageCreatedEvent($channel, new Message())->broadcastOn()
+        );
+
+        $this->assertNotEmpty($names);
+
+        foreach ($names as $name) {
+            $this->assertMatchesRegularExpression('/\A[-a-zA-Z0-9_=@,.;]+\z/', $name);
+        }
     }
 
     private function makeChannel(): Channel

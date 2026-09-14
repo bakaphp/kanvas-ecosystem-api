@@ -12,7 +12,13 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Tookan Create Delivery Task',
+    description: 'Creates the delivery task in Tookan for this order, which is what puts it in front of a '
+        . 'rider. Outbound — it dispatches a real delivery, so attach it only where fulfilment is '
+        . 'genuinely intended.',
+    integration: IntegrationsEnum::TOOKAN,
+)]
 class CreateTookanOrderActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

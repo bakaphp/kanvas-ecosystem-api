@@ -19,11 +19,18 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Services\MessageTypeService;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Twilio Delivery Status Webhook',
+    description: 'Receiver for Twilio delivery receipts: records whether a text was delivered or failed, and '
+        . 'retries the ones worth retrying. Bookkeeping for outbound texts — it does not handle inbound '
+        . 'replies.',
+    integration: IntegrationsEnum::TWILIO,
+)]
 class ProcessTwilioMessageStatusWebhookJob extends ProcessWebhookJob
 {
     private const string MESSAGE_TYPE_VERB = 'twilio-message-status';

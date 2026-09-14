@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Mailgun\Services;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
+use Kanvas\Connectors\Mailgun\Client;
 use Kanvas\Connectors\Mailgun\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Mailgun\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Mailgun\Enums\MailboxAccessEnum;
@@ -52,7 +55,7 @@ class AgentMailboxService
         $signingKey = (string) ($agent->company->get(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value)
             ?: $agent->app->get(ConfigurationEnum::WEBHOOK_SIGNING_KEY->value));
 
-        if ((string) $agent->app->get(ConfigurationEnum::API_KEY->value) === '' || $signingKey === '') {
+        if (Client::apiKeyFor($agent->app) === '' || $signingKey === '') {
             return false;
         }
 
@@ -74,12 +77,20 @@ class AgentMailboxService
     /**
      * Company config wins over app config: one Mailgun account can serve many tenants, each on its
      * own sending domain, and the address an agent hands out has to be its own company's.
+     *
+     * `services.mailgun.domain` is the last resort, for the single-domain install where the platform
+     * already sends all its mail through one Mailgun domain and copying it onto every company would
+     * be the same value in N places. It is deliberately last: the moment a tenant is given its own
+     * sending domain, that setting takes over and its agents move with it.
      */
     public function domainFor(Agent $agent): string
     {
+        // `?:` not `??`, matching the signing key above: a setting cleared to '' in the UI is absent,
+        // and `??` would keep the blank, skip both fallbacks and report nothing configured.
         $domain = strtolower(trim((string) (
             $agent->company->get(ConfigurationEnum::DOMAIN->value)
-            ?? $agent->app->get(ConfigurationEnum::DOMAIN->value)
+            ?: $agent->app->get(ConfigurationEnum::DOMAIN->value)
+            ?: config('services.mailgun.domain')
         )));
 
         if ($domain === '') {
@@ -166,16 +177,43 @@ class AgentMailboxService
      */
     public function agentAtAddress(string $address, Agent $exclude): ?Agent
     {
-        /** @var Agent|null $agent */
-        $agent = Agent::getByCustomFieldBuilderTransactionSafe(
+        return $this->lookupAgentAtAddress(
+            $exclude->app,
+            $exclude->company,
+            $address,
+            $exclude->getId()
+        );
+    }
+
+    /**
+     * The same question asked without an agent in hand — anything wiring a shared address needs to know
+     * whether it is about to take an agent's personal inbox out from under it.
+     */
+    public function agentAtAddressIn(AppInterface $app, CompanyInterface $company, string $address): ?Agent
+    {
+        return $this->lookupAgentAtAddress($app, $company, $address, null);
+    }
+
+    private function lookupAgentAtAddress(
+        AppInterface $app,
+        CompanyInterface $company,
+        string $address,
+        ?int $excludeAgentId,
+    ): ?Agent {
+        $query = Agent::getByCustomFieldBuilderTransactionSafe(
             CustomFieldEnum::MAILBOX_ADDRESS->value,
             strtolower(trim($address)),
-            $exclude->company,
+            $company,
         )
-            ->fromApp($exclude->app)
-            ->notDeleted()
-            ->where('id', '!=', $exclude->getId())
-            ->first();
+            ->fromApp($app)
+            ->notDeleted();
+
+        if ($excludeAgentId !== null) {
+            $query->where('id', '!=', $excludeAgentId);
+        }
+
+        /** @var Agent|null $agent */
+        $agent = $query->first();
 
         return $agent;
     }

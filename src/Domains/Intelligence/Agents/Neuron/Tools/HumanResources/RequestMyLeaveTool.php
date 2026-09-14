@@ -9,6 +9,8 @@ use Kanvas\HumanResources\Employees\Services\EmployeeIdentityResolver;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -26,6 +28,8 @@ class RequestMyLeaveTool extends Tool implements HasRunKey
 {
     use HandlesLeaveForTool;
     use HasKanvasContext;
+    use ReportsToolOutcome;
+    use RequiresHumanCaller;
     use TrackByInputs;
 
     public function __construct()
@@ -78,15 +82,35 @@ class RequestMyLeaveTool extends Tool implements HasRunKey
      */
     public function __invoke(string $leave_type, string $start_date, string $end_date, ?string $reason = null): array
     {
-        $employee = new EmployeeIdentityResolver()->fromUser($this->user, $this->company, $this->app);
+        $caller = $this->humanCallerOrDenial(
+            'request time off',
+            'Say plainly that NO request was filed.',
+            ['created' => false],
+        );
 
-        if (! $employee instanceof Employee) {
-            return [
-                'created' => false,
-                'message' => 'You are not set up as an employee yet — ask HR to add you.',
-            ];
+        if (is_array($caller)) {
+            return $caller;
         }
 
-        return $this->submitLeaveRequest($employee, $employee->user ?? $this->user, $leave_type, $start_date, $end_date, $reason);
+        $employee = new EmployeeIdentityResolver()->fromUser($caller, $this->company, $this->app);
+
+        if (! $employee instanceof Employee) {
+            return $this->notFound(
+                [
+                    'created' => false,
+                    'status' => 'not_employee',
+                ],
+                guidance: 'They are not set up as an employee yet — tell them to ask HR to add them.',
+            );
+        }
+
+        return $this->submitLeaveRequest(
+            $employee,
+            $employee->user ?? $caller,
+            $leave_type,
+            $start_date,
+            $end_date,
+            $reason,
+        );
     }
 }

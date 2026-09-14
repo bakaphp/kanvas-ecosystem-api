@@ -75,6 +75,7 @@ class FindInvoiceTool extends Tool implements HasRunKey
 
         return [
             'found' => true,
+            'invoice_id' => $invoice->getId(),
             'invoice_number' => $invoice->invoice_number,
             'customer' => $invoice->billable_display_name,
             'document_status' => $invoice->document_status->value,

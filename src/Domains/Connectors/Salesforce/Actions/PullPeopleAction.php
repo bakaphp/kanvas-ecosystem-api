@@ -12,6 +12,7 @@ use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Customers\Models\PeopleType;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Spatie\LaravelData\DataCollection;
 
@@ -39,6 +40,14 @@ class PullPeopleAction
             $contacts[] = ['value' => $this->payload['Phone'], 'contacts_types_id' => 2, 'weight' => 0];
         }
 
+        // Only resolved when the Contact doesn't exist yet — UpdatePeopleAction overwrites
+        // people_types_id whenever the DTO carries a non-null value, so passing the default on
+        // every sync would clobber a type a user already changed by hand in the UI.
+        $isNewPeople = People::getByCustomField(CustomFieldEnum::SALESFORCE_CONTACT_ID->value, $this->salesforceId, $this->company) === null;
+        $defaultPeopleTypeId = $isNewPeople
+            ? PeopleType::query()->fromApp($this->app)->fromCompany($this->company)->where('is_default', 1)->notDeleted()->first()?->getId()
+            : null;
+
         $peopleData = new PeopleData(
             app: $this->app,
             branch: $branch,
@@ -50,6 +59,7 @@ class PullPeopleAction
             custom_fields: [
                 CustomFieldEnum::SALESFORCE_CONTACT_ID->value => $this->salesforceId,
             ],
+            people_type_id: $defaultPeopleTypeId,
             runWorkflow: false,
             // Matching is already handled above by Salesforce Contact Id — a shared phone/email
             // with an unrelated existing People is a duplicate for the merge/dedup flow to catch,

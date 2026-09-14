@@ -55,6 +55,26 @@ These are the rules that keep the books coherent. Read §7 of the plan doc for t
 - **Payments live in Souk** (`Souk.Payments` polymorphic via `payable_type`/`payable_id`). Scribe's `Invoice` and `Bill` implement `Baka\Contracts\PayableInterface` (extracted in PR -1). `accounting.invoice_payment_allocations` maps one Souk payment to N invoices/bills.
 - **Stripe lives in `Connectors/Stripe/`, ALWAYS.** No in-Scribe Stripe handlers, period. When Scribe needs Stripe (tenant AR via Stripe Billing), the work goes in `Connectors/Stripe/` and calls Scribe's public `*FromExternal` Actions.
 - **Items (`accounting.items`) live in Scribe** with a nullable `inventory_variant_id` FK to `inventory.variants.id`. Variant — not Product, because you sell the variant. Pure-service items have `inventory_variant_id=NULL`. Each domain owns its own fields; no auto-sync in either direction except one-time creation observers.
+- **Document PDFs live in `Scribe/Documents/`.** `DocumentPdfService` renders an Invoice **or** a Quote
+  through one shared Blade layout (`resources/views/pdf/scribe-document.blade.php`) and attaches the file
+  to the document (`invoice_pdf` / `quote_pdf` field names). A tenant overrides the layout by pointing
+  `Scribe\Documents\Enums\ConfigurationEnum::{INVOICE,QUOTE}_PDF_TEMPLATE` at a stored template name —
+  that path goes through `RenderTemplateAction`, so the template is Blade with the same view data.
+  One service, not two: the documents differ only in title, number field, due-vs-valid-until and
+  amount-paid, and two layouts would drift. **Rendering is not sending** — nothing emails a document; the
+  outbound flow (PR 7) stays out of scope on purpose.
+- **Every primary document exposes `files`.** Bill, Invoice, Quote, Expense, SalesReceipt and Payment all
+  carry Kanvas Filesystem attachments (the source invoice PDF an AP/AR agent was handed, a rendered
+  `invoice_pdf` / `quote_pdf`, a receipt, a remittance) and all expose them as `files: [Filesystem!]!
+  @cacheRedis @paginate(builder: FilesystemQuery@getFileByGraphType)`. Third-party files are **never**
+  stashed as a custom-field URL — that was the pre-2026-09 shape and only `ApprovalCustomFieldEnum`'s
+  two legacy cases still read it. Wiring a new document for files means all four of: `HasLightHouseCache`
+  on the model, `getGraphTypeName()` returning the GraphQL type name, `#[ObservedBy([ClearsLightHouseCacheObserver::class])]`
+  (one shared observer for the whole domain — do not add a per-model copy), and the schema field. Miss the
+  trait and `@cacheRedis` serves the pre-upload payload forever. Guarded by
+  `ScribeGraphQLSurfaceTest::test_every_scribe_document_exposing_files_is_wired_for_cache_invalidation`.
+  `JournalEntry` is deliberately out — it extends `EloquentModel` directly, not the Scribe `BaseModel`,
+  so it has no `HasFilesystemTrait`; `PurchaseOrder` and `BankTransaction` have no GraphQL type at all yet.
 - **Regional compliance** (NCF for DR, CFDI for MX, NFE for BR, …) lives in a single `regional_compliance` JSON column on invoices/bills/quotes/sales_receipts, validated by per-country validator services in `Scribe/Regional/Validators/{Country}/{Code}Validator`. NOT custom fields (those are tenant-choice extensions); NOT dedicated DR-only columns (schema bloat).
 
 ## What's NOT in Scribe (and why)

@@ -18,6 +18,7 @@ use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderStatusTransitions;
 use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
@@ -260,20 +261,7 @@ final class AmendOrderTest extends TestCase
                 ->create(['region_id' => $region->getId(), 'people_id' => $person->id, 'order_number' => 99905])
         );
 
-        // Payment linked to the wrong order
-        $payment = new Payments();
-        $payment->apps_id = $this->kanvasApp->getId();
-        $payment->companies_id = $company->getId();
-        $payment->users_id = $this->kanvasUser->getId();
-        $payment->amount = 4000;
-        $payment->currency = 'DOP';
-        $payment->payment_date = now()->toDateString();
-        $payment->concept = 'Pago orden equivocada';
-        $payment->status = 'paid';
-        $payment->payment_method = 'cash';
-        $payment->payable_id = $wrongOrder->id;
-        $payment->payable_type = Order::class;
-        $payment->save();
+        $payment = $this->createPaymentFor($wrongOrder);
 
         $response = $this->graphQL('
             mutation($order_id: ID!, $data: Mixed) {
@@ -309,6 +297,74 @@ final class AmendOrderTest extends TestCase
         $this->assertEmpty($wrongOrder->payments()->where('uuid', $payment->uuid)->get());
         $wrongOrder->refresh();
         $this->assertSame('unpaid', $wrongOrder->payment_status);
+    }
+
+    public function testAmendOrderAssociatePaymentSetsSourceOrderToPendingWhenPaymentsRemain(): void
+    {
+        $company = $this->kanvasUser->getCurrentCompany();
+        $region = Regions::getDefault($company, $this->kanvasApp);
+
+        $person = People::withoutSyncingToSearch(
+            fn () => People::factory()
+                ->withAppId($this->kanvasApp->getId())
+                ->withCompanyId($company->getId())
+                ->create()
+        );
+
+        $wrongOrder = Order::withoutSyncingToSearch(
+            fn () => Order::factory()
+                ->withAppId($this->kanvasApp->getId())
+                ->withCompanyId($company->getId())
+                ->withUserId($this->kanvasUser->getId())
+                ->create(['region_id' => $region->getId(), 'people_id' => $person->id, 'order_number' => 99920])
+        );
+
+        $wrongOrder->updateQuietly(['payment_status' => PaymentStatusEnum::PAID->value]);
+
+        $correctOrder = Order::withoutSyncingToSearch(
+            fn () => Order::factory()
+                ->withAppId($this->kanvasApp->getId())
+                ->withCompanyId($company->getId())
+                ->withUserId($this->kanvasUser->getId())
+                ->create(['region_id' => $region->getId(), 'people_id' => $person->id, 'order_number' => 99921])
+        );
+
+        $transferredPayment = $this->createPaymentFor(
+            $wrongOrder,
+            PaymentStatusEnum::PAID->value,
+            'Pago orden equivocada'
+        );
+
+        // The source order keeps a second, still-pending payment after the transfer, so the revert
+        // recomputes it to `pending` instead of `unpaid`.
+        $this->createPaymentFor(
+            $wrongOrder,
+            PaymentStatusEnum::PENDING->value,
+            'Pago pendiente que se queda'
+        );
+
+        $response = $this->graphQL('
+            mutation($order_id: ID!, $data: Mixed) {
+                amendOrder(
+                    order_id: $order_id
+                    correction_type: "associate-payment"
+                    reason: "Pago registrado en orden incorrecta"
+                    data: $data
+                ) { id }
+            }
+        ', [
+            'order_id' => $correctOrder->id,
+            'data' => ['payment_uuid' => $transferredPayment->uuid],
+        ]);
+
+        $response->assertSuccessful();
+
+        if ($response->json('errors')) {
+            $this->fail('GraphQL errors: ' . json_encode($response->json('errors')));
+        }
+
+        $wrongOrder->refresh();
+        $this->assertSame(PaymentStatusEnum::PENDING->value, $wrongOrder->payment_status);
     }
 
     public function testAmendOrderAssociatePaymentTransitionsReceivingOrderToPaid(): void
@@ -381,19 +437,7 @@ final class AmendOrderTest extends TestCase
                 ->create(['region_id' => $region->getId(), 'people_id' => $person->id, 'order_number' => 99909])
         );
 
-        $payment = new Payments();
-        $payment->apps_id = $this->kanvasApp->getId();
-        $payment->companies_id = $company->getId();
-        $payment->users_id = $this->kanvasUser->getId();
-        $payment->amount = 4000;
-        $payment->currency = 'DOP';
-        $payment->payment_date = now()->toDateString();
-        $payment->concept = 'Pago orden equivocada';
-        $payment->status = 'paid';
-        $payment->payment_method = 'cash';
-        $payment->payable_id = $wrongOrder->id;
-        $payment->payable_type = Order::class;
-        $payment->save();
+        $payment = $this->createPaymentFor($wrongOrder);
 
         $response = $this->graphQL('
             mutation($order_id: ID!, $data: Mixed) {
@@ -499,19 +543,7 @@ final class AmendOrderTest extends TestCase
                 ->create(['region_id' => $region->getId(), 'people_id' => $person->id, 'order_number' => 99907])
         );
 
-        $payment = new Payments();
-        $payment->apps_id = $this->kanvasApp->getId();
-        $payment->companies_id = $company->getId();
-        $payment->users_id = $this->kanvasUser->getId();
-        $payment->amount = 4000;
-        $payment->currency = 'DOP';
-        $payment->payment_date = now()->toDateString();
-        $payment->concept = 'Pago orden equivocada';
-        $payment->status = 'paid';
-        $payment->payment_method = 'cash';
-        $payment->payable_id = $wrongOrder->id;
-        $payment->payable_type = Order::class;
-        $payment->save();
+        $payment = $this->createPaymentFor($wrongOrder);
 
         $response = $this->graphQL('
             mutation($order_id: ID!, $data: Mixed) {
@@ -716,5 +748,24 @@ final class AmendOrderTest extends TestCase
                 ->where('variant_id', $newVariant->id)
                 ->exists()
         );
+    }
+
+    private function createPaymentFor(Order $order, string $status = PaymentStatusEnum::PAID->value, string $concept = 'Pago orden equivocada'): Payments
+    {
+        $payment = new Payments();
+        $payment->apps_id = $this->kanvasApp->getId();
+        $payment->companies_id = $this->kanvasUser->getCurrentCompany()->getId();
+        $payment->users_id = $this->kanvasUser->getId();
+        $payment->amount = 4000;
+        $payment->currency = 'DOP';
+        $payment->payment_date = now()->toDateString();
+        $payment->concept = $concept;
+        $payment->status = $status;
+        $payment->payment_method = 'cash';
+        $payment->payable_id = $order->id;
+        $payment->payable_type = Order::class;
+        $payment->save();
+
+        return $payment;
     }
 }

@@ -12,7 +12,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WordPress\Actions\DownloadInventoryAction;
 use Kanvas\Connectors\WordPress\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
-use phpseclib3\Net\SFTP;
+use phpseclib4\Net\SFTP;
+use RuntimeException;
 use Throwable;
 
 class DownloadWordPressInventoryCommand extends Command
@@ -238,7 +239,11 @@ class DownloadWordPressInventoryCommand extends Command
 
         $remoteRoot = rtrim($root, '/');
         if ($remoteRoot !== '' && ! $sftp->is_dir($remoteRoot)) {
-            $sftp->mkdir($remoteRoot, -1, true);
+            try {
+                $sftp->mkdir($remoteRoot, -1, true);
+            } catch (RuntimeException $e) {
+                $this->error("  Could not create remote directory: {$remoteRoot} - " . $e->getMessage());
+            }
         }
 
         $uploaded = 0;
@@ -248,11 +253,13 @@ class DownloadWordPressInventoryCommand extends Command
 
             $this->info("  Uploading: {$remoteName}");
 
-            if ($sftp->put($remotePath, $localPath, SFTP::SOURCE_LOCAL_FILE)) {
+            // phpseclib4 dropped getLastSFTPError(); a failed put() throws instead of returning false.
+            try {
+                $sftp->put($remotePath, $localPath, SFTP::SOURCE_LOCAL_FILE);
                 $uploaded++;
                 $this->info("  Uploaded: {$remoteName}");
-            } else {
-                $this->error("  Failed to upload: {$remoteName} - " . $sftp->getLastSFTPError());
+            } catch (RuntimeException $e) {
+                $this->error("  Failed to upload: {$remoteName} - " . $e->getMessage());
             }
         }
 

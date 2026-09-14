@@ -37,6 +37,7 @@ use NeuronAI\Chat\Messages\ContentBlocks\AudioContent;
 use NeuronAI\Chat\Messages\ContentBlocks\FileContent;
 use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
 use NeuronAI\Chat\Messages\UserMessage;
+use Tests\Stubs\Intelligence\BoardPostingSystemUserAgentStub;
 use Tests\Stubs\Intelligence\CapturingNeuronProvider;
 use Tests\Stubs\Intelligence\CapturingSystemUserAgentStub;
 use Tests\Stubs\Intelligence\SystemUserAgentStub;
@@ -117,6 +118,7 @@ class RespondToMentionJobTest extends TestCase
         string $content,
         ?int $parentId = null,
         bool $fromIa = false,
+        bool $fromAgent = false,
     ): Message {
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
@@ -127,7 +129,8 @@ class RespondToMentionJobTest extends TestCase
                 company: $company,
                 user: $author,
                 type: MessageTypeService::getOrCreate($app, 'note'),
-                message: ['content' => $content, 'from_ia' => $fromIa],
+                // `from_agent` is what a board tool stamps; `from_ia` is what a turn reply stamps.
+                message: ['content' => $content, 'from_ia' => $fromIa, 'from_agent' => $fromAgent],
                 parent_id: $parentId,
                 is_public: 1,
             ),
@@ -180,9 +183,47 @@ class RespondToMentionJobTest extends TestCase
         $this->assertTrue((bool) ($reply->getMessage()['from_ia'] ?? false));
     }
 
-    public function testMentioningUserIsNotifiedWhenTheAgentReplies(): void
+    /**
+     * One turn is one message here too.
+     *
+     * An agent can answer with a board tool mid-turn and then have its reply posted to the same
+     * channel — on plan 26531 that was two messages three seconds apart, the second restating the
+     * first. The project and worker wakes were already guarded; this path was the one left.
+     */
+    public function testTheReplyIsSkippedWhenTheAgentAlreadyPostedDuringTheTurn(): void
     {
         $human = auth()->user();
+        $agentUser = $this->makeAgentUser('InventoryBot');
+        $agent = $this->makeAgent($agentUser);
+
+        $channel = $this->makeChannel($human);
+        $mention = $this->makeMessage($human, 'hey @InventoryBot can you help with this');
+        $channel->addMessage($mention, $human);
+
+        // The agent answers on the board mid-turn, as one holding a board tool does. Posting it before
+        // the run would just be history — the duplicate only exists in this ordering.
+        $agent->type->handler = BoardPostingSystemUserAgentStub::class;
+        $agent->type->saveQuietly();
+        BoardPostingSystemUserAgentStub::$postToChannelId = (int) $channel->getId();
+
+        try {
+            new RespondToMentionJob($agent->refresh(), $mention)->handle();
+        } finally {
+            BoardPostingSystemUserAgentStub::$postToChannelId = null;
+        }
+
+        $this->assertNull(
+            Message::where('parent_id', $mention->getId())->latest('id')->first(),
+            'The comment is the answer — the turn must not restate it.',
+        );
+    }
+
+    public function testMentioningUserIsNotifiedWhenTheAgentReplies(): void
+    {
+        // A human of its own, not the shared acting user: the notify path only fires when the
+        // mentioner resolves to no Agent, and any earlier test that hangs an agent off the acting
+        // user turns this human into one — the reply is then routed as an agent wake instead.
+        $human = $this->registerFreshUser();
         $agentUser = $this->makeAgentUser('InventoryBot');
         $agent = $this->makeAgent($agentUser);
 
@@ -595,6 +636,56 @@ class RespondToMentionJobTest extends TestCase
             RespondToMentionJob::class,
             static fn (RespondToMentionJob $job): bool => $job->delay === null,
         );
+    }
+
+    /**
+     * An AP/AR agent @mentioned with an invoice needs the file's filesystem_id, not just its bytes:
+     * create_ap_bill, extract_invoice_data and attach_bill_file all key on the id. Without the marker
+     * the agent can read the PDF and still not book it.
+     */
+    public function testMentionedFileReachesTheAgentAsAFilesystemId(): void
+    {
+        CapturingNeuronProvider::$lastMessages = [];
+
+        $human = auth()->user();
+        $agentUser = $this->makeAgentUser('BookkeeperBot');
+        $agent = $this->makeCapturingAgent($agentUser);
+
+        $channel = $this->makeChannel($human);
+        $mention = $this->makeMessage($human, '@BookkeeperBot please book this invoice');
+        $channel->addMessage($mention, $human);
+
+        $file = $this->makeFilesystemRow('vendor-invoice.pdf');
+        $mention->addFile($file, 'attachment-1');
+
+        new RespondToMentionJob($agent, $mention->fresh())->handle();
+
+        $prompt = '';
+        foreach (CapturingNeuronProvider::$lastMessages as $message) {
+            $prompt .= ' ' . (string) $message->getContent();
+        }
+
+        $this->assertStringContainsString('filesystem_id: ' . $file->getId(), $prompt);
+        $this->assertStringContainsString('"vendor-invoice.pdf"', $prompt);
+    }
+
+    private function makeFilesystemRow(string $name): Filesystem
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $row = new Filesystem();
+        $row->apps_id = $app->getId();
+        $row->companies_id = $user->getCurrentCompany()->getId();
+        $row->users_id = $user->getId();
+        $row->name = $name;
+        $row->path = 'mentions/' . uniqid('', true) . '-' . $name;
+        $row->url = 'https://example.test/' . $row->path;
+        $row->size = '2048';
+        $row->file_type = 'pdf';
+        $row->saveOrFail();
+
+        return $row;
     }
 
     private function makeCapturingAgent(Users $agentUser): Agent

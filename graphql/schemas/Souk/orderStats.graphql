@@ -147,6 +147,7 @@ input OrderStatsInput {
     finalStates: [String!]
     currentCountStates: [String!]
     productId: Int # Filter by product ID (orders containing variants of this product)
+    variantId: Int # Filter by a single variant (e.g. one impound center); takes precedence over productId
     productTypeSlugs: [String!] # Filter services by product type slugs (e.g., ["service", "accessory"])
     orderTypeNames: [String!] # Filter by order type names (e.g., ["parking", "reservation"])
     date: String # single date (e.g., "2025-07-07")

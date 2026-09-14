@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Observers;
 
 use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\Agents\Actions\ReconcileAgentKanvasModulesAction;
+use Kanvas\Intelligence\Agents\Actions\RecordAgentVersionAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Throwable;
@@ -30,6 +31,44 @@ class AgentObserver
         }
     }
 
+    /** `updating`, not `updated`: after the write the wording being replaced is already gone. */
+    public function updating(Agent $agent): void
+    {
+        $replaced = [];
+
+        foreach (Agent::PROMPT_FIELDS as $field) {
+            if ($agent->isDirty($field)) {
+                $replaced[$field] = $agent->getOriginal($field);
+            }
+        }
+
+        if ($replaced === []) {
+            return;
+        }
+
+        try {
+            $agent->lastRecordedVersion = new RecordAgentVersionAction(
+                $agent,
+                $replaced,
+                $agent->versionChangeReason ?? $this->describeChange($replaced),
+                $agent->versionEditedByUserId,
+            )->execute();
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        $agent->versionChangeReason = null;
+        $agent->versionEditedByUserId = null;
+    }
+
+    /**
+     * @param array<string, mixed> $replaced
+     */
+    private function describeChange(array $replaced): string
+    {
+        return 'Changed ' . implode(', ', array_keys($replaced));
+    }
+
     public function saving(Agent $agent): void
     {
         $this->syncLegacyRole($agent);
@@ -37,12 +76,7 @@ class AgentObserver
 
     public function updated(Agent $agent): void
     {
-        $workspaceFields = [
-            'soul', 'instructions', 'identity', 'user_context',
-            'output_format', 'role',
-        ];
-
-        if (! $agent->wasChanged($workspaceFields)) {
+        if (! $agent->wasChanged(Agent::PROMPT_FIELDS)) {
             return;
         }
 

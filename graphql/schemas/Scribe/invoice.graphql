@@ -79,6 +79,12 @@ type ScribeInvoice {
         @hasMany(relation: "allocations")
     parent_invoice: ScribeInvoice @belongsTo(relation: "parentInvoice")
     credit_notes: [ScribeInvoice!]! @hasMany(relation: "creditNotes")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     created_at: DateTime!
     updated_at: DateTime!
 }
@@ -279,5 +285,10 @@ extend type Mutation @guard {
     ): ScribeInvoice!
         @field(
             resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@amend"
+        )
+    "Renders the invoice as a PDF and attaches it to the invoice. template_name overrides the default layout."
+    generateScribeInvoicePdf(id: ID!, template_name: String): Filesystem!
+        @field(
+            resolver: "App\\GraphQL\\Scribe\\Mutations\\Invoices\\InvoiceMutation@generatePdf"
         )
 }

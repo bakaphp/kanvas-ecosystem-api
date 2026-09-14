@@ -70,6 +70,34 @@ class ExtractInvoiceDataToolTest extends TestCase
     }
 
     /**
+     * filesystem_id is an LLM-supplied integer, so a hallucinated or prompt-injected id must resolve
+     * to nothing rather than to another company's invoice. Scoping by apps_id alone left every
+     * multi-company app one wrong number away from reading a neighbour's document.
+     */
+    public function test_a_file_from_another_company_in_the_same_app_does_not_resolve(): void
+    {
+        [$app, $company] = $this->context();
+
+        $foreign = new Filesystem();
+        $foreign->apps_id = $app->getId();
+        $foreign->companies_id = Companies::factory()->create()->getId();
+        $foreign->users_id = static::$cachedUser->getId();
+        $foreign->name = 'their-invoice.pdf';
+        $foreign->path = 'their-invoice.pdf';
+        $foreign->url = 'https://cdn.example.com/their-invoice.pdf';
+        $foreign->size = '1024';
+        $foreign->file_type = 'application/pdf';
+        $foreign->saveOrFail();
+
+        $result = new ExtractInvoiceDataTool()
+            ->withContext($app, $company, static::$cachedUser)
+            ->__invoke(filesystem_id: $foreign->getId());
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('file_not_found', $result['reason']);
+    }
+
+    /**
      * @return array{0: Apps, 1: Companies}
      */
     private function context(): array

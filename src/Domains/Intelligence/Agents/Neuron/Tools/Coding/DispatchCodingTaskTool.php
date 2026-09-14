@@ -29,7 +29,12 @@ class DispatchCodingTaskTool extends Tool
                 . 'choose the repository URL or provide any credentials — pick a repository by its slug from your '
                 . 'allow-list (the GitHub token is supplied for you). The job runs asynchronously; this returns a '
                 . 'job id you can pass to check_coding_job_status. Describe the task clearly and completely — the '
-                . 'coding agent cannot ask you follow-up questions.',
+                . 'coding agent cannot ask you follow-up questions. '
+                . 'Pick this one when the change is self-contained inside a single repository. It works from the '
+                . 'repository alone: it cannot call Kanvas tools while it runs, is not graded against acceptance '
+                . 'criteria, and returns only a pull request. If the work needs live Kanvas data mid-task, has '
+                . 'checkable acceptance criteria, spans more than one repository, or should hand back a produced '
+                . 'file, a hosted long-task dispatcher is the better fit where you have one.',
         );
     }
 

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Knowledge;
 
 use Illuminate\Support\Facades\Bus;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadVariantInterest;
 use Kanvas\Guild\Leads\Observers\LeadVariantInterestObserver;
 use Kanvas\Intelligence\Knowledge\Jobs\ReindexLeadVariantInterestJob;
@@ -20,17 +19,11 @@ class VariantInterestIndexingTest extends TestCase
     {
         Bus::fake();
 
-        $lead = new Lead([
-            'apps_id' => 11,
-            'companies_id' => 22,
-        ]);
-        $lead->id = 55;
         $interest = new LeadVariantInterest([
             'apps_id' => 11,
             'companies_id' => 22,
             'leads_id' => 55,
         ]);
-        $interest->setRelation('lead', $lead);
 
         new LeadVariantInterestObserver()->saved($interest);
 

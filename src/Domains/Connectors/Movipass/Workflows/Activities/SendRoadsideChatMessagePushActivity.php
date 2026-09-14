@@ -20,7 +20,11 @@ use Kanvas\Workflow\KanvasActivity;
  * Message + `created` is unreliable here — on the distribution path it fires before the message
  * is attached to a channel, so the recipient list is empty.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Movipass Roadside Chat Push',
+    description: 'Sends a push notification for a roadside-assistance chat message so the driver sees it. This '
+        . 'REACHES the customer\'s device.',
+)]
 class SendRoadsideChatMessagePushActivity extends KanvasActivity
 {
     public $tries = 2;

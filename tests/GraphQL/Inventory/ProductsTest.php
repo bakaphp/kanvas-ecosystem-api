@@ -88,6 +88,41 @@ class ProductsTest extends TestCase
         );
     }
 
+    public function testSortByAttributesWithDefaultSortAndFormat(): void
+    {
+        $attributeName = fake()->name;
+        $data = [
+            'name' => fake()->name,
+            'description' => fake()->text,
+            'sku' => fake()->unique()->uuid(),
+            'attributes' => [
+                [
+                    'name' => $attributeName,
+                    'value' => 0,
+                ],
+            ],
+        ];
+
+        $this->createProduct($data);
+
+        $response = $this->graphQL(
+            "
+            query {
+                products(attributeOrderBy: { name: \"$attributeName\" }) {
+                    data {
+                        name
+                    }
+                }
+            }"
+        );
+
+        $response->assertSuccessful();
+        $this->assertTrue(
+            collect($response->json('data.products.data'))->contains('name', $data['name']),
+            'Created product should appear when sort and format are omitted'
+        );
+    }
+
     public function testSortByVariantAttributes(): void
     {
         $attributeName = fake()->name;

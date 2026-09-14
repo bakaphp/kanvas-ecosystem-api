@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CreateNervousSystemPla
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\DeleteNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\FindAndAddNervousSystemMemberTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\MoveNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemPlanTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemProjectTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\UpdateNervousSystemTaskStatusTool;
@@ -45,6 +46,7 @@ class NervousSystemAgentToolsTest extends TestCase
             new DeleteNervousSystemPlanTool(),
             new DeleteNervousSystemTaskTool(),
             new FindAndAddNervousSystemMemberTool(),
+            new MoveNervousSystemPlanTool(),
             new UpdateNervousSystemPlanTool(),
             new UpdateNervousSystemProjectTool(),
             new UpdateNervousSystemTaskStatusTool(),

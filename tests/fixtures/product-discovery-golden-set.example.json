@@ -1,0 +1,41 @@
+{
+  "_readme": [
+    "Copy this file, replace the ids with real ones from the catalog you are tuning, and point",
+    "the evaluate command at it with --file. Product ids are tenant-specific, so this example",
+    "is never run directly.",
+    "",
+    "How to judge a case: run the query, look at what a human would call a good gift for that",
+    "request, and list those product ids. 10-20 well-judged cases already tell you whether a",
+    "prompt change helped; ~100 makes the number stable enough to trust small differences.",
+    "",
+    "Include the failures on purpose — queries that return nothing today are the ones a better",
+    "blurb should fix, and they are invisible if the set only contains easy wins."
+  ],
+  "cases": [
+    {
+      "query": "Recomiendame un regalo para una mujer de 32 años, creativa y amante del diseño y el café",
+      "relevant_product_ids": [101, 102, 103],
+      "note": "Persona-style request with no product noun — the case the semantic profile exists for."
+    },
+    {
+      "query": "algo para mi hermano de 25 que le gustan las cosas caras",
+      "relevant_product_ids": [201, 202],
+      "note": "Vague premium signal, no explicit number."
+    },
+    {
+      "query": "un regalo para mi mamá en su cumpleaños, menos de $50",
+      "relevant_product_ids": [301, 302, 303],
+      "note": "Budget must become a real filter — nothing over $50 should appear."
+    },
+    {
+      "query": "a gift for a coworker who likes coffee, under $30",
+      "relevant_product_ids": [301, 401],
+      "note": "English against a Spanish catalog — cross-language retrieval."
+    },
+    {
+      "query": "reloj",
+      "relevant_product_ids": [201],
+      "note": "Bare product noun — must still work when the shopper types like a search box."
+    }
+  ]
+}

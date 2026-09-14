@@ -13,7 +13,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Add Kanvas Chat Link Note To DealerSocket',
+    description: 'Writes a note on the DealerSocket lead containing a deep link back to the Kanvas '
+        . 'conversation, so CRM users can click through to the full thread.',
+    integration: IntegrationsEnum::DEALERSOCKET,
+)]
 class AddLeadKanvasChatLinkNoteActivity extends KanvasActivity
 {
     public $tries = 1;

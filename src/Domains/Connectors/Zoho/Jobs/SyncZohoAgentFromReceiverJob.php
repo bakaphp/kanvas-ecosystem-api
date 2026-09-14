@@ -6,11 +6,16 @@ namespace Kanvas\Connectors\Zoho\Jobs;
 
 use Kanvas\Connectors\Zoho\Actions\SyncZohoAgentAction;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Zoho Sync Agent Webhook',
+    description: 'Receiver that pulls a Zoho agent (salesperson) record into Kanvas. Inbound one-way.',
+    integration: IntegrationsEnum::ZOHO,
+)]
 class SyncZohoAgentFromReceiverJob extends ProcessWebhookJob
 {
     #[Override]

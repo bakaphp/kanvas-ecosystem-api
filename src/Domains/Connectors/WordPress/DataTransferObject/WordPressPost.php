@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\WordPress\DataTransferObject;
 
 use Illuminate\Support\Str;
 use Kanvas\Connectors\WordPress\Enums\PostStatusEnum;
+use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Social\Messages\Models\Message;
 
 /**
@@ -29,6 +30,7 @@ class WordPressPost
         public readonly array $categories = [],
         public readonly array $tags = [],
         public readonly ?string $featuredImageUrl = null,
+        public readonly ?string $videoUrl = null,
         public readonly array $attachmentUrls = [],
         public readonly array $meta = [],
         public readonly ?string $commentStatus = null,
@@ -40,17 +42,24 @@ class WordPressPost
     }
 
     /**
-     * @param array<string, mixed> $defaults workflow-rule params + connector config, lowest precedence
+     * @param array<string, mixed> $defaults  workflow-rule params + connector config, lowest precedence
+     * @param array<string, mixed> $overrides editorial policy the message may not override — see
+     *                                        PushMessageToWordPressAction::statusOverride()
      */
-    public static function fromMessage(Message $message, array $defaults = []): self
-    {
+    public static function fromMessage(
+        Message $message,
+        array $defaults = [],
+        array $overrides = []
+    ): self {
         $body = $message->getMessage();
         $nested = is_array($body['wordpress'] ?? null) ? $body['wordpress'] : [];
 
         $data = array_merge(
             self::onlyPostKeys($defaults),
             self::onlyPostKeys($body),
+            self::onlyPostKeys(self::agentEnvelope($body)),
             self::onlyPostKeys($nested),
+            self::onlyPostKeys($overrides),
         );
 
         $content = self::resolveContent(
@@ -79,6 +88,7 @@ class WordPressPost
             categories: self::terms($data['categories'] ?? null) ?: $message->categories->pluck('name')->all(),
             tags: self::terms($data['tags'] ?? null) ?: $message->tags->pluck('name')->all(),
             featuredImageUrl: $featuredImage,
+            videoUrl: self::string($data['video'] ?? null) ?? self::firstVideoUrl($message),
             attachmentUrls: self::terms($data['attachments'] ?? null) ?: $remainingFiles,
             meta: is_array($data['meta'] ?? null) ? $data['meta'] : [],
             commentStatus: self::string($data['comment_status'] ?? null),
@@ -89,10 +99,14 @@ class WordPressPost
         );
     }
 
+    /**
+     * @param array{id: int, url: string}|null $video the clip as WordPress now hosts it
+     */
     public function toPayload(
         array $categoryIds,
         array $tagIds,
-        ?int $featuredMediaId
+        ?int $featuredMediaId,
+        ?array $video = null
     ): array {
         $optional = [
             'excerpt' => $this->excerpt,
@@ -112,12 +126,71 @@ class WordPressPost
 
         return [
             'title' => $this->title,
-            'content' => $this->content,
+            'content' => $video !== null ? self::videoBlock($video) . $this->content : $this->content,
             'status' => $this->status->value,
             // An unset field must be absent, not sent empty — WP treats an empty value as "clear
             // this", which would wipe terms and meta on an update.
             ...array_filter($optional, fn (mixed $value): bool => ! in_array($value, [null, '', [], false], true)),
         ];
+    }
+
+    /**
+     * Recover the agent's structured reply from a message written by a channel responder.
+     *
+     * A channel reply lands as TEXT: ChatHelper picks ONE field out of the agent's JSON, so an agent
+     * that wrote a whole post keeps only its body and loses title, terms and excerpt. `response_json`
+     * is the decoded envelope the reply actions persist alongside that text. The string candidates
+     * cover messages written before that existed, and any producer that stores the reply verbatim —
+     * fence and all.
+     */
+    private static function agentEnvelope(array $body): array
+    {
+        if (is_array($body['response_json'] ?? null)) {
+            return ChatHelper::firstRecord($body['response_json']) ?? [];
+        }
+
+        foreach (['response_json', 'response_text', 'responseText', 'content'] as $key) {
+            $raw = self::string($body[$key] ?? null);
+
+            if ($raw === null) {
+                continue;
+            }
+
+            $decoded = ChatHelper::extractJsonEnvelope($raw);
+
+            if ($decoded !== null) {
+                return ChatHelper::firstRecord($decoded) ?? [];
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * A Gutenberg block rather than a shortcode: its inner HTML is a plain `<figure><video>`, so a
+     * classic theme renders it too.
+     *
+     * @param array{id: int, url: string} $video
+     */
+    private static function videoBlock(array $video): string
+    {
+        return '<!-- wp:video {"id":' . $video['id'] . '} -->'
+            . '<figure class="wp-block-video"><video controls src="' . htmlspecialchars($video['url'], ENT_QUOTES) . '"></video></figure>'
+            . '<!-- /wp:video -->';
+    }
+
+    /**
+     * Read off the files directly — attachmentUrls() buckets a clip into `documents` alongside PDFs.
+     */
+    private static function firstVideoUrl(Message $message): ?string
+    {
+        foreach ($message->files as $file) {
+            if ($file->mediaType()->isVideo() && (string) $file->url !== '') {
+                return (string) $file->url;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -137,6 +210,7 @@ class WordPressPost
             'categories',
             'tags',
             'featured_image',
+            'video',
             'attachments',
             'meta',
             'comment_status',

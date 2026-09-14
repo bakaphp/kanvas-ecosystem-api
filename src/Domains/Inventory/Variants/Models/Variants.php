@@ -27,6 +27,8 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Activities\Contracts\ActivityLogInterface;
 use Kanvas\Activities\Models\Activity;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Guild\Leads\Models\LeadVariantInterest;
@@ -47,6 +49,8 @@ use Kanvas\Inventory\Variants\Observers\VariantObserver;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
+use Kanvas\Social\Tags\Models\Tag;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -80,10 +84,12 @@ use Spatie\Activitylog\Support\LogOptions;
 #[ObservedBy(VariantObserver::class)]
 class Variants extends BaseModel implements EntityIntegrationInterface, ProductInterface, ActivityLogInterface
 {
+    use HasAdminLink;
     use SlugTrait;
     use UuidTrait;
     use SocialInteractionsTrait;
     use HasShopifyCustomField;
+    use HasTagsTrait;
     use HasLightHouseCache {
         clearLightHouseCache as protected clearLightHouseCacheBase;
     }
@@ -138,6 +144,12 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     public function getGraphTypeName(): string
     {
         return 'Variant';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::PRODUCT_VARIANT;
     }
 
     public static function searchableIndex(): string
@@ -538,6 +550,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             'description' => null, //$this->description,
             'short_description' => null, //$this->short_description,
             'attributes' => [],
+            'tags' => $this->searchableTags(),
             'apps_id' => $this->apps_id,
             'created_at' => $this->created_at?->timestamp ?? 0,
             'rating' => (float) $this->rating,
@@ -602,6 +615,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 ];
             }),
             'attributes' => [],
+            'tags' => $this->searchableTags(),
         ];
         $attributes = $this->attributes()->get();
         foreach ($attributes as $attribute) {
@@ -613,6 +627,20 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         }
 
         return $variant;
+    }
+
+    /**
+     * Flat list of tag names — Typesense types the field as string[] so it can be
+     * faceted / filtered on directly, which a nested object[] can't.
+     */
+    protected function searchableTags(): array
+    {
+        return $this->tags
+            ->map(fn (Tag $tag) => trim((string) $tag->name))
+            ->filter(fn (string $name) => $name !== '')
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function searchableAs(): string
@@ -635,7 +663,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name,sku,ean,barcode,description,short_description',
+                'query_by' => 'name,sku,ean,barcode,description,short_description,tags',
             ]);
         }
 
@@ -647,7 +675,8 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
      */
     protected function makeAllSearchableUsing(Builder $query): Builder
     {
-        return $query->whereRelation('warehouses', 'warehouses.is_deleted', 0);
+        return $query->with('tags')
+            ->whereRelation('warehouses', 'warehouses.is_deleted', 0);
     }
 
     /**
@@ -850,6 +879,16 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                     'optional' => true,
                 ],
                 [
+                    'name' => 'warehouses.price',
+                    'type' => 'float[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'channels.price',
+                    'type' => 'float[]',
+                    'optional' => true,
+                ],
+                [
                     'name' => 'description',
                     'type' => 'string',
                     'optional' => true,
@@ -862,6 +901,12 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 [
                     'name' => 'attributes',
                     'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'tags',
+                    'type' => 'string[]',
+                    'facet' => true,
                     'optional' => true,
                 ],
                 [

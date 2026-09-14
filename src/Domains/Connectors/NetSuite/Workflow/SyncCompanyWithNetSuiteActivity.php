@@ -13,7 +13,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'NetSuite Sync Company',
+    description: 'Syncs a company with its NetSuite customer record and refreshes the item list it is allowed '
+        . 'to buy. Runs on the COMPANY — attach it to company events, not to orders.',
+    integration: IntegrationsEnum::NETSUITE,
+)]
 class SyncCompanyWithNetSuiteActivity extends KanvasActivity
 {
     public function execute(Companies $company, Apps $app, array $params): array

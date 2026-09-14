@@ -19,6 +19,11 @@ class ListAvailableProductsTool implements KanvasToolInterface
 {
     use HasKanvasContext;
 
+    public function name(): string
+    {
+        return 'list_available_products';
+    }
+
     #[Override]
     public function description(): Stringable|string
     {

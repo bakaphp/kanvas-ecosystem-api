@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Reynolds\Activities;
 
 use Baka\Support\Url;
-use Exception;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
@@ -41,7 +40,13 @@ use Throwable;
  * ID verification and esign clean-up are Kanvas-local and never reach
  * R&R — same shape as VinSolution.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Reynolds Push Lead Notes',
+    description: 'Copies a message into the lead\'s notes in Reynolds, so the CRM record shows the '
+        . 'conversation. Writes a note only — it sends nothing to the customer. Pick the version '
+        . 'matching the CRM this company runs; several connectors ship a near-identical step.',
+    integration: IntegrationsEnum::REYNOLDS,
+)]
 class PushLeadNotesActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -66,7 +71,10 @@ class PushLeadNotesActivity extends KanvasActivity
 
         $lead = $message->entity();
         if (! $lead instanceof Lead) {
-            throw new Exception('Lead not found');
+            return $this->failWorkflow([
+                'message_id' => $message->getId(),
+                'error' => 'Lead not found',
+            ]);
         }
 
         return $this->executeIntegration(

@@ -57,6 +57,7 @@ class CreatePeopleAction
             'apple_contact_id' => $this->peopleData->apple_contact_id,
             'license_number' => $this->peopleData->license_number,
             'license_expiration_date' => $this->peopleData->license_expiration_date,
+            'license_state' => $this->peopleData->license_state,
             'people_types_id' => $this->peopleData->people_type_id,
         ];
 
@@ -188,6 +189,8 @@ class CreatePeopleAction
         if (! empty($addressesToAdd)) {
             $people->address()->saveMany($addressesToAdd);
         }
+
+        $people->ensureDefaultAddress();
     }
 
     protected function checkIfPeopleExist(CompanyInterface $company): void

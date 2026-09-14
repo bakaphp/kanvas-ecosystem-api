@@ -57,7 +57,7 @@ class FollowUpEngagementWindowAndDedupeTest extends TestCase
 
             $messageCountBefore = $channel->messages()->count();
 
-            $action = new FollowUpEngagementAction($lead, null, true);
+            $action = new FollowUpEngagementAction($lead);
             $result = $action->execute();
 
             $this->assertNull($result);
@@ -117,7 +117,7 @@ class FollowUpEngagementWindowAndDedupeTest extends TestCase
             $messageCountBefore = $channel->messages()->count();
             $originalStageId = (int) $lead->pipeline_stage_id;
 
-            $action = new FollowUpEngagementAction($lead, null, true);
+            $action = new FollowUpEngagementAction($lead);
             $result = $action->execute();
 
             $this->assertNull($result);
@@ -232,7 +232,7 @@ class FollowUpEngagementWindowAndDedupeTest extends TestCase
 
         $lead->setContactStatus(LeadGroupStatusEnum::WAITING);
 
-        $followUpKey = new LeadConfigurationService(true)->getFollowUpModeKey($lead);
+        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
         $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
         $lead->people->addCellPhone(fake()->phoneNumber);

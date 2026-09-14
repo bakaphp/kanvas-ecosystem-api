@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Credit700\Workflow;
 
+use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Credit700\Actions\SubmitCreditApplicationAction;
@@ -11,6 +12,7 @@ use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 #[WorkflowAction]
 class SubmitCreditApplicationActivity extends KanvasActivity
@@ -30,13 +32,46 @@ class SubmitCreditApplicationActivity extends KanvasActivity
             integration: IntegrationsEnum::CREDIT700,
             additionalParams: $params,
             integrationOperation: function ($message, $app, $integrationCompany, $additionalParams): array {
-                $result = new SubmitCreditApplicationAction($message)->execute();
+                // The engagement row is written by a separate flow that can still be in-flight when
+                // this activity picks up the message, so getEngagement() throws ModelNotFoundException.
+                sleep(20);
+
+                try {
+                    $result = new SubmitCreditApplicationAction($message)->execute();
+                } catch (Throwable $e) {
+                    report($e);
+
+                    return $this->failWorkflow([
+                        'message' => 'Credit application failed: ' . $e->getMessage(),
+                        'success' => false,
+                        'transaction_id' => null,
+                        'token' => null,
+                        'entity' => null,
+                    ]);
+                }
+
+                if (! $result['success']) {
+                    $error = $result['response']['Creditsystem_Error']['@attributes'] ?? [];
+
+                    report(new Exception(sprintf(
+                        'RouteOne rejected the credit application for message %s: [%s] %s',
+                        $message->getId(),
+                        $error['id'] ?? 'no id',
+                        $error['message'] ?? 'no transaction id returned'
+                    )));
+
+                    return $this->failWorkflow([
+                        'message' => 'RouteOne rejected the credit application',
+                        'success' => false,
+                        'transaction_id' => $result['transaction_id'],
+                        'token' => $result['token'],
+                        'entity' => $result['response'],
+                    ]);
+                }
 
                 return [
-                    'message' => $result['success']
-                        ? 'Credit application submitted to RouteOne successfully'
-                        : 'RouteOne rejected the credit application',
-                    'success' => $result['success'],
+                    'message' => 'Credit application submitted to RouteOne successfully',
+                    'success' => true,
                     'transaction_id' => $result['transaction_id'],
                     'token' => $result['token'],
                     'entity' => $result['response'],

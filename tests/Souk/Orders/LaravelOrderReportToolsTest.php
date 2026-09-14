@@ -10,7 +10,10 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Souk\ListOrderTypesTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Souk\OrderBreakdownTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Souk\OrderCommissionStatsTool;
+use Kanvas\Intelligence\Agents\Laravel\Tools\Souk\OrderFulfillmentStatsTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Souk\OrderPaymentStatsTool;
+use Kanvas\Intelligence\Agents\Laravel\Tools\Souk\OrderProviderStatsTool;
+use Kanvas\Intelligence\Agents\Laravel\Tools\Souk\OrderTrendTool;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -170,5 +173,49 @@ class LaravelOrderReportToolsTest extends TestCase
         $this->assertSame(1, (int) $result['order_count']);
         $this->assertSame(10.0, (float) $result['total_commission']);
         $this->assertSame(90.0, (float) $result['total_provider_amount']);
+    }
+
+    public function test_order_trend_returns_a_period_series(): void
+    {
+        [$app, $company] = $this->seedOrders();
+
+        $result = $this->invokeTool(
+            new OrderTrendTool()->withContext($app, $company),
+            ['group_by' => 'month', 'order_types' => ['movipass', 'paso_rapido']]
+        );
+
+        $this->assertSame('month', $result['group_by']);
+        $this->assertSame(3, (int) $result['total_orders']);
+        $this->assertSame(
+            now()->startOfMonth()->toDateString(),
+            $result['series'][count($result['series']) - 1]['period']
+        );
+    }
+
+    public function test_order_fulfillment_stats_reports_the_paid_backlog(): void
+    {
+        [$app, $company] = $this->seedOrders();
+
+        $result = $this->invokeTool(
+            new OrderFulfillmentStatsTool()->withContext($app, $company),
+            ['order_types' => ['movipass', 'paso_rapido']]
+        );
+
+        $this->assertSame(3, (int) $result['total_orders']);
+        $this->assertSame(2, (int) $result['backlog']['paid_not_fulfilled']['orders']);
+        $this->assertSame(150.0, (float) $result['backlog']['paid_not_fulfilled']['amount']);
+    }
+
+    public function test_order_provider_stats_counts_orders_without_a_provider(): void
+    {
+        [$app, $company] = $this->seedOrders();
+
+        $result = $this->invokeTool(
+            new OrderProviderStatsTool()->withContext($app, $company),
+            ['order_types' => ['movipass', 'paso_rapido']]
+        );
+
+        $this->assertSame([], $result['providers']);
+        $this->assertSame(3, (int) $result['orders_without_provider']);
     }
 }

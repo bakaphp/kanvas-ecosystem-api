@@ -41,8 +41,10 @@ class SendRotationEmailsAction
             ? collect([$owner])->merge($activeUsers)->all()
             : [$owner];
 
-        if ($shouldNotifyAgents) {
-            $payload['extraEmails'] = $this->leadRotation->leads_rotations_email;
+        $extraEmails = $this->resolveExtraEmails($shouldNotifyAgents);
+
+        if ($extraEmails !== null) {
+            $payload['extraEmails'] = $extraEmails;
         }
 
         $sender = new SendLeadEmailsAction(
@@ -57,6 +59,19 @@ class SendRotationEmailsAction
         );
     }
 
+    // Commas are trimmed alongside whitespace so a stray "," falls through to the rotation instead
+    // of parsing down to zero recipients.
+    private function resolveExtraEmails(bool $shouldNotifyAgents): ?string
+    {
+        $receiverEmails = trim((string) $this->leadReceiver->notification_email, ", \t\n\r\0\x0B");
+
+        if ($receiverEmails !== '') {
+            return $receiverEmails;
+        }
+
+        return $shouldNotifyAgents ? $this->leadRotation->leads_rotations_email : null;
+    }
+
     /**
      * Reads `rotation.config.notification_mode` — controls WHO on the recipient axis gets the email.
      *
@@ -64,8 +79,7 @@ class SendRotationEmailsAction
      * - NOTIFY_AGENTS        → agents only (lead does not get an email)
      * - NOTIFY_LEAD          → the lead's contact email only (agents do not get an email)
      *
-     * Note: `extraEmails` (rotation.leads_rotations_email) currently always fires regardless
-     * of this mode — it is gated by notification_user_mode instead.
+     * Note: `extraEmails` is unaffected by this mode — see resolveExtraEmails().
      */
     private function resolveNotificationMode(): LeadNotificationModeEnum
     {
@@ -88,7 +102,7 @@ class SendRotationEmailsAction
      *   - NOTIFY_ROTATION_USERS notifies ALL active rotation agents, not just the round-robin
      *     assignee for this lead.
      *   - If the rotation has zero active agents, this mode silently falls back to NOTIFY_OWNER
-     *     behavior (and `extraEmails` does not fire).
+     *     behavior (and the rotation's `extraEmails` does not fire; the receiver's still does).
      */
     private function resolveNotificationUserMode(): LeadNotificationUserModeEnum
     {

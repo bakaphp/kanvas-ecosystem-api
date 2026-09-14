@@ -9,6 +9,8 @@ use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
+use Kanvas\Approvals\Models\ApprovalPolicy;
+use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Enums\ModuleEnum;
@@ -102,6 +104,8 @@ class ModulesRepositories
                 Companies::class => $crud,
                 Users::class => [...$crud, 'invite'],
                 Regions::class => $crud,
+                ApprovalRequest::class => $crud,
+                ApprovalPolicy::class => $crud,
             ],
             ModuleEnum::INVENTORY->value => [
                 Products::class => [...$crud, 'is_published'],

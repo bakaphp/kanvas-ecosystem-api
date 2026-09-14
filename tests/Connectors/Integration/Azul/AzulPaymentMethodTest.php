@@ -15,7 +15,7 @@ class AzulPaymentMethodTest extends AzulBase
     {
         parent::setUp();
 
-        $app         = app(Apps::class);
+        $app = app(Apps::class);
         $credentials = $this->getCredentials();
 
         $app->set(ConfigurationEnum::AZUL_AUTH1->value, $credentials['auth1']);
@@ -29,10 +29,10 @@ class AzulPaymentMethodTest extends AzulBase
     protected function getAzulCardData(): array
     {
         return [
-            'number'          => '4260550061845872',
+            'number' => '4260550061845872',
             'expiration_date' => '12/28',
-            'cvv'             => '872',
-            'processor'       => 'azul',
+            'cvv' => '872',
+            'processor' => 'azul',
         ];
     }
 
@@ -135,7 +135,7 @@ class AzulPaymentMethodTest extends AzulBase
 
         $response->assertSuccessful();
 
-        $methods    = $response->json('data.paymentMethods.data');
+        $methods = $response->json('data.paymentMethods.data');
         $azulMethod = collect($methods)->firstWhere('processor', 'azul');
         $this->assertNotNull($azulMethod);
     }

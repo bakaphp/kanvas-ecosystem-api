@@ -96,5 +96,16 @@ abstract class ProcessWebhookJob implements ShouldQueue
         return null;
     }
 
+    /**
+     * Whether the request's uploaded files must be persisted before this job runs. A receiver can
+     * also opt in with `capture_files`, but a job that cannot work without the files declares it
+     * here rather than trusting whoever wired the receiver: the multipart request is gone by the
+     * time the job runs, so a missing flag drops the files with nothing logged anywhere.
+     */
+    public static function capturesFiles(): bool
+    {
+        return false;
+    }
+
     abstract public function execute(): array;
 }

@@ -20,11 +20,12 @@ use Kanvas\Connectors\VoiceBridge\Enums\ConfigurationEnum as VoiceBridgeConfigur
 use Kanvas\Connectors\VoiceBridge\Jobs\LeadVoiceFollowUpJob;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Exceptions\LeadMissingContactException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadContextInfoAction;
 use Kanvas\Intelligence\Leads\Actions\CreateLeadFirstEngagementMessageAction;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
@@ -44,7 +45,7 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
-use RuntimeException;
+use Throwable;
 
 /**
  * @deprecated Pre-kernel outbound-first orchestrator. Generates first-touch messages
@@ -59,7 +60,11 @@ use RuntimeException;
  *
  *   Remove this class once all tenants have been migrated to the new flow.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Lead Agent First Message Outreach',
+    description: 'Sends the agent\'s FIRST outbound message to a new lead. This CONTACTS the customer — wire '
+        . 'it only to a trigger that means a genuinely new lead, or people get messaged twice.',
+)]
 class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -74,8 +79,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) use ($params) {
-                $leadAiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(new LeadConfigurationService()->getAiModeKey($lead)));
-                if ($leadAiMode?->isOff()) {
+                if ($lead->isAiMuted()) {
                     return [
                         'ai_mode is OFF',
                     ];
@@ -89,13 +93,12 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     ]);
                 }
 
-                $cellPhone = $lead->people->getCellPhones()->first()?->value ?? ''; //$lead->people->getPhones()->first()?->value ?? '';
+                $cellPhone = $lead->people->getCellPhones()->first()?->value ?? '';
                 $email = $lead->people->getEmails()->first()?->value ?? '';
-                //$cellPhone = preg_replace('/^\+?1/', '', $cellPhone);
                 $cellPhone = Str::normalizePhoneNumber($cellPhone);
                 $source = $lead->source?->name ?? '';
 
-                //for now avoid service
+                // Dealertrack sends its own first touch, so ours would be a duplicate to the customer.
                 if (in_array(strtolower($source), ['dealertrack'])) {
                     return $this->failWorkflow([
                         'error' => 'Lead source is ' . $source . ', skipping first message outreach.',
@@ -115,7 +118,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $availableChannels = [
                     'sms' => $cellPhone,
                     'email' => $email,
-                    //'whatsapp' => $cellPhone,
                 ];
 
                 $channels = [];
@@ -141,7 +143,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     }
                 }
 
-                $currentAiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(new LeadConfigurationService()->getAiModeKey($lead)));
+                $currentAiMode = $lead->resolveAiMode();
                 $disableSending = $currentAiMode?->isOff() ?? false;
 
                 $leadType = $lead->type()->first();
@@ -162,7 +164,6 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                 $stopTheClock = false;
 
                 foreach ($channels as $communicationChannel => $value) {
-                    //get the first message
                     if ($value === null || empty($value)) {
                         continue;
                     }
@@ -173,7 +174,15 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     }
                     $firstLeadMessage = new CreateLeadFirstEngagementMessageAction($lead, $template)->execute();
 
-                    //set the first message
+                    // Applied here rather than at the send call so the stored message carries it too —
+                    // the delayed branch below locks the message and SendDelayMessageCommand sends that body.
+                    if (
+                        $communicationChannel === LeadCommunicationChannelEnum::SMS->value
+                        && is_string($firstLeadMessage['message'] ?? null)
+                    ) {
+                        $firstLeadMessage['message'] = SmsOptOutNoticeService::appendTo($firstLeadMessage['message']);
+                    }
+
                     $leadContext = $lead->get(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value);
                     $leadContext['first_message'] = $firstLeadMessage;
                     $lead->set(EnumsConfigurationEnum::LEAD_CONTEXT_INFO->value, $leadContext);
@@ -187,11 +196,8 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
                     };
 
                     if (empty($communicationChannelNumber)) {
-                        //throw new RuntimeException('Lead does not have a phone number or email, wont be able to send message until we add email support');
                         return $this->failWorkflow([
                             'error' => 'Lead does not have a phone number or email for channel ' . $communicationChannel . ', wont be able to send message until we add email support',
-                            //'context' => $createContext,
-                            //'first_message' => $firstLeadMessage,
                         ]);
                     }
 
@@ -275,10 +281,11 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
                                 if ($shouldSendFirstMessageNow) {
                                     $providerResponse = new SendMessageToLeadAction($lead)->execute(
-                                        $communicationChannel,
-                                        $firstLeadMessage['message'],
-                                        $params['from'] ?? null,
-                                        $firstLeadMessage['title'] ?? null,
+                                        channel: $communicationChannel,
+                                        message: $firstLeadMessage['message'],
+                                        from: $params['from'] ?? null,
+                                        title: $firstLeadMessage['title'] ?? null,
+                                        fromAgent: $this->resolveOutreachAgent($params, $app),
                                     );
                                     new StoreMessageSidAction($createMessage)->execute($providerResponse);
 
@@ -378,9 +385,30 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
         );
     }
 
+    /**
+     * The agent this outreach speaks as, so an email goes out from its own mailbox when it has one.
+     * A rule wired without an agent_id, or pointing at a deleted agent, still sends — on the
+     * company identity, exactly as before.
+     */
+    private function resolveOutreachAgent(array $params, Apps $app): ?Agent
+    {
+        if (empty($params['agent_id'])) {
+            return null;
+        }
+
+        try {
+            /** @var Agent $agent */
+            $agent = Agent::getById((int) $params['agent_id'], $app);
+
+            return $agent;
+        } catch (Throwable) {
+            return null;
+        }
+    }
+
     private function shouldSendFirstMessageNow(Lead $lead): bool
     {
-        $aiMode = IntelligenceModeEnum::tryFrom((string) $lead->get(new LeadConfigurationService()->getAiModeKey($lead)));
+        $aiMode = $lead->resolveAiMode();
         if ($aiMode?->isOff()) {
             return false;
         }
@@ -393,7 +421,7 @@ class LeadAgentFirstMessageOutreachActivity extends KanvasActivity
 
         if (! $isWithinWorkingHours) {
             return true;
-        } elseif ($lead->get(new LeadConfigurationService()->getAiModeKey($lead)) === IntelligenceModeEnum::SUPPORT->value) {
+        } elseif ($lead->isAiSupport()) {
             return false;
         } else {
             return true;

@@ -11,10 +11,17 @@ use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Repositories\OrderRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Tookan Delivery Status Webhook',
+    description: 'Receiver for Tookan delivery updates: moves the order through its states as the rider '
+        . 'progresses, and emails the customer when the stage warrants it. It CONTACTS the customer and '
+        . 'it cascades — a multi-leg delivery moves both the leg and the parent order.',
+    integration: IntegrationsEnum::TOOKAN,
+)]
 class PullTaskStatusWebhookJob extends ProcessWebhookJob
 {
     #[Override]

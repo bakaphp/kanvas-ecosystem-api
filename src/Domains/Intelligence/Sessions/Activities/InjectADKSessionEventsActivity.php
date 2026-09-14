@@ -17,7 +17,11 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Inject ADK Session Events',
+    description: 'Feeds channel activity into an ADK agent\'s session so its remote conversation stays in step '
+        . 'with what happened in Kanvas. Plumbing for ADK-backed agents; not something to wire by hand.',
+)]
 class InjectADKSessionEventsActivity extends KanvasActivity
 {
     public $tries = 3;

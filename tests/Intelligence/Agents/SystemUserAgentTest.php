@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -208,5 +209,37 @@ class SystemUserAgentTest extends TestCase
         $appProp = new ReflectionProperty($resolved, 'app');
         $this->assertTrue($appProp->isInitialized($resolved), 'withContext must have filled the tenant context');
         $this->assertSame($app->getId(), $appProp->getValue($resolved)->getId());
+    }
+
+    /**
+     * Without a date in the prompt the model dates every tool call from its training cutoff — a
+     * reporting agent then queries a range with no orders, reads the zero as a failed call, and
+     * retries until Neuron aborts the turn (Sentry KANVAS-ECOSYSTEM-682).
+     */
+    public function testInstructionsGroundTheAgentOnTodaysDate(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $handler = new SystemUserAgent();
+        $handler->setConfiguration(agent: $this->makeAgent(), entity: $user, user: $user);
+
+        // Mirrors HasKanvasAgentBehavior::resolveTenantTimezone(): company, then user, then UTC.
+        $timezone = 'UTC';
+        foreach ([$company->timezone, $user->timezone] as $candidate) {
+            if (is_string($candidate) && in_array($candidate, timezone_identifiers_list(), true)) {
+                $timezone = $candidate;
+
+                break;
+            }
+        }
+
+        $instructions = $handler->instructions();
+
+        $this->assertStringContainsString(
+            'Current date: ' . Carbon::now($timezone)->format('l, Y-m-d'),
+            $instructions,
+        );
+        $this->assertStringContainsString('do not use dates from your training data', $instructions);
     }
 }

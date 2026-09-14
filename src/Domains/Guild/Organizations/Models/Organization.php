@@ -15,8 +15,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
@@ -25,7 +28,9 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Observers\OrganizationObserver;
 use Kanvas\Guild\Traits\BillableTrait;
+use Kanvas\Guild\Traits\HasNotesChannelTrait;
 use Kanvas\Guild\Traits\PayeeTrait;
+use Kanvas\Intelligence\Agents\Contracts\ProvidesAgentContext;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Invoices\Models\Invoice;
@@ -51,12 +56,15 @@ use Override;
  * @property int|null $merged_into_organization_id
  */
 #[ObservedBy([OrganizationObserver::class])]
-class Organization extends BaseModel implements BillableInterface, PayeeInterface
+class Organization extends BaseModel implements BillableInterface, PayeeInterface, ProvidesAgentContext
 {
+    use HasAdminLink;
     use BillableTrait;
     use CanUseWorkflow;
     use DatabaseSearchableTrait;
+    use EventResourceTrait;
     use HasLightHouseCache;
+    use HasNotesChannelTrait;
     use HasTagsTrait;
     use PayeeTrait;
     use UuidTrait;
@@ -68,6 +76,36 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     public function getGraphTypeName(): string
     {
         return 'Organization';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::ORGANIZATION;
+    }
+
+    /**
+     * What an agent grounds itself on when it is dropped on a customer account. The difference between
+     * "Acme Corp" and "Acme Corp, growth tier, using commerce and logistics, Spanish-speaking" — every
+     * agent gets it, not just the one that asked for it.
+     *
+     * Deliberately absent: the newsletter watermark and the linked tenant ids. Those are feature state
+     * for one workflow, not something the CFO agent should read off the same account.
+     *
+     * @return array<string, mixed>
+     */
+    #[Override]
+    public function agentContextBrief(): array
+    {
+        return array_filter([
+            'type' => 'Organization',
+            'id' => $this->getId(),
+            'name' => $this->name,
+            'modules' => $this->tags()->pluck('slug')->all(),
+            'tier' => $this->get('customer_tier'),
+            'locale' => $this->get('customer_locale'),
+            'total_employees' => $this->total_employees > 0 ? $this->total_employees : null,
+        ], fn (mixed $value): bool => $value !== null && $value !== []);
     }
 
     public function leads(): HasMany
@@ -83,6 +121,15 @@ class Organization extends BaseModel implements BillableInterface, PayeeInterfac
     public function addresses(): HasMany
     {
         return $this->hasMany(Address::class, 'organizations_id', 'id')
+            ->where('is_deleted', false);
+    }
+
+    /**
+     * The Kanvas Users who may approve this organization's AP/AR items.
+     */
+    public function approvers(): HasMany
+    {
+        return $this->hasMany(OrganizationApprover::class, 'organizations_id', 'id')
             ->where('is_deleted', false);
     }
 

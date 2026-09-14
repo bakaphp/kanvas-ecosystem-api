@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\DealerAppCenter\Services;
 
 use Kanvas\Exceptions\ValidationException;
-use phpseclib3\Net\SFTP;
+use phpseclib4\Net\SFTP;
+use RuntimeException;
 
 /**
  * Thin SFTP client used to pull a single inventory CSV per request.
@@ -49,9 +50,10 @@ class InventorySftpClient
      */
     public function listRoot(): array
     {
-        $entries = $this->sftp->nlist('.');
-
-        if ($entries === false) {
+        // Every phpseclib4 exception extends RuntimeException; it throws where v3 returned false.
+        try {
+            $entries = $this->sftp->nlist('.');
+        } catch (RuntimeException) {
             return [];
         }
 
@@ -71,13 +73,11 @@ class InventorySftpClient
      */
     public function read(string $remotePath): ?string
     {
-        $contents = $this->sftp->get($remotePath);
-
-        if ($contents === false) {
+        try {
+            return $this->sftp->get($remotePath);
+        } catch (RuntimeException) {
             return null;
         }
-
-        return (string) $contents;
     }
 
     public function disconnect(): void

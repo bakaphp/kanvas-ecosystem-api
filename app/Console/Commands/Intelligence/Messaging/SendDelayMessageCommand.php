@@ -25,13 +25,14 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
+use Kanvas\Intelligence\Leads\Enums\AgentReachOutConfigEnum;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Services\DailyReportService;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
+use Throwable;
 
 class SendDelayMessageCommand extends Command
 {
@@ -44,7 +45,25 @@ class SendDelayMessageCommand extends Command
         $app = Apps::getById((int) $this->argument('app_id'));
         $this->overwriteAppService($app);
 
-        $companies = Companies::getByCustomFieldBuilder(CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value, null)->get();
+        $companies = Companies::getByCustomFieldBuilder(
+            CompanyConfigurationEnum::MESSAGE_MINUTES_INTERVAL->value,
+            null
+        )->get()->keyBy('id');
+
+        // Agent Reach Out uses 60 minutes as its fallback. Include companies
+        // with pending delayed drafts even when they have no explicit legacy
+        // delay setting, without changing how legacy first messages are found.
+        $pendingCompanyIds = Message::fromApp($app)
+            ->where('is_locked', 1)
+            ->whereHas('tags', fn ($query) => $query->where('name', 'agent-reach-out-delayed'))
+            ->distinct()
+            ->pluck('companies_id');
+
+        foreach ($pendingCompanyIds as $companyId) {
+            if (! $companies->has($companyId)) {
+                $companies->put($companyId, Companies::getById((int) $companyId));
+            }
+        }
 
         foreach ($companies as $company) {
             $this->newLine();
@@ -77,14 +96,24 @@ class SendDelayMessageCommand extends Command
                     'whatsapp-image',
                 ])
             )
-            ->whereDate('created_at', now()->toDateString())
-            ->whereRaw("DATE_ADD(created_at, INTERVAL {$delayMinutes} MINUTE) <= NOW()")
+            // Include messages from the previous day so a delay can cross
+            // midnight, while avoiding an unbounded scan of abandoned drafts.
+            ->where('created_at', '>=', now()->subMinutes($delayMinutes)->subDay())
+            ->where('created_at', '<=', now()->subMinutes($delayMinutes))
             ->cursor();
     }
 
     protected function processMessage(Companies $company, Message $message, int $delayMinutes): void
     {
-        $lead = $message->entity();
+        try {
+            $lead = $message->entity();
+        } catch (Throwable $e) {
+            report($e);
+            $this->error('Message ID ' . $message->getId() . ' has an invalid Lead entity. Skipping.');
+            $message->setUnlock();
+
+            return;
+        }
 
         if (! $lead instanceof Lead) {
             $this->info('Message ID ' . $message->getId() . ' is not linked to a Lead entity. Skipping.');
@@ -93,18 +122,26 @@ class SendDelayMessageCommand extends Command
             return;
         }
 
-        if (! $message->hasTag(['first-message'])) {
+        $isAgentReachOut = $message->hasTag(['agent-reach-out']);
+        $isDelayedAgentReachOut = $message->hasTag(['agent-reach-out-delayed']);
+        $isLegacyFirstMessage = $message->hasTag(['first-message']) && ! $isAgentReachOut;
+
+        if (! $isLegacyFirstMessage && ! $isDelayedAgentReachOut) {
             $this->info('Message ID ' . $message->getId() . ' does not have "first-message" tag. Skipping.');
-            $message->setUnlock();
+            // A new reach-out may be locked for human approval rather than delay.
+            // Leave that lock untouched; the approval workflow owns it.
+            if (! $isAgentReachOut) {
+                $message->setUnlock();
+            }
 
             return;
         }
 
         $this->info('Processing lead name ' . $lead->people->name . ' for message ID ' . $message->getId());
 
-        $aiMode = IntelligenceModeEnum::tryFrom((string) $lead->get('ai_mode'));
-        if ($aiMode?->isOff()) {
+        if ($lead->isAiMuted()) {
             $message->setUnlock();
+            $lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_MUTED);
             $this->error('AI Mode OFF for Lead ID ' . $lead->getId());
 
             return;
@@ -112,12 +149,16 @@ class SendDelayMessageCommand extends Command
 
         if ($this->hasBeenContactedBySalesAgent($lead, $company)) {
             $message->setUnlock();
+            $lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_SKIPPED);
+            $lead->set(AgentReachOutConfigEnum::REASON->value, 'contacted_by_salesperson_before_delay');
             $this->info('Lead ID ' . $lead->getId() . ' has already been contacted by sales agent. Skipping.');
 
             return;
         }
 
-        $messageContent = $lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? '';
+        $messageContent = $isDelayedAgentReachOut
+            ? (string) ($message->message['content'] ?? '')
+            : (string) ($lead->get(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value) ?? '');
         if (empty($messageContent)) {
             $this->info('Lead ID ' . $lead->getId() . ' does not have a first message configured. Skipping.');
             $message->setUnlock();
@@ -217,6 +258,16 @@ class SendDelayMessageCommand extends Command
             $message->saveOrFail();
 
             $lead->set(LeadsEnumsConfigurationEnum::SENT_FIRST_MESSAGE_AT->value, $message->created_at);
+            if ($message->hasTag(['agent-reach-out-delayed'])) {
+                $channelsSent = (array) $lead->get(AgentReachOutConfigEnum::CHANNELS_SENT->value);
+                $channelsSent[] = $communicationChannel;
+                $lead->set(
+                    AgentReachOutConfigEnum::CHANNELS_SENT->value,
+                    array_values(array_unique(array_filter($channelsSent))),
+                );
+                $lead->set(AgentReachOutConfigEnum::SENT_AT->value, $message->created_at);
+                $lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_SENT);
+            }
             $this->setPreferredChannel($lead, $message, $communicationChannel);
 
             $message->fireWorkflow(

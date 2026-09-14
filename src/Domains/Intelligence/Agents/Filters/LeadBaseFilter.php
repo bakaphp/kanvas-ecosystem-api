@@ -15,21 +15,21 @@ class LeadBaseFilter
     /** @return array<string, mixed> */
     public function apply(Builder $query, Companies $company, array $filters): array
     {
-        $status = strtolower(trim((string) ($filters['status'] ?? ''))) ?: 'open';
+        $status = strtolower($this->text($filters, 'status')) ?: 'open';
         $query
             ->when($status === 'open', fn ($q) => $q->where(fn ($scope) => $scope->whereNull('status')->orWhere('status', '<', 2)))
             ->when($status === 'closed', fn ($q) => $q->where('status', '>=', 2));
         $criteria = ['status' => $status];
 
-        if (($source = trim((string) ($filters['source'] ?? ''))) !== '') {
+        if (($source = $this->text($filters, 'source')) !== '') {
             $query->whereHas('source', fn ($q) => $q->where('name', 'like', "%{$source}%"));
             $criteria['source'] = $source;
         }
-        if (($stage = trim((string) ($filters['stage'] ?? ''))) !== '') {
+        if (($stage = $this->text($filters, 'stage')) !== '') {
             $query->whereHas('stage', fn ($q) => $q->where('name', 'like', "%{$stage}%"));
             $criteria['stage'] = $stage;
         }
-        if (($salesperson = trim((string) ($filters['salesperson'] ?? ''))) !== '') {
+        if (($salesperson = $this->text($filters, 'salesperson')) !== '') {
             // Owners live on the ecosystem connection; a whereHas would join across databases.
             $ownerIds = Users::query()
                 ->where(fn ($owner) => $owner->where('firstname', 'like', "%{$salesperson}%")
@@ -39,7 +39,7 @@ class LeadBaseFilter
             $query->whereIn('leads_owner_id', $ownerIds);
             $criteria['salesperson'] = $salesperson;
         }
-        if (($rooftop = trim((string) ($filters['rooftop'] ?? ''))) !== '') {
+        if (($rooftop = $this->text($filters, 'rooftop')) !== '') {
             $branchIds = CompaniesBranches::query()
                 ->where('companies_id', $company->getId())
                 ->where('name', 'like', "%{$rooftop}%")
@@ -47,11 +47,11 @@ class LeadBaseFilter
             $query->whereIn('companies_branches_id', $branchIds);
             $criteria['rooftop'] = $rooftop;
         }
-        if (($createdAfter = trim((string) ($filters['created_after'] ?? ''))) !== '') {
+        if (($createdAfter = $this->text($filters, 'created_after')) !== '') {
             $query->where('created_at', '>=', Carbon::parse($createdAfter)->startOfDay());
             $criteria['created_after'] = $createdAfter;
         }
-        if (($createdBefore = trim((string) ($filters['created_before'] ?? ''))) !== '') {
+        if (($createdBefore = $this->text($filters, 'created_before')) !== '') {
             $query->where('created_at', '<=', Carbon::parse($createdBefore)->endOfDay());
             $criteria['created_before'] = $createdBefore;
         }
@@ -62,5 +62,10 @@ class LeadBaseFilter
         }
 
         return $criteria;
+    }
+
+    private function text(array $filters, string $key): string
+    {
+        return trim((string) ($filters[$key] ?? ''));
     }
 }

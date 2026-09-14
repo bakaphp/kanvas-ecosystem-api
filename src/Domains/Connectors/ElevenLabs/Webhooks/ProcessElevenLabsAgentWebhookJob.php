@@ -14,7 +14,14 @@ use Kanvas\Intelligence\Tools\VehicleInterestTool;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'ElevenLabs Caller Lookup',
+    description: 'One of the endpoints an ElevenLabs VOICE agent calls back into Kanvas mid-call. These are '
+        . 'wired as that agent\'s server-side tools, not chosen as workflow steps — the caller on the '
+        . 'phone triggers them. This one looks the caller up by phone number and answers with who they '
+        . 'are and what they already have open — existing person, live lead, vehicle of interest, '
+        . 'intent. It is how the voice agent knows whether it is talking to a stranger or a customer.',
+)]
 class ProcessElevenLabsAgentWebhookJob extends ProcessElevenLabsWebhookJob
 {
     use GeneratesChecklistEngagementUrls;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Auth\Services;
 
+use Baka\Contracts\AppInterface;
 use Carbon\Carbon;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Crypt;
@@ -26,13 +27,19 @@ class EmailVerification
         $this->app = $app ?? app(Apps::class);
     }
 
+    public static function isRequiredFor(AppInterface $app): bool
+    {
+        return filter_var($app->get(AppSettingsEnums::REQUIRE_EMAIL_VERIFICATION->getValue()), FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * Returns false both when the profile is already verified and when the
+     * notification throws — read `is_verified` first if the two need telling
+     * apart.
+     */
     public function send(Users $user): bool
     {
-        $profile = UsersAssociatedApps::fromApp($this->app)
-            ->notDeleted()
-            ->where('users_id', $user->getId())
-            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
-            ->first();
+        $profile = $this->profile($user->getId());
 
         if (! $profile) {
             throw new ModelNotFoundException('User profile not found for this app.');
@@ -72,16 +79,34 @@ class EmailVerification
             throw new ValidationException('Verification link has expired.');
         }
 
-        $profile = UsersAssociatedApps::fromApp($this->app)
-            ->notDeleted()
-            ->where('users_id', (int) $payload['user_id'])
-            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
-            ->first();
+        $profile = $this->profile((int) $payload['user_id']);
 
         if (! $profile) {
             throw new ModelNotFoundException('Verification link is invalid.');
         }
 
+        return $this->markProfileVerified($profile);
+    }
+
+    /**
+     * Social login is itself proof of ownership — Google, Apple and Facebook
+     * only mint an identity token for a mailbox they already confirmed — so a
+     * profile arriving through a provider is verified without being sent a link.
+     * Without this, `require_email_verification` locks out every social user.
+     */
+    public function markVerified(Users $user): bool
+    {
+        $profile = $this->profile($user->getId());
+
+        if (! $profile) {
+            throw new ModelNotFoundException('User profile not found for this app.');
+        }
+
+        return $this->markProfileVerified($profile);
+    }
+
+    private function markProfileVerified(UsersAssociatedApps $profile): bool
+    {
         if ((bool) $profile->is_verified) {
             return true;
         }
@@ -91,6 +116,15 @@ class EmailVerification
         $profile->saveOrFail();
 
         return true;
+    }
+
+    private function profile(int $usersId): ?UsersAssociatedApps
+    {
+        return UsersAssociatedApps::fromApp($this->app)
+            ->notDeleted()
+            ->where('users_id', $usersId)
+            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->first();
     }
 
     public function generateToken(Users $user): string

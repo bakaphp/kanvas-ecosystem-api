@@ -10,11 +10,18 @@ use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Shopify Product Webhook',
+    description: 'Receiver for Shopify product changes: queues the product through the importer so its Kanvas '
+        . 'record catches up. Inbound one-way. The import runs asynchronously, so nothing is up to date '
+        . 'the instant this returns.',
+    integration: IntegrationsEnum::SHOPIFY,
+)]
 class ProcessShopifyProductWebhookJob extends ProcessWebhookJob
 {
     #[Override]

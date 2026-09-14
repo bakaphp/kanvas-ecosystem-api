@@ -47,6 +47,26 @@ class Contact extends BaseModel
         ContactTypeEnum::WORK_PHONE->value,
     ];
 
+    /**
+     * Every type that holds an email address.
+     *
+     * Three types for one thing is redundant — which slot an address landed in is not a property of
+     * the address, and "second" is already expressed by there being two rows. The split is history,
+     * not design, and it cannot be collapsed from here: `Secondary Email` alone holds ~18k rows.
+     *
+     * Until it is, anything asking "does this person have an email" must ask about all of them. 384
+     * people have no `Email` row and a perfectly good address under one of the others; matching only
+     * the first type reports every one of them as uncontactable.
+     *
+     * The legacy `Second Email` type (7) is deliberately NOT here: every one of the 137 people with
+     * such a row also has one of the types above, so it changes no answer and does not earn a case.
+     */
+    public const array EMAIL_TYPES = [
+        ContactTypeEnum::EMAIL->value,
+        ContactTypeEnum::PRIMARY_EMAIL->value,
+        ContactTypeEnum::SECONDARY_EMAIL->value,
+    ];
+
     protected $table = 'peoples_contacts';
     protected $guarded = [];
 
@@ -143,6 +163,11 @@ class Contact extends BaseModel
         return in_array($contactsTypesId, self::PHONE_TYPES, true);
     }
 
+    public static function isEmailType(int $contactsTypesId): bool
+    {
+        return in_array($contactsTypesId, self::EMAIL_TYPES, true);
+    }
+
     /**
      * Strip a phone to bare digits — the form we STORE (keeps the country code).
      * Single source of truth, used by the observer on write and by normalizeValue on match.
@@ -193,7 +218,9 @@ class Contact extends BaseModel
             return strlen($digits) > 10 ? substr($digits, -10) : $digits;
         }
 
-        if ($contactsTypesId === ContactTypeEnum::EMAIL->value) {
+        // Every email type, not just the first: a `Primary Email` normalized by trim() alone dedups
+        // case-sensitively, so "Snow@X.io" and "snow@x.io" are stored as two contacts for one address.
+        if (self::isEmailType($contactsTypesId)) {
             return strtolower(trim($value));
         }
 

@@ -30,8 +30,9 @@ use function Laravel\Ai\agent;
  *   - JSON-schema enforcement on the response (returns a typed array via `$response->structured`)
  *
  * Flow:
- *   1. Fetch PDF bytes via SafeUrlFetcher (SSRF-guarded per the root CLAUDE.md rule)
- *   2. Base64-encode + wrap as `Document::fromBase64()` so the package can send `inline_data`
+ *   1. Fetch the bytes via SafeUrlFetcher (SSRF-guarded per the root CLAUDE.md rule)
+ *   2. Base64-encode + wrap as `Document::fromBase64()`, labelled with the file's own mime, so the
+ *      package can send `inline_data` — a receipt photo and a PDF invoice both arrive here
  *   3. Call agent(schema)->prompt() — package serializes/deserializes; our schema definition
  *      mirrors the JSON shape the prompt describes
  *   4. Map the validated dict to PdfClassificationResult
@@ -96,7 +97,7 @@ class GeminiPdfClassifierService implements PdfClassifierServiceInterface
                 ],
             )->prompt(
                 $prompt,
-                attachments: [Document::fromBase64(base64_encode($bytes), 'application/pdf')],
+                attachments: [Document::fromBase64(base64_encode($bytes), $this->resolveMimeType($pdf))],
                 provider: Lab::Gemini,
                 model: $model,
                 timeout: $this->timeoutSeconds,
@@ -138,7 +139,10 @@ class GeminiPdfClassifierService implements PdfClassifierServiceInterface
         return <<<PROMPT
 You are a strict accounting document classifier and extractor for a small business in the US and/or Dominican Republic.
 
-Analyze the attached PDF and return a structured result matching the response schema.
+Analyze the attached document and return a structured result matching the response schema. It may be a
+PDF or a photo of a paper receipt — a phone picture is expected and readable, so extract from it the
+same way. Do not lower confidence merely because the image is a photo rather than a clean scan; lower
+it only when a field is genuinely illegible.
 
 Allowed document_type values: expense_receipt | vendor_invoice | vendor_quote | our_invoice | our_quote | unknown
 Default currency when none stated: {$defaultCurrency}
@@ -210,6 +214,30 @@ PROMPT;
         }
 
         return self::DEFAULT_MODEL;
+    }
+
+    /**
+     * What Gemini is told the bytes are.
+     *
+     * A phone photo of a restaurant bill is the common case for an employee expense, and labelling a
+     * JPEG `application/pdf` makes the model reject a file it could otherwise read perfectly well —
+     * it is multimodal, it was just being lied to about the format.
+     *
+     * `Filesystem::file_type` holds an extension, not a mime, and for images it is derived from magic
+     * bytes by CreateFilesystemAction rather than from the client's filename — so it is safe to
+     * branch on. Anything unrecognised keeps the historical `application/pdf`: the inbound accounting
+     * inbox is PDF in practice, and a wrong guess there is no worse than what it did before.
+     */
+    protected function resolveMimeType(Filesystem $file): string
+    {
+        return match (strtolower(trim((string) $file->file_type))) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            'heic' => 'image/heic',
+            'heif' => 'image/heif',
+            default => 'application/pdf',
+        };
     }
 
     protected function fetchPdfBytes(Filesystem $pdf): string

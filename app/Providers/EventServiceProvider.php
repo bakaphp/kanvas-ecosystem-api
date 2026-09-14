@@ -23,11 +23,9 @@ use Kanvas\Intelligence\Agents\Neuron\RAG\Listeners\QueueChannelKnowledgeIndexLi
 use Kanvas\Intelligence\Agents\Neuron\RAG\Listeners\QueueKnowledgeIndexListener;
 use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Intelligence\Knowledge\Listeners\QueueVariantInterestReindexListener;
-use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
 use Kanvas\Inventory\Channels\Observers\VariantsChannelObserver;
-use Kanvas\Inventory\Products\Models\ProductsCategories;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Observers\ProductsTypesObserver;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -43,6 +41,8 @@ use Kanvas\NervousSystem\Plan\Listeners\NotifyPlanCreatorOfAgentProgressListener
 use Kanvas\NervousSystem\Plan\Listeners\PushPlanChangeToKanbanListener;
 use Kanvas\NervousSystem\Plan\Listeners\SyncKanbanAfterChatListener;
 use Kanvas\NervousSystem\Plan\Listeners\WakeAgentOnPlanChangeListener;
+use Kanvas\NervousSystem\Plan\Listeners\WakePlanAgentOnChannelCommentListener;
+use Kanvas\NervousSystem\Plan\Listeners\WakeProjectManagerOnPlanOutcomeListener;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
 use Kanvas\Social\Channels\Events\ChannelMessageAttachedEvent;
@@ -71,6 +71,7 @@ class EventServiceProvider extends ServiceProvider
             WakeAgentOnPlanChangeListener::class,
             PushPlanChangeToKanbanListener::class,
             NotifyPlanCreatorOfAgentProgressListener::class,
+            WakeProjectManagerOnPlanOutcomeListener::class,
         ],
         AgentChatResponseEvent::class => [
             SyncKanbanAfterChatListener::class,
@@ -95,6 +96,7 @@ class EventServiceProvider extends ServiceProvider
         ],
         ChannelMessageAttachedEvent::class => [
             QueueChannelKnowledgeIndexListener::class,
+            WakePlanAgentOnChannelCommentListener::class,
         ],
         KnowledgeIndexRequested::class => [
             QueueKnowledgeIndexListener::class,
@@ -127,7 +129,6 @@ class EventServiceProvider extends ServiceProvider
         Channels::observe(ChannelObserver::class);
         ProductsTypes::observe(ProductsTypesObserver::class);
         VariantsChannels::observe(VariantsChannelObserver::class);
-        ProductsCategories::observe(ProductsCategoriesObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         People::observe(PeopleObserver::class);
         AppsStripeCustomer::observe(AppsStripeCustomerObserver::class);

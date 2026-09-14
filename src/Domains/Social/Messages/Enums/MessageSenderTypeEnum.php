@@ -8,11 +8,15 @@ namespace Kanvas\Social\Messages\Enums;
  * Who sent a communication message — the single source of truth behind the
  * `messages.sender_type` column. Classification is derived from the JSON `message`
  * payload keys (`from_me`, `from_ia`, `from_orchestrator`) so the observer, the
- * backfill command, and any future reader all agree on the same rules.
+ * backfill commands, and any future reader all agree on the same rules.
  *
  * A message with no `from_me` key is not a communication message (social post,
  * comment, system row) and has no sender type — the column stays NULL and it is
  * excluded from the Engage usage breakdown.
+ *
+ * `messages.people_id` is gated on the same classification: CreateMessageAction only
+ * attaches a person when fromPayload() returns non-null, so the two columns can never
+ * disagree about whether a row is a real customer message.
  */
 enum MessageSenderTypeEnum: string
 {

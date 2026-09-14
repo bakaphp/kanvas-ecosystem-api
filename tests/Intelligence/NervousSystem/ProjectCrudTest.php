@@ -320,4 +320,37 @@ class ProjectCrudTest extends TestCase
             ->assertSuccessful()
             ->assertJsonStructure(['data' => ['nervousSystemProjects' => ['data' => [['id', 'title']]]]]);
     }
+
+    /**
+     * Agent carries a SoftDeletingScope on is_deleted, so a soft-deleted PM drops out of the
+     * belongsTo and pmAgent resolves to null — a non-null schema field crashed the whole list
+     * with InvariantViolation (Sentry KANVAS-ECOSYSTEM-5GS).
+     */
+    public function testListProjectsWithSoftDeletedPmAgent(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+
+        $project = new CreateProjectAction(
+            ProjectData::from(
+                $app,
+                $user,
+                $company,
+                ['title' => 'Orphaned PM project', 'agent_id' => $agent->id],
+            ),
+        )->execute();
+
+        $agent->softDelete();
+
+        $this->graphQL('
+            query ($id: Mixed!) {
+                nervousSystemProjects(where: { column: ID, operator: EQ, value: $id }) {
+                    data { id title pmAgent { id name } }
+                }
+            }
+        ', ['id' => $project->id])
+            ->assertGraphQLErrorFree()
+            ->assertJsonPath('data.nervousSystemProjects.data.0.id', (string) $project->id)
+            ->assertJsonPath('data.nervousSystemProjects.data.0.pmAgent', null);
+    }
 }

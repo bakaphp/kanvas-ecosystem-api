@@ -23,6 +23,9 @@ final class AgentTypeDefinition
 {
     /**
      * @param array<string, mixed> $config Default config JSON for the type
+     * @param list<string> $requires What a human must still set on an agent of this type before it
+     *                               can do its job, one plain sentence each. Read at hire time, so a
+     *                               half-configured hire is reported rather than discovered later.
      */
     public function __construct(
         public readonly ?string $name = null,
@@ -36,6 +39,7 @@ final class AgentTypeDefinition
         public readonly bool $isMultiAgent = false,
         public readonly int $weight = 0,
         public readonly array $config = [],
+        public readonly array $requires = [],
     ) {
     }
 

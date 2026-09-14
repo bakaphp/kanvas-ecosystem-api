@@ -84,13 +84,13 @@ final class PasoRapidoTest extends TestCase
                 'nombreUsuario' => null,
                 'apellidoUsuario' => null,
                 'dispositivo' => $tag,
-                'descripcionMensaje' => "test description",
-                'rnc_Cedula' => "1234",
+                'descripcionMensaje' => 'test description',
+                'rnc_Cedula' => '1234',
                 'balance' => 2000,
-                'tipoDeReferencia' => "test",
+                'tipoDeReferencia' => 'test',
                 'referencia' => $tag,
-                'cuenta' => "1234",
-                'estado' => "activo",
+                'cuenta' => '1234',
+                'estado' => 'activo',
             ]);
 
         // Inject the mock into your class
@@ -124,7 +124,7 @@ final class PasoRapidoTest extends TestCase
             config: $config
         );
         $tag = env('TEST_PASO_RAPIDO_TAG');
-        $transactionId = "747892572499611470" . rand(1000, 9999);
+        $transactionId = '747892572499611470' . rand(1000, 9999);
         $customer = $pasoRapidoService->verifyCustomer($tag);
         $confirmedPayment = $pasoRapidoService->confirmPayment(
             PaymentConfirmData::from([

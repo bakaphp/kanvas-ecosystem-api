@@ -13,6 +13,7 @@ use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
 use Kanvas\Souk\Payments\Models\PaymentRefund;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
@@ -33,7 +34,15 @@ use UnexpectedValueException;
  * (receiver_webhook_calls.raw_payload) — re-serialising the decoded payload would change the
  * bytes and always fail Stripe's HMAC.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Stripe Order Payment Webhook',
+    description: 'Receiver for Stripe payment events on a Souk ORDER: moves the order and its payment through '
+        . 'their states as Stripe reports success, failure, or that more authentication is needed. The '
+        . 'webhook is the source of truth and every transition is idempotent, so a re-delivery or a '
+        . 'race with the checkout call is a no-op. One receiver per company. Distinct from the Cashier '
+        . 'receiver, which handles app subscriptions.',
+    integration: IntegrationsEnum::STRIPE,
+)]
 class StripeOrderPaymentWebhookJob extends ProcessWebhookJob
 {
     #[Override]

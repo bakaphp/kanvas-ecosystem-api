@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Workflow\Integration;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\StatusEnum;
+use Kanvas\Workflow\Integrations\Models\EntityIntegrationHistory;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Integrations\Models\Status;
 use Kanvas\Workflow\Models\Integrations;
@@ -118,6 +120,37 @@ final class ActivityIntegrationTraitTest extends TestCase
         $this->assertNull($resolved);
     }
 
+    public function testExecuteIntegrationStoresWorkflowInputInHistory(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $region = $this->createRegion($app, companiesId: $company->getId());
+        $this->registerIntegration($company->getId(), $region);
+        $input = [
+            'message_id' => 123,
+            'payload' => ['source' => 'workflow-test'],
+        ];
+
+        $this->activity()->executeIntegration(
+            entity: $company,
+            app: $app,
+            integration: IntegrationsEnum::INTERNAL,
+            integrationOperation: fn ($entity, $app, $integrationCompany, $params) => $params,
+            additionalParams: $input,
+            region: $region,
+            company: $company,
+        );
+
+        $history = EntityIntegrationHistory::query()
+            ->where('entity_namespace', $company::class)
+            ->where('entity_id', $company->getId())
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame($company->toArray(), $history->input['entity']);
+        $this->assertSame($input, $history->input['params']);
+    }
+
     private function createRegion(Apps $app, int $companiesId): Regions
     {
         return Regions::create([
@@ -152,7 +185,13 @@ final class ActivityIntegrationTraitTest extends TestCase
     private function activity(): object
     {
         return new class () {
+            use KanvasJobsTrait;
             use ActivityIntegrationTrait;
+
+            public function workflowId(): ?int
+            {
+                return null;
+            }
         };
     }
 }

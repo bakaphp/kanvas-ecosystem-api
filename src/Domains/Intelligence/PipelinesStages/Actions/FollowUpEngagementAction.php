@@ -61,13 +61,12 @@ final class FollowUpEngagementAction implements FollowUpTimeGateOverridable
     public function __construct(
         public Lead $lead,
         ?FollowUpLog $log = null,
-        bool $isV2 = false,
     ) {
         $this->log = $log;
-        $configService = new LeadConfigurationService($isV2);
+        $configService = new LeadConfigurationService();
 
-        if ($configService->isV2Enabled($lead->company) && ! $lead->isAiFollowUpEnabled()) {
-            throw new FollowUpException('ai_follow_up is not enabled for this lead (v2 mode)');
+        if (! $lead->isAiFollowUpEnabled()) {
+            throw new FollowUpException('ai_follow_up is not enabled for this lead');
         }
 
         $followUpKey = $configService->getFollowUpModeKey($lead);

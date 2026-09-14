@@ -87,6 +87,40 @@ final class SalesforceApiClient
         $this->send('delete', "/services/data/{$this->apiVersion}/sobjects/{$sobject}/{$id}", allowNotFound: true);
     }
 
+    /**
+     * Raw file bytes for a ContentVersion (a Salesforce File's binary payload) — unlike every other
+     * method here, the caller wants the response body itself, not `->json()`.
+     */
+    public function downloadContentVersion(string $contentVersionId): string
+    {
+        $response = $this->send(
+            'get',
+            "/services/data/{$this->apiVersion}/sobjects/ContentVersion/{$contentVersionId}/VersionData",
+        );
+
+        return $response->body();
+    }
+
+    /**
+     * @return array{sobjects: list<array{name: string, label: string, custom: bool, keyPrefix: ?string}>}
+     */
+    public function describeGlobal(): array
+    {
+        $response = $this->send('get', "/services/data/{$this->apiVersion}/sobjects/");
+
+        return $response->json() ?? [];
+    }
+
+    /**
+     * @return array{fields: list<array<string, mixed>>}
+     */
+    public function describeObject(string $sobject): array
+    {
+        $response = $this->send('get', "/services/data/{$this->apiVersion}/sobjects/{$sobject}/describe");
+
+        return $response->json() ?? [];
+    }
+
     private function send(
         string $method,
         string $path,

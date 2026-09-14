@@ -42,7 +42,7 @@ class VariantInterestLeadFilter
                 $variantQuery,
                 $attributes
             );
-            $variantIds = array_map(static fn (array $variant): int => (int) $variant['id'], $variants);
+            $variantIds = $this->variantIds($variants);
             $query->whereHas('variantInterests', fn ($interest) => $interest
                 ->where('is_active', 1)
                 ->where('is_deleted', 0)
@@ -72,10 +72,7 @@ class VariantInterestLeadFilter
             return $rows;
         }
 
-        $variantIds = array_fill_keys(
-            array_map(static fn (array $variant): int => (int) $variant['id'], $context['variants']),
-            true,
-        );
+        $variantIds = array_fill_keys($this->variantIds($context['variants']), true);
         $byLead = $leads->mapWithKeys(fn (Lead $lead): array => [
             $lead->getId() => array_values(array_filter(
                 $this->projection->build($lead)['items'],
@@ -91,6 +88,15 @@ class VariantInterestLeadFilter
             ],
             $rows,
         );
+    }
+
+    /**
+     * @param list<array<string, mixed>> $variants
+     * @return list<int>
+     */
+    private function variantIds(array $variants): array
+    {
+        return array_map(static fn (array $variant): int => (int) $variant['id'], $variants);
     }
 
     /** @param array<string, mixed> $context */

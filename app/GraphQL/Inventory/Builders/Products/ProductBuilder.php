@@ -50,11 +50,7 @@ class ProductBuilder
         }
 
         foreach ($args['attributeValues'] ?? [] as $filter) {
-            $query->filterByAttributeValue(
-                value: isset($filter['value']) ? (string) $filter['value'] : null,
-                attributesId: isset($filter['attribute_id']) ? (int) $filter['attribute_id'] : null,
-                slug: $filter['slug'] ?? null,
-            );
+            $query->filterByAttributeValue(...Products::attributeFilterArgsFromInput($filter));
         }
 
         if (! empty($args['withAttributeSlug'])) {
@@ -66,21 +62,20 @@ class ProductBuilder
             );
         }
 
-        if (! empty($args['variantAttributeOrderBy'])) {
-            $order = $args['variantAttributeOrderBy'];
-            $query->orderByVariantAttribute(
-                $order['name'],
-                $order['format'],
-                $order['sort']
-            );
-        }
+        $variantOrder = $args['variantAttributeOrderBy'] ?? null;
+        $attributeOrder = $args['attributeOrderBy'] ?? null;
 
-        if (! empty($args['attributeOrderBy']) && empty($args['variantAttributeOrderBy'])) {
-            $order = $args['attributeOrderBy'];
+        if (! empty($variantOrder['name'])) {
+            $query->orderByVariantAttribute(
+                $variantOrder['name'],
+                $variantOrder['format'] ?? 'STRING',
+                $variantOrder['sort'] ?? 'ASC'
+            );
+        } elseif (! empty($attributeOrder['name'])) {
             $query->orderByAttribute(
-                $order['name'],
-                $order['format'],
-                $order['sort']
+                $attributeOrder['name'],
+                $attributeOrder['format'] ?? 'STRING',
+                $attributeOrder['sort'] ?? 'ASC'
             );
         }
 

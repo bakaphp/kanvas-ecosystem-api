@@ -124,4 +124,57 @@ class CreateGoogleCalendarMeetingActionTest extends TestCase
         $this->assertNull($action->insertedEvent?->getConferenceData());
         $this->assertSame(['lead@example.com'], $result['attendees']);
     }
+
+    public function testItUpdatesAnExistingEventWithTheLatestDetailsAndAttendees(): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+        $company->set(ConfigurationEnum::GOOGLE_CALENDAR_CONFIG->value, [
+            'calendar_id' => 'calendar@example.com',
+            'auth_profiles' => [
+                'service_account' => [
+                    'credentials_json' => ['type' => 'service_account'],
+                ],
+            ],
+        ]);
+
+        $action = new class (
+            company: $company,
+            name: 'Updated Meeting',
+            attendeeEmails: ['new-attendee@example.com'],
+            startDateTime: Carbon::parse('2026-08-13 11:00', 'America/New_York'),
+            endDateTime: Carbon::parse('2026-08-13 11:30', 'America/New_York'),
+            description: 'Updated description',
+            externalEventId: 'google-event-123',
+        ) extends CreateGoogleCalendarMeetingAction {
+            public ?Event $updatedEvent = null;
+            public ?string $updatedEventId = null;
+
+            protected function createCalendarService(array $config): Calendar
+            {
+                return new Calendar(new Client());
+            }
+
+            protected function updateEvent(Calendar $service, string $calendarId, string $eventId, Event $event): Event
+            {
+                $this->updatedEventId = $eventId;
+                $this->updatedEvent = $event;
+
+                return new Event([
+                    'id' => $eventId,
+                    'summary' => $event->getSummary(),
+                    'description' => $event->getDescription(),
+                    'hangoutLink' => 'https://meet.google.com/updated',
+                    'htmlLink' => 'https://calendar.google.com/event?id=updated',
+                ]);
+            }
+        };
+
+        $result = $action->execute();
+
+        $this->assertSame('google-event-123', $action->updatedEventId);
+        $this->assertSame('google-event-123', $result['id']);
+        $this->assertSame('Updated Meeting', $action->updatedEvent?->getSummary());
+        $this->assertSame('Updated description', $action->updatedEvent?->getDescription());
+        $this->assertSame('new-attendee@example.com', $action->updatedEvent?->getAttendees()[0]->getEmail());
+    }
 }

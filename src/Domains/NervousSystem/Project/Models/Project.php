@@ -11,6 +11,8 @@ use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Intelligence\Agents\Contracts\HandlesAgentMention;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
@@ -68,6 +70,7 @@ use Override;
 #[ObservedBy([ProjectObserver::class])]
 class Project extends BaseModel implements HandlesAgentMention
 {
+    use HasAdminLink;
     use AsTree;
     use CascadeSoftDeletes;
     use EmitsLedgerEventsForEntity;
@@ -90,6 +93,12 @@ class Project extends BaseModel implements HandlesAgentMention
     public function getGraphTypeName(): string
     {
         return 'NervousSystemProject';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::AGENT_PROJECT;
     }
 
     #[Override]

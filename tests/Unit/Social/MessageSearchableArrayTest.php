@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Social;
 
+use Illuminate\Support\Facades\Cache;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
@@ -69,7 +71,48 @@ class MessageSearchableArrayTest extends TestCaseUnit
         $this->assertSame('{}', json_encode($emptyBody['message']));
     }
 
-    private function searchableMessageFor(string $rawMessage): array
+    /**
+     * Regression: a collection that auto-typed `message` as a string can't be re-typed, so the
+     * object fails the whole import batch with "Field `message` must be a string."
+     * (Sentry KANVAS-ECOSYSTEM-628).
+     */
+    public function testMessageFieldIsAStringWhenTheLiveCollectionTypedItAsOne(): void
+    {
+        $message = $this->searchableMessageModel('{"content":"hello world","from_me":true}');
+        $this->fakeCollectionSchema($message, [['name' => 'message', 'type' => 'string']]);
+
+        $data = $message->toSearchableArray();
+
+        $this->assertIsString($data['message']);
+        $this->assertSame('hello world', $data['message']);
+    }
+
+    public function testMessageFieldStaysAnObjectWhenTheLiveCollectionDeclaresIt(): void
+    {
+        $message = $this->searchableMessageModel('{"content":"hello world","from_me":true}');
+        $this->fakeCollectionSchema($message, [['name' => 'message', 'type' => 'object']]);
+
+        $data = $message->toSearchableArray();
+
+        $this->assertIsObject($data['message']);
+        $this->assertSame('hello world', $data['message']->content);
+    }
+
+    private function fakeCollectionSchema(Message $message, array $fields, bool $nestedFields = true): void
+    {
+        $message->setTypesense();
+
+        Cache::put(
+            'typesense_collection_schema_' . app(Apps::class)->getId() . '_' . $message->searchableAs(),
+            [
+                'fields' => $fields,
+                'enable_nested_fields' => $nestedFields,
+            ],
+            60
+        );
+    }
+
+    private function searchableMessageModel(string $rawMessage): Message
     {
         $message = new Message();
         $message->setRawAttributes([
@@ -84,10 +127,40 @@ class MessageSearchableArrayTest extends TestCaseUnit
             'is_deleted' => 0,
         ], true); // sync original so getRawOriginal('message') behaves like a DB-loaded model
 
+        $message->setRelation('app', app(Apps::class));
         $message->setRelation('user', new Users(['firstname' => 'Jane', 'lastname' => 'Doe', 'displayname' => 'jane']));
         $message->setRelation('messageType', new MessageType(['name' => 'post', 'verb' => 'post']));
         $message->setRelation('parent', null);
 
-        return $message->toSearchableArray();
+        return $message;
+    }
+
+    /**
+     * Regression: `message` is declared `object`, so Typesense types every nested key from the first
+     * document it indexes. An envelope holding a LIST of records then collides with the scalar types
+     * a single-record reply established — "field inside an array of objects must be an array type as
+     * well" — and the import is rejected.
+     */
+    public function testTheAgentEnvelopeIsKeptOutOfTheSearchPayload(): void
+    {
+        $body = json_encode([
+            'content' => 'The reply that was sent.',
+            'from_ia' => true,
+            'response_json' => [
+                ['title' => 'First article', 'status' => 'draft'],
+                ['title' => 'Second article', 'status' => 'draft'],
+            ],
+        ]);
+
+        $data = $this->searchableMessageFor((string) $body);
+
+        $this->assertObjectNotHasProperty('response_json', $data['message']);
+        $this->assertSame('The reply that was sent.', $data['message']->content);
+        $this->assertSame('The reply that was sent.', $data['message_text']);
+    }
+
+    private function searchableMessageFor(string $rawMessage): array
+    {
+        return $this->searchableMessageModel($rawMessage)->toSearchableArray();
     }
 }

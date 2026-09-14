@@ -135,6 +135,18 @@ class RestClient
     }
 
     /**
+     * `post` is wp/v2's name for `post_parent`.
+     */
+    public function attachMediaToPost(int $mediaId, int $postId): array
+    {
+        return $this->send(
+            'post',
+            '/media/' . $mediaId,
+            ['post' => $postId]
+        );
+    }
+
+    /**
      * WP takes the raw bytes as the request body; the filename only travels in Content-Disposition.
      */
     public function uploadMedia(

@@ -11,10 +11,12 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use NeuronAI\Tools\ArrayProperty;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\ToolPropertyInterface;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
@@ -24,10 +26,11 @@ use Throwable;
  * instead of making a duplicate. Company-wide write — an internal-teammate capability.
  */
 #[AgentTool(name: 'Create Person', category: 'crm')]
-class CreatePersonTool extends Tool
+class CreatePersonTool extends Tool implements HasRunKey
 {
     use DecodesJsonObjectParam;
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

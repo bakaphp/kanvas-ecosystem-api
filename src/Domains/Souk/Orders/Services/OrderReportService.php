@@ -9,12 +9,20 @@ use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderProvider;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 
 class OrderReportService
 {
+    /**
+     * Statuses that take an order out of the operational pipeline — a cancelled order is not a
+     * backlog item no matter what its payment/fulfillment columns still say.
+     */
+    private const CLOSED_STATUSES = ['draft', 'canceled', 'cancelled', 'failed'];
+
     public function __construct(
         private readonly Apps $app,
         private readonly Companies $company,
@@ -86,6 +94,146 @@ class OrderReportService
                 'card' => ['orders' => $cardCount, 'amount' => $cardAmount],
                 'other' => ['orders' => $count - $cardCount, 'amount' => round($total - $cardAmount, 2)],
             ],
+        ];
+    }
+
+    /**
+     * @param string[]|null $orderTypeNames
+     *
+     * @return array<string, mixed>
+     */
+    public function trend(
+        ?array $orderTypeNames,
+        ?string $since,
+        ?string $until,
+        ?string $groupBy,
+        bool $paidOnly
+    ): array {
+        $interval = in_array(strtolower($groupBy ?? 'month'), ['day', 'week', 'month'], true)
+            ? strtolower($groupBy ?? 'month')
+            : 'month';
+        $typeIds = $this->resolveOrderTypeIds($orderTypeNames);
+
+        $rows = $this->baseQuery($typeIds, $since, $until)
+            ->when($paidOnly, fn ($q) => $q->where('orders.payment_status', PaymentStatusEnum::PAID->value))
+            ->selectRaw(
+                $this->periodExpression($interval) . ' as period, '
+                . 'COUNT(*) as orders, '
+                . 'COALESCE(SUM(total_gross_amount), 0) as gross_revenue, '
+                . 'COALESCE(SUM(total_net_amount), 0) as net_revenue'
+            )
+            ->groupBy('period')
+            ->orderBy('period')
+            ->get()
+            ->map(fn ($r): array => [
+                'period' => (string) $r->period,
+                'orders' => (int) $r->orders,
+                'gross_revenue' => round((float) $r->gross_revenue, 2),
+                'net_revenue' => round((float) $r->net_revenue, 2),
+            ])->all();
+
+        $periods = count($rows);
+        $totalOrders = array_sum(array_column($rows, 'orders'));
+        $totalNet = array_sum(array_column($rows, 'net_revenue'));
+        $byOrders = collect($rows)->sortByDesc('orders');
+
+        return [
+            'group_by' => $interval,
+            'paid_only' => $paidOnly,
+            'periods' => $periods,
+            'total_orders' => $totalOrders,
+            'total_gross_revenue' => round((float) array_sum(array_column($rows, 'gross_revenue')), 2),
+            'total_net_revenue' => round((float) $totalNet, 2),
+            'average_orders_per_period' => $periods > 0 ? round($totalOrders / $periods, 2) : 0.0,
+            'average_net_revenue_per_period' => $periods > 0 ? round((float) $totalNet / $periods, 2) : 0.0,
+            'peak_period' => $byOrders->first(),
+            'lowest_period' => $byOrders->last(),
+            'series' => $rows,
+        ];
+    }
+
+    /**
+     * Pipeline health: where orders sit on the payment and fulfillment axes, plus the two backlogs
+     * that matter operationally (collected-but-not-shipped, and shipped-or-open-but-not-collected).
+     *
+     * @param string[]|null $orderTypeNames
+     *
+     * @return array<string, mixed>
+     */
+    public function fulfillmentStats(?array $orderTypeNames, ?string $since, ?string $until): array
+    {
+        $typeIds = $this->resolveOrderTypeIds($orderTypeNames);
+        $base = fn (): Builder => $this->baseQuery($typeIds, $since, $until);
+        $open = fn (): Builder => $base()->whereNotIn('orders.status', self::CLOSED_STATUSES);
+
+        $paid = PaymentStatusEnum::PAID->value;
+        $fulfilled = OrderFulfillmentStatusEnum::COMPLETED->value;
+
+        return [
+            'total_orders' => $base()->count(),
+            'total_net_amount' => round((float) $base()->sum('total_net_amount'), 2),
+            'by_payment_status' => $this->groupByColumn($base(), 'payment_status'),
+            'by_fulfillment_status' => $this->groupByColumn($base(), 'fulfillment_status'),
+            'backlog' => [
+                'paid_not_fulfilled' => $this->countAndAmount(
+                    $open()->where('orders.payment_status', $paid)
+                        ->where(fn ($q) => $q->where('orders.fulfillment_status', '!=', $fulfilled)
+                            ->orWhereNull('orders.fulfillment_status'))
+                ),
+                'unpaid' => $this->countAndAmount(
+                    $open()->where(fn ($q) => $q->where('orders.payment_status', '!=', $paid)
+                        ->orWhereNull('orders.payment_status'))
+                ),
+            ],
+        ];
+    }
+
+    /**
+     * @param string[]|null $orderTypeNames
+     *
+     * @return array<string, mixed>
+     */
+    public function providerStats(
+        ?array $orderTypeNames,
+        ?string $since,
+        ?string $until,
+        int $limit
+    ): array {
+        $typeIds = $this->resolveOrderTypeIds($orderTypeNames);
+        $pivot = OrderProvider::getQualifiedTableName();
+
+        $rows = $this->baseQuery($typeIds, $since, $until)
+            ->join($pivot . ' as order_providers', 'order_providers.order_id', '=', 'orders.id')
+            ->selectRaw(
+                'order_providers.company_id as company_id, '
+                . 'COUNT(*) as orders, '
+                . 'COALESCE(SUM(total_net_amount), 0) as net_revenue, '
+                . 'COALESCE(SUM(commission_amount), 0) as commission, '
+                . 'COALESCE(SUM(provider_amount), 0) as provider_payout'
+            )
+            ->groupBy('order_providers.company_id')
+            ->orderByDesc('net_revenue')
+            ->limit($limit)
+            ->get();
+
+        $names = Companies::query()
+            ->whereIn('id', $rows->pluck('company_id')->filter())
+            ->pluck('name', 'id');
+
+        return [
+            'providers' => $rows->map(fn ($r): array => [
+                'company_id' => (int) $r->company_id,
+                'company' => (string) ($names->get($r->company_id) ?? ('company #' . $r->company_id)),
+                'orders' => (int) $r->orders,
+                'net_revenue' => round((float) $r->net_revenue, 2),
+                'commission' => round((float) $r->commission, 2),
+                'provider_payout' => round((float) $r->provider_payout, 2),
+            ])->all(),
+            'orders_without_provider' => $this->baseQuery($typeIds, $since, $until)
+                ->whereNotExists(fn (QueryBuilder $q) => $q->select(DB::raw(1))
+                    ->from($pivot . ' as op')
+                    ->whereColumn('op.order_id', 'orders.id'))
+                ->count(),
         ];
     }
 
@@ -193,6 +341,51 @@ class OrderReportService
             'orders' => (int) $r->orders,
             'revenue' => round((float) $r->revenue, 2),
         ])->all();
+    }
+
+    /**
+     * Week buckets start on Monday so a "last 8 weeks" series lines up with how operations reads a
+     * calendar week, not with MySQL's Sunday-based WEEK().
+     */
+    private function periodExpression(string $interval): string
+    {
+        return match ($interval) {
+            'day' => 'DATE(orders.created_at)',
+            'week' => 'DATE(DATE_SUB(orders.created_at, INTERVAL WEEKDAY(orders.created_at) DAY))',
+            default => "DATE_FORMAT(orders.created_at, '%Y-%m-01')",
+        };
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function groupByColumn(Builder $query, string $column): array
+    {
+        return $query
+            ->selectRaw($column . ' as bucket, COUNT(*) as orders, COALESCE(SUM(total_net_amount), 0) as amount')
+            ->groupBy('bucket')
+            ->orderByDesc('orders')
+            ->get()
+            ->map(fn ($r): array => [
+                $column => (string) ($r->bucket ?? 'unknown'),
+                'orders' => (int) $r->orders,
+                'amount' => round((float) $r->amount, 2),
+            ])->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function countAndAmount(Builder $query): array
+    {
+        $row = $query
+            ->selectRaw('COUNT(*) as orders, COALESCE(SUM(total_net_amount), 0) as amount')
+            ->first();
+
+        return [
+            'orders' => (int) ($row->orders ?? 0),
+            'amount' => round((float) ($row->amount ?? 0), 2),
+        ];
     }
 
     /**

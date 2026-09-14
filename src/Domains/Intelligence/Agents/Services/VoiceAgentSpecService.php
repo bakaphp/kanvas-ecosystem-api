@@ -9,6 +9,11 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
+use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
+use NeuronAI\Tools\Tool as NeuronTool;
+use stdClass;
+use Throwable;
 
 /**
  * Compiles an Agent into the "voice agent spec" the external voice runtime
@@ -17,8 +22,9 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum;
  * This is the read-only config-plane compilation: it assembles the same system
  * prompt the in-process NeuronAI agent uses (soul → instructions →
  * output_format, with AgentType fallback — see Agents\Types\BaseAgent), the
- * resolved model name, the per-agent voice_config, and the company's telephony
- * number. It never returns credentials — Twilio secrets stay out of this payload.
+ * resolved model name, the per-agent voice_config, and the agent's telephony
+ * number (per-agent, falling back to the company). It never returns credentials
+ * — Twilio secrets stay out of this payload.
  */
 class VoiceAgentSpecService
 {
@@ -72,7 +78,56 @@ class VoiceAgentSpecService
             ],
             'telephony' => $this->telephony(),
             'context_schema' => array_values($voice['context_schema'] ?? []),
+            'tools' => $this->tools(),
         ];
+    }
+
+    /**
+     * The agent's callable tools, advertised so the voice runtime can register
+     * them as function-calling tools on the LLM. Only NEURON-framework tools
+     * whose handler class can be introspected are included; anything that fails
+     * to instantiate is skipped rather than breaking the whole spec fetch.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function tools(): array
+    {
+        $tools = [];
+
+        foreach (new CapabilityProvider()->getActiveTools($this->agent, CapabilityFrameworkEnum::NEURON->value) as $catalogTool) {
+            $handlerClass = $catalogTool->handler;
+            if (empty($handlerClass) || ! class_exists($handlerClass)) {
+                continue;
+            }
+
+            try {
+                $handler = app($handlerClass);
+            } catch (Throwable) {
+                continue;
+            }
+
+            if (! $handler instanceof NeuronTool) {
+                continue;
+            }
+
+            $properties = [];
+            foreach ($handler->getProperties() as $property) {
+                $properties[$property->getName()] = $property->getJsonSchema();
+            }
+
+            $tools[] = [
+                'name' => $handler->getName(),
+                'description' => $handler->getDescription(),
+                'parameters' => [
+                    'type' => 'object',
+                    // stdClass so an empty set serializes as JSON {}, not [].
+                    'properties' => $properties === [] ? new stdClass() : $properties,
+                    'required' => $handler->getRequiredProperties(),
+                ],
+            ];
+        }
+
+        return $tools;
     }
 
     /**
@@ -125,24 +180,35 @@ class VoiceAgentSpecService
     }
 
     /**
-     * The dealership's outbound caller-id number, read from company settings.
+     * The outbound caller-id number for this agent. Preference order:
+     *   1. the per-agent number set in voice_config.phone_number (admin UI)
+     *   2. the owning company's Twilio from-number setting
+     *   3. the company's `phone` column
      * Credentials (account sid / auth token) are deliberately NOT included here.
      *
      * @return array<string, mixed>
      */
     private function telephony(): array
     {
+        // A number configured on the agent itself wins over the company default,
+        // so each agent can have its own caller id. Blank/unset falls through.
+        $voice = $this->agent->voice_config ?? [];
+        $agentNumber = $voice['phone_number'] ?? null;
+
         // Load the owning company defensively — find() returns null instead of
         // throwing on a missing/invalid companies_id, so a telephony problem can
-        // never 503 the whole spec fetch. Prefer the configured Twilio
-        // from-number setting; fall back to the company's `phone` column.
+        // never 503 the whole spec fetch.
         $company = $this->agent->companies_id > 0
             ? Companies::find($this->agent->companies_id)
             : null;
 
+        $fromNumber = ($agentNumber !== null && $agentNumber !== '')
+            ? $agentNumber
+            : ($company?->get(TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value)
+                ?? $company?->phone);
+
         return [
-            'from_number' => $company?->get(TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value)
-                ?? $company?->phone,
+            'from_number' => $fromNumber,
         ];
     }
 

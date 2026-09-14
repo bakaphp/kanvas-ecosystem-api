@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Expenses\Models;
 
 use Baka\Casts\Json;
+use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\DynamicSearchableTrait;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
@@ -75,12 +79,15 @@ use Override;
  * @property bool $is_deleted
  * @property int|null $users_id
  */
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class Expense extends BaseModel
 {
+    use HasApprovals;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
     use EmitsLedgerEventsForEntity;
+    use HasLightHouseCache;
     use UuidTrait;
 
     protected $table = 'expenses';
@@ -258,5 +265,11 @@ class Expense extends BaseModel
         }
 
         return $searchQuery;
+    }
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'ScribeExpense';
     }
 }

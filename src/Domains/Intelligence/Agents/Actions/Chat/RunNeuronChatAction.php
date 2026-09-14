@@ -6,7 +6,9 @@ namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Baka\Http\SafeUrlFetcher;
 use finfo;
+use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -46,7 +48,13 @@ class RunNeuronChatAction
         protected readonly Apps $app,
         protected readonly Users $user,
         protected readonly mixed $handler,
-        protected readonly array $media = []
+        protected readonly array $media = [],
+        /**
+         * Prose answers a failed turn only when a human reads it. A caller whose reply feeds a
+         * pipeline wants the exception — the newsroom published the apology as an article once
+         * already (KANVAS-ECOSYSTEM-691).
+         */
+        protected readonly bool $fallbackOnFailure = true,
     ) {
     }
 
@@ -105,9 +113,23 @@ class RunNeuronChatAction
                 }
             }
         } catch (Throwable $e) {
-            report($e);
-
             $fallback = $this->humanizedFallback($e);
+
+            // Logged on both paths: report() only captures Issues, and a rethrown failure is reported
+            // by a caller that no longer knows which agent, session or handler it came from.
+            Log::error('Neuron chat turn failed', [
+                'agent_id' => $this->agent->getId(),
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->agent->companies_id,
+                'users_id' => $this->user->getId(),
+                'session_id' => $sessionId,
+                'handler' => get_class($this->handler),
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile() . ':' . $e->getLine(),
+                'fallback_on_failure' => $this->fallbackOnFailure,
+                'fallback' => $fallback,
+            ]);
 
             if (! $selfRecords) {
                 new KanvasConversationStore()->logTurn(
@@ -120,6 +142,13 @@ class RunNeuronChatAction
                     usage: ['error' => $e::class, 'message' => $e->getMessage()],
                 );
             }
+
+            // The caller reports what it rethrows, so the turn is never counted twice.
+            if (! $this->fallbackOnFailure) {
+                throw $e;
+            }
+
+            report($e);
 
             return $fallback;
         }
@@ -161,13 +190,48 @@ class RunNeuronChatAction
                 . 'like me to look into it or handle it a different way.';
         }
 
+        // Any tool can trip the run budget, not just the people lookups this copy used to name —
+        // a reporting tool looping on an empty date range hits it too (KANVAS-ECOSYSTEM-682).
         if ($e instanceof ToolRunsExceededException) {
-            return "I couldn't find a match after a few tries. Could you double-check the name or email "
-                . 'and confirm the person exists, then ask me again?';
+            return 'I kept retrying the same lookup without getting anywhere. Could you narrow it down for me — '
+                . 'an exact name, email, or date range — and ask again?';
+        }
+
+        // Nothing about the request was wrong, so telling the person to rephrase sends them to fix
+        // something that is not broken — and inviting a hand-off escalates a wait to a human. The
+        // model was busy; the only useful instruction is to ask again.
+        if ($this->isProviderOverloaded($e)) {
+            return 'The AI service is overloaded right now — that is on their side, not yours. '
+                . 'Ask me the same thing again in a moment and it should go through.';
         }
 
         return 'I ran into a hiccup processing that. Could you try rephrasing, '
             . 'or let me know if you want me to hand off to a human?';
+    }
+
+    /**
+     * A transient fault at the model provider rather than a fault in the request.
+     *
+     * Keyed on the HTTP status, because the provider's prose varies and is truncated by the time it
+     * reaches a log ("This model is currently experiencing high demand"). 429 is a rate limit; every
+     * 5xx covers the rest — Gemini's 503 and Anthropic's 529 alike — and the same request would
+     * survive a retry in all of them.
+     */
+    private function isProviderOverloaded(Throwable $e): bool
+    {
+        for ($current = $e; $current !== null; $current = $current->getPrevious()) {
+            if (! $current instanceof RequestException || ! $current->hasResponse()) {
+                continue;
+            }
+
+            $status = $current->getResponse()->getStatusCode();
+
+            if ($status === 429 || $status >= 500) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function isDuplicateEntryError(Throwable $e): bool

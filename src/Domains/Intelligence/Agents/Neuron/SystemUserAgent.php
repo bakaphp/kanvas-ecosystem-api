@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\HumanResources\Employees\Services\EmployeeBriefService;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
@@ -138,6 +139,11 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
     {
         $instructions = $this->selfIdentityBlock() . parent::instructions();
 
+        $human = $this->conversationHumanBlock();
+        if ($human !== '') {
+            $instructions .= "\n\n" . $human;
+        }
+
         $subject = $this->subjectEntity();
         if ($subject !== null) {
             $instructions .= "\n\n## Who you're helping with right now\n"
@@ -165,13 +171,12 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
 
         $user = $agent->user;
         if ($user !== null) {
-            $fullName = trim($user->firstname . ' ' . $user->lastname);
             $handle = $user->getAppDisplayName();
 
             $lines[] = sprintf(
                 'You ARE a Kanvas user: %s (email %s, user id %d). You act as this user — every record and ledger '
                 . 'event you create is stamped under this identity. When asked which user you are, this is the answer.',
-                $fullName !== '' ? $fullName : $handle,
+                $this->displayNameFor($user),
                 (string) $user->email,
                 $user->getId(),
             );
@@ -183,9 +188,77 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
                     $handle,
                 );
             }
+
+            $hr = $this->hrLine($user);
+            if ($hr !== null) {
+                $lines[] = 'Your seat on the org chart: ' . $hr . '. Stay inside that remit — when a request '
+                    . 'belongs to another role, say so and point at whoever holds it.';
+            }
         }
 
         return implode("\n", $lines) . "\n\n";
+    }
+
+    /**
+     * The human on the other side of this turn, with their place in the org chart. Deterministic —
+     * the agent knows the person's title and reporting line without them having to say it, and knows
+     * when there is no HR record instead of inventing a role.
+     */
+    private function conversationHumanBlock(): string
+    {
+        $company = $this->company;
+        $human = $this->entity instanceof Users ? $this->entity : $this->requestingHuman();
+
+        if ($company === null || $human === null) {
+            return '';
+        }
+
+        // On the @mention and channel surfaces $this->user IS the agent's own user — describing it
+        // here would tell the agent it is talking to itself.
+        if ($human->getId() === (int) ($this->agent?->user_id ?? 0)) {
+            return '';
+        }
+
+        $handle = $human->getAppDisplayName();
+
+        $lines = [
+            "## Who you're talking to",
+            sprintf(
+                'You are talking to %s (email %s, user id %d)%s.',
+                $this->displayNameFor($human),
+                (string) $human->email,
+                $human->getId(),
+                $handle !== '' ? ', @mention handle @' . $handle : '',
+            ),
+        ];
+
+        $hr = $this->hrLine($human);
+        $lines[] = $hr !== null
+            ? sprintf('Their seat on the org chart at %s: %s. Pitch your answer to that role — respect what it '
+                . 'covers and what it does not.', $company->name, $hr)
+            : sprintf('They have no HR employee record at %s, so their role is unknown — ask rather than assume '
+                . 'a title or a reporting line.', $company->name);
+
+        return implode("\n", $lines);
+    }
+
+    private function displayNameFor(Users $user): string
+    {
+        $fullName = trim($user->firstname . ' ' . $user->lastname);
+
+        return $fullName !== '' ? $fullName : $user->getAppDisplayName();
+    }
+
+    private function hrLine(Users $user): ?string
+    {
+        $app = $this->app;
+        $company = $this->company;
+
+        if ($app === null || $company === null) {
+            return null;
+        }
+
+        return new EmployeeBriefService()->renderTextForUser($user, $company, $app);
     }
 
     /**

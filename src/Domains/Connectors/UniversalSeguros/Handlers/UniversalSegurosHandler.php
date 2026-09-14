@@ -25,6 +25,7 @@ class UniversalSegurosHandler extends BaseIntegration
         $clientSecret = (string) ($this->data['client_secret'] ?? '');
         $environment = (string) ($this->data['environment'] ?? EnvironmentEnum::QA->value);
         $scopes = (string) ($this->data['scopes'] ?? ConfigurationEnum::defaultScopes());
+        $verifySsl = filter_var($this->data['verify_ssl'] ?? true, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;
 
         if ($clientId === '' || $clientSecret === '') {
             throw new ValidationException('Universal Seguros client_id and client_secret are required');
@@ -40,6 +41,9 @@ class UniversalSegurosHandler extends BaseIntegration
         $this->company->set(ConfigurationEnum::CLIENT_SECRET->value, $clientSecret);
         $this->company->set(ConfigurationEnum::ENVIRONMENT->value, $environment);
         $this->company->set(ConfigurationEnum::SCOPES->value, $scopes);
+        // Stored as '1'/'0' because a stored false round-trips as an empty string,
+        // which Client::resolveVerifySsl reads as "unset" and defaults back to true.
+        $this->company->set(ConfigurationEnum::VERIFY_SSL->value, $verifySsl ? '1' : '0');
         $this->company->set(InsuranceCustomFieldEnum::INSURER_COMPANY_ID->value, $insurerCompany->getId());
 
         // Without a default, every insuranceQuote would have to name the provider.

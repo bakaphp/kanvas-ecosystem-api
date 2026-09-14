@@ -37,14 +37,21 @@ class ProcessDriversLicenseActionTest extends TestCase
 
         $result = new ProcessDriversLicenseAction($lead)->execute($this->getDocsMessage());
 
-        $this->assertSame($driverLicenseData, $result);
+        $this->assertIsArray($result);
+        $this->assertSame($driverLicenseData['license'], $result['license']);
+        $this->assertSame($driverLicenseData['state'], $result['state']);
+        $this->assertSame('2030-01-01', $result['exp_date']);
+        $this->assertSame('1990-01-01', $result['birthday']);
 
         $flag = $lead->fresh()->get(CustomFieldEnum::GET_DOCS_IMPORTER->value);
         $this->assertIsArray($flag);
         $this->assertSame(1, $flag['active']);
         $this->assertSame('Drivers License Ready to be imported into eLead.', $flag['message']);
 
-        $this->assertSame($driverLicenseData['license'], $lead->people->fresh()->get('drivers_license_number'));
+        $people = $lead->people->fresh();
+        $this->assertSame($driverLicenseData['license'], $people->license_number);
+        $this->assertSame('2030-01-01', $people->license_expiration_date->format('Y-m-d'));
+        $this->assertSame($driverLicenseData['state'], $people->license_state);
     }
 
     public function testFlagIsSetEvenWhenNoExtractedDriversLicenseDataYet(): void

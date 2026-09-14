@@ -15,6 +15,7 @@ use Override;
 #[AgentTool(name: 'Variant Search', category: 'inventory')]
 class VariantSearchTool extends Tool
 {
+    // The tenant comes from the agent context, never from LLM-supplied ids, which are prompt-injectable.
     use HasKanvasContext;
 
     public function __construct(private readonly VariantSearchService $searchService = new VariantSearchService())
@@ -23,6 +24,7 @@ class VariantSearchTool extends Tool
             name: 'variant_search',
             description: 'Search product variants through the configured search engine by name, SKU, EAN, or barcode. '
                 . 'Returns variant details including SKU, stock, and its parent product name. '
+                . 'Searches only within the company bound to the agent context. '
                 . 'Use this when the user asks about a specific SKU or variant name.',
         );
     }
@@ -42,6 +44,10 @@ class VariantSearchTool extends Tool
 
     public function __invoke(string $keyword): array
     {
+        if (! $this->hasTenantContext()) {
+            return $this->tenantContextMissingError('variant search');
+        }
+
         if ($keyword === '') {
             return ['message' => 'Please provide a keyword (name or SKU) to search for variants.'];
         }

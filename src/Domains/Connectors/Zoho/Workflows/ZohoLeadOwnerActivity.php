@@ -12,7 +12,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Zoho Set Lead Owner',
+    description: 'Works out which Zoho agent should own the lead and sets them as its owner. Attribution only '
+        . '— it moves no data and contacts nobody. Run it after the lead exists in Zoho.',
+    integration: IntegrationsEnum::ZOHO,
+)]
 class ZohoLeadOwnerActivity extends KanvasActivity
 {
     public $tries = 3;

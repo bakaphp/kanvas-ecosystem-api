@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Baka\Unit;
 
-use Kanvas\Apps\Models\Apps;
+use Illuminate\Support\Carbon;
 use Kanvas\Auth\Services\RegistrationVelocityService;
+use Tests\Stubs\Auth\InMemorySettingsApp;
 use Tests\TestCase;
 
 class RegistrationVelocityServiceTest extends TestCase
@@ -22,9 +23,19 @@ class RegistrationVelocityServiceTest extends TestCase
         config(['cache.default' => 'array']);
     }
 
-    private function service(): RegistrationVelocityService
+    protected function tearDown(): void
     {
-        return new RegistrationVelocityService(app(Apps::class));
+        Carbon::setTestNow();
+
+        parent::tearDown();
+    }
+
+    /**
+     * @param array<string, mixed> $settings
+     */
+    private function service(array $settings = [], int $appId = 1): RegistrationVelocityService
+    {
+        return new RegistrationVelocityService(InMemorySettingsApp::withSettings($settings, $appId));
     }
 
     public function testPrefixBurstIsBlockedAfterTheDefaultLimit(): void
@@ -70,54 +81,107 @@ class RegistrationVelocityServiceTest extends TestCase
 
     public function testCountersAreScopedPerApp(): void
     {
-        $app = app(Apps::class);
-        $otherApp = Apps::query()->where('id', '!=', $app->getId())->first();
-
-        if ($otherApp === null) {
-            $this->markTestSkipped('Needs a second app to prove the counters are tenant scoped.');
-        }
-
-        $service = new RegistrationVelocityService($app);
+        $service = $this->service();
 
         for ($i = 0; $i < 6; $i++) {
             $service->violation('dggie_sample' . $i . '@example.com');
         }
 
         $this->assertSame('local_part_prefix_burst', $service->violation('dggie_final@example.com'));
-        $this->assertNull(new RegistrationVelocityService($otherApp)->violation('dggie_final@example.com'));
+        $this->assertNull($this->service(appId: 2)->violation('dggie_final@example.com'));
     }
 
     public function testTheBurstLimitCanBeTightenedFromAppSettings(): void
     {
-        $app = app(Apps::class);
-        $app->set('signup_prefix_burst_limit', 2);
+        $service = $this->service(['signup_prefix_burst_limit' => 2]);
 
-        try {
-            $service = new RegistrationVelocityService($app);
-
-            $this->assertNull($service->violation('dggie_one@example.com'));
-            $this->assertNull($service->violation('dggie_two@example.com'));
-            $this->assertSame('local_part_prefix_burst', $service->violation('dggie_three@example.com'));
-        } finally {
-            $app->del('signup_prefix_burst_limit');
-        }
+        $this->assertNull($service->violation('dggie_one@example.com'));
+        $this->assertNull($service->violation('dggie_two@example.com'));
+        $this->assertSame('local_part_prefix_burst', $service->violation('dggie_three@example.com'));
     }
 
     public function testAZeroLimitDisablesTheRule(): void
     {
-        $app = app(Apps::class);
-        $app->set('signup_prefix_burst_limit', 0);
-        $app->set('signup_mailbox_limit', 0);
+        $service = $this->service([
+            'signup_prefix_burst_limit' => 0,
+            'signup_mailbox_limit' => 0,
+        ]);
 
-        try {
-            $service = new RegistrationVelocityService($app);
+        for ($i = 0; $i < 20; $i++) {
+            $this->assertNull($service->violation('dggie_sample' . $i . '@gmail.com'));
+        }
+    }
 
-            for ($i = 0; $i < 20; $i++) {
-                $this->assertNull($service->violation('dggie_sample' . $i . '@gmail.com'));
-            }
-        } finally {
-            $app->del('signup_prefix_burst_limit');
-            $app->del('signup_mailbox_limit');
+    /**
+     * The `nooowayy@whothefuckru.com` campaign: one signup every ten minutes,
+     * which the old fixed window expired between rather than counted.
+     */
+    public function testASlowDripNoLongerOutlastsTheBurstWindow(): void
+    {
+        Carbon::setTestNow('2026-08-28 10:00:00');
+        $service = $this->service(['signup_prefix_burst_window' => 3600]);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->assertNull($service->violation('nooowayy' . $i . '@example.com'));
+            Carbon::setTestNow(Carbon::now()->addMinutes(10));
+        }
+
+        $this->assertSame('local_part_prefix_burst', $service->violation('nooowayyfinal@example.com'));
+    }
+
+    public function testTheDomainRuleStaysOffUntilAnAppOptsIn(): void
+    {
+        $service = $this->service([
+            'signup_prefix_burst_limit' => 0,
+            'signup_mailbox_limit' => 0,
+        ]);
+
+        for ($i = 0; $i < 20; $i++) {
+            $this->assertNull($service->violation('person' . $i . '@gmail.com'));
+        }
+    }
+
+    public function testTheDomainBurstFiresOnceAnAppSetsALimit(): void
+    {
+        $service = $this->service([
+            'signup_prefix_burst_limit' => 0,
+            'signup_mailbox_limit' => 0,
+            'signup_domain_limit' => 3,
+        ]);
+
+        foreach (['ana', 'beto', 'carla'] as $local) {
+            $this->assertNull($service->violation($local . '@throwaway.test'));
+        }
+
+        $this->assertSame('email_domain_burst', $service->violation('dario@throwaway.test'));
+    }
+
+    /**
+     * The shape the rule cannot see, kept here so nobody mistakes it for cover
+     * it does not give: one signup per domain across a provider's vanity
+     * catalog never concentrates on a domain, so every counter stays at 1.
+     */
+    public function testASignupPerDomainStaysUnderTheDomainRule(): void
+    {
+        $service = $this->service([
+            'signup_prefix_burst_limit' => 0,
+            'signup_mailbox_limit' => 0,
+            'signup_domain_limit' => 3,
+        ]);
+
+        $emails = [
+            'benjamin.03@gmx.fr',
+            'alexander-lucas422@alice.it',
+            'luke-2009@email.com',
+            'michael03@myself.com',
+            'jessica528@doctor.com',
+            'james95@analyst.com',
+            'ethan02.garcia@pm.me',
+            'reed839@seznam.cz',
+        ];
+
+        foreach ($emails as $email) {
+            $this->assertNull($service->violation($email), $email . ' slips past every velocity rule.');
         }
     }
 }

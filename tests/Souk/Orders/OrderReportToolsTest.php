@@ -6,11 +6,16 @@ namespace Tests\Souk\Orders;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Intelligence\Agents\Neuron\Exporters\OrdersRecordExporter;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\ListOrderTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderBreakdownTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderCommissionStatsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderFulfillmentStatsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderPaymentStatsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderProviderStatsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderTrendTool;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Orders\Models\OrderTypes;
 use Kanvas\Souk\Payments\Models\Payments;
@@ -193,5 +198,99 @@ class OrderReportToolsTest extends TestCase
         $this->assertSame(100.0, (float) $result['total_revenue']);
         $this->assertSame(10.0, (float) $result['total_commission']);
         $this->assertSame(90.0, (float) $result['total_provider_amount']);
+    }
+
+    public function test_order_trend_buckets_orders_per_month(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+
+        // Push one order two months back so the series has more than a single bucket.
+        Order::query()
+            ->where('companies_id', $company->getId())
+            ->where('status', 'cancelled')
+            ->latest('id')
+            ->limit(1)
+            ->update(['created_at' => now()->subMonths(2)->startOfMonth()->addDay()]);
+
+        $result = new OrderTrendTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(group_by: 'month', order_types: 'movipass,paso_rapido');
+
+        $series = collect($result['series'])->keyBy('period');
+        $this->assertSame('month', $result['group_by']);
+        $this->assertSame(3, (int) $result['total_orders']);
+        $this->assertCount(2, $series);
+        $this->assertSame(2, (int) $series[now()->startOfMonth()->toDateString()]['orders']);
+        $this->assertSame(1, (int) $series[now()->subMonths(2)->startOfMonth()->toDateString()]['orders']);
+        $this->assertSame(2, (int) $result['peak_period']['orders']);
+        $this->assertSame(1, (int) $result['lowest_period']['orders']);
+    }
+
+    public function test_order_trend_paid_only_drops_unpaid_orders(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+
+        $result = new OrderTrendTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(order_types: 'movipass,paso_rapido', paid_only: true);
+
+        $this->assertSame(2, (int) $result['total_orders']);
+        $this->assertSame(150.0, (float) $result['total_net_revenue']);
+    }
+
+    public function test_order_fulfillment_stats_backlog_ignores_cancelled_orders(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+
+        $result = new OrderFulfillmentStatsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(order_types: 'movipass,paso_rapido');
+
+        $byPayment = collect($result['by_payment_status'])->keyBy('payment_status');
+        $this->assertSame(3, (int) $result['total_orders']);
+        $this->assertSame(2, (int) $byPayment['paid']['orders']);
+        $this->assertSame(150.0, (float) $byPayment['paid']['amount']);
+
+        // Both paid orders are unfulfilled; the unpaid one is cancelled so it is out of the backlog.
+        $this->assertSame(2, (int) $result['backlog']['paid_not_fulfilled']['orders']);
+        $this->assertSame(150.0, (float) $result['backlog']['paid_not_fulfilled']['amount']);
+        $this->assertSame(0, (int) $result['backlog']['unpaid']['orders']);
+    }
+
+    public function test_order_provider_stats_splits_revenue_per_provider(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+
+        $provider = Companies::factory()->create(['users_id' => $user->getId()]);
+        $commissioned = Order::query()
+            ->where('companies_id', $company->getId())
+            ->where('status', 'completed')
+            ->latest('id')
+            ->firstOrFail();
+        $commissioned->providerCompanies()->attach($provider->getId());
+
+        $result = new OrderProviderStatsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(order_types: 'movipass,paso_rapido');
+
+        $row = collect($result['providers'])->firstWhere('company_id', $provider->getId());
+        $this->assertNotNull($row);
+        $this->assertSame(1, (int) $row['orders']);
+        $this->assertSame(100.0, (float) $row['net_revenue']);
+        $this->assertSame(10.0, (float) $row['commission']);
+        $this->assertSame(90.0, (float) $row['provider_payout']);
+        $this->assertSame(2, (int) $result['orders_without_provider']);
+    }
+
+    public function test_orders_export_filters_by_order_type(): void
+    {
+        [$app, $company, $user] = $this->seedOrders();
+
+        $rows = new OrdersRecordExporter()->rows($app, $company, ['order_type' => 'paso_rapido']);
+
+        $this->assertNotEmpty($rows);
+        // Order Type and Payment Status columns sit at index 2 and 4.
+        $this->assertSame(['paso_rapido'], array_values(array_unique(array_column($rows, 2))));
+        $this->assertSame('paid', $rows[0][4]);
     }
 }

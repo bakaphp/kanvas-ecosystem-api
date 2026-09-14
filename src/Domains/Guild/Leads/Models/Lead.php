@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -13,6 +14,9 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use InvalidArgumentException;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -33,6 +37,7 @@ use Kanvas\Guild\Pipelines\Models\PipelineStage;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as EnumsConfigurationEnum;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Traits\HasFollowUpState;
+use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
@@ -74,9 +79,12 @@ use Throwable;
  * @property string|null $description
  * @property string $is_duplicate
  * @property string $third_party_sync_status
+ * @property int|null $merged_into_leads_id
+ * @property bool $is_deleted
  */
 class Lead extends BaseModel implements EventResourceInterface
 {
+    use HasAdminLink;
     use UuidTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
@@ -110,6 +118,12 @@ class Lead extends BaseModel implements EventResourceInterface
     public function getGraphTypeName(): string
     {
         return 'Lead';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::LEAD;
     }
 
     public function participants(): HasMany
@@ -317,6 +331,56 @@ class Lead extends BaseModel implements EventResourceInterface
         return (int) ($this->getAttributeValue('status') ?? 0) < 2;
     }
 
+    /**
+     * Query-side counterpart to isOpen() — same `status < 2` rule, kept in
+     * one place so bulk queries (e.g. RecalculateActiveLeadsCountCommand)
+     * can't drift from the instance check.
+     */
+    public function scopeIsOpen(Builder $query): Builder
+    {
+        return $query->where('status', '<', 2);
+    }
+
+    /**
+     * TODO: `leads_status` has no `category`/`is_closed` column, so there is
+     * no reliable way to know per-tenant which custom statuses mean "open".
+     * This hardcodes the known global seed ids as a stopgap — replace with a
+     * real category lookup once `leads_status` gets that column.
+     */
+    public const array OPEN_LEADS_STATUS_IDS = [1, 2];
+
+    public static function openLeadsStatusIds(?CompanyInterface $company = null): array
+    {
+        if ($company === null) {
+            return self::OPEN_LEADS_STATUS_IDS;
+        }
+
+        $extra = $company->get(ConfigurationEnum::OPEN_LEADS_STATUS_IDS->value);
+
+        if (! is_array($extra)) {
+            $extra = $extra === null || $extra === '' ? [] : explode(',', (string) $extra);
+        }
+
+        $extra = array_filter(array_map('intval', $extra), fn (int $id): bool => $id > 0);
+
+        return array_values(array_unique([...self::OPEN_LEADS_STATUS_IDS, ...$extra]));
+    }
+
+    public function isOpenLeadStatusId(?int $statusId): bool
+    {
+        return in_array($statusId, self::openLeadsStatusIds($this->company), true);
+    }
+
+    public function hasOpenLeadStatus(): bool
+    {
+        return $this->isOpenLeadStatusId((int) $this->getAttributeValue('leads_status_id'));
+    }
+
+    public function scopeHasOpenLeadStatus(Builder $query, ?CompanyInterface $company = null): Builder
+    {
+        return $query->whereIn('leads_status_id', self::openLeadsStatusIds($company));
+    }
+
     public function isActive(): bool
     {
         $statusName = strtolower($this->status()->firstOrFail()->name);
@@ -426,6 +490,7 @@ class Lead extends BaseModel implements EventResourceInterface
 
         $participant->leads_id = $this->id;
         $participant->peoples_id = $people->id;
+        $participant->participants_types_id ??= 0;
         $participant->is_deleted = 0;
 
         $participant->save();
@@ -797,13 +862,45 @@ class Lead extends BaseModel implements EventResourceInterface
         $this->set(ConfigurationEnum::CONTACTED->value, $status->value);
     }
 
+    public function resolveAiMode(?bool $isWithinWorkingHours = null): ?IntelligenceModeEnum
+    {
+        $storedMode = $this->get(EnumsConfigurationEnum::AI_MODE->value);
+        if ((bool) $this->get(ConfigurationEnum::AI_MODE_IS_MANUAL->value)) {
+            return IntelligenceModeEnum::tryFrom((string) $storedMode);
+        }
+
+        if ($isWithinWorkingHours === null) {
+            try {
+                $isWithinWorkingHours = $this->company->isWithinWorkingHours(now());
+            } catch (InvalidArgumentException) {
+                $isWithinWorkingHours = true;
+            }
+        }
+
+        $configurationService = new LeadConfigurationService();
+        $defaultKey = $configurationService->getAiModeDefaultKey($this, $isWithinWorkingHours);
+        $leadTypeConfig = $this->type()->first()?->config ?? [];
+        $resolvedMode = $leadTypeConfig[$defaultKey]
+            ?? $storedMode
+            ?? $this->company->get($configurationService->getAiModeKey($this));
+
+        return IntelligenceModeEnum::tryFrom((string) $resolvedMode);
+    }
+
     public function isAiMuted(): bool
     {
-        $aiMode = $this->get(EnumsConfigurationEnum::AI_MODE->value);
-
-        $mode = IntelligenceModeEnum::tryFrom((string) $aiMode);
+        $mode = $this->resolveAiMode();
 
         return $mode?->isOff() ?? false;
+    }
+
+    /**
+     * Central extension point for apps that interpret AI support mode
+     * differently from the default `ai_mode = SUPPORT` convention.
+     */
+    public function isAiSupport(): bool
+    {
+        return $this->resolveAiMode() === IntelligenceModeEnum::SUPPORT;
     }
 
     public function canRunAiAgent(): bool

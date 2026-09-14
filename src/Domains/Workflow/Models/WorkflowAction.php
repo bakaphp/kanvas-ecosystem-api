@@ -7,9 +7,11 @@ namespace Kanvas\Workflow\Models;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Kanvas\Workflow\Factories\ActionFactory;
+use Kanvas\Workflow\Traits\CatalogedByHandler;
 
 class WorkflowAction extends BaseModel
 {
+    use CatalogedByHandler;
     use HasFactory;
 
     protected $table = 'actions';

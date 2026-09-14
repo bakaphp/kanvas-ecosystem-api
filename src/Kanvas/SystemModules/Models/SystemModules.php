@@ -20,6 +20,7 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\HumanResources\Employees\Models\Employee;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
 use Kanvas\Inventory\Products\Models\Products;
@@ -148,6 +149,7 @@ class SystemModules extends BaseModel
             'lead' => Lead::class,
             'deal' => Deal::class,
             'people' => People::class,
+            'organization' => Organization::class,
             'message' => Message::class,
             'product' => Products::class,
             'variant' => Variants::class,
@@ -170,6 +172,7 @@ class SystemModules extends BaseModel
             Lead::class => 'lead',
             Deal::class => 'deal',
             People::class => 'people',
+            Organization::class => 'organization',
             Message::class => 'message',
             Products::class => 'product',
             Variants::class => 'variant',

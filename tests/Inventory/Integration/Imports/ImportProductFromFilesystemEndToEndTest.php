@@ -4,14 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Inventory\Integration\Imports;
 
+use Baka\Contracts\CompanyInterface;
+use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\CreateFilesystemMapperAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemMapper;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
+use Kanvas\Filesystem\Models\FilesystemMapper as FilesystemMapperModel;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
@@ -20,8 +22,7 @@ use Kanvas\Inventory\Products\Actions\ImportProductFromFilesystemAction;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes as ProductsTypesDto;
-use Kanvas\Inventory\Regions\Actions\CreateRegionAction;
-use Kanvas\Inventory\Regions\DataTransferObject\Region;
+use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Warehouses\Actions\CreateWarehouseAction;
 use Kanvas\Inventory\Warehouses\DataTransferObject\Warehouses;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
@@ -48,6 +49,8 @@ use Tests\TestCase;
  */
 final class ImportProductFromFilesystemEndToEndTest extends TestCase
 {
+    use ProductImportFixtures;
+
     /** @var array<int, string> */
     private array $tempPaths = [];
 
@@ -73,19 +76,7 @@ final class ImportProductFromFilesystemEndToEndTest extends TestCase
         $app = app(Apps::class);
         $company = $user->getCurrentCompany();
 
-        $region = new CreateRegionAction(
-            new Region(
-                $company,
-                $app,
-                $user,
-                Currencies::getById(1),
-                'Region ' . uniqid(),
-                'r-' . uniqid(),
-                null,
-                1,
-            ),
-            $user,
-        )->execute();
+        $region = $this->makeRegion($company, $app, $user);
 
         $warehouse = new CreateWarehouseAction(
             new Warehouses(
@@ -286,10 +277,7 @@ final class ImportProductFromFilesystemEndToEndTest extends TestCase
             )->execute();
         }
 
-        $productA = Products::where('slug', $productSlugA)
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->first();
+        $productA = $this->findImportedProduct($productSlugA, $app, $company);
         $this->assertNotNull($productA, 'Product A should exist after worker processing');
         $this->assertSame('Product Alpha', $productA->name);
 
@@ -298,10 +286,7 @@ final class ImportProductFromFilesystemEndToEndTest extends TestCase
         $variantSkus = $variantsA->pluck('sku')->all();
         $this->assertEqualsCanonicalizing([$skuA1, $skuA2], $variantSkus);
 
-        $productB = Products::where('slug', $productSlugB)
-            ->where('apps_id', $app->getId())
-            ->where('companies_id', $company->getId())
-            ->first();
+        $productB = $this->findImportedProduct($productSlugB, $app, $company);
         $this->assertNotNull($productB);
         $this->assertSame('Product Beta', $productB->name);
         $this->assertCount(1, $productB->variants()->get());
@@ -344,6 +329,402 @@ final class ImportProductFromFilesystemEndToEndTest extends TestCase
         $this->assertSame($productType->getId(), $productB->products_types_id);
     }
 
+    public function testCsvImportPersistsProductTagsAndVariantTagsInTheDatabase(): void
+    {
+        Queue::fake();
+
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $region = $this->makeRegion($company, $app, $user);
+        $productType = new CreateProductTypeAction(
+            new ProductsTypesDto(
+                $company,
+                $user,
+                'Tag E2E Type ' . uniqid(),
+                'Type used by the tag import test',
+                1,
+                true,
+            ),
+            $user,
+        )->execute();
+
+        $filesystemMapper = new CreateFilesystemMapperAction(
+            new FilesystemMapper(
+                app: $app,
+                branch: $user->getCurrentBranch(),
+                user: $user,
+                systemModule: SystemModulesRepository::getByModelName(Products::class),
+                name: 'Tag E2E Mapper ' . uniqid(),
+                header: [],
+                mapping: [
+                    'product_name' => 'Product Name',
+                    'variant_name' => 'Product Name',
+                    'sku' => 'SKU',
+                    'handler' => 'Slug',
+                    'product_slug' => 'Slug',
+                    'product_tags' => 'Product Tags',
+                    'variant_tags' => 'Variant Tags',
+                ],
+                configuration: ['product_type_id' => $productType->getId()],
+            ),
+        )->execute();
+
+        $productSlug = 'e2e-tags-' . uniqid();
+        $skuOne = 'E2E-TAG-1-' . uniqid();
+        $skuTwo = 'E2E-TAG-2-' . uniqid();
+
+        $csvPath = $this->writeCsv([
+            ['Slug', 'Product Name', 'SKU', 'Product Tags', 'Variant Tags'],
+            [$productSlug, 'Tagged Product', $skuOne, 'summer, sale', 'red, cotton'],
+            [$productSlug, 'Tagged Product', $skuTwo, 'summer, sale', 'blue'],
+        ]);
+
+        $this->runImport(
+            $csvPath,
+            $filesystemMapper,
+            $company,
+            $app,
+            $user,
+            $region,
+        );
+
+        $product = $this->findImportedProduct($productSlug, $app, $company);
+        $this->assertNotNull($product, 'Tagged product should exist after worker processing');
+
+        $this->assertEqualsCanonicalizing(
+            ['summer', 'sale'],
+            $product->tags()->pluck('name')->all(),
+            'product_tags column must be comma-split and attached to the product',
+        );
+
+        $tagsByVariantSku = [];
+        foreach ($product->variants()->get() as $variant) {
+            $tagsByVariantSku[$variant->sku] = $variant->tags()->pluck('name')->all();
+        }
+
+        $this->assertEqualsCanonicalizing(['red', 'cotton'], $tagsByVariantSku[$skuOne] ?? [], 'Variant 1 carries its own row tags');
+        $this->assertEqualsCanonicalizing(['blue'], $tagsByVariantSku[$skuTwo] ?? [], 'Variant 2 carries its own row tags');
+
+        // syncTags is detach-then-add, so a re-import with the tag columns left
+        // blank must leave the existing tags alone rather than wiping them.
+        $blankCsvPath = $this->writeCsv([
+            ['Slug', 'Product Name', 'SKU', 'Product Tags', 'Variant Tags'],
+            [$productSlug, 'Tagged Product', $skuOne, '', ''],
+            [$productSlug, 'Tagged Product', $skuTwo, '', ''],
+        ]);
+
+        $this->runImport(
+            $blankCsvPath,
+            $filesystemMapper,
+            $company,
+            $app,
+            $user,
+            $region,
+        );
+
+        $product->refresh();
+        $this->assertEqualsCanonicalizing(
+            ['summer', 'sale'],
+            $product->tags()->pluck('name')->all(),
+            'A blank tags column must not wipe the product tags already attached',
+        );
+
+        $reimportedVariantTags = [];
+        foreach ($product->variants()->get() as $variant) {
+            $reimportedVariantTags[$variant->sku] = $variant->tags()->pluck('name')->all();
+        }
+        $this->assertEqualsCanonicalizing(['red', 'cotton'], $reimportedVariantTags[$skuOne] ?? []);
+        $this->assertEqualsCanonicalizing(['blue'], $reimportedVariantTags[$skuTwo] ?? []);
+    }
+
+    public function testCsvReimportReplacesTagsWhenTheColumnHasNewValues(): void
+    {
+        Queue::fake();
+
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $region = $this->makeRegion($company, $app, $user);
+        $productType = new CreateProductTypeAction(
+            new ProductsTypesDto(
+                $company,
+                $user,
+                'Tag Replace Type ' . uniqid(),
+                'Type used by the tag replace test',
+                1,
+                true,
+            ),
+            $user,
+        )->execute();
+
+        $filesystemMapper = new CreateFilesystemMapperAction(
+            new FilesystemMapper(
+                app: $app,
+                branch: $user->getCurrentBranch(),
+                user: $user,
+                systemModule: SystemModulesRepository::getByModelName(Products::class),
+                name: 'Tag Replace Mapper ' . uniqid(),
+                header: [],
+                mapping: [
+                    'product_name' => 'Product Name',
+                    'variant_name' => 'Product Name',
+                    'sku' => 'SKU',
+                    'handler' => 'Slug',
+                    'product_slug' => 'Slug',
+                    'product_tags' => 'Product Tags',
+                ],
+                configuration: ['product_type_id' => $productType->getId()],
+            ),
+        )->execute();
+
+        $productSlug = 'e2e-retag-' . uniqid();
+        $sku = 'E2E-RETAG-' . uniqid();
+
+        $this->runImport(
+            $this->writeCsv([
+                ['Slug', 'Product Name', 'SKU', 'Product Tags'],
+                [$productSlug, 'Retagged Product', $sku, 'summer, sale'],
+            ]),
+            $filesystemMapper,
+            $company,
+            $app,
+            $user,
+            $region,
+        );
+
+        $this->runImport(
+            $this->writeCsv([
+                ['Slug', 'Product Name', 'SKU', 'Product Tags'],
+                [$productSlug, 'Retagged Product', $sku, 'winter'],
+            ]),
+            $filesystemMapper,
+            $company,
+            $app,
+            $user,
+            $region,
+        );
+
+        $product = $this->findImportedProduct($productSlug, $app, $company);
+
+        $this->assertEqualsCanonicalizing(
+            ['winter'],
+            $product->tags()->pluck('name')->all(),
+            'A populated tags column replaces the previous set rather than appending to it',
+        );
+    }
+
+    /**
+     * Drives the real queue worker rather than calling ProductImporterAction
+     * directly: CSV → mapper → JSONL rows → ProductImporterJob::handle().
+     *
+     * The job is handed its rows in-memory instead of via the spooled file,
+     * because the streaming branch resolves S3 through `Storage::build()`
+     * inside `FilesystemServices` — not injectable and not fakeable. Every
+     * other line of the worker runs for real, including overwriteAppService,
+     * the per-row action, and the created/updated tallying.
+     */
+    public function testRealImporterJobPersistsProductAndVariantTagsFromACsv(): void
+    {
+        Queue::fake();
+
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+        $region = $this->makeRegion($company, $app, $user);
+
+        $productType = new CreateProductTypeAction(
+            new ProductsTypesDto(
+                $company,
+                $user,
+                'Job Tag Type ' . uniqid(),
+                'Type used by the worker tag test',
+                1,
+                true,
+            ),
+            $user,
+        )->execute();
+
+        $filesystemMapper = new CreateFilesystemMapperAction(
+            new FilesystemMapper(
+                app: $app,
+                branch: $user->getCurrentBranch(),
+                user: $user,
+                systemModule: SystemModulesRepository::getByModelName(Products::class),
+                name: 'Job Tag Mapper ' . uniqid(),
+                header: [],
+                mapping: [
+                    'product_name' => 'Product Name',
+                    'variant_name' => 'Product Name',
+                    'sku' => 'SKU',
+                    'handler' => 'Slug',
+                    'product_slug' => 'Slug',
+                    'product_tags' => 'Product Tags',
+                    'variant_tags' => 'Variant Tags',
+                ],
+                configuration: ['product_type_id' => $productType->getId()],
+            ),
+        )->execute();
+
+        $productSlug = 'job-tags-' . uniqid();
+        $skuOne = 'JOB-TAG-1-' . uniqid();
+        $skuTwo = 'JOB-TAG-2-' . uniqid();
+
+        $csvPath = $this->writeCsv([
+            ['Slug', 'Product Name', 'SKU', 'Product Tags', 'Variant Tags'],
+            [$productSlug, 'Worker Tagged Product', $skuOne, 'summer, sale', 'red, cotton'],
+            [$productSlug, 'Worker Tagged Product', $skuTwo, 'summer, sale', 'blue'],
+        ]);
+
+        $rows = $this->streamCsvToRows(
+            $csvPath,
+            $filesystemMapper,
+            $company,
+            $app,
+            $user,
+            $region,
+        );
+        $this->assertCount(1, $rows, 'Both CSV rows share a handler so the worker receives one product');
+
+        new ProductImporterJob(
+            'job-uuid-' . uniqid(),
+            $rows,
+            $user->getCurrentBranch(),
+            $user,
+            $region,
+            $app,
+        )->handle();
+
+        $product = $this->findImportedProduct($productSlug, $app, $company);
+        $this->assertNotNull($product, 'The worker must have created the product');
+
+        $this->assertEqualsCanonicalizing(
+            ['summer', 'sale'],
+            $product->tags()->pluck('name')->all(),
+            'Product tags must survive the full worker path',
+        );
+
+        $tagsBySku = [];
+        foreach ($product->variants()->get() as $variant) {
+            $tagsBySku[$variant->sku] = $variant->tags()->pluck('name')->all();
+        }
+
+        $this->assertEqualsCanonicalizing(['red', 'cotton'], $tagsBySku[$skuOne] ?? []);
+        $this->assertEqualsCanonicalizing(['blue'], $tagsBySku[$skuTwo] ?? []);
+    }
+
+    /**
+     * Runs the CSV through the streaming action and then feeds every emitted
+     * JSONL line to ProductImporterAction, exactly as the worker's iteration
+     * loop does — so assertions can be made against real DB rows.
+     */
+    private function runImport(
+        string $csvPath,
+        FilesystemMapperModel $filesystemMapper,
+        CompanyInterface $company,
+        Apps $app,
+        UserInterface $user,
+        Regions $region
+    ): void {
+        $rows = $this->streamCsvToRows(
+            $csvPath,
+            $filesystemMapper,
+            $company,
+            $app,
+            $user,
+            $region,
+        );
+
+        foreach ($rows as $row) {
+            new ProductImporterAction(
+                ProductImporter::from($row),
+                $company,
+                $user,
+                $region,
+                $app,
+            )->execute();
+        }
+    }
+
+    /**
+     * Streams the CSV through the mapper and returns the decoded JSONL rows —
+     * the exact payload the queue worker receives.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function streamCsvToRows(
+        string $csvPath,
+        FilesystemMapperModel $filesystemMapper,
+        CompanyInterface $company,
+        Apps $app,
+        UserInterface $user,
+        Regions $region
+    ): array {
+        $sourceFilesystem = new Filesystem([
+            'users_id' => $user->getId(),
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'name' => basename($csvPath),
+            'path' => '/test/source/' . basename($csvPath),
+            'url' => 'https://example.test/source.csv',
+            'size' => (string) filesize($csvPath),
+            'file_type' => 'csv',
+        ]);
+        $sourceFilesystem->save();
+
+        $jsonlFilesystem = new Filesystem([
+            'users_id' => $user->getId(),
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'name' => 'transformed-' . uniqid() . '.jsonl',
+            'path' => '/test/jsonl/file.jsonl',
+            'url' => 'https://example.test/transformed.jsonl',
+            'size' => '0',
+            'file_type' => 'jsonl',
+        ]);
+        $jsonlFilesystem->save();
+
+        $filesystemImport = new FilesystemImports();
+        $filesystemImport->apps_id = $app->getId();
+        $filesystemImport->users_id = $user->getId();
+        $filesystemImport->companies_id = $company->getId();
+        $filesystemImport->companies_branches_id = $user->getCurrentBranch()->getId();
+        $filesystemImport->regions_id = $region->getId();
+        $filesystemImport->filesystem_id = $sourceFilesystem->getId();
+        $filesystemImport->filesystem_mapper_id = $filesystemMapper->getId();
+        $filesystemImport->status = 'pending';
+        $filesystemImport->is_deleted = 0;
+        $filesystemImport->saveOrFail();
+
+        $capturedJsonlContent = null;
+        $stubService = $this->createStub(FilesystemServices::class);
+        $stubService->method('getFileLocalPath')->willReturn($csvPath);
+        $stubService
+            ->method('upload')
+            ->willReturnCallback(function ($uploadedFile) use (&$capturedJsonlContent, $jsonlFilesystem) {
+                $capturedJsonlContent = file_get_contents($uploadedFile->getRealPath());
+
+                return $jsonlFilesystem;
+            });
+
+        new ImportProductFromFilesystemAction($filesystemImport, $stubService)->execute();
+
+        $this->assertNotNull($capturedJsonlContent, 'Action must produce a JSONL payload');
+
+        $rows = [];
+        foreach (explode("\n", (string) $capturedJsonlContent) as $line) {
+            if ($line === '') {
+                continue;
+            }
+
+            $rows[] = json_decode($line, true);
+        }
+
+        return $rows;
+    }
+
     public function testActionFailsFastWhenProductTypeIdIsMissingFromMapperConfiguration(): void
     {
         Queue::fake();
@@ -352,19 +733,7 @@ final class ImportProductFromFilesystemEndToEndTest extends TestCase
         $app = app(Apps::class);
         $company = $user->getCurrentCompany();
 
-        $region = new CreateRegionAction(
-            new Region(
-                $company,
-                $app,
-                $user,
-                Currencies::getById(1),
-                'Region ' . uniqid(),
-                'r-' . uniqid(),
-                null,
-                1,
-            ),
-            $user,
-        )->execute();
+        $region = $this->makeRegion($company, $app, $user);
 
         $filesystemMapper = new CreateFilesystemMapperAction(
             new FilesystemMapper(

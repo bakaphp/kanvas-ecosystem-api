@@ -170,7 +170,11 @@ jobs:
           - Inventory
           - Souk
           - Workflow
-          - Intelligence
+          - Intelligence-NervousSystem
+          - Intelligence-Agents
+          - Intelligence-AgentTools
+          - Intelligence-Tools
+          - Intelligence-Other
           - Baka
           - Event
           - ActionEngine
@@ -179,11 +183,27 @@ jobs:
         include:
           - testsuite: Inventory
             processes: 1
-          - testsuite: Intelligence
-            processes: 1
+          # The Intelligence shards inherited processes: 1 from when Intelligence was a single
+          # suite, before the split — not from an observed failure. Trying 3.
+          - testsuite: Intelligence-NervousSystem
+            processes: 3
+          - testsuite: Intelligence-Agents
+            processes: 3
+          - testsuite: Intelligence-AgentTools
+            processes: 3
+          - testsuite: Intelligence-Tools
+            processes: 3
+          - testsuite: Intelligence-Other
+            processes: 3
           - testsuite: Scribe
             processes: 1
           - testsuite: GraphQL-HumanResources
+            processes: 1
+          # Six Event tests build a product in setUp. Concurrent inserts into `products`
+          # deadlock on the gap lock that CreateProductAction's `lockForUpdate()` takes over
+          # the non-unique (apps_id, companies_id, slug) index, which surfaces as a 500 from
+          # createProduct. One process, no concurrent inserts, no deadlock.
+          - testsuite: Event
             processes: 1
     services:
       mysql:
@@ -307,12 +327,29 @@ jobs:
       - name: Setup Kanvas Agent Tools
         run: php artisan kanvas:nervous-system:sync-tools
 
+      # Asserts the sync produced a complete catalog. Runs against a database built from this
+      # commit, so any difference means discovery skipped a class (wrong base class, missing
+      # attribute) rather than historical drift — a tool with no catalog row makes
+      # capability_lookup answer "nobody has built this" about something that exists.
+      - name: Check Agent Tool catalog matches the code
+        run: php artisan kanvas:nervous-system:check-tool-drift
+
+      - name: Setup Kanvas Agent Types
+        run: php artisan kanvas:intelligence:sync-agent-types
+
       - name: create .env file
         run: echo '' > .env
 
       - name: Run Tests
         if: success()
-        run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=${{ matrix.processes || '4' }}
+        run: vendor/bin/paratest --testsuite=${{ matrix.testsuite }} --processes=${{ matrix.processes || '4' }} --exclude-group=serial
+
+      # Tests tagged #[Group('serial')] mutate state every parallel process shares — a global
+      # apps_id=0 catalog row, an app setting (which lands in Redis and on the non-transactional
+      # `ecosystem` connection). Running them alongside anything else deadlocks or bleeds.
+      - name: Run serial tests (single process)
+        if: success()
+        run: vendor/bin/phpunit --testsuite=${{ matrix.testsuite }} --group=serial --do-not-fail-on-empty-test-suite
 
       - name: Run Filesystem Tests (single process)
         if: success() && matrix.testsuite == 'GraphQL-Ecosystem'

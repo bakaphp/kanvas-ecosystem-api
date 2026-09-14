@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Event\Events\Traits\EventResourceTrait;
@@ -56,6 +58,7 @@ use Override;
 #[ObservedBy([DealObserver::class])]
 class Deal extends BaseModel
 {
+    use HasAdminLink;
     use UuidTrait;
     use HasTagsTrait;
     use CanUseWorkflow;
@@ -78,6 +81,12 @@ class Deal extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'Deal';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::DEAL;
     }
 
     public function people(): BelongsTo

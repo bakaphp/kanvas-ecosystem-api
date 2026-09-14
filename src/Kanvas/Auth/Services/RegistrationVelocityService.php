@@ -14,6 +14,12 @@ use Kanvas\Apps\Models\Apps;
  * on the address instead of the connection: a run sharing a local-part prefix is
  * one generator, and a run resolving to one mailbox is one Gmail account working
  * its dot and `+tag` aliases.
+ *
+ * The domain rule is the one that survives a smarter local-part generator, since
+ * it scores nothing about the address string — but only where the campaign
+ * concentrates on a domain. A run spread one-per-domain across a provider's
+ * vanity catalog (mail.com alone offers ~200) stays under it, which is what
+ * email verification is for.
  */
 final class RegistrationVelocityService
 {
@@ -40,7 +46,7 @@ final class RegistrationVelocityService
         if ($prefixLimit > 0 && strlen($local) >= self::PREFIX_LENGTH) {
             $bucket = 'prefix:' . substr($local, 0, self::PREFIX_LENGTH);
 
-            if ($this->counter->hit($bucket, $this->settings->prefixWindowSeconds()) > $prefixLimit) {
+            if ($this->counter->hitInWindow($bucket, $this->settings->prefixWindowSeconds()) > $prefixLimit) {
                 return 'local_part_prefix_burst';
             }
         }
@@ -50,8 +56,18 @@ final class RegistrationVelocityService
         if ($mailboxLimit > 0) {
             $bucket = 'mailbox:' . EmailProvider::canonicalize($email);
 
-            if ($this->counter->hit($bucket, $this->settings->mailboxWindowSeconds()) > $mailboxLimit) {
+            if ($this->counter->hitInWindow($bucket, $this->settings->mailboxWindowSeconds()) > $mailboxLimit) {
                 return 'mailbox_reuse';
+            }
+        }
+
+        $domainLimit = $this->settings->domainLimit();
+
+        if ($domainLimit > 0 && str_contains($email, '@')) {
+            $bucket = 'domain:' . Str::lower(Str::afterLast($email, '@'));
+
+            if ($this->counter->hitInWindow($bucket, $this->settings->domainWindowSeconds()) > $domainLimit) {
+                return 'email_domain_burst';
             }
         }
 

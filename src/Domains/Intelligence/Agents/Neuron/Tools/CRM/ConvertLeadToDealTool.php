@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
+use Baka\Support\Str;
 use Kanvas\Guild\Deals\Actions\ConvertLeadToDealAction;
 use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
@@ -98,8 +99,8 @@ class ConvertLeadToDealTool extends Tool
         try {
             $deal = new ConvertLeadToDealAction(
                 lead: $lead,
-                title: trim((string) $title) ?: null,
-                description: trim((string) $description) ?: null,
+                title: Str::trimToNull((string) $title),
+                description: Str::trimToNull((string) $description),
             )->execute();
         } catch (Throwable $e) {
             report($e);

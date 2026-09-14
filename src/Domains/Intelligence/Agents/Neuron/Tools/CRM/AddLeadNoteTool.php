@@ -8,6 +8,7 @@ use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\WritesNoteForEntity;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -26,6 +27,7 @@ class AddLeadNoteTool extends Tool implements HasRunKey
     use HasKanvasContext;
     use ResolvesLeadForTool;
     use TrackByInputs;
+    use WritesNoteForEntity;
 
     public function __construct()
     {
@@ -70,10 +72,7 @@ class AddLeadNoteTool extends Tool implements HasRunKey
         $note = trim($note);
 
         if ($note === '') {
-            return [
-                'status' => 'error',
-                'message' => 'The note is empty — write what you actually want recorded before calling this tool.',
-            ];
+            return $this->emptyNoteError();
         }
 
         $result = $this->resolveLeadOrError($lead_id);
@@ -88,22 +87,12 @@ class AddLeadNoteTool extends Tool implements HasRunKey
             $this->contextUser(),
         );
 
-        if ($recorded === null) {
-            return [
-                'status' => 'error',
-                'lead_id' => $lead->getId(),
-                'message' => sprintf(
-                    'The note could not be saved on lead %d. Do not claim it was saved — tell the user it failed.',
-                    $lead->getId(),
-                ),
-            ];
-        }
-
-        return [
-            'status' => 'success',
-            'lead_id' => $lead->getId(),
-            'note' => $note,
-            'message' => 'Note saved on the lead\'s activity thread.',
-        ];
+        return $this->finalizeNote(
+            $recorded,
+            $lead,
+            $note,
+            'lead_id',
+            'the lead\'s activity thread',
+        );
     }
 }

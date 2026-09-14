@@ -18,7 +18,6 @@ use Kanvas\Intelligence\FollowUp\Models\FollowUp;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpDay;
 use Kanvas\Intelligence\FollowUp\Models\FollowUpTemplate;
 use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementAction;
-use Kanvas\Intelligence\PipelinesStages\Actions\FollowUpEngagementV1Action;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Sessions\Actions\CreateContentSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
@@ -38,36 +37,16 @@ use Tests\TestCase;
  */
 class FollowUpEngagementNoCellphoneTest extends TestCase
 {
-    public function testV2SkipsSmsWhenLeadHasNoCellphone(): void
+    public function testSkipsSmsWhenLeadHasNoCellphone(): void
     {
         Carbon::setTestNow(Carbon::create(2026, 1, 14, 12, 0, 0, 'America/Los_Angeles'));
 
         try {
-            [$lead, $channel] = $this->makeLandlineOnlyLead(v2: true);
+            [$lead, $channel] = $this->makeLandlineOnlyLead();
 
             $messageCountBefore = $channel->messages()->count();
 
-            $action = new FollowUpEngagementAction($lead, null, true);
-            $result = $action->execute();
-
-            $this->assertNull($result);
-            $this->assertContains('no_reachable_contact', array_column($action->getSkippedReasons(), 'reason'));
-            $this->assertSame($messageCountBefore, $channel->messages()->count());
-        } finally {
-            Carbon::setTestNow();
-        }
-    }
-
-    public function testV1SkipsSmsWhenLeadHasNoCellphone(): void
-    {
-        Carbon::setTestNow(Carbon::create(2026, 1, 14, 12, 0, 0, 'America/Los_Angeles'));
-
-        try {
-            [$lead, $channel] = $this->makeLandlineOnlyLead(v2: false);
-
-            $messageCountBefore = $channel->messages()->count();
-
-            $action = new FollowUpEngagementV1Action($lead);
+            $action = new FollowUpEngagementAction($lead);
             $result = $action->execute();
 
             $this->assertNull($result);
@@ -81,7 +60,7 @@ class FollowUpEngagementNoCellphoneTest extends TestCase
     /**
      * @return array{0: Lead, 1: \Kanvas\Social\Channels\Models\Channel}
      */
-    private function makeLandlineOnlyLead(bool $v2): array
+    private function makeLandlineOnlyLead(): array
     {
         $user = auth()->user();
         $company = $user->getCurrentCompany();
@@ -126,7 +105,7 @@ class FollowUpEngagementNoCellphoneTest extends TestCase
 
         $lead->setContactStatus(LeadGroupStatusEnum::WAITING);
 
-        $followUpKey = new LeadConfigurationService($v2)->getFollowUpModeKey($lead);
+        $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
         $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
         // Landline only — NO cellphone. This is the reproduction: SMS is not deliverable.

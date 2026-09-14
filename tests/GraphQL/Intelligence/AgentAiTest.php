@@ -547,4 +547,45 @@ class AgentAiTest extends TestCase
         $this->assertNotNull($deletedDeployment);
         $this->assertTrue((bool) $deletedDeployment->is_deleted);
     }
+
+    public function testAgentsAiExposesCompanyAsSingleObject(): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+
+        $this->graphQL('
+            mutation($input: AgentAiInput!) {
+                createAiAgent(input: $input) {
+                    id
+                }
+            }
+        ', ['input' => [
+            'agent_type_id' => $this->createAgentType()->getId(),
+            'name' => 'Company Relation Agent ' . fake()->unique()->word(),
+            'description' => 'Company Relation Agent',
+            'role' => 'test-role',
+            'config' => ['key' => 'value'],
+            'is_active' => true,
+        ]])->assertSuccessful();
+
+        $this->graphQL('
+            query {
+                agentsAi(first: 25) {
+                    data {
+                        id
+                        company {
+                            id
+                            name
+                        }
+                    }
+                }
+            }
+        ')
+            ->assertSuccessful()
+            ->assertJsonFragment([
+                'company' => [
+                    'id' => (string) $company->getId(),
+                    'name' => $company->name,
+                ],
+            ]);
+    }
 }

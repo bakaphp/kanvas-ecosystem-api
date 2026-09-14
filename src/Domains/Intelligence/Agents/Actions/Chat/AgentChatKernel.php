@@ -56,6 +56,9 @@ class AgentChatKernel
         protected readonly array $documents = [],
         protected readonly array $additionalTools = [],
         protected readonly bool $privateUserTurn = false,
+        protected readonly ?string $adkAppName = null,
+        protected readonly ?string $adkBaseUrl = null,
+        protected readonly bool $fallbackOnFailure = true,
     ) {
     }
 
@@ -132,6 +135,10 @@ class AgentChatKernel
                 message: $this->message,
                 user: $this->user,
                 images: $this->images,
+                // Forwarded, not dropped: a wake job injects the board toolset here, and a hosted
+                // agent that silently loses it replies "I've marked it done" while the task never
+                // moves.
+                additionalTools: $this->additionalTools,
             )->execute();
         }
 
@@ -177,6 +184,8 @@ class AgentChatKernel
                 user: $this->user,
                 sourceChannel: $this->sourceChannel,
                 sourceMessage: $this->sourceMessage,
+                appName: $this->adkAppName,
+                baseUrl: $this->adkBaseUrl,
             )->execute();
         }
 
@@ -213,7 +222,8 @@ class AgentChatKernel
             app: $this->agent->app,
             user: $this->user,
             handler: $handler,
-            media: $this->nativeMedia()
+            media: $this->nativeMedia(),
+            fallbackOnFailure: $this->fallbackOnFailure,
         )->execute();
     }
 

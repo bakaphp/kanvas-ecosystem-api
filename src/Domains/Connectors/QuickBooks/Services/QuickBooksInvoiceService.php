@@ -110,7 +110,8 @@ class QuickBooksInvoiceService
 
         // First, try to find existing customer by email
         if ($customerEmail) {
-            $customers = $this->dataService->Query("SELECT * FROM Customer WHERE PrimaryEmailAddr = '{$customerEmail}'");
+            $escapedEmail = QuickBooksQueryService::escapeString($customerEmail);
+            $customers = $this->dataService->Query("SELECT * FROM Customer WHERE PrimaryEmailAddr = '{$escapedEmail}'");
             if (! empty($customers)) {
                 return $customers[0];
             }
@@ -180,7 +181,8 @@ class QuickBooksInvoiceService
 
         // First, try to find existing customer by email
         if ($customerEmail) {
-            $customers = $this->dataService->Query("SELECT * FROM Customer WHERE PrimaryEmailAddr = '{$customerEmail}'");
+            $escapedEmail = QuickBooksQueryService::escapeString($customerEmail);
+            $customers = $this->dataService->Query("SELECT * FROM Customer WHERE PrimaryEmailAddr = '{$escapedEmail}'");
             if (! empty($customers)) {
                 return $customers[0];
             }
@@ -233,7 +235,7 @@ class QuickBooksInvoiceService
     private function getOrCreateCustomerType(string $typeName): ?IPPCustomerType
     {
         // First, try to find existing customer type
-        $escapedTypeName = str_replace("'", "\'", $typeName);
+        $escapedTypeName = QuickBooksQueryService::escapeString($typeName);
         $customerTypes = $this->dataService->Query("SELECT * FROM CustomerType WHERE Name = '{$escapedTypeName}'");
 
         if (! empty($customerTypes)) {
@@ -371,7 +373,7 @@ class QuickBooksInvoiceService
     private function getOrCreateItem($orderItem): ?IPPItem
     {
         // Try to find existing item by SKU
-        $escapedSku = str_replace("'", "\'", $orderItem->product_sku);
+        $escapedSku = QuickBooksQueryService::escapeString($orderItem->product_sku);
         $items = $this->dataService->Query("SELECT * FROM Item WHERE Sku = '{$escapedSku}'");
 
         if (! empty($items)) {

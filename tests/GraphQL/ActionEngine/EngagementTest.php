@@ -504,6 +504,119 @@ class EngagementTest extends TestCase
         $this->assertEquals($parentId, $childResponse->json('data.startLeadEngagement.parent.id'));
     }
 
+    public function testContinueLeadEngagementLinksTheParentMessage(): void
+    {
+        $lead = $this->createLeadAndGetResponse();
+        $leadId = $lead['data']['createLead']['id'];
+        $peopleId = $lead['data']['createLead']['people']['id'];
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $actions = [[
+            'id' => 7,
+            'name' => 'credit-app',
+            'description' => 'Credit App',
+            'title' => 'Credit App',
+            'enable' => true,
+            'icon' => '',
+            'reasonEn' => 'apply for financing',
+            'reasonEs' => 'apply for financing',
+            'form_fields' => '{"personal":{"type":"object","required":1}}',
+            'form_config' => '{"require_credit-app_signature":true}',
+        ]];
+
+        new Setup($app, $user, $company, $actions)->run();
+
+        $parentResponse = $this->graphQL('
+            mutation($input: CreateEngagementInput!) {
+                startLeadEngagement(input: $input) {
+                    id
+                    message {
+                        id
+                        parent_id
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => fake()->uuid(),
+                'source' => 'kanvas-ai',
+                'status' => 'sent',
+                'action' => 'credit-app',
+                'data' => [],
+            ],
+        ])->assertSuccessful();
+
+        $parentId = $parentResponse->json('data.startLeadEngagement.id');
+        $parentMessageId = $parentResponse->json('data.startLeadEngagement.message.id');
+
+        $this->assertNotNull($parentMessageId);
+        $this->assertNull($parentResponse->json('data.startLeadEngagement.message.parent_id'));
+
+        $childResponse = $this->graphQL('
+            mutation($input: CreateEngagementInput!) {
+                continueLeadEngagement(input: $input) {
+                    id
+                    parent {
+                        id
+                    }
+                    message {
+                        id
+                        parent_id
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => fake()->uuid(),
+                'source' => 'api',
+                'status' => 'opened',
+                'action' => 'credit-app',
+                'data' => [],
+                'parent_id' => $parentId,
+            ],
+        ])->assertSuccessful();
+
+        $childMessageId = $childResponse->json('data.continueLeadEngagement.message.id');
+
+        $this->assertEquals($parentId, $childResponse->json('data.continueLeadEngagement.parent.id'));
+        $this->assertNotEquals($parentMessageId, $childMessageId);
+        $this->assertEquals(
+            $parentMessageId,
+            $childResponse->json('data.continueLeadEngagement.message.parent_id')
+        );
+
+        $orphanResponse = $this->graphQL('
+            mutation($input: CreateEngagementInput!) {
+                continueLeadEngagement(input: $input) {
+                    id
+                    message {
+                        id
+                        parent_id
+                    }
+                }
+            }
+        ', [
+            'input' => [
+                'lead_id' => $leadId,
+                'people_id' => $peopleId,
+                'request_id' => fake()->uuid(),
+                'source' => 'api',
+                'status' => 'opened',
+                'action' => 'credit-app',
+                'data' => [],
+            ],
+        ])->assertSuccessful();
+
+        $this->assertNotNull($orphanResponse->json('data.continueLeadEngagement.message.id'));
+        $this->assertNull($orphanResponse->json('data.continueLeadEngagement.message.parent_id'));
+    }
+
     public function testEngagementChildrenAndCompletionProgress(): void
     {
         $lead = $this->createLeadAndGetResponse();

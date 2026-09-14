@@ -9,10 +9,16 @@ use Kanvas\Connectors\Stripe\Services\StripePlanService;
 use Kanvas\Subscription\Importer\Actions\PlanImporterAction;
 use Kanvas\Subscription\Importer\DataTransferObjects\PlanImporter;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Stripe Import Plan',
+    description: 'Receiver that imports a Stripe product/plan into Kanvas as a subscription plan. Inbound '
+        . 'one-way.',
+    integration: IntegrationsEnum::STRIPE,
+)]
 class ImportStripePlanWebhookJob extends ProcessWebhookJob
 {
     public array $data = [];

@@ -14,7 +14,14 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'VinSolution Push Lead',
+    description: 'Pushes the lead into VinSolutions so the CRM has it. Outbound one-way sync — it writes to '
+        . 'VinSolutions and does not bring anything back, and it does not contact the customer. Only '
+        . 'useful if this company actually runs VinSolutions; several connectors ship a near-identical '
+        . 'step, so pick the one matching the CRM the company uses.',
+    integration: IntegrationsEnum::VIN_SOLUTION,
+)]
 class PushLeadActivity extends KanvasActivity
 {
     public $tries = 3;

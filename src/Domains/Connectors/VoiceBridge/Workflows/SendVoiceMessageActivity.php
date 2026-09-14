@@ -20,7 +20,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Send Voice Message',
+    description: 'Sends the message out as a voice call through VoiceBridge. This CONTACTS the person — do not '
+        . 'wire it to a trigger that fires on ordinary inbound traffic.',
+)]
 class SendVoiceMessageActivity extends KanvasActivity
 {
     public $tries = 1;

@@ -25,7 +25,7 @@ class NetSuiteSyncStockCommand extends Command
      *
      * @var string
      */
-    protected $signature = 'kanvas:netsuite-sync-stock {app_id} {company_id} {user_id} {filePath?} {--saved-search-id=576 : NetSuite saved search ID to use}';
+    protected $signature = 'kanvas:netsuite-sync-stock {app_id} {company_id} {user_id} {filePath?} {--saved-search-id=576 : NetSuite saved search ID to use} {--create-missing : Create the stock row for SKUs a mapped warehouse does not carry yet}';
 
     /**
      * The console command description.
@@ -64,29 +64,49 @@ class NetSuiteSyncStockCommand extends Command
                 $user
             );
 
-            $this->info("Fetching all products from NetSuite (this may take a moment for large catalogs)...");
-            $results = $syncAction->execute($savedSearchId, $barcodeFilter);
+            $this->info('Fetching all products from NetSuite (this may take a moment for large catalogs)...');
+            $results = $syncAction->execute($savedSearchId, $barcodeFilter, (bool) $this->option('create-missing'));
 
             if (isset($results['error'])) {
                 $this->error("Error: {$results['error']}");
+
                 return;
             }
 
-            // Display results
             $this->newLine();
-            $this->info("=== Sync Results ===");
+            $this->info('=== Sync Results ===');
 
             if ($barcodeFilter) {
                 $this->info("Products in CSV file: {$totalInCsv}");
-                $this->info("Found in NetSuite: " . ($totalInCsv - $results['not_found_in_netsuite']));
-                $this->warn("Not in NetSuite: {$results['not_found_in_netsuite']}");
-            } else {
-                $this->info("Total products from NetSuite: {$results['savedSearchTotal']}");
             }
 
-            $this->info("Found in Kanvas: " . ($results['totalToProcess'] - $results['not_found_in_netsuite'] - $results['not_found_in_kanvas']));
-            $this->warn("Not in Kanvas: {$results['not_found_in_kanvas']}");
+            $this->table(
+                ['warehouse', 'location', 'in netsuite', 'updated', 'created', 'not stocked', 'not in kanvas', 'failed'],
+                array_map(
+                    fn (array $location) => [
+                        $location['warehouses_id'],
+                        $location['location_id'],
+                        $location['error'] ?? $location['savedSearchTotal'],
+                        count($location['processed'] ?? []),
+                        count($location['created'] ?? []),
+                        count($location['not_in_warehouse'] ?? []),
+                        count($location['not_found_in_kanvas'] ?? []),
+                        count($location['update_failed'] ?? []),
+                    ],
+                    $results['locations']
+                )
+            );
+
             $this->info("Successfully updated: {$results['processed']}");
+            $this->info("  of which newly created: {$results['created']}");
+            $this->warn("Not in Kanvas: {$results['not_found_in_kanvas']}");
+            $this->warn("Not found in NetSuite: {$results['not_found_in_netsuite']}");
+
+            // A mapped warehouse that carries none of the catalog is the symptom of a warehouse
+            // that has never been stocked — --create-missing is what seeds it.
+            if ($results['not_in_warehouse'] > 0) {
+                $this->warn("Not stocked in the warehouse: {$results['not_in_warehouse']} (re-run with --create-missing to add them)");
+            }
 
             if ($results['update_failed'] > 0) {
                 $this->error("Failed to update: {$results['update_failed']}");
@@ -94,41 +114,20 @@ class NetSuiteSyncStockCommand extends Command
 
             $this->newLine();
 
-            // Display details of issues
-            if (! empty($results['not_found_in_netsuite_list'])) {
-                $notInNetSuite = $results['not_found_in_netsuite_list'];
-                $this->warn("Products not found in NetSuite (" . count($notInNetSuite) . "):");
-                foreach (array_slice($notInNetSuite, 0, 10) as $barcode) {
-                    $this->line("  - {$barcode}");
-                }
-                if (count($notInNetSuite) > 10) {
-                    $this->line("  ... and " . (count($notInNetSuite) - 10) . " more");
-                }
-                $this->newLine();
-            }
+            foreach ($results['locations'] as $location) {
+                if (isset($location['error'])) {
+                    $this->error("Warehouse {$location['warehouses_id']}: {$location['error']}");
 
-            if (! empty($results['not_found_in_kanvas_list'])) {
-                $notInKanvas = $results['not_found_in_kanvas_list'];
-                $this->warn("Products not found in Kanvas (" . count($notInKanvas) . "):");
-                foreach (array_slice($notInKanvas, 0, 10) as $barcode) {
-                    $this->line("  - {$barcode}");
+                    continue;
                 }
-                if (count($notInKanvas) > 10) {
-                    $this->line("  ... and " . (count($notInKanvas) - 10) . " more");
-                }
-                $this->newLine();
-            }
 
-            if (! empty($results['update_failed_list'])) {
-                $updateFailed = $results['update_failed_list'];
-                $this->error("Products that failed to update (" . count($updateFailed) . "):");
-                foreach (array_slice($updateFailed, 0, 10) as $failed) {
-                    $this->line("  - {$failed['barcode']} (Error: {$failed['error']})");
+                $this->reportSample("Warehouse {$location['warehouses_id']} — not found in NetSuite", $location['not_found_in_netsuite']);
+                $this->reportSample("Warehouse {$location['warehouses_id']} — not found in Kanvas", $location['not_found_in_kanvas']);
+                $this->reportSample("Warehouse {$location['warehouses_id']} — not stocked there", $location['not_in_warehouse']);
+
+                foreach (array_slice($location['update_failed'], 0, 10) as $failed) {
+                    $this->error("  - {$failed['barcode']} (Error: {$failed['error']})");
                 }
-                if (count($updateFailed) > 10) {
-                    $this->line("  ... and " . (count($updateFailed) - 10) . " more");
-                }
-                $this->newLine();
             }
 
             // Send notification to user
@@ -138,14 +137,36 @@ class NetSuiteSyncStockCommand extends Command
                 $user,
                 RolesEnums::INVENTORY_MANAGER,
             )->execute($app->get(B2BSettingsEnums::B2B_SYNC_INVENTORY_EMAIL_TEMPLATE->getValue()), [
-                "results" => $results
+                'results' => $results,
             ]);
 
-            $this->info("Stock sync completed successfully!");
+            $this->info('Stock sync completed successfully!');
         } catch (Exception $e) {
-            $this->error("Error during bulk sync: " . $e->getMessage());
-            $this->error("Stack trace: " . $e->getTraceAsString());
+            $this->error('Error during bulk sync: ' . $e->getMessage());
+            $this->error('Stack trace: ' . $e->getTraceAsString());
         }
+    }
+
+    /**
+     * @param array<int, string> $barcodes
+     */
+    private function reportSample(string $label, array $barcodes): void
+    {
+        if ($barcodes === []) {
+            return;
+        }
+
+        $this->warn($label . ' (' . count($barcodes) . '):');
+
+        foreach (array_slice($barcodes, 0, 10) as $barcode) {
+            $this->line('  - ' . $barcode);
+        }
+
+        if (count($barcodes) > 10) {
+            $this->line('  ... and ' . (count($barcodes) - 10) . ' more');
+        }
+
+        $this->newLine();
     }
 
     private function getProductList(string $csvFilePath): array
@@ -163,11 +184,11 @@ class NetSuiteSyncStockCommand extends Command
             }
 
             $barcode = $record['Copic Item No/ UPC'];
-            $sku = $record["Macpherson  Item #"] ?? "";
+            $sku = $record['Macpherson  Item #'] ?? '';
             $productList[$barcode] = [
-                "sku" => $sku,
-                "name" => $record["Description"],
-                "barcode" => $barcode
+                'sku' => $sku,
+                'name' => $record['Description'],
+                'barcode' => $barcode,
             ];
         }
 

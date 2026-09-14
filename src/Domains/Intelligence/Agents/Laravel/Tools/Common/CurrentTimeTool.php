@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Laravel\Tools\Common;
 
+use Baka\Support\DateHelper;
 use Carbon\Carbon;
-use DateTimeZone;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
@@ -13,7 +13,6 @@ use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
-use Throwable;
 
 #[AgentTool(name: 'Current Time', category: 'ecosystem')]
 class CurrentTimeTool implements KanvasToolInterface
@@ -60,17 +59,6 @@ class CurrentTimeTool implements KanvasToolInterface
 
     private function resolveTimezone(string $timezone): string
     {
-        $trimmed = trim($timezone);
-        if ($trimmed === '') {
-            return 'UTC';
-        }
-
-        try {
-            new DateTimeZone($trimmed);
-        } catch (Throwable) {
-            return 'UTC';
-        }
-
-        return $trimmed;
+        return DateHelper::validTimezone($timezone) ?? 'UTC';
     }
 }

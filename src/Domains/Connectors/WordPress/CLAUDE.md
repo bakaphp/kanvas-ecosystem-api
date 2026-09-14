@@ -56,6 +56,14 @@ message is also doing chat duty. Every field is optional.
 - `featured_image` / `attachments` — URLs. They're fetched through `SafeUrlFetcher` (SSRF-guarded)
   and uploaded to the media library. A URL that can't be fetched is reported in `media_failures`
   and does not sink the post.
+- `video` — a URL, uploaded like the rest but also **embedded as a `wp:video` block at the top of the
+  content**, so the post leads with the player. Uploading alone is not enough: an attachment with no
+  block is filed in the media library and never rendered. The poster frame stays `featured_media` —
+  that is what archives and social cards read, and no theme can render an mp4 as a thumbnail. The
+  block is emitted only when the upload returns both an id and a `source_url`; otherwise the post
+  ships as it would have without the clip rather than with a `<video src="">`.
+  Post **format** is left alone — wp/v2 rejects `format: "video"` on a theme that does not declare
+  post-format support, so set it explicitly in the message or rule when the theme has it.
 - `meta` — only keys the site has registered with `show_in_rest` will stick.
 
 ### Fallbacks when the body omits a field
@@ -68,6 +76,7 @@ message is also doing chat duty. Every field is optional.
 | `categories` | the message's Kanvas categories (`HasCategoriesTrait`) |
 | `tags` | the message's Kanvas tags (`HasTagsTrait`) |
 | `featured_image` | first image in `$message->files` |
+| `video` | first video in `$message->files` |
 | `attachments` | the remaining `$message->files` |
 | `status` / `author_id` / default terms | the connector configuration |
 
@@ -76,12 +85,64 @@ the raw JSON when it finds no text key, which would publish the message's own JS
 `WordPressPost::resolveContent()` reads the object by key instead and only uses `contentText()` for
 a genuinely non-object body.
 
+### An agent reply that IS the post (`response_json`)
+
+A message written by a channel responder does not carry the post at the top level. The agent's reply
+travels as **text**: `ChatHelper::extractTextFromResponse()` picks ONE field out of the agent's JSON
+(so the email/WhatsApp body is prose, not a JSON dump), and everything else — title, terms, excerpt,
+status — is thrown away. An agent that wrote a whole post would arrive with only its body, and the
+title would be the first 117 characters of the article.
+
+So `BaseAgentChannelReplyAction::createMessage()` keeps the decoded envelope on the message as
+`response_json` alongside the reply text, and `WordPressPost::fromMessage()` reads it as a layer:
+
+```json
+{
+  "content": "<p>The reply text that was actually sent.</p>",
+  "from_ia": true,
+  "response_json": { "title": "…", "content": "<p>…</p>", "categories": ["News"], "status": "draft" }
+}
+```
+
+`response_json` is deliberately connector-agnostic — the responder does not know WordPress exists, it
+only records that the agent answered with structure. Any activity can consume it.
+
+Messages written before that existed (or by a producer that stores the reply verbatim) are still
+handled: a **string** `response_json` / `response_text` / `responseText` / `content` is run through
+`ChatHelper::extractJsonEnvelope()`, which unwraps a ```` ```json ```` fence. Without that, a fenced
+reply publishes the raw JSON as the article body — a silent wrong post rather than a loud failure,
+since `content` is itself a valid post key.
+
+**An envelope can be a LIST.** An agent handed several press releases in one turn answers with
+`[{...},{...}]`. A post is one record, so `agentEnvelope()` reads the first — the rest stay on the
+message in `response_json` for whatever consumes them next. Getting this wrong is silent: a list
+reaches `onlyPostKeys()` as numeric keys, matches nothing, and the post falls through to the
+message's own `content`, publishing the model's raw JSON as the article under a title that is its
+first 117 characters. The parse side matters as much — `extractJsonEnvelope()` used to anchor its
+fenced and bare matches on `{`, so a fenced list was never decoded at all.
+
+Only the first record is published, so an agent that regularly has several stories to file should be
+instructed to answer with **one article per turn** — the extra records survive on the message but
+nothing ships them.
+
 ### Precedence
 
-`message body wordpress: {}` > `message body top level` > `workflow rule params` > connector config.
+`workflow rule status` > `message body wordpress: {}` > `response_json` > `message body top level` >
+`workflow rule params` > connector config.
+
+**`status` from the workflow rule is the one field that outranks the message.** It is editorial
+policy, not content: a rule configured to hold everything for review must not be overruled by an
+agent that wrote `"status": "publish"` into its envelope. Everything else the rule sets stays a
+default the message can override — categories and tags describe the article, and whoever wrote it
+knows those better than the rule does.
+
+The promotion is scoped to the **rule's** status (`PushMessageToWordPressAction::statusOverride()`),
+not the connector's `default_post_status`. That one stays a site-wide default, so a message naming
+its own status still wins over it.
 
 Only the keys wp/v2 understands are read out of each layer, so agent bookkeeping in the message
-body can never reach the site.
+body — and the editorial extras a news agent emits (`titulos_alternativos`, `correcciones`) — can
+never reach the site.
 
 ## Setup
 

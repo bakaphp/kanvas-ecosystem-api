@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 
 class UpdatePlanAction
@@ -47,12 +48,24 @@ class UpdatePlanAction
                 ? (string) $this->data->confidenceScore
                 : null;
             $this->plan->requires_human_approval = $this->data->requiresHumanApproval;
+            $this->plan->blocked_needs = $this->data->blockedNeeds?->value;
             $this->plan->swarm_id = $this->data->swarm?->getId();
             $this->plan->is_swarm_mission = $this->data->isSwarmMission;
             $this->plan->impact_summary = $this->data->impactSummary;
             $this->plan->status_pill = $this->data->statusPill;
 
             $newStatus = $this->data->status->value;
+
+            // Asking for approval mid-flight has to actually gate, the way it already does at
+            // creation. Setting the flag alone changed nothing: the plan stayed active, the loop kept
+            // dispatching, and "waiting for approval" was a sentence in a comment that nothing
+            // enforced (plan 25667). Already-approved plans are left alone — approval is not re-asked.
+            if ($this->plan->requires_human_approval
+                && $this->plan->approved_at === null
+                && $newStatus === PlanStatusEnum::ACTIVE->value
+            ) {
+                $newStatus = PlanStatusEnum::AWAITING_APPROVAL->value;
+            }
 
             if ($newStatus === 'active' && $this->plan->started_at === null) {
                 $this->plan->started_at = Carbon::now();

@@ -59,6 +59,7 @@ class CreatePlanAction
             $plan->apps_id = $this->data->app->getId();
             $plan->companies_id = $this->data->company->getId();
             $plan->agent_id = $this->data->agent?->getId();
+            $plan->created_by_agent_id = $this->data->createdByAgent?->getId();
             $plan->users_id = $this->data->user?->getId();
             $plan->parent_plan_id = $this->data->parentPlan?->id;
             $plan->project_id = $this->data->project?->getId();

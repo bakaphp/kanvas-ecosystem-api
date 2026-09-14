@@ -26,6 +26,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadIntentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\RescheduleCalendarEventTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SimilarVehiclesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\StopContactTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UserAvailabilityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\VehicleInterestTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\VehicleTradeInTool;
@@ -98,6 +99,18 @@ class SalesAgent extends BaseRagAgent implements ConversesWithCustomer
                 . 'create_calendar_event, etc.) in the SAME turn. Never invent a lead_id.',
             ]);
 
+        // Scoped narrowly on purpose. Obvious opt-outs are applied deterministically before this agent
+        // is ever invoked, so repeating the full list here would only invite it to re-decide cases the
+        // inbound layer already settled — including the ones it deliberately declined to flag.
+        $contextLines[] = 'COMPLIANCE: clear opt-outs ("stop", "unsubscribe", "remove me from your list") are '
+            . 'already handled before you see the message, so you will rarely need to act on one. Call '
+            . 'stop_contact ONLY when someone asks to stop hearing from us in wording those checks would miss — '
+            . 'for example agreeing to it across turns ("yes, go ahead" after you offered to stop), or an '
+            . 'unusual phrasing like "I bought elsewhere, close my file". Pass their exact words as the reason, '
+            . 'then send ONE short acknowledgement and nothing further. '
+            . 'A request to be reached DIFFERENTLY is not an opt-out: "text me instead", "email me not phone", '
+            . '"do not call before 5pm" mean keep talking on their terms — never call stop_contact for those.';
+
         return new SystemPrompt(
             background: [
                 ...$this->personaLines(),
@@ -157,6 +170,7 @@ class SalesAgent extends BaseRagAgent implements ConversesWithCustomer
             new SimilarVehiclesTool(),
             new VehicleInterestTool(),
             new VehicleTradeInTool(),
+            new StopContactTool(),
         ];
 
         if ($this->entity instanceof Message) {

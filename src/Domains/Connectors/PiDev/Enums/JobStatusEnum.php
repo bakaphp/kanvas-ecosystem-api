@@ -14,6 +14,18 @@ enum JobStatusEnum: string
     case FAILED = 'failed';
     case CANCELLED = 'cancelled';
 
+    /**
+     * pi.dev omits `status` on some accepted-but-not-yet-queued responses; that is a queued job.
+     *
+     * @param array<string, mixed> $response
+     */
+    public static function fromApiResponse(array $response): self
+    {
+        return isset($response['status'])
+            ? self::from((string) $response['status'])
+            : self::QUEUED;
+    }
+
     public function isTerminal(): bool
     {
         return match ($this) {

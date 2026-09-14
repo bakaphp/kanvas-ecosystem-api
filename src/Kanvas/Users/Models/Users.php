@@ -111,7 +111,7 @@ use Silber\Bouncer\Database\HasRolesAndAbilities;
  * @property int    $welcome
  * @property string $user_activation_key
  * @property string $user_activation_email
- * @property string $user_activation_forgot
+ * @property ?string $user_activation_forgot
  * @property string $language
  * @property int    $karma
  * @property int    $votes
@@ -534,12 +534,12 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     }
 
     /**
-     * Determine if a user is banned.
+     * The column is tinyint on the ecosystem schema and char(1) 'Y'/'N' on the legacy ones.
      */
     #[Override]
     public function isBanned(): bool
     {
-        return ! $this->isActive() && $this->banned === 'Y';
+        return in_array($this->banned, [1, '1', 'Y'], true);
     }
 
     /**
@@ -720,14 +720,14 @@ class Users extends Authenticatable implements UserInterface, ContractsAuthentic
     {
         $user = $this->getAppProfile($app);
         $user->password = Hash::make($newPassword);
-        $user->user_activation_forgot = '';
+        $user->user_activation_forgot = null;
 
         /**
          * Update the legacy user model with the new password and activation hash.
          * @todo remove once we shut down the legacy apis
          */
         $this->password = $user->password;
-        $this->user_activation_forgot = '';
+        $this->user_activation_forgot = null;
 
         return DB::transaction(function () use ($user, $app) {
             $user->saveOrFail();

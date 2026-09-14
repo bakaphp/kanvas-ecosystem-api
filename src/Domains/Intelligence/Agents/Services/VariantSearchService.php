@@ -20,6 +20,8 @@ class VariantSearchService
         string $keyword,
         int $limit = 20
     ): array {
+        // Not Variants::search(): it scopes by the container app and the auth user's company, which are wrong
+        // in agent and queue context. The engine is resolved from $model->app, so pin it to the tenant.
         $search = Variants::traitSearch($keyword);
         $search->model->setRelation('app', $app);
 

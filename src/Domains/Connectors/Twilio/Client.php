@@ -32,6 +32,39 @@ final class Client
     }
 
     /**
+     * Company creds if the company has its own (per-dealer BYOK), otherwise the
+     * app-level creds (a shared Twilio account). Lets a company without its own
+     * Twilio still use the app's — e.g. voice-agent number listing / inbound
+     * webhook wiring on a single shared account.
+     */
+    public static function getInstanceByCompanyOrApp(Companies $company, AppInterface $app): TwilioClient
+    {
+        try {
+            return self::getInstanceByCompany($company);
+        } catch (ValidationException) {
+            return self::getInstance($app);
+        }
+    }
+
+    /**
+     * App-level creds first (a single shared Twilio account), falling back to the
+     * company's own only if the app has none. The inverse of
+     * getInstanceByCompanyOrApp: use this where the app account is authoritative
+     * and stray per-company creds must NOT shadow it — the voice-agent number
+     * picker and inbound-webhook wiring run on one shared account, so a leftover
+     * company BYOK cred silently pointing at a different account was listing the
+     * wrong numbers. Trades away per-company BYOK for those paths on purpose.
+     */
+    public static function getInstanceByAppOrCompany(AppInterface $app, Companies $company): TwilioClient
+    {
+        try {
+            return self::getInstance($app);
+        } catch (ValidationException) {
+            return self::getInstanceByCompany($company);
+        }
+    }
+
+    /**
      * Validate Twilio credentials.
      */
     public static function validateCredentials(string $sid, string $token): bool

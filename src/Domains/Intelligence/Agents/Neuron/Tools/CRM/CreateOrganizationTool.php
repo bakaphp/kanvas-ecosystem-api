@@ -9,9 +9,11 @@ use Kanvas\Guild\Organizations\DataTransferObject\Organization as OrganizationDa
 use Kanvas\Guild\Organizations\Models\OrganizationType;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
@@ -21,9 +23,10 @@ use Throwable;
  * existing one. Company-wide write — an internal-teammate capability.
  */
 #[AgentTool(name: 'Create Organization', category: 'crm')]
-class CreateOrganizationTool extends Tool
+class CreateOrganizationTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

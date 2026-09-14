@@ -332,57 +332,57 @@ final class ProcessPaymentTest extends TestCase
     {
         if ($orderType === OrderTypeEnum::PASO_RAPIDO) {
             return [
-                "orderType" => OrderTypeEnum::PASO_RAPIDO->value,
-                "metadata" => [
+                'orderType' => OrderTypeEnum::PASO_RAPIDO->value,
+                'metadata' => [
                     'data' => [
                         'paso_rapido_tag' => '317169',
-                    ]
+                    ],
                 ],
             ];
         } elseif ($orderType === OrderTypeEnum::IMPOUND_LOT) {
             return [
-                "orderType" => OrderTypeEnum::IMPOUND_LOT->value,
-                "metadata" => [
+                'orderType' => OrderTypeEnum::IMPOUND_LOT->value,
+                'metadata' => [
                     'data' => [
-                        "start_at" => "2025-07-03T23:07:49.675Z",
-                        "vehicleBrand" => "Hyundai",
-                        "vehicleColor" => "blanco ",
-                        "vehiclePlate" => "T000001",
-                        "images" => [
-                            "image1.jpg",
-                            "image2.jpg",
-                            "image3.jpg",
-                            "image4.jpg"
+                        'start_at' => '2025-07-03T23:07:49.675Z',
+                        'vehicleBrand' => 'Hyundai',
+                        'vehicleColor' => 'blanco ',
+                        'vehiclePlate' => 'T000001',
+                        'images' => [
+                            'image1.jpg',
+                            'image2.jpg',
+                            'image3.jpg',
+                            'image4.jpg',
                         ],
-                        "carDeposit" => [
-                            "id" => "259177",
-                            "name" => "Centro de Retencion Vehicular",
-                            "description" => "Avenida 1 #5"
+                        'carDeposit' => [
+                            'id' => '259177',
+                            'name' => 'Centro de Retencion Vehicular',
+                            'description' => 'Avenida 1 #5',
                         ],
-                        "parking_spot" => "27",
-                        "proof_images" => [
-                            "image1.jpg",
-                            "image2.jpg",
-                            "image3.jpg",
-                            "image4.jpg"
+                        'parking_spot' => '27',
+                        'proof_images' => [
+                            'image1.jpg',
+                            'image2.jpg',
+                            'image3.jpg',
+                            'image4.jpg',
                         ],
-                        "delivery_time" => "2025-07-03T23:09:35.279Z",
-                        "observations" => "",
+                        'delivery_time' => '2025-07-03T23:09:35.279Z',
+                        'observations' => '',
                         'payment_date' => now()->toDateTimeString(),
-                    ]
-                ]
+                    ],
+                ],
             ];
         } elseif ($orderType === OrderTypeEnum::MOVIPASS) {
             return [
-                "orderType" => OrderTypeEnum::MOVIPASS->value,
-                "metadata" => [
-                    "data" => [
-                      "user_ip" => "127.0.0.1",
-                      "start_at" => "2025-06-27 17:36",
-                      "end_at" => "2025-06-27 18:36",
-                      "product_description" => "Parking located at CPS Piantini",
-                    ]
-                ]
+                'orderType' => OrderTypeEnum::MOVIPASS->value,
+                'metadata' => [
+                    'data' => [
+                      'user_ip' => '127.0.0.1',
+                      'start_at' => '2025-06-27 17:36',
+                      'end_at' => '2025-06-27 18:36',
+                      'product_description' => 'Parking located at CPS Piantini',
+                    ],
+                ],
             ];
         }
 
@@ -462,10 +462,10 @@ final class ProcessPaymentTest extends TestCase
             'customer' => [
                 'email' => fake()->email(),
             ],
-            'order_type' => $metadata["orderType"],
+            'order_type' => $metadata['orderType'],
             'metadata' => [
                 'data' => [
-                    ...$metadata["metadata"]["data"],
+                    ...$metadata['metadata']['data'],
                     'payment_methods_id' => $paymentMethod['id'],
                     'payment_date' => now()->toDateTimeString(),
                 ],

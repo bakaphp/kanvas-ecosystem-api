@@ -19,8 +19,8 @@ use Override;
 /**
  * Files a time-off request for an employee — the "request a day off" flow. It runs the same
  * RequestLeaveAction as the GraphQL mutation, so it enforces the same balance check (returns a
- * structured error, not a crash, when the employee lacks the days). The request lands as PENDING;
- * a manager still approves it via decide_leave elsewhere.
+ * structured error, not a crash, when the employee lacks the days). The request lands as PENDING —
+ * decide_leave is what approves or rejects it.
  */
 #[AgentTool(name: 'Request Leave', category: 'human_resources')]
 class RequestLeaveTool extends Tool implements HasRunKey

@@ -18,7 +18,7 @@ use Kanvas\Auth\Actions\SocialLoginAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\AuthenticationService;
-use Kanvas\Auth\Services\EmailVerification as EmailVerificationService;
+use Kanvas\Auth\Services\EmailVerification;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
 use Kanvas\Auth\Socialite\SocialManager;
 use Kanvas\Auth\Traits\AuthTrait;
@@ -147,7 +147,9 @@ class AuthManagementMutation
         $request = request();
 
         $registeredUser = $user->execute();
-        $tokenResponse = $registeredUser->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
+        $tokenResponse = EmailVerification::isRequiredFor($app)
+            ? null
+            : $registeredUser->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
 
         return [
             'user' => $registeredUser,
@@ -248,7 +250,7 @@ class AuthManagementMutation
     {
         $app = app(Apps::class);
 
-        return new EmailVerificationService($app)->verify($request['token']);
+        return new EmailVerification($app)->verify($request['token']);
     }
 
     public function resendVerificationEmail(mixed $rootValue, array $request): bool
@@ -266,7 +268,7 @@ class AuthManagementMutation
 
         RateLimiter::hit($rateLimitKey, $decaySeconds);
 
-        return new EmailVerificationService($app)->send($user);
+        return new EmailVerification($app)->send($user);
     }
 
     protected function enforceRegistrationRateLimit(Apps $app): void

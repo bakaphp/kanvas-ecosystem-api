@@ -34,14 +34,20 @@ class PushMessageToWordPressAction
         $company = $this->message->company;
         $client = $this->client ?? new RestClient($app, $company);
 
-        $post = WordPressPost::fromMessage($this->message, $this->defaults + $this->configDefaults());
+        $post = WordPressPost::fromMessage(
+            $this->message,
+            $this->defaults + $this->configDefaults(),
+            $this->statusOverride()
+        );
 
         if (trim(strip_tags($post->content)) === '') {
             throw new ValidationException('Message ' . $this->message->getId() . ' has no content to publish to WordPress');
         }
 
         $terms = new WordPressTermService($client, $this->allowsTermCreation());
-        $media = new WordPressMediaService($client);
+        // Only the message's own files are named here; a url the agent wrote into the body keeps
+        // falling back to its basename.
+        $media = new WordPressMediaService($client, $this->message->fileNamesByUrl());
 
         $featuredMediaId = $post->featuredImageUrl !== null
             ? $media->upload($post->featuredImageUrl)
@@ -53,6 +59,7 @@ class PushMessageToWordPressAction
             $terms->resolveIds(WordPressTermService::CATEGORY_TAXONOMY, $post->categories),
             $terms->resolveIds(WordPressTermService::TAG_TAXONOMY, $post->tags),
             $featuredMediaId,
+            $this->uploadedVideo($media, $post->videoUrl),
         );
 
         $existingPostId = $this->existingPostId($client);
@@ -60,6 +67,8 @@ class PushMessageToWordPressAction
         $result = $existingPostId !== null
             ? $client->updatePost($existingPostId, $payload)
             : $client->createPost($payload);
+
+        $media->attachTo((int) $result['id']);
 
         $this->rememberPost(
             $client,
@@ -80,6 +89,24 @@ class PushMessageToWordPressAction
             'attachments' => $attachmentIds,
             'media_failures' => $media->failures(),
         ];
+    }
+
+    /**
+     * Both halves must land: no id, or a site that withheld the url, means the post ships as it would
+     * have without the clip rather than with a `<video src="">`.
+     *
+     * @return array{id: int, url: string}|null
+     */
+    private function uploadedVideo(WordPressMediaService $media, ?string $videoUrl): ?array
+    {
+        if ($videoUrl === null) {
+            return null;
+        }
+
+        $id = $media->upload($videoUrl);
+        $url = $media->sourceUrl($videoUrl);
+
+        return $id !== null && $url !== null ? ['id' => $id, 'url' => $url] : null;
     }
 
     /**
@@ -116,6 +143,24 @@ class PushMessageToWordPressAction
         if ($attachmentIds !== []) {
             $this->message->set(CustomFieldEnum::MEDIA_IDS->value, $attachmentIds);
         }
+    }
+
+    /**
+     * Publishing status is editorial POLICY, not content: a workflow rule that holds everything for
+     * review must beat an agent that asked for `publish`. Every other rule param stays a default the
+     * message can override — categories and tags describe the article, and the writer knows those
+     * better than the rule does.
+     *
+     * Only the RULE's status is promoted; the connector configuration's default_post_status stays a
+     * default, so a message that names its own status still wins over the site-wide setting.
+     *
+     * @return array<string, string>
+     */
+    private function statusOverride(): array
+    {
+        $status = $this->defaults['status'] ?? null;
+
+        return is_string($status) && trim($status) !== '' ? ['status' => trim($status)] : [];
     }
 
     private function configDefaults(): array

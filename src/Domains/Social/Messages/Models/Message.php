@@ -24,10 +24,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\AccessControlList\Traits\HasPermissions;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
+use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
@@ -55,6 +59,7 @@ use Override;
  *  @property int $apps_id
  *  @property int $companies_id
  *  @property int $users_id
+ *  @property int|null $people_id
  *  @property int $message_types_id
  *  @property string|array $message
  *  @property string|null $sender_type
@@ -78,6 +83,7 @@ use Override;
 #[ObservedBy([MessageObserver::class])]
 class Message extends BaseModel
 {
+    use HasAdminLink;
     use UuidTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
@@ -92,6 +98,7 @@ class Message extends BaseModel
     use HasLightHouseCache;
     use HasFilesystemTrait;
     use HasCategoriesTrait;
+    use HasApprovals;
 
     protected $table = 'messages';
 
@@ -102,6 +109,7 @@ class Message extends BaseModel
     protected $casts = [
         'message' => Json::class,
         'message_types_id' => 'integer',
+        'people_id' => 'integer',
         'is_public' => 'integer',
         'is_deleted' => 'boolean',
         'is_un_response' => 'boolean',
@@ -112,6 +120,22 @@ class Message extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'Message';
+    }
+
+    /**
+     * Messages are gated explicitly by RequestMessageApprovalAction, never by their own lifecycle.
+     * This is the highest-write table on the platform and every save would otherwise cost an
+     * approval_policies lookup to learn there is no on-create policy.
+     */
+    protected static function approvalUsesLifecycleTriggers(): bool
+    {
+        return false;
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::MESSAGE;
     }
 
     protected $cascadeDeletes = ['comments'];
@@ -132,6 +156,11 @@ class Message extends BaseModel
     public function messageType(): BelongsTo
     {
         return $this->belongsTo(MessageType::class, 'message_types_id');
+    }
+
+    public function people(): BelongsTo
+    {
+        return $this->belongsTo(People::class, 'people_id', 'id');
     }
 
     public function isCommunicationMessage(): bool
@@ -247,6 +276,29 @@ class Message extends BaseModel
         return ['images' => $images, 'documents' => $documents];
     }
 
+    /**
+     * The name each attachment was uploaded under, keyed by the url `attachmentUrls()` returns.
+     * Storage urls end in an opaque hash, so anything copying a file elsewhere needs this to keep
+     * a readable name.
+     *
+     * @return array<string, string>
+     */
+    public function fileNamesByUrl(): array
+    {
+        $names = [];
+
+        foreach ($this->files as $file) {
+            $url = (string) $file->url;
+            $name = trim((string) $file->name);
+
+            if ($url !== '' && $name !== '') {
+                $names[$url] = $name;
+            }
+        }
+
+        return $names;
+    }
+
     public function addMessage(array $message): void
     {
         $this->message = array_merge($this->getMessage(), $message);
@@ -352,9 +404,18 @@ class Message extends BaseModel
             return false;
         }
 
+        return ! $this->app->get('index_message_by_type') || $this->isIndexedMessageType();
+    }
+
+    /**
+     * `message_types_id` carries no foreign key, so the relation can resolve to null — and the
+     * observers calling this run inside the write, where a fatal takes the whole save down.
+     */
+    public function isIndexedMessageType(): bool
+    {
         $filterByMessageType = $this->app->get('index_message_by_type');
 
-        return ! $filterByMessageType || $this->messageType->verb === $filterByMessageType;
+        return (bool) $filterByMessageType && $this->messageType?->verb === $filterByMessageType;
     }
 
     public function isPublic(): bool
@@ -572,22 +633,29 @@ class Message extends BaseModel
     }
 
     /**
-     * The Typesense `message` field is declared as `object`, but legacy bodies are inconsistent
-     * (plain string, list, or object — see getMessage()). Any non-object shape triggers
-     * "Field `message` has an incorrect type" on import (Sentry KANVAS-ECOSYSTEM-628), so coerce
-     * every body into an object. Cast to stdClass so an empty body encodes as `{}`, not `[]`.
+     * Bodies are inconsistent (plain string, list, or object — see getMessage()) and Typesense
+     * rejects the batch on any shape its collection doesn't hold, so match the collection: the
+     * declared object, or flat text on collections that auto-typed `message` as a string
+     * (Sentry KANVAS-ECOSYSTEM-628). stdClass so an empty body encodes as `{}`, not `[]`.
      */
-    private function normalizeMessageForSearch(): object
+    private function normalizeMessageForSearch(): object|string
     {
-        $message = $this->getMessage(); // always array; [] when the body isn't a JSON object
+        $message = $this->getMessage();
 
         if (array_is_list($message)) {
             $text = $this->contentText();
-
-            return $text !== '' ? (object) ['content' => $text] : (object) [];
+            $message = $text !== '' ? ['content' => $text] : [];
         }
 
-        return (object) $message;
+        // Typesense derives the nested types of an `object` from the first document it indexes, so
+        // a reply whose envelope is a LIST of records collides with the scalar types a single-record
+        // reply established and the import is rejected. Nothing searches it; `message_text` already
+        // carries the prose.
+        unset($message['response_json']);
+
+        return $this->searchIndexRejectsObjectField('message')
+            ? $this->contentText()
+            : (object) $message;
     }
 
     /**

@@ -97,10 +97,6 @@ class DispatchCodingJobAction
         $task->agent_id = $this->agent->getId();
         $task->saveQuietly();
 
-        $status = isset($response['status'])
-            ? JobStatusEnum::from((string) $response['status'])->value
-            : JobStatusEnum::QUEUED->value;
-
         $task->set(
             TaskCustomFieldEnum::PIDEV_JOB_ID->value,
             isset($response['jobId']) ? (string) $response['jobId'] : null
@@ -108,7 +104,7 @@ class DispatchCodingJobAction
         $task->set(TaskCustomFieldEnum::PIDEV_AGENT_ID->value, $this->agent->uuid);
         $task->set(TaskCustomFieldEnum::PIDEV_REPO_SLUG->value, $this->repoSlug);
         $task->set(TaskCustomFieldEnum::PIDEV_REPO_URL->value, $repoUrl);
-        $task->set(TaskCustomFieldEnum::PIDEV_STATUS->value, $status);
+        $task->set(TaskCustomFieldEnum::PIDEV_STATUS->value, JobStatusEnum::fromApiResponse($response)->value);
 
         return $task;
     }

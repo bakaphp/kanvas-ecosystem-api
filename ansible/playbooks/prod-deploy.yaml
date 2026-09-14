@@ -34,9 +34,10 @@
         chdir: "{{ app_dir }}"
       run_once: true  # Only run on one host
 
-    - name: Sync workflow actions and agent tools
+    - name: Sync workflow actions, agent types and agent tools
       shell: |
         php artisan kanvas:workflow-sync-actions
+        php artisan kanvas:intelligence:sync-agent-types
         php artisan kanvas:nervous-system:sync-tools
       args:
         chdir: "{{ app_dir }}"

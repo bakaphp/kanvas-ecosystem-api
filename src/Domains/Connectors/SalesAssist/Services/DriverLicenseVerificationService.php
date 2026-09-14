@@ -25,6 +25,7 @@ use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
 use Kanvas\Guild\Customers\DataTransferObject\Contact as DataTransferObjectContact;
+use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDataInput;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -106,16 +107,21 @@ class DriverLicenseVerificationService
         bool $isIdValid,
         bool $isExpired = false
     ): void {
+        $verificationMessage = $this->getVerificationMessage($message, $isIdValid, $isExpired);
+        $status = $this->idVerificationReport !== null
+            ? ($this->idVerificationReport['status'] ?? 'unknown')
+            : null;
+
         if (isset($driverLicenseImages['back'])) {
             $backFile = $this->createFileFromBase64($driverLicenseImages['back'], 'drivers_license_back.jpg');
             $message->addFile($backFile, 'drivers_license_back');
 
             $backFile->set('id_verify', (int) $isIdValid);
             $backFile->set('id_expired', (int) $isExpired);
-            $backFile->set('id_verification_msg', $this->getVerificationMessage($message, $isIdValid, $isExpired));
+            $backFile->set('id_verification_msg', $verificationMessage);
 
-            if ($this->idVerificationReport !== null) {
-                $backFile->set('id_verification_status', $this->idVerificationReport['status'] ?? 'unknown');
+            if ($status !== null) {
+                $backFile->set('id_verification_status', $status);
             }
         }
 
@@ -125,12 +131,19 @@ class DriverLicenseVerificationService
 
             $frontFile->set('id_verify', (int) $isIdValid);
             $frontFile->set('id_expired', (int) $isExpired);
-            $frontFile->set('id_verification_msg', $this->getVerificationMessage($message, $isIdValid, $isExpired));
+            $frontFile->set('id_verification_msg', $verificationMessage);
 
-            if ($this->idVerificationReport !== null) {
-                $frontFile->set('id_verification_status', $this->idVerificationReport['status'] ?? 'unknown');
+            if ($status !== null) {
+                $frontFile->set('id_verification_status', $status);
             }
         }
+
+        new DriverLicenseCombinedPdfService($message)->attach(
+            $isIdValid,
+            $isExpired,
+            $verificationMessage,
+            $status,
+        );
     }
 
     public function createFileFromBase64(
@@ -144,10 +157,15 @@ class DriverLicenseVerificationService
         );
     }
 
-    public function updatePeopleFromDriverLicense(People $people, array $driverLicenseData): PeopleDataInput
-    {
-        $addressComponents = isset($driverLicenseData['address']) ?
-            self::parseAddress($driverLicenseData['address']) : null;
+    /** `$runWorkflow: false` for backfills — old scans must not fire lead automations. */
+    public function updatePeopleFromDriverLicense(
+        People $people,
+        array $driverLicenseData,
+        bool $runWorkflow = true
+    ): PeopleDataInput {
+        $license = DriverLicense::fromScan($driverLicenseData);
+
+        $addressComponents = $license?->address !== null ? self::parseAddress($license->address) : null;
 
         $addressArray = [];
         if ($addressComponents) {
@@ -162,56 +180,27 @@ class DriverLicenseVerificationService
             ];
         }
 
-        $dob = null;
-        if (isset($driverLicenseData['birthday'])) {
-            $birthday = $driverLicenseData['birthday'];
-            $birthDateString = sprintf(
-                '%04d-%02d-%02d',
-                $birthday['year'],
-                $birthday['month'],
-                $birthday['day']
-            );
-            if (self::isValidDate($birthDateString)) {
-                $dob = Carbon::createFromFormat('Y-m-d', $birthDateString);
-            }
-        }
-
-        $licenseExpirationDate = null;
-        if (isset($driverLicenseData['exp_date'])) {
-            $expDate = $driverLicenseData['exp_date'];
-            $expDateString = sprintf(
-                '%04d-%02d-%02d',
-                $expDate['year'],
-                $expDate['month'],
-                $expDate['day']
-            );
-            if (self::isValidDate($expDateString)) {
-                $licenseExpirationDate = Carbon::createFromFormat('Y-m-d', $expDateString);
-            }
-        }
-
         $peopleData = new PeopleDataInput(
             app: $this->app,
             branch: $people->company->defaultBranch,
             user: $this->user,
-            firstname: $driverLicenseData['firstname'] ?? $people->firstname,
-            lastname: $driverLicenseData['lastname'] ?? $people->lastname,
-            middlename: $driverLicenseData['middlename'] ?? $people->middlename,
-            dob: $dob,
+            firstname: $license?->firstname ?? $people->firstname,
+            lastname: $license?->lastname ?? $people->lastname,
+            middlename: $license?->middlename ?? $people->middlename,
+            dob: $license?->dob,
             contacts: DataTransferObjectContact::collect([], DataCollection::class),
             address: DataTransferObjectAddress::collect($addressArray, DataCollection::class),
             id: $people->id,
-            license_number: $driverLicenseData['license'] ?? null,
-            license_expiration_date: $licenseExpirationDate,
+            license_number: $license?->number,
+            license_expiration_date: $license?->expirationDate,
+            license_state: $license?->state,
             custom_fields: [],
             tags: []
         );
 
-        $people = new UpdatePeopleAction($people, $peopleData)->execute();
-
-        if (! empty($driverLicenseData['license'])) {
-            $people->set('drivers_license_number', $driverLicenseData['license']);
-        }
+        $updatePeople = new UpdatePeopleAction($people, $peopleData);
+        $updatePeople->runWorkflow = $runWorkflow;
+        $updatePeople->execute();
 
         return $peopleData;
     }

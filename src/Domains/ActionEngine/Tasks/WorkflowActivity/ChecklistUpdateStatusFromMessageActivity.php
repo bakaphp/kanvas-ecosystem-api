@@ -13,7 +13,10 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Checklist Update Status From Message',
+    description: 'Advances a checklist item when a message shows the step is done. Updates the checklist only.',
+)]
 class ChecklistUpdateStatusFromMessageActivity extends KanvasActivity
 {
     public function execute(Message $message, AppInterface $app, array $params): array

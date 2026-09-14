@@ -14,7 +14,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'VinSolution Add Lead Comment From Agent Message',
+    description: 'Copies an agent\'s message into the VinSolutions lead as a note, so the CRM shows what the '
+        . 'agent said. Writes to VinSolutions only; it sends nothing to the customer.',
+    integration: IntegrationsEnum::VIN_SOLUTION,
+)]
 class AddLeadCommentFromAgentMessageActivity extends BaseAddLeadCommentFromAgentMessageActivity
 {
     #[Override]

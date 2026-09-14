@@ -28,15 +28,15 @@ class ProcessDriversLicenseAction
 
         $people = $this->peopleToUpdate ?? $this->lead->people;
 
-        $driverLicenseData = $people->get(PeopleCustomFieldEnum::DRIVERS_LICENSE->value)
+        $scan = $people->get(PeopleCustomFieldEnum::DRIVERS_LICENSE->value)
             ?? $this->lead->get(PeopleCustomFieldEnum::DRIVERS_LICENSE->value);
 
-        if (! empty($driverLicenseData) && is_array($driverLicenseData)) {
+        if (! empty($scan) && is_array($scan)) {
             new DriverLicenseVerificationService(
                 $this->lead->app,
                 $this->lead->company,
                 $this->lead->user,
-            )->updatePeopleFromDriverLicense($people, $driverLicenseData);
+            )->updatePeopleFromDriverLicense($people, $scan);
         }
 
         $this->lead->set(CustomFieldEnum::GET_DOCS_IMPORTER->value, [
@@ -45,6 +45,21 @@ class ProcessDriversLicenseAction
             'date' => date('Y-m-d H:i:s'),
         ]);
 
-        return is_array($driverLicenseData) ? $driverLicenseData : null;
+        $license = $people->getDriverLicense();
+
+        if ($license === null) {
+            return null;
+        }
+
+        return [
+            'license' => $license->number,
+            'state' => $license->state,
+            'firstname' => $license->firstname,
+            'middlename' => $license->middlename,
+            'lastname' => $license->lastname,
+            'address' => $license->address,
+            'birthday' => $license->dob?->format('Y-m-d'),
+            'exp_date' => $license->expirationDate?->format('Y-m-d'),
+        ];
     }
 }

@@ -21,7 +21,7 @@ jobs:
       # Lighthouse schema merge whenever a .graphql file moves (see incident
       # 2026-05-14: duplicate agentCurrentTelemetry → "Failed to load type: _").
       - name: Sync repo to remote VM (rsync --delete)
-        uses: burnett01/rsync-deployments@9.0.0
+        uses: burnett01/rsync-deployments@9.0.1
         with:
           switches: >-
             -avzr --delete
@@ -51,20 +51,28 @@ jobs:
           script: |
             cd ${{ secrets.AWS_EC2_TARGET_DIR }}
 
-            docker-compose -f docker-compose.${{ github.ref_name }}.yml up -d
+            COMPOSE="docker-compose -f docker-compose.${{ github.ref_name }}.yml"
+
+            $COMPOSE up -d --remove-orphans
+            sh scripts/deploy/prune-stopped-containers.sh
             docker exec -i phpkanvas-ecosystem composer install --no-dev --optimize-autoloader
 
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:cache
             docker exec -i phpkanvas-ecosystem php artisan lighthouse:clear-cache all
             docker exec -i phpkanvas-ecosystem php artisan config:cache
+
+            # No migrations here — this host shares the 1.x database, migrations
+            # are run by hand after review.
+            docker exec -i phpkanvas-ecosystem php artisan kanvas:workflow-sync-actions
+            docker exec -i phpkanvas-ecosystem php artisan kanvas:intelligence:sync-agent-types
+            docker exec -i phpkanvas-ecosystem php artisan kanvas:nervous-system:sync-tools
+
             docker stop nginxkanvas-ecosystem
             docker stop rediskanvas-ecosystem
 
-            # Restart all queue worker containers so they pick up new code.
-            # Names come from docker-compose — no hand-maintained list to rot.
-            docker ps --format "{{.ID}} {{.Names}}" | awk '$2 ~ /queue/ {print $1}' | xargs -r docker restart
-
-            # Scheduler runs Laravel code but doesn't match the /queue/ pattern.
-            docker restart laravel-scheduler
+            # Recreate (not restart) every worker and the scheduler so they pick up new code AND start
+            # from a fresh writable layer — `docker restart` keeps the layer, so every temp file a job
+            # leaked into /tmp survived every deploy. Names come from docker-compose, no list to rot.
+            $COMPOSE up -d --force-recreate --no-deps $($COMPOSE config --services | grep -E 'queue|scheduler')
 
             docker exec -i phpkanvas-ecosystem php artisan octane:reload

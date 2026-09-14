@@ -23,10 +23,17 @@ use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist Attach File To Checklist Item',
+    description: 'Attaches a document the customer supplied to the checklist item that asked for it, and '
+        . 'records the engagement. Runs on a CHECKLIST ITEM, not a lead — it is the step that closes '
+        . 'the loop on a document request.',
+    integration: IntegrationsEnum::SALESASSIST,
+)]
 class AttachFileToChecklistItemActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

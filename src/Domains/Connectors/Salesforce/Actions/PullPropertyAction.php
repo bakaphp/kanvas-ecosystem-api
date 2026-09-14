@@ -40,6 +40,7 @@ class PullPropertyAction
             description: (string) ($this->payload['Brand__c'] ?? ''),
             productsType: $productType,
             slug: 'sf-location-' . $this->salesforceId,
+            sku: 'sf-location-' . $this->salesforceId,
             attributes: $this->mapAttributes(),
         );
 
@@ -67,6 +68,7 @@ class PullPropertyAction
         $map = [
             'Deal Status' => 'Deal_Status__c',
             'Marketing Status' => 'Marketing_Status__c',
+            'Store Number' => 'Store__c',
             'Building Type' => 'Location_Type__c',
             'Building Size' => 'Gross_SF__c',
             'Acreage' => 'Property_Acreage__c',

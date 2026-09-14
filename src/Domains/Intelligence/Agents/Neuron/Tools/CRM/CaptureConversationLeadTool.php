@@ -109,7 +109,15 @@ class CaptureConversationLeadTool extends Tool
             new ToolProperty(
                 name: 'organization_id',
                 type: PropertyType::INTEGER,
-                description: 'Optional organization ID to link the lead to. Leave 0 if unknown.',
+                description: 'Optional ID of an EXISTING organization to link the lead to. Leave 0 if unknown — '
+                    . 'never guess an ID. Use organization_name instead when you only know the company name.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'organization_name',
+                type: PropertyType::STRING,
+                description: 'Optional company / account the person belongs to (e.g. "Brooklinen"). Created if it '
+                    . 'does not exist yet, and the person is added to it. Ignored when organization_id is given.',
                 required: false,
             ),
         ];
@@ -125,6 +133,7 @@ class CaptureConversationLeadTool extends Tool
         ?int $lead_type_id = null,
         ?int $lead_source_id = null,
         ?int $organization_id = null,
+        ?string $organization_name = null,
     ): array {
         // Refuse duplicate create_lead in the same prospect session — return the
         // existing lead_id instead.
@@ -156,6 +165,7 @@ class CaptureConversationLeadTool extends Tool
             leadTypeId: $lead_type_id ?? 0,
             leadSourceId: $lead_source_id ?? 0,
             organizationId: ($organization_id !== null && $organization_id > 0) ? $organization_id : null,
+            organizationName: $organization_name,
         );
 
         if (isset($result['lead_id']) && $this->session !== null) {

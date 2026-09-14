@@ -7,10 +7,16 @@ namespace Kanvas\Connectors\Zoho\Jobs;
 use Kanvas\Connectors\Zoho\Actions\SyncZohoLeadAction;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Zoho Sync Lead Webhook',
+    description: 'Receiver that pulls a Zoho lead into Kanvas, creating or updating it. Inbound one-way — the '
+        . 'opposite direction to the Zoho lead push step.',
+    integration: IntegrationsEnum::ZOHO,
+)]
 class SyncZohoLeadFromReceiverJob extends ProcessWebhookJob
 {
     #[Override]

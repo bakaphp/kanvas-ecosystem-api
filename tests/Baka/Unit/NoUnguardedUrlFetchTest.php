@@ -35,6 +35,8 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         'src/Baka/Discovery/AttributeClassDiscovery.php',
         // CLI: reads a local JSON file argument.
         'app/Console/Commands/Ecosystem/ImportEmailTemplatesCommand.php',
+        // CLI: reads a local Item Balance XML file argument.
+        'app/Console/Commands/Connectors/Yusen/YusenInventoryReportCommand.php',
         // CLI: operates on local temp files.
         'app/Console/Commands/Connectors/ScrapperApi/CleanScrapperImageCommand.php',
         // CLI: reads a local agent-type definition file.
@@ -52,6 +54,11 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         'src/Domains/Intelligence/Agents/Services/AgentConfigBackupService.php',
         // Reads the admin-configured Google OAuth token file from disk, gated by is_file().
         'src/Domains/Connectors/Google/Actions/CreateGoogleCalendarMeetingAction.php',
+        // CLI: reads a local golden-set JSON file from the --file option, gated by is_readable().
+        'app/Console/Commands/Inventory/EvaluateProductDiscoveryCommand.php',
+        // Reads the local PHP source of a reflected tool class (ReflectionClass::getFileName()) to
+        // tokenise its description argument, gated by is_readable().
+        'src/Domains/Intelligence/Agents/Services/AgentToolDiscoveryService.php',
     ];
 
     public function testNoUnguardedRemoteUrlFetch(): void

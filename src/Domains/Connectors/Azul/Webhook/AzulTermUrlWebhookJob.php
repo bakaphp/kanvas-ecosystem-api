@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Azul\Webhook;
 use Exception;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
@@ -24,7 +25,14 @@ use Override;
  * The PaRes/cRes is stored in payment metadata so that when the frontend
  * calls the `finalizePaymentChallenge` mutation, the data is already there.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Azul 3DS Challenge Result',
+    description: 'Part of the Azul 3-D Secure card flow, not something to attach by choice: the card issuer '
+        . 'POSTs the authentication result here after the cardholder completes the challenge, and this '
+        . 'stores it on the payment so the frontend can finalize. The URL is built by the payment '
+        . 'processor itself.',
+    integration: IntegrationsEnum::AZUL,
+)]
 class AzulTermUrlWebhookJob extends ProcessWebhookJob
 {
     #[Override]

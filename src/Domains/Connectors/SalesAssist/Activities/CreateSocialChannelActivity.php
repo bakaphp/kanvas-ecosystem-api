@@ -14,7 +14,16 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist Create Contact Channel',
+    description: 'Opens the messaging channel between an agent and a contact or lead, so there is somewhere '
+        . 'for the conversation to live. Creates the channel only; it sends no message. Needs an agent, '
+        . 'and does nothing without one.',
+    integration: IntegrationsEnum::INTERNAL,
+    params: [
+        'agent_id' => 'The agent the channel belongs to. Required — without it the step errors.',
+    ],
+)]
 class CreateSocialChannelActivity extends KanvasActivity
 {
     public function execute(

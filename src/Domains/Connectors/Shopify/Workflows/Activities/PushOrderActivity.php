@@ -14,7 +14,12 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use PHPShopify\Exception\ApiException;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Shopify Push Order',
+    description: 'Pushes the order into Shopify as a real order. Outbound one-way write — use the draft-order '
+        . 'step instead where a human should approve it first.',
+    integration: IntegrationsEnum::SHOPIFY,
+)]
 class PushOrderActivity extends KanvasActivity
 {
     public function execute(Model $entity, Apps $app, array $params): array

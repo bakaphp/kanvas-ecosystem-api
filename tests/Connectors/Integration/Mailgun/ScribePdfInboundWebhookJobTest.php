@@ -12,6 +12,7 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Mailgun\Webhooks\ScribePdfInboundWebhookJob;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Scribe\PdfIngest\Jobs\ProcessAccountingPdfJob;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -34,7 +35,8 @@ class ScribePdfInboundWebhookJobTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected array $connectionsToTransact = ['mysql', 'crm', 'accounting'];
+    // 'intelligence' carries the ledger arrival event this job now emits.
+    protected array $connectionsToTransact = ['mysql', 'crm', 'accounting', 'intelligence'];
 
     private ReceiverWebhook $receiver;
 
@@ -149,6 +151,60 @@ class ScribePdfInboundWebhookJobTest extends TestCase
             ProcessAccountingPdfJob::class,
             fn (ProcessAccountingPdfJob $job) => $job->messageId === $messageId
                 && $job->fromEmail === $sender,
+        );
+    }
+
+    /**
+     * The first row of an AP document's timeline. Anchored to the PDF rather than the bill, because
+     * the bill does not exist yet — pdf_ingest_logs.filesystem_id is what ties the two together.
+     */
+    public function test_an_arriving_invoice_email_is_recorded_in_the_ledger(): void
+    {
+        $pdf = $this->seedFilesystemRow('invoice.pdf');
+        $messageId = '<arrival-' . uniqid() . '@mailgun.example.test>';
+
+        $this->runWebhookJob([
+            'Message-Id' => $messageId,
+            'sender' => 'accounting@northwind.test',
+            'from' => 'Northwind Logistics <accounting@northwind.test>',
+            'subject' => 'Invoice NW-88214',
+            'uploaded_files' => [
+                ['filesystem_id' => $pdf->getId(), 'name' => $pdf->name, 'content-type' => 'application/pdf'],
+            ],
+        ]);
+
+        $event = Event::query()
+            ->where('source_entity_type', Filesystem::class)
+            ->where('source_entity_id', $pdf->getId())
+            ->first();
+
+        $this->assertNotNull($event, 'A UI must be able to show when the invoice arrived.');
+        $this->assertSame('scribe.document.email_received', $event->event_type);
+        $this->assertSame('Scribe', $event->source_domain);
+        $this->assertSame('System', $event->actor_type);
+        $this->assertSame('accounting@northwind.test', $event->payload['from_email']);
+        $this->assertSame('Invoice NW-88214', $event->payload['subject']);
+        $this->assertSame($messageId, $event->payload['message_id']);
+    }
+
+    public function test_an_email_with_no_pdf_records_nothing_to_stitch_a_document_to(): void
+    {
+        $messageId = '<no-pdf-' . uniqid() . '@mailgun.example.test>';
+
+        $this->runWebhookJob([
+            'Message-Id' => $messageId,
+            'sender' => 'newsletter@vendor.test',
+            'subject' => 'Monthly update',
+            'uploaded_files' => [],
+        ]);
+
+        $this->assertSame(
+            0,
+            Event::query()
+                ->where('event_type', 'scribe.document.email_received')
+                ->where('occurred_at', '>=', now()->subMinute())
+                ->count(),
+            'An email that produces no document has no document timeline to open.'
         );
     }
 

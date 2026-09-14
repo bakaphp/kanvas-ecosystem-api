@@ -235,7 +235,7 @@ class CreateEngagementAction
     protected function generateNewEngagementUrl(Engagement $engagement): ?string
     {
         $checkoutActions = $this->app->get('new-action-checkout-link') ?? [];
-        $newActionPageV4 = $this->app->get('new_action_page_v4_config') ?? $engagement->company->get('new_action_page_v4_config') ?? [];
+        $newActionPageV4 = $engagement->company->get('new_action_page_v4_config') ?? $this->app->get('new_action_page_v4_config') ?? [];
         $isCheckoutAction = is_array($checkoutActions) && in_array($this->actionSlug, $checkoutActions);
 
         $isNewActionPage = false;
@@ -301,6 +301,10 @@ class CreateEngagementAction
             'bcid' => $this->lead->branch ? $this->lead->branch->uuid : null,
             'form_type' => $this->engagementData->formType,
         ];
+
+        if ($this->company->get('hide_millage')) {
+            $params['welcome'] = 'false';
+        }
 
         $extraField = $this->engagementData->extraField;
         if (is_array($extraField)) {
@@ -395,8 +399,14 @@ class CreateEngagementAction
             channel_id: $this->engagementData->data['channel_id'] ?? null,
         );
 
+        $data = $engagementMessage->toArray();
+        if ($this->company->get('hide_millage')) {
+            $data['data']['hide_price'] = true;
+            $data['data']['hide_mileage'] = true;
+        }
+
         $messageInput = [
-            'message' => $engagementMessage->toArray(),
+            'message' => $data,
             'reactions_count' => 0,
             'comments_count' => 0,
             'total_liked' => 0,
@@ -405,6 +415,12 @@ class CreateEngagementAction
             'total_shared' => 0,
             'ip_address' => IPInfo::getClientIp(),
         ];
+
+        //MessageInput::fromArray looks up the parent whenever the key exists, so only set it when there is one
+        $parentMessageId = $this->engagementData->parentEngagement?->message_id;
+        if ($parentMessageId !== null) {
+            $messageInput['parent_id'] = $parentMessageId;
+        }
 
         $messageTypeDto = MessageTypeInput::from([
             'apps_id' => $this->app->getId(),
@@ -626,12 +642,13 @@ class CreateEngagementAction
             $vehicleOfInterest = (array) $lead->get('vehicle_of_interest');
             $stockNumber = trim((string) ($vehicleOfInterest['stockNumber'] ?? '')) ?: 'N/A';
             $salesPerson = trim(($lead->owner?->firstname ?? '') . ' ' . ($lead->owner?->lastname ?? ''));
+            $customerName = (string) ($lead->people?->name ?? '');
             $messageData = $message->message ?? [];
 
             $stripePayment = [
                 'product_name' => 'Vehicle Purchase',
                 'product_description' => 'Stock No: ' . $stockNumber,
-                'success_url' => $messageData['action_link'],
+                'success_url' => $messageData['action_link'] ?? '',
                 'metadata' => [
                     'leads_id' => $lead->getId(),
                     'apps_id' => $lead->app->getId(),
@@ -644,7 +661,7 @@ class CreateEngagementAction
                         'type' => 'text',
                         'optional' => false, // Makes it required
                         'text' => [
-                            'default_value' => $lead->people->name,
+                            'default_value' => $customerName,
                             'maximum_length' => 200,
                         ],
                     ],

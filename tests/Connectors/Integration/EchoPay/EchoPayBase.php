@@ -72,15 +72,15 @@ class EchoPayBase extends TestCase
                 type: $this->cardData()['type'],
             ),
             'billTo' => new BillingDetail(
-                firstName: "Juan",
-                lastName: "Pérez",
-                address1: "Calle Duarte #45",
-                city: "Santo Domingo",
-                administrativeArea: "Distrito Nacional",
-                postalCode: "10101",
-                country: "DO",
-                email: "juan.perez@example.com",
-                phone: "8095551234"
+                firstName: 'Juan',
+                lastName: 'Pérez',
+                address1: 'Calle Duarte #45',
+                city: 'Santo Domingo',
+                administrativeArea: 'Distrito Nacional',
+                postalCode: '10101',
+                country: 'DO',
+                email: 'juan.perez@example.com',
+                phone: '8095551234'
             ),
             'merchant' => new MerchantDetail(
                 id: $this->getMerchantData()['id'],

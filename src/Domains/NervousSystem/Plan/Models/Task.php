@@ -107,6 +107,37 @@ class Task extends BaseModel
         return $this->agent_id ?? $this->plan?->agent_id ?? $this->plan?->users_id ?? null;
     }
 
+    /**
+     * What the worker reported when it finished this task, or null if nothing was recorded.
+     */
+    public function workerSummary(): ?string
+    {
+        $result = is_array($this->result) ? $this->result : [];
+        $summary = trim((string) ($result['worker_summary'] ?? ''));
+
+        return $summary !== '' ? $summary : null;
+    }
+
+    /**
+     * The summary trimmed to fit, keeping BOTH ends.
+     *
+     * These reports narrate first and answer last as often as not — one lead audit wrote four sentences
+     * of method before "a total matching count of 33". Cutting the head off at a fixed length keeps the
+     * preamble and throws away the number, which is the one part anyone asks about afterwards.
+     */
+    public function workerSummaryExcerpt(int $cap): ?string
+    {
+        $summary = $this->workerSummary();
+
+        if ($summary === null || mb_strlen($summary) <= $cap) {
+            return $summary;
+        }
+
+        return mb_substr($summary, 0, (int) round($cap * 0.6))
+            . ' […] '
+            . mb_substr($summary, -(int) round($cap * 0.4));
+    }
+
     public function scopeStalled(Builder $query, int $minutes): Builder
     {
         return $query

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\File;
@@ -13,6 +14,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Jobs\RespondToMentionJob;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\AgentConversationBudget;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\Actions\PostProjectMessageAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
@@ -27,6 +29,10 @@ use Tests\TestCase;
 
 class MentionNotificationTest extends TestCase
 {
+    // Inert without the trait: declared alone, every row this test writes COMMITS. These create
+    // agents on the shared auth user, and a leaked agent makes Agent::fromUser() call a human an agent.
+    use DatabaseTransactions;
+
     protected array $connectionsToTransact = ['mysql', 'intelligence', 'social', 'workflow'];
 
     /**
@@ -151,21 +157,52 @@ class MentionNotificationTest extends TestCase
         Notification::assertNothingSent();
     }
 
-    public function testAgentAuthoredMessageDoesNotWakeAnotherAgent(): void
+    /**
+     * An agent naming another agent reaches it — a handoff is the point, not a loop.
+     *
+     * This used to assert the opposite: agent-authored mentions were dropped outright as an anti-loop
+     * guard. That also silenced every legitimate handoff (plan 25148 — a worker finished step 1, wrote
+     * "@agenthtmltemplatedesigner you may now proceed", and the next task stayed `pending`).
+     */
+    public function testAgentAuthoredMessageWakesTheMentionedAgent(): void
     {
         Bus::fake([RespondToMentionJob::class, WakeAgentForProjectJob::class]);
         [$app, $company, $user] = $this->context();
-        $pm = $this->makeAgent($app, $company, $user);
+
+        // A dedicated user for the PM: the shared auth user backs thousands of agents in the test DB,
+        // so Agent::fromUser() would resolve to an arbitrary one and the project route would decline.
+        $pm = $this->makeAgent($app, $company, Users::factory()->create());
         $project = $this->makeProject($app, $company, $user, $pm);
 
-        // from_ia message that "mentions" the PM agent — the guard must stop a wake.
         $message = $this->postMessage($project, $user, fromIa: true);
 
         new RespondToAgentMentionListener()->handle(
             new MessageMentionsStoredEvent($message, [(int) $pm->user_id]),
         );
 
-        Bus::assertNotDispatched(RespondToMentionJob::class);
-        Bus::assertNotDispatched(WakeAgentForProjectJob::class);
+        Bus::assertDispatched(WakeAgentForProjectJob::class);
+    }
+
+    /**
+     * The anti-loop guarantee, now carried by the budget instead of a blanket refusal: two agents get
+     * MAX_HOPS between them on a channel and then the exchange stops on its own.
+     */
+    public function testAgentToAgentMentionsStopOnceTheHopBudgetIsSpent(): void
+    {
+        Bus::fake([RespondToMentionJob::class, WakeAgentForProjectJob::class]);
+        [$app, $company, $user] = $this->context();
+        $pm = $this->makeAgent($app, $company, Users::factory()->create());
+        $project = $this->makeProject($app, $company, $user, $pm);
+
+        for ($hop = 0; $hop < AgentConversationBudget::MAX_HOPS + 3; $hop++) {
+            new RespondToAgentMentionListener()->handle(
+                new MessageMentionsStoredEvent(
+                    $this->postMessage($project, $user, fromIa: true),
+                    [(int) $pm->user_id],
+                ),
+            );
+        }
+
+        Bus::assertDispatchedTimes(WakeAgentForProjectJob::class, AgentConversationBudget::MAX_HOPS);
     }
 }

@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Config;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Workflow\Factories\ReceiverWebhookFactory;
@@ -36,6 +38,7 @@ use Override;
  */
 class ReceiverWebhook extends BaseModel
 {
+    use HasAdminLink;
     use UuidTrait;
     use HasFactory;
     use DynamicSearchableTrait {
@@ -63,6 +66,12 @@ class ReceiverWebhook extends BaseModel
         'run_async' => 'boolean',
         'is_deleted' => 'boolean',
     ];
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::WORKFLOW_RECEIVER;
+    }
 
     public function action(): BelongsTo
     {
@@ -93,6 +102,29 @@ class ReceiverWebhook extends BaseModel
     public function getUrl(): string
     {
         return (string) Config::get('app.url') . '/v1/receiver/' . $this->uuid;
+    }
+
+    public function getOAuthUrl(): string
+    {
+        return (string) Config::get('app.url') . '/v1/oauth/' . $this->uuid;
+    }
+
+    /**
+     * The redirect_uri every OAuth provider falls back to when its configuration names none — one
+     * definition, so a route change cannot leave one provider registering a callback that no longer exists.
+     */
+    public function getOAuthCallbackUrl(): string
+    {
+        return $this->getOAuthUrl() . '/callback';
+    }
+
+    /**
+     * One redirect_uri for every receiver; OAuthIntegrationController::callbackByState finds the receiver
+     * from `state`.
+     */
+    public static function sharedOAuthCallbackUrl(): string
+    {
+        return (string) Config::get('app.url') . '/v1/oauth/callback';
     }
 
     public function searchableAs(): string

@@ -9,8 +9,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Mailgun\Actions\AgentChannelResponderAction;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
+use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
@@ -200,6 +202,48 @@ class AgentChannelResponderEndToEndTest extends TestCase
             ->exists();
 
         $this->assertFalse($outbound, 'No agent reply should be persisted for a non-email inbound');
+    }
+
+    // Regression: without this marker the agent had no way to know a new attachment existed and reused an older one's summary from chat history instead.
+    public function testCurrentAttachmentIsSurfacedAsAnExplicitMarker(): void
+    {
+        ['inbound' => $inbound] = $this->seedInboundEmailScenario();
+
+        $filesystem = $this->makeFilesystemRow('02_VATIT_INV2607GB30K00006851.pdf');
+        $inbound->addFile($filesystem, 'attachment-1');
+        $inbound = $inbound->fresh();
+
+        $markers = AttachmentPromptBuilder::withFilesystemMarkers('', $inbound->files);
+
+        $this->assertStringContainsString('filesystem_id: ' . $filesystem->getId(), $markers);
+        $this->assertStringContainsString('"02_VATIT_INV2607GB30K00006851.pdf"', $markers);
+    }
+
+    public function testNoAttachmentMarkerWhenNothingIsAttached(): void
+    {
+        ['inbound' => $inbound] = $this->seedInboundEmailScenario();
+
+        $this->assertSame('', AttachmentPromptBuilder::withFilesystemMarkers('', $inbound->files));
+    }
+
+    private function makeFilesystemRow(string $name): Filesystem
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $row = new Filesystem();
+        $row->apps_id = $app->getId();
+        $row->companies_id = $company->getId();
+        $row->users_id = $user->getId();
+        $row->name = $name;
+        $row->path = 'test/' . $name;
+        $row->url = 'https://example.test/' . $name;
+        $row->size = '12345';
+        $row->file_type = 'pdf';
+        $row->save();
+
+        return $row;
     }
 
     /**

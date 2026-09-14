@@ -8,8 +8,10 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Scribe\Documents\Services\DocumentPdfService;
 use Kanvas\Scribe\Invoices\Models\Invoice;
 use Kanvas\Scribe\Quotes\Actions\AcceptQuoteAction;
 use Kanvas\Scribe\Quotes\Actions\ConvertQuoteToInvoiceAction;
@@ -137,6 +139,18 @@ class QuoteMutation
             netTermsDays: isset($request['net_terms_days']) ? (int) $request['net_terms_days'] : 30,
             user: $user,
         )->execute();
+    }
+
+    public function generatePdf(mixed $rootValue, array $request): Filesystem
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        /** @var Quote $quote */
+        $quote = Quote::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+
+        return new DocumentPdfService($quote, $request['template_name'] ?? null)->generate($user);
     }
 
     private function buildQuoteData(

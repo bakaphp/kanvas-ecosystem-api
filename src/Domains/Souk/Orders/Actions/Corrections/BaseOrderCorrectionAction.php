@@ -54,6 +54,7 @@ abstract class BaseOrderCorrectionAction
         array $evidenceUrls = []
     ): void {
         activity()
+            ->useLog($this->order->getActivityLogName())
             ->causedBy($this->user)
             ->performedOn($this->order)
             ->withProperties([
@@ -64,18 +65,5 @@ abstract class BaseOrderCorrectionAction
                 'order_number' => $this->order->order_number,
             ])
             ->log($correctionType);
-    }
-
-    // Does NOT call saveOrFail() — the concrete action owns the save within transact().
-    protected function appendEvidenceImages(array $urls): void
-    {
-        if (empty($urls)) {
-            return;
-        }
-
-        $metadata = is_array($this->order->metadata) ? $this->order->metadata : [];
-        $existing = $metadata['data']['images'] ?? [];
-        $metadata['data']['images'] = array_values(array_unique(array_merge($existing, $urls)));
-        $this->order->metadata = $metadata;
     }
 }

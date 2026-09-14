@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
 
-use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Intelligence\Agents\Traits\ResolvesCatalogEntities;
 use Kanvas\Inventory\Products\Models\Products;
 
 /**
@@ -12,8 +12,10 @@ use Kanvas\Inventory\Products\Models\Products;
  * structured error array the LLM can act on. Prevents a hallucinated product_id from
  * crashing the chat with an unhandled ModelNotFoundException.
  *
- * Requires HasKanvasContext (uses $this->app / $this->company) — the lookup is tenant-scoped
- * via getByIdFromCompanyApp, so a foreign id resolves to nothing rather than another tenant's row.
+ * The lookup itself lives in ResolvesCatalogEntities so the Laravel-AI catalog tools share it; this
+ * trait is the Neuron-side name for it. Requires HasKanvasContext (uses $this->app / $this->company)
+ * — the lookup is tenant-scoped via getByIdFromCompanyApp, so a foreign id resolves to nothing
+ * rather than another tenant's row.
  *
  * Pattern:
  *
@@ -25,23 +27,13 @@ use Kanvas\Inventory\Products\Models\Products;
  */
 trait ResolvesProductForTool
 {
+    use ResolvesCatalogEntities;
+
     /**
      * @return Products|array{status: string, message: string}
      */
     protected function resolveProductOrError(int $productId): Products|array
     {
-        try {
-            /** @var Products $product */
-            $product = Products::getByIdFromCompanyApp($productId, $this->company, $this->app);
-
-            return $product;
-        } catch (ModelNotFoundException) {
-            return [
-                'status' => 'error',
-                'message' => "Product {$productId} does not exist in this company. You invented this product_id — "
-                    . 'never do that. Use list_available_products or a product search to find the real product_id, '
-                    . 'then retry this tool with it.',
-            ];
-        }
+        return $this->resolveCatalogProduct($productId);
     }
 }

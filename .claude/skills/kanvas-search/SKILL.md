@@ -113,6 +113,52 @@ Without this, Algolia returns: `"invalid numeric attribute(apps_id), attribute n
 
 **Note:** Each app can have a custom index name (e.g., `app_custom_message_index`), so this must be configured per-index in the Algolia UI.
 
+## Typesense: declare every nested numeric child, or it locks to int64
+
+Typesense types an undeclared child of an `object` / `object[]` field from the **first document that
+carries it**, and that decision is permanent for the life of the collection. PHP's `json_encode`
+drops the zero fraction — `json_encode(['p' => (float) 10])` is `{"p":10}`, not `10.0` — so whether a
+money field lands as `int64` or `float` comes down to whether the first record indexed happened to
+have a round value. When it did, every later `19.99` is rejected:
+
+```
+Error importing document: Field `items.unit_price_net_amount` must be an array of int64.
+```
+
+That killed Order indexing in production (Sentry KANVAS-ECOSYSTEM-628). The engine can't work around
+it — the Typesense client calls plain `json_encode`, so no PHP-side cast can force `10.0` onto the
+wire. **Declaring the child in `typesenseCollectionSchema()` is the only fix.**
+
+```php
+['name' => 'items', 'type' => 'object[]', 'optional' => true],
+// children of an object[] are arrays: float[], not float
+['name' => 'items.unit_price_net_amount', 'type' => 'float[]', 'optional' => true],
+['name' => 'items.tax_rate', 'type' => 'float[]', 'optional' => true],
+```
+
+- Nesting goes as deep as the payload: `Products.variants` embeds each variant's own searchable
+  array, so it declares `variants.warehouses.price`.
+- Dynamically-named children take a regex field — `['name' => 'prices\\..*', 'type' => 'float']`.
+- Declare the parent object too; Typesense rejects a child whose parent the schema never declares.
+- Only the *auto-typed* children are at risk. A top-level field the schema declares as `float`
+  happily accepts an integer.
+
+### Repairing collections that already drifted
+
+Scout creates a collection once and never revisits it, so editing the schema only helps *new*
+collections. For the ones already in the wild:
+
+```bash
+php artisan kanvas:search:typesense-sync-schema "Kanvas\Souk\Orders\Models\Order" --dry-run
+php artisan kanvas:search:typesense-sync-schema "Kanvas\Souk\Orders\Models\Order"
+```
+
+It drops and re-adds each drifted field (Typesense re-indexes it from the stored documents — no data
+loss), defaulting to widening re-types only (`int64 → float`). One field per request is deliberate:
+batching two nested fields whose names share a prefix — `items.quantity` and
+`items.quantity_fulfilled` — fails with "There are duplicate field names in the schema" and leaves
+the second registered twice, under both types.
+
 ## 3. Add Search Scoping to Prevent Data Leaks
 
 **Every model that uses `@search` MUST override the `search()` method** to scope results by `apps_id` and `companies_id`. Without this, search queries can leak data across apps and companies.

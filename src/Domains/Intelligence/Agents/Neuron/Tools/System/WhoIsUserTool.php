@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\System;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\HumanResources\Employees\Services\EmployeeBriefService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -31,7 +32,9 @@ class WhoIsUserTool extends Tool implements HasRunKey
         parent::__construct(
             name: 'who_is_user',
             description: 'Find out who you are talking to, or look up another teammate by id OR by their @displayname/handle — '
-                . 'their name, email and company. Use it whenever someone refers to a teammate by a handle (e.g. "kaioken", "@jane").',
+                . 'their name, email, company, and where they sit in the org chart (position, department, who they report to). '
+                . 'Use it whenever someone refers to a teammate by a handle (e.g. "kaioken", "@jane"), or when you need to know '
+                . 'someone\'s role before answering.',
         );
     }
 
@@ -85,12 +88,19 @@ class WhoIsUserTool extends Tool implements HasRunKey
             ];
         }
 
+        $hr = new EmployeeBriefService()->forUser($user, $this->company, $this->app);
+
         return [
             'id' => $user->getId(),
             'name' => trim($user->firstname . ' ' . $user->lastname),
             'displayname' => $user->displayname,
             'email' => $user->email,
             'company' => $this->company->name,
+            'hr' => $hr,
+            'hr_note' => $hr === null
+                ? 'This person has no HR employee record in this company — their position and reporting line are '
+                    . 'unknown. Do not guess a role for them.'
+                : 'This is their place in the org chart — use it to pitch your answer to their role.',
         ];
     }
 

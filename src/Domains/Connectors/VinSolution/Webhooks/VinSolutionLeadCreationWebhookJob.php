@@ -7,10 +7,16 @@ namespace Kanvas\Connectors\VinSolution\Webhooks;
 use Kanvas\Connectors\VinSolution\Actions\PullLeadAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'VinSolution Lead Created Webhook',
+    description: 'Receiver that pulls a newly created VinSolutions lead into Kanvas. Inbound one-way — the '
+        . 'opposite direction to the push-lead step.',
+    integration: IntegrationsEnum::VIN_SOLUTION,
+)]
 class VinSolutionLeadCreationWebhookJob extends ProcessWebhookJob
 {
     #[Override]

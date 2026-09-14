@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Sales;
 use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Souk\Orders\Models\Order;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -21,6 +22,7 @@ use Override;
 class SalesRevenueTool extends Tool
 {
     use HasKanvasContext;
+    use ReportsToolOutcome;
 
     private const EXCLUDED_STATUSES = ['draft', 'canceled', 'cancelled', 'failed'];
 
@@ -60,10 +62,28 @@ class SalesRevenueTool extends Tool
             ->when($since !== null && $since !== '', fn ($q) => $q->whereDate('created_at', '>=', $since))
             ->when($until !== null && $until !== '', fn ($q) => $q->whereDate('created_at', '<=', $until));
 
+        $orders = $base()->count();
+
         $result = [
+            'since' => $since !== null && $since !== '' ? $since : 'all-time',
+            'until' => $until !== null && $until !== '' ? $until : 'open-ended',
             'total_revenue' => round((float) $base()->sum('total_gross_amount'), 2),
-            'orders' => $base()->count(),
+            'orders' => $orders,
         ];
+
+        // A bare {revenue: 0, orders: 0} reads to the model as "the call didn't work", and it retries
+        // the identical arguments until Neuron kills the turn (Sentry KANVAS-ECOSYSTEM-682). NOOP says
+        // the zero is final; the override adds the one thing generic guidance can't know — where this
+        // company's data actually starts and ends, so a corrected call is possible.
+        if ($orders === 0) {
+            $result += $this->bookedOrderDateBounds();
+
+            return $this->noop(
+                $result,
+                'Zero is the complete, correct answer for this range — no booked orders fall in it. A range '
+                    . 'inside first_booked_order_date..last_booked_order_date would return data.',
+            );
+        }
 
         if ($by_month === true) {
             $result['by_month'] = $base()
@@ -79,5 +99,27 @@ class SalesRevenueTool extends Tool
         }
 
         return $result;
+    }
+
+    /**
+     * The window the tenant actually has booked orders in, so a model that queried an empty range can
+     * correct itself in one call instead of probing dates. Both null when the tenant has no orders at all.
+     *
+     * @return array{first_booked_order_date: string|null, last_booked_order_date: string|null}
+     */
+    private function bookedOrderDateBounds(): array
+    {
+        $bounds = Order::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('is_deleted', false)
+            ->whereNotIn('status', self::EXCLUDED_STATUSES)
+            ->selectRaw('MIN(created_at) as first_at, MAX(created_at) as last_at')
+            ->first();
+
+        return [
+            'first_booked_order_date' => $bounds?->first_at !== null ? substr((string) $bounds->first_at, 0, 10) : null,
+            'last_booked_order_date' => $bounds?->last_at !== null ? substr((string) $bounds->last_at, 0, 10) : null,
+        ];
     }
 }

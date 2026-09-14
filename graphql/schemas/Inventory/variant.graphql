@@ -54,6 +54,11 @@ type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
         )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
+        )
     inventory_quantity: Int @method(name: "getTotalQuantity")
     activities: [ActivityLog!] @method(name: "getActivities")
 }
@@ -109,6 +114,7 @@ input VariantsInput {
     warehouses: [WarehouseReferenceInput!]
     channels: [VariantChannelReferenceInput!]
     custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
 }
 
 input VariantsUpdateInput {
@@ -129,6 +135,7 @@ input VariantsUpdateInput {
     warehouses: [WarehouseReferenceInput!]
     channels: [VariantChannelReferenceInput!]
     custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
 }
 
 input VariantTranslationInput {
@@ -209,6 +216,11 @@ extend type Query @guard {
             @whereHasConditions(
                 relation: "attributeValues"
                 columns: ["products_variants_id", "value", "attributes_id"]
+            )
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
             )
         hasChannel: _
             @whereHasConditions(

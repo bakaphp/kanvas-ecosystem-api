@@ -7,10 +7,13 @@ namespace Kanvas\Connectors\WaSender\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\WaSender\Client;
+use Kanvas\Connectors\WaSender\Traits\FormatsPhoneNumberTrait;
 use Kanvas\Exceptions\ValidationException;
 
 class ContactService
 {
+    use FormatsPhoneNumberTrait;
+
     protected Client $client;
 
     public function __construct(
@@ -35,7 +38,6 @@ class ContactService
      */
     public function getContactInfo(string $phoneNumber): array
     {
-        // Ensure the phone number is properly formatted
         $formattedPhone = $this->formatPhoneNumber($phoneNumber);
 
         return $this->client->get("/api/contacts/{$formattedPhone}");
@@ -48,7 +50,6 @@ class ContactService
      */
     public function getContactProfilePicture(string $phoneNumber): array
     {
-        // Ensure the phone number is properly formatted
         $formattedPhone = $this->formatPhoneNumber($phoneNumber);
 
         return $this->client->get("/api/contacts/{$formattedPhone}/picture");
@@ -61,7 +62,6 @@ class ContactService
      */
     public function blockContact(string $phoneNumber): array
     {
-        // Ensure the phone number is properly formatted
         $formattedPhone = $this->formatPhoneNumber($phoneNumber);
 
         return $this->client->post("/api/contacts/{$formattedPhone}/block", []);
@@ -74,7 +74,6 @@ class ContactService
      */
     public function unblockContact(string $phoneNumber): array
     {
-        // Ensure the phone number is properly formatted
         $formattedPhone = $this->formatPhoneNumber($phoneNumber);
 
         return $this->client->post("/api/contacts/{$formattedPhone}/unblock", []);
@@ -110,26 +109,6 @@ class ContactService
     }
 
     /**
-     * Format a phone number to E.164 format (remove all non-numeric characters and ensure it starts with country code).
-     *
-     * @param string $phoneNumber The phone number to format
-     * @param string $defaultCountryCode Default country code if not present in phone number
-     * @return string The formatted phone number (without the '+' prefix as required by the API)
-     */
-    protected function formatPhoneNumber(string $phoneNumber, string $defaultCountryCode = '1'): string
-    {
-        // Remove any non-numeric characters, including the '+' prefix if present
-        $cleaned = preg_replace('/[^0-9]/', '', $phoneNumber);
-
-        // If the number doesn't start with the country code, add it
-        if (! str_starts_with($phoneNumber, '+') && ! str_starts_with($cleaned, $defaultCountryCode)) {
-            $cleaned = $defaultCountryCode . $cleaned;
-        }
-
-        return $cleaned; // Return without '+' prefix as API requires
-    }
-
-    /**
      * Search contacts by name or phone number.
      *
      * @param string $query The search query (name or phone number)
@@ -157,6 +136,22 @@ class ContactService
         }
 
         return ['success' => true, 'data' => $matchedContacts];
+    }
+
+    /**
+     * The opaque per-account id WhatsApp addresses this number as under lid addressing.
+     *
+     * Needed because group payloads mention people by `@lid` while we only ever stored a phone
+     * number — without this the two never compare equal and a mention is invisible.
+     *
+     * @param string $phoneNumber digits or a full JID
+     */
+    public function getLidFromPhoneNumber(string $phoneNumber): ?string
+    {
+        $response = $this->client->get('/api/lid-from-phone-number/' . rawurlencode($phoneNumber));
+        $lid = $response['data']['lid'] ?? $response['lid'] ?? null;
+
+        return is_string($lid) && $lid !== '' ? $lid : null;
     }
 
     /**

@@ -279,6 +279,7 @@ class HermesProvider extends AbstractAgentRuntimeProvider
         string $message,
         ?string $sessionKey = null,
         array $images = [],
+        array $additionalTools = [],
     ): string {
         return new ChatWithAgentAction(
             $agent,

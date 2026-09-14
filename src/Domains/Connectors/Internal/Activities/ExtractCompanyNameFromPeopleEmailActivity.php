@@ -13,10 +13,17 @@ use Kanvas\Guild\Organizations\Actions\CreateOrganizationAction;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Extract Organization From Email Domain',
+    description: 'Reads the domain of a person\'s email address, works out the company name from it, and '
+        . 'creates or links the organization. Fills the employer in when nobody typed it. Free-mail '
+        . 'domains produce nothing useful, so expect it to be a no-op on consumer addresses.',
+    integration: IntegrationsEnum::INTERNAL,
+)]
 class ExtractCompanyNameFromPeopleEmailActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     /**

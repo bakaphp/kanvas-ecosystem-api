@@ -7,10 +7,13 @@ namespace Tests\Intelligence\Tools;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\WordPress\Activities\PushMessageToWordPressActivity;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\CreateCompanyWorkflowTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Workflow\ListWorkflowOptionsTool;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
@@ -19,6 +22,7 @@ use Kanvas\Workflow\Rules\Models\Action;
 use Kanvas\Workflow\Rules\Models\Rule;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use NeuronAI\Tools\ToolPropertyInterface;
+use ReflectionMethod;
 use Tests\TestCase;
 use Throwable;
 
@@ -55,6 +59,22 @@ class CreateCompanyWorkflowToolTest extends TestCase
     private function workflowAction(): Action
     {
         return Action::first() ?? Action::factory()->create();
+    }
+
+    /**
+     * The catalogued WordPress publisher — the one step that declares both params and a required one.
+     */
+    private function wordPressAction(): Action
+    {
+        $this->artisan('kanvas:workflow-sync-actions')->assertSuccessful();
+
+        $action = Action::query()
+            ->where('model_name', PushMessageToWordPressActivity::class)
+            ->first();
+
+        $this->assertNotNull($action, 'The WordPress publisher is not in the actions catalog.');
+
+        return $action;
     }
 
     private function tool(?Users $requestingUser = null): CreateCompanyWorkflowTool
@@ -244,6 +264,199 @@ class CreateCompanyWorkflowToolTest extends TestCase
         $this->assertFalse($result['created']);
         $this->assertStringContainsString('attribute operator value', $result['message']);
         $this->assertSame(0, Rule::query()->where('name', $name)->count());
+    }
+
+    /**
+     * A rule with no conditions leaves the pattern as the bare literal `1`, which evaluates truthy by
+     * accident rather than by statement — and says nothing about what it matches.
+     */
+    public function testAWorkflowCreatedWithoutConditionsStillGetsOne(): void
+    {
+        $name = 'No conditions ' . fake()->unique()->uuid();
+
+        $result = $this->tool(auth()->user())->__invoke(
+            name: $name,
+            entity: $this->systemModule()->model_name,
+            trigger: $this->ruleType()->name,
+            actions: $this->workflowAction()->name,
+        );
+
+        $this->assertTrue($result['created'], $result['message'] ?? '');
+        $this->assertSame(['id > 0'], $result['conditions']);
+
+        /** @var Rule $rule */
+        $rule = Rule::query()->where('id', $result['workflow_id'])->first();
+
+        $this->assertSame(1, $rule->getRulesConditions()->where('is_deleted', 0)->count());
+        $this->assertSame('1', $rule->pattern);
+    }
+
+    public function testParamsArePersistedOntoTheRuleSoActivitiesReceiveThem(): void
+    {
+        $action = $this->wordPressAction();
+        $name = 'Publish articles ' . fake()->unique()->uuid();
+
+        $result = $this->tool(auth()->user())->__invoke(
+            name: $name,
+            entity: $this->systemModule()->model_name,
+            trigger: $this->ruleType()->name,
+            actions: $action->name,
+            params: '{"message_type_id": 42, "status": "pending", "categories": ["News"]}',
+        );
+
+        $this->assertTrue($result['created'], $result['message'] ?? '');
+
+        /** @var Rule $rule */
+        $rule = Rule::query()->where('id', $result['workflow_id'])->first();
+
+        $this->assertNotNull($rule);
+        $this->assertSame(42, $rule->params['message_type_id']);
+        $this->assertSame('pending', $rule->params['status']);
+        $this->assertSame(['News'], $rule->params['categories']);
+    }
+
+    public function testRefusesWhenARequiredParamIsMissing(): void
+    {
+        $action = $this->wordPressAction();
+        $name = 'Missing message type ' . fake()->unique()->uuid();
+
+        $result = $this->tool(auth()->user())->__invoke(
+            name: $name,
+            entity: $this->systemModule()->model_name,
+            trigger: $this->ruleType()->name,
+            actions: $action->name,
+            params: '{"status": "pending"}',
+        );
+
+        $this->assertFalse($result['created']);
+        $this->assertStringContainsString('message_type_id', $result['message']);
+        $this->assertSame(0, Rule::query()->where('name', $name)->count());
+    }
+
+    public function testRefusesAParamNoChosenActionReads(): void
+    {
+        $action = $this->wordPressAction();
+        $name = 'Typo param ' . fake()->unique()->uuid();
+
+        $result = $this->tool(auth()->user())->__invoke(
+            name: $name,
+            entity: $this->systemModule()->model_name,
+            trigger: $this->ruleType()->name,
+            actions: $action->name,
+            params: '{"message_type_id": 42, "post_status": "pending"}',
+        );
+
+        $this->assertFalse($result['created']);
+        $this->assertStringContainsString('post_status', $result['message']);
+        $this->assertArrayHasKey('accepted_params', $result);
+        $this->assertArrayHasKey('status', $result['accepted_params']);
+        $this->assertSame(0, Rule::query()->where('name', $name)->count());
+    }
+
+    public function testRejectsParamsThatAreNotAJsonObject(): void
+    {
+        $name = 'Bad params ' . fake()->unique()->uuid();
+
+        $result = $this->tool(auth()->user())->__invoke(
+            name: $name,
+            entity: $this->systemModule()->model_name,
+            trigger: $this->ruleType()->name,
+            actions: $this->workflowAction()->name,
+            params: 'message_type_id = 42',
+        );
+
+        $this->assertFalse($result['created']);
+        $this->assertStringContainsString('JSON object', $result['message']);
+        $this->assertSame(0, Rule::query()->where('name', $name)->count());
+    }
+
+    public function testAnUndocumentedActionStillAcceptsParams(): void
+    {
+        // Only steps that documented their params can be checked; rejecting settings for a step that
+        // never described any would make the guard a blocker on ~294 undocumented activities.
+        $action = $this->workflowAction();
+        $action->update(['params' => null, 'required_params' => null]);
+
+        $name = 'Undocumented params ' . fake()->unique()->uuid();
+
+        $result = $this->tool(auth()->user())->__invoke(
+            name: $name,
+            entity: $this->systemModule()->model_name,
+            trigger: $this->ruleType()->name,
+            actions: $action->name,
+            params: '{"anything": "goes"}',
+        );
+
+        $this->assertTrue($result['created'], $result['message'] ?? '');
+    }
+
+    /**
+     * A trigger fires on one kind of record, and rules are matched against that record's class — so a
+     * mismatched pair saves cleanly and is never considered. `after-adding-message-to-channel` fires
+     * on the Channel, and the word "message" in its name makes Message the obvious wrong answer.
+     */
+    public function testRefusesAnEntityThatDisagreesWithWhatTheTriggerFiresOn(): void
+    {
+        $channelTrigger = RuleType::query()
+            ->where('name', 'after-adding-message-to-channel')
+            ->where('is_deleted', 0)
+            ->first();
+
+        if ($channelTrigger === null) {
+            $this->markTestSkipped('This app has no channel trigger.');
+        }
+
+        $existing = Rule::query()
+            ->where('rules_types_id', $channelTrigger->getId())
+            ->where('is_deleted', 0)
+            ->count();
+
+        if ($existing < 2) {
+            $this->markTestSkipped('Needs at least two existing rules on this trigger to form a convention.');
+        }
+
+        $name = 'Mismatched ' . fake()->unique()->uuid();
+
+        $result = $this->tool(auth()->user())->__invoke(
+            name: $name,
+            entity: Message::class,
+            trigger: $channelTrigger->name,
+            actions: $this->workflowAction()->name,
+        );
+
+        $this->assertFalse($result['created']);
+        $this->assertStringContainsString('never run', $result['message']);
+        $this->assertSame(0, Rule::query()->where('name', $name)->count());
+    }
+
+    /**
+     * `system_modules` is per-app, so every app holds its own row for the same class. Comparing module
+     * ids reports a mismatch between an entity and ITSELF as soon as the evidence comes from another
+     * app — which is most of the time. The comparison has to be by class.
+     */
+    public function testTheCorrectEntityIsNotRefusedBecauseTheEvidenceLivesInAnotherApp(): void
+    {
+        $channelTrigger = RuleType::query()
+            ->where('name', 'after-adding-message-to-channel')
+            ->where('is_deleted', 0)
+            ->first();
+
+        $module = SystemModules::query()
+            ->fromApp($this->app())
+            ->where('model_name', Channel::class)
+            ->first();
+
+        if ($channelTrigger === null || $module === null) {
+            $this->markTestSkipped('This app has no channel trigger or Channel module.');
+        }
+
+        $tool = $this->tool(auth()->user());
+        $check = new ReflectionMethod($tool, 'checkTriggerEntityFit');
+
+        $this->assertNull(
+            $check->invoke($tool, $channelTrigger, $module),
+            'The entity the trigger actually fires on must never be refused.'
+        );
     }
 
     public function testListWorkflowOptionsReturnsTheCatalogsTheCreateToolExpects(): void

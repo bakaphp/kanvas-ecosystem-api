@@ -14,6 +14,7 @@ use Kanvas\Connectors\Elead\DataTransferObject\TradeIn;
 use Kanvas\Connectors\Elead\DataTransferObject\Vehicle;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Exceptions\ELeadException;
+use Kanvas\Connectors\Elead\Services\LeadUserService;
 use Kanvas\Connectors\Elead\Support\EleadCache;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Leads\Models\LeadSource;
@@ -90,14 +91,14 @@ class Lead
             'upType' => $leadSourceName !== 'Lead Link' ? $leadUpType : 'Internet',
         ];
 
-        if ($lead->owner
-            && $lead->owner->get(CustomFieldEnum::getUserKey($lead->company))
-            && $lead->owner->get(CustomFieldEnum::getUserJobPositionKey($lead->company))) {
+        $salesUser = LeadUserService::resolve($lead, requireJobPosition: true);
+
+        if ($salesUser !== null) {
             $opportunityData['salesTeam'][] = [
-                'id' => $lead->owner->get(CustomFieldEnum::getUserKey($lead->company)),
+                'id' => $salesUser->get(CustomFieldEnum::getUserKey($lead->company)),
                 'isPrimary' => true,
                 'isPositionPrimary' => true,
-                'positionCode' => $lead->owner->get(CustomFieldEnum::getUserJobPositionKey($lead->company)),
+                'positionCode' => $salesUser->get(CustomFieldEnum::getUserJobPositionKey($lead->company)),
             ];
         }
 

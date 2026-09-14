@@ -13,7 +13,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Acumatica Push Sales Order',
+    description: 'Pushes a sales order into Acumatica ERP. Outbound one-way write, gated on Acumatica writes '
+        . 'being enabled for this app.',
+    integration: IntegrationsEnum::ACUMATICA,
+)]
 class PushSalesOrderToAcumaticaActivity extends KanvasActivity
 {
     public $tries = 3;

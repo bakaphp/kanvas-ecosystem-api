@@ -40,6 +40,7 @@ enum ConfigurationEnum: string
     case FIRST_MESSAGE_ONLY_DURING_OFF_BUSINESS_HOURS = 'ai_agent_first_message_only_during_off_business_hours';
     case AI_ENGAGEMENT_MESSAGE_ONLY_ONE_NOTIFICATION = 'ai_engagement_message_only_one_notification';
     case AI_MODE = 'ai_mode';
+    case SUPPORT_MODE_DELAYED_RESPONSE = 'ai_agent_support_mode_delayed_response';
     case AGENT_AI_MODE = 'agent_ai_mode';
     case AI_ENABLE = 'ai';
     case NOTIFICATION_CHANNELS = 'notification_enabled_channels';

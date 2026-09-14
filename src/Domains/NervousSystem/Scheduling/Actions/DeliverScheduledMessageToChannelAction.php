@@ -4,14 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\NervousSystem\Scheduling\Actions;
 
-use Baka\Support\Str;
-use Kanvas\Connectors\Slack\Client as SlackClient;
-use Kanvas\Connectors\Twilio\Client as TwilioClient;
-use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
-use Kanvas\Connectors\WaSender\Services\MessageService as WaSenderMessageService;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Kanvas\Intelligence\Agents\Services\NativeChannelDeliveryService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\PostChannelMessageAction;
@@ -134,93 +129,17 @@ class DeliverScheduledMessageToChannelAction
         }
     }
 
+    /**
+     * Push it out over the connector this channel came in on, so it lands in the conversation the
+     * person is actually in rather than only in Kanvas's mirror of it.
+     */
     private function pushNative(): bool
     {
-        $type = strtolower($this->channelType());
-
-        return match (true) {
-            str_contains($type, 'slack') => $this->pushSlack(),
-            str_contains($type, 'whatsapp') => $this->pushWhatsApp(),
-            str_contains($type, 'sms') || str_contains($type, 'twilio') => $this->pushSms(),
-            default => false,
-        };
-    }
-
-    private function channelType(): string
-    {
-        $type = (string) ($this->channel->get(ConfigurationEnum::AGENT_CHANNEL_TYPE->value) ?? '');
-
-        return $type !== '' ? $type : (string) $this->channel->slug;
-    }
-
-    private function pushSlack(): bool
-    {
-        if ($this->agent === null) {
-            return false;
-        }
-
-        [$slackChannelId, $threadTs] = $this->slackTargetFromCanalId();
-        if ($slackChannelId === '') {
-            return false;
-        }
-
-        SlackClient::getInstanceByAgent($this->agent)
-            ->postMessage($slackChannelId, $this->text, $threadTs !== '' ? $threadTs : null);
-
-        return true;
-    }
-
-    /**
-     * @return array{0: string, 1: string} [slackChannelId, threadTs] parsed from the session canal_id
-     *                                      `slack:{team}:{channel}:{thread_ts}` (ids are case-sensitive,
-     *                                      so we take them verbatim — never from the lowercased slug)
-     */
-    private function slackTargetFromCanalId(): array
-    {
-        if ($this->canalId === null || ! str_starts_with($this->canalId, 'slack:')) {
-            return ['', ''];
-        }
-
-        $parts = explode(':', $this->canalId);
-
-        return [$parts[2] ?? '', $parts[3] ?? ''];
-    }
-
-    private function pushWhatsApp(): bool
-    {
-        if ($this->canalId === null || ! str_contains($this->canalId, '@s.whatsapp.net')) {
-            return false;
-        }
-
-        $to = str_replace('@s.whatsapp.net', '', $this->canalId);
-
-        new WaSenderMessageService($this->channel->app, $this->channel->company)
-            ->sendTextMessage($to, $this->text);
-
-        return true;
-    }
-
-    private function pushSms(): bool
-    {
-        $company = $this->channel->company;
-
-        $from = (string) (
-            $company->get(TwilioConfigurationEnum::TWILIO_FROM_PHONE_NUMBER->value)
-            ?? $company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value)
-            ?? ''
+        return NativeChannelDeliveryService::deliver(
+            $this->channel,
+            $this->text,
+            $this->agent,
+            $this->canalId,
         );
-
-        // The Twilio channel slug is `twilio-<phone>`, so the recipient number lives there — no Lead.
-        $to = Str::toE164(str_replace('twilio-', '', (string) $this->channel->slug));
-
-        if ($from === '' || $to === '') {
-            return false;
-        }
-
-        TwilioClient::getInstanceByCompany($company)
-            ->messages
-            ->create($to, ['from' => $from, 'body' => $this->text]);
-
-        return true;
     }
 }

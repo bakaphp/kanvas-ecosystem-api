@@ -14,6 +14,7 @@ use Kanvas\Souk\Orders\Actions\GetOrderPaymentStatsAction;
 use Kanvas\Souk\Orders\Actions\GetOrderStatsAction;
 use Kanvas\Souk\Orders\DataTransferObject\CommissionStats;
 use Kanvas\Souk\Orders\Enums\OrderStatsExcludeModeEnum;
+use Kanvas\Souk\Orders\Services\OrderProviderScopeService;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -30,6 +31,7 @@ class OrderStatsQuery
         $productTypeSlugs = $input['productTypeSlugs'] ?? [];
         $orderTypeNames = $input['orderTypeNames'] ?? [];
         $productId = isset($input['productId']) ? (int) $input['productId'] : null;
+        $variantId = isset($input['variantId']) ? (int) $input['variantId'] : null;
         $date = $input['date'] ?? null;
         $startDate = $input['startDate'] ?? null;
         $endDate = $input['endDate'] ?? null;
@@ -43,25 +45,26 @@ class OrderStatsQuery
         $excludeMode = OrderStatsExcludeModeEnum::from(strtolower($input['excludeMode'] ?? 'current'));
 
         $orderStats = new GetOrderStatsAction(
-            $app,
-            $initialStates,
-            $finalStates,
-            $currentCountStates,
-            $productTypeSlugs,
-            $orderTypeNames,
-            $productId,
-            $providerCompanyIds,
-            $providers,
-            $userEmail,
-            $excludeStates,
-            $excludeMode
+            app: $app,
+            initialStates: $initialStates,
+            finalStates: $finalStates,
+            currentCountStates: $currentCountStates,
+            productTypeSlugs: $productTypeSlugs,
+            orderTypeNames: $orderTypeNames,
+            productId: $productId,
+            variantId: $variantId,
+            providerCompanyIds: $providerCompanyIds,
+            providers: $providers,
+            userEmail: $userEmail,
+            excludeStates: $excludeStates,
+            excludeMode: $excludeMode,
         )->execute(
-            $date,
-            $startDate,
-            $endDate,
-            $baseDate,
-            $timezone,
-            $groupBy
+            date: $date,
+            startDate: $startDate,
+            endDate: $endDate,
+            baseDate: $baseDate,
+            timezone: $timezone,
+            groupBy: $groupBy,
         );
 
         return $orderStats;
@@ -164,34 +167,18 @@ class OrderStatsQuery
     }
 
     /**
-     * `provider_company_id` is the only dimension that separates one provider's orders from
-     * another's — orders live in the platform's main company and the provider is reached through
-     * the `order_providers` pivot. Left as a plain client-supplied filter, a provider that simply
-     * omits it reads the whole app's revenue, so it is derived from the caller instead.
-     *
-     * Apps without `B2B_MAIN_COMPANY_ID` are not running the provider model at all; their orders
-     * belong to the company that placed them and this scoping would filter everything out.
-     *
      * @return array<int, int>
      */
     private function resolveProviderCompanyIds(Apps $app, array $input): array
     {
-        $requested = array_map('intval', $input['provider_company_id'] ?? []);
-
-        $mainCompanyId = $app->get('B2B_MAIN_COMPANY_ID');
-
-        if ($mainCompanyId === null) {
-            return $requested;
-        }
-
         /** @var Users $user */
         $user = auth()->user();
-        $currentCompanyId = (int) $user->getCurrentCompany()->getId();
 
-        if ($user->isAppOwner() || $currentCompanyId === (int) $mainCompanyId) {
-            return $requested;
-        }
-
-        return [$currentCompanyId];
+        return OrderProviderScopeService::resolve(
+            app: $app,
+            company: $user->getCurrentCompany(),
+            isAppOwner: $user->isAppOwner(),
+            requested: $input['provider_company_id'] ?? [],
+        );
     }
 }

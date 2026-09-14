@@ -10,6 +10,7 @@ enum ConfigurationEnum: string
     case CLIENT_ID = 'universal_seguros_client_id';
     case CLIENT_SECRET = 'universal_seguros_client_secret';
     case SCOPES = 'universal_seguros_scopes';
+    case VERIFY_SSL = 'universal_seguros_verify_ssl';
 
     public const BASE_SCOPES = 'unit.serviceplattform.externos unit.serviceplattform.cotizaciones unit.serviceplattform.polizas';
 

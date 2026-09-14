@@ -35,7 +35,12 @@ final class ReindexLeadVariantInterestJob implements ShouldBeUnique, ShouldQueue
      */
     public static function dispatchForLead(int $leadId, int $appId, int $companyId): void
     {
-        self::dispatch(new KnowledgeEntity(Lead::class, $leadId, $appId, $companyId))->afterCommit();
+        self::dispatch(new KnowledgeEntity(
+            type: Lead::class,
+            id: $leadId,
+            appId: $appId,
+            companyId: $companyId,
+        ))->afterCommit();
     }
 
     public function handle(): void

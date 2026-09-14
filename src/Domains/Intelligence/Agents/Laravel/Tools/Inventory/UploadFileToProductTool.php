@@ -27,6 +27,11 @@ class UploadFileToProductTool implements KanvasToolInterface
     use HasFileUploadToolSchema;
     use HasKanvasContext;
 
+    public function name(): string
+    {
+        return 'upload_file_to_product';
+    }
+
     #[Override]
     public function description(): Stringable|string
     {
@@ -56,7 +61,12 @@ class UploadFileToProductTool implements KanvasToolInterface
                 . 'product_id.';
         }
 
-        return $this->uploadFromRequest($request, $product, 'product', ['product_id' => $productId]);
+        return $this->uploadFromRequest(
+            $request,
+            $product,
+            'product',
+            ['product_id' => $productId],
+        );
     }
 
     #[Override]

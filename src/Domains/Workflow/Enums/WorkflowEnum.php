@@ -32,7 +32,13 @@ enum WorkflowEnum: string
     case AFTER_RUNNING_RECEIVER = 'after-running-receiver';
     case AFTER_MESSAGE_INTERACTION = 'after-message-interaction';
     case AFTER_PAYMENT_INTENT = 'after-payment-intent';
+    /**
+     * @deprecated Carries no target engagement, so its report lands in a second folder. Use
+     *             GENERATE_ID_VERIFICATION; drop this case and its `rules_types` row once the Phalcon
+     *             controller and the frontend have both migrated.
+     */
     case AFTER_ID_VERIFICATION = 'after-id-verification';
+    case GENERATE_ID_VERIFICATION = 'generate-id-verification';
     case DURING_WORKFLOW = 'during-workflow';
     case AFTER_ADDING_MESSAGE_TO_CHANNEL = 'after-adding-message-to-channel';
     case BEFORE_ACTION = 'before-action';
@@ -51,8 +57,19 @@ enum WorkflowEnum: string
     case DEBUG = 'debug';
     case NOTIFICATION = 'notify';
     case AFTER_ONBOARDING = 'after-onboarding';
+    case AFTER_ADDING_MESSAGE_TO_GROUP_CHANNEL = 'after-adding-message-to-group-channel';
+    case AFTER_ADDING_MESSAGE_TO_AGENT_CHANNEL = 'after-adding-message-to-agent-channel';
     case AFTER_CONFIGURATION = 'after-configuration';
     case AFTER_MERGE = 'after-merge';
+    case EVENT_VERSIONS_WORKFLOW = 'event-versions-workflow';
+
+    case APPROVAL_REQUESTED = 'approval-requested';
+    case APPROVAL_STEP_COMPLETED = 'approval-step-completed';
+    case APPROVAL_UNASSIGNED = 'approval-unassigned';
+    case APPROVAL_EXPIRED = 'approval-expired';
+    case APPROVAL_CANCELLED = 'approval-cancelled';
+    case APPROVED = 'approved';
+    case REJECTED = 'rejected';
 
     /**
      * Get the enum case by its value.

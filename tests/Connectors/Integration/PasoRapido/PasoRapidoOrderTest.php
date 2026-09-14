@@ -53,8 +53,8 @@ final class PasoRapidoOrderTest extends TestCase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $warehouseData = [
@@ -80,22 +80,21 @@ final class PasoRapidoOrderTest extends TestCase
             warehouseData: $warehouseData
         );
 
-
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
             warehouseId: $warehouseResponse['id'],
             amount: 100
         );
 
-        $transactionId = "7478925724996114" . rand(100000, 999999);
+        $transactionId = '7478925724996114' . rand(100000, 999999);
 
         $data = [
             'email' => fake()->email(),
             'region_id' => $region->getId(),
             'metadata' => [
                 'data' => [
-                    'paso_rapido_tag' => "317169",
-                    'payment_methods_id' => "91",
+                    'paso_rapido_tag' => '317169',
+                    'payment_methods_id' => '91',
                     'payment_date' => now()->toDateTimeString(),
                 ],
             ],
@@ -136,7 +135,7 @@ final class PasoRapidoOrderTest extends TestCase
         $order = Order::fromApp($app)->find($order['id']);
 
         $order->set(EnumsCustomFieldEnum::ECHO_PAY_PAYMENT_INTENT_ID->value, 'intentId:' . $transactionId);
-        $order->set(CustomFieldEnum::PASO_RAPIDO_DNI->value, "1234567890");
+        $order->set(CustomFieldEnum::PASO_RAPIDO_DNI->value, '1234567890');
 
         $createPasoRapidoOrderAction = new CreatePasoRapidoOrderAction($app, $order);
         $result = $createPasoRapidoOrderAction->execute();

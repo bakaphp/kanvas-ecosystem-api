@@ -10,14 +10,22 @@ use Kanvas\Enums\AppEnums;
 use Kanvas\HumanResources\Employees\Actions\CreateEmployeeAction;
 use Kanvas\HumanResources\Employees\DataTransferObject\Employee as EmployeeData;
 use Kanvas\HumanResources\Employees\Models\Employee;
+use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\AssignLeavePolicyTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\CancelLeaveRequestTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\CreateEmployeeTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\CreateLeaveTypeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\CreatePositionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\DecideLeaveRequestTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\FindEmployeeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\GetEmployeeLeaveBalanceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\GetMyLeaveBalanceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\ListLeaveRequestsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\ListLeaveTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\RequestLeaveTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\RequestMyLeaveTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\SetEmployeeLeaveBalanceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\UpdateEmployeeTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources\UpdateLeaveTypeTool;
 use Kanvas\Users\Models\UserFullTableName;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
@@ -326,6 +334,14 @@ class HumanResourcesAgentToolsTest extends TestCase
             new RequestLeaveTool(),
             new GetMyLeaveBalanceTool(),
             new RequestMyLeaveTool(),
+            new ListLeaveTypesTool(),
+            new CreateLeaveTypeTool(),
+            new UpdateLeaveTypeTool(),
+            new AssignLeavePolicyTool(),
+            new SetEmployeeLeaveBalanceTool(),
+            new ListLeaveRequestsTool(),
+            new DecideLeaveRequestTool(),
+            new CancelLeaveRequestTool(),
         ];
 
         foreach ($tools as $tool) {

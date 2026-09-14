@@ -30,11 +30,7 @@ class EngagementLeadFilter
 
         $slugs = $this->actionSlugs($action);
         $latest = $this->engagements($app, $company, $slugs)
-            ->sortByDesc(fn (Engagement $engagement): string => sprintf(
-                '%s-%010d',
-                (string) $engagement->created_at,
-                $engagement->getId(),
-            ))
+            ->sortBy([['created_at', 'desc'], ['id', 'desc']])
             ->unique(fn (Engagement $engagement): string => $engagement->entity_uuid !== ''
                 ? $engagement->slug . ':' . $engagement->entity_uuid
                 : $engagement->slug . ':id:' . $engagement->getId())

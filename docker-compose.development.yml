@@ -1,5 +1,13 @@
+# Docker's json-file driver never rotates by default, and every `queue:work` prints a line per job.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "3"
+
 x-common-queue-settings: &common-queue-settings
   restart: always
+  logging: *default-logging
   image: php-app-image # Use the built image for all the services
   extra_hosts:
     - "host.docker.internal:host-gateway"
@@ -29,6 +37,7 @@ services:
       context: .
       dockerfile: development.Dockerfile
     image: php-app-image # Build the image here and tag it
+    logging: *default-logging
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
@@ -151,7 +160,35 @@ services:
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=agent-runtime
         --tries=3 --timeout=3750"
-
+  # The replica count is the parallelism ceiling for a plan's task band — one `queue:work` is one
+  # process, so a batch dispatched to a single consumer runs strictly end-to-end.
+  agent-task-worker-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    deploy:
+      replicas: 3
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=agent-task-worker
+        --tries=1 --timeout=3750"
+  product-enrichment-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=product-enrichment
+        --tries=3 --timeout=3750"
+  product-discovery-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work --queue=product-discovery
+        --tries=3 --timeout=300"
+        
   agent-chat-queue:
     <<: *common-queue-settings
     # REMOVED container_name because replicas > 1
@@ -178,6 +215,14 @@ services:
       - "-c"
       - "php artisan config:cache && php artisan queue:work --queue=ledger
         --tries=3 --timeout=3750"
+  slack-ingest-queue:
+    <<: *common-queue-settings
+    # REMOVED container_name because replicas > 1
+    command:
+      - "sh"
+      - "-c"
+      - "php artisan config:cache && php artisan queue:work
+        --queue=slack-ingest --tries=3 --timeout=3750"
   nervous-system-project-queue:
     <<: *common-queue-settings
     # REMOVED container_name because replicas > 1
@@ -227,6 +272,7 @@ services:
     container_name: laravel-scheduler
     restart: always
     image: php-app-image # Use the same image for the scheduler
+    logging: *default-logging
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command:
@@ -249,6 +295,7 @@ services:
   nginx:
     image: nginx:latest
     container_name: nginx${APP_CONTAINER_NAME}
+    logging: *default-logging
     ports:
       - "80:80"
     links:

@@ -15,7 +15,6 @@ use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Auth\Contracts\Authenticatable;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Models\BaseModel;
-use Kanvas\Users\Enums\StatusEnums;
 use Kanvas\Users\Observers\UsersAssociatedAppsObserver;
 use Override;
 
@@ -38,7 +37,7 @@ use Override;
  * @property int $user_login_tries
  * @property int $user_last_login_try
  * @property string $user_activation_key
- * @property string $user_activation_forgot
+ * @property ?string $user_activation_forgot
  * @property int $banned
  * @property int $status
  * @property int $is_verified
@@ -156,7 +155,7 @@ class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppI
     #[Override]
     public function isBanned(): bool
     {
-        return $this->banned === StatusEnums::ACTIVE->getValue();
+        return in_array($this->banned, [1, '1', 'Y'], true);
     }
 
     public function getTwoStepPhoneNumber(): string

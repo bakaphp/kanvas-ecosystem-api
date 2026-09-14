@@ -16,6 +16,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DriveCentric\Actions\PullLeadAction;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\DriveCentric\Services\LeadService;
+use Kanvas\Connectors\DriveCentric\Services\LeadUserService;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadClosingStatusAction;
 use Kanvas\Users\Models\Users;
 use Throwable;
@@ -237,7 +238,7 @@ class DownloadAllLeadsCommand extends Command
                             }
                         }
 
-                        $dealId = $this->extractDealId($deal);
+                        $dealId = LeadUserService::extractDealIdentifier($deal);
 
                         if (! $dealId) {
                             $this->warn('Deal has no CrmId, skipping...');
@@ -259,7 +260,7 @@ class DownloadAllLeadsCommand extends Command
                         $totalProcessed++;
                     } catch (Throwable $e) {
                         $errorCount++;
-                        $dealId = $this->extractDealId($deal) ?? 'unknown';
+                        $dealId = LeadUserService::extractDealIdentifier($deal) ?? 'unknown';
                         $this->warn("Failed to sync deal {$dealId}: " . $e->getMessage());
                     }
                 }
@@ -303,14 +304,4 @@ class DownloadAllLeadsCommand extends Command
     /**
      * Extract deal CrmId from deal data.
      */
-    private function extractDealId(array $deal): ?string
-    {
-        foreach ($deal['identifiers'] ?? [] as $identifier) {
-            if (($identifier['type'] ?? '') === 'CrmId') {
-                return $identifier['value'] ?? null;
-            }
-        }
-
-        return null;
-    }
 }

@@ -16,7 +16,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Attach ID Verification Files To Message',
+    description: 'Puts the documents produced by an ID verification back onto the message that triggered it, '
+        . 'so the result is visible in the conversation.',
+)]
 class AttachIdVerificationFilesToMessageActivity extends KanvasActivity
 {
     public $tries = 3;

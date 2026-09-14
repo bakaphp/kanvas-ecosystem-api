@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Laravel\Cashier\Cashier;
@@ -18,7 +19,13 @@ use Stripe\Stripe;
 use Stripe\Webhook;
 use UnexpectedValueException;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Stripe Cashier Webhook',
+    description: 'Receiver that hands Stripe billing events to Laravel Cashier, which keeps app SUBSCRIPTIONS '
+        . 'in step. This is the platform-billing path — use the order-payment receiver for customer '
+        . 'checkout instead.',
+    integration: IntegrationsEnum::STRIPE,
+)]
 class CashierStripeWebhookJob extends ProcessWebhookJob
 {
     #[Override]

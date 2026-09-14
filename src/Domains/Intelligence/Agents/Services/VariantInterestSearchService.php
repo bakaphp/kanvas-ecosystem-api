@@ -45,7 +45,7 @@ class VariantInterestSearchService
             ->mapWithKeys(function (string $filter): array {
                 [$name, $value] = array_pad(explode(':', $filter, 2), 2, '');
 
-                return [mb_strtolower(trim($name)) => mb_strtolower(trim($value))];
+                return [$this->normalize($name) => $this->normalize($value)];
             })
             ->filter(fn (string $value, string $name): bool => $name !== '' && $value !== '')
             ->all();
@@ -60,7 +60,7 @@ class VariantInterestSearchService
 
         $attributes = collect($variant['attributes'] ?? [])
             ->mapWithKeys(fn (mixed $value, mixed $name): array => [
-                mb_strtolower(trim((string) $name)) => mb_strtolower(trim((string) $value)),
+                $this->normalize((string) $name) => $this->normalize((string) $value),
             ]);
 
         foreach ($filters as $name => $value) {
@@ -70,5 +70,10 @@ class VariantInterestSearchService
         }
 
         return true;
+    }
+
+    private function normalize(string $value): string
+    {
+        return mb_strtolower(trim($value));
     }
 }

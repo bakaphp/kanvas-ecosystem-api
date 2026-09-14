@@ -1,15 +1,15 @@
 type AgentAi {
     id: ID!
-    company: [Company!]! @belongsTo
+    company: Company @belongsTo(relation: "company")
     user: User @belongsTo(relation: "user")
     creator: User @belongsTo(relation: "creator")
-    type: agentType! @belongsTo
-    model: AgentAiModel @belongsTo
+    type: agentType! @belongsTo(relation: "type")
+    model: AgentAiModel @belongsTo(relation: "model")
     llmConfig: AgentLlmConfig @belongsTo(relation: "llmConfig")
-    companyTaskList: TaskList @belongsTo
+    companyTaskList: TaskList @belongsTo(relation: "companyTaskList")
     parent: AgentAi @belongsTo(relation: "parent")
     children: [AgentAi!]! @hasMany(relation: "children")
-    swarms: [AgentSwarm!]! @belongsToMany
+    swarms: [AgentSwarm!]! @belongsToMany(relation: "swarms")
     uuid: String!
     name: String!
     description: String

@@ -16,7 +16,13 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'VinSolution Push Co-Buyer',
+    description: 'Pushes a lead PARTICIPANT — the co-buyer — into VinSolutions alongside the main lead, and '
+        . 'runs ID verification on them. The verification can NOTIFY the person, so this is not purely '
+        . 'a CRM write.',
+    integration: IntegrationsEnum::VIN_SOLUTION,
+)]
 class PushCoBuyerActivity extends KanvasActivity
 {
     public $tries = 3;

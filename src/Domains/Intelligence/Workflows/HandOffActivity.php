@@ -11,7 +11,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Hand Off Lead To Human',
+    description: 'Hands a lead from the agent to a person and notifies them. Use when the agent should stop '
+        . 'and a human should take over.',
+)]
 class HandOffActivity extends KanvasActivity
 {
     public $tries = 3;

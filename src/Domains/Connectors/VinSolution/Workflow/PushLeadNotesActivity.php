@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
-use Exception;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\ActionEngine\Tasks\Actions\ProcessMessageTaskUpdatesAction;
@@ -23,7 +22,13 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'VinSolution Push Lead Notes',
+    description: 'Copies a message into the lead\'s notes in VinSolutions, so the CRM record shows the '
+        . 'conversation. Writes a note only — it sends nothing to the customer. Pick the version '
+        . 'matching the CRM this company runs; several connectors ship a near-identical step.',
+    integration: IntegrationsEnum::VIN_SOLUTION,
+)]
 class PushLeadNotesActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -41,7 +46,9 @@ class PushLeadNotesActivity extends KanvasActivity
         $lead = $message->entity();
 
         if (! $lead) {
-            throw new Exception('Lead not found');
+            return $this->failWorkflow([
+                'error' => 'Lead not found',
+            ]);
         }
 
         return $this->executeIntegration(

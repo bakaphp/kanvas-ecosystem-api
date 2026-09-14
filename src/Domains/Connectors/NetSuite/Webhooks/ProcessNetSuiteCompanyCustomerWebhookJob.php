@@ -13,11 +13,18 @@ use Kanvas\Connectors\NetSuite\Actions\SyncNetSuiteCustomerWithCompanyAction;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use SoapFault;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'NetSuite Pull Customer Company',
+    description: 'Receiver that pulls a NetSuite customer into Kanvas as a buyer company — its addresses and '
+        . 'the item list it is allowed to buy. Inbound; this is how a B2B buyer gets onboarded from the '
+        . 'ERP.',
+    integration: IntegrationsEnum::NETSUITE,
+)]
 class ProcessNetSuiteCompanyCustomerWebhookJob extends ProcessWebhookJob
 {
     #[Override]

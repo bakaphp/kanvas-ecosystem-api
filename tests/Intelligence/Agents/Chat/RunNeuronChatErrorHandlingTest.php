@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Chat;
 
+use GuzzleHttp\Exception\ServerException;
+use GuzzleHttp\Psr7\Request;
+use GuzzleHttp\Psr7\Response;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -31,7 +35,7 @@ class RunNeuronChatErrorHandlingTest extends TestCase
     {
         $response = $this->runChatWithThrowingHandler($this->uniqueConstraintViolation());
 
-        $this->assertStringContainsString("It looks like that already exists", $response);
+        $this->assertStringContainsString('It looks like that already exists', $response);
         $this->assertStringNotContainsString('UniqueConstraintViolationException', $response);
         $this->assertStringNotContainsString('rds.amazonaws.com', $response);
         $this->assertStringNotContainsString('bills_vendor_number_uq', $response);
@@ -46,7 +50,57 @@ class RunNeuronChatErrorHandlingTest extends TestCase
         $this->assertStringNotContainsString('Gemini returned STOP', $response);
     }
 
-    private function runChatWithThrowingHandler(Throwable $exception): string
+    /**
+     * The prose only helps when a human reads it. A caller that files the reply for a pipeline —
+     * the newsroom publishes what the agent writes — would otherwise publish "I ran into a hiccup
+     * processing that" as an article (KANVAS-ECOSYSTEM-691, Gemini answering with no `parts`).
+     */
+    public function testAFailureIsRaisedInsteadOfHumanizedWhenTheCallerOptsOut(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Gemini returned STOP with no parts');
+
+        $this->runChatWithThrowingHandler(
+            new RuntimeException('Gemini returned STOP with no parts'),
+            fallbackOnFailure: false
+        );
+    }
+
+    public function testAHumanizedFailureIsLoggedWithItsRealCause(): void
+    {
+        Log::spy();
+
+        $this->runChatWithThrowingHandler(new RuntimeException('Gemini returned STOP with no parts'));
+
+        Log::shouldHaveReceived('error')
+            ->withArgs(fn (string $message, array $context) => $message === 'Neuron chat turn failed'
+                && $context['exception'] === RuntimeException::class
+                && $context['error'] === 'Gemini returned STOP with no parts'
+                && $context['handler'] === ThrowingNeuronHandlerStub::class
+                && str_contains($context['fallback'], 'I ran into a hiccup'))
+            ->once();
+    }
+
+    public function testARethrownFailureIsStillLogged(): void
+    {
+        Log::spy();
+
+        try {
+            $this->runChatWithThrowingHandler(
+                new RuntimeException('Gemini returned STOP with no parts'),
+                fallbackOnFailure: false
+            );
+            $this->fail('Expected the failure to be rethrown.');
+        } catch (RuntimeException) {
+        }
+
+        Log::shouldHaveReceived('error')
+            ->withArgs(fn (string $message, array $context) => $message === 'Neuron chat turn failed'
+                && $context['fallback_on_failure'] === false)
+            ->once();
+    }
+
+    private function runChatWithThrowingHandler(Throwable $exception, bool $fallbackOnFailure = true): string
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -68,7 +122,69 @@ class RunNeuronChatErrorHandlingTest extends TestCase
             app: $app,
             user: $user,
             handler: new ThrowingNeuronHandlerStub($exception),
+            fallbackOnFailure: $fallbackOnFailure,
         )->execute();
+    }
+
+    /**
+     * A 503 from the model provider is not a fault in the request, so the generic copy sends the
+     * person to rephrase something that was never wrong — and offers a hand-off to a human for what
+     * a retry fixes by itself.
+     */
+    public function testAnOverloadedModelProviderTellsThePersonToTryAgain(): void
+    {
+        $response = $this->runChatWithThrowingHandler($this->providerOverload(503));
+
+        $this->assertStringContainsString('overloaded', $response);
+        $this->assertStringContainsString('again', $response);
+        $this->assertStringNotContainsString('I ran into a hiccup', $response);
+        $this->assertStringNotContainsString('rephrasing', $response);
+    }
+
+    /** Same fault, whichever provider reports it — 429 rate limit, 529 Anthropic overloaded, 5xx. */
+    public function testEveryTransientProviderStatusReadsAsRetryable(): void
+    {
+        foreach ([429, 500, 502, 503, 504, 529] as $status) {
+            $response = $this->runChatWithThrowingHandler($this->providerOverload($status));
+
+            $this->assertStringContainsString(
+                'overloaded',
+                $response,
+                sprintf('HTTP %d should read as a transient provider fault.', $status),
+            );
+        }
+    }
+
+    /** A 4xx is a bad request of ours; telling someone to retry it would loop them. */
+    public function testAClientErrorIsNotTreatedAsRetryable(): void
+    {
+        $response = $this->runChatWithThrowingHandler($this->providerOverload(400));
+
+        $this->assertStringContainsString('I ran into a hiccup', $response);
+        $this->assertStringNotContainsString('overloaded', $response);
+    }
+
+    /** The detail still has to stay out of the channel — same rule as every other fallback here. */
+    public function testTheProviderResponseBodyNeverReachesTheReply(): void
+    {
+        $response = $this->runChatWithThrowingHandler($this->providerOverload(503));
+
+        $this->assertStringNotContainsString('generativelanguage.googleapis.com', $response);
+        $this->assertStringNotContainsString('ServerException', $response);
+        $this->assertStringNotContainsString('gemini', strtolower($response));
+    }
+
+    private function providerOverload(int $status): ServerException
+    {
+        return new ServerException(
+            sprintf(
+                'Server error: `POST https://generativelanguage.googleapis.com/v1beta/models/'
+                . 'gemini-3.7-flash:generateContent` resulted in a `%d` response',
+                $status,
+            ),
+            new Request('POST', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent'),
+            new Response($status, [], '{"error":{"code":' . $status . ',"message":"This model is currently experiencing high demand."}}'),
+        );
     }
 
     private function uniqueConstraintViolation(): UniqueConstraintViolationException
@@ -78,7 +194,7 @@ class RunNeuronChatErrorHandlingTest extends TestCase
             "insert into bills (bill_number, apps_id, companies_id) values ('1498', 31, 9659)",
             [],
             new PDOException(
-                "SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry "
+                'SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '
                 . "'31-9659-148291-1498-MDF' for key 'bills.bills_vendor_number_uq' "
                 . '(Connection: accounting, Host: prod-kanvas-niche-cluster-cvyag02o4s55.us-east-1.rds.amazonaws.com, Port: 3306)'
             ),

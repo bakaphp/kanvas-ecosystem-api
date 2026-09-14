@@ -176,7 +176,13 @@ class ProjectHeartbeatTest extends TestCase
 
         Artisan::call('kanvas:nervous-system:project-heartbeat');
 
-        Bus::assertNotDispatched(WakeAgentForProjectJob::class);
+        // Scoped to THIS project: the command sweeps every project in the database, and a shared dev
+        // DB holds thousands whose own heartbeat comes due mid-run — a global assertion fails on
+        // somebody else's project rather than on the behaviour under test.
+        Bus::assertNotDispatched(
+            WakeAgentForProjectJob::class,
+            fn (WakeAgentForProjectJob $job): bool => $job->project->getId() === $project->getId(),
+        );
     }
 
     public function testForceWakesProjectEvenWhenNotDueAndWithNoPendingWork(): void

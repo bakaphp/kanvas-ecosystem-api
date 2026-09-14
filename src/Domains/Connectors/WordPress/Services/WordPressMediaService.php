@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\WordPress\Services;
 use Baka\Http\SafeUrlFetcher;
 use finfo;
 use Kanvas\Connectors\WordPress\RestClient;
+use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Throwable;
 
 /**
@@ -17,26 +18,23 @@ class WordPressMediaService
 {
     private const int MAX_FILENAME_LENGTH = 120;
 
-    private const array EXTENSION_BY_MIME = [
-        'image/jpeg' => 'jpg',
-        'image/png' => 'png',
-        'image/gif' => 'gif',
-        'image/webp' => 'webp',
-        'image/avif' => 'avif',
-        'image/heic' => 'heic',
-        'video/mp4' => 'mp4',
-        'audio/mpeg' => 'mp3',
-        'application/pdf' => 'pdf',
-    ];
-
     /** @var array<string, int> */
     private array $uploaded = [];
 
     /** @var array<string, string> */
+    private array $sourceUrls = [];
+
+    /** @var array<string, string> */
     private array $failures = [];
 
-    public function __construct(private readonly RestClient $client)
-    {
+    /**
+     * @param array<string, string> $filenames url => original name, for urls whose basename is an
+     *        opaque storage hash. Anything unmapped falls back to that basename.
+     */
+    public function __construct(
+        private readonly RestClient $client,
+        private readonly array $filenames = [],
+    ) {
     }
 
     public function upload(string $url): ?int
@@ -67,7 +65,19 @@ class WordPressMediaService
             return $this->fail($url, $e->getMessage());
         }
 
+        if (is_string($media['source_url'] ?? null)) {
+            $this->sourceUrls[$url] = $media['source_url'];
+        }
+
         return $this->uploaded[$url] = (int) $media['id'];
+    }
+
+    /**
+     * Where the file ended up on the site — an id alone lets WP attach it, never render it.
+     */
+    public function sourceUrl(string $url): ?string
+    {
+        return $this->sourceUrls[$url] ?? null;
     }
 
     /**
@@ -91,6 +101,29 @@ class WordPressMediaService
     }
 
     /**
+     * REST uploads land unattached, so a post's own images sit loose in the media library until
+     * something claims them. Callable only after the post exists, and a failure is recorded rather
+     * than thrown because by then the post is already published.
+     *
+     * @return list<int>
+     */
+    public function attachTo(int $postId): array
+    {
+        $attached = [];
+
+        foreach ($this->uploaded as $url => $mediaId) {
+            try {
+                $this->client->attachMediaToPost($mediaId, $postId);
+                $attached[] = $mediaId;
+            } catch (Throwable $e) {
+                $this->fail($url, 'attach to post ' . $postId . ': ' . $e->getMessage());
+            }
+        }
+
+        return $attached;
+    }
+
+    /**
      * A dead URL must not sink the post, but it has to surface in the integration history —
      * otherwise the post silently ships with no images.
      *
@@ -109,20 +142,24 @@ class WordPressMediaService
     }
 
     /**
-     * WP rejects an upload whose extension is not in its allow-list, and signed S3 URLs often have
-     * no extension in the path at all — fall back to one derived from the sniffed content type.
+     * WP decides what it accepts by **filename**, not by content, so the sniffed type is the
+     * authority and the stored name only supplies the stem. A signed S3 URL often has no extension
+     * at all, and a stored one can be wrong — WhatsApp media was filed as `*.bin`, which WP refused
+     * while the bytes were a perfectly good JPEG.
      */
     private function filename(string $url, string $mimeType): string
     {
         $name = (string) preg_replace(
             '/[^A-Za-z0-9._-]/',
             '-',
-            basename((string) parse_url($url, PHP_URL_PATH))
+            $this->filenames[$url] ?? basename((string) parse_url($url, PHP_URL_PATH))
         );
 
-        if ($name === '' || pathinfo($name, PATHINFO_EXTENSION) === '') {
-            $extension = self::EXTENSION_BY_MIME[$mimeType] ?? 'bin';
-            $name = ($name !== '' ? $name : 'kanvas-' . substr(sha1($url), 0, 12)) . '.' . $extension;
+        $expected = MediaTypeEnum::extensionForMime($mimeType);
+
+        if (strtolower(pathinfo($name, PATHINFO_EXTENSION)) !== $expected) {
+            $stem = pathinfo($name, PATHINFO_FILENAME) ?: 'kanvas-' . substr(sha1($url), 0, 12);
+            $name = $stem . '.' . $expected;
         }
 
         return mb_substr($name, -self::MAX_FILENAME_LENGTH);

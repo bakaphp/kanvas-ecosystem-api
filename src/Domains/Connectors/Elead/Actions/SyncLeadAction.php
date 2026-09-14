@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Elead\Actions;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Connectors\Elead\Entities\Lead as LeadEntity;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Elead\Services\LeadUserService;
 use Kanvas\Connectors\Elead\Support\EleadCache;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -32,11 +33,13 @@ class SyncLeadAction
             $eLeadOpportunity = LeadEntity::create($this->lead->app, $this->lead->company, $eLeadOpportunityData);
             $lead->set(CustomFieldEnum::OPPORTUNITY_ID->value, $eLeadOpportunity->id);
 
-            if ($lead->owner) {
+            $salesUser = LeadUserService::resolve($lead);
+
+            if ($salesUser !== null) {
                 try {
-                    if ($leadOwnerId = $lead->owner->get(CustomFieldEnum::getUserKey($this->lead->company))) {
-                        $eLeadOpportunity->reAssignPrimarySalesUser($leadOwnerId);
-                    }
+                    $eLeadOpportunity->reAssignPrimarySalesUser(
+                        $salesUser->get(CustomFieldEnum::getUserKey($this->lead->company))
+                    );
                 } catch (Throwable $e) {
                 }
             }

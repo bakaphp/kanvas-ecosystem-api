@@ -21,7 +21,10 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Checklist Update Status From Lead',
+    description: 'Advances a checklist item when the lead reaches a state that completes the step.',
+)]
 class ChecklistUpdateStatusFromLeadActivity extends KanvasActivity
 {
     public function execute(Lead $lead, AppInterface $app, array $params): array

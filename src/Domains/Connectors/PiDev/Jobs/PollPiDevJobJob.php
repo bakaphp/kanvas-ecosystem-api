@@ -27,7 +27,7 @@ use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
 use Throwable;
 
-final class PollPiDevJobJob implements ShouldQueue
+class PollPiDevJobJob implements ShouldQueue
 {
     use Dispatchable;
     use InteractsWithQueue;
@@ -39,6 +39,7 @@ final class PollPiDevJobJob implements ShouldQueue
     // just past the ceiling to capture pi.dev's own terminal "time limit exceeded" state.
     private const int POLL_INTERVAL_SECONDS = 30;
     private const int MAX_ATTEMPTS = 62;
+    private const array PROVIDER_RETRY_BACKOFF_SECONDS = [120, 900, 3600];
 
     public function __construct(
         public readonly Apps $app,
@@ -64,7 +65,7 @@ final class PollPiDevJobJob implements ShouldQueue
             return;
         }
 
-        $client = new Client($this->app, $task->company);
+        $client = $this->makeClient($task);
 
         try {
             $response = $client->getJob($jobId);
@@ -83,6 +84,16 @@ final class PollPiDevJobJob implements ShouldQueue
         }
 
         $job = PiDevJob::fromApiResponse($response);
+
+        // Checked before mirroring: mirrorOntoTask would mark the task BLOCKED, which taskIsTerminal
+        // treats as final and would strand the retry.
+        if ($this->shouldAutoRetry($task, $job)) {
+            $this->postProgressComments($task, $client, $jobId);
+            $this->scheduleAutoRetry($task, $job);
+
+            return;
+        }
+
         $this->mirrorOntoTask($task, $job);
         $this->postProgressComments($task, $client, $jobId);
 
@@ -126,6 +137,37 @@ final class PollPiDevJobJob implements ShouldQueue
         )->execute();
         $this->finalizePlan($task, PlanStatusEnum::FAILED);
         $this->announce($task, 'Coding job failed', $announceMessage);
+    }
+
+    private function shouldAutoRetry(Task $task, PiDevJob $job): bool
+    {
+        return $job->isRetryable() && $this->autoRetryCount($task) < count(self::PROVIDER_RETRY_BACKOFF_SECONDS);
+    }
+
+    private function autoRetryCount(Task $task): int
+    {
+        return (int) ($task->get(TaskCustomFieldEnum::PIDEV_AUTO_RETRY_COUNT->value) ?? 0);
+    }
+
+    private function scheduleAutoRetry(Task $task, PiDevJob $job): void
+    {
+        $attempt = $this->autoRetryCount($task) + 1;
+        $delay = self::PROVIDER_RETRY_BACKOFF_SECONDS[$attempt - 1];
+
+        $task->set(TaskCustomFieldEnum::PIDEV_AUTO_RETRY_COUNT->value, $attempt);
+        $task->set(TaskCustomFieldEnum::PIDEV_STATUS->value, $job->status->value);
+
+        RetryPiDevJobJob::dispatch($this->app, $task->getId())
+            ->delay(now()->addSeconds($delay));
+
+        $this->postPlanComment($task, sprintf(
+            "🔁 pi.dev's provider rejected the run (%s). Nothing was charged and the task itself is fine — "
+            . 'retrying automatically in %d minutes (attempt %d of %d).',
+            $job->error ?? 'no reason given',
+            (int) round($delay / 60),
+            $attempt,
+            count(self::PROVIDER_RETRY_BACKOFF_SECONDS),
+        ));
     }
 
     private function terminalTitle(JobStatusEnum $status): string
@@ -306,12 +348,17 @@ final class PollPiDevJobJob implements ShouldQueue
         ], static fn ($value): bool => $value !== null);
     }
 
+    /**
+     * Overridable so tests can drive the poller with canned pi.dev responses. A queued job cannot
+     * take the Client on its constructor — a Guzzle handler stack does not survive serialization.
+     */
+    protected function makeClient(Task $task): Client
+    {
+        return new Client($this->app, $task->company);
+    }
+
     private function taskIsTerminal(Task $task): bool
     {
-        return in_array($task->status, [
-            TaskStatusEnum::DONE->value,
-            TaskStatusEnum::SKIPPED->value,
-            TaskStatusEnum::BLOCKED->value,
-        ], true);
+        return TaskStatusEnum::tryFrom($task->status)?->isTerminal() ?? false;
     }
 }

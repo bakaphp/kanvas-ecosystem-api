@@ -292,6 +292,7 @@ class FakeChannelRuntimeProvider extends AbstractAgentRuntimeProvider
         string $message,
         ?string $sessionKey = null,
         array $images = [],
+        array $additionalTools = [],
     ): string {
         $this->wasCalled = true;
         $this->lastMessage = $message;

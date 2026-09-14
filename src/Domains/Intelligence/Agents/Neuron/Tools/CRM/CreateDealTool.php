@@ -9,9 +9,11 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Tools\Traits\Guild\CreatesDealTrait;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -19,9 +21,10 @@ use Override;
  * which copies the lead's contact over instead of re-typing it.
  */
 #[AgentTool(name: 'Create Deal', category: 'crm')]
-class CreateDealTool extends Tool
+class CreateDealTool extends Tool implements HasRunKey
 {
     use CreatesDealTrait;
+    use TrackByInputs;
 
     public function __construct(
         private readonly Apps $app,

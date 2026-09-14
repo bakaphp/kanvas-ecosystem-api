@@ -46,10 +46,8 @@ final class SalesforceHandlerTest extends TestCase
 
         $this->fakeSalesforceOAuth();
         Http::fake([
-            self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/query*' => Http::response([
-                'totalSize' => 1,
-                'done' => true,
-                'records' => [['Id' => '00Dxx0000000001']],
+            self::SALESFORCE_INSTANCE_URL . '/services/data/v60.0/sobjects/' => Http::response([
+                'sobjects' => [['name' => 'Location__c', 'label' => 'Location']],
             ], 200),
         ]);
 

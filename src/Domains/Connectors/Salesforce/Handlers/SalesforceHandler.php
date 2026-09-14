@@ -44,9 +44,12 @@ class SalesforceHandler extends BaseIntegration
             $this->company->set(ConfigurationEnum::LOGIN_URL->value, $loginUrl);
         }
 
+        // Verifies the credentials produce a valid token — not that a specific object (like
+        // Organization) is visible, since object-level access depends on the org's permission set
+        // and has nothing to do with whether the connection itself is valid.
         $salesforceClient = Client::getInstance($this->app, $this->company);
-        $response = $salesforceClient->query('SELECT Id FROM Organization LIMIT 1');
+        $response = $salesforceClient->describeGlobal();
 
-        return isset($response['records']);
+        return isset($response['sobjects']);
     }
 }

@@ -297,6 +297,45 @@ final class AgentMailboxProvisioningTest extends TestCase
     }
 
     /**
+     * The platform already sends its own mail through one Mailgun domain, so an install that never
+     * copied that domain onto a company had agent mailboxes refuse to provision — while the
+     * integration reported itself connected, because only the signing key is required to set up.
+     */
+    public function testThePlatformMailgunDomainIsUsedWhenNoTenantSetsOne(): void
+    {
+        config([
+            'services.mailgun.domain' => 'platform.kanvas.test',
+            'services.mailgun.secret' => 'key-platform',
+        ]);
+
+        $this->kanvasApp->del(ConfigurationEnum::DOMAIN->value);
+        $this->kanvasApp->del(ConfigurationEnum::API_KEY->value);
+
+        // Its own company, per the note on the helper: siblings write MAILGUN_DOMAIN on the shared one,
+        // and company config is read first — on the shared company this asserts their value, not ours.
+        $agent = $this->agentInAnUnconfiguredCompany();
+
+        $this->assertSame('platform.kanvas.test', new AgentMailboxService()->domainFor($agent));
+        $this->assertTrue(new AgentMailboxService()->isConfiguredFor($agent));
+    }
+
+    /**
+     * The fallback is last, not first: a tenant given its own sending domain must take its agents
+     * with it rather than keep handing out addresses on the platform's.
+     */
+    public function testATenantDomainStillBeatsThePlatformOne(): void
+    {
+        config(['services.mailgun.domain' => 'platform.kanvas.test']);
+
+        $agent = $this->agentInAnUnconfiguredCompany();
+
+        $this->assertSame(self::DOMAIN, new AgentMailboxService()->domainFor($agent), 'the app setting outranks config');
+
+        $agent->company->set(ConfigurationEnum::DOMAIN->value, 'tenant.kanvas.test');
+        $this->assertSame('tenant.kanvas.test', new AgentMailboxService()->domainFor($agent), 'the company outranks both');
+    }
+
+    /**
      * Names are randomized because this suite runs without DatabaseTransactions: a fixed name would
      * let an agent from an earlier run own `sofia@` and push every later one onto a suffixed address.
      */

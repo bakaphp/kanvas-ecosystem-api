@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Models;
 
 use Baka\Casts\Json;
-use Baka\Traits\UuidTrait;
+use Baka\Traits\NoAppRelationshipTrait;
+use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Models\BaseModel;
@@ -20,12 +21,20 @@ use Kanvas\Users\Models\Users;
  * @property int $created_by
  * @property Carbon|null $created_at
  * @property bool $is_active
+ * @property bool $is_deleted
  */
 class AgentVersion extends BaseModel
 {
-    use UuidTrait;
+    use NoAppRelationshipTrait;
+    use NoCompanyRelationshipTrait;
+
+    protected $table = 'agent_versions';
 
     public $timestamps = false;
+
+    protected $attributes = [
+        'is_deleted' => 0,
+    ];
 
     protected $fillable = [
         'agent_id',
@@ -40,6 +49,7 @@ class AgentVersion extends BaseModel
     protected $casts = [
         'config' => Json::class,
         'is_active' => 'boolean',
+        'is_deleted' => 'boolean',
         'created_at' => 'datetime',
     ];
 

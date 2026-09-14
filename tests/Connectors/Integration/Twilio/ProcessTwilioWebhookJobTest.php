@@ -131,13 +131,54 @@ class ProcessTwilioWebhookJobTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame('STOP', $stopResult[0]['consent_type']);
+        $this->assertTrue($stopResult[0]['automated_response_suppressed']);
+
+        // START is reported but must NOT suppress the reply: someone asking to hear from us again
+        // and getting silence is the opposite of honoring it.
         $this->assertSame('START', $startResult[0]['consent_type']);
-        $this->assertTrue($startResult[0]['automated_response_suppressed']);
+        $this->assertFalse($startResult[0]['automated_response_suppressed']);
         $this->assertTrue(
             $lead->people->getAllPhones()
                 ->filter(fn ($contact) => $contact->getCleanPhone() === ltrim($phone, '+'))
                 ->every(fn ($contact) => $contact->is_opt_out === 0)
         );
+    }
+
+    public function testProcessHelpSuppressesTheAgentTurnBecauseTwilioAnswersItItself(): void
+    {
+        $phone = '+1' . fake()->numerify('##########');
+
+        $result = $this->dispatchWebhookJob($this->buildTwilioPayload([
+            'From' => $phone,
+            'Body' => 'HELP',
+            'OptOutType' => 'HELP',
+        ]));
+
+        // Twilio replies to HELP with the carrier advisory on its own. An agent turn on top is a
+        // second message the customer did not ask for.
+        $this->assertSame('HELP', $result[0]['consent_type']);
+        $this->assertTrue($result[0]['automated_response_suppressed']);
+        $this->assertTrue(Cache::has(
+            "workflow_job:message_batch:{$this->receiver->getId()}:{$phone}:cancelled"
+        ));
+    }
+
+    public function testProcessAffirmativeYesIsNotTreatedAsAConsentEvent(): void
+    {
+        $phone = '+1' . fake()->numerify('##########');
+
+        $result = $this->dispatchWebhookJob($this->buildTwilioPayload([
+            'From' => $phone,
+            'Body' => 'yes',
+        ]));
+
+        // "YES" is in Twilio's START set, but from someone who was never opted out it is just an
+        // affirmative — "yes, book me in". The agent must still answer.
+        $this->assertNull($result[0]['consent_type']);
+        $this->assertFalse($result[0]['automated_response_suppressed']);
+        $this->assertFalse(Cache::has(
+            "workflow_job:message_batch:{$this->receiver->getId()}:{$phone}:cancelled"
+        ));
     }
 
     public function testProcessIncomingSmsWithMediaAttachesToLead(): void

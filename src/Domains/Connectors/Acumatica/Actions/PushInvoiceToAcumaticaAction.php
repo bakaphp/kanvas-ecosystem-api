@@ -38,6 +38,11 @@ class PushInvoiceToAcumaticaAction
      */
     public function execute(): string
     {
+        // Seatbelt: the real guarantee is that the push only runs from the approval handler,
+        // but this catches a call site added later that skips it and would otherwise send an
+        // un-approved invoice to Acumatica.
+        $this->invoice->assertApproved();
+
         if ($this->invoice->source === IntegrationsEnum::ACUMATICA->value) {
             throw new AcumaticaWriteException(
                 "Invoice {$this->invoice->getId()} originated from Acumatica — cannot push it back."

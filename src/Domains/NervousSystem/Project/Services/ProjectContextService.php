@@ -14,13 +14,32 @@ use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\DataTransferObject\ProjectContextBundle;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Models\ProjectMember;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
 class ProjectContextService
 {
     private const int RECENT_MESSAGE_CHAR_CAP = 1200;
+
+    /**
+     * A worker's output is capped at 4000 characters per task, so passing every one through whole
+     * would cost more context than the rest of the bundle together. Matched to the message cap, which
+     * is comfortably above a typical result; the full text stays on the task for anyone who opens it.
+     */
+    private const int TASK_RESULT_CHAR_CAP = 1200;
+
+    /**
+     * How many finished plans stay visible after they close.
+     *
+     * `open()` alone drops a plan the moment it is done, taking its tasks and their output with it —
+     * so the PM loses the work at exactly the point someone asks how it went. Asked for the file its
+     * own worker had just produced, it had no plan, no task and no result in context, and answered
+     * with a fluent invention instead of "I can't see it".
+     */
+    private const int RECENTLY_CLOSED_PLANS = 5;
 
     public function buildContextBundle(Project $project, int $historyLimit = 50): ProjectContextBundle
     {
@@ -149,11 +168,13 @@ class ProjectContextService
      */
     private function plans(Project $project): array
     {
-        return $project->plans()
+        $open = $project->plans()
             ->open()
             ->with('tasks')
             ->orderByDesc('priority')
-            ->get()
+            ->get();
+
+        return $open->concat($this->recentlyClosedPlans($project, $open))
             ->toBase()
             ->map(fn (Plan $plan): array => [
                 'plan_id' => $plan->getId(),
@@ -162,23 +183,70 @@ class ProjectContextService
                 'completion_pct' => $plan->completion_pct,
                 'tasks' => $plan->tasks
                     ->toBase()
-                    ->map(fn (Task $task): array => [
-                        'task_id' => $task->getId(),
-                        'title' => $task->title,
-                        'status' => $task->status,
-                        'agent_id' => $task->agent_id,
-                    ])
+                    ->map(fn (Task $task): array => array_filter(
+                        [
+                            'task_id' => $task->getId(),
+                            'title' => $task->title,
+                            'status' => $task->status,
+                            'agent_id' => $task->agent_id,
+                            'result' => $this->taskResult($task),
+                        ],
+                        static fn (mixed $value): bool => $value !== null,
+                    ))
                     ->all(),
             ])
             ->all();
     }
 
     /**
+     * Plans that just closed, so their output survives long enough to be asked about.
+     *
+     * @param Collection<int, Plan> $open Already in the bundle; excluded so a plan is never listed twice.
+     * @return Collection<int, Plan>
+     */
+    private function recentlyClosedPlans(Project $project, Collection $open): Collection
+    {
+        return $project->plans()
+            ->whereNotIn('id', $open->modelKeys())
+            ->with('tasks')
+            ->orderByDesc('updated_at')
+            ->limit(self::RECENTLY_CLOSED_PLANS)
+            ->get();
+    }
+
+    /** What the task actually produced, for tasks that produced something. */
+    private function taskResult(Task $task): ?string
+    {
+        return $task->workerSummaryExcerpt(self::TASK_RESULT_CHAR_CAP);
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
+    /**
+     * @return array<int, int>
+     */
+    private function planChannelIds(Project $project): array
+    {
+        return Channel::query()
+            ->whereIn('entity_id', $project->plans()->pluck('id')->map(strval(...)))
+            ->whereIn('entity_namespace', [Plan::class, SystemModules::getLegacyNamespace(Plan::class)])
+            ->where('is_deleted', 0)
+            ->pluck('id')
+            ->all();
+    }
+
     private function recentMessages(Project $project, int $limit): array
     {
-        $channelIds = $project->channels()->pluck('id')->all();
+        // The project's own channels AND its plans' Activities channels. A worker reports on the plan
+        // it was given, not on the project, so reading only project channels made every reply an agent
+        // wrote invisible here — including the one carrying the file the PM was later asked for.
+        $channelIds = $project->channels()->pluck('id')
+            ->concat($this->planChannelIds($project))
+            ->unique()
+            ->values()
+            ->all();
+
         if ($channelIds === []) {
             return [];
         }

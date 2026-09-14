@@ -19,14 +19,27 @@ class SyncAgentTypesCommand extends Command
         $this->info('Syncing Agent Types...');
 
         $created = [];
+        $updated = [];
 
         foreach ($discovery->discover() as $entry) {
-            $exists = AgentType::query()
+            /** @var AgentType|null $existing */
+            $existing = AgentType::query()
                 ->where('handler', $entry['class'])
                 ->where('apps_id', 0)
-                ->exists();
+                ->first();
 
-            if ($exists) {
+            if ($existing !== null) {
+                // Description is the catalog copy an orchestrator reads when routing work to a
+                // teammate, so it has to track the code or work goes to the wrong agent. soul,
+                // instructions and config are deliberately left alone — those get tuned per
+                // deployment and a sync must not stomp on that.
+                if ($existing->description !== $entry['description']) {
+                    $existing->description = $entry['description'];
+                    $existing->saveOrFail();
+
+                    $updated[] = $existing->name;
+                }
+
                 continue;
             }
 
@@ -62,6 +75,13 @@ class SyncAgentTypesCommand extends Command
             }
         } else {
             $this->info('No new agent types were created.');
+        }
+
+        if ($updated !== []) {
+            $this->info(count($updated) . ' description(s) refreshed:');
+            foreach ($updated as $name) {
+                $this->line("- {$name}");
+            }
         }
 
         $this->info('Syncing Agent Types Done!');

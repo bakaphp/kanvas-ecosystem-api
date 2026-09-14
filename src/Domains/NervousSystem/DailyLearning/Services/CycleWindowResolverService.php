@@ -33,14 +33,13 @@ final class CycleWindowResolverService
     }
 
     // Company.timezone → app.timezone → AppEnums::DEFAULT_TIMEZONE (NY).
-    // Companies.timezone is nullable despite the model's `@property string`
-    // docblock (hence the cast); Apps has no column so we read from
+    // Companies::getTimezone() returns null for both an unset and an invalid
+    // stored zone, so either falls through; Apps has no column so we read from
     // custom_fields via ->get().
     public static function resolveTimezone(AppInterface $app, Companies $company): string
     {
-        /** @psalm-suppress RedundantCastGivenDocblockType */
-        $companyTz = (string) $company->timezone;
-        if ($companyTz !== '') {
+        $companyTz = $company->getTimezone();
+        if ($companyTz !== null) {
             return $companyTz;
         }
 

@@ -24,7 +24,12 @@ use function Laravel\Ai\agent;
 /**
  * @todo move to the social domain
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Generate Message Slug',
+    description: 'Gives a message a URL-safe slug so it can be addressed by a readable link. Writes one field '
+        . 'on the message; contacts nobody. Attach it wherever messages become public pages.',
+    integration: IntegrationsEnum::INTERNAL,
+)]
 class GenerateMessageSlugActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

@@ -28,6 +28,7 @@ class AddEntityIntegrationHistoryAction
         $integrationHistory->companies_id = $this->dto->integrationCompany->company->getId();
         $integrationHistory->integrations_id = $this->dto->integrationCompany->integration->getId();
         $integrationHistory->status_id = $this->dto->status->getId();
+        $integrationHistory->input = $this->dto->input;
         $integrationHistory->response = $this->dto->response;
         $integrationHistory->exception = $this->dto->exception;
         $integrationHistory->workflow_id = $this->dto->workflowId;

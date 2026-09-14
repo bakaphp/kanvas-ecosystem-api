@@ -11,6 +11,7 @@ type People {
     dob: Date
     license_number: String
     license_expiration_date: Date
+    license_state: String
     people_type: PeopleType @belongsTo(relation: "peopleType")
     organizations: [Organization!] @belongsToMany
     contacts: [Contact!]! @hasMany
@@ -19,9 +20,13 @@ type People {
     updated_at: DateTime
     first_message_at: DateTime
     last_message_at: DateTime
+    active_leads_count: Int!
     photo: Filesystem @method(name: "getPhoto")
     employment_history: [PeopleEmploymentHistory!]
         @hasMany(relation: "employmentHistory")
+    notes: SocialChannel @hasOne(relation: "notes")
+    events: [Event!]! @morphToMany(relation: "events")
+    channels: [SocialChannel!]! @hasMany(relation: "socialChannels")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
@@ -112,6 +117,7 @@ input PeopleInput {
     google_contact_id: String
     license_number: String
     license_expiration_date: Date
+    license_state: String
     dob: String
     contacts: [ContactInput!]
     address: [AddressInput!]
@@ -122,6 +128,13 @@ input PeopleInput {
     peopleEmploymentHistory: [EmploymentPeopleHistoryInput!]
     organization: String
     created_at: DateTime
+}
+
+input PeopleMessageInput {
+    people_id: ID!
+    message: Mixed!
+    message_verb: String
+    channel_id: ID
 }
 
 input PeopleParticipantInput {
@@ -153,6 +166,7 @@ extend type Query @guard {
                     "firstname"
                     "lastname"
                     "people_types_id"
+                    "active_leads_count"
                 ]
             )
         hasPeopleType: _
@@ -286,6 +300,14 @@ extend type Mutation @guard {
     importPeoples(input: [PeopleInput!]!, companyId: Int): String!
         @field(
             resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleImportMutation@import"
+        )
+    addMessageToPeopleChannel(input: PeopleMessageInput!): Message!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleMessageMutation@addToNotesChannel"
+        )
+    createPeopleNotesChannel(people_id: ID!): SocialChannel!
+        @field(
+            resolver: "App\\GraphQL\\Guild\\Mutations\\Peoples\\PeopleMessageMutation@createNotesChannel"
         )
     attachFileToPeople(file: Upload!, id: ID!, params: Mixed): People!
         @field(

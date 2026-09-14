@@ -27,6 +27,7 @@ class Client
     protected string $clientSecret;
     protected string $scopes;
     protected string $redisKey;
+    protected bool $verifySsl;
 
     public function __construct(
         protected AppInterface $app,
@@ -57,7 +58,33 @@ class Client
             $environment->value
         );
 
-        $this->client = new GuzzleClient(['timeout' => 60]);
+        $this->verifySsl = self::resolveVerifySsl($company->get(ConfigurationEnum::VERIFY_SSL->value));
+
+        $this->client = new GuzzleClient([
+            'timeout' => 60,
+            'verify' => $this->verifySsl,
+        ]);
+    }
+
+    public function verifiesSsl(): bool
+    {
+        return $this->verifySsl;
+    }
+
+    /**
+     * Escape hatch for Universal's QA host only. Since their 2026-07-23 reissue,
+     * qa.universal.com.do chains to `GoDaddy TLS Root CA - R1`, a root Mozilla's
+     * store still doesn't ship (checked against cacert.pem of 2026-08-13), so every
+     * OpenSSL client fails with cURL 60 until they reissue it. Prod chains to
+     * DigiCert Global Root G2 and verifies fine — leave the flag unset there.
+     */
+    protected static function resolveVerifySsl(mixed $flag): bool
+    {
+        if ($flag === null || $flag === '') {
+            return true;
+        }
+
+        return filter_var($flag, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) ?? true;
     }
 
     public function auth(): string

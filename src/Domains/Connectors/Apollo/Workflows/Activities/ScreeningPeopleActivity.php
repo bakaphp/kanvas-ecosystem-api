@@ -12,7 +12,14 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Apollo Enrich Person',
+    description: 'Looks the person up in Apollo and writes back whatever it finds — job title, employer, '
+        . 'seniority, contact details. Enrichment only: it reads an external directory and updates the '
+        . 'Kanvas record, and contacts nobody. Rate-limited, so a burst of records is spread out rather '
+        . 'than rejected.',
+    integration: IntegrationsEnum::APOLLO,
+)]
 class ScreeningPeopleActivity extends KanvasActivity
 {
     public function execute(Model $people, AppInterface $app, array $params): array

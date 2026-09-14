@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Intelligence\Agents\Observers\AgentSwarmObserver;
@@ -43,6 +45,7 @@ use Override;
 #[ObservedBy([AgentSwarmObserver::class])]
 class AgentSwarm extends BaseModel
 {
+    use HasAdminLink;
     use CascadeSoftDeletes;
     use HasLightHouseCache;
     use UuidTrait;
@@ -71,6 +74,12 @@ class AgentSwarm extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'AgentSwarm';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::AGENT_SWARM;
     }
 
     /**

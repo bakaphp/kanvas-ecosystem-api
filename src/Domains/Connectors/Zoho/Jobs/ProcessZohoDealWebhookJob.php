@@ -20,13 +20,20 @@ use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 use Throwable;
 use Webleit\ZohoCrmApi\ZohoCrm;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Zoho Deal Webhook',
+    description: 'Receiver for Zoho deals: creates or updates the matching Kanvas deal, links it to its lead '
+        . 'and person, and pulls down any attachments. Inbound one-way, and deliberately does NOT '
+        . 're-run workflows on the deal it writes, so a Zoho change cannot bounce straight back out.',
+    integration: IntegrationsEnum::ZOHO,
+)]
 class ProcessZohoDealWebhookJob extends ProcessWebhookJob
 {
     #[Override]

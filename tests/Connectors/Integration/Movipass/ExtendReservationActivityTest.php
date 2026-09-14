@@ -52,8 +52,8 @@ final class ExtendReservationActivityTest extends TestCase
         $productResponse = $this->createProduct(attributes: [
             [
                 'name' => 'slots',
-                'value' => 100
-            ]
+                'value' => 100,
+            ],
         ])->json()['data']['createProduct'];
 
         $warehouseData = [
@@ -79,7 +79,6 @@ final class ExtendReservationActivityTest extends TestCase
             warehouseData: $warehouseData
         );
 
-
         $this->addVariantToWarehouse(
             variantId: $variantResponse['id'],
             warehouseId: $warehouseResponse['id'],
@@ -95,7 +94,7 @@ final class ExtendReservationActivityTest extends TestCase
                 'data' => [
                     'start_at' => now('America/New_York')->toDateTimeString(),
                     'end_at' => $endDate->toDateTimeString(),
-                    'payment_methods_id' => "91",
+                    'payment_methods_id' => '91',
                     'payment_date' => now()->toDateTimeString(),
                 ],
             ],
@@ -149,7 +148,7 @@ final class ExtendReservationActivityTest extends TestCase
                 'customer' => [
                     'email' => fake()->email(),
                 ],
-                'order_type' => "paso_rapido",
+                'order_type' => 'paso_rapido',
                 'items' => [
                     [
                         'quantity' => 1,
@@ -160,10 +159,10 @@ final class ExtendReservationActivityTest extends TestCase
                 'metadata' => [
                     'data' => [
                         'start_at' => $endDate->addMinutes(1)->toDateTimeString(),
-                        'end_at' => $extendedEndAt
+                        'end_at' => $extendedEndAt,
                     ],
                 ],
-                'reference' => "recarga_paso_rapido",
+                'reference' => 'recarga_paso_rapido',
             ],
         ], [], [
             'X-Kanvas-Location' => $company->branch->uuid,

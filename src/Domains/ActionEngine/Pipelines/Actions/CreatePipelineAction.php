@@ -13,10 +13,10 @@ use Kanvas\ActionEngine\Pipelines\Models\PipelineStage;
 
 class CreatePipelineAction
 {
-    public const DEFAULT_STAGES = [
-        ['name' => 'Sent', 'slug' => 'sent', 'weight' => 1],
-        ['name' => 'Open', 'slug' => 'open', 'weight' => 2],
-        ['name' => 'Submitted', 'slug' => 'submitted', 'weight' => 3],
+    public const array DEFAULT_STAGES = [
+        ['name' => 'shared', 'slug' => 'sent', 'weight' => 1],
+        ['name' => 'read', 'slug' => 'opened', 'weight' => 2],
+        ['name' => 'submitted', 'slug' => 'submitted', 'weight' => 3],
     ];
 
     public function __construct(

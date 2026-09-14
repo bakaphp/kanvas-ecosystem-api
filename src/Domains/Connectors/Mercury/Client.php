@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Mercury;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Connectors\Mercury\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
@@ -57,6 +58,26 @@ class Client
         $response = $this->client->get($uri);
 
         return (array) json_decode((string) $response->getBody(), true);
+    }
+
+    /**
+     * A 404 is an ANSWER, not a fault — the resource isn't there (or isn't visible to this token). Callers
+     * that model absence as null use this so a missing record doesn't throw and get reported to Sentry.
+     *
+     * @param array<string, mixed> $query
+     * @return array<array-key, mixed>|null
+     */
+    public function getOrNull(string $endpoint, array $query = []): ?array
+    {
+        try {
+            return $this->get($endpoint, $query);
+        } catch (ClientException $e) {
+            if ($e->getResponse()->getStatusCode() === 404) {
+                return null;
+            }
+
+            throw $e;
+        }
     }
 
     /**

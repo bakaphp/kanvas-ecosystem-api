@@ -38,6 +38,26 @@ trait InventoryCases
         $setupInventory->run();
     }
 
+    /**
+     * A failed mutation answers with an `errors`-only body, and an unhandled exception
+     * answers with no GraphQL envelope at all. Indexing straight into `['data'][$mutation]`
+     * turns either one into an opaque `Undefined array key "data"`, which hides the real
+     * error from CI. Go through this instead.
+     */
+    protected function graphQLData(TestResponse $response, string $mutation): array
+    {
+        $data = $response->json()['data'][$mutation] ?? null;
+
+        $this->assertIsArray($data, sprintf(
+            '%s returned no data (HTTP %d): %s',
+            $mutation,
+            $response->status(),
+            $response->getContent()
+        ));
+
+        return $data;
+    }
+
     public function createProduct(array $data = [], array $attributes = []): TestResponse
     {
         $this->setupInventory();

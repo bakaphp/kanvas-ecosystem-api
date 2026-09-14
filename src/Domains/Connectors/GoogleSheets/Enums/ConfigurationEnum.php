@@ -11,4 +11,13 @@ enum ConfigurationEnum: string
 
     /** The sheet URL/id the AP/AR agents log invoices to when a tool call doesn't specify one. */
     case DEFAULT_INVOICE_SHEET = 'google-sheets-default-invoice-tracker';
+
+    /**
+     * Optional: a real Workspace user's email to impersonate via domain-wide delegation, instead of
+     * sharing every sheet with the service account directly. Requires a Workspace admin to authorize
+     * the service account's OAuth Client ID for the Sheets scope under Admin Console > Security >
+     * API Controls > Domain-wide Delegation. Use this when the tenant's Workspace blocks external
+     * sharing (e.g. Trust Rules) and the impersonated user already has normal internal access.
+     */
+    case IMPERSONATE_USER = 'google-sheets-impersonate-user';
 }

@@ -4,11 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Scribe\PdfIngest\Contracts\PdfClassifierServiceInterface;
-use Kanvas\Scribe\PdfIngest\Services\GeminiPdfClassifierService;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesFilesystemForTool;
+use Kanvas\Scribe\PdfIngest\Traits\ResolvesPdfClassifierTrait;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -22,6 +21,8 @@ use Throwable;
 class ExtractInvoiceDataTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use ResolvesFilesystemForTool;
+    use ResolvesPdfClassifierTrait;
     use TrackByInputs;
 
     public function __construct()
@@ -69,10 +70,7 @@ class ExtractInvoiceDataTool extends Tool implements HasRunKey
      */
     public function __invoke(int $filesystem_id, ?string $from_email = null, ?string $subject = null): array
     {
-        $pdf = Filesystem::query()
-            ->where('id', $filesystem_id)
-            ->where('apps_id', $this->app->getId())
-            ->first();
+        $pdf = $this->findTenantFile($filesystem_id);
 
         if ($pdf === null) {
             return [
@@ -83,7 +81,7 @@ class ExtractInvoiceDataTool extends Tool implements HasRunKey
         }
 
         try {
-            $result = $this->classifier()->classify($pdf, [
+            $result = $this->defaultPdfClassifier()->classify($pdf, [
                 'from_email' => $from_email,
                 'subject' => $subject,
             ]);
@@ -102,12 +100,5 @@ class ExtractInvoiceDataTool extends Tool implements HasRunKey
             'reasoning' => $result->reasoning,
             'extracted' => $result->extracted,
         ];
-    }
-
-    private function classifier(): PdfClassifierServiceInterface
-    {
-        return app()->bound(PdfClassifierServiceInterface::class)
-            ? app(PdfClassifierServiceInterface::class)
-            : new GeminiPdfClassifierService();
     }
 }

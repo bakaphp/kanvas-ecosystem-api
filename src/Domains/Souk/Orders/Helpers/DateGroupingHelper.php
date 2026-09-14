@@ -21,23 +21,12 @@ class DateGroupingHelper
         );
 
         $grouped = $data->map(function (Collection $items, string $periodKey) {
-            $totalCount = $items->sum('count');
-
-            $mergedStates = [];
-            foreach ($items as $item) {
-                foreach ($item['states'] as $stateEntry) {
-                    $slug = $stateEntry['state'] ?? 'Unknown';
-                    $mergedStates[$slug] = ($mergedStates[$slug] ?? 0) + $stateEntry['count'];
-                }
-            }
+            $closingDay = $items->sortBy('date')->last();
 
             return [
                 'date' => $periodKey,
-                'count' => $totalCount,
-                'states' => collect($mergedStates)->map(fn (int $count, string $state) => [
-                    'state' => $state,
-                    'count' => $count,
-                ])->values()->toArray(),
+                'count' => $closingDay['count'],
+                'states' => $closingDay['states'],
             ];
         })->values();
 

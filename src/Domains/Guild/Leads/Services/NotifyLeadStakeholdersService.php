@@ -147,6 +147,7 @@ class NotifyLeadStakeholdersService
                 'lead_name' => $this->lead->people->name,
                 'lead_id' => $this->lead->getId(),
                 'people_id' => $this->lead->people->getId(),
+                'branch_id' => $this->lead->companies_branches_id,
             ],
             via: $channels,
             entity: $this->lead
@@ -223,6 +224,7 @@ class NotifyLeadStakeholdersService
                 'lead_name' => $this->lead->people->name,
                 'lead_id' => $this->lead->getId(),
                 'people_id' => $this->lead->people->getId(),
+                'branch_id' => $this->lead->companies_branches_id,
             ],
             via: $channels,
             entity: $this->lead

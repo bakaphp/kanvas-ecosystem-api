@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Traits;
 
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use InvalidArgumentException;
 use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
@@ -45,9 +46,9 @@ trait AttachesFileToEntity
         ?string $content = null,
         ?string $fileName = null,
     ): array {
-        $fileUrl = trim((string) $fileUrl) ?: null;
-        $content = trim((string) $content) ?: null;
-        $fileName = trim((string) $fileName) ?: null;
+        $fileUrl = Str::trimToNull((string) $fileUrl);
+        $content = Str::trimToNull((string) $content);
+        $fileName = Str::trimToNull((string) $fileName);
 
         if ($fileUrl === null && $content === null) {
             return [
@@ -110,7 +111,7 @@ trait AttachesFileToEntity
 
             $file = $content !== null
                 ? $filesystem->createFileSystemFromBase64(base64_encode($content), $name, $user)
-                : $filesystem->uploadFileFromUrl($fileUrl, $user);
+                : $filesystem->uploadFileFromUrl($fileUrl, $user, $name);
         } catch (InvalidArgumentException) {
             return [
                 'status' => 'error',

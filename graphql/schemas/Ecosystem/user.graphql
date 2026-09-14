@@ -92,7 +92,7 @@ type UserLinkSource {
 
 type RegisterResponse {
     user: User!
-    token: TokenResponse!
+    token: TokenResponse
 }
 
 type UserSocialInfo {
@@ -300,6 +300,7 @@ extend type Mutation {
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@updatePhotoProfile"
         )
     uploadFileToUser(id: ID!, file: Upload!): User!
+        @guard
         @field(
             resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Users\\UserManagementMutation@attachFileToUser"
         )

@@ -27,6 +27,11 @@ class UploadFileToVariantTool implements KanvasToolInterface
     use HasFileUploadToolSchema;
     use HasKanvasContext;
 
+    public function name(): string
+    {
+        return 'upload_file_to_variant';
+    }
+
     #[Override]
     public function description(): Stringable|string
     {
@@ -56,7 +61,12 @@ class UploadFileToVariantTool implements KanvasToolInterface
                 . 'variant_id.';
         }
 
-        return $this->uploadFromRequest($request, $variant, 'variant', ['variant_id' => $variantId]);
+        return $this->uploadFromRequest(
+            $request,
+            $variant,
+            'variant',
+            ['variant_id' => $variantId],
+        );
     }
 
     #[Override]

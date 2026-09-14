@@ -23,6 +23,20 @@ class GenerateTimeSlotsJobTest extends TestCase
     use InventoryCases;
     use DatabaseTransactions;
 
+    // Every connection this test writes to has to be listed: DatabaseTransactions only wraps the ones
+    // named here, and the slot tables live on `event` while the variant they hang off lives on
+    // `inventory`. Left off, those rows are committed for good — they accumulate in the shared CI
+    // database run after run, and a count this test makes about its own rule can then be inflated by
+    // work it never did.
+    /**
+     * `inventory` stays out on purpose: CreateProductAction relies on
+     * `DB::connection('inventory')->transaction($cb, 3)` to retry the gap-lock deadlock
+     * concurrent product inserts hit, and Laravel only retries a transaction it opened
+     * itself — listing the connection here demotes that one to a savepoint and the
+     * deadlock escapes as a 500.
+     */
+    protected $connectionsToTransact = ['mysql', 'ecosystem', 'event'];
+
     protected $variant;
     protected $region;
     protected $company;
@@ -40,16 +54,19 @@ class GenerateTimeSlotsJobTest extends TestCase
         $this->company = $this->user->getCurrentCompany();
         $this->region = Regions::getDefault($this->company, $this->apps);
 
-        $warehouseResponse = $this->createWarehouses((string) $this->region->getId())->json()['data']['createWarehouse'];
-        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
+        $warehouseResponse = $this->graphQLData($this->createWarehouses((string) $this->region->getId()), 'createWarehouse');
+        $channelResponse = $this->graphQLData($this->createChannel(), 'createChannel');
         $this->warehouseId = (string) $warehouseResponse['id'];
 
-        $productResponse = $this->createProduct(attributes: [
-            [
-                'name' => 'event_slot',
-                'value' => 100,
-            ],
-        ])->json()['data']['createProduct'];
+        $productResponse = $this->graphQLData(
+            $this->createProduct(attributes: [
+                [
+                    'name' => 'event_slot',
+                    'value' => 100,
+                ],
+            ]),
+            'createProduct'
+        );
 
         $product = Products::find($productResponse['id']);
         $this->variantId = $product->variants()->first()->id;
@@ -389,7 +406,7 @@ class GenerateTimeSlotsJobTest extends TestCase
 
     public function testGenerateTimeSlotsFallsBackToWarehousePriceWhenChannelPriceIsMissing(): void
     {
-        $productResponse = $this->createProduct()->json()['data']['createProduct'];
+        $productResponse = $this->graphQLData($this->createProduct(), 'createProduct');
         $variantId = (string) Products::find($productResponse['id'])->variants()->first()->id;
 
         $this->addVariantToWarehouse(
