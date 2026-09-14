@@ -22,15 +22,15 @@ class LeadBaseFilter
             ->when($status === 'closed', fn ($q) => $q->where('status', '>=', 2));
         $criteria = ['status' => $status];
 
-        if (($source = $this->text($filters, 'source')) !== '') {
+        if (($source = Str::trimToNull($filters['source'] ?? null)) !== null) {
             $query->whereHas('source', fn ($q) => $q->where('name', 'like', "%{$source}%"));
             $criteria['source'] = $source;
         }
-        if (($stage = $this->text($filters, 'stage')) !== '') {
+        if (($stage = Str::trimToNull($filters['stage'] ?? null)) !== null) {
             $query->whereHas('stage', fn ($q) => $q->where('name', 'like', "%{$stage}%"));
             $criteria['stage'] = $stage;
         }
-        if (($salesperson = $this->text($filters, 'salesperson')) !== '') {
+        if (($salesperson = Str::trimToNull($filters['salesperson'] ?? null)) !== null) {
             // Owners live on the ecosystem connection; a whereHas would join across databases.
             $ownerIds = Users::query()
                 ->where(fn ($owner) => $owner->where('firstname', 'like', "%{$salesperson}%")
@@ -40,7 +40,7 @@ class LeadBaseFilter
             $query->whereIn('leads_owner_id', $ownerIds);
             $criteria['salesperson'] = $salesperson;
         }
-        if (($rooftop = $this->text($filters, 'rooftop')) !== '') {
+        if (($rooftop = Str::trimToNull($filters['rooftop'] ?? null)) !== null) {
             $branchIds = CompaniesBranches::query()
                 ->where('companies_id', $company->getId())
                 ->where('name', 'like', "%{$rooftop}%")
@@ -48,11 +48,11 @@ class LeadBaseFilter
             $query->whereIn('companies_branches_id', $branchIds);
             $criteria['rooftop'] = $rooftop;
         }
-        if (($createdAfter = $this->text($filters, 'created_after')) !== '') {
+        if (($createdAfter = Str::trimToNull($filters['created_after'] ?? null)) !== null) {
             $query->where('created_at', '>=', Carbon::parse($createdAfter)->startOfDay());
             $criteria['created_after'] = $createdAfter;
         }
-        if (($createdBefore = $this->text($filters, 'created_before')) !== '') {
+        if (($createdBefore = Str::trimToNull($filters['created_before'] ?? null)) !== null) {
             $query->where('created_at', '<=', Carbon::parse($createdBefore)->endOfDay());
             $criteria['created_before'] = $createdBefore;
         }
@@ -63,10 +63,5 @@ class LeadBaseFilter
         }
 
         return $criteria;
-    }
-
-    private function text(array $filters, string $key): string
-    {
-        return trim((string) ($filters[$key] ?? ''));
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Filters;
 
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
@@ -29,7 +30,7 @@ class VariantInterestLeadFilter
     ): array {
         $attributes = $filters['variant_attributes'] ?? [];
         $attributes = is_array($attributes) ? $attributes : [];
-        $variantQuery = trim((string) ($filters['variant_query'] ?? ''));
+        $variantQuery = Str::trimToNull($filters['variant_query'] ?? null) ?? '';
         $minimumPrice = $filters['minimum_variant_price'] ?? null;
         $maximumPrice = $filters['maximum_variant_price'] ?? null;
         $active = $variantQuery !== '' || $attributes !== [] || $minimumPrice !== null || $maximumPrice !== null;
