@@ -6,7 +6,9 @@ namespace App\GraphQL\Souk\Mutations\Discounts;
 
 use DateTime;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Souk\Discounts\Actions\CreateDiscountAction;
 use Kanvas\Souk\Discounts\Actions\DeleteDiscountAction;
 use Kanvas\Souk\Discounts\Actions\UpdateDiscountAction;
@@ -25,7 +27,9 @@ class DiscountManagementMutation
     {
         $user = auth()->user();
         $app = app(Apps::class);
-        $company = $user ? $user->getCurrentCompany() : app(CompaniesBranches::class)->company;
+        $company = isset($request['input']['companies_id'])
+            ? $this->resolveTargetCompany((int) $request['input']['companies_id'], $app)
+            : ($user ? $user->getCurrentCompany() : app(CompaniesBranches::class)->company);
 
         // Prepare conditions if provided
         $conditions = DiscountConditionData::collect([], DataCollection::class);
@@ -122,5 +126,17 @@ class DiscountManagementMutation
             ->firstOrFail();
 
         return new DeleteDiscountAction($discount)->execute();
+    }
+
+    /**
+     * Issuing on behalf of another company is only reachable behind @guardByAppKey, so the one
+     * check that matters is that the company actually lives in this app.
+     */
+    private function resolveTargetCompany(int $companyId, Apps $app): Companies
+    {
+        $company = Companies::getById($companyId);
+        CompaniesRepository::hasAccessToThisApp($company, $app);
+
+        return $company;
     }
 }

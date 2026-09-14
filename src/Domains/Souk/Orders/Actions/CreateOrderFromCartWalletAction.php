@@ -33,6 +33,12 @@ class CreateOrderFromCartWalletAction extends CreateBaseOrderAction
         return $order;
     }
 
+    #[Override]
+    protected function isPrepaidAtCheckout(): bool
+    {
+        return true;
+    }
+
     protected function hasEnoughWalletBalance(): void
     {
         UsersRepository::belongsToThisApp(

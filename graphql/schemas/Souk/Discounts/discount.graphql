@@ -75,6 +75,10 @@ type OrderItemDiscount {
 }
 
 input DiscountInput {
+    """
+    Issue the discount for another company of this app (app-key callers only); defaults to the caller's current company. Ignored by updateDiscount.
+    """
+    companies_id: ID
     name: String!
     description: String!
     discount_type_id: ID!

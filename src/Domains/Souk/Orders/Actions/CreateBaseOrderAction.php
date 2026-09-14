@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\AddressType;
@@ -30,6 +31,7 @@ use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Kanvas\Users\Actions\SendUserNotificationAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
+use Throwable;
 use Wearepixel\Cart\Cart;
 
 class CreateBaseOrderAction
@@ -152,6 +154,8 @@ class CreateBaseOrderAction
         // Save the order discounts from cart conditions
         $this->saveOrderDiscountsFromCart($order);
 
+        $this->applyCompanyCredit($order);
+
         // Process wallet credit if applied
         $this->processWalletCreditFromCart($order);
 
@@ -261,6 +265,31 @@ class CreateBaseOrderAction
         }
 
         return $this->region->currency;
+    }
+
+    /**
+     * A credit lowers total_net_amount after the fact, so it only helps orders that are billed later
+     * (quotes, invoices). Wallet and card checkouts already charged the cart total — applying a credit
+     * there would burn it for nothing. A credit that fails to apply must never block checkout either.
+     */
+    protected function applyCompanyCredit(ModelsOrder $order): void
+    {
+        if ($this->isPrepaidAtCheckout()) {
+            return;
+        }
+
+        try {
+            new DiscountService($order->app, $order->company)->applyFirstAvailableCredit($order);
+        } catch (ValidationException) {
+            // Expected skips ("nothing left to credit", lost the row lock) — not faults.
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    protected function isPrepaidAtCheckout(): bool
+    {
+        return $this->cart->getConditions()->contains(fn ($condition) => $condition->getType() === 'wallet');
     }
 
     /**

@@ -9,8 +9,10 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Souk\Discounts\Actions\ApplyCreditToOrderAction;
 use Kanvas\Souk\Discounts\Actions\ApplyDiscountToOrderAction;
 use Kanvas\Souk\Discounts\Enums\DiscountConditionTypeEnum;
+use Kanvas\Souk\Discounts\Enums\DiscountTypeEnum;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\DiscountCondition;
 use Kanvas\Souk\Orders\Models\Order;
@@ -256,6 +258,38 @@ class DiscountService
         return $activeDiscounts->filter(function ($discount) use ($order) {
             return $this->canApplyToOrder($discount, $order);
         });
+    }
+
+    /**
+     * Oldest first so a client's credits are spent in the order they were issued.
+     */
+    public function getApplicableCredits(): Collection
+    {
+        return $this->getActiveDiscounts()
+            ->whereHas('discountType', fn (Builder $query) => $query->where('name', DiscountTypeEnum::AUTO_APPLIED_CREDIT->label()))
+            ->whereNull('code')
+            ->orderBy('created_at')
+            ->orderBy('id')
+            ->get()
+            ->filter(fn (Discount $credit) => $credit->canBeUsed())
+            ->values();
+    }
+
+    public function applyFirstAvailableCredit(Order $order): ?Discount
+    {
+        if ($order->remainingNetAmount() < 0.01) {
+            return null;
+        }
+
+        $credit = $this->getApplicableCredits()->first();
+
+        if ($credit === null) {
+            return null;
+        }
+
+        new ApplyCreditToOrderAction($order, $credit)->execute();
+
+        return $credit;
     }
 
     /**

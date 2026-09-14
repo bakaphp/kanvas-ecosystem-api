@@ -13,6 +13,8 @@ use Override;
 
 class CreateOrderFromCartAction extends CreateBaseOrderAction
 {
+    private bool $paidByPaymentIntent = false;
+
     #[Override]
     public function execute(): ModelsOrder
     {
@@ -39,10 +41,18 @@ class CreateOrderFromCartAction extends CreateBaseOrderAction
             if (! $validation['valid']) {
                 throw new ValidationException($validation['error'], $validation['status']);
             }
+
+            $this->paidByPaymentIntent = true;
         }
 
         $order = parent::execute();
 
         return $order;
+    }
+
+    #[Override]
+    protected function isPrepaidAtCheckout(): bool
+    {
+        return $this->paidByPaymentIntent || parent::isPrepaidAtCheckout();
     }
 }
