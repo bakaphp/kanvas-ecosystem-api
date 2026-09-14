@@ -13,9 +13,9 @@ use Kanvas\Connectors\DealerSocket\Enums\ConfigurationEnum;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketLeadService;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
+use Kanvas\Guild\Leads\DataTransferObject\LeadCandidate;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Services\LeadPullResult;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class PullLeadAction
@@ -61,7 +61,7 @@ class PullLeadAction
         }
 
         return [
-            LeadPullResult::for($lead)->toArray(),
+            new LeadCandidate($lead)->toArray(),
         ];
     }
 

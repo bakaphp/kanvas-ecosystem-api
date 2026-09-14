@@ -10,23 +10,14 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleMatchScore;
+use Kanvas\Guild\Leads\DataTransferObject\LeadCandidate;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
-use Kanvas\Guild\Leads\Services\LeadPullResult;
 
 /**
- * Finds the leads already in Kanvas that could be the Reynolds prospect the
- * caller is describing, ranked so a human can pick.
- *
- * Reynolds has no pull API — prospects arrive through the OSL/LDU webhook — so
- * unlike every other connector's "pull", this searches our own database and
- * never reaches out. It is deliberately READ-ONLY: it does not create, close or
- * re-status anything, which is what makes it safe to re-run from an interactive
- * picker. Do not add a write here; the client has an explicit attach mutation
- * for that.
- *
- * Takes Apps rather than AppInterface because the People contact-search helpers
- * it delegates to require the concrete model.
+ * Reynolds has no pull API — prospects arrive by webhook — so this ranks leads already in
+ * Kanvas instead of calling out. Read-only on purpose so the picker can re-run it; writes
+ * belong to the client's attach mutation.
  */
 class FindLeadCandidatesAction
 {
@@ -37,7 +28,7 @@ class FindLeadCandidatesAction
     }
 
     /**
-     * @return array<int, array<string, mixed>> LeadPullResult shape, best match first
+     * @return array<int, array<string, mixed>> LeadCandidate shape, best match first
      */
     public function execute(
         ?string $clientId = null,
@@ -50,23 +41,25 @@ class FindLeadCandidatesAction
             return [];
         }
 
-        /** @var array<int, LeadPullResult> $candidates */
+        /** @var array<int, LeadCandidate> $candidates */
         $candidates = [];
         /** @var array<int, true> $anchoredIds */
         $anchoredIds = [];
 
         foreach ($this->leadsAnchoredOnClientId($clientId) as $lead) {
-            // An external id match is identity, not similarity, so it takes the
-            // top rank. It still needs its own tiebreak: a lone exact email also
-            // scores 1.0 (one term supplied, one matched), and without this the
-            // newer of the two wins on id and the anchor loses its own search.
-            // Tracked beside the results rather than on LeadPullResult — it is
-            // Reynolds' notion of a match, and it must not reach the wire.
-            $candidates[$lead->getId()] = LeadPullResult::for($lead, 1.0);
+            // A client-id match is identity, so it must outrank a lone exact email that also scores 1.0.
+            $candidates[$lead->getId()] = new LeadCandidate($lead, 1.0);
             $anchoredIds[$lead->getId()] = true;
         }
 
-        foreach ($this->peopleMatchingContacts($email, $phone) as $people) {
+        $matchedPeople = People::getAllByPhoneOrEmail(
+            $phone,
+            $email,
+            $this->company,
+            $this->app
+        );
+
+        foreach ($matchedPeople as $people) {
             $rank = PeopleMatchScore::for(
                 $people,
                 firstname: $firstname,
@@ -76,11 +69,7 @@ class FindLeadCandidatesAction
             )->value;
 
             foreach (LeadsRepository::getPeopleNonClosedLeads($people)->get() as $lead) {
-                if (isset($candidates[$lead->getId()])) {
-                    continue;
-                }
-
-                $candidates[$lead->getId()] = LeadPullResult::for($lead, $rank);
+                $candidates[$lead->getId()] ??= new LeadCandidate($lead, $rank);
             }
         }
 
@@ -88,7 +77,7 @@ class FindLeadCandidatesAction
 
         usort(
             $candidates,
-            fn (LeadPullResult $a, LeadPullResult $b) => [
+            fn (LeadCandidate $a, LeadCandidate $b) => [
                 $b->rank,
                 isset($anchoredIds[$b->lead->getId()]),
                 $b->lead->getId(),
@@ -99,7 +88,7 @@ class FindLeadCandidatesAction
             ]
         );
 
-        return array_map(fn (LeadPullResult $candidate) => $candidate->toArray(), $candidates);
+        return array_map(fn (LeadCandidate $candidate) => $candidate->toArray(), $candidates);
     }
 
     /**
@@ -113,39 +102,13 @@ class FindLeadCandidatesAction
 
         $closedStatuses = LeadsRepository::closedStatusNames($this->company);
 
-        // The transaction-safe variant is required, not preferred: the plain one
-        // joins apps_custom_fields across connections and returns nothing,
-        // nondeterministically, for a field written inside the caller's own
-        // transaction — which is every test that stamps CLIENT_ID then reads it.
-        return Lead::getByCustomFieldBuilderTransactionSafe(
-            CustomFieldEnum::CLIENT_ID->value,
-            $clientId,
-            $this->company
-        )
+        // The plain builder joins apps_custom_fields across connections and misses a field
+        // written inside the caller's still-open transaction.
+        return Lead::getByCustomFieldBuilderTransactionSafe(CustomFieldEnum::CLIENT_ID->value, $clientId, $this->company)
             ->fromApp($this->app)
             ->notDeleted()
             ->whereHas('status', fn ($query) => $query->whereNotIn('name', $closedStatuses))
             ->orderByDesc('id')
             ->get();
-    }
-
-    /**
-     * @return Collection<int, People>
-     */
-    private function peopleMatchingContacts(?string $email, ?string $phone): Collection
-    {
-        $people = collect();
-
-        if (! empty($phone)) {
-            $people = $people
-                ->merge(People::getAllByPhoneMatchingValue($phone, $this->company, $this->app))
-                ->merge(People::getAllByMatchingValue($phone, $this->company, $this->app));
-        }
-
-        if (! empty($email)) {
-            $people = $people->merge(People::getAllByMatchingValue($email, $this->company, $this->app));
-        }
-
-        return $people->unique('id');
     }
 }

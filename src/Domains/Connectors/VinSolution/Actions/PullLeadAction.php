@@ -26,10 +26,10 @@ use Kanvas\Connectors\VinSolution\Vehicles\Interest;
 use Kanvas\Connectors\VinSolution\Vehicles\TradeIn;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
+use Kanvas\Guild\Leads\DataTransferObject\LeadCandidate;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
-use Kanvas\Guild\Leads\Services\LeadPullResult;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
@@ -127,7 +127,7 @@ class PullLeadAction
                 $lead->refresh();
 
                 return [
-                    LeadPullResult::for($lead)->toArray(),
+                    new LeadCandidate($lead)->toArray(),
                 ];
             }
 

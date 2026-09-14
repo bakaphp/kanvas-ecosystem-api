@@ -73,7 +73,6 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         $isDriveCentric = $company->get(ConfigurationEnum::STORE_ID->value) !== null;
         $isReynolds = $company->get(ReynoldsConfigurationEnum::REYNOLDS_DEALER_NUMBER->value) !== null;
 
-        //$people = People::getByCustomFieldBuilder(CustomFieldEnum::PERSON_ID, $peopleId, )
         $pullLead = [];
 
         if ($isElead) {
@@ -148,12 +147,8 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
             default => null
         };
 
-        // Stamping the inbound CRM id belongs to the caller's explicit attach, not
-        // to a read — with several candidates this picks whichever ranked first,
-        // which is the very ambiguity the picker exists to resolve. Kept for now
-        // because dropping it is the behaviour change, and that needs product's
-        // call; it now writes to the lead the pull actually resolved rather than
-        // to the id=0 phantom.
+        // This CLIENT_ID stamp belongs in the client's explicit attach: with several candidates it
+        // lands on whichever ranked first. Kept until product signs off on dropping it.
         if ($isReynolds && $resolvedLead instanceof Lead && $leadId !== null
             && (string) $resolvedLead->get(ReynoldsCustomFieldEnum::CLIENT_ID->value) !== (string) $leadId
         ) {

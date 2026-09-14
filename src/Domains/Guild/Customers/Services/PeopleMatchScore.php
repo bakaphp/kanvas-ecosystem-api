@@ -4,33 +4,21 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Customers\Services;
 
+use Baka\Support\Str;
 use Kanvas\Guild\Customers\Models\People;
 
 /**
- * How well a People record matches a set of inbound search terms: the ratio of
- * matched terms over the terms the caller actually supplied.
- *
- * Used to rank CRM pull candidates so the client can show a "% Match" and sort
- * the picker. Names match fuzzily — people are typed differently across systems —
- * while phones and emails match exactly, because a near-miss there is a different
- * person, not a typo.
- *
- * It carries matchedTerms/totalTerms alongside the ratio so a caller can tell
- * "0.5 because one of two terms missed" apart from "0.5" as an opaque number,
- * and so the no-terms floor is a state you can ask about rather than a magic value.
+ * Ratio of matched search terms over the terms the caller supplied. Names match fuzzily
+ * because CRMs spell people differently; phones and emails match exactly because a
+ * near-miss there is a different person, not a typo.
  */
 final class PeopleMatchScore
 {
-    /**
-     * A name scoring at or above this percent counts as a match. Below it the
-     * strings are different enough that treating them as the same person is a guess.
-     */
     private const float NAME_SIMILARITY_THRESHOLD = 80.0;
 
     /**
-     * Scored against nothing is not the same as scored and failed. The client
-     * renders value * 100, so 0.0 would draw "0% Match" — reads as "definitely
-     * wrong" where the truth is "unknown".
+     * Clients render value * 100, so 0.0 would show "0% Match" — "definitely wrong" — for a
+     * candidate nothing was scored against.
      */
     private const float NO_TERMS_VALUE = 0.1;
 
@@ -52,18 +40,20 @@ final class PeopleMatchScore
         array $phones = [],
         array $emails = [],
     ): self {
+        $firstname = Str::trimToNull($firstname);
+        $lastname = Str::trimToNull($lastname);
         $phones = self::cleanTerms($phones);
         $emails = self::cleanTerms($emails);
 
         $total = 0;
         $matched = 0;
 
-        if ($firstname !== null && $firstname !== '') {
+        if ($firstname !== null) {
             $total++;
             $matched += self::namesMatch($firstname, $people->firstname) ? 1 : 0;
         }
 
-        if ($lastname !== null && $lastname !== '') {
+        if ($lastname !== null) {
             $total++;
             $matched += self::namesMatch($lastname, $people->lastname) ? 1 : 0;
         }
@@ -71,12 +61,12 @@ final class PeopleMatchScore
         if ($phones !== []) {
             $peoplePhones = $people->getAllPhones()
                 ->pluck('value')
-                ->map(fn ($value) => self::digits((string) $value))
+                ->map(fn ($value) => Str::digitsOnly((string) $value))
                 ->all();
 
             foreach ($phones as $phone) {
                 $total++;
-                $matched += in_array(self::digits($phone), $peoplePhones, true) ? 1 : 0;
+                $matched += in_array(Str::digitsOnly($phone), $peoplePhones, true) ? 1 : 0;
             }
         }
 
@@ -105,18 +95,16 @@ final class PeopleMatchScore
     }
 
     /**
-     * @param array<int, string|null> $terms
+     * @param array<int, mixed> $terms
      *
      * @return array<int, string>
      */
     private static function cleanTerms(array $terms): array
     {
-        return array_filter(array_map('trim', array_filter($terms, 'is_string')));
-    }
-
-    private static function digits(string $value): string
-    {
-        return (string) preg_replace('/\D/', '', $value);
+        return array_filter(
+            array_map(fn (mixed $term) => is_scalar($term) ? Str::trimToNull((string) $term) : null, $terms),
+            fn (?string $term) => $term !== null
+        );
     }
 
     private static function namesMatch(string $searchName, ?string $peopleName): bool
@@ -126,7 +114,7 @@ final class PeopleMatchScore
         }
 
         similar_text(
-            strtolower(trim($searchName)),
+            strtolower($searchName),
             strtolower(trim($peopleName)),
             $percent
         );

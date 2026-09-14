@@ -19,10 +19,10 @@ use Kanvas\Connectors\Elead\Support\EleadDebounce;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleMatchScore;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
+use Kanvas\Guild\Leads\DataTransferObject\LeadCandidate;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
-use Kanvas\Guild\Leads\Services\LeadPullResult;
 use Kanvas\Locations\Models\Countries;
 use Throwable;
 
@@ -47,22 +47,9 @@ class PullLeadAction
         $dob = $request['birthday'] ?? null;
         $firstname = $request['firstname'] ?? null;
         $lastname = $request['lastname'] ?? null;
-        //$personId = $request['personId'] ?? $request['entity_id'] ?? null;
         $entityId = $request['entity_id'] ?? null;
-        // Check specifically in the provider array for is_active
         $filterActive = isset($request['is_active']);
         $isActiveValue = (int)($request['is_active'] ?? 0);
-        //$filterOnlyActive = $filterActive && $isActiveValue === 1;
-
-        /*   $people = People::getByCustomField(
-              CustomFieldEnum::PERSON_ID->value,
-              $personId,
-              $this->company
-          );
-
-          if ($people !== null) {
-              return [$people];
-          } */
 
         $lead = $entityId !== null && $lead === null ? ModelsLead::getByCustomField(
             CustomFieldEnum::LEAD_ID->value,
@@ -98,7 +85,7 @@ class PullLeadAction
             )->value;
 
             return [
-                LeadPullResult::for($lead, $nameRank)->toArray(),
+                new LeadCandidate($lead, $nameRank)->toArray(),
             ];
         }
 
@@ -175,33 +162,22 @@ class PullLeadAction
                         }
                     }
                     $this->setContactStatus($lead, $eLead->subStatus);
-                    //$results[] = $lead;
 
-                    $results[] = LeadPullResult::for($lead, (float) $customer['rank'])->toArray();
+                    $results[] = new LeadCandidate($lead, (float) $customer['rank'])->toArray();
                     $filterResults[$lead->id] = $lead->id;
                 } catch (Throwable $th) {
-                    //ignore the error
-
                     $hasPhone = $phone !== null && $phone !== '';
                     $hasEmail = $email !== null && $email !== '';
 
                     if (Str::contains($th->getMessage(), 'No Opportunities found') && ($hasPhone || $hasEmail)) {
                         /** @var Apps $app */
                         $app = $this->app;
-                        $allMatchedPeople = collect();
-
-                        if ($hasPhone) {
-                            $allMatchedPeople = $allMatchedPeople
-                                ->merge(People::getAllByPhoneMatchingValue($phone, $this->company, $app))
-                                ->merge(People::getAllByMatchingValue($phone, $this->company, $app));
-                        }
-
-                        if ($email !== null && $email !== '') {
-                            $allMatchedPeople = $allMatchedPeople
-                                ->merge(People::getAllByMatchingValue($email, $this->company, $app));
-                        }
-
-                        $allMatchedPeople = $allMatchedPeople->unique('id');
+                        $allMatchedPeople = People::getAllByPhoneOrEmail(
+                            $phone,
+                            $email,
+                            $this->company,
+                            $app
+                        );
 
                         /** @var People $matchedPerson */
                         foreach ($allMatchedPeople as $matchedPerson) {
@@ -234,7 +210,7 @@ class PullLeadAction
                                     continue;
                                 }
 
-                                $results[] = LeadPullResult::for($closedLead, $nameRank)->toArray();
+                                $results[] = new LeadCandidate($closedLead, $nameRank)->toArray();
                                 $filterResults[$closedLead->id] = $closedLead->id;
                             }
                         }

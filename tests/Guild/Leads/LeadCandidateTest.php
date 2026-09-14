@@ -7,11 +7,11 @@ namespace Tests\Guild\Leads;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\DataTransferObject\LeadCandidate;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Services\LeadPullResult;
 use Tests\TestCase;
 
-final class LeadPullResultTest extends TestCase
+final class LeadCandidateTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -43,7 +43,7 @@ final class LeadPullResultTest extends TestCase
      */
     public function testEmitsExactlyTheContractKeys(): void
     {
-        $result = LeadPullResult::for($this->createLead())->toArray();
+        $result = new LeadCandidate($this->createLead())->toArray();
 
         $this->assertSame(self::EXPECTED_KEYS, array_keys($result));
     }
@@ -52,7 +52,7 @@ final class LeadPullResultTest extends TestCase
     {
         $lead = $this->createLead();
 
-        $result = LeadPullResult::for($lead)->toArray();
+        $result = new LeadCandidate($lead)->toArray();
 
         $this->assertSame($lead->id, $result['id']);
         $this->assertSame($lead->uuid, $result['uuid']);
@@ -67,7 +67,7 @@ final class LeadPullResultTest extends TestCase
     {
         $lead = $this->createLead();
 
-        $result = LeadPullResult::for($lead)->toArray();
+        $result = new LeadCandidate($lead)->toArray();
 
         $this->assertSame(strtolower($result['status']), $result['status']);
     }
@@ -82,7 +82,7 @@ final class LeadPullResultTest extends TestCase
         $lead->leads_status_id = 0;
         $lead->saveOrFail();
 
-        $result = LeadPullResult::for($lead->refresh())->toArray();
+        $result = new LeadCandidate($lead->refresh())->toArray();
 
         $this->assertSame('', $result['status']);
     }
@@ -92,7 +92,7 @@ final class LeadPullResultTest extends TestCase
         $lead = $this->createLead();
         $lead->people->addCellPhone('2296466762');
 
-        $result = LeadPullResult::for($lead->refresh())->toArray();
+        $result = new LeadCandidate($lead->refresh())->toArray();
 
         $this->assertNotNull($result['phone']);
     }
@@ -101,8 +101,8 @@ final class LeadPullResultTest extends TestCase
     {
         $lead = $this->createLead();
 
-        $this->assertSame(1.0, LeadPullResult::for($lead)->toArray()['rank']);
-        $this->assertSame(0.67, LeadPullResult::for($lead, 0.67)->toArray()['rank']);
+        $this->assertSame(1.0, new LeadCandidate($lead)->toArray()['rank']);
+        $this->assertSame(0.67, new LeadCandidate($lead, 0.67)->toArray()['rank']);
     }
 
     /**
@@ -114,7 +114,7 @@ final class LeadPullResultTest extends TestCase
     {
         $lead = $this->createLead();
 
-        $result = LeadPullResult::for($lead, 0.5);
+        $result = new LeadCandidate($lead, 0.5);
 
         $this->assertSame($lead->getId(), $result->lead->getId());
         $this->assertSame(0.5, $result->rank);
@@ -124,7 +124,7 @@ final class LeadPullResultTest extends TestCase
     {
         $lead = $this->createLead();
 
-        $result = LeadPullResult::for(Lead::getById($lead->id))->toArray();
+        $result = new LeadCandidate(Lead::getById($lead->id))->toArray();
 
         $this->assertFalse($result['recentlyCreated']);
     }
