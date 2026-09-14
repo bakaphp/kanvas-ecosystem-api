@@ -1,7 +1,8 @@
 type CustomField {
     name: String!
     value: Mixed
-    systemModule: SystemModule! @belongsTo
+    systemModule: SystemModule!
+        @field(resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@systemModule")
     entity_id: ID!
 }
 

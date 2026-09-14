@@ -153,6 +153,7 @@ trait HasCustomFields
                 'name' => $key,
                 'value' => Str::jsonToArray($values[$index]),
                 'entity_id' => $this->getKey(),
+                'model_name' => $this::class,
             ];
         }
 
