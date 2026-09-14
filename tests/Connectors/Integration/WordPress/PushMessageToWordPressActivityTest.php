@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\WordPress;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
@@ -18,7 +19,10 @@ use Tests\TestCase;
 
 final class PushMessageToWordPressActivityTest extends TestCase
 {
+    use DatabaseTransactions;
     use HasIntegrationCompany;
+
+    protected $connectionsToTransact = [null, 'social'];
 
     private const string SITE_URL = 'https://example.com';
 

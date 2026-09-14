@@ -23,7 +23,8 @@ use Kanvas\Workflow\KanvasActivity;
     name: 'Push Message To WordPress',
     description: 'Publishes a Kanvas message as a post on the WordPress site connected to the message\'s '
         . 'company. Uploads any attached media, resolves categories and tags by name, and re-runs as an '
-        . 'update to the same post rather than creating a duplicate.',
+        . 'update to the same post. A different message carrying an identical story is refused; a similar '
+        . 'one is published as pending for review instead of going live.',
     integration: IntegrationsEnum::WORDPRESS,
     requiresConfig: [
         ConfigurationEnum::SITE_URL,
