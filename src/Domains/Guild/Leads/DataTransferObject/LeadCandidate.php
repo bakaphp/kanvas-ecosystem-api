@@ -10,7 +10,7 @@ use Spatie\LaravelData\Data;
 
 /**
  * toArray() is cross-repo contract surface: clients read these keys structurally, so never
- * drop one. It is overridden because the wire shape flattens the lead, not the model.
+ * drop one. Overridden because Spatie's default would serialize the whole Lead model.
  */
 class LeadCandidate extends Data
 {

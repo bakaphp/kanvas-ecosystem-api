@@ -107,7 +107,7 @@ final class LeadCandidateTest extends TestCase
 
     /**
      * Callers rank and sort candidates before serializing, so the lead and its
-     * rank have to be readable off the value object itself — toArray() is the
+     * rank have to be readable off the DTO itself — toArray() is the
      * wire boundary, not the only way in.
      */
     public function testExposesTheLeadAndRankWithoutSerializing(): void
