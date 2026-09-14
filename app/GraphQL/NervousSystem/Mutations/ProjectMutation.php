@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\GraphQL\NervousSystem\Mutations;
 
 use App\GraphQL\Concerns\ResolvesActingContext;
-use Kanvas\NervousSystem\Project\Actions\CreateProjectBoardColumnAction;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
+use Kanvas\NervousSystem\Project\Actions\CreateProjectBoardColumnAction;
 use Kanvas\NervousSystem\Project\Actions\DeleteProjectAction;
 use Kanvas\NervousSystem\Project\Actions\IngestToProjectAction;
 use Kanvas\NervousSystem\Project\Actions\RenameProjectBoardColumnAction;
