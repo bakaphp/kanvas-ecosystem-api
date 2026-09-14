@@ -115,7 +115,7 @@ class FindLeadsByTraitsService
         Companies $company,
         array $filters
     ): ?array {
-        $action = trim((string) ($filters['engagement_action'] ?? ''));
+        $action = Str::trimToNull($filters['engagement_action'] ?? null) ?? '';
         $completion = Str::lowerTrim($filters['engagement_completion'] ?? null);
         if ($action === '' && $completion === '') {
             return null;
