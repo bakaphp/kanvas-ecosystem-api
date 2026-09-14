@@ -32,6 +32,99 @@ final class McpToolSchema
      */
     public function properties(array $schema): array
     {
+        return $this->propertiesOf($this->inlineRefs($schema));
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     * @param array<string, mixed> $arguments
+     * @return array<string, mixed>
+     */
+    public function decodeArguments(array $schema, array $arguments): array
+    {
+        return $this->decodeObject($this->inlineRefs($schema), $arguments);
+    }
+
+    /**
+     * An unresolved `$ref` has no type and would reach the model as a string — Google Calendar's `attendees`
+     * as bare emails, which the server rejects (KANVAS-ECOSYSTEM-6EC). A reference into its own ancestry (a
+     * recursive filter) has no finite shape, so it keeps only its type there and a nested object travels as JSON.
+     *
+     * @param array<string, mixed> $schema
+     * @return array<string, mixed>
+     */
+    private function inlineRefs(array $schema): array
+    {
+        $root = $schema;
+        unset($schema['$defs'], $schema['definitions']);
+
+        return $this->inline($schema, $root, []);
+    }
+
+    /**
+     * @param array<string, mixed> $root
+     * @param list<string> $trail
+     */
+    private function inline(mixed $node, array $root, array $trail): mixed
+    {
+        if (! is_array($node)) {
+            return $node;
+        }
+
+        $ref = $node['$ref'] ?? null;
+
+        if (is_string($ref)) {
+            unset($node['$ref']);
+            $target = $this->pointer($root, $ref);
+
+            if ($target === null) {
+                return $node;
+            }
+
+            // Siblings of a `$ref` (usually its `description`) describe this use, so they win over the target's.
+            return in_array($ref, $trail, true)
+                ? [...array_intersect_key($target, ['type' => true, 'description' => true]), ...$node]
+                : $this->inline([...$target, ...$node], $root, [...$trail, $ref]);
+        }
+
+        foreach ($node as $key => $child) {
+            $node[$key] = $this->inline($child, $root, $trail);
+        }
+
+        return $node;
+    }
+
+    /**
+     * @param array<string, mixed> $root
+     * @return array<string, mixed>|null
+     */
+    private function pointer(array $root, string $ref): ?array
+    {
+        if (! str_starts_with($ref, '#/')) {
+            return null;
+        }
+
+        $node = $root;
+
+        foreach (explode('/', substr($ref, 2)) as $segment) {
+            $segment = str_replace(['~1', '~0'], ['/', '~'], rawurldecode($segment));
+
+            if (! is_array($node) || ! array_key_exists($segment, $node)) {
+                return null;
+            }
+
+            $node = $node[$segment];
+        }
+
+        return is_array($node) ? $node : null;
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     * @return list<ToolPropertyInterface>
+     */
+    private function propertiesOf(array $schema): array
+    {
         $required = (array) ($schema['required'] ?? []);
         $properties = [];
 
@@ -47,7 +140,7 @@ final class McpToolSchema
      * @param array<string, mixed> $arguments
      * @return array<string, mixed>
      */
-    public function decodeArguments(array $schema, array $arguments): array
+    private function decodeObject(array $schema, array $arguments): array
     {
         foreach ($this->declared($schema) as $name => $child) {
             if (array_key_exists($name, $arguments)) {
@@ -80,7 +173,7 @@ final class McpToolSchema
                 name: $name,
                 description: $description,
                 required: $required,
-                properties: $this->properties($schema),
+                properties: $this->propertiesOf($schema),
             );
         }
 
@@ -121,7 +214,7 @@ final class McpToolSchema
         }
 
         if ($this->declared($schema) !== []) {
-            return is_array($value) ? $this->decodeArguments($schema, $value) : $value;
+            return is_array($value) ? $this->decodeObject($schema, $value) : $value;
         }
 
         return is_string($value) ? $this->decodeJsonObjectParam($value) : $value;
@@ -166,6 +259,9 @@ final class McpToolSchema
     }
 
     /**
+     * `readOnly` fields are the server's to fill (Calendar's `attendees[].self`); offering them only invites
+     * the model to send something the server rejects.
+     *
      * @param array<string, mixed> $schema
      * @return array<array-key, array<string, mixed>>
      */
@@ -173,6 +269,8 @@ final class McpToolSchema
     {
         $properties = $schema['properties'] ?? [];
 
-        return is_array($properties) ? array_filter($properties, 'is_array') : [];
+        return is_array($properties)
+            ? array_filter($properties, fn (mixed $child): bool => is_array($child) && ($child['readOnly'] ?? false) !== true)
+            : [];
     }
 }
