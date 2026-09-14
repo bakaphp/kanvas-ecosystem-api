@@ -38,6 +38,45 @@ Same 146 tests: **1m34s uncached vs 35.7s cached** — 2.6x. If a run suddenly f
 whole matrix onto one box and is what gets the process OOM-killed (exit 137). Prefer
 `--testsuite=<Name>` over directory paths so the slice matches CI exactly.
 
+**Type-check the paths you touched — `php -l` does not do this.** CI runs PHPStan at `level: 0` on
+every push (`.github/workflows/static-analysis.yml`), and level 0 already covers cross-file call
+signatures: unknown methods, wrong argument counts, and **unknown named arguments**. `php -l` only
+parses one file at a time, so a call site that no longer matches a constructor it does not live in is
+invisible to it — and invisible to PHPUnit too whenever the broken branch is one the suite never
+executes (see the `??` test-seam trap below).
+
+```bash
+# ~6s scoped to a few paths; run this before declaring done, not the full config
+docker exec phpkanvas-ecosystem bash -c "cd /var/www/html && vendor/bin/phpstan analyse \
+  --configuration=phpstan.neon.dist --no-progress src/Domains/YourTree app/GraphQL/YourTree"
+```
+
+Scope it to the trees in your diff. **Never run the full `app` + `src` config locally.** It runs >10
+minutes and then OOMs — and it does not just kill its own worker, it takes **`mysqlkanvas-ecosystem`
+down with it** (`Exited (137)`), exactly like the full paratest run above.
+
+The symptom is terrifying and misleading: the next test run reports *hundreds* of errors
+(`AppInput::__construct(): Argument #1 ($name) must be of type string, null given` out of
+`tests/TestCase.php`), because `app(Apps::class)` resolves against a database that is no longer
+there. That is not your code. Check the container before you debug anything:
+
+```bash
+docker ps -a --format '{{.Names}}\t{{.Status}}' | grep -iE "mysql|redis"
+docker start mysqlkanvas-ecosystem   # then wait for health: healthy
+```
+
+Leave the full analysis to CI and analyse paths locally.
+
+**Beware the `??` test seam.** The idiom `$this->dep ?? new RealThing(...)` — used for transports,
+SSH clients and HTTP clients across the connectors — means every test that injects a fake makes the
+`new RealThing(...)` branch **unreachable in the suite**. A green suite says nothing about whether
+that constructor call is still valid. Real incident: removing a dead constructor parameter from
+`GuardedHttpMcpTransport` left `McpConnectionService::connector()` passing `transport:` to a
+constructor that no longer had it; 191 MCP tests passed, PHPStan flagged it in 6s, and it surfaced as
+`Unknown named parameter $transport` the first time an admin pressed Refresh. When you add such a
+seam, add one test that takes the real branch — see
+`McpServerUrlPerConnectionTest::testTheConnectorBuildsTheRealGuardedTransportWhenNoneIsInjected`.
+
 **Already measured, don't retry:** `opcache.enable_cli` + `file_cache` = 3%. Lighthouse **schema cache =
 a wash** — 14% on a GraphQL-only file, and *slower* on mixed sets (every process loads a 26MB
 `lighthouse-schema.php`); leave `LIGHTHOUSE_SCHEMA_CACHE_ENABLE=false`. `paratest --processes=4` = 20%

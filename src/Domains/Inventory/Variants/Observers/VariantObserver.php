@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Variants\Observers;
 
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Inventory\Variants\Events\VariantSearchDocumentChanged;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class VariantObserver
 {
     public function saved(Variants $variant): void
     {
+        VariantSearchDocumentChanged::dispatchFor($variant);
+
         // product() is null when the variant is orphaned or its product is soft-deleted.
         $variant->product?->clearLightHouseCache(withKanvasConfiguration: false);
         $variant->clearLightHouseCache(withKanvasConfiguration: false);
@@ -35,6 +38,7 @@ class VariantObserver
 
     public function deleted(Variants $variant): void
     {
+        VariantSearchDocumentChanged::dispatchFor($variant);
         $variant->product?->clearLightHouseCache(withKanvasConfiguration: false);
     }
 }

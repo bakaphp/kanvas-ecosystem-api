@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets;
 use Kanvas\Connectors\GoogleSheets\Actions\AppendSheetRowsAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesGoogleSheetsServiceForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesSpreadsheetIdForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -19,6 +20,7 @@ use Throwable;
 class AppendGoogleSheetRowsTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesGoogleSheetsServiceForTool;
     use ResolvesSpreadsheetIdForTool;
 
     public function __construct()
@@ -26,8 +28,9 @@ class AppendGoogleSheetRowsTool extends Tool
         parent::__construct(
             name: 'write_google_sheet',
             description: 'Appends one or more new rows to the end of a Google Sheet the user shared a link to. '
-                . 'Never overwrites existing rows — use update_google_sheet_cell for that. The sheet must already '
-                . 'be shared as an Editor with this app\'s Google service account.',
+                . 'Never overwrites existing rows — use update_google_sheet_cell for that. Writes to any sheet the '
+                . 'Google account this agent is connected to can open; where the app uses a shared service account '
+                . 'instead, the sheet must be shared with that account as an Editor.',
         );
     }
 
@@ -89,7 +92,13 @@ class AppendGoogleSheetRowsTool extends Tool
         }
 
         try {
-            $result = new AppendSheetRowsAction($this->app, $spreadsheetId, $range, $decodedValues)->execute();
+            $result = new AppendSheetRowsAction(
+                $this->app,
+                $spreadsheetId,
+                $range,
+                $decodedValues,
+                $this->sheetsServiceForAgent(),
+            )->execute();
         } catch (Throwable $e) {
             return [
                 'success' => false,

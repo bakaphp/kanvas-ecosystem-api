@@ -9,6 +9,7 @@ use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -63,6 +64,40 @@ class RunNeuronChatErrorHandlingTest extends TestCase
             new RuntimeException('Gemini returned STOP with no parts'),
             fallbackOnFailure: false
         );
+    }
+
+    public function testAHumanizedFailureIsLoggedWithItsRealCause(): void
+    {
+        Log::spy();
+
+        $this->runChatWithThrowingHandler(new RuntimeException('Gemini returned STOP with no parts'));
+
+        Log::shouldHaveReceived('error')
+            ->withArgs(fn (string $message, array $context) => $message === 'Neuron chat turn failed'
+                && $context['exception'] === RuntimeException::class
+                && $context['error'] === 'Gemini returned STOP with no parts'
+                && $context['handler'] === ThrowingNeuronHandlerStub::class
+                && str_contains($context['fallback'], 'I ran into a hiccup'))
+            ->once();
+    }
+
+    public function testARethrownFailureIsStillLogged(): void
+    {
+        Log::spy();
+
+        try {
+            $this->runChatWithThrowingHandler(
+                new RuntimeException('Gemini returned STOP with no parts'),
+                fallbackOnFailure: false
+            );
+            $this->fail('Expected the failure to be rethrown.');
+        } catch (RuntimeException) {
+        }
+
+        Log::shouldHaveReceived('error')
+            ->withArgs(fn (string $message, array $context) => $message === 'Neuron chat turn failed'
+                && $context['fallback_on_failure'] === false)
+            ->once();
     }
 
     private function runChatWithThrowingHandler(Throwable $exception, bool $fallbackOnFailure = true): string

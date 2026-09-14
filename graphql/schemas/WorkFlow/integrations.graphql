@@ -2,6 +2,7 @@ type Integrations {
     id: ID!
     name: String!
     uuid: String!
+    type: String!
     status: Status @method(name: "getIntegrationStatus")
     integrations: [IntegrationsCompanies!]!
         @method(name: "getIntegrationsByCompany")
@@ -104,7 +105,7 @@ enum WorkFlowIntegrationsHistoryEnumColumn {
 extend type Query @guard {
     integrations(
         search: String @search
-        where: _ @whereConditions(columns: ["id", "name"])
+        where: _ @whereConditions(columns: ["id", "name", "type"])
         orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
     ): [Integrations!]!
         @paginate(

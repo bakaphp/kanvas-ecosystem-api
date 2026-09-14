@@ -103,6 +103,28 @@ class Str extends IlluminateStr
     }
 
     /**
+     * `trimToNull` for a value of unknown type — a decoded JSON field, an `integrations.metadata` key, a
+     * custom field, a GraphQL argument.
+     *
+     * Not `ScalarCoercionTrait::stringOrNull`, which casts whatever it is given and does not trim. Here a
+     * non-string is absent rather than cast, so an array or an int never becomes a string that a caller
+     * then reads as a URL or a token.
+     */
+    public static function trimmedStringOrNull(mixed $value): ?string
+    {
+        return self::trimToNull(is_string($value) ? $value : null);
+    }
+
+    /**
+     * Normalizes a value for case-insensitive comparison. Multibyte-safe on purpose: plain `strtolower`
+     * leaves accented capitals untouched, so "ÚNICO" and "único" would never match.
+     */
+    public static function lowerTrim(?string $value): string
+    {
+        return mb_strtolower(trim((string) $value));
+    }
+
+    /**
      * Rich-text stored by an editor, flattened for somewhere that cannot render it — an LLM prompt, a
      * plain-text email, a log line.
      *

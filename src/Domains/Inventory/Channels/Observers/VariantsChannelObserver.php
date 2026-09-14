@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Channels\Observers;
 
 use Kanvas\Inventory\Channels\Actions\CreatePriceHistoryAction;
+use Kanvas\Inventory\Variants\Events\VariantSearchDocumentChanged;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -30,5 +31,12 @@ class VariantsChannelObserver
             'channel_slug' => $variantChannel->channel?->slug,
             'variant_id' => $variantChannel->products_variants_id,
         ]);
+
+        VariantSearchDocumentChanged::dispatchFor($variantChannel->variant);
+    }
+
+    public function deleted(VariantsChannels $variantChannel): void
+    {
+        VariantSearchDocumentChanged::dispatchFor($variantChannel->variant);
     }
 }
