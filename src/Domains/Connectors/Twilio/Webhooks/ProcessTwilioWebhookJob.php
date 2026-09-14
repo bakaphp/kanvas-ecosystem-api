@@ -496,6 +496,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             $channel = Channel::where('slug', $slug)
                         ->where('companies_id', $this->receiver->company->getId())
                         ->where('apps_id', $this->receiver->app->getId())
+                        ->orderByDesc('last_message_id')
                         ->lockForUpdate()
                         ->first();
             if (! $channel) {
