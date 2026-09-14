@@ -20,9 +20,13 @@ use Kanvas\Intelligence\Knowledge\VectorStores\TypesenseKnowledgeStore;
  */
 final class KnowledgeComponents
 {
-    public static function store(Apps $app, ?KnowledgeEmbedder $embedder = null): TypesenseKnowledgeStore
+    /**
+     * @param string|null $collection a dedicated collection for a consumer whose vectors must never surface
+     *                                in agent knowledge retrieval (e.g. WordPress duplicate detection)
+     */
+    public static function store(Apps $app, ?KnowledgeEmbedder $embedder = null, ?string $collection = null): TypesenseKnowledgeStore
     {
-        $configuredCollection = trim((string) $app->get(KnowledgeConfigurationEnum::COLLECTION->value));
+        $configuredCollection = trim((string) ($collection ?? $app->get(KnowledgeConfigurationEnum::COLLECTION->value)));
 
         return new TypesenseKnowledgeStore(
             client: SearchEngineResolver::getTypesenseClient($app->get('typesense_search_settings') ?? []),
