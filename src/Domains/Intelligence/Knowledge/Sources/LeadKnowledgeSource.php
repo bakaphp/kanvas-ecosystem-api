@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Knowledge\Sources;
 use Illuminate\Database\Eloquent\Model;
 use InvalidArgumentException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\LeadVariantInterestProjectionService;
 use Kanvas\Intelligence\Knowledge\Contracts\KnowledgeSource;
 use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeDocument;
 use Kanvas\Intelligence\Knowledge\Enums\LeadRagConfigurationEnum;
@@ -16,6 +17,11 @@ use Kanvas\Social\Messages\Models\Message;
 
 final class LeadKnowledgeSource implements KnowledgeSource
 {
+    public function __construct(
+        private readonly LeadVariantInterestProjectionService $variantInterests = new LeadVariantInterestProjectionService(),
+    ) {
+    }
+
     public function entityType(): string
     {
         return Lead::class;
@@ -51,9 +57,43 @@ final class LeadKnowledgeSource implements KnowledgeSource
                 'Organization: ' . $entity->organization->name,
                 'Description: ' . $entity->organization->description,
             ])),
+            $this->variantInterestDocument($entity),
         ]));
 
         return [...$documents, ...$this->messageDocuments($entity)];
+    }
+
+    private function variantInterestDocument(Lead $lead): ?KnowledgeDocument
+    {
+        $projection = $this->variantInterests->build($lead);
+        if ($projection['items'] === []) {
+            return null;
+        }
+
+        $content = collect($projection['items'])
+            ->map(function (array $item): string {
+                $attributes = collect($item['attributes'])
+                    ->map(fn (array $attribute): string => $attribute['name'] . ': ' . $attribute['value'])
+                    ->implode(', ');
+
+                return $this->join([
+                    'Variant: ' . $item['name'],
+                    'SKU: ' . $item['sku'],
+                    'Product: ' . $item['product_name'],
+                    'Interest type: ' . $item['interest_type'],
+                    $item['current_price'] === null ? null : 'Current price: ' . $item['current_price'],
+                    $item['price_at_interest'] === null ? null : 'Price at interest: ' . $item['price_at_interest'],
+                    $attributes === '' ? null : 'Attributes: ' . $attributes,
+                ]);
+            })
+            ->implode("\n\n");
+
+        return $this->document(
+            $lead,
+            'variant-interests',
+            (string) $lead->getId(),
+            $content,
+        );
     }
 
     /** @return list<KnowledgeDocument> */

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Inventory\Channels\Observers;
 
 use Kanvas\Inventory\Channels\Actions\CreatePriceHistoryAction;
+use Kanvas\Inventory\Variants\Events\VariantSearchDocumentChanged;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 
 class VariantsChannelObserver
@@ -19,5 +20,12 @@ class VariantsChannelObserver
                 auth()->user(),
             )->execute();
         }
+
+        VariantSearchDocumentChanged::dispatchFor($variantChannel->variant);
+    }
+
+    public function deleted(VariantsChannels $variantChannel): void
+    {
+        VariantSearchDocumentChanged::dispatchFor($variantChannel->variant);
     }
 }
