@@ -7,10 +7,12 @@ namespace Tests\GraphQL\Intelligence;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Factories\AgentLlmConfigFactory;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Models\CommunicationChannel;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Tests\TestCase;
 
 class AgentAiTest extends TestCase
@@ -585,6 +587,55 @@ class AgentAiTest extends TestCase
                 'company' => [
                     'id' => (string) $company->getId(),
                     'name' => $company->name,
+                ],
+            ]);
+    }
+
+    public function testAgentsAiCustomFieldsResolveSystemModule(): void
+    {
+        $agentId = $this->graphQL('
+            mutation($input: AgentAiInput!) {
+                createAiAgent(input: $input) {
+                    id
+                }
+            }
+        ', ['input' => [
+            'agent_type_id' => $this->createAgentType()->getId(),
+            'name' => 'Custom Field Agent ' . fake()->unique()->word(),
+            'description' => 'Custom Field Agent',
+            'role' => 'test-role',
+            'config' => ['key' => 'value'],
+            'is_active' => true,
+        ]])->assertSuccessful()->json('data.createAiAgent.id');
+
+        Agent::getById((int) $agentId)->set('crash_probe', 'value');
+        $systemModule = SystemModulesRepository::getByModelName(Agent::class, app(Apps::class));
+
+        $this->graphQL('
+            query($id: Mixed!) {
+                agentsAi(first: 1, where: { column: ID, operator: EQ, value: $id }) {
+                    data {
+                        id
+                        custom_fields {
+                            data {
+                                name
+                                systemModule {
+                                    uuid
+                                    name
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        ', ['id' => $agentId])
+            ->assertSuccessful()
+            ->assertJsonMissingPath('errors')
+            ->assertJsonFragment([
+                'name' => 'crash_probe',
+                'systemModule' => [
+                    'uuid' => $systemModule->uuid,
+                    'name' => $systemModule->name,
                 ],
             ]);
     }
