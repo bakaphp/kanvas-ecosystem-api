@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Tests\Intelligence\Knowledge;
+namespace Tests\Guild\Leads;
 
 use Illuminate\Support\Facades\Bus;
+use Kanvas\Guild\Leads\Jobs\ReindexLeadVariantInterestJob;
+use Kanvas\Guild\Leads\Jobs\ReindexVariantInterestLeadsJob;
+use Kanvas\Guild\Leads\Listeners\QueueVariantInterestReindexListener;
 use Kanvas\Guild\Leads\Models\LeadVariantInterest;
 use Kanvas\Guild\Leads\Observers\LeadVariantInterestObserver;
-use Kanvas\Intelligence\Knowledge\Jobs\ReindexLeadVariantInterestJob;
-use Kanvas\Intelligence\Knowledge\Jobs\ReindexVariantInterestLeadsJob;
-use Kanvas\Intelligence\Knowledge\Listeners\QueueVariantInterestReindexListener;
 use Kanvas\Inventory\Variants\Events\VariantSearchDocumentChanged;
 use Tests\TestCase;
 

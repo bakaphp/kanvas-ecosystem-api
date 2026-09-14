@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Filters;
+namespace Kanvas\Guild\Leads\Filters;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -10,7 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadVariantInterestProjectionService;
-use Kanvas\Intelligence\Agents\Services\VariantInterestSearchService;
+use Kanvas\Inventory\Variants\Services\VariantInterestSearchService;
 
 class VariantInterestLeadFilter
 {

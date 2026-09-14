@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Knowledge\Jobs;
+namespace Kanvas\Guild\Leads\Jobs;
 
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;

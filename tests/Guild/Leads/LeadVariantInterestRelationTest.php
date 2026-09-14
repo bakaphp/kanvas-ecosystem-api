@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Guild;
+namespace Tests\Guild\Leads;
 
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -13,17 +13,13 @@ use Tests\TestCase;
 
 class LeadVariantInterestRelationTest extends TestCase
 {
-    public function testLeadAndVariantInterestRelationsAreConfigured(): void
+    public function testLeadHasManyVariantInterests(): void
     {
-        $leadRelation = new Lead()->variantInterests();
-        $variantRelation = new Variants()->leadInterests();
+        $relation = new Lead()->variantInterests();
 
-        $this->assertInstanceOf(HasMany::class, $leadRelation);
-        $this->assertInstanceOf(LeadVariantInterest::class, $leadRelation->getRelated());
-        $this->assertSame('leads_id', $leadRelation->getForeignKeyName());
-        $this->assertInstanceOf(HasMany::class, $variantRelation);
-        $this->assertInstanceOf(LeadVariantInterest::class, $variantRelation->getRelated());
-        $this->assertSame('variants_id', $variantRelation->getForeignKeyName());
+        $this->assertInstanceOf(HasMany::class, $relation);
+        $this->assertInstanceOf(LeadVariantInterest::class, $relation->getRelated());
+        $this->assertSame('leads_id', $relation->getForeignKeyName());
     }
 
     public function testInterestBelongsToLeadAndVariant(): void

@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Filters;
+namespace Kanvas\Guild\Leads\Filters;
 
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
@@ -24,7 +25,7 @@ class CommunicationLeadFilter
         Companies $company,
         array $filters
     ): array {
-        $state = strtolower(trim((string) ($filters['communication_state'] ?? '')));
+        $state = Str::lowerTrim($filters['communication_state'] ?? null);
         $waitingDays = $filters['customer_waiting_since_days'] ?? null;
         $active = $state !== '' || $waitingDays !== null;
         if (! $active) {

@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Tests\Guild;
+namespace Tests\Guild\Leads;
 
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Leads\Filters\VariantInterestLeadFilter;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadVariantInterest;
 use Kanvas\Guild\Leads\Services\LeadVariantInterestProjectionService;
-use Kanvas\Intelligence\Agents\Filters\VariantInterestLeadFilter;
 use Kanvas\Intelligence\Knowledge\Sources\LeadKnowledgeSource;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Products\Models\Products;

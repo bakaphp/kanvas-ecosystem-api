@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Services;
+namespace Kanvas\Inventory\Variants\Services;
 
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 
@@ -45,7 +46,7 @@ class VariantInterestSearchService
             ->mapWithKeys(function (string $filter): array {
                 [$name, $value] = array_pad(explode(':', $filter, 2), 2, '');
 
-                return [$this->normalize($name) => $this->normalize($value)];
+                return [Str::lowerTrim($name) => Str::lowerTrim($value)];
             })
             ->filter(fn (string $value, string $name): bool => $name !== '' && $value !== '')
             ->all();
@@ -60,7 +61,7 @@ class VariantInterestSearchService
 
         $attributes = collect($variant['attributes'] ?? [])
             ->mapWithKeys(fn (mixed $value, mixed $name): array => [
-                $this->normalize((string) $name) => $this->normalize((string) $value),
+                Str::lowerTrim((string) $name) => Str::lowerTrim((string) $value),
             ]);
 
         foreach ($filters as $name => $value) {
@@ -70,10 +71,5 @@ class VariantInterestSearchService
         }
 
         return true;
-    }
-
-    private function normalize(string $value): string
-    {
-        return mb_strtolower(trim($value));
     }
 }

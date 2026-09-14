@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Filters;
+namespace Kanvas\Guild\Leads\Filters;
 
+use Baka\Support\Str;
 use Illuminate\Support\Collection;
 use InvalidArgumentException;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
@@ -23,7 +24,7 @@ class EngagementLeadFilter
         string $action,
         string $completion
     ): array {
-        $completion = strtolower(trim($completion));
+        $completion = Str::lowerTrim($completion);
         if (! in_array($completion, ['started', 'incomplete', 'submitted', 'missing'], true)) {
             throw new InvalidArgumentException('Engagement completion must be started, incomplete, submitted, or missing.');
         }
@@ -65,7 +66,7 @@ class EngagementLeadFilter
     /** @return list<string> */
     private function actionSlugs(string $action): array
     {
-        $action = strtolower(trim($action));
+        $action = Str::lowerTrim($action);
 
         return match ($action) {
             'trade', 'trade-in', 'trade_in', ActionEnum::ADD_TRADE->value => [ActionEnum::ADD_TRADE->value],

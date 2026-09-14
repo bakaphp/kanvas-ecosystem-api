@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Services;
+namespace Kanvas\Inventory\Variants\Services;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;

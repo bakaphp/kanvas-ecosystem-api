@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Observers;
 
+use Kanvas\Guild\Leads\Jobs\ReindexLeadVariantInterestJob;
 use Kanvas\Guild\Leads\Models\LeadVariantInterest;
-use Kanvas\Intelligence\Knowledge\Jobs\ReindexLeadVariantInterestJob;
 
 final class LeadVariantInterestObserver
 {

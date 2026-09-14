@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\Intelligence\Leads;
+namespace App\Console\Commands\Connectors\SalesAssist;
 
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;

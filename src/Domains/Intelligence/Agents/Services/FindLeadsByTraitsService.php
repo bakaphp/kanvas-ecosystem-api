@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Leads\Filters\CommunicationLeadFilter;
+use Kanvas\Guild\Leads\Filters\EngagementLeadFilter;
+use Kanvas\Guild\Leads\Filters\LeadBaseFilter;
+use Kanvas\Guild\Leads\Filters\VariantInterestLeadFilter;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\BatchRecipientResolverService;
 use Kanvas\Guild\Leads\Services\LeadVariantInterestProjectionService;
-use Kanvas\Intelligence\Agents\Filters\CommunicationLeadFilter;
-use Kanvas\Intelligence\Agents\Filters\EngagementLeadFilter;
-use Kanvas\Intelligence\Agents\Filters\LeadBaseFilter;
-use Kanvas\Intelligence\Agents\Filters\VariantInterestLeadFilter;
 
 class FindLeadsByTraitsService
 {
@@ -34,7 +35,7 @@ class FindLeadsByTraitsService
     /** @return array<string, mixed> */
     public function execute(Apps $app, Companies $company, array $filters): array
     {
-        $channel = strtolower(trim((string) ($filters['channel'] ?? ''))) ?: 'sms';
+        $channel = Str::lowerTrim($filters['channel'] ?? null) ?: 'sms';
         if (! in_array($channel, ['sms', 'email'], true)) {
             return ['status' => 'error', 'message' => 'Invalid channel. Use "sms" or "email".'];
         }
@@ -115,7 +116,7 @@ class FindLeadsByTraitsService
         array $filters
     ): ?array {
         $action = trim((string) ($filters['engagement_action'] ?? ''));
-        $completion = strtolower(trim((string) ($filters['engagement_completion'] ?? '')));
+        $completion = Str::lowerTrim($filters['engagement_completion'] ?? null);
         if ($action === '' && $completion === '') {
             return null;
         }

@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Filters;
+namespace Kanvas\Guild\Leads\Filters;
 
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Kanvas\Companies\Models\Companies;
@@ -15,7 +16,7 @@ class LeadBaseFilter
     /** @return array<string, mixed> */
     public function apply(Builder $query, Companies $company, array $filters): array
     {
-        $status = strtolower($this->text($filters, 'status')) ?: 'open';
+        $status = Str::lowerTrim($filters['status'] ?? null) ?: 'open';
         $query
             ->when($status === 'open', fn ($q) => $q->where(fn ($scope) => $scope->whereNull('status')->orWhere('status', '<', 2)))
             ->when($status === 'closed', fn ($q) => $q->where('status', '>=', 2));

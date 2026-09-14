@@ -8,12 +8,12 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Leads\Filters\EngagementLeadFilter;
+use Kanvas\Guild\Leads\Filters\VariantInterestLeadFilter;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Filters\EngagementLeadFilter;
-use Kanvas\Intelligence\Agents\Filters\VariantInterestLeadFilter;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FindLeadsByTraitsTool;
 use Kanvas\Intelligence\Agents\Services\FindLeadsByTraitsService;
-use Kanvas\Intelligence\Agents\Services\VariantInterestSearchService;
+use Kanvas\Inventory\Variants\Services\VariantInterestSearchService;
 use Mockery;
 use Tests\TestCase;
 

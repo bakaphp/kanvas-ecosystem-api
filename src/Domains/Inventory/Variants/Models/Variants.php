@@ -31,7 +31,6 @@ use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
-use Kanvas\Guild\Leads\Models\LeadVariantInterest;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
@@ -155,11 +154,6 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     public static function searchableIndex(): string
     {
         return AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue();
-    }
-
-    public function leadInterests(): HasMany
-    {
-        return $this->hasMany(LeadVariantInterest::class, 'variants_id');
     }
 
     /**

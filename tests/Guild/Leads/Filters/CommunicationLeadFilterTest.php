@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Tests\Intelligence\Agents\Filters;
+namespace Tests\Guild\Leads\Filters;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Leads\Filters\CommunicationLeadFilter;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Agents\Filters\CommunicationLeadFilter;
 use Tests\TestCase;
 
 class CommunicationLeadFilterTest extends TestCase
@@ -41,10 +41,15 @@ class CommunicationLeadFilterTest extends TestCase
         );
         $query = Lead::query()->whereIn('id', [$waiting->getId(), $responded->getId()]);
 
-        $context = $filter->apply($query, app(Apps::class), $company, [
-            'communication_state' => 'awaiting_team_response',
-            'customer_waiting_since_days' => 7,
-        ]);
+        $context = $filter->apply(
+            $query,
+            app(Apps::class),
+            $company,
+            [
+                'communication_state' => 'awaiting_team_response',
+                'customer_waiting_since_days' => 7,
+            ]
+        );
 
         $this->assertSame([$waiting->getId()], $query->pluck('id')->all());
         $this->assertSame('contact', $context['last_messages'][$waiting->getId()]['sender_type']);

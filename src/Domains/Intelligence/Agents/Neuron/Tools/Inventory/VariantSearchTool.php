@@ -6,7 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Inventory;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
-use Kanvas\Intelligence\Agents\Services\VariantSearchService;
+use Kanvas\Inventory\Variants\Services\VariantSearchService;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;

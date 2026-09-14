@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Tests\Intelligence\Agents\Filters;
+namespace Tests\Guild\Leads\Filters;
 
 use Illuminate\Support\Collection;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Pipelines\Models\PipelineStage;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Intelligence\Agents\Filters\EngagementLeadFilter;
+use Kanvas\Guild\Leads\Filters\EngagementLeadFilter;
 use Tests\TestCase;
 
 class EngagementLeadFilterTest extends TestCase

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Tests\Intelligence\Agents\Services;
+namespace Tests\Inventory\Variants;
 
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Intelligence\Agents\Services\VariantInterestSearchService;
-use Kanvas\Intelligence\Agents\Services\VariantSearchService;
+use Kanvas\Inventory\Variants\Services\VariantInterestSearchService;
+use Kanvas\Inventory\Variants\Services\VariantSearchService;
 use Mockery;
 use Tests\TestCase;
 
