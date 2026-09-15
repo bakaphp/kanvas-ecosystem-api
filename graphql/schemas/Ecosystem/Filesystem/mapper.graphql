@@ -31,7 +31,7 @@ input FilesystemMapperInput {
     description: String
     has_header: Boolean
     system_module_id: ID!
-    file_header: Mixed!
+    file_header: Mixed
     mapping: Mixed!
     configuration: Mixed
     is_default: Boolean
@@ -55,7 +55,7 @@ input UpdateFilesystemImportInput {
     mapper_id: ID!
     name: String!
     description: String
-    file_header: Mixed!
+    file_header: Mixed
     mapping: Mixed!
     configuration: Mixed
 }
