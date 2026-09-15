@@ -63,6 +63,8 @@ enum WorkflowEnum: string
     case AFTER_MERGE = 'after-merge';
     case EVENT_VERSIONS_WORKFLOW = 'event-versions-workflow';
 
+    case VARIANT_CHANNEL_SAVED = 'variant-channel-saved';
+
     case APPROVAL_REQUESTED = 'approval-requested';
     case APPROVAL_STEP_COMPLETED = 'approval-step-completed';
     case APPROVAL_UNASSIGNED = 'approval-unassigned';
