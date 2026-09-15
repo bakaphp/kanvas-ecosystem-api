@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 
 class EngagementRepository
@@ -42,6 +43,28 @@ class EngagementRepository
         )->where(
             'entity_uuid',
             $entityUuid
+        )->first();
+    }
+
+    /**
+     * Per-person engagements (main buyer + co-buyers): `findEngagementForLead` would return whichever
+     * person's row is newest.
+     */
+    public static function findEngagementForLeadPeople(
+        Lead $lead,
+        People $people,
+        string $actionSlug,
+        string $stage,
+        string $order = 'DESC'
+    ): ?Engagement {
+        return self::findEngagementForLeadBuilder(
+            $lead,
+            $actionSlug,
+            $stage,
+            $order
+        )->where(
+            'people_id',
+            $people->getId()
         )->first();
     }
 

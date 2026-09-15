@@ -8,7 +8,7 @@ use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Traits\HasKanvasContext;
-use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Services\VariantSearchService;
 use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
@@ -18,6 +18,10 @@ class VariantSearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;
 
+    public function __construct(private readonly VariantSearchService $searchService = new VariantSearchService())
+    {
+    }
+
     public function name(): string
     {
         return 'variant_search';
@@ -26,7 +30,9 @@ class VariantSearchTool implements KanvasToolInterface
     #[Override]
     public function description(): Stringable|string
     {
-        return 'Search product variants by name or SKU. Returns variant details including SKU, price, stock, and its parent product name. Use this when the user asks about a specific SKU or variant name.';
+        return 'Search product variants through the configured search engine by name, SKU, EAN, or barcode. '
+            . 'Returns variant details including SKU, stock, and its parent product name. '
+            . 'Use this when the user asks about a specific SKU or variant name.';
     }
 
     #[Override]
@@ -38,31 +44,13 @@ class VariantSearchTool implements KanvasToolInterface
             return 'Please provide a keyword (name or SKU) to search for variants.';
         }
 
-        $variants = Variants::fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->where(function ($q) use ($keyword) {
-                $q->where('name', 'like', '%' . $keyword . '%')
-                    ->orWhere('sku', 'like', '%' . $keyword . '%');
-            })
-            ->with('product')
-            ->limit(20)
-            ->get();
+        $variants = $this->searchService->search($this->app, $this->company, $keyword);
 
-        if ($variants->isEmpty()) {
+        if ($variants === []) {
             return "No variants found matching '{$keyword}'.";
         }
 
-        $results = $variants->map(fn (Variants $variant) => [
-            'id' => $variant->getId(),
-            'name' => $variant->name,
-            'sku' => $variant->sku,
-            'product' => $variant->product?->name,
-            'is_published' => (bool) $variant->is_published,
-            'stock' => $variant->getTotalQuantity(),
-        ]);
-
-        return $results->toJson(JSON_PRETTY_PRINT);
+        return json_encode($variants, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR);
     }
 
     #[Override]
@@ -71,7 +59,7 @@ class VariantSearchTool implements KanvasToolInterface
         return [
             'keyword' => $schema
                 ->string()
-                ->description('Name or SKU to search for. Partial matches are supported.')
+                ->description('Variant name, SKU, EAN, barcode, or related search terms.')
                 ->required(),
         ];
     }
