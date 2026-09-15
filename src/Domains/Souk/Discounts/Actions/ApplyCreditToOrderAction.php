@@ -64,7 +64,7 @@ class ApplyCreditToOrderAction
         }
 
         if ((int) $credit->apps_id !== (int) $this->order->apps_id
-            || (int) $credit->companies_id !== (int) $this->order->companies_id
+            || (int) $credit->companies_id !== (int) $this->order->buyerCompany()->getId()
         ) {
             throw new ValidationException('Credit belongs to another company');
         }

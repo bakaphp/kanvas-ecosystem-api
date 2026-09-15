@@ -275,7 +275,7 @@ class CreateBaseOrderAction
         }
 
         try {
-            new DiscountService($order->app, $order->company)->applyFirstAvailableCredit($order);
+            new DiscountService($order->app, $order->buyerCompany())->applyFirstAvailableCredit($order);
         } catch (ValidationException) {
             // expected skip, not a fault
         } catch (Throwable $e) {
