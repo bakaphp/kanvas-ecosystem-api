@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace Tests\Scribe\Intelligence;
 
 use Kanvas\Filesystem\Services\PdfService;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\AnswerQuoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ConvertQuoteToInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CreateQuoteTool;
@@ -64,6 +67,113 @@ class QuoteAgentToolsTest extends ScribeTestCase
         $this->assertSame('customer_ambiguous', $result['reason']);
         $this->assertStringContainsString('Vertex Logistics East', $result['message']);
         $this->assertStringContainsString('Vertex Logistics West', $result['message']);
+    }
+
+    public function test_create_quote_records_the_contact_the_quote_is_addressed_to(): void
+    {
+        $customer = $this->seedTestOrganization('Contactful Industries');
+        $contact = $this->seedOrganizationContact($customer, 'Jane', 'Ashford');
+
+        $result = $this->createQuote(
+            'Contactful Industries',
+            [['description' => 'Advisory', 'unit_price' => 900.0]],
+            'Jane Ashford',
+        );
+
+        $this->assertTrue($result['created']);
+        $this->assertSame('Jane Ashford', $result['contact']);
+
+        $quote = Quote::getById($result['quote_id']);
+        $this->assertSame($contact->getId(), $quote->contact_people_id);
+
+        $sent = new SendQuoteTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(quote_id: $quote->getId());
+
+        $found = new FindQuoteTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(quote_number: $sent['quote_number']);
+
+        $this->assertTrue($found['found']);
+        $this->assertSame('Jane Ashford', $found['contact'], 'find_quote must report who the quote is addressed to.');
+
+        $this->assertStringContainsString(
+            'Attn: Jane Ashford',
+            new DocumentPdfService($quote->refresh())->render(),
+        );
+    }
+
+    public function test_create_quote_leaves_the_contact_null_when_none_is_given(): void
+    {
+        $this->seedTestOrganization('Anonymous Holdings');
+
+        $result = $this->createQuote('Anonymous Holdings', [['description' => 'Advisory', 'unit_price' => 100.0]]);
+
+        $this->assertTrue($result['created']);
+        $this->assertNull($result['contact']);
+        $this->assertNull(Quote::getById($result['quote_id'])->contact_people_id);
+    }
+
+    public function test_create_quote_refuses_a_contact_that_is_not_linked_to_that_customer(): void
+    {
+        $customer = $this->seedTestOrganization('Strict Corp');
+        $otherCustomer = $this->seedTestOrganization('Somewhere Else LLC');
+        $this->seedOrganizationContact($otherCustomer, 'Mallory', 'Quinn');
+
+        $result = $this->createQuote(
+            'Strict Corp',
+            [['description' => 'Advisory', 'unit_price' => 100.0]],
+            'Mallory Quinn',
+        );
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('contact_not_found', $result['reason']);
+        $this->assertSame(
+            0,
+            Quote::query()->fromApp($this->kanvasApp)->fromCompany($this->company)
+                ->where('customer_organization_id', $customer->getId())
+                ->count(),
+            'A refused contact must not leave a quote behind.',
+        );
+    }
+
+    /**
+     * organizations_peoples is a raw-FK pivot with no tenant columns of its own, so a row on it can
+     * point at a person outside the tenant. The org being tenant-scoped is not enough on its own.
+     */
+    public function test_create_quote_ignores_an_organization_contact_from_another_tenant(): void
+    {
+        $customer = $this->seedTestOrganization('Leaky Pivot Corp');
+        $foreign = $this->seedOrganizationContact($customer, 'Otra', 'Empresa');
+        $foreign->companies_id = $this->company->getId() + 1;
+        $foreign->saveQuietly();
+
+        $result = $this->createQuote(
+            'Leaky Pivot Corp',
+            [['description' => 'Advisory', 'unit_price' => 100.0]],
+            'Otra Empresa',
+        );
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('contact_not_found', $result['reason']);
+    }
+
+    public function test_create_quote_names_the_candidates_when_the_contact_is_ambiguous(): void
+    {
+        $customer = $this->seedTestOrganization('Twin Contacts Inc');
+        $this->seedOrganizationContact($customer, 'Chris', 'Delacroix');
+        $this->seedOrganizationContact($customer, 'Chris', 'Delagarza');
+
+        $result = $this->createQuote(
+            'Twin Contacts Inc',
+            [['description' => 'Advisory', 'unit_price' => 100.0]],
+            'Chris Dela',
+        );
+
+        $this->assertFalse($result['created']);
+        $this->assertSame('contact_ambiguous', $result['reason']);
+        $this->assertStringContainsString('Chris Delacroix', $result['message']);
+        $this->assertStringContainsString('Chris Delagarza', $result['message']);
     }
 
     public function test_create_quote_needs_at_least_one_priced_line(): void
@@ -248,10 +358,30 @@ class QuoteAgentToolsTest extends ScribeTestCase
      *
      * @return array<string, mixed>
      */
-    private function createQuote(string $customerName, array $lines): array
+    private function createQuote(string $customerName, array $lines, ?string $contactName = null): array
     {
         return new CreateQuoteTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
-            ->__invoke(customer_name: $customerName, lines: $lines);
+            ->__invoke(customer_name: $customerName, lines: $lines, contact_name: $contactName);
+    }
+
+    private function seedOrganizationContact(Organization $organization, string $firstName, string $lastName): People
+    {
+        $person = People::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => trim($firstName . ' ' . $lastName),
+            'firstname' => $firstName,
+            'lastname' => $lastName,
+        ]);
+
+        OrganizationPeople::create([
+            'organizations_id' => $organization->getId(),
+            'peoples_id' => $person->getId(),
+            'created_at' => now(),
+        ]);
+
+        return $person;
     }
 }

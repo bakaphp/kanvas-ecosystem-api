@@ -1,0 +1,491 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Intelligence\Agents\Actions\CustomerSuccess;
+
+use Baka\Support\Str;
+use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Carbon;
+use Kanvas\Connectors\Github\DataTransferObject\GithubRelease;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
+use Kanvas\Intelligence\Agents\DataTransferObject\CustomerUpdateDraft;
+use Kanvas\Intelligence\Agents\DataTransferObject\CustomerUpdateResult;
+use Kanvas\Intelligence\Agents\Enums\CustomerUpdateSkipEnum;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\CustomerSuccess\CustomerUpdateAgent;
+use Kanvas\Intelligence\Agents\Services\CustomerSuccess\KanvasReleaseFeedService;
+use Kanvas\Social\Channels\Enums\ChannelNameEnum;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
+
+/**
+ * Produces this month's draft for one account. Drafts only — nothing here sends, and nothing here
+ * writes to the account. The caller decides what to do with what comes back.
+ */
+class DraftCustomerUpdateAction
+{
+    public const string WATERMARK_FIELD = 'newsletter_last_release_at';
+
+    /**
+     * A monthly newsletter covers a month. The window is the period, NOT the gap since the last send —
+     * otherwise a skipped month vanishes, and a second run in the same month sees almost nothing.
+     * Repetition is handled where it belongs: the previous update is in the notes thread and the agent
+     * is told not to repeat it.
+     */
+    private const int WINDOW_DAYS = 30;
+
+    /**
+     * A widened window is for catching up — an off-cycle run, or a month where the 1st slipped. Past
+     * roughly a quarter the digest stops being an update and becomes a changelog, and the month label
+     * below is meaningless, so refuse rather than quietly produce one.
+     */
+    public const int MAX_WINDOW_DAYS = 120;
+
+    /**
+     * Per release, not for the whole set: a wide window is 20+ releases, and an uncapped changelog
+     * would crowd out the account notes that make the update worth sending.
+     */
+    private const int RELEASE_CHARS = 1500;
+
+    private const int NOTES_WINDOW = 20;
+    private const int NOTE_CHARS = 600;
+    private const int CONTACT_WINDOW = 6;
+    private const int LEAD_WINDOW = 5;
+
+    /**
+     * @param mixed $handlerOverride a pre-built chat handler, so a test can drive the action without a
+     *                               live provider. `RunNeuronChatAction::$handler` is itself `mixed`,
+     *                               so this matches what it will be handed. Null in production.
+     * @param bool $ignoreWatermark draft as though this account had never been written to. For
+     *                              re-running the same month while tuning copy — otherwise the second
+     *                              draft is told not to repeat the first and usually declines. Reads
+     *                              only; approving still advances the watermark as normal.
+     * @param int|null $windowDays how far back to read releases. Null is the monthly default, which is
+     *                             what the cron uses. Widen it only to catch up an off-cycle run.
+     */
+    public function __construct(
+        private readonly Organization $organization,
+        private readonly Agent $agent,
+        private readonly mixed $handlerOverride = null,
+        private readonly bool $ignoreWatermark = false,
+        private readonly ?int $windowDays = null,
+    ) {
+    }
+
+    public function execute(): CustomerUpdateResult
+    {
+        $windowDays = $this->resolveWindowDays();
+        $lastWrittenTo = $this->watermark();
+        $windowOpensAt = now()->subDays($windowDays);
+
+        $releases = new KanvasReleaseFeedService($this->organization->app)->publishedSince($windowOpensAt);
+
+        // Nothing shipped in the window: skip the LLM turn entirely rather than paying for it to tell
+        // us there is nothing to say.
+        if ($releases === []) {
+            return CustomerUpdateResult::skipped(CustomerUpdateSkipEnum::NO_RELEASES, 0);
+        }
+
+        // Everything in the window predates the last send, so there is nothing new to tell them. The
+        // brief asks the agent to reach the same conclusion, but asking costs a turn and gets the same
+        // answer every re-run — the dates already say it. `--ignore-watermark` skips this gate.
+        if ($lastWrittenTo !== null && ! $this->hasReleaseNewerThan($releases, $lastWrittenTo)) {
+            return CustomerUpdateResult::skipped(CustomerUpdateSkipEnum::ALREADY_COVERED, count($releases));
+        }
+
+        $body = new RunNeuronChatAction(
+            agent: $this->agent,
+            session: null,
+            message: $this->brief($lastWrittenTo, $windowOpensAt, $windowDays, $releases),
+            app: $this->organization->app,
+            user: $this->agent->user,
+            handler: $this->handlerOverride ?? $this->handler(),
+            media: [],
+            // MUST stay false. The default returns a friendly apology string when a turn fails, and this
+            // caller's output is emailed to a paying customer — a newsroom already published one of
+            // those apologies as an article (KANVAS-ECOSYSTEM-691). A pipeline wants the exception.
+            fallbackOnFailure: false,
+        )->execute();
+
+        $body = Str::trimToNull($body);
+
+        if ($body === null || str_contains($body, CustomerUpdateAgent::NOTHING_TO_SEND)) {
+            return CustomerUpdateResult::skipped(CustomerUpdateSkipEnum::AGENT_DECLINED, count($releases));
+        }
+
+        [$subject, $body] = $this->splitSubject($body);
+
+        return CustomerUpdateResult::drafted(
+            new CustomerUpdateDraft(
+                organization: $this->organization,
+                subject: $subject,
+                body: $body,
+                coveredFrom: $releases[array_key_first($releases)]->publishedAt,
+                coveredThrough: $releases[array_key_last($releases)]->publishedAt,
+                releaseTags: array_map(fn ($release): string => $release->tag, $releases),
+            ),
+            count($releases)
+        );
+    }
+
+    /**
+     * @param array<int, GithubRelease> $releases
+     */
+    private function hasReleaseNewerThan(array $releases, Carbon $lastWrittenTo): bool
+    {
+        foreach ($releases as $release) {
+            if ($release->publishedAt?->greaterThan($lastWrittenTo) === true) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * When we last wrote to them. Used to tell the agent what it must not repeat — it does NOT bound
+     * the release query, which is the window above and nothing else, so a long-dormant account still
+     * gets one window of releases rather than a wall of everything since.
+     */
+    private function watermark(): ?Carbon
+    {
+        if ($this->ignoreWatermark) {
+            return null;
+        }
+
+        $stored = $this->storedWatermark();
+
+        return $stored !== null ? Carbon::parse($stored) : null;
+    }
+
+    private function storedWatermark(): ?string
+    {
+        return Str::trimToNull($this->organization->get(self::WATERMARK_FIELD));
+    }
+
+    /**
+     * Public so a caller taking the window from an operator can reject it before doing per-account
+     * work — the alternative is every account failing on the same typo'd flag.
+     */
+    public static function assertWindowDays(int $windowDays): void
+    {
+        if ($windowDays < 1 || $windowDays > self::MAX_WINDOW_DAYS) {
+            throw new ValidationException(
+                'The release window must be between 1 and ' . self::MAX_WINDOW_DAYS . ' days, got ' . $windowDays . '.'
+            );
+        }
+    }
+
+    private function resolveWindowDays(): int
+    {
+        $windowDays = $this->windowDays ?? self::WINDOW_DAYS;
+
+        self::assertWindowDays($windowDays);
+
+        return $windowDays;
+    }
+
+    /**
+     * @param array<int, GithubRelease> $releases
+     */
+    private function brief(
+        ?Carbon $lastWrittenTo,
+        Carbon $windowOpensAt,
+        int $windowDays,
+        array $releases
+    ): string {
+        $brief = 'Draft this month\'s Kanvas update for organization ' . $this->organization->getId()
+            . ' ("' . $this->organization->name . '").'
+            . ' You have been given every Kanvas release published since '
+            . $windowOpensAt->toDateString() . ' — that is the month this update covers.'
+            // Phrased as the parser expects, not as prose. "Title it for August" reads the same to a
+            // human but let the model satisfy it inside the body, which then shipped two subject lines.
+            . ' Open with `Subject: ` on the very first line, naming '
+            . $this->periodLabel($windowOpensAt, $windowDays) . ', then a blank line, then the body.';
+
+        $brief .= $this->historyInstruction($lastWrittenTo);
+
+        $brief .= $this->relationshipContext();
+
+        $brief .= "\n\n" . $this->releaseNotes($releases);
+
+        $notes = $this->accountNotes();
+
+        if ($notes === '') {
+            return $brief . "\n\nThere are no notes on this account, so you know nothing about them beyond"
+                . ' their name. Say only what is plainly true of any customer, and keep it short.';
+        }
+
+        // Every context channel: naming only `notes` points the tool at the thread this action writes
+        // to, rather than the one holding the history.
+        return $brief . "\n\nWhat is on this account, oldest first. Everything you know about them is here:\n\n"
+            . $notes
+            . "\n\nUse read_channel_window on channel " . implode(', ', $this->contextChannelIds())
+            . ' if you need more than this.';
+    }
+
+    /**
+     * The releases, handed over rather than left to `get_kanvas_release_updates`.
+     *
+     * The action has already fetched them to decide whether to draft at all, and it stamps the newest
+     * one onto the draft as `coveredThrough` — which becomes the watermark that next month skips from.
+     * Leaving the agent to fetch its own set breaks that: the tool's `since` is the model's choice and
+     * defaults to 30 days, so a widened window could mark 60 days as covered while the email described
+     * 30, and the untold releases would never come round again.
+     *
+     * Bodies are capped because a release covers everything in it — infrastructure, refactors, a dozen
+     * connectors — and the agent needs enough to tell what is customer-facing, not the whole changelog.
+     * `get_kanvas_release_updates` is still there for the full text of one it wants to quote.
+     *
+     * No `html_url`: it points at the GitHub release page, which is not a link to put in front of a
+     * paying customer, and the agent may only use urls it was given.
+     *
+     * @param array<int, GithubRelease> $releases
+     */
+    private function releaseNotes(array $releases): string
+    {
+        $notes = array_map(
+            fn (GithubRelease $release): string => '### ' . $release->tag
+                . ' · ' . ($release->publishedAt?->toDateString() ?? '')
+                . "\n" . Str::limit(Str::htmlToText($release->body), self::RELEASE_CHARS),
+            $releases
+        );
+
+        return "What shipped, oldest first:\n\n" . implode("\n\n", $notes);
+    }
+
+    /**
+     * Which month the update is "for". The window is a rolling one that usually straddles two months,
+     * so the label is the month holding most of it — computed here rather than left to the agent,
+     * which would otherwise pick a different month depending on the day it runs.
+     */
+    private function periodLabel(Carbon $windowOpensAt, int $windowDays): string
+    {
+        return $windowOpensAt->copy()
+            ->addDays((int) ($windowDays / 2))
+            ->format('F Y');
+    }
+
+    /**
+     * Whether this account has ever been sent an update, read from the STORED watermark — deliberately
+     * not from `watermark()`, which `--ignore-watermark` blanks. The flag says "draft as if nothing had
+     * been said", which is a re-draft aid; it must never convince the agent this is a first send, or a
+     * customer of two years is mailed "this is the first of a monthly note".
+     */
+    private function hasEverBeenWrittenTo(): bool
+    {
+        return $this->storedWatermark() !== null;
+    }
+
+    private function historyInstruction(?Carbon $lastWrittenTo): string
+    {
+        if ($lastWrittenTo !== null) {
+            return ' We last wrote to them on ' . $lastWrittenTo->toDateString()
+                . '. The update we sent is in the thread below: do not repeat it, lead with what is new since then,'
+                . ' and if everything in this window was already covered there, say ' . CustomerUpdateAgent::NOTHING_TO_SEND . '.';
+        }
+
+        if ($this->hasEverBeenWrittenTo()) {
+            return ' We have written to them before, so do NOT introduce the newsletter or imply this is the'
+                . ' first time we are writing. Draft this window fresh, as though what we sent previously did'
+                . ' not constrain you.';
+        }
+
+        return $this->firstSendInstruction();
+    }
+
+    /**
+     * The first update an account ever receives is a cold email: nobody asked for it, and "Here are
+     * this month's improvements" with no framing reads as marketing blast, which is how a real contact
+     * at a paying customer marks us as spam. One block of orientation, once — every later send already
+     * has the previous one in the thread and needs none of this.
+     *
+     * The block POSITION is load-bearing and has to be spelled out. `CustomerUpdateRenderer::parse()`
+     * assigns by position — first block is the masthead, second is the intro, last is the sign-off —
+     * so an orientation written as the opening block takes the masthead slot and shifts every other
+     * block down one: the first feature loses its heading and the orientation is rendered as the h1.
+     */
+    private function firstSendInstruction(): string
+    {
+        return ' We have never written to them before, so nothing here has been said to them yet.'
+            . ' This is the FIRST update this account will ever receive, so it needs one block of orientation:'
+            . ' that this is the first of a monthly note on what shipped in Kanvas, that they are getting it'
+            . ' because they are a Kanvas customer, and that replying is enough to stop these emails.'
+            . ' Two sentences at most, and it goes in the SECOND block — the intro. The masthead is still the'
+            . ' first block exactly as always; do NOT open with the orientation or move it into the masthead.'
+            . ' Then straight into the releases — an apology for the intrusion, a pitch, or a paragraph about'
+            . ' the newsletter itself is worse than no intro at all.';
+    }
+
+    /**
+     * The agent is asked for `Subject: ...` on the first line. Split rather than trust: a model that
+     * forgets the line should still produce a sendable body, so a missing subject falls back rather
+     * than shipping the word "Subject:" into someone's inbox.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function splitSubject(string $completion): array
+    {
+        $lines = preg_split('/\r\n|\r|\n/', trim($completion)) ?: [];
+        $first = trim($lines[0] ?? '');
+
+        if (preg_match('/^subject\s*:\s*(.+)$/i', $first, $matches) !== 1) {
+            return ['Kanvas — what shipped this month', trim($completion)];
+        }
+
+        return [
+            trim($matches[1]),
+            trim(implode("\n", array_slice($lines, 1))),
+        ];
+    }
+
+    /**
+     * CRM context the notes rarely repeat: who the update reaches, what we are currently selling them,
+     * and how long they have been a customer. An open opportunity is the difference between an update
+     * that informs and one that moves something — if there is a live deal on a module that just
+     * shipped a feature, that is the paragraph worth leading with.
+     */
+    private function relationshipContext(): string
+    {
+        $lines = [];
+
+        $contacts = $this->organization->peoples()
+            ->limit(self::CONTACT_WINDOW)
+            ->get()
+            ->map(fn (People $person): string => trim($person->getName()))
+            ->filter(fn (string $name): bool => $name !== '')
+            ->implode(', ');
+
+        if ($contacts !== '') {
+            $lines[] = 'People we deal with there: ' . $contacts . '.';
+        }
+
+        $leads = $this->organization->leads()
+            ->with(['stage', 'status'])
+            ->notDeleted()
+            ->orderByDesc('id')
+            ->limit(self::LEAD_WINDOW)
+            ->get()
+            ->map(function (Lead $lead): string {
+                $stage = Str::trimToNull($lead->stage?->name);
+
+                return trim((string) $lead->title) . ($stage !== null ? ' (' . $stage . ')' : '');
+            })
+            ->filter(fn (string $line): bool => trim($line) !== '')
+            ->unique()
+            ->implode('; ');
+
+        if ($leads !== '') {
+            $lines[] = 'Open with them right now: ' . $leads
+                . '. If something in these releases moves one of these forward, that is the thing to lead with.';
+        }
+
+        $since = $this->organization->created_at;
+        if ($since !== null) {
+            $months = (int) $since->diffInMonths(now());
+            $lines[] = $months < 2
+                ? 'They are a brand new account — do not write as though there is shared history.'
+                : 'They have been a customer for about ' . $months . ' months.';
+        }
+
+        return $lines === [] ? '' : "\n\n" . implode(' ', $lines);
+    }
+
+    /**
+     * The notes are injected rather than left to a tool call. The agent is told to read them, but
+     * whether it does is the model's choice — and a draft written without them is a generic email,
+     * which is the one outcome this feature exists to avoid. Same reasoning as the watermark: if the
+     * orchestrator already knows something, hand it over instead of hoping for a round trip.
+     *
+     * Fetched newest-first so the cap keeps recent context, then reversed so it reads as a story.
+     */
+    private function accountNotes(): string
+    {
+        $channelIds = $this->contextChannelIds();
+
+        if ($channelIds === []) {
+            return '';
+        }
+
+        // One query over the pivot rather than one per channel: the window is a cap across all of
+        // them, so paging each channel separately reads a multiple of what it keeps. The `whereIn`
+        // subquery also collapses a note attached to two channels, which a join would return twice.
+        return Message::query()
+            ->with('tags')
+            ->whereIn('messages.id', function (QueryBuilder $query) use ($channelIds): void {
+                $query->select('messages_id')
+                    ->from('channel_messages')
+                    ->whereIn('channel_id', $channelIds);
+            })
+            ->where('messages.is_deleted', 0)
+            ->orderByDesc('messages.id')
+            ->limit(self::NOTES_WINDOW)
+            ->get()
+            ->reverse()
+            ->map(function (Message $message): string {
+                $kind = $message->tags->first()?->slug ?? 'note';
+                $written = $message->created_at?->toDateString() ?? '';
+                // Flattened before the cap, not after: notes are written in a rich-text editor, and
+                // the markup otherwise eats the character budget the note itself needed.
+                $body = Str::limit(Str::htmlToText($message->contentText()), self::NOTE_CHARS);
+
+                return '[' . $kind . ' · ' . $written . '] ' . $body;
+            })
+            ->filter(fn (string $line): bool => trim($line) !== '')
+            ->implode("\n\n");
+    }
+
+    /**
+     * Every thread on the account, NOT just the one named `Notes` — a human's CRM notes are written to
+     * `Activities`, while `Notes` holds only what this action itself posted.
+     *
+     * Excluded rather than allow-listed, because the names drift: the enum says `Activities` and live
+     * rows say `Activity`, so an allow-list silently drops the very thread this exists to read. Only
+     * the agent's own chat is dropped — that is its output, not what it knows.
+     *
+     * The organization's channels and not its contacts': NOTES_WINDOW caps everything read together,
+     * so per-person threads of connector chatter would evict the notes this exists to surface.
+     *
+     * @return list<int>
+     */
+    private function contextChannelIds(): array
+    {
+        return $this->organization->socialChannels
+            ->filter(fn (Channel $channel): bool => $channel->name !== ChannelNameEnum::AI_ASSIST->value)
+            ->map(fn (Channel $channel): int => $channel->getId())
+            ->values()
+            ->all();
+    }
+
+    private function handler(): BehavesAsKanvasAgent
+    {
+        $handlerClass = $this->agent->type?->handler;
+
+        if ($handlerClass === null || ! class_exists($handlerClass)) {
+            throw new ValidationException(
+                'Agent ' . $this->agent->getId() . ' has no usable handler class. '
+                . 'Run kanvas:intelligence:sync-agent-types.'
+            );
+        }
+
+        $handler = new $handlerClass();
+
+        if (! $handler instanceof BehavesAsKanvasAgent) {
+            throw new ValidationException($handlerClass . ' is not a Kanvas agent handler.');
+        }
+
+        $handler->setConfiguration(
+            agent: $this->agent,
+            entity: $this->organization,
+            user: $this->agent->user,
+        );
+
+        return $handler;
+    }
+}

@@ -46,6 +46,10 @@ trait HasApprovals
      */
     public static function bootHasApprovals(): void
     {
+        if (! static::approvalUsesLifecycleTriggers()) {
+            return;
+        }
+
         static::created(fn (Model $model) => ApprovalTriggerService::onCreated($model));
         static::updated(fn (Model $model) => ApprovalTriggerService::onUpdated($model));
         static::deleted(fn (Model $model) => ApprovalTriggerService::onDeleted($model));
@@ -53,6 +57,19 @@ trait HasApprovals
             'softDeleted',
             fn (Model $model) => ApprovalTriggerService::onDeleted($model)
         );
+    }
+
+    /**
+     * Whether saving this model should itself look for a policy to open a request from.
+     *
+     * On for approvable business records, where the whole point is that no intake path has to
+     * remember to ask. Off for a model that is written constantly and only ever gated explicitly —
+     * a Message saves on every edit, tag, entity attach and lock flip, and each of those would
+     * otherwise cost an approval_policies lookup to learn there is no ON_CREATE policy.
+     */
+    protected static function approvalUsesLifecycleTriggers(): bool
+    {
+        return true;
     }
 
     public function approvalRequests(): HasMany

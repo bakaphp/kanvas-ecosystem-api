@@ -160,6 +160,16 @@ final class SlackInboundAttachmentTest extends TestCase
         $agentText = $this->capturedUserText();
         $this->assertStringContainsString('Attached files:', $agentText);
         $this->assertStringContainsString($files->first()->url, $agentText);
+
+        // Part C: the filesystem_id marker rides along too. Slack is the internal surface where a
+        // person hands an AP/AR agent an invoice, and create_ap_bill / extract_invoice_data /
+        // attach_bill_file all key on the id — with only the URL the agent can read the PDF but
+        // cannot book it.
+        $this->assertStringContainsString(
+            'filesystem_id: ' . $files->first()->getId(),
+            $agentText,
+            'A Slack-dropped file must reach the agent as a filesystem_id, not just a URL',
+        );
     }
 
     private function capturedUserText(): string

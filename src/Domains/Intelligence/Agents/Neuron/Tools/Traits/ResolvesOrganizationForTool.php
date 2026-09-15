@@ -15,11 +15,17 @@ use Throwable;
  */
 trait ResolvesOrganizationForTool
 {
+    use HasKanvasContext;
+
     /**
      * @return Organization|array<string, mixed>
      */
     protected function resolveOrganization(?int $organizationId, ?string $organizationName): Organization|array
     {
+        if (! $this->hasTenantContext()) {
+            return $this->tenantContextMissingError('organization');
+        }
+
         if ($organizationId !== null) {
             try {
                 /** @var Organization $organization */

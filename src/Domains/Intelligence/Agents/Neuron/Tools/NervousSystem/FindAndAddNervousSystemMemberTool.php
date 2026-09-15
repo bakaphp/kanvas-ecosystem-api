@@ -4,15 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem;
 
+use Illuminate\Database\Eloquent\Builder;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\MatchesNameTerms;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCompanyUserForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesProjectForTool;
 use Kanvas\NervousSystem\Project\Actions\AddProjectMemberAction;
 use Kanvas\NervousSystem\Project\Enums\ProjectMemberRoleEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Models\UsersAssociatedApps;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -32,6 +34,8 @@ use Throwable;
 class FindAndAddNervousSystemMemberTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use MatchesNameTerms;
+    use ResolvesCompanyUserForTool;
     use ResolvesProjectForTool;
     use TrackByInputs;
 
@@ -41,8 +45,9 @@ class FindAndAddNervousSystemMemberTool extends Tool implements HasRunKey
             name: 'find_and_add_nervous_system_member',
             description: 'Find a person or agent by NAME in this company and add them to the project as a '
                 . 'member — use when the content names who should own/do something but they are not yet a '
-                . 'member. Returns whether it was found and whether that member can execute board work. If '
-                . 'not found, create the work unassigned and escalate to a human instead.',
+                . 'member. Pass the full name as written ("Roberlina Vega"); add email to disambiguate when '
+                . 'several people share a name. Returns whether it was found and whether that member can '
+                . 'execute board work. If not found, create the work unassigned and escalate to a human.',
         );
     }
 
@@ -71,14 +76,32 @@ class FindAndAddNervousSystemMemberTool extends Tool implements HasRunKey
                 description: 'Member role: owner | manager | contributor | reviewer | viewer (default contributor).',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'email',
+                type: PropertyType::STRING,
+                description: 'The person\'s email, when known — the only safe way to pick between people who '
+                    . 'share a name. Only pass one you were actually given; never guess it from the name.',
+                required: false,
+            ),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $project_id, string $name, ?string $role = null): array
-    {
+    public function __invoke(
+        int $project_id,
+        string $name,
+        ?string $role = null,
+        ?string $email = null,
+    ): array {
+        $name = trim($name);
+        $email = trim((string) $email);
+
+        if ($name === '' && $email === '') {
+            return ['found' => false, 'error' => 'Provide the name (or email) of the person to find.'];
+        }
+
         $project = $this->resolveProjectOrError($project_id);
 
         if (is_array($project)) {
@@ -88,28 +111,72 @@ class FindAndAddNervousSystemMemberTool extends Tool implements HasRunKey
         $memberRole = ProjectMemberRoleEnum::tryFrom((string) $role) ?? ProjectMemberRoleEnum::CONTRIBUTOR;
 
         // Agents first — they can actually execute the work.
-        $agent = Agent::query()
-            ->where('name', 'like', '%' . trim($name) . '%')
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->first();
+        $agent = $this->findAgentByName($name);
 
         if ($agent !== null) {
             return $this->add($project, $memberRole, agent: $agent);
         }
 
-        $user = $this->findUserByName(trim($name));
+        // Email wins when given: it is the one term that identifies a single person.
+        $searched = $email !== '' ? $email : $name;
+        $candidates = $this->resolveCompanyUsers($searched);
+
+        if ($candidates->count() > 1) {
+            return [
+                'found' => false,
+                'ambiguous' => true,
+                'name' => $searched,
+                'candidates' => $candidates->map(fn (Users $u): array => [
+                    'name' => trim($u->firstname . ' ' . $u->lastname),
+                    'email' => $u->email,
+                ])->all(),
+                'message' => "Several people match \"{$searched}\". Ask which one, then call this tool again "
+                    . 'with their email.',
+            ];
+        }
+
+        $user = $candidates->first();
+
         if ($user !== null) {
             return $this->add($project, $memberRole, user: $user);
         }
 
         return [
             'found' => false,
-            'name' => $name,
-            'message' => "No agent or user matching \"{$name}\" was found. Create the work unassigned and "
+            'name' => $searched,
+            'message' => "No agent or user matching \"{$searched}\" was found. Create the work unassigned and "
                 . '@mention the project owner so a human can assign it.',
         ];
+    }
+
+    /**
+     * Verbatim first: an agent whose name contains the whole string is the one that was meant. Per-term
+     * matching is the fallback only — it resolves "Roberlina Vega" against "Roberlina A. Vega", but it
+     * is loose enough to reach a near-namesake, so it must never outrank an exact hit.
+     */
+    private function findAgentByName(string $name): ?Agent
+    {
+        if ($name === '') {
+            return null;
+        }
+
+        $agent = $this->companyAgents()->where('name', 'like', '%' . $name . '%')->first();
+
+        if ($agent !== null) {
+            return $agent;
+        }
+
+        return count($this->nameTerms($name)) > 1
+            ? $this->scopeToNameMatch($this->companyAgents(), ['name'], $name)->first()
+            : null;
+    }
+
+    private function companyAgents(): Builder
+    {
+        return Agent::query()
+            ->fromApp($this->app)
+            ->fromCompany($this->company)
+            ->notDeleted();
     }
 
     /**
@@ -140,29 +207,5 @@ class FindAndAddNervousSystemMemberTool extends Tool implements HasRunKey
             'name' => $agent?->name ?? $member->user?->displayname,
             'can_execute' => (bool) $agent?->canExecuteBoardWork(),
         ];
-    }
-
-    /**
-     * Search ONLY users that belong to this project's group — the app + company — never a global
-     * users search, which would cross tenants and could add someone from another company. Scoped via
-     * the users_associated_apps membership row (apps_id + companies_id); matches app displayname or
-     * first/last name.
-     */
-    private function findUserByName(string $name): ?Users
-    {
-        $like = '%' . $name . '%';
-
-        $usersId = UsersAssociatedApps::query()
-            ->join('users', 'users.id', '=', 'users_associated_apps.users_id')
-            ->where('users_associated_apps.apps_id', $this->app->getId())
-            ->where('users_associated_apps.companies_id', $this->company->getId())
-            ->where(function ($query) use ($like): void {
-                $query->where('users_associated_apps.displayname', 'like', $like)
-                    ->orWhere('users.firstname', 'like', $like)
-                    ->orWhere('users.lastname', 'like', $like);
-            })
-            ->value('users_associated_apps.users_id');
-
-        return $usersId !== null ? Users::getById((int) $usersId) : null;
     }
 }

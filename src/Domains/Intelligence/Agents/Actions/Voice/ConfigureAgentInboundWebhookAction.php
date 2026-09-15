@@ -74,9 +74,11 @@ class ConfigureAgentInboundWebhookAction
         }
 
         try {
-            // Company creds if the company has its own; else the app-level creds
-            // (shared account). Throws ValidationException when neither is set.
-            $twilio = TwilioClient::getInstanceByCompanyOrApp($company, $this->agent->app);
+            // App-level creds first (the shared account the number lives on),
+            // falling back to the company's own only if the app has none — so a
+            // stray company BYOK cred can't wire the webhook onto the wrong
+            // account. Throws ValidationException when neither is set.
+            $twilio = TwilioClient::getInstanceByAppOrCompany($this->agent->app, $company);
 
             // Twilio updates a number by SID, so resolve it first.
             $numbers = $twilio->incomingPhoneNumbers->read(['phoneNumber' => $number], 1);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Traits;
 
 use Illuminate\Support\Collection;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Users\Models\Users;
 
 /**
@@ -14,24 +15,29 @@ use Kanvas\Users\Models\Users;
  */
 trait ResolvesCompanyUserForTool
 {
+    use MatchesNameTerms;
+
     /**
      * @return Collection<int, Users>
      */
     protected function resolveCompanyUsers(string $term): Collection
     {
-        $like = '%' . $term . '%';
-
-        return Users::query()
+        $query = Users::query()
             ->select('users.*')
             ->join('users_associated_company', 'users_associated_company.users_id', '=', 'users.id')
             ->where('users_associated_company.companies_id', $this->company->getId())
-            ->where(
-                // CONCAT match lets "firstname lastname" resolve as a single query term.
-                fn ($q) => $q->where('users.firstname', 'like', $like)
-                    ->orWhere('users.lastname', 'like', $like)
-                    ->orWhere('users.email', 'like', $like)
-                    ->orWhereRaw("CONCAT(users.firstname, ' ', users.lastname) like ?", [$like]),
-            )
+            ->where('users_associated_company.is_deleted', StateEnums::NO->getValue());
+
+        return $this->scopeToNameMatch(
+            $query,
+            [
+                'users.firstname',
+                'users.lastname',
+                'users.displayname',
+                'users.email',
+            ],
+            $term,
+        )
             ->distinct()
             ->limit(10)
             ->get();

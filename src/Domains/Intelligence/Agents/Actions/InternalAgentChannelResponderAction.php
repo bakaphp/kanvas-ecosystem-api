@@ -53,9 +53,12 @@ class InternalAgentChannelResponderAction extends AbstractAgentChannelResponderA
 
         ['images' => $imageUrls, 'documents' => $documentUrls] = $this->message->attachmentUrls();
 
-        $messageContent = AttachmentPromptBuilder::withAttachments(
-            (string) ($payload['content'] ?? ''),
-            $documentUrls,
+        $messageContent = AttachmentPromptBuilder::withFilesystemMarkers(
+            AttachmentPromptBuilder::withAttachments(
+                (string) ($payload['content'] ?? ''),
+                $documentUrls,
+            ),
+            $this->message->files,
         );
 
         if ($messageContent === '' && $imageUrls === []) {

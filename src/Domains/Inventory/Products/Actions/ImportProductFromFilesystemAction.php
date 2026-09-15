@@ -10,12 +10,13 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Services\FilesystemMapperWalker;
+use Kanvas\Filesystem\Services\CsvReaderService;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
-use League\Csv\Reader;
+use Kanvas\Social\Tags\Models\Tag;
 use RuntimeException;
 use Throwable;
 
@@ -93,7 +94,7 @@ class ImportProductFromFilesystemAction
         string $jsonlPath,
         ?ProductsTypes $productType = null
     ): void {
-        $reader = Reader::from($csvPath);
+        $reader = CsvReaderService::fromPath($csvPath);
         $reader->setHeaderOffset(0);
         $headers = array_map('trim', $reader->getHeader());
 
@@ -190,7 +191,15 @@ class ImportProductFromFilesystemAction
     private function buildProductFromVariants(array $variants, ProductsTypes $productType): array
     {
         $productAttributes = [];
+        $productTags = [];
         foreach ($variants as $variant) {
+            // Union rather than reading row 0 only: a tag set is order-free, so
+            // this also covers CSVs that repeat the product columns on every
+            // variant row, and collapses to row 0 when they don't.
+            foreach (Tag::normalizeNames($variant['product_tags'] ?? []) as $tag) {
+                $productTags[(string) $tag] = $tag;
+            }
+
             if (! isset($variant['attributes']) || ! is_array($variant['attributes'])) {
                 continue;
             }
@@ -210,6 +219,7 @@ class ImportProductFromFilesystemAction
             'status' => $variants[0]['status'] ?? null,
             'customFields' => [],
             'categories' => $variants[0]['categories'] ?? [],
+            'tags' => array_values($productTags),
             'variants' => $variants,
             'attributes' => $productAttributes,
             'price' => 0.0,

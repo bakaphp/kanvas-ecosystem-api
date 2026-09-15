@@ -183,12 +183,12 @@ Acumatica connector). End to end, when Apex/Arc process an emailed invoice, the 
 4. `extract_invoice_data` (Accounting) — reads the PDF with AI, gets the real vendor/total/dates.
    The email body/subject is never the source of truth for these — always read the PDF.
 5. `create_ap_bill` / `create_ar_invoice` (Acumatica) with **`push_to_acumatica: false`**, plus
-   `source_email_message_id` and `source_attachment_url`/`source_attachment_filename` (from steps
-   2–3) — creates the bill/invoice in Kanvas only (status `pending_approval` for bills, `draft` for
+   `source_email_message_id` and `source_attachment_filesystem_id` (from steps 2–3; the PDF is
+   attached to the record via Kanvas Filesystem, not stored as a URL custom field) — creates the bill/invoice in Kanvas only (status `pending_approval` for bills, `draft` for
    invoices), giving back the **Kanvas bill/invoice id**. Does **not** push to Acumatica and does
    not call `attach_bill_file`/`attach_invoice_file` (both require an existing Acumatica push) —
    those happen automatically at approval time instead (step 12 below), which is exactly why the
-   email message id and the attachment url are stashed as custom fields here.
+   email message id and the invoice PDF are stashed on the record here.
 6. `write_google_sheet` (this connector) — logs the invoice as a new row (no `sheet_url_or_id`
    needed — falls back to the default sheet), automatically, without being asked. **The "ID
    invoice" column holds the Kanvas bill/invoice id from step 5** (not the vendor/customer's own

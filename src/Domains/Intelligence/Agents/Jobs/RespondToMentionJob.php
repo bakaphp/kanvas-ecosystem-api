@@ -16,6 +16,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
+use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
@@ -127,6 +128,12 @@ final class RespondToMentionJob implements ShouldQueue
         // image/document split doesn't matter here — hand it the merged list. Without this the file the
         // user attached to the @mention is dropped and the agent answers "I can't read the file."
         ['images' => $images, 'documents' => $documents] = $this->mentionMessage->attachmentUrls();
+
+        // media: carries the bytes; the markers carry the id the file tools key on. Both, not either.
+        $mentionText = AttachmentPromptBuilder::withFilesystemMarkers(
+            $mentionText,
+            $this->mentionMessage->files,
+        );
 
         // Baseline the channel: the agent can write here mid-turn with a board tool, and its reply
         // would then say the same thing again seconds later.

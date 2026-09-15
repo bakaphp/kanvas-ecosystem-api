@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Approvals\Services;
 
 use Kanvas\Approvals\Contracts\ApproverResolverInterface;
+use Kanvas\Approvals\Resolvers\CompanyOwnerApproverResolver;
 use Kanvas\Approvals\Resolvers\CustomFieldApproverResolver;
 use Kanvas\Approvals\Resolvers\ExplicitUsersResolver;
 use Kanvas\Approvals\Resolvers\OrganizationApproverResolver;
@@ -23,6 +24,7 @@ class ApproverResolverRegistryService
         'role' => RoleApproverResolver::class,
         'explicit_users' => ExplicitUsersResolver::class,
         'custom_field' => CustomFieldApproverResolver::class,
+        'company_owner' => CompanyOwnerApproverResolver::class,
     ];
 
     /**

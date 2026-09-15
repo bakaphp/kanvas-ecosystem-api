@@ -22,11 +22,11 @@ use Kanvas\Filesystem\DataTransferObject\FilesystemAttachInput;
 use Kanvas\Filesystem\DataTransferObject\FilesystemEntityUpdate;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
+use Kanvas\Filesystem\Services\CsvReaderService;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\SystemModules\DataTransferObject\SystemModuleEntityInput;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use League\Csv\Reader;
 use Throwable;
 
 class FilesystemManagementMutation
@@ -243,7 +243,7 @@ class FilesystemManagementMutation
         $storagePath = storage_path('app/' . $path);
 
         // Process CSV
-        $csv = Reader::createFromPath($storagePath, 'r');
+        $csv = CsvReaderService::fromPath($storagePath);
 
         try {
             $csv->setHeaderOffset(0);
@@ -390,7 +390,7 @@ class FilesystemManagementMutation
 
     public function processCsvWithoutHeaders(string $storagePath): array
     {
-        $csv = Reader::createFromPath($storagePath, 'r');
+        $csv = CsvReaderService::fromPath($storagePath);
 
         $allRecords = iterator_to_array($csv->getRecords());
 

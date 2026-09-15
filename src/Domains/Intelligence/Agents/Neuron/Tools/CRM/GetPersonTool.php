@@ -5,20 +5,19 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Guild\Customers\Models\Contact;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ExposesPersonCustomFields;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
-use Throwable;
 
 /**
  * The full profile of one person by id: emails and phones (with deliverability + opt-out state),
@@ -30,6 +29,7 @@ class GetPersonTool extends Tool implements HasRunKey
 {
     use ExposesPersonCustomFields;
     use HasKanvasContext;
+    use ResolvesPersonForTool;
     use TrackByInputs;
 
     public function __construct()
@@ -63,12 +63,11 @@ class GetPersonTool extends Tool implements HasRunKey
      */
     public function __invoke(int $person_id): array
     {
-        try {
-            /** @var People $person */
-            $person = People::getByIdFromCompanyApp($person_id, $this->company, $this->app);
-        } catch (Throwable) {
-            return ['error' => sprintf('No person #%d found in this company.', $person_id)];
+        $result = $this->resolvePersonOrError($person_id);
+        if (is_array($result)) {
+            return $result;
         }
+        $person = $result;
 
         $person->load([
             'contacts',

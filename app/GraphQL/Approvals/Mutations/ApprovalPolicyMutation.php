@@ -76,6 +76,7 @@ class ApprovalPolicyMutation
             'fallback_config' => $input['fallback_config'] ?? null,
             'notify' => (string) ($input['notify'] ?? 'all'),
             'expires_after_hours' => $input['expires_after_hours'] ?? null,
+            'allow_authority_override' => (bool) ($input['allow_authority_override'] ?? false),
         ];
     }
 

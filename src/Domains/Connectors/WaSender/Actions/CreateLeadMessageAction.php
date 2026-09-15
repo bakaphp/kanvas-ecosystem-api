@@ -7,15 +7,19 @@ namespace Kanvas\Connectors\WaSender\Actions;
 use Kanvas\Connectors\WaSender\DataTransferObject\InboundMessage;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Connectors\WaSender\Services\ConversationChannelService;
+use Kanvas\Guild\Customers\Actions\ProcessInboundConsentAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Guild\Customers\DataTransferObject\ConsentOutcome;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDTO;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
+use Kanvas\Guild\Leads\Actions\SendOptOutConfirmationAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver as LeadReceiverModel;
 use Kanvas\Guild\Leads\Models\LeadType;
@@ -126,14 +130,30 @@ class CreateLeadMessageAction
             new NotifyLeadStakeholdersService($lead)->onCustomerEngagement($message);
         }
 
-        if ($isDocument) {
+        // The message is still filed above — a stop request is part of the record — but nothing
+        // downstream of here may run for it: no media fetch, and above all no agent turn.
+        $consentOutcome = $this->processConsent($lead, $isFromMe, $text ?? $messageBody);
+        $haltAgentTurn = $consentOutcome?->shouldHaltAgentTurn() ?? false;
+
+        if ($haltAgentTurn) {
+            $message->addTag('consent-stop');
+
+            if ($consentOutcome->applied) {
+                new SendOptOutConfirmationAction(
+                    $lead,
+                    LeadCommunicationChannelEnum::WHATSAPP->value,
+                )->execute();
+            }
+        }
+
+        if ($isDocument && ! $haltAgentTurn) {
             new DownloadMessageFileAction(
                 $channel,
                 $message,
             )->execute();
         }
 
-        if (! $isDocument) {
+        if (! $isDocument && ! $haltAgentTurn) {
             $text = $message->message['raw_data']['message']['conversation'] ?? $message->message['raw_data']['message']['extendedTextMessage']['text'] ?? null;
             [$processDocument, $lastUnprocessedImageParentMessage] = $this->resolveDocumentTrigger($channel, $text);
 
@@ -153,7 +173,7 @@ class CreateLeadMessageAction
             );
         }
 
-        return [
+        return array_merge([
             'message_id' => $message->getId(),
             'uuid' => $message->uuid,
             'channel_id' => $channel->getId(),
@@ -161,7 +181,28 @@ class CreateLeadMessageAction
             'text' => $text,
             'is_from_me' => $isFromMe,
             'type' => $messageType,
-        ];
+        ], $consentOutcome?->toArray() ?? []);
+    }
+
+    /**
+     * WhatsApp has no carrier-level opt-out to lean on the way SMS does — Meta requires the business
+     * to honor stop requests itself, including ones made on other channels.
+     */
+    private function processConsent(Lead $lead, bool $isFromMe, ?string $text): ?ConsentOutcome
+    {
+        $people = $lead->people;
+
+        if ($isFromMe || $people === null) {
+            return null;
+        }
+
+        return new ProcessInboundConsentAction(
+            people: $people,
+            sourceChannel: LeadCommunicationChannelEnum::WHATSAPP->value,
+            body: $text,
+            lead: $lead,
+            contactValue: $this->inbound->conversationJid,
+        )->execute();
     }
 
     /**

@@ -111,18 +111,63 @@ final class PeopleContactSyncTest extends TestCase
         $this->assertSame(0, (int) $cells->first()->is_deleted, 'the restored row is active again');
     }
 
-    private function syncWith(People $people, array $contacts): void
+    /**
+     * A webhook only knows the number it came from. In merge mode that single contact must not
+     * read as the authoritative list — the person's email and other phones stay put.
+     */
+    public function testMergeModeKeepsContactsMissingFromThePayload(): void
+    {
+        $people = $this->createPersonWithContacts();
+        $before = $people->contacts()->orderBy('id')->pluck('id')->all();
+
+        $this->syncWith(
+            $people,
+            [new ContactData(value: '2025550122', contacts_types_id: ContactTypeEnum::CELLPHONE->value, weight: 100)],
+            merge: true
+        );
+
+        $contacts = $people->fresh()->contacts()->orderBy('id')->get();
+
+        $this->assertSame($before, $contacts->pluck('id')->all(), 'no contact may be removed in merge mode');
+        $this->assertTrue(
+            $contacts->contains('value', 'test.contact@example.com'),
+            'the email must survive a phone-only update'
+        );
+        $this->assertSame(
+            100,
+            (int) $contacts->firstWhere('contacts_types_id', ContactTypeEnum::CELLPHONE->value)->weight,
+            'the contact present in the payload is still updated'
+        );
+    }
+
+    public function testMergeModeAddsAContactTheRecordDoesNotHave(): void
+    {
+        $people = $this->createPersonWithContacts();
+
+        $this->syncWith(
+            $people,
+            [new ContactData(value: '2025550199', contacts_types_id: ContactTypeEnum::CELLPHONE->value, weight: 100)],
+            merge: true
+        );
+
+        $contacts = $people->fresh()->contacts()->get();
+
+        $this->assertCount(4, $contacts, 'the new number is appended, nothing is evicted');
+        $this->assertTrue($contacts->contains('value', '2025550199'));
+    }
+
+    private function syncWith(People $people, array $contacts, bool $merge = false): void
     {
         $runner = new class () {
             use ManagesPeopleContactsTrait;
 
-            public function run(People $people, DataCollection $contacts): void
+            public function run(People $people, DataCollection $contacts, bool $merge): void
             {
-                $this->syncContactsForUpdate($people, $contacts);
+                $this->syncContactsForUpdate($people, $contacts, $merge);
             }
         };
 
-        $runner->run($people, new DataCollection(ContactData::class, $contacts));
+        $runner->run($people, new DataCollection(ContactData::class, $contacts), $merge);
     }
 
     private function createPersonWithContacts(): People

@@ -35,6 +35,21 @@ final class OrganizationVendorMatcherServiceTest extends TestCase
         $this->assertSame('GmbH-PENNER + PARTNER GBR', $result->organization->name);
     }
 
+    public function test_matches_a_short_trade_name_fully_contained_in_a_longer_qualified_name(): void
+    {
+        // The trade name repeated verbatim inside a fuller, parenthetically-qualified legal name.
+        $this->seedOrganization('Acme Tax (Client Trust + Acme Tax, Inc.)');
+
+        $result = OrganizationVendorMatcherService::match(
+            app(Apps::class),
+            $this->currentCompany(),
+            'Acme Tax',
+        );
+
+        $this->assertTrue($result->isMatched());
+        $this->assertSame('Acme Tax (Client Trust + Acme Tax, Inc.)', $result->organization->name);
+    }
+
     public function test_matches_an_exact_name_with_full_confidence(): void
     {
         $this->seedOrganization('Vendor Matcher Test Corp');

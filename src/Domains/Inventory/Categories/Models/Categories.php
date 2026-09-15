@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Categories\Models;
 
+use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SlugTrait;
@@ -16,7 +17,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Inventory\Categories\Observers\CategoryObserver;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Products\Models\ProductsCategories;
@@ -25,7 +25,7 @@ use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Nevadskiy\Tree\AsTree;
 use Override;
 
-#[ObservedBy(CategoryObserver::class)]
+#[ObservedBy(ClearsLightHouseCacheObserver::class)]
 class Categories extends BaseModel
 {
     use UuidTrait;

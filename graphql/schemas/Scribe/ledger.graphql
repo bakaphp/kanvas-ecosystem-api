@@ -57,6 +57,12 @@ type ScribeSubaccount {
     source: String
     external_id: String
     company: Company! @belongsTo(relation: "company")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     created_at: DateTime!
     updated_at: DateTime!
 }
@@ -69,6 +75,12 @@ type ScribeFiscalPeriod {
     closed_at: DateTime
     closed_by: User @belongsTo(relation: "closedBy")
     company: Company! @belongsTo(relation: "company")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     created_at: DateTime!
     updated_at: DateTime!
 }
@@ -158,6 +170,17 @@ extend type Query @guard {
     ): [ScribeAccount!]!
         @paginate(
             model: "Kanvas\\Scribe\\Ledger\\Models\\Account"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+
+    scribeSubaccounts(
+        where: _
+            @whereConditions(columns: ["sub_code", "is_active", "source"])
+        orderBy: _ @orderBy(columns: ["id", "sub_code", "created_at"])
+    ): [ScribeSubaccount!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\Ledger\\Models\\Subaccount"
             scopes: ["fromApp", "fromCompany", "notDeleted"]
             defaultCount: 50
         )

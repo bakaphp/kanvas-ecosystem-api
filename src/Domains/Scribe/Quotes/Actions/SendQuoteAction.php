@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Quotes\Actions;
 
 use Baka\Contracts\BillableInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -69,8 +70,19 @@ class SendQuoteAction
         $quote->billable_display_name = $billable->getBillableDisplayName();
         $quote->billable_legal_name = $billable->getBillableLegalName();
         $quote->billable_tax_id = $billable->getBillableTaxId();
-        $quote->billable_email = $billable->getBillingEmail();
+        $quote->billable_email = $this->contactEmail($quote) ?? $billable->getBillingEmail();
         $quote->billing_address_snapshot = $billable->getBillingAddressArray();
+    }
+
+    /**
+     * A quote addressed to a named human is delivered to that human, so their address outranks the
+     * organization's generic billing mailbox — the org is still the legal customer either way.
+     */
+    private function contactEmail(Quote $quote): ?string
+    {
+        $email = $quote->contact?->getEmails()->first()?->value;
+
+        return Str::trimToNull((string) $email);
     }
 
     private function setDates(Quote $quote): void

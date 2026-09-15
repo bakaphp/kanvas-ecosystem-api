@@ -10,6 +10,7 @@ use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
 use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
+use App\Console\Commands\CustomerSuccess\Schedules\CustomerSuccessSchedule;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\Ecosystem\Users\DetectSignupAnomalyCommand;
 use App\Console\Commands\Event\GenerateUpcomingTimeSlotsCommand;
@@ -78,6 +79,10 @@ class Kernel extends ConsoleKernel
 
         // Scribe — daily AR-aging fan-out (per (app, company) tuple with open AR).
         ScribeSchedule::register($schedule);
+
+        // Customer Success — monthly product-update drafts for every account tagged "newsletter".
+        // Posts approval cards only; a human still sends.
+        CustomerSuccessSchedule::register($schedule);
 
         // Analytics — weekly Engage usage leaderboard to each company's managers.
         AnalyticsSchedule::register($schedule);

@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
+use Kanvas\Guild\Organizations\Actions\ImportVendorApproversFromRowsAction;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -19,6 +20,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ApprovePendingItemTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindPurchaseOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\FindVendorTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ImportVendorApproversTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenBillsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\ListOpenPurchaseOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\MatchBillsForPaymentTool;
@@ -27,7 +29,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AddBillNoteTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachBillFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateApBillTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ResendBillAttachmentTool;
+use Kanvas\Scribe\Approvals\Enums\ApprovalAttachmentFieldEnum;
 use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
+use Kanvas\Scribe\Approvals\Enums\ApprovalCustomFieldEnum;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
@@ -540,6 +544,205 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->assertArrayNotHasKey('attachment_warning', $result);
     }
 
+    public function test_create_ap_bill_attaches_the_invoice_pdf_via_filesystem_not_a_custom_field(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $pdf = $this->createFilesystemRow(
+            url: 'https://cdn.example.test/invoice-filesystem-check.pdf',
+            name: 'invoice-filesystem-check.pdf',
+        );
+
+        $created = new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 500.0,
+                gl_account_number: $accountCode,
+                memo: 'Filesystem attachment test',
+                invoice_number: 'FSATTACH-1',
+                push_to_acumatica: false,
+                source_attachment_filesystem_id: $pdf->getId(),
+            );
+
+        $bill = Bill::query()->where('id', $created['bill_id'])->first();
+
+        $this->assertSame('', (string) $bill->get(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_URL->value, ''));
+        $fileEntity = $bill->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value);
+        $this->assertNotNull($fileEntity);
+        $this->assertSame($pdf->getId(), $fileEntity->filesystem->getId());
+        $this->assertSame('https://cdn.example.test/invoice-filesystem-check.pdf', $fileEntity->filesystem->url);
+    }
+
+    public function test_attach_bill_file_accepts_a_filesystem_id_someone_handed_the_agent(): void
+    {
+        $bill = $this->pushedBill('Globex Supply');
+        $pdf = $this->createFilesystemRow(
+            url: 'https://cdn.example.test/handed-to-agent.pdf',
+            name: 'handed-to-agent.pdf',
+        );
+
+        $result = new AttachBillFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: $bill->getId(), filesystem_id: $pdf->getId());
+
+        // The Acumatica leg fails without a pushed bill GUID; the Kanvas-side attachment is the point.
+        $this->assertTrue($result['file_attached']);
+        $this->assertSame('handed-to-agent.pdf', $result['file_name']);
+
+        $stored = $bill->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value);
+        $this->assertNotNull($stored);
+        $this->assertSame($pdf->getId(), $stored->filesystem->getId());
+    }
+
+    public function test_attach_bill_file_reports_an_unknown_filesystem_id_instead_of_attaching(): void
+    {
+        $bill = $this->pushedBill('Globex Supply');
+
+        $result = new AttachBillFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: $bill->getId(), filesystem_id: 999999999);
+
+        $this->assertFalse($result['file_attached']);
+        $this->assertSame('file_not_found', $result['reason']);
+        $this->assertNull($bill->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value));
+    }
+
+    public function test_attach_bill_file_requires_a_filesystem_id_or_a_url(): void
+    {
+        $bill = $this->pushedBill('Globex Supply');
+
+        $result = new AttachBillFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: $bill->getId());
+
+        $this->assertFalse($result['file_attached']);
+        $this->assertSame('no_file_given', $result['reason']);
+    }
+
+    /**
+     * Every attachment sharing one field_name means the second document silently replaces the first —
+     * and the approval flow reads that slot back as "the invoice", so a W-9 would be resent as the bill.
+     */
+    public function test_attach_bill_file_keeps_a_second_document_beside_the_source_invoice_pdf(): void
+    {
+        $bill = $this->pushedBill('Globex Supply');
+        $invoicePdf = $this->createFilesystemRow(url: 'https://cdn.example.test/the-invoice.pdf', name: 'the-invoice.pdf');
+        $w9 = $this->createFilesystemRow(url: 'https://cdn.example.test/vendor-w9.pdf', name: 'vendor-w9.pdf');
+
+        $tool = new AttachBillFileTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $tool->__invoke(bill_id: $bill->getId(), filesystem_id: $invoicePdf->getId());
+        $tool->__invoke(bill_id: $bill->getId(), filesystem_id: $w9->getId(), field_name: 'w9');
+
+        $this->assertSame(
+            $invoicePdf->getId(),
+            $bill->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value)->filesystem->getId(),
+        );
+        $this->assertSame($w9->getId(), $bill->getFileByName('w9')->filesystem->getId());
+    }
+
+    /**
+     * Every bill created before the Filesystem cutover carries its invoice PDF as the two legacy
+     * custom fields, and nothing backfilled them. If ReadsApprovalSourceFields' fallback regresses,
+     * those records silently lose their attachment from the approval flow — no error, just a DM with
+     * no PDF. This is the only test standing between that and production.
+     */
+    public function test_a_pre_cutover_bill_still_resolves_its_legacy_custom_field_attachment(): void
+    {
+        $vendor = $this->seedTestOrganization('Legacy Fallback Vendor');
+        $vendor->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
+
+        /** @var Bill $bill */
+        $bill = Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->latest('id')
+            ->first();
+
+        // Exactly the shape a pre-cutover record has: custom fields set, no Filesystem attachment.
+        $bill->set(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_URL->value, 'https://cdn.example.test/legacy.pdf');
+        $bill->set(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_FILENAME->value, 'legacy.pdf');
+        $this->assertNull($bill->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value));
+
+        $agent = Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['name' => 'Apex Legacy', 'user_id' => static::$cachedUser->getId()]);
+        $agent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test-token');
+        $originalNotifierAgentId = $this->kanvasApp->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value);
+        $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, (string) $agent->getId());
+
+        try {
+            Http::fake([
+                'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
+                'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
+                'cdn.example.test/*' => Http::response('%PDF-1.4 fake bytes', 200),
+                'slack.com/api/files.getUploadURLExternal' => Http::response([
+                    'ok' => true,
+                    'upload_url' => 'https://files.slack.com/upload/v1/abc123',
+                    'file_id' => 'F123',
+                ]),
+                'files.slack.com/upload/v1/abc123' => Http::response('', 200),
+                'slack.com/api/files.completeUploadExternal' => Http::response(['ok' => true]),
+                'slack.com/api/chat.postMessage' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
+            ]);
+
+            $result = new ResendBillAttachmentTool()
+                ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+                ->__invoke(bill_id: $bill->getId());
+
+            $this->assertTrue($result['resent'], 'The legacy custom-field attachment must still be resolvable.');
+            Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'cdn.example.test/legacy.pdf'));
+        } finally {
+            $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
+        }
+    }
+
+    /** A Filesystem attachment is the current shape and must win over any stale legacy custom field. */
+    public function test_a_filesystem_attachment_wins_over_a_stale_legacy_custom_field(): void
+    {
+        $bill = $this->pushedBill('Precedence Vendor');
+        $bill->set(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_URL->value, 'https://cdn.example.test/stale-legacy.pdf');
+        $bill->set(ApprovalCustomFieldEnum::SOURCE_ATTACHMENT_FILENAME->value, 'stale-legacy.pdf');
+
+        $current = $this->createFilesystemRow(
+            url: 'https://cdn.example.test/current-invoice.pdf',
+            name: 'current-invoice.pdf',
+        );
+
+        new AttachBillFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(bill_id: $bill->getId(), filesystem_id: $current->getId());
+
+        $stored = $bill->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value);
+        $this->assertNotNull($stored);
+        $this->assertSame('https://cdn.example.test/current-invoice.pdf', $stored->filesystem->url);
+    }
+
+    private function pushedBill(string $vendorName): Bill
+    {
+        $vendor = $this->seedTestOrganization($vendorName);
+        $this->receiveOpenBill($vendor, 300.0, '2026-06-20');
+
+        /** @var Bill $bill */
+        $bill = Bill::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->latest('id')
+            ->first();
+
+        // attach_bill_file gates on the Acumatica ref; BILL_ID stays unset so the push leg fails fast
+        // (AcumaticaWriteException) instead of reaching the network.
+        $bill->set(CustomFieldEnum::BILL_REF->value, 'AP-' . $bill->getId());
+
+        return $bill;
+    }
+
     public function test_resend_bill_attachment_resends_the_stored_pdf(): void
     {
         $vendor = $this->seedTestOrganization('Windwalk Games Corp');
@@ -571,6 +774,11 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 'slack.com/api/chat.postMessage' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
             ]);
 
+            $pdf = $this->createFilesystemRow(
+                url: 'https://cdn.example.test/invoice-resend.pdf',
+                name: 'invoice-resend.pdf',
+            );
+
             $created = new CreateApBillTool()
                 ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
                 ->__invoke(
@@ -581,8 +789,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                     invoice_number: 'RESEND-1',
                     push_to_acumatica: false,
                     source_email_message_id: 'MSG_RESEND_1',
-                    source_attachment_url: 'https://cdn.example.test/invoice-resend.pdf',
-                    source_attachment_filename: 'invoice-resend.pdf',
+                    source_attachment_filesystem_id: $pdf->getId(),
                 );
 
             $result = new ResendBillAttachmentTool()
@@ -696,6 +903,11 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
             ->value('account_number');
 
+        $pdf = $this->createFilesystemRow(
+            url: 'https://cdn.example.test/invoice-apr-2.pdf',
+            name: 'invoice-apr-2.pdf',
+        );
+
         $created = new CreateApBillTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(
@@ -706,8 +918,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 invoice_number: 'APR-2',
                 push_to_acumatica: false,
                 source_email_message_id: 'MSG_APR_2',
-                source_attachment_url: 'https://cdn.example.test/invoice-apr-2.pdf',
-                source_attachment_filename: 'invoice-apr-2.pdf',
+                source_attachment_filesystem_id: $pdf->getId(),
             );
 
         $result = new ApprovePendingItemTool()
@@ -911,5 +1122,177 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
             $this->assertNotEquals($keyOne, $keyTwo, $tool->getName() . ': distinct records must not share a run budget.');
             $this->assertEquals($keyOneAgain, $keyOne, $tool->getName() . ': identical calls must collapse so a loop is still capped.');
         }
+    }
+
+    public function test_import_vendor_approvers_reports_file_not_found_for_unknown_filesystem_id(): void
+    {
+        $result = new ImportVendorApproversTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(filesystem_id: 999999999);
+
+        $this->assertFalse($result['imported']);
+        $this->assertSame('file_not_found', $result['reason']);
+    }
+
+    public function test_import_vendor_approvers_reports_file_not_found_for_a_cross_tenant_file(): void
+    {
+        $foreign = $this->createFilesystemRow(appsId: 999999998, extension: 'xlsx', fileType: 'xlsx');
+
+        $result = new ImportVendorApproversTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(filesystem_id: $foreign->getId());
+
+        $this->assertFalse($result['imported']);
+        $this->assertSame('file_not_found', $result['reason']);
+    }
+
+    public function test_import_vendor_approvers_reports_file_not_found_for_a_cross_company_file(): void
+    {
+        $foreign = $this->createFilesystemRow(companiesId: 999999997, extension: 'xlsx', fileType: 'xlsx');
+
+        $result = new ImportVendorApproversTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(filesystem_id: $foreign->getId());
+
+        $this->assertFalse($result['imported']);
+        $this->assertSame('file_not_found', $result['reason']);
+    }
+
+    public function test_import_vendor_approvers_reports_file_not_found_for_a_soft_deleted_file(): void
+    {
+        $deleted = $this->createFilesystemRow(extension: 'xlsx', fileType: 'xlsx');
+        $deleted->is_deleted = true;
+        $deleted->save();
+
+        $result = new ImportVendorApproversTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(filesystem_id: $deleted->getId());
+
+        $this->assertFalse($result['imported']);
+        $this->assertSame('file_not_found', $result['reason']);
+    }
+
+    public function test_import_vendor_approvers_from_rows_links_and_creates_and_reports_skips(): void
+    {
+        $vendor = $this->seedTestOrganization('Import Rows Match Test Corp');
+        $newVendorName = 'Import Rows Brand New Vendor ' . uniqid();
+
+        $rows = [
+            ['Vendor Name', 'Approver Name', 'Approver Email'],
+            ['Import Rows Match Test Corp', 'Someone', 'match-approver@example.test'],
+            [$newVendorName, 'Someone Else', 'new-vendor-approver@example.test'],
+            ['No Email Vendor ' . uniqid(), 'Inventory supplier', ''],
+        ];
+
+        $result = new ImportVendorApproversFromRowsAction($this->kanvasApp, $this->company, $rows)->execute();
+
+        $this->assertSame(1, $result['updated']);
+        $this->assertSame(1, $result['created']);
+        $this->assertCount(1, $result['no_email']);
+        $this->assertSame([], $result['ambiguous']);
+        $this->assertCount(2, $result['linked'], 'Both the matched and the newly-created vendor must appear in the audit trail.');
+
+        $vendor->refresh();
+        $this->assertSame('match-approver@example.test', $vendor->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value));
+
+        $created = Organization::query()
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->where('name', $newVendorName)
+            ->first();
+        $this->assertNotNull($created);
+        $this->assertSame('new-vendor-approver@example.test', $created->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value));
+    }
+
+    public function test_import_vendor_approvers_skips_a_junk_email_cell_without_creating_anything(): void
+    {
+        $vendorName = 'Import Rows Junk Email Vendor ' . uniqid();
+
+        $rows = [
+            ['Vendor Name', 'Approver Name', 'Approver Email'],
+            [$vendorName, 'Someone', 'TBD'],
+        ];
+
+        $result = new ImportVendorApproversFromRowsAction($this->kanvasApp, $this->company, $rows)->execute();
+
+        $this->assertSame(0, $result['updated']);
+        $this->assertSame(0, $result['created']);
+        $this->assertCount(1, $result['invalid_email']);
+        $this->assertNull(
+            Organization::query()
+                ->where('apps_id', $this->kanvasApp->getId())
+                ->where('companies_id', $this->company->getId())
+                ->where('name', $vendorName)
+                ->first()
+        );
+        $this->assertNull(Users::query()->where('email', 'TBD')->first());
+    }
+
+    public function test_import_vendor_approvers_links_a_single_weak_candidate_and_is_idempotent_on_rerun(): void
+    {
+        $tok = uniqid();
+        $candidate = $this->seedTestOrganization("Acme Imports Group Holdings {$tok}");
+
+        $rows = [
+            ['Vendor Name', 'Approver Name', 'Approver Email'],
+            ["Acme {$tok}", 'Someone', 'single-candidate-approver@example.test'],
+        ];
+
+        $first = new ImportVendorApproversFromRowsAction($this->kanvasApp, $this->company, $rows)->execute();
+
+        $this->assertSame(1, $first['updated']);
+        $this->assertSame(0, $first['created']);
+        $this->assertSame(0, $first['unchanged']);
+        $this->assertSame([], $first['ambiguous']);
+        $this->assertSame([], $first['linked'], 'A low-confidence link must not be reported as a routine success.');
+        $this->assertCount(1, $first['linked_low_confidence']);
+        $this->assertStringContainsString($candidate->name, $first['linked_low_confidence'][0]);
+
+        $candidate->refresh();
+        $this->assertSame('single-candidate-approver@example.test', $candidate->get(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value));
+
+        // Re-running with the exact same row must not touch it again — only report it unchanged.
+        $second = new ImportVendorApproversFromRowsAction($this->kanvasApp, $this->company, $rows)->execute();
+
+        $this->assertSame(0, $second['updated']);
+        $this->assertSame(0, $second['created']);
+        $this->assertSame(1, $second['unchanged']);
+    }
+
+    public function test_import_vendor_approvers_treats_an_email_case_difference_as_unchanged(): void
+    {
+        $vendor = $this->seedTestOrganization('Case Insensitive Test Corp ' . uniqid());
+
+        new ImportVendorApproversFromRowsAction($this->kanvasApp, $this->company, [
+            ['Vendor Name', 'Approver Name', 'Approver Email'],
+            [$vendor->name, 'Someone', 'Case.Approver@Example.test'],
+        ])->execute();
+
+        $result = new ImportVendorApproversFromRowsAction($this->kanvasApp, $this->company, [
+            ['Vendor Name', 'Approver Name', 'Approver Email'],
+            [$vendor->name, 'Someone', 'case.approver@example.test'],
+        ])->execute();
+
+        $this->assertSame(0, $result['updated']);
+        $this->assertSame(1, $result['unchanged']);
+    }
+
+    public function test_import_vendor_approvers_still_treats_a_real_tie_between_candidates_as_ambiguous(): void
+    {
+        $tok = uniqid();
+        $this->seedTestOrganization("Blended North Group {$tok}");
+        $this->seedTestOrganization("Blended South Group {$tok}");
+
+        $rows = [
+            ['Vendor Name', 'Approver Name', 'Approver Email'],
+            ["Blended Group {$tok}", 'Someone', 'ambiguous-approver@example.test'],
+        ];
+
+        $result = new ImportVendorApproversFromRowsAction($this->kanvasApp, $this->company, $rows)->execute();
+
+        $this->assertSame(0, $result['updated']);
+        $this->assertSame(0, $result['created']);
+        $this->assertSame([], $result['linked_low_confidence']);
+        $this->assertCount(1, $result['ambiguous']);
     }
 }

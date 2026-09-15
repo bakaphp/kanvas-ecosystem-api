@@ -37,6 +37,12 @@ type ScribeSalesReceipt {
     user: User @belongsTo(relation: "user")
     lines: [ScribeSalesReceiptLine!]! @hasMany(relation: "lines")
     bank_account: ScribeBankAccount @belongsTo(relation: "bankAccount")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     created_at: DateTime!
     updated_at: DateTime!
 }

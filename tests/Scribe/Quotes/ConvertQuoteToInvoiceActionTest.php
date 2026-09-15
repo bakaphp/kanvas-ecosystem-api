@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Scribe\Invoices\Enums\InvoiceDocumentStatusEnum;
 use Kanvas\Scribe\Ledger\Enums\FiscalPeriodStatusEnum;
@@ -179,6 +180,44 @@ class ConvertQuoteToInvoiceActionTest extends TestCase
         $this->assertSame(QuoteStatusEnum::SUPERSEDED, $original->status);
     }
 
+    /** A revision rebuilds the DTO field by field, so every field it forgets is silently dropped. */
+    public function test_revision_carries_the_contact_forward(): void
+    {
+        $billable = $this->seedOrganization();
+
+        $contact = People::create([
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => static::$cachedUser->getId(),
+            'name' => 'Priya Raman',
+            'firstname' => 'Priya',
+            'lastname' => 'Raman',
+        ]);
+
+        $lines = [
+            new QuoteLineData(
+                description: 'Dashboard build',
+                quantity: 1,
+                unit_price_native: 6000.00,
+            ),
+        ];
+
+        $original = new CreateQuoteAction(
+            data: $this->makeQuoteData(billable: $billable, lines: $lines, contact: $contact),
+            user: static::$cachedUser,
+        )->execute();
+
+        $this->assertSame($contact->getId(), $original->contact_people_id);
+
+        $revision = new CreateQuoteRevisionAction(
+            originalQuote: $original,
+            newRevisionData: $this->makeQuoteData(billable: $billable, lines: $lines, contact: $contact),
+            user: static::$cachedUser,
+        )->execute();
+
+        $this->assertSame($contact->getId(), $revision->contact_people_id);
+    }
+
     /**
      * @param array<int, QuoteLineData> $lines
      */
@@ -188,6 +227,7 @@ class ConvertQuoteToInvoiceActionTest extends TestCase
         string $currency = 'USD',
         float $fxRate = 1.0,
         ?Carbon $issuedDate = null,
+        ?People $contact = null,
     ): QuoteData {
         return new QuoteData(
             app: $this->kanvasApp,
@@ -197,6 +237,7 @@ class ConvertQuoteToInvoiceActionTest extends TestCase
             currency: $currency,
             fx_rate_to_base: $fxRate,
             issued_date: $issuedDate,
+            contact: $contact,
         );
     }
 

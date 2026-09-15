@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
-use Baka\Http\SafeUrlFetcher;
-use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesFilesystemForTool;
 use Kanvas\Scribe\Invoices\Services\CreditRequestFormParserFactory;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -20,6 +19,7 @@ use Throwable;
 class ExtractCreditRequestFormTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesFilesystemForTool;
 
     public function __construct()
     {
@@ -55,14 +55,7 @@ class ExtractCreditRequestFormTool extends Tool
      */
     public function __invoke(int $filesystem_id): array
     {
-        // Company-scoped, not just app — see ExtractInvoiceDataTool: an LLM-supplied id must not
-        // resolve another company's document.
-        $file = Filesystem::query()
-            ->where('id', $filesystem_id)
-            ->fromApp($this->app)
-            ->fromCompany($this->company)
-            ->notDeleted()
-            ->first();
+        $file = $this->findTenantFile($filesystem_id);
 
         if ($file === null) {
             return [
@@ -72,21 +65,19 @@ class ExtractCreditRequestFormTool extends Tool
             ];
         }
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'cnr_') . '.xlsx';
-
         try {
-            file_put_contents($tempPath, SafeUrlFetcher::fetch((string) $file->url));
-            $parsed = CreditRequestFormParserFactory::forApp($this->app)->parse($tempPath);
+            $parsed = $this->withDownloadedFile(
+                $file,
+                'cnr_',
+                'xlsx',
+                fn (string $path): array => CreditRequestFormParserFactory::forApp($this->app)->parse($path)
+            );
         } catch (Throwable $e) {
             return [
                 'success' => false,
                 'reason' => 'parse_failed',
                 'message' => 'Could not read the Credit Request Form: ' . $e->getMessage(),
             ];
-        } finally {
-            if (file_exists($tempPath)) {
-                unlink($tempPath);
-            }
         }
 
         return [

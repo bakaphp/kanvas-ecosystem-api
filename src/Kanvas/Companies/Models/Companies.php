@@ -6,6 +6,7 @@ namespace Kanvas\Companies\Models;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use Baka\Support\DateHelper;
 use Baka\Traits\AddressTraitRelationship;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HashTableTrait;
@@ -24,6 +25,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CompaniesTotalBranchesAction;
@@ -33,6 +35,7 @@ use Kanvas\Companies\Factories\CompaniesFactory;
 use Kanvas\Companies\Observers\CompaniesObserver;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
@@ -680,6 +683,27 @@ class Companies extends BaseModel implements CompanyInterface, Customer
         ];
     }
 
+    /**
+     * The `timezone` column is nullable and free-form despite the `@property
+     * string` docblock, so it holds both NULL and unusable values. Returns null
+     * for either; callers pick their own fallback.
+     */
+    public function getTimezone(): ?string
+    {
+        /** @psalm-suppress RedundantCastGivenDocblockType */
+        $stored = trim((string) $this->timezone);
+        $timezone = DateHelper::validTimezone($stored);
+
+        if ($timezone === null && $stored !== '') {
+            Log::warning('Invalid timezone stored on company; falling back', [
+                'company_id' => $this->getId(),
+                'invalid_value' => $stored,
+            ]);
+        }
+
+        return $timezone;
+    }
+
     public function isWithinWorkingHours(Carbon $now): bool
     {
         $schedule = $this->get('work_hours');
@@ -688,7 +712,9 @@ class Companies extends BaseModel implements CompanyInterface, Customer
             throw new InvalidArgumentException('Working days schedule is not set or invalid for company ID: ' . $this->getId());
         }
 
-        $now->setTimezone($this->timezone);
+        $timezone = $this->getTimezone() ?? (string) AppEnums::DEFAULT_TIMEZONE->getValue();
+
+        $now->setTimezone($timezone);
         $dayName = $now->format('l'); // Monday, Tuesday, etc.
 
         if (! isset($schedule[$dayName])) {
@@ -704,8 +730,8 @@ class Companies extends BaseModel implements CompanyInterface, Customer
 
         [$start, $end] = array_map('trim', explode('-', $hours));
 
-        $startTime = Carbon::parse($dayName . ' ' . $start, $this->timezone);
-        $endTime = Carbon::parse($dayName . ' ' . $end, $this->timezone);
+        $startTime = Carbon::parse($dayName . ' ' . $start, $timezone);
+        $endTime = Carbon::parse($dayName . ' ' . $end, $timezone);
 
         return $now->between($startTime, $endTime);
     }

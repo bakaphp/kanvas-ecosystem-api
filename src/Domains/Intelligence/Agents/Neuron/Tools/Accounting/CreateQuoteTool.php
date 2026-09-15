@@ -8,6 +8,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesCustomerForTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesOrganizationContactForTool;
 use Kanvas\Scribe\Quotes\Actions\CreateQuoteAction;
 use Kanvas\Scribe\Quotes\DataTransferObject\Quote as QuoteData;
 use Kanvas\Scribe\Quotes\DataTransferObject\QuoteLine as QuoteLineData;
@@ -28,6 +29,7 @@ class CreateQuoteTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
     use ResolvesCustomerForTool;
+    use ResolvesOrganizationContactForTool;
     use TrackByInputs;
 
     public function __construct()
@@ -97,6 +99,14 @@ class CreateQuoteTool extends Tool implements HasRunKey
                 ),
             ),
             new ToolProperty(
+                name: 'contact_name',
+                type: PropertyType::STRING,
+                description: 'The person at the customer the quote is addressed to, e.g. "Attn: John Doe". '
+                    . 'Only pass a name the user actually gave you — never guess one. Leave it out when the '
+                    . 'quote goes to the company generally rather than to a named person.',
+                required: false,
+            ),
+            new ToolProperty(
                 name: 'currency',
                 type: PropertyType::STRING,
                 description: 'Currency code. Defaults to USD.',
@@ -131,6 +141,7 @@ class CreateQuoteTool extends Tool implements HasRunKey
     public function __invoke(
         string $customer_name,
         array $lines,
+        ?string $contact_name = null,
         ?string $currency = null,
         ?string $valid_until = null,
         ?string $notes = null,
@@ -164,6 +175,17 @@ class CreateQuoteTool extends Tool implements HasRunKey
             return ['created' => false, ...$customer];
         }
 
+        $contact = null;
+        $contactName = trim((string) $contact_name);
+
+        if ($contactName !== '') {
+            $contact = $this->resolveOrganizationContactOrError($customer, $contactName);
+
+            if (is_array($contact)) {
+                return ['created' => false, ...$contact];
+            }
+        }
+
         $quote = new CreateQuoteAction(
             data: new QuoteData(
                 app: $this->app,
@@ -176,6 +198,7 @@ class CreateQuoteTool extends Tool implements HasRunKey
                 valid_until: $valid_until !== null ? Carbon::parse($valid_until) : null,
                 notes: $notes,
                 terms: $terms,
+                contact: $contact,
             ),
             user: $this->contextUser(),
         )->execute();
@@ -185,6 +208,7 @@ class CreateQuoteTool extends Tool implements HasRunKey
             'quote_id' => $quote->getId(),
             'status' => $quote->status->value,
             'customer' => $customer->name,
+            'contact' => $contact?->getDisplayName(),
             'currency' => $quote->currency,
             'subtotal' => $quote->subtotal_native,
             'tax' => $quote->tax_native,

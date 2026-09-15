@@ -26,6 +26,7 @@ use Kanvas\AccessControlList\Traits\HasPermissions;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
+use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -97,6 +98,7 @@ class Message extends BaseModel
     use HasLightHouseCache;
     use HasFilesystemTrait;
     use HasCategoriesTrait;
+    use HasApprovals;
 
     protected $table = 'messages';
 
@@ -118,6 +120,16 @@ class Message extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'Message';
+    }
+
+    /**
+     * Messages are gated explicitly by RequestMessageApprovalAction, never by their own lifecycle.
+     * This is the highest-write table on the platform and every save would otherwise cost an
+     * approval_policies lookup to learn there is no on-create policy.
+     */
+    protected static function approvalUsesLifecycleTriggers(): bool
+    {
+        return false;
     }
 
     #[Override]

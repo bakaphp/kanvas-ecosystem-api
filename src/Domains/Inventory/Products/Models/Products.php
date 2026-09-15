@@ -674,6 +674,13 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             'company' => [
                 'id' => $this->companies_id,
                 'name' => $this->company?->name,
+                'files' => $this->company?->getFiles()->take(5)->map(fn ($file) => [
+                    'uuid' => $file->uuid,
+                    'name' => $file->name,
+                    'url' => $file->url,
+                    'size' => $file->size,
+                    'field_name' => $file->field_name,
+                ]) ?? [],
             ],
             'user' => [
                 'id' => $this->user?->getId(),

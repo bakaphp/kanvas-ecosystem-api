@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Stripe\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Stripe\Enums\ConfigurationEnum;
@@ -17,6 +18,8 @@ use Stripe\StripeClient;
 
 class StripePaymentLinkService
 {
+    private const int CUSTOM_FIELD_DEFAULT_VALUE_MAX_LENGTH = 50;
+
     protected StripeClient $stripe;
 
     public function __construct(
@@ -196,22 +199,41 @@ class StripePaymentLinkService
     }
 
     /**
-     * Stripe rejects an empty `default_value` on a text/numeric custom field
-     * (`parameter_invalid_empty`): it reads "" as an attempt to unset the param.
-     * Drop empty default_value entries so an optional field with no value is
-     * sent as a blank field instead of a failed request.
+     * Two Stripe constraints on a text/numeric custom field's `default_value`:
+     * an empty string is read as an attempt to unset the param
+     * (`parameter_invalid_empty`), and the value is capped at 50 characters
+     * regardless of the field's own `maximum_length` (which may go up to 255).
+     * Drop the empties and truncate the rest so a long customer name pre-fills
+     * partially instead of failing the whole payment-link request.
      */
     protected function normalizeCustomFields(array $customFields): array
     {
         foreach ($customFields as &$field) {
             foreach (['text', 'numeric'] as $inputType) {
-                if (isset($field[$inputType]['default_value'])
-                    && trim((string) $field[$inputType]['default_value']) === ''
-                ) {
-                    unset($field[$inputType]['default_value']);
+                if (! isset($field[$inputType]['default_value'])) {
+                    continue;
                 }
+
+                $defaultValue = Str::trimToNull((string) $field[$inputType]['default_value']);
+
+                if ($defaultValue === null) {
+                    unset($field[$inputType]['default_value']);
+
+                    continue;
+                }
+
+                // max(1, ...) because a field carrying maximum_length 0 (or a non-numeric one, which
+                // casts to 0) would truncate to '' — reintroducing the parameter_invalid_empty this
+                // method exists to prevent.
+                $maxLength = max(1, min(
+                    self::CUSTOM_FIELD_DEFAULT_VALUE_MAX_LENGTH,
+                    (int) ($field[$inputType]['maximum_length'] ?? self::CUSTOM_FIELD_DEFAULT_VALUE_MAX_LENGTH)
+                ));
+
+                $field[$inputType]['default_value'] = mb_substr($defaultValue, 0, $maxLength);
             }
         }
+        unset($field);
 
         return $customFields;
     }

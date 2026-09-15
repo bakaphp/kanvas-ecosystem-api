@@ -13,6 +13,7 @@ use Kanvas\Connectors\Mailgun\Actions\VerifyMailgunWebhookSignatureAction;
 use Kanvas\Connectors\Mailgun\Enums\ReceiverConfigurationEnum;
 use Kanvas\Connectors\Mailgun\Services\AgentInboxSenderResolverService;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
+use Kanvas\Connectors\Mailgun\Services\MailgunConsentService;
 use Kanvas\Connectors\Mailgun\Services\MailgunPayloadService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
@@ -103,11 +104,24 @@ class AgentInboxWebhookJob extends ProcessWebhookJob
             return ['message' => 'Sender is not known to this company and the mailbox is restricted'];
         }
 
+        // This receiver replies inline, so consent has to be settled before the responder runs — an
+        // agent mailbox that answers "unsubscribe" with a sales pitch is the worst version of this.
+        $consentOutcome = MailgunConsentService::process($entity, $payload);
+
         $message = new CreateMessageFromAgentInboxAction(
             $this->webhookRequest,
             $agent,
             $entity
         )->execute();
+
+        if ($consentOutcome?->shouldHaltAgentTurn() === true) {
+            $message->addTag('consent-stop');
+
+            return array_merge(
+                ['message' => 'Stop request honored; no reply sent'],
+                $consentOutcome->toArray(),
+            );
+        }
 
         /** @var Channel $channel */
         $channel = $message->channels()->firstOrFail();

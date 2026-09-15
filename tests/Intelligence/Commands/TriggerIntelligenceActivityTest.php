@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Commands;
 
+use App\Console\Commands\Intelligence\Messaging\SendDelayMessageCommand;
 use Carbon\Carbon;
+use Illuminate\Console\OutputStyle;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
@@ -12,14 +14,20 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpValueEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
+use Kanvas\Intelligence\Triggers\Workflows\TriggerIntelligenceActivity;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
+use Symfony\Component\Console\Input\ArrayInput;
+use Symfony\Component\Console\Output\BufferedOutput;
 use Tests\TestCase;
 
 class TriggerIntelligenceActivityTest extends TestCase
@@ -117,6 +125,23 @@ class TriggerIntelligenceActivityTest extends TestCase
         $lead->set(LeadsEnumsConfigurationEnum::FIRST_MESSAGE->value, 'Follow-up message content');
 
         return $message;
+    }
+
+    public function testOrchestrationSkipsHandlersWithoutSendDataToAgent(): void
+    {
+        $lead = $this->createLead('Internet');
+        $type = new AgentType(['handler' => IntelligenceHandlerWithoutSendData::class]);
+        $agent = new Agent();
+        $agent->setRelation('type', $type);
+        $session = new Session(['uuid' => 'local-neuron-session']);
+        $session->setRelation('agent', $agent);
+        $lead->setRelation('aiSession', collect([$session]));
+
+        $this->assertFalse(method_exists($type->handler, 'sendDataToAgent'));
+
+        /** @var TestableTriggerIntelligenceActivity $activity */
+        $activity = new \ReflectionClass(TestableTriggerIntelligenceActivity::class)->newInstanceWithoutConstructor();
+        $activity->sendDataForTest($lead, IntelligenceModeEnum::FULL_ON->value);
     }
 
     public function testOffModeBlocksAiTakeover(): void
@@ -486,5 +511,72 @@ class TriggerIntelligenceActivityTest extends TestCase
         );
 
         Carbon::setTestNow();
+    }
+
+    public function testDelayCommandUsesPersistedAgentReachOutContent(): void
+    {
+        $lead = $this->createLead('Internet');
+        $lead->set('ai_mode', IntelligenceModeEnum::SUPPORT->value);
+        $message = $this->createLockedFirstMessageForLead($lead);
+        $message->message = array_merge($message->message, ['content' => 'New agent reach-out content']);
+        $message->saveOrFail();
+        $message->addTag('agent-reach-out', $lead->app, $lead->user, $lead->company);
+        $message->addTag('agent-reach-out-delayed', $lead->app, $lead->user, $lead->company);
+
+        $command = new TestableSendDelayMessageCommand();
+        $command->setOutput(new OutputStyle(new ArrayInput([]), new BufferedOutput()));
+        $command->processForTest($lead->company, $message, 15);
+
+        $this->assertSame('New agent reach-out content', $command->sentContent);
+    }
+
+    public function testDelayCommandDoesNotReleaseAgentReachOutApprovalDraft(): void
+    {
+        $lead = $this->createLead('Internet');
+        $message = $this->createLockedFirstMessageForLead($lead);
+        $message->addTag('agent-reach-out', $lead->app, $lead->user, $lead->company);
+
+        $command = new TestableSendDelayMessageCommand();
+        $command->setOutput(new OutputStyle(new ArrayInput([]), new BufferedOutput()));
+        $command->processForTest($lead->company, $message, 15);
+
+        $this->assertNull($command->sentContent);
+        $this->assertTrue($message->fresh()->isLocked());
+    }
+}
+
+final class TestableTriggerIntelligenceActivity extends TriggerIntelligenceActivity
+{
+    public function sendDataForTest(Lead $lead, string $aiMode): void
+    {
+        $this->sendDataToOrchestration($lead, $aiMode);
+    }
+}
+
+final class IntelligenceHandlerWithoutSendData
+{
+}
+
+final class TestableSendDelayMessageCommand extends SendDelayMessageCommand
+{
+    public ?string $sentContent = null;
+
+    public function processForTest(Companies $company, Message $message, int $delayMinutes): void
+    {
+        $this->processMessage($company, $message, $delayMinutes);
+    }
+
+    protected function sendCrmDelayNote(
+        Lead $lead,
+        Message $message,
+        Companies $company,
+        int $delayMinutes
+    ): bool {
+        return true;
+    }
+
+    protected function sendDelayedMessage(Lead $lead, Message $message, string $messageContent): void
+    {
+        $this->sentContent = $messageContent;
     }
 }

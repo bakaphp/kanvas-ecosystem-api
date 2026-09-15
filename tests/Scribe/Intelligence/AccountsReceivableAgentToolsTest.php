@@ -23,6 +23,9 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ApplyArPaymentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\AttachInvoiceFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArCreditMemoTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\ResendInvoiceAttachmentTool;
+use Kanvas\Scribe\Approvals\Enums\ApprovalAttachmentFieldEnum;
+use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Scribe\Approvals\Enums\OrganizationApproverCustomFieldEnum;
 use Kanvas\Scribe\Invoices\Enums\ConfigurationEnum as InvoicesConfigurationEnum;
 use Kanvas\Scribe\Invoices\Enums\DocumentTypeEnum;
@@ -297,6 +300,11 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $customer = $this->seedTestOrganization('Approval Flow Customer 2');
         $customer->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
 
+        $pdf = $this->createFilesystemRow(
+            url: 'https://cdn.example.test/invoice-ar-apr-1.pdf',
+            name: 'invoice-ar-apr-1.pdf',
+        );
+
         $created = new CreateArInvoiceTool()
             ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
             ->__invoke(
@@ -305,8 +313,7 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
                 memo: 'Approval flow test',
                 push_to_acumatica: false,
                 source_email_message_id: 'MSG_AR_APR_1',
-                source_attachment_url: 'https://cdn.example.test/invoice-ar-apr-1.pdf',
-                source_attachment_filename: 'invoice-ar-apr-1.pdf',
+                source_attachment_filesystem_id: $pdf->getId(),
             );
 
         $result = new ApprovePendingItemTool()
@@ -566,6 +573,180 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
 
         $this->assertFalse($result['note_added']);
         $this->assertSame('invoice_not_found', $result['reason']);
+    }
+
+    public function test_resend_invoice_attachment_resends_the_stored_pdf(): void
+    {
+        $customer = $this->seedTestOrganization('Resend AR Customer');
+        $customer->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+
+        $agent = Agent::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($this->company->getId())
+            ->create(['name' => 'Arc', 'user_id' => static::$cachedUser->getId()]);
+        $agent->set(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value, 'xoxb-test-token');
+        $originalNotifierAgentId = $this->kanvasApp->get(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value);
+        $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, (string) $agent->getId());
+
+        try {
+            Http::fake([
+                'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
+                'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
+                'cdn.example.test/*' => Http::response('%PDF-1.4 fake bytes', 200),
+                'slack.com/api/files.getUploadURLExternal' => Http::response([
+                    'ok' => true,
+                    'upload_url' => 'https://files.slack.com/upload/v1/abc123',
+                    'file_id' => 'F123',
+                ]),
+                'files.slack.com/upload/v1/abc123' => Http::response('', 200),
+                'slack.com/api/files.completeUploadExternal' => Http::response(['ok' => true]),
+                'slack.com/api/chat.postMessage' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
+            ]);
+
+            $pdf = $this->createFilesystemRow(
+                url: 'https://cdn.example.test/invoice-ar-resend.pdf',
+                name: 'invoice-ar-resend.pdf',
+            );
+
+            $created = new CreateArInvoiceTool()
+                ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+                ->__invoke(
+                    customer_name: 'Resend AR Customer',
+                    amount: 400.0,
+                    memo: 'AR resend test',
+                    push_to_acumatica: false,
+                    source_email_message_id: 'MSG_AR_RESEND_1',
+                    source_attachment_filesystem_id: $pdf->getId(),
+                );
+
+            $this->assertArrayNotHasKey('attachment_warning', $created);
+
+            $result = new ResendInvoiceAttachmentTool()
+                ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+                ->__invoke(invoice_id: (int) $created['invoice_id']);
+
+            $this->assertTrue($result['resent']);
+            Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'files.getUploadURLExternal'));
+        } finally {
+            $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
+        }
+    }
+
+    public function test_create_ar_invoice_warns_when_a_source_email_arrived_without_its_pdf(): void
+    {
+        $customer = $this->seedTestOrganization('AR Warning Customer');
+        $customer->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+
+        $created = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                customer_name: 'AR Warning Customer',
+                amount: 250.0,
+                memo: 'No PDF captured',
+                push_to_acumatica: false,
+                source_email_message_id: 'MSG_AR_NO_PDF',
+            );
+
+        $this->assertArrayHasKey('attachment_warning', $created);
+    }
+
+    public function test_resend_invoice_attachment_reports_when_there_is_nothing_on_file(): void
+    {
+        $customer = $this->seedTestOrganization('AR Nothing To Resend');
+        $customer->set(OrganizationApproverCustomFieldEnum::APPROVER_EMAIL->value, static::$cachedUser->email);
+
+        $created = new CreateArInvoiceTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                customer_name: 'AR Nothing To Resend',
+                amount: 125.0,
+                memo: 'No attachment',
+                push_to_acumatica: false,
+            );
+
+        $result = new ResendInvoiceAttachmentTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_id: (int) $created['invoice_id']);
+
+        $this->assertFalse($result['resent']);
+        $this->assertSame('no_attachment_on_file', $result['reason']);
+    }
+
+    public function test_attach_invoice_file_accepts_a_filesystem_id_someone_handed_the_agent(): void
+    {
+        $invoice = $this->pushedInvoice('Attach AR Customer');
+        $pdf = $this->createFilesystemRow(
+            url: 'https://cdn.example.test/ar-handed-to-agent.pdf',
+            name: 'ar-handed-to-agent.pdf',
+        );
+
+        $result = new AttachInvoiceFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_id: $invoice->getId(), filesystem_id: $pdf->getId());
+
+        // The Acumatica leg fails without a pushed invoice GUID; the Kanvas-side attachment is the point.
+        $this->assertTrue($result['file_attached']);
+        $this->assertSame('ar-handed-to-agent.pdf', $result['file_name']);
+
+        $stored = $invoice->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value);
+        $this->assertNotNull($stored);
+        $this->assertSame($pdf->getId(), $stored->filesystem->getId());
+    }
+
+    public function test_attach_invoice_file_reports_an_unknown_filesystem_id_instead_of_attaching(): void
+    {
+        $invoice = $this->pushedInvoice('Attach AR Customer');
+
+        $result = new AttachInvoiceFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_id: $invoice->getId(), filesystem_id: 999999999);
+
+        $this->assertFalse($result['file_attached']);
+        $this->assertSame('file_not_found', $result['reason']);
+        $this->assertNull($invoice->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value));
+    }
+
+    public function test_attach_invoice_file_requires_a_filesystem_id_or_a_url(): void
+    {
+        $invoice = $this->pushedInvoice('Attach AR Customer');
+
+        $result = new AttachInvoiceFileTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(invoice_id: $invoice->getId());
+
+        $this->assertFalse($result['file_attached']);
+        $this->assertSame('no_file_given', $result['reason']);
+    }
+
+    /** AR mirror of the AP slot test: a PO must not silently replace the invoice PDF the approval flow reads. */
+    public function test_attach_invoice_file_keeps_a_second_document_beside_the_source_invoice_pdf(): void
+    {
+        $invoice = $this->pushedInvoice('Attach AR Customer');
+        $invoicePdf = $this->createFilesystemRow(url: 'https://cdn.example.test/ar-the-invoice.pdf', name: 'ar-the-invoice.pdf');
+        $po = $this->createFilesystemRow(url: 'https://cdn.example.test/ar-po.pdf', name: 'ar-po.pdf');
+
+        $tool = new AttachInvoiceFileTool()->withContext($this->kanvasApp, $this->company, static::$cachedUser);
+
+        $tool->__invoke(invoice_id: $invoice->getId(), filesystem_id: $invoicePdf->getId());
+        $tool->__invoke(invoice_id: $invoice->getId(), filesystem_id: $po->getId(), field_name: 'po');
+
+        $this->assertSame(
+            $invoicePdf->getId(),
+            $invoice->getFileByName(ApprovalAttachmentFieldEnum::INVOICE_PDF->value)->filesystem->getId(),
+        );
+        $this->assertSame($po->getId(), $invoice->getFileByName('po')->filesystem->getId());
+    }
+
+    private function pushedInvoice(string $customerName): Invoice
+    {
+        $customer = $this->seedTestOrganization($customerName);
+        $invoice = $this->issueTestInvoice($customer, 400.0);
+
+        // attach_invoice_file gates on the Acumatica ref; INVOICE_ID stays unset so the push leg fails
+        // fast (AcumaticaWriteException) instead of reaching the network.
+        $invoice->set(CustomFieldEnum::INVOICE_REF->value, 'AR-' . $invoice->getId());
+
+        return $invoice;
     }
 
     public function test_attach_invoice_file_reports_not_found_for_unknown_invoice(): void

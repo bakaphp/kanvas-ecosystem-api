@@ -330,6 +330,17 @@ class People extends BaseModel
         return preg_replace('/\s+/', ' ', $name);
     }
 
+    /**
+     * Connector imports and bulk creates populate `name` and leave the firstname/lastname parts empty,
+     * which is all getName() reads — so anything rendering a person to a human wants this, not getName().
+     */
+    public function getDisplayName(): string
+    {
+        $name = $this->getName();
+
+        return $name !== '' ? $name : trim((string) $this->name);
+    }
+
     #[Override]
     protected static function newFactory()
     {

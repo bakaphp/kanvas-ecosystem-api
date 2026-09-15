@@ -638,6 +638,56 @@ class RespondToMentionJobTest extends TestCase
         );
     }
 
+    /**
+     * An AP/AR agent @mentioned with an invoice needs the file's filesystem_id, not just its bytes:
+     * create_ap_bill, extract_invoice_data and attach_bill_file all key on the id. Without the marker
+     * the agent can read the PDF and still not book it.
+     */
+    public function testMentionedFileReachesTheAgentAsAFilesystemId(): void
+    {
+        CapturingNeuronProvider::$lastMessages = [];
+
+        $human = auth()->user();
+        $agentUser = $this->makeAgentUser('BookkeeperBot');
+        $agent = $this->makeCapturingAgent($agentUser);
+
+        $channel = $this->makeChannel($human);
+        $mention = $this->makeMessage($human, '@BookkeeperBot please book this invoice');
+        $channel->addMessage($mention, $human);
+
+        $file = $this->makeFilesystemRow('vendor-invoice.pdf');
+        $mention->addFile($file, 'attachment-1');
+
+        new RespondToMentionJob($agent, $mention->fresh())->handle();
+
+        $prompt = '';
+        foreach (CapturingNeuronProvider::$lastMessages as $message) {
+            $prompt .= ' ' . (string) $message->getContent();
+        }
+
+        $this->assertStringContainsString('filesystem_id: ' . $file->getId(), $prompt);
+        $this->assertStringContainsString('"vendor-invoice.pdf"', $prompt);
+    }
+
+    private function makeFilesystemRow(string $name): Filesystem
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $row = new Filesystem();
+        $row->apps_id = $app->getId();
+        $row->companies_id = $user->getCurrentCompany()->getId();
+        $row->users_id = $user->getId();
+        $row->name = $name;
+        $row->path = 'mentions/' . uniqid('', true) . '-' . $name;
+        $row->url = 'https://example.test/' . $row->path;
+        $row->size = '2048';
+        $row->file_type = 'pdf';
+        $row->saveOrFail();
+
+        return $row;
+    }
+
     private function makeCapturingAgent(Users $agentUser): Agent
     {
         $app = app(Apps::class);

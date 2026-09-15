@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Kanvas\Guild\Customers\Actions\UpdatePeopleProfileAction;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPersonForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,6 +23,7 @@ use Throwable;
 class UpdatePersonTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesPersonForTool;
 
     public function __construct()
     {
@@ -61,12 +62,11 @@ class UpdatePersonTool extends Tool
         ?string $dob = null,
         ?string $title = null,
     ): array {
-        try {
-            /** @var People $person */
-            $person = People::getByIdFromCompanyApp($person_id, $this->company, $this->app);
-        } catch (Throwable) {
-            return ['error' => sprintf('No person #%d found in this company.', $person_id)];
+        $result = $this->resolvePersonOrError($person_id);
+        if (is_array($result)) {
+            return $result;
         }
+        $person = $result;
 
         try {
             $person = new UpdatePeopleProfileAction(

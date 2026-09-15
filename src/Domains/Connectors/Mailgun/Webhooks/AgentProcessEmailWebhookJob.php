@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Kanvas\Connectors\Mailgun\Actions\AttachEmailAttachmentsToLeadAction;
 use Kanvas\Connectors\Mailgun\Actions\CreateMessageFromEmailAction;
 use Kanvas\Connectors\Mailgun\Actions\VerifyMailgunWebhookSignatureAction;
+use Kanvas\Connectors\Mailgun\Services\MailgunConsentService;
+use Kanvas\Connectors\Mailgun\Services\MailgunPayloadService;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -52,8 +54,18 @@ class AgentProcessEmailWebhookJob extends ProcessWebhookJob
             }
         }
 
-        $message = new CreateMessageFromEmailAction($this->webhookRequest, $lead)
-            ->execute();
+        // Ahead of CreateMessageFromEmailAction, because that is what fires the responder workflow.
+        // Evaluating consent afterwards would let the agent read a stop request, spend a turn on it
+        // and compose a reply that the outbound guard then throws away.
+        $consentOutcome = $people === null
+            ? null
+            : MailgunConsentService::process($lead ?? $people, new MailgunPayloadService($this->webhookRequest->payload));
+
+        $message = new CreateMessageFromEmailAction(
+            $this->webhookRequest,
+            $lead,
+            suppressAgentResponse: $consentOutcome?->shouldHaltAgentTurn() ?? false,
+        )->execute();
 
         if ($lead !== null) {
             new AttachEmailAttachmentsToLeadAction($this->webhookRequest, $lead)->execute();
@@ -61,7 +73,7 @@ class AgentProcessEmailWebhookJob extends ProcessWebhookJob
 
         $this->assertAttachmentsCaptured();
 
-        return $message->toArray();
+        return array_merge($message->toArray(), $consentOutcome?->toArray() ?? []);
     }
 
     #[Override]

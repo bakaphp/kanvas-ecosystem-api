@@ -1,0 +1,73 @@
+type ScribePurchaseOrder {
+    id: ID!
+    uuid: String!
+    order_type: String!
+    order_number: String!
+    vendor: Organization @belongsTo(relation: "vendor")
+    vendor_code: String
+    status: String
+    order_date: Date
+    currency: String
+    order_total: Money!
+    source: String!
+    external_id: String
+    last_synced_at: DateTime
+    metadata: Mixed
+    company: Company! @belongsTo(relation: "company")
+    user: User @belongsTo(relation: "user")
+    lines: [ScribePurchaseOrderLine!]! @hasMany(relation: "lines")
+    files: [Filesystem!]!
+        @cacheRedis
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
+    created_at: DateTime!
+    updated_at: DateTime!
+}
+
+type ScribePurchaseOrderLine {
+    id: ID!
+    line_number: Int!
+    sku: String
+    description: String
+    order_qty: Float!
+    open_qty: Float!
+    received_qty: Float!
+    unit_cost: Float!
+    ext_cost: Money!
+    metadata: Mixed
+}
+
+extend type Query @guard {
+    scribePurchaseOrders(
+        where: _
+            @whereConditions(
+                columns: [
+                    "order_number"
+                    "order_type"
+                    "status"
+                    "currency"
+                    "vendor_organization_id"
+                    "vendor_code"
+                    "order_date"
+                    "source"
+                ]
+            )
+        orderBy: _
+            @orderBy(
+                columns: [
+                    "id"
+                    "order_number"
+                    "order_date"
+                    "order_total"
+                    "created_at"
+                ]
+            )
+    ): [ScribePurchaseOrder!]!
+        @paginate(
+            model: "Kanvas\\Scribe\\Purchasing\\Models\\PurchaseOrder"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 50
+        )
+}

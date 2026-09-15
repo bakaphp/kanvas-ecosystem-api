@@ -105,8 +105,39 @@ final class OrganizationVendorMatcherService
 
         $needleSet = array_unique($needleTokens);
         $candidateSet = array_unique($candidateTokens);
-        $union = array_unique(array_merge($needleSet, $candidateSet));
+        $intersection = count(array_intersect($needleSet, $candidateSet));
 
-        return count(array_intersect($needleSet, $candidateSet)) / count($union);
+        if ($intersection === 0) {
+            return 0.0;
+        }
+
+        $union = count(array_unique(array_merge($needleSet, $candidateSet)));
+        $isFullContainment = $intersection === min(count($needleSet), count($candidateSet));
+
+        // A short needle fully contained in a longer name is only trustworthy when the longer name
+        // repeats that token verbatim (a trade name spelled out again in its own legal form) — plain
+        // containment alone can be a coincidental prefix shared with an unrelated company.
+        if ($isFullContainment && self::needleRepeatsInCandidate($needleSet, $candidateTokens)) {
+            return 1.0;
+        }
+
+        return $intersection / $union;
+    }
+
+    /**
+     * @param list<string> $needleSet
+     * @param list<string> $candidateTokensRaw
+     */
+    private static function needleRepeatsInCandidate(array $needleSet, array $candidateTokensRaw): bool
+    {
+        $counts = array_count_values($candidateTokensRaw);
+
+        foreach ($needleSet as $token) {
+            if (($counts[$token] ?? 0) >= 2) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

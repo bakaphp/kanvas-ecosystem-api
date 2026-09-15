@@ -9,6 +9,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
+use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Override;
 
@@ -56,8 +57,10 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 
         $channelId = $this->hijackMessagePhone($fromEmail);
 
-        // Bytes stay out of the model (token cost); the filesystem_id marker still goes in, or the model has nothing to ground a reply in and reuses an older attachment from its own chat history.
-        $messageConversation .= $this->currentAttachmentMarkers();
+        $messageConversation = AttachmentPromptBuilder::withFilesystemMarkers(
+            $messageConversation,
+            $this->message->files,
+        );
 
         $responseContent = new AgentChatKernel(
             agent: $this->agent,
@@ -100,19 +103,5 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             'responseText' => $responseContent,
             'response' => $responseText,
         ];
-    }
-
-    // One line per file attached to THIS message, so the model can call extract_invoice_data(filesystem_id) itself; empty when nothing was attached.
-    private function currentAttachmentMarkers(): string
-    {
-        $files = $this->message->files;
-
-        if ($files->isEmpty()) {
-            return '';
-        }
-
-        return "\n\n" . $files
-            ->map(static fn ($file) => "[Attached file on this message — filesystem_id: {$file->id}, filename: \"{$file->name}\"]")
-            ->implode("\n");
     }
 }

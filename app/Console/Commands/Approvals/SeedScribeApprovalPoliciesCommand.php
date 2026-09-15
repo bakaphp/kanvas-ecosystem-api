@@ -30,6 +30,14 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
  * attached), and letting the generic layer also mail every approver would double-notify real people.
  * Flip it to 'all' only once the Slack notification moves into the approvals domain.
  *
+ * Every policy carries a fallback resolver, and the expense one is why. Its step resolves approvers off
+ * the document's vendor Organization, which a bill or an invoice always has — and an expense often does
+ * not: a restaurant receipt filed from chat carries a merchant NAME and no organization behind it. With
+ * no fallback the request saves with `metadata.unassigned` and nobody can act on it, so the expense
+ * never posts and the charge sits in Suspense once the statement row lands. `company_owner` is the
+ * default because it is the one resolver that cannot come back empty; point `--fallback-role` at a
+ * finance role to stop every small receipt reaching the owner.
+ *
  * Trigger is MANUAL deliberately. The intake paths call requestApproval() explicitly, so turning this
  * on does not change when approvals open — only where they are recorded. Switch a tenant to ON_CREATE
  * once its policy has been reviewed.
@@ -38,7 +46,7 @@ class SeedScribeApprovalPoliciesCommand extends Command
 {
     use KanvasJobsTrait;
 
-    protected $signature = 'kanvas:approvals:seed-scribe-policies {apps_id} {company_id} {--expires-after-hours=}';
+    protected $signature = 'kanvas:approvals:seed-scribe-policies {apps_id} {company_id} {--expires-after-hours=} {--fallback-role=}';
 
     protected $description = 'Creates the AP bill, AR invoice and expense approval policies for one company';
 
@@ -49,14 +57,23 @@ class SeedScribeApprovalPoliciesCommand extends Command
 
         $company = Companies::getById((int) $this->argument('company_id'));
         $expires = $this->option('expires-after-hours');
+        $fallbackRole = trim((string) $this->option('fallback-role'));
 
+        [$fallbackResolver, $fallbackConfig] = $fallbackRole !== ''
+            ? ['role', ['role' => $fallbackRole]]
+            : ['company_owner', []];
+
+        // Only the expense policy allows the authority override, and the asymmetry is the point. On a bill
+        // the approver list IS the control — "only these people sign" is worthless if an admin can wave one
+        // through. An expense is review, not authorization: the card charge already happened, so the
+        // signature decides when it posts and under which account, not whether the money leaves.
         $definitions = [
-            [Bill::class, 'approve_bill', 'vendor', ApproveAndPushBillHandler::class],
-            [Invoice::class, 'approve_invoice', 'customer', IssueAndPushInvoiceHandler::class],
-            [Expense::class, 'approve_expense', 'vendor', ApproveExpenseHandler::class],
+            [Bill::class, 'approve_bill', 'vendor', ApproveAndPushBillHandler::class, false],
+            [Invoice::class, 'approve_invoice', 'customer', IssueAndPushInvoiceHandler::class, false],
+            [Expense::class, 'approve_expense', 'vendor', ApproveExpenseHandler::class, true],
         ];
 
-        foreach ($definitions as [$model, $approvalType, $relation, $handler]) {
+        foreach ($definitions as [$model, $approvalType, $relation, $handler, $allowAuthorityOverride]) {
             $systemModule = SystemModulesRepository::getByModelName($model, $app);
 
             $policy = ApprovalPolicy::firstOrCreate([
@@ -72,18 +89,36 @@ class SeedScribeApprovalPoliciesCommand extends Command
                     'required_approvals' => 1,
                 ]],
                 'handler' => $handler,
+                'fallback_resolver' => $fallbackResolver,
+                'fallback_config' => $fallbackConfig,
+                'allow_authority_override' => $allowAuthorityOverride,
                 'trigger' => ApprovalTriggerEnum::MANUAL,
                 'reject_policy' => 'any',
                 'notify' => 'none',
                 'expires_after_hours' => $expires !== null ? (int) $expires : null,
             ]);
 
+            // firstOrCreate leaves an existing row untouched, and a null fallback_resolver is the tell
+            // that nobody has chosen one — so backfilling both settings there cannot overwrite a
+            // deliberate choice. This is also what rescues requests ALREADY sitting unassigned:
+            // ApproverSelfAssignService reads the override off the policy when someone tries to DECIDE,
+            // not when the request was written, so flipping it here reaches backwards.
+            $backfilled = false;
+            if (! $policy->wasRecentlyCreated && $policy->fallback_resolver === null) {
+                $policy->fallback_resolver = $fallbackResolver;
+                $policy->fallback_config = $fallbackConfig;
+                $policy->allow_authority_override = $allowAuthorityOverride;
+                $policy->saveOrFail();
+                $backfilled = true;
+            }
+
             $this->info(sprintf(
-                '%s policy %s (id %d) for company %d.',
+                '%s policy %s (id %d) for company %d — fallback %s.',
                 $approvalType,
                 $policy->wasRecentlyCreated ? 'created' : 'already existed',
                 $policy->getId(),
-                $company->getId()
+                $company->getId(),
+                $backfilled ? "backfilled to {$fallbackResolver}" : (string) $policy->fallback_resolver,
             ));
         }
 

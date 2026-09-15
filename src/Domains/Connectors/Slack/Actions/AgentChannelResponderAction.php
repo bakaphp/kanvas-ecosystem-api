@@ -37,7 +37,10 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         // Files the user dropped in Slack were re-hosted on the message at ingest — split them into the
         // native image bucket and the audio/PDF/doc bucket so the agent can actually see them.
         ['images' => $imageUrls, 'documents' => $documentUrls] = $this->message->attachmentUrls();
-        $inboundText = AttachmentPromptBuilder::withAttachments($inboundText, $documentUrls);
+        $inboundText = AttachmentPromptBuilder::withFilesystemMarkers(
+            AttachmentPromptBuilder::withAttachments($inboundText, $documentUrls),
+            $this->message->files,
+        );
 
         // Slack was ack'd the moment the event arrived; a turn with tool calls runs 10-30s after
         // that. Post a placeholder so the thread shows the agent working, not silence. The answer

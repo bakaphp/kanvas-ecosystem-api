@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\ActionEngine;
 
+use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Tests\TestCase;
 
 class PipelineTest extends TestCase
@@ -92,6 +93,41 @@ class PipelineTest extends TestCase
                             'is_default',
                             'created_at',
                             'updated_at',
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    public function testGetActionPipelinesWithNullUpdatedAt(): void
+    {
+        $pipeline = $this->createPipeline();
+
+        // Legacy rows predate Eloquent timestamps, so pipelines.updated_at is nullable and NULL in prod.
+        Pipeline::query()
+            ->where('id', (int) $pipeline['id'])
+            ->toBase()
+            ->update(['updated_at' => null]);
+
+        $this->graphQL('
+            query($id: Mixed!) {
+                actionPipelines(where: { column: ID, operator: EQ, value: $id }) {
+                    data {
+                        id
+                        updated_at
+                    }
+                }
+            }
+        ', ['id' => (int) $pipeline['id']])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'actionPipelines' => [
+                    'data' => [
+                        [
+                            'id' => $pipeline['id'],
+                            'updated_at' => null,
                         ],
                     ],
                 ],

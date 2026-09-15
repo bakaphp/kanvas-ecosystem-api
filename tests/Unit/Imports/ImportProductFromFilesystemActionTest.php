@@ -149,6 +149,107 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
         $this->assertContains('Brand', $productAttributeNames, 'Brand was marked fromProduct=true and should be promoted to product level');
     }
 
+    public function testStreamCsvSplitsProductAndVariantTags(): void
+    {
+        $csvPath = $this->writeCsv([
+            ['Slug', 'Name', 'SKU', 'Product Tags', 'Variant Tags'],
+            ['prod-a', 'Product A', 'A-1', 'summer, sale', 'red,cotton'],
+            ['prod-a', 'Product A', 'A-2', 'summer, sale', 'blue'],
+        ]);
+        $jsonlPath = $this->makeJsonlPath();
+
+        $action = $this->makeAction($this->tagMapping());
+        $action->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
+
+        $products = $this->readProducts($jsonlPath);
+        $this->assertCount(1, $products);
+
+        $this->assertSame(['summer', 'sale'], $products[0]['tags'], 'Product tags come from product_tags, comma-split and trimmed');
+        $this->assertSame(['red', 'cotton'], $products[0]['variants'][0]['tags'], 'variant_tags is aliased onto the variant as tags');
+        $this->assertSame(['blue'], $products[0]['variants'][1]['tags']);
+    }
+
+    public function testStreamCsvUnionsProductTagsAcrossVariantRowsWithoutDuplicating(): void
+    {
+        $csvPath = $this->writeCsv([
+            ['Slug', 'Name', 'SKU', 'Product Tags', 'Variant Tags'],
+            ['prod-a', 'Product A', 'A-1', 'summer', ''],
+            ['prod-a', 'Product A', 'A-2', 'sale, summer', ''],
+        ]);
+        $jsonlPath = $this->makeJsonlPath();
+
+        $action = $this->makeAction($this->tagMapping());
+        $action->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
+
+        $products = $this->readProducts($jsonlPath);
+        $this->assertSame(['summer', 'sale'], $products[0]['tags']);
+    }
+
+    public function testStreamCsvEmitsEmptyTagsWhenColumnsAreBlank(): void
+    {
+        // syncTags is detach-then-add, so a blank cell must arrive as [] and be
+        // skipped downstream rather than wiping the entity's existing tags.
+        $csvPath = $this->writeCsv([
+            ['Slug', 'Name', 'SKU', 'Product Tags', 'Variant Tags'],
+            ['prod-a', 'Product A', 'A-1', '', '   '],
+        ]);
+        $jsonlPath = $this->makeJsonlPath();
+
+        $action = $this->makeAction($this->tagMapping());
+        $action->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
+
+        $products = $this->readProducts($jsonlPath);
+        $this->assertSame([], $products[0]['tags']);
+        $this->assertSame([], $products[0]['variants'][0]['tags']);
+    }
+
+    public function testStreamCsvReadsASemicolonDelimitedFile(): void
+    {
+        // Excel exports ';'-delimited CSV by default across most of Europe and
+        // Latin America. The delimiter is detected from the file's shape, so
+        // the tags column still splits on commas.
+        $csvPath = $this->writeRawCsv(
+            "Slug;Name;SKU;Product Tags;Variant Tags\n"
+            . "prod-a;Product A;A-1;summer, sale;red\n"
+            . "prod-a;Product A;A-2;summer, sale;blue\n"
+        );
+        $jsonlPath = $this->makeJsonlPath();
+
+        $action = $this->makeAction($this->tagMapping());
+        $action->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
+
+        $products = $this->readProducts($jsonlPath);
+        $this->assertCount(1, $products, 'Both rows share a handler so they group into one product');
+        $this->assertSame('Product A', $products[0]['name']);
+        $this->assertSame(['summer', 'sale'], $products[0]['tags']);
+        $this->assertSame(['red'], $products[0]['variants'][0]['tags']);
+        $this->assertSame(['blue'], $products[0]['variants'][1]['tags']);
+    }
+
+    private function writeRawCsv(string $content): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'rawcsv') . '.csv';
+        file_put_contents($path, $content);
+        $this->tempPaths[] = $path;
+
+        return $path;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function tagMapping(): array
+    {
+        return [
+            'product_name' => 'Name',
+            'sku' => 'SKU',
+            'handler' => 'Slug',
+            'product_slug' => 'Slug',
+            'product_tags' => 'Product Tags',
+            'variant_tags' => 'Variant Tags',
+        ];
+    }
+
     /**
      * @param array<string, mixed> $mapping
      * @param array<string, mixed> $configuration

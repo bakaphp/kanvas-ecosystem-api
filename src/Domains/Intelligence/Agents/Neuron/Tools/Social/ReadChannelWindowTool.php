@@ -6,10 +6,12 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Social;
 
 use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\HasEntityContext;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
@@ -23,14 +25,23 @@ use Override;
  * `channel_messages` shape, so an agent granted this can watch any of them.
  */
 #[AgentTool(name: 'Read Channel Window', category: 'social')]
-class ReadChannelWindowTool extends Tool
+class ReadChannelWindowTool extends Tool implements HasRunKey
 {
+    use GuardsRepeatCalls;
     use HasEntityContext;
     use HasKanvasContext;
 
     public const int DEFAULT_LIMIT = 25;
     public const int MAX_LIMIT = 100;
     public const int PREVIEW_CHARS = 800;
+
+    /**
+     * Runs are keyed per channel (see getRunKey), so this bounds how many times the SAME channel may
+     * be re-read — not how many channels an agent may look at. The turn ledger answers the second
+     * identical read with a stop instruction, so reaching this cap means the model ignored it twice
+     * (KANVAS-ECOSYSTEM-6A1: an agent with no tool for its task re-read one channel until the turn died).
+     */
+    private const int MAX_RUNS = 3;
 
     public function __construct()
     {
@@ -40,8 +51,24 @@ class ReadChannelWindowTool extends Tool
                 . 'Call it before judging a single message — a line out of a group conversation usually only '
                 . 'makes sense next to the ones around it. Defaults to the channel the record you were woken '
                 . 'on belongs to, so you can normally call it with no arguments. Long messages come back '
-                . 'truncated; use read_message_content for the full text of one.',
+                . 'truncated; use read_message_content for the full text of one. Re-reading a window you '
+                . 'already read this turn returns nothing new — read it once, then act on it.',
         );
+
+        $this->initRepeatGuard();
+        $this->setMaxRuns(self::MAX_RUNS);
+    }
+
+    /**
+     * Per-channel tracking so an agent comparing two channels doesn't spend one shared budget, while a
+     * model stuck re-reading the same one still trips the cap.
+     */
+    #[Override]
+    public function getRunKey(): string
+    {
+        $channelId = (int) $this->getInput('channel_id');
+
+        return $this->getName() . ':' . ($channelId > 0 ? (string) $channelId : 'in-scope');
     }
 
     /**
@@ -72,6 +99,29 @@ class ReadChannelWindowTool extends Tool
      */
     public function __invoke(?int $channel_id = null, ?int $limit = null): array
     {
+        // Keyed on the CLAMPED limit, not the raw one: omitted, 25 and 500 all read the same rows, so
+        // keying on the argument would let a model vary a no-op parameter and re-run the same query.
+        $limit = $this->resolveLimit($limit);
+
+        return $this->oncePerTurn(
+            [
+                'channel_id' => $channel_id,
+                'limit' => $limit,
+            ],
+            fn (): array => $this->read($channel_id, $limit),
+        );
+    }
+
+    private function resolveLimit(?int $limit): int
+    {
+        return min(max((int) $limit ?: self::DEFAULT_LIMIT, 1), self::MAX_LIMIT);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function read(?int $channel_id, int $limit): array
+    {
         if (! $this->hasTenantContext()) {
             return [
                 'status' => 'error',
@@ -97,7 +147,7 @@ class ReadChannelWindowTool extends Tool
         $messages = $channel->messages()
             ->where('messages.is_deleted', 0)
             ->orderByDesc('messages.id')
-            ->limit(min(max((int) $limit ?: self::DEFAULT_LIMIT, 1), self::MAX_LIMIT))
+            ->limit($limit)
             ->get();
 
         return [

@@ -18,11 +18,11 @@ use Kanvas\Filesystem\DataTransferObject\FilesystemMapperUpdate;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Models\FilesystemMapper as ModelsFilesystemMapper;
+use Kanvas\Filesystem\Services\CsvReaderService;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Services\SystemModulesServices;
-use League\Csv\Reader;
 
 class FilesystemMapperMutation
 {
@@ -132,7 +132,7 @@ class FilesystemMapperMutation
             $fileSystemService = new FilesystemServices($app, $company);
             $path = $fileSystemService->getFileLocalPath($filesystem);
 
-            $reader = Reader::createFromPath($path, 'r');
+            $reader = CsvReaderService::fromPath($path);
             $reader->setHeaderOffset(0);
             $records = $reader->getHeader();
             $this->validateFields($mapper, $records);

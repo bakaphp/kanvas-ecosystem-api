@@ -29,6 +29,7 @@ use Kanvas\NervousSystem\Project\Jobs\WakeWorkerForPlanJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Models\ProjectMember;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedCompanies;
 use ReflectionMethod;
 use Tests\TestCase;
 
@@ -72,6 +73,14 @@ class ProjectPlanDelegationTest extends TestCase
                 ['title' => 'Delegation', 'agent_id' => $this->makeAgent($app, $company, $user)->id],
             ),
         )->execute();
+    }
+
+    private function makeCompanyUser(Companies $company, string $firstname, string $lastname): Users
+    {
+        $user = Users::factory()->create(['firstname' => $firstname, 'lastname' => $lastname]);
+        $company->associateUser($user, StateEnums::YES->getValue(), $company->branch);
+
+        return $user;
     }
 
     private function planUnderProject(Project $project, Apps $app, Companies $company, Users $user): Plan
@@ -265,6 +274,130 @@ class ProjectPlanDelegationTest extends TestCase
             1,
             (int) ProjectMember::query()->where('project_id', $project->id)->where('agent_id', $named->id)->count(),
         );
+    }
+
+    /**
+     * Regression: the PM is handed the name as it appears in the content — "Roberlina Vega" — but the
+     * name is stored split across firstname/lastname, so the old single-column LIKE matched nothing
+     * and every full-named human came back "not found in the workspace directory" (prod, app 2).
+     */
+    public function testFindAndAddMemberResolvesAHumanByTheirFullName(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        $member = $this->makeCompanyUser($company, 'Roberlinazzz', 'Vegazzz');
+
+        $tool = new FindAndAddNervousSystemMemberTool()->withContext($app, $company, $user);
+        $result = $tool((int) $project->id, 'Roberlinazzz Vegazzz');
+
+        $this->assertTrue($result['found']);
+        $this->assertSame(
+            1,
+            (int) ProjectMember::query()
+                ->where('project_id', $project->id)
+                ->where('users_id', $member->getId())
+                ->count(),
+        );
+    }
+
+    public function testFindAndAddMemberResolvesAHumanByLastNameFirst(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        $member = $this->makeCompanyUser($company, 'Roberlinayyy', 'Vegayyy');
+
+        $tool = new FindAndAddNervousSystemMemberTool()->withContext($app, $company, $user);
+        $result = $tool((int) $project->id, 'Vegayyy, Roberlinayyy');
+
+        $this->assertTrue($result['found']);
+        $this->assertSame(
+            1,
+            (int) ProjectMember::query()
+                ->where('project_id', $project->id)
+                ->where('users_id', $member->getId())
+                ->count(),
+        );
+    }
+
+    public function testFindAndAddMemberAsksWhichPersonWhenSeveralShareAName(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        $this->makeCompanyUser($company, 'Roberlinawww', 'Vegawww');
+        $second = $this->makeCompanyUser($company, 'Roberlinawww', 'Vegawww');
+
+        $tool = new FindAndAddNervousSystemMemberTool()->withContext($app, $company, $user);
+        $ambiguous = $tool((int) $project->id, 'Roberlinawww Vegawww');
+
+        $this->assertFalse($ambiguous['found']);
+        $this->assertTrue($ambiguous['ambiguous']);
+        $this->assertCount(2, $ambiguous['candidates']);
+        $this->assertSame(
+            0,
+            (int) ProjectMember::query()->where('project_id', $project->id)->whereNull('agent_id')->count(),
+        );
+
+        // The email the PM was told to come back with picks the one person.
+        $resolved = $tool(
+            project_id: (int) $project->id,
+            name: 'Roberlinawww Vegawww',
+            email: $second->email,
+        );
+
+        $this->assertTrue($resolved['found']);
+        $this->assertSame(
+            1,
+            (int) ProjectMember::query()
+                ->where('project_id', $project->id)
+                ->where('users_id', $second->getId())
+                ->count(),
+        );
+    }
+
+    public function testFindAndAddMemberIgnoresAUserRemovedFromTheCompany(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        $removed = $this->makeCompanyUser($company, 'Roberlinavvv', 'Vegavvv');
+        UsersAssociatedCompanies::query()
+            ->where('users_id', $removed->getId())
+            ->where('companies_id', $company->getId())
+            ->update(['is_deleted' => StateEnums::YES->getValue()]);
+
+        $tool = new FindAndAddNervousSystemMemberTool()->withContext($app, $company, $user);
+        $result = $tool((int) $project->id, 'Roberlinavvv Vegavvv');
+
+        $this->assertFalse($result['found']);
+    }
+
+    public function testFindAndAddMemberResolvesAnAgentByItsFullName(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        $type = AgentType::factory()->create([
+            'apps_id' => $app->getId(),
+            'handler' => ProjectManagerAgent::class,
+        ]);
+        $named = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create([
+                'user_id' => $user->getId(),
+                'agent_type_id' => $type->id,
+                'is_active' => true,
+                'name' => 'Roberlinaxxx A. Builderxxx',
+            ]);
+
+        $tool = new FindAndAddNervousSystemMemberTool()->withContext($app, $company, $user);
+        $result = $tool((int) $project->id, 'Roberlinaxxx Builderxxx');
+
+        $this->assertTrue($result['found']);
+        $this->assertSame((int) $named->id, (int) $result['agent_id']);
     }
 
     public function testFindAndAddMemberReturnsNotFoundForUnknownName(): void

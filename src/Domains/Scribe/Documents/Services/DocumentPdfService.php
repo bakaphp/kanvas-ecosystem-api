@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Documents\Services;
 
+use Baka\Support\Str;
 use Illuminate\Support\Facades\View;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\PdfService;
@@ -167,7 +168,18 @@ final class DocumentPdfService
             'tax_id' => $this->document->billable_tax_id,
             'email' => $this->document->billable_email,
             'address_lines' => $this->addressLines($address),
+            'attention' => $this->attentionName(),
         ];
+    }
+
+    /** Only quotes carry a contact today; an invoice has no equivalent column. */
+    private function attentionName(): ?string
+    {
+        if (! $this->document instanceof Quote) {
+            return null;
+        }
+
+        return Str::trimToNull($this->document->contact?->getDisplayName());
     }
 
     /**

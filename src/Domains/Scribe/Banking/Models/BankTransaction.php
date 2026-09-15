@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Banking\Models;
 
 use Baka\Casts\Json;
+use Baka\Observers\ClearsLightHouseCacheObserver;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
@@ -16,6 +19,7 @@ use Kanvas\Scribe\Banking\Enums\BankTransactionMatchedToTypeEnum;
 use Kanvas\Scribe\Banking\Enums\BankTransactionMatchStatusEnum;
 use Kanvas\Scribe\Ledger\Models\JournalEntry;
 use Kanvas\Scribe\Models\BaseModel;
+use Override;
 
 /**
  * One movement as the bank reported it. The bank is the source of cash truth, so this row exists whether
@@ -51,9 +55,11 @@ use Kanvas\Scribe\Models\BaseModel;
  * @property bool $is_deleted
  * @property int|null $users_id
  */
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class BankTransaction extends BaseModel
 {
     use EmitsLedgerEventsForEntity;
+    use HasLightHouseCache;
     use UuidTrait;
 
     protected $table = 'bank_transactions';
@@ -110,5 +116,11 @@ class BankTransaction extends BaseModel
     protected function sourceDomainForLedger(): string
     {
         return 'Scribe';
+    }
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'ScribeBankTransaction';
     }
 }

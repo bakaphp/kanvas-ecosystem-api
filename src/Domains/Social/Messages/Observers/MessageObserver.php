@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Observers;
 
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
 use Kanvas\Social\Messages\Enums\MessageSenderTypeEnum;
 use Kanvas\Social\Messages\Jobs\ProcessMessageMentionsJob;
@@ -77,22 +78,16 @@ class MessageObserver
 
     public function deleted(Message $message): void
     {
-        // Check each channel this message belongs to
+        /** @var Channel $channel */
         foreach ($message->channels as $channel) {
-            $remainingMessagesCount = $channel->messages()
-                ->where('messages.id', '!=', $message->id)
-                ->count();
-
-            if ($remainingMessagesCount === 0) {
-                $channel->is_deleted = 1;
-                $channel->last_message_id = null;
-                $channel->saveOrFail();
-            } elseif ($channel->last_message_id === $message->id) {
-                $previousMessage = $channel->getPreviousMessage($message);
-                $channel->last_message_id = $previousMessage?->id;
-                $channel->saveOrFail();
+            if ((int) $channel->last_message_id !== $message->id) {
+                continue;
             }
+
+            $channel->last_message_id = $channel->getPreviousMessage($message)?->id;
+            $channel->saveOrFail();
         }
+
         if ($message->isIndexedMessageType()) {
             $message->unsearchable();
         }

@@ -47,6 +47,9 @@ class People extends Data
         public ?bool $flushPreviousAddress = false,
         public ?bool $runWorkflow = true,
         public ?bool $skipDuplicateContactCheck = false,
+        // Partial senders (a webhook that only knows the phone it came from) must set this,
+        // otherwise the update treats their one contact as the full list and deletes the rest.
+        public ?bool $mergeContacts = false,
     ) {
         $this->cleanFirstNameFromMiddleName();
     }
