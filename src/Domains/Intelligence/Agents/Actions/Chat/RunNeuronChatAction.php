@@ -32,6 +32,7 @@ use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\ToolCallMessage;
 use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Exceptions\NeuronException;
 use NeuronAI\Exceptions\ToolRunsExceededException;
 use NeuronAI\Tools\ToolInterface;
 use Throwable;
@@ -112,7 +113,7 @@ class RunNeuronChatAction
                     $usage = $u->jsonSerialize();
                 }
             }
-        } catch (Throwable $e) {
+        } catch (NeuronException $e) {
             $fallback = $this->humanizedFallback($e);
 
             // Logged on both paths: report() only captures Issues, and a rethrown failure is reported
