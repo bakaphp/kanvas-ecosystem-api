@@ -267,11 +267,7 @@ class CreateBaseOrderAction
         return $this->region->currency;
     }
 
-    /**
-     * A credit lowers total_net_amount after the fact, so it only helps orders that are billed later
-     * (quotes, invoices). Wallet and card checkouts already charged the cart total — applying a credit
-     * there would burn it for nothing. A credit that fails to apply must never block checkout either.
-     */
+    // Prepaid checkouts already charged the cart total; a credit there would be burned for nothing.
     protected function applyCompanyCredit(ModelsOrder $order): void
     {
         if ($this->isPrepaidAtCheckout($order)) {
@@ -281,7 +277,7 @@ class CreateBaseOrderAction
         try {
             new DiscountService($order->app, $order->company)->applyFirstAvailableCredit($order);
         } catch (ValidationException) {
-            // Expected skips ("nothing left to credit", lost the row lock) — not faults.
+            // expected skip, not a fault
         } catch (Throwable $e) {
             report($e);
         }

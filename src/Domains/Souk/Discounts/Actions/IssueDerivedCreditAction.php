@@ -8,10 +8,6 @@ use Kanvas\Souk\Discounts\Enums\CustomFieldEnum;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Orders\Models\Order;
 
-/**
- * Credits never change once issued; whatever is left after an order (or comes back when one is
- * cancelled) becomes a fresh single-use credit that points at the row and order it came from.
- */
 class IssueDerivedCreditAction
 {
     public function __construct(

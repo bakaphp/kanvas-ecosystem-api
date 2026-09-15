@@ -29,6 +29,7 @@ class CreateDiscountAction
             throw new ValidationException('A credit must be greater than zero');
         }
 
+        // firstOrCreate keyed on a null code would return the company's first credit instead of a new one.
         $discount = $isCredit
             ? Discount::create($this->creditAttributes())
             : Discount::firstOrCreate(
@@ -65,10 +66,6 @@ class CreateDiscountAction
         ];
     }
 
-    /**
-     * A credit is always a fresh row: `firstOrCreate` keyed on a null code would hand back the
-     * company's first credit instead of issuing a new one, and every credit is single-use by design.
-     */
     protected function creditAttributes(): array
     {
         return [

@@ -261,9 +261,6 @@ class DiscountService
         });
     }
 
-    /**
-     * Oldest first so a client's credits are spent in the order they were issued.
-     */
     public function getApplicableCredits(): Collection
     {
         return $this->getActiveDiscounts()
@@ -277,10 +274,7 @@ class DiscountService
             ->values();
     }
 
-    /**
-     * A credit that cannot apply (lost the row lock to a concurrent order, went inactive in between)
-     * must not block the ones issued after it.
-     */
+    // A credit that lost the row lock to a concurrent order must not block the ones issued after it.
     public function applyFirstAvailableCredit(Order $order): ?Discount
     {
         if ($order->remainingNetAmount() < 0.01) {

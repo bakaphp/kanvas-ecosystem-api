@@ -128,10 +128,6 @@ class DiscountManagementMutation
         return new DeleteDiscountAction($discount)->execute();
     }
 
-    /**
-     * Issuing on behalf of another company is only reachable behind @guardByAppKey, so the one
-     * check that matters is that the company actually lives in this app.
-     */
     private function resolveTargetCompany(int $companyId, Apps $app): Companies
     {
         $company = Companies::getById($companyId);

@@ -18,13 +18,12 @@ class RestoreCreditFromCancelledOrderAction
     }
 
     /**
-     * @return Discount[] the credits issued back to the company
+     * @return Discount[]
      */
     public function execute(): array
     {
         return DB::connection('commerce')->transaction(function (): array {
-            // The soft-deleted order_discounts row is the idempotency guard: a second cancel finds nothing to restore.
-            // withTrashed: a credit deleted after it was spent still owes the company its money back.
+            // The soft-deleted order_discounts row is the idempotency guard; withTrashed because a deleted credit still owes its money back.
             $consumed = $this->order->orderDiscounts()
                 ->notDeleted()
                 ->lockForUpdate()
