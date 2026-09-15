@@ -138,6 +138,147 @@ class ProjectCrudTest extends TestCase
             ->assertJson(['data' => ['updateNervousSystemProject' => ['title' => 'New title', 'status' => 'active']]]);
     }
 
+    public function testProjectBoardColumnsCanBeCreatedAndRenamedViaGraphQL(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+        $project = new CreateProjectAction(
+            ProjectData::from(
+                $app,
+                $user,
+                $company,
+                ['title' => 'Configurable board', 'agent_id' => $agent->id],
+            ),
+        )->execute();
+
+        $this->graphQL('
+            mutation ($projectId: ID!, $input: CreateNervousSystemProjectBoardColumnInput!) {
+                createNervousSystemProjectBoardColumn(project_id: $projectId, input: $input) {
+                    key
+                    name
+                    position
+                    plan_status
+                }
+            }
+        ', [
+            'projectId' => $project->id,
+            'input' => ['name' => 'Backlog', 'plan_status' => 'draft'],
+        ])
+            ->assertSuccessful()
+            ->assertJsonPath('data.createNervousSystemProjectBoardColumn.key', 'backlog')
+            ->assertJsonPath('data.createNervousSystemProjectBoardColumn.name', 'Backlog')
+            ->assertJsonPath('data.createNervousSystemProjectBoardColumn.position', 4);
+
+        $this->graphQL('
+            mutation ($projectId: ID!, $key: String!, $name: String!) {
+                renameNervousSystemProjectBoardColumn(project_id: $projectId, key: $key, name: $name) {
+                    key
+                    name
+                }
+            }
+        ', [
+            'projectId' => $project->id,
+            'key' => 'todo',
+            'name' => 'Current Wk - To Do',
+        ])
+            ->assertSuccessful()
+            ->assertJsonPath('data.renameNervousSystemProjectBoardColumn.key', 'todo')
+            ->assertJsonPath('data.renameNervousSystemProjectBoardColumn.name', 'Current Wk - To Do');
+
+        $this->graphQL('
+            query ($id: Mixed!) {
+                nervousSystemProjects(where: { column: ID, operator: EQ, value: $id }) {
+                    data {
+                        boardColumns { key name position plan_status legacy_statuses }
+                    }
+                }
+            }
+        ', ['id' => $project->id])
+            ->assertSuccessful()
+            ->assertJsonPath('data.nervousSystemProjects.data.0.boardColumns.0.key', 'todo')
+            ->assertJsonPath('data.nervousSystemProjects.data.0.boardColumns.0.name', 'Current Wk - To Do')
+            ->assertJsonPath('data.nervousSystemProjects.data.0.boardColumns.4.name', 'Backlog');
+
+        $this->graphQL('
+            mutation ($projectId: ID!, $keys: [String!]!) {
+                reorderNervousSystemProjectBoardColumns(project_id: $projectId, keys: $keys) {
+                    key
+                    position
+                }
+            }
+        ', [
+            'projectId' => $project->id,
+            'keys' => ['backlog', 'todo', 'in_progress', 'blocked', 'done'],
+        ])
+            ->assertSuccessful()
+            ->assertJsonPath('data.reorderNervousSystemProjectBoardColumns.0.key', 'backlog')
+            ->assertJsonPath('data.reorderNervousSystemProjectBoardColumns.0.position', 0)
+            ->assertJsonPath('data.reorderNervousSystemProjectBoardColumns.1.key', 'todo')
+            ->assertJsonPath('data.reorderNervousSystemProjectBoardColumns.1.position', 1);
+    }
+
+    public function testMovingPlanToProjectBoardColumnPreservesPlanAndUsesColumnStatus(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $agent = $this->makeAgent($app, $company, $user);
+        $project = new CreateProjectAction(
+            ProjectData::from(
+                $app,
+                $user,
+                $company,
+                ['title' => 'Board moves', 'agent_id' => $agent->id],
+            ),
+        )->execute();
+
+        $columnResponse = $this->graphQL('
+            mutation ($projectId: ID!, $input: CreateNervousSystemProjectBoardColumnInput!) {
+                createNervousSystemProjectBoardColumn(project_id: $projectId, input: $input) {
+                    key
+                }
+            }
+        ', [
+            'projectId' => $project->id,
+            'input' => ['name' => 'Pending Review', 'plan_status' => 'awaiting_approval'],
+        ])
+            ->assertSuccessful()
+            ->assertGraphQLErrorFree();
+
+        $columnKey = $columnResponse->json('data.createNervousSystemProjectBoardColumn.key');
+        $planResponse = $this->graphQL('
+            mutation ($input: CreateNervousSystemPlanInput!) {
+                createNervousSystemPlan(input: $input) { id status board_column_key }
+            }
+        ', ['input' => [
+            'title' => 'Keep this plan',
+            'plan_type' => 'task',
+            'users_id' => $user->id,
+            'project_id' => $project->id,
+        ]])
+            ->assertSuccessful()
+            ->assertGraphQLErrorFree();
+
+        $planId = $planResponse->json('data.createNervousSystemPlan.id');
+
+        $this->graphQL('
+            mutation ($id: ID!, $input: UpdateNervousSystemPlanInput!) {
+                updateNervousSystemPlan(id: $id, input: $input) {
+                    id
+                    title
+                    status
+                    board_column_key
+                }
+            }
+        ', [
+            'id' => $planId,
+            'input' => ['board_column_key' => $columnKey],
+        ])
+            ->assertSuccessful()
+            ->assertJsonPath('data.updateNervousSystemPlan.id', (string) $planId)
+            ->assertJsonPath('data.updateNervousSystemPlan.title', 'Keep this plan')
+            ->assertJsonPath('data.updateNervousSystemPlan.status', 'awaiting_approval')
+            ->assertJsonPath('data.updateNervousSystemPlan.board_column_key', 'pending_review');
+    }
+
     public function testDeleteProjectViaGraphQL(): void
     {
         [$app, $company, $user] = $this->context();

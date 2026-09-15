@@ -34,6 +34,8 @@ type NervousSystemProject {
     parent: NervousSystemProject @belongsTo(relation: "parent")
     children: [NervousSystemProject!]! @hasMany(relation: "children")
     plans: [NervousSystemPlan!]! @hasMany(relation: "plans")
+    boardColumns: [NervousSystemProjectBoardColumn!]!
+        @method(name: "boardColumns")
     members: [NervousSystemProjectMember!]! @hasMany(relation: "members")
     defaultChannel: SocialChannel @belongsTo(relation: "defaultChannel")
     channels: [SocialChannel!]! @hasMany(relation: "channels")
@@ -50,6 +52,19 @@ type NervousSystemProject {
         )
     created_at: DateTime!
     updated_at: DateTime
+}
+
+type NervousSystemProjectBoardColumn {
+    key: String!
+    name: String!
+    position: Int!
+    plan_status: String!
+    legacy_statuses: [String!]!
+}
+
+input CreateNervousSystemProjectBoardColumnInput {
+    name: String!
+    plan_status: String
 }
 
 type NervousSystemProjectMember {
@@ -204,6 +219,31 @@ extend type Mutation @guard {
     ): Message!
         @field(
             resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMutation@attachMessage"
+        )
+
+    createNervousSystemProjectBoardColumn(
+        project_id: ID!
+        input: CreateNervousSystemProjectBoardColumnInput!
+    ): NervousSystemProjectBoardColumn!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMutation@createBoardColumn"
+        )
+
+    renameNervousSystemProjectBoardColumn(
+        project_id: ID!
+        key: String!
+        name: String!
+    ): NervousSystemProjectBoardColumn!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMutation@renameBoardColumn"
+        )
+
+    reorderNervousSystemProjectBoardColumns(
+        project_id: ID!
+        keys: [String!]!
+    ): [NervousSystemProjectBoardColumn!]!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ProjectMutation@reorderBoardColumns"
         )
 
     addNervousSystemProjectMember(
