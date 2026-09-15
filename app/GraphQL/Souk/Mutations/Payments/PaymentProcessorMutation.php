@@ -286,7 +286,10 @@ class PaymentProcessorMutation
         $createPayment              = new CreatePaymentAction($order, $user);
         $createPayment->runWorkflow = false;
 
-        return $createPayment->execute(['payment_methods_id' => $paymentMethod->id]);
+        return $createPayment->execute([
+            'payment_methods_id' => $paymentMethod->id,
+            'amount' => $order->getTotalDueAmount(),
+        ]);
     }
 
     public function finalizeChallenge(mixed $root, array $request): array

@@ -958,7 +958,7 @@ class Order extends BaseModel implements PayableInterface
         $orderTotal = (float) ($total->price ?? 0);
 
         // Get discount amount from orderDiscounts relationship (single source of truth)
-        $discountAmount = (float) $this->orderDiscounts()->sum('amount');
+        $discountAmount = $this->appliedDiscountAmount();
 
         $this->total_gross_amount = $orderTotal;
         $this->discount_amount = $discountAmount;
@@ -981,6 +981,16 @@ class Order extends BaseModel implements PayableInterface
     protected static function newFactory()
     {
         return new OrderFactory();
+    }
+
+    public function appliedDiscountAmount(): float
+    {
+        return (float) $this->orderDiscounts()->notDeleted()->sum('amount');
+    }
+
+    public function remainingNetAmount(): float
+    {
+        return max(0.0, (float) $this->total_gross_amount - $this->appliedDiscountAmount());
     }
 
     public function applyDiscountCode(string $code): ?Discount

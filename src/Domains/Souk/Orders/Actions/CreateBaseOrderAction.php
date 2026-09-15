@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\AddressType;
@@ -30,6 +31,7 @@ use Kanvas\Souk\Wallet\Enums\ConfigurationEnum as WalletConfigurationEnum;
 use Kanvas\Users\Actions\SendUserNotificationAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Spatie\LaravelData\DataCollection;
+use Throwable;
 use Wearepixel\Cart\Cart;
 
 class CreateBaseOrderAction
@@ -152,6 +154,8 @@ class CreateBaseOrderAction
         // Save the order discounts from cart conditions
         $this->saveOrderDiscountsFromCart($order);
 
+        $this->applyCompanyCredit($order);
+
         // Process wallet credit if applied
         $this->processWalletCreditFromCart($order);
 
@@ -261,6 +265,28 @@ class CreateBaseOrderAction
         }
 
         return $this->region->currency;
+    }
+
+    // Prepaid checkouts already charged the cart total; a credit there would be burned for nothing.
+    protected function applyCompanyCredit(ModelsOrder $order): void
+    {
+        if ($this->isPrepaidAtCheckout($order)) {
+            return;
+        }
+
+        try {
+            new DiscountService($order->app, $order->company)->applyFirstAvailableCredit($order);
+        } catch (ValidationException) {
+            // expected skip, not a fault
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    protected function isPrepaidAtCheckout(ModelsOrder $order): bool
+    {
+        return $order->payments()->exists()
+            || $this->cart->getConditions()->contains(fn ($condition) => $condition->getType() === 'wallet');
     }
 
     /**

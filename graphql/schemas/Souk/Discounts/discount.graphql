@@ -23,7 +23,7 @@ type Discount {
 }
 
 type OrderDiscountRelation {
-    code: String!
+    code: String
     amount: Money!
     value: Float!
     type: String!
@@ -75,6 +75,8 @@ type OrderItemDiscount {
 }
 
 input DiscountInput {
+    "App-key callers only; defaults to the caller's company. Ignored by updateDiscount."
+    companies_id: ID
     name: String!
     description: String!
     discount_type_id: ID!
