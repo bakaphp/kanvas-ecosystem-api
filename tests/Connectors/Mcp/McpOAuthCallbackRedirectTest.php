@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\Connectors\Mcp;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Testing\TestResponse;
 use Kanvas\Connectors\Internal\Jobs\OAuthCallbackJob;
 use Kanvas\Connectors\Mcp\Actions\CreateMcpOAuthReceiverAction;
+use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
@@ -61,6 +63,41 @@ final class McpOAuthCallbackRedirectTest extends McpTestCase
             ->assertJson(['error' => 'Authentication error']);
     }
 
+    public function testAConnectionThatCannotStartSendsTheBrowserBackWithTheReason(): void
+    {
+        $receiver = $this->receiver('https://app.example.test/agents/5', SalesAgent::class);
+
+        $response = $this->get('/v1/oauth/' . $receiver->uuid);
+
+        $response->assertRedirect();
+        $location = (string) $response->headers->get('Location');
+        $this->assertStringStartsWith('https://app.example.test/agents/5?status=error&message=', $location);
+        $this->assertNull(Redis::get('mcp_oauth:' . $receiver->uuid));
+    }
+
+    public function testAConnectionThatCannotStartIsLoggedWithItsReason(): void
+    {
+        Log::spy();
+        $receiver = $this->receiver('https://app.example.test/agents/5', SalesAgent::class);
+
+        $this->get('/v1/oauth/' . $receiver->uuid);
+
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $event, array $context) => $event === 'oauth.integration.auth_failed'
+                && $context['receiver_uuid'] === $receiver->uuid
+                && $context['message'] !== '')
+            ->once();
+    }
+
+    public function testAConnectionThatCannotStartWithoutARedirectUrlIsAClientError(): void
+    {
+        $receiver = $this->receiver(null, SalesAgent::class);
+
+        $this->get('/v1/oauth/' . $receiver->uuid)
+            ->assertStatus(422)
+            ->assertJson(['error' => 'Authentication error']);
+    }
+
     public function testTheSharedCallbackFindsTheReceiverFromState(): void
     {
         $receiver = $this->receiver('https://app.example.test/agents/5');
@@ -86,10 +123,10 @@ final class McpOAuthCallbackRedirectTest extends McpTestCase
             ->assertStatus(400);
     }
 
-    private function receiver(?string $redirectUrl): ReceiverWebhook
+    private function receiver(?string $redirectUrl, ?string $agentClass = null): ReceiverWebhook
     {
         return new CreateMcpOAuthReceiverAction(
-            agent: $this->makeAgent(),
+            agent: $this->makeAgent($agentClass),
             tool: $this->makeMcpTool($this->makeIntegration(['auth_methods' => ['oauth']])),
             user: $this->mcpUser,
             redirectUrl: $redirectUrl,
