@@ -23,6 +23,7 @@ use Kanvas\NervousSystem\Project\Enums\ProjectStatusEnum;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Observers\ProjectObserver;
 use Kanvas\NervousSystem\Project\Services\ProjectMentionTriggerService;
+use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
@@ -184,6 +185,14 @@ class Project extends BaseModel implements HandlesAgentMention
             'project_id',
             'id'
         )->where('is_deleted', 0);
+    }
+
+    /**
+     * @return array<int, array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}>
+     */
+    public function boardColumns(): array
+    {
+        return new ProjectBoardColumns()->forProject($this);
     }
 
     public function members(): HasMany
