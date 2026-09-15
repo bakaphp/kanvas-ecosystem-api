@@ -23,7 +23,10 @@ type Discount {
 }
 
 type OrderDiscountRelation {
-    code: String!
+    """
+    Null for an auto-applied credit — credits carry no code.
+    """
+    code: String
     amount: Money!
     value: Float!
     type: String!

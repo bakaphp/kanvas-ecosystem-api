@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Discounts\Actions;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
@@ -23,12 +24,13 @@ class RestoreCreditFromCancelledOrderAction
     {
         return DB::connection('commerce')->transaction(function (): array {
             // The soft-deleted order_discounts row is the idempotency guard: a second cancel finds nothing to restore.
+            // withTrashed: a credit deleted after it was spent still owes the company its money back.
             $consumed = $this->order->orderDiscounts()
                 ->notDeleted()
                 ->lockForUpdate()
-                ->with('discount.discountType')
+                ->with(['discount' => fn (BelongsTo $discount) => $discount->withTrashed()->with('discountType')])
                 ->get()
-                ->filter(fn (OrderDiscount $orderDiscount) => $orderDiscount->discount->isAutoAppliedCredit());
+                ->filter(fn (OrderDiscount $orderDiscount) => $orderDiscount->discount?->isAutoAppliedCredit() ?? false);
 
             if ($consumed->isEmpty()) {
                 return [];
@@ -55,7 +57,7 @@ class RestoreCreditFromCancelledOrderAction
 
             $this->order->calculateTotal();
 
-            return $restored;
+            return array_values(array_filter($restored));
         });
     }
 }

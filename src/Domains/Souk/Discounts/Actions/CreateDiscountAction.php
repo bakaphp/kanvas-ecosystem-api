@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Discounts\Actions;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Discounts\DataTransferObject\DiscountData;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\DiscountType;
@@ -22,7 +23,13 @@ class CreateDiscountAction
 
     public function execute(): Discount
     {
-        $discount = $this->isAutoAppliedCredit()
+        $isCredit = $this->isAutoAppliedCredit();
+
+        if ($isCredit && $this->data->value <= 0) {
+            throw new ValidationException('A credit must be greater than zero');
+        }
+
+        $discount = $isCredit
             ? Discount::create($this->creditAttributes())
             : Discount::firstOrCreate(
                 [

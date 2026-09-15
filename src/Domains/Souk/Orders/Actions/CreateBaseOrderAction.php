@@ -274,7 +274,7 @@ class CreateBaseOrderAction
      */
     protected function applyCompanyCredit(ModelsOrder $order): void
     {
-        if ($this->isPrepaidAtCheckout()) {
+        if ($this->isPrepaidAtCheckout($order)) {
             return;
         }
 
@@ -287,9 +287,10 @@ class CreateBaseOrderAction
         }
     }
 
-    protected function isPrepaidAtCheckout(): bool
+    protected function isPrepaidAtCheckout(ModelsOrder $order): bool
     {
-        return $this->cart->getConditions()->contains(fn ($condition) => $condition->getType() === 'wallet');
+        return $order->payments()->exists()
+            || $this->cart->getConditions()->contains(fn ($condition) => $condition->getType() === 'wallet');
     }
 
     /**

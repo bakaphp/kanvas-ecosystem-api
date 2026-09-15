@@ -9,6 +9,7 @@ use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Discounts\Actions\ApplyCreditToOrderAction;
 use Kanvas\Souk\Discounts\Actions\ApplyDiscountToOrderAction;
 use Kanvas\Souk\Discounts\Enums\DiscountConditionTypeEnum;
@@ -268,6 +269,7 @@ class DiscountService
         return $this->getActiveDiscounts()
             ->whereHas('discountType', fn (Builder $query) => $query->where('name', DiscountTypeEnum::AUTO_APPLIED_CREDIT->label()))
             ->whereNull('code')
+            ->where('value', '>', 0)
             ->orderBy('created_at')
             ->orderBy('id')
             ->get()
@@ -275,21 +277,27 @@ class DiscountService
             ->values();
     }
 
+    /**
+     * A credit that cannot apply (lost the row lock to a concurrent order, went inactive in between)
+     * must not block the ones issued after it.
+     */
     public function applyFirstAvailableCredit(Order $order): ?Discount
     {
         if ($order->remainingNetAmount() < 0.01) {
             return null;
         }
 
-        $credit = $this->getApplicableCredits()->first();
+        foreach ($this->getApplicableCredits() as $credit) {
+            try {
+                new ApplyCreditToOrderAction($order, $credit)->execute();
 
-        if ($credit === null) {
-            return null;
+                return $credit;
+            } catch (ValidationException) {
+                continue;
+            }
         }
 
-        new ApplyCreditToOrderAction($order, $credit)->execute();
-
-        return $credit;
+        return null;
     }
 
     /**

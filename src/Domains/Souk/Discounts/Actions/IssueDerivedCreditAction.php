@@ -21,17 +21,25 @@ class IssueDerivedCreditAction
     ) {
     }
 
-    public function execute(): Discount
+    public function execute(): ?Discount
     {
+        $amount = round($this->amount, 2);
+
+        if ($amount < 0.01) {
+            return null;
+        }
+
         $credit = Discount::create([
             'apps_id' => $this->source->apps_id,
             'companies_id' => $this->source->companies_id,
             'name' => $this->source->name,
             'description' => $this->source->description,
             'discount_type_id' => $this->source->discount_type_id,
-            'value' => round($this->amount, 2),
+            'value' => $amount,
             'is_percentage' => false,
             'code' => null,
+            'start_date' => $this->source->start_date,
+            'end_date' => $this->source->end_date,
             'is_active' => true,
             'usage_limit' => 1,
             'usage_count' => 0,

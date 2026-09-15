@@ -94,6 +94,13 @@ final class AutoAppliedCreditIssuanceTest extends TestCase
         $this->assertSame(0, Discount::where('companies_id', $foreign->getId())->count());
     }
 
+    public function testACreditMustBeGreaterThanZero(): void
+    {
+        $response = $this->issueCredit(['value' => 0]);
+
+        $this->assertStringContainsString('greater than zero', $response->json('errors.0.message'));
+    }
+
     public function testPromoDiscountsKeepTheExistingBehaviour(): void
     {
         $promoType = DiscountType::getByName(DiscountTypeEnum::FIXED_AMOUNT->label());

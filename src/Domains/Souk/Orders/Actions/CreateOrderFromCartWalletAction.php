@@ -34,7 +34,7 @@ class CreateOrderFromCartWalletAction extends CreateBaseOrderAction
     }
 
     #[Override]
-    protected function isPrepaidAtCheckout(): bool
+    protected function isPrepaidAtCheckout(Order $order): bool
     {
         return true;
     }
