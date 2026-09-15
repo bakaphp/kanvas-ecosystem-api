@@ -12,7 +12,6 @@ use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use NeuronAI\MCP\CallableMcpTool;
 use NeuronAI\MCP\McpConnector;
-use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolInterface;
 use Override;
 use Throwable;
@@ -141,7 +140,7 @@ class CachedMcpConnector extends McpConnector
     #[Override]
     protected function createTool(array $item): ToolInterface
     {
-        $tool = Tool::make(
+        $tool = McpTool::make(
             name: $item['name'],
             description: $item['description'] ?? null,
             annotations: $item['annotations'] ?? [],
