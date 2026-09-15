@@ -142,17 +142,21 @@ class CreateMessageAction
                 );
             }
 
-            if ($this->messageInput->channel_slug !== null) {
+            if ($this->messageInput->channel_uuid !== null || $this->messageInput->channel_slug !== null) {
                 $allowAppWideChannel = (bool) $this->messageInput->app->get(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value);
 
-                $channel = ModelsChannel::where('slug', $this->messageInput->channel_slug)
-                    ->where('apps_id', $this->messageInput->app->getId())
-                    ->when(! $allowAppWideChannel, fn (Builder $q): Builder => $q->where('companies_id', $this->messageInput->company->getId()))
-                    ->where('is_deleted', 0)
-                    ->when($this->entityId !== null && $this->systemModule !== null, function (Builder $query) {
-                        $query->where('entity_id', $this->entityId)
-                            ->where('entity_namespace', $this->systemModule->model_name);
-                    })
+                $channel = ModelsChannel::query()
+                    ->when(
+                        $this->messageInput->channel_uuid !== null,
+                        fn (Builder $q) => $q->where('uuid', $this->messageInput->channel_uuid),
+                        fn (Builder $q) => $q->where('slug', $this->messageInput->channel_slug),
+                    )
+                    ->fromApp($this->messageInput->app)
+                    ->when(! $allowAppWideChannel, fn (Builder $q) => $q->fromCompany($this->messageInput->company))
+                    ->when($this->entityId !== null && $this->systemModule !== null, fn (Builder $q) => $q
+                        ->where('entity_id', $this->entityId)
+                        ->where('entity_namespace', $this->systemModule->model_name))
+                    ->notDeleted()
                     ->first();
                 if ($channel) {
                     $channel->addMessage($message, $message->user);
