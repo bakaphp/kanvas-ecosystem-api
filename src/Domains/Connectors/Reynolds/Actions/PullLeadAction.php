@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Reynolds\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Reynolds\Entities\Customer as CustomerEntity;
 use Kanvas\Connectors\Reynolds\Entities\Lead as LeadEntity;
@@ -12,6 +14,7 @@ use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Exceptions\ReynoldsException;
 use Kanvas\Connectors\Reynolds\Services\SalespersonResolver;
 use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\People as PeopleModel;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
@@ -37,6 +40,8 @@ use Kanvas\Users\Models\Users;
  */
 class PullLeadAction
 {
+    private const string SYNTHETIC_NAME_REC_ID_PREFIX = 'prospect:';
+
     public function __construct(
         protected AppInterface $app,
         protected Companies $company,
@@ -58,11 +63,7 @@ class PullLeadAction
         // existing Lead already has for anything the envelope doesn't repeat.
         $existingLead = $this->findExistingLead((string) $entity->prospectId);
 
-        // Anchor the People sync so consecutive envelopes (e.g. OSL without a
-        // NameRecId immediately followed by an LDU that carries the real one)
-        // update the same People row instead of creating a duplicate. Lookup
-        // order: existing Lead by ProspectId → People matched by email/phone.
-        $existingPeopleId = $this->resolveExistingPeopleId($entity, $existingLead);
+        $existingPeople = $this->resolveExistingPeople($entity, $existingLead);
 
         $customFields = [
             CustomFieldEnum::PROSPECT_ID->value => $entity->prospectId,
@@ -124,11 +125,8 @@ class PullLeadAction
                 app: $this->app,
                 branch: $this->company->defaultBranch,
                 user: $this->user,
-                existingPeopleId: $existingPeopleId,
-                // OSL envelopes don't always carry a NameRecId — fall back to a
-                // ProspectId-derived synthetic so People dedup still has a stable
-                // key per Reynolds prospect when the anchor lookups miss too.
-                fallbackNameRecId: 'prospect:' . $entity->prospectId,
+                existingPeopleId: $existingPeople?->getId(),
+                fallbackNameRecId: $this->resolveFallbackNameRecId($entity, $existingPeople),
             ),
             // Every scalar below preserves the existing Lead's value when the
             // envelope doesn't carry a fresh one — R&R only ships changed
@@ -176,70 +174,99 @@ class PullLeadAction
         return $lead;
     }
 
-    private function resolveExistingPeopleId(LeadEntity $entity, ?LeadModel $existingLead): ?int
+    /**
+     * NameRecId is Reynolds' customer identity and always wins. Only when it is
+     * unknown do we fall back to the prospect's current People and then to any
+     * shared contact (email or any phone type) — and a People already claimed
+     * by a different NameRecId is never reused, so two customers can share a
+     * phone/email and still be two People with their own leads.
+     */
+    private function resolveExistingPeople(LeadEntity $entity, ?LeadModel $existingLead): ?PeopleModel
     {
-        // 1. Same Reynolds prospect already synced → reuse its People.
-        if ($existingLead?->people_id) {
-            return (int) $existingLead->people_id;
-        }
+        $nameRecId = $this->realNameRecId($entity);
 
-        // 2. First time we see this prospect — try to match an existing
-        // customer by email or phone so we don't fork Peoples that Kanvas
-        // already created from other sources (walk-ins, other CRMs, web forms).
-        //
-        // getMatchingEmailPhone AND's the two whereExists clauses, so passing
-        // both when a stored People only carries one of them misses the match
-        // and forks a duplicate. Run the lookups sequentially — email first
-        // (higher signal, customers keep it across phone swaps), phone as a
-        // fallback only when email didn't hit. Two queries in the worst case,
-        // one when the email match works.
-        $email = $entity->customer?->email;
-        $phone = $this->firstUsablePhone($entity->customer);
-
-        if (empty($email) && empty($phone)) {
-            return null;
-        }
-
-        $existing = null;
-
-        if (! empty($email)) {
-            $existing = PeoplesRepository::getMatchingEmailPhone(
-                app: $this->app,
-                company: $this->company,
-                email: strtolower((string) $email),
-                phone: null,
+        if ($nameRecId !== null) {
+            /** @var PeopleModel|null $people */
+            $people = PeopleModel::getByCustomField(
+                CustomFieldEnum::NAME_REC_ID->value,
+                $nameRecId,
+                $this->company,
             );
+
+            if ($people !== null) {
+                return $people;
+            }
         }
 
-        if ($existing === null && ! empty($phone)) {
-            $existing = PeoplesRepository::getMatchingEmailPhone(
-                app: $this->app,
-                company: $this->company,
-                email: null,
-                phone: $phone,
-            );
+        $prospectPeople = $existingLead?->people;
+        if ($prospectPeople instanceof PeopleModel && $this->isClaimableBy($prospectPeople, $nameRecId)) {
+            return $prospectPeople;
         }
 
-        return $existing?->getId();
-    }
-
-    private function firstUsablePhone(?CustomerEntity $customer): ?string
-    {
-        if ($customer === null) {
-            return null;
-        }
-
-        foreach ($customer->phones as $phone) {
-            // Contact::cleanPhone is the canonical normalizer used by the
-            // ContactObserver on write, so the value we match against in
-            // peoples_contacts is comparable byte-for-byte.
-            $normalized = Contact::cleanPhone((string) ($phone['num'] ?? ''));
-            if ($normalized !== '') {
-                return $normalized;
+        foreach ($this->findPeopleByContacts($entity->customer) as $candidate) {
+            if ($this->isClaimableBy($candidate, $nameRecId)) {
+                return $candidate;
             }
         }
 
         return null;
+    }
+
+    /**
+     * When the envelope carries no NameRecId, keep whatever identifier the
+     * matched People already has so the sync updates it instead of stamping
+     * a synthetic key over a real one; otherwise derive a stable per-prospect
+     * synthetic so dedup still has a key.
+     */
+    private function resolveFallbackNameRecId(LeadEntity $entity, ?PeopleModel $existingPeople): string
+    {
+        $current = $existingPeople !== null
+            ? Str::trimToNull((string) $existingPeople->get(CustomFieldEnum::NAME_REC_ID->value))
+            : null;
+
+        return $current ?? self::SYNTHETIC_NAME_REC_ID_PREFIX . $entity->prospectId;
+    }
+
+    private function realNameRecId(LeadEntity $entity): ?string
+    {
+        return Str::trimToNull($entity->customer?->nameRecId);
+    }
+
+    private function isClaimableBy(PeopleModel $people, ?string $nameRecId): bool
+    {
+        $current = Str::trimToNull((string) $people->get(CustomFieldEnum::NAME_REC_ID->value));
+
+        return $current === null
+            || $nameRecId === null
+            || $current === $nameRecId
+            || str_starts_with($current, self::SYNTHETIC_NAME_REC_ID_PREFIX);
+    }
+
+    /**
+     * @return Collection<int, PeopleModel>
+     */
+    private function findPeopleByContacts(?CustomerEntity $customer): Collection
+    {
+        if ($customer === null) {
+            return new Collection();
+        }
+
+        $emails = array_filter([$customer->email]);
+        $phones = array_filter(array_map(
+            fn (array $phone) => Contact::cleanPhone((string) ($phone['num'] ?? '')),
+            $customer->phones
+        ));
+
+        if (empty($emails) && empty($phones)) {
+            return new Collection();
+        }
+
+        return PeoplesRepository::getByAnyContact(
+            app: $this->app,
+            company: $this->company,
+            emails: $emails,
+            phones: $phones,
+        )->get();
     }
 
     private function buildTitle(LeadEntity $entity): string
