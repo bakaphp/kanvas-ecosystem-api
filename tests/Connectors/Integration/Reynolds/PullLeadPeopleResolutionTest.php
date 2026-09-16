@@ -131,6 +131,24 @@ final class PullLeadPeopleResolutionTest extends TestCase
         );
     }
 
+    public function testPeopleStampedWithItsOwnProspectIdByAnOutboundPushIsReclaimed(): void
+    {
+        $prospectId = $this->uniqueId();
+        $email = $this->uniqueEmail();
+        $nameRecId = $this->uniqueId();
+
+        $pushed = $this->createPeople([CustomFieldEnum::NAME_REC_ID->value => $prospectId], email: $email);
+
+        $lead = $this->pullLead($prospectId, $nameRecId, email: $email);
+
+        $this->assertSame($pushed->getId(), (int) $lead->people_id);
+        $this->assertSame(
+            $nameRecId,
+            (string) People::find($pushed->getId())->get(CustomFieldEnum::NAME_REC_ID->value),
+            'The placeholder ProspectId must be replaced by the real NameRecId.'
+        );
+    }
+
     private function pullLead(
         string $prospectId,
         ?string $nameRecId,

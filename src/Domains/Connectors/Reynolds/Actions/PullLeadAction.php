@@ -199,12 +199,12 @@ class PullLeadAction
         }
 
         $prospectPeople = $existingLead?->people;
-        if ($prospectPeople instanceof PeopleModel && $this->isClaimableBy($prospectPeople, $nameRecId)) {
+        if ($prospectPeople instanceof PeopleModel && $this->isClaimableBy($prospectPeople, $entity)) {
             return $prospectPeople;
         }
 
         foreach ($this->findPeopleByContacts($entity->customer) as $candidate) {
-            if ($this->isClaimableBy($candidate, $nameRecId)) {
+            if ($this->isClaimableBy($candidate, $entity)) {
                 return $candidate;
             }
         }
@@ -232,13 +232,21 @@ class PullLeadAction
         return Str::trimToNull($entity->customer?->nameRecId);
     }
 
-    private function isClaimableBy(PeopleModel $people, ?string $nameRecId): bool
+    /**
+     * A People is free to adopt unless it already carries a real NameRecId
+     * for someone else. Two stored values are placeholders, not claims: the
+     * `prospect:` synthetic key, and the bare ProspectId that PushLeadAction
+     * stamps after an outbound insert (the ISL response has no NameRecId).
+     */
+    private function isClaimableBy(PeopleModel $people, LeadEntity $entity): bool
     {
         $current = Str::trimToNull((string) $people->get(CustomFieldEnum::NAME_REC_ID->value));
+        $nameRecId = $this->realNameRecId($entity);
 
         return $current === null
             || $nameRecId === null
             || $current === $nameRecId
+            || $current === (string) $entity->prospectId
             || str_starts_with($current, self::SYNTHETIC_NAME_REC_ID_PREFIX);
     }
 
