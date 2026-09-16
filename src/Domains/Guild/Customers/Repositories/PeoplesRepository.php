@@ -12,7 +12,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
@@ -147,63 +146,5 @@ class PeoplesRepository
         ->fromCompany($company)
         ->fromApp($app)
         ->notDeleted();
-    }
-
-    /**
-     * Every People sharing at least one of the given contact values, oldest
-     * first. Emails are compared case-insensitively; phones on digits only
-     * (any phone type, including work phone), so pass them pre-normalized
-     * through Contact::cleanPhone(). Returns a Builder because several People
-     * can legitimately share a phone or email — callers decide which one wins.
-     *
-     * @return Builder<People>
-     */
-    public static function getByAnyContact(
-        AppInterface $app,
-        CompanyInterface $company,
-        array $emails = [],
-        array $phones = []
-    ): Builder {
-        $emails = array_values(array_unique(array_filter(array_map(
-            fn ($email) => strtolower(trim((string) $email)),
-            $emails
-        ))));
-        $phones = array_values(array_unique(array_filter($phones)));
-
-        if (empty($emails) && empty($phones)) {
-            throw new Exception('At least one email or phone is required');
-        }
-
-        return People::whereHas(
-            'contacts',
-            function (Builder $query) use ($emails, $phones) {
-                $query->where('is_deleted', 0)
-                    ->where(function (Builder $q) use ($emails, $phones) {
-                        if (! empty($emails)) {
-                            $q->orWhere(function (Builder $e) use ($emails) {
-                                $e->whereIn('contacts_types_id', [
-                                    ContactTypeEnum::EMAIL->value,
-                                    ContactTypeEnum::PRIMARY_EMAIL->value,
-                                    ContactTypeEnum::SECONDARY_EMAIL->value,
-                                ])->whereIn(DB::raw('LOWER(value)'), $emails);
-                            });
-                        }
-
-                        if (! empty($phones)) {
-                            $q->orWhere(function (Builder $ph) use ($phones) {
-                                $ph->whereIn('contacts_types_id', [
-                                    ContactTypeEnum::PHONE->value,
-                                    ContactTypeEnum::CELLPHONE->value,
-                                    ContactTypeEnum::WORK_PHONE->value,
-                                ])->whereIn(DB::raw("REGEXP_REPLACE(value, '[^0-9]', '')"), $phones);
-                            });
-                        }
-                    });
-            }
-        )
-        ->fromCompany($company)
-        ->fromApp($app)
-        ->notDeleted()
-        ->orderBy('id');
     }
 }

@@ -6,16 +6,12 @@ namespace Kanvas\Connectors\Reynolds\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
-use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Reynolds\Entities\Customer as CustomerEntity;
 use Kanvas\Connectors\Reynolds\Entities\Lead as LeadEntity;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Exceptions\ReynoldsException;
 use Kanvas\Connectors\Reynolds\Services\SalespersonResolver;
-use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People as PeopleModel;
-use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
 use Kanvas\Guild\Leads\Models\Lead as LeadModel;
@@ -175,11 +171,12 @@ class PullLeadAction
     }
 
     /**
-     * NameRecId is Reynolds' customer identity and always wins. Only when it is
-     * unknown do we fall back to the prospect's current People and then to any
-     * shared contact (email or any phone type) — and a People already claimed
-     * by a different NameRecId is never reused, so two customers can share a
-     * phone/email and still be two People with their own leads.
+     * The People identity is the REYNOLDS_NAME_REC_ID custom field, never a
+     * shared email or phone — two customers can share a contact and must
+     * stay two People. The only other anchor is the same prospect's People,
+     * and only while it carries no real NameRecId of its own (the `prospect:`
+     * synthetic key from an OSL without NameRecId, or the bare ProspectId that
+     * PushLeadAction stamps because the ISL response has no NameRecId).
      */
     private function resolveExistingPeople(LeadEntity $entity, ?LeadModel $existingLead): ?PeopleModel
     {
@@ -199,14 +196,8 @@ class PullLeadAction
         }
 
         $prospectPeople = $existingLead?->people;
-        if ($prospectPeople instanceof PeopleModel && $this->isClaimableBy($prospectPeople, $entity)) {
+        if ($prospectPeople instanceof PeopleModel && $this->isPlaceholderIdentity($prospectPeople, $entity)) {
             return $prospectPeople;
-        }
-
-        foreach ($this->findPeopleByContacts($entity->customer) as $candidate) {
-            if ($this->isClaimableBy($candidate, $entity)) {
-                return $candidate;
-            }
         }
 
         return null;
@@ -214,7 +205,7 @@ class PullLeadAction
 
     /**
      * When the envelope carries no NameRecId, keep whatever identifier the
-     * matched People already has so the sync updates it instead of stamping
+     * prospect's People already has so the sync updates it instead of stamping
      * a synthetic key over a real one; otherwise derive a stable per-prospect
      * synthetic so dedup still has a key.
      */
@@ -232,49 +223,14 @@ class PullLeadAction
         return Str::trimToNull($entity->customer?->nameRecId);
     }
 
-    /**
-     * A People is free to adopt unless it already carries a real NameRecId
-     * for someone else. Two stored values are placeholders, not claims: the
-     * `prospect:` synthetic key, and the bare ProspectId that PushLeadAction
-     * stamps after an outbound insert (the ISL response has no NameRecId).
-     */
-    private function isClaimableBy(PeopleModel $people, LeadEntity $entity): bool
+    private function isPlaceholderIdentity(PeopleModel $people, LeadEntity $entity): bool
     {
         $current = Str::trimToNull((string) $people->get(CustomFieldEnum::NAME_REC_ID->value));
-        $nameRecId = $this->realNameRecId($entity);
 
         return $current === null
-            || $nameRecId === null
-            || $current === $nameRecId
+            || $this->realNameRecId($entity) === null
             || $current === (string) $entity->prospectId
             || str_starts_with($current, self::SYNTHETIC_NAME_REC_ID_PREFIX);
-    }
-
-    /**
-     * @return Collection<int, PeopleModel>
-     */
-    private function findPeopleByContacts(?CustomerEntity $customer): Collection
-    {
-        if ($customer === null) {
-            return new Collection();
-        }
-
-        $emails = array_filter([$customer->email]);
-        $phones = array_filter(array_map(
-            fn (array $phone) => Contact::cleanPhone((string) ($phone['num'] ?? '')),
-            $customer->phones
-        ));
-
-        if (empty($emails) && empty($phones)) {
-            return new Collection();
-        }
-
-        return PeoplesRepository::getByAnyContact(
-            app: $this->app,
-            company: $this->company,
-            emails: $emails,
-            phones: $phones,
-        )->get();
     }
 
     private function buildTitle(LeadEntity $entity): string

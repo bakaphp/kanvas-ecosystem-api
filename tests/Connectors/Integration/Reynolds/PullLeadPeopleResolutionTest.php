@@ -31,40 +31,41 @@ final class PullLeadPeopleResolutionTest extends TestCase
         $this->company = $this->actingUser->getCurrentCompany();
     }
 
-    public function testNameRecIdWinsOverAContactMatch(): void
+    public function testMatchesPeopleByNameRecIdEvenWhenContactsDiffer(): void
     {
         $nameRecId = $this->uniqueId();
-        $sharedEmail = $this->uniqueEmail();
-
-        $byNameRecId = $this->createPeople(
+        $existing = $this->createPeople(
             [CustomFieldEnum::NAME_REC_ID->value => $nameRecId],
             email: $this->uniqueEmail(),
         );
-        $byEmail = $this->createPeople([], email: $sharedEmail);
 
-        $lead = $this->pullLead($this->uniqueId(), $nameRecId, email: $sharedEmail);
+        $lead = $this->pullLead($this->uniqueId(), $nameRecId, email: $this->uniqueEmail());
 
-        $this->assertSame($byNameRecId->getId(), (int) $lead->people_id);
-        $this->assertNotSame($byEmail->getId(), (int) $lead->people_id);
+        $this->assertSame($existing->getId(), (int) $lead->people_id);
     }
 
-    public function testFallsBackToAnySharedContactWhenNameRecIdIsUnknown(): void
+    public function testCreatesANewPeopleWhenNameRecIdIsUnknownEvenIfContactsMatch(): void
     {
-        $workPhone = $this->uniquePhone();
-        $existing = $this->createPeople([], phone: $workPhone, phoneType: ContactTypeEnum::WORK_PHONE);
+        $sharedEmail = $this->uniqueEmail();
+        $sharedPhone = $this->uniquePhone();
+        $existing = $this->createPeople([], email: $sharedEmail, phone: $sharedPhone);
         $nameRecId = $this->uniqueId();
 
         $lead = $this->pullLead(
             $this->uniqueId(),
             $nameRecId,
-            phones: [['Type' => 'B', 'Num' => $this->formatPhone($workPhone)]],
+            email: $sharedEmail,
+            phones: [['Type' => 'C', 'Num' => $sharedPhone]],
         );
 
-        $this->assertSame($existing->getId(), (int) $lead->people_id);
+        $this->assertNotSame($existing->getId(), (int) $lead->people_id);
         $this->assertSame(
             $nameRecId,
-            (string) People::find($existing->getId())->get(CustomFieldEnum::NAME_REC_ID->value),
-            'The adopted People must now carry the Reynolds NameRecId.'
+            (string) People::find($lead->people_id)->get(CustomFieldEnum::NAME_REC_ID->value)
+        );
+        $this->assertNull(
+            People::find($existing->getId())->get(CustomFieldEnum::NAME_REC_ID->value),
+            'The People that merely shares contacts must be left untouched.'
         );
     }
 
@@ -98,7 +99,7 @@ final class PullLeadPeopleResolutionTest extends TestCase
         );
     }
 
-    public function testEnvelopeWithoutNameRecIdReusesContactMatchAndKeepsItsIdentifier(): void
+    public function testEnvelopeWithoutNameRecIdDoesNotReuseAPeopleThatSharesContacts(): void
     {
         $nameRecId = $this->uniqueId();
         $email = $this->uniqueEmail();
@@ -106,11 +107,10 @@ final class PullLeadPeopleResolutionTest extends TestCase
 
         $lead = $this->pullLead($this->uniqueId(), null, email: $email);
 
-        $this->assertSame($existing->getId(), (int) $lead->people_id);
+        $this->assertNotSame($existing->getId(), (int) $lead->people_id);
         $this->assertSame(
             $nameRecId,
-            (string) People::find($existing->getId())->get(CustomFieldEnum::NAME_REC_ID->value),
-            'A synthetic prospect key must never overwrite a real NameRecId.'
+            (string) People::find($existing->getId())->get(CustomFieldEnum::NAME_REC_ID->value)
         );
     }
 
@@ -137,11 +137,14 @@ final class PullLeadPeopleResolutionTest extends TestCase
         $email = $this->uniqueEmail();
         $nameRecId = $this->uniqueId();
 
-        $pushed = $this->createPeople([CustomFieldEnum::NAME_REC_ID->value => $prospectId], email: $email);
+        $firstLead = $this->pullLead($prospectId, null, email: $email);
+        $pushed = People::find($firstLead->people_id);
+        $pushed->set(CustomFieldEnum::NAME_REC_ID->value, $prospectId);
 
-        $lead = $this->pullLead($prospectId, $nameRecId, email: $email);
+        $secondLead = $this->pullLead($prospectId, $nameRecId, email: $email);
 
-        $this->assertSame($pushed->getId(), (int) $lead->people_id);
+        $this->assertSame($firstLead->getId(), $secondLead->getId());
+        $this->assertSame($pushed->getId(), (int) $secondLead->people_id);
         $this->assertSame(
             $nameRecId,
             (string) People::find($pushed->getId())->get(CustomFieldEnum::NAME_REC_ID->value),
@@ -180,15 +183,14 @@ final class PullLeadPeopleResolutionTest extends TestCase
     private function createPeople(
         array $customFields,
         ?string $email = null,
-        ?string $phone = null,
-        ContactTypeEnum $phoneType = ContactTypeEnum::CELLPHONE
+        ?string $phone = null
     ): People {
         $contacts = [];
         if ($email !== null) {
             $contacts[] = ['value' => $email, 'contacts_types_id' => ContactTypeEnum::EMAIL->value, 'weight' => 0];
         }
         if ($phone !== null) {
-            $contacts[] = ['value' => $phone, 'contacts_types_id' => $phoneType->value, 'weight' => 0];
+            $contacts[] = ['value' => $phone, 'contacts_types_id' => ContactTypeEnum::CELLPHONE->value, 'weight' => 0];
         }
 
         return new CreatePeopleAction(PeopleData::from([
@@ -218,10 +220,5 @@ final class PullLeadPeopleResolutionTest extends TestCase
     private function uniquePhone(): string
     {
         return '229' . random_int(1000000, 9999999);
-    }
-
-    private function formatPhone(string $digits): string
-    {
-        return sprintf('(%s) %s-%s', substr($digits, 0, 3), substr($digits, 3, 3), substr($digits, 6));
     }
 }
