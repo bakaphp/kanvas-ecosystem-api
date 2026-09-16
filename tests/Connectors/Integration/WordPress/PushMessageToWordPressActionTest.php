@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\WordPress;
 
+use GuzzleHttp\Promise\PromiseInterface;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
@@ -22,6 +24,11 @@ use Tests\TestCase;
 
 final class PushMessageToWordPressActionTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    // Messages live on `social`, their duplicate-claim custom fields on the default connection; both must roll back.
+    protected $connectionsToTransact = [null, 'social'];
+
     private const string SITE_URL = 'https://example.com';
 
     protected function setUp(): void
@@ -485,23 +492,164 @@ final class PushMessageToWordPressActionTest extends TestCase
      */
     private function fakeWordPress(): void
     {
-        Http::fake(function (Request $request) {
-            $path = (string) parse_url($request->url(), PHP_URL_PATH);
-            $isRead = $request->method() === 'GET';
+        Http::fake(fn (Request $request): PromiseInterface => $this->wordPressResponse($request));
+    }
 
-            return match (true) {
-                str_ends_with($path, '/wp/v2/categories') && $isRead => Http::response(
-                    str_contains($request->url(), 'News') ? [['id' => 7, 'name' => 'News']] : []
-                ),
-                str_ends_with($path, '/wp/v2/tags') && $isRead => Http::response([]),
-                str_ends_with($path, '/wp/v2/tags') => Http::response(
-                    ['id' => $request->data()['name'] === 'ai' ? 21 : 22, 'name' => $request->data()['name']],
-                    201
-                ),
-                str_ends_with($path, '/wp/v2/posts/101') && $isRead => Http::response($this->postResponse('publish')),
-                default => Http::response($this->postResponse($request->data()['status'] ?? 'draft'), 201),
-            };
+    private function wordPressResponse(Request $request): PromiseInterface
+    {
+        $path = (string) parse_url($request->url(), PHP_URL_PATH);
+        $isRead = $request->method() === 'GET';
+
+        return match (true) {
+            str_ends_with($path, '/wp/v2/categories') && $isRead => Http::response(
+                str_contains($request->url(), 'News') ? [['id' => 7, 'name' => 'News']] : []
+            ),
+            str_ends_with($path, '/wp/v2/tags') && $isRead => Http::response([]),
+            str_ends_with($path, '/wp/v2/tags') => Http::response(
+                ['id' => $request->data()['name'] === 'ai' ? 21 : 22, 'name' => $request->data()['name']],
+                201
+            ),
+            str_ends_with($path, '/wp/v2/posts/101') && $isRead => Http::response($this->postResponse('publish')),
+            default => Http::response($this->postResponse($request->data()['status'] ?? 'draft'), 201),
+        };
+    }
+
+    private function isPostCreate(Request $request): bool
+    {
+        return $request->method() === 'POST'
+            && str_ends_with((string) parse_url($request->url(), PHP_URL_PATH), '/wp/v2/posts');
+    }
+
+    private function createdPosts(): int
+    {
+        return Http::recorded(fn (Request $request): bool => $this->isPostCreate($request))->count();
+    }
+
+    /**
+     * Case, accents, punctuation and spacing differ; the story does not.
+     */
+    public function testTheSameStoryFromASecondMessageIsNotPublishedAgain(): void
+    {
+        $this->fakeWordPress();
+
+        new PushMessageToWordPressAction($this->makeMessage([
+            'title' => 'Gobierno inaugura escuela en Santiago',
+            'content' => '<p>El Ministerio de Educación inauguró hoy la escuela.</p>',
+        ]))->execute();
+
+        try {
+            new PushMessageToWordPressAction($this->makeMessage([
+                'title' => 'gobierno inaugura escuela en Santiago',
+                'content' => "<p>El Ministerio de Educacion  inauguró hoy la escuela</p>\n",
+            ]))->execute();
+
+            $this->fail('An identical story must not be published twice');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('Identical to WordPress post #101', $e->getMessage());
+        }
+
+        $this->assertSame(1, $this->createdPosts());
+    }
+
+    public function testAFailedPublishReleasesTheStorySoARetryCanPublishIt(): void
+    {
+        $failCreate = true;
+
+        Http::fake(function (Request $request) use (&$failCreate): PromiseInterface {
+            return $failCreate && $this->isPostCreate($request)
+                ? Http::response(['code' => 'rest_cannot_create', 'message' => 'Sorry, you are not allowed to create posts.'], 403)
+                : $this->wordPressResponse($request);
         });
+
+        $body = ['title' => 'A story that failed first', 'content' => '<p>Body of the story.</p>'];
+
+        try {
+            new PushMessageToWordPressAction($this->makeMessage($body))->execute();
+
+            $this->fail('The first publish was meant to fail');
+        } catch (ValidationException) {
+        }
+
+        $failCreate = false;
+
+        $this->assertSame('created', new PushMessageToWordPressAction($this->makeMessage($body))->execute()['action']);
+    }
+
+    /**
+     * An editor who deleted a bad post must be able to have the story filed again.
+     */
+    public function testAStoryWhoseOriginalWasDeletedFromTheSiteCanBePublishedAgain(): void
+    {
+        $postDeleted = false;
+
+        Http::fake(function (Request $request) use (&$postDeleted): PromiseInterface {
+            $isOriginalRead = $request->method() === 'GET'
+                && str_ends_with((string) parse_url($request->url(), PHP_URL_PATH), '/wp/v2/posts/101');
+
+            return $postDeleted && $isOriginalRead
+                ? Http::response(['code' => 'rest_post_invalid_id'], 404)
+                : $this->wordPressResponse($request);
+        });
+
+        $body = ['title' => 'A story the editor deleted', 'content' => '<p>Body of the story.</p>'];
+
+        new PushMessageToWordPressAction($this->makeMessage($body))->execute();
+        $postDeleted = true;
+        $result = new PushMessageToWordPressAction($this->makeMessage($body))->execute();
+
+        $this->assertSame('created', $result['action']);
+        $this->assertSame(2, $this->createdPosts());
+    }
+
+    /**
+     * A second agency's copy of the same release: not identical, so it is filed, but not live.
+     */
+    public function testASimilarStoryIsHeldForReviewInsteadOfGoingLive(): void
+    {
+        $this->fakeWordPress();
+
+        new PushMessageToWordPressAction($this->makeMessage([
+            'title' => 'Gobierno anuncia nuevo plan nacional de vivienda',
+            'content' => '<p>First agency copy.</p>',
+            'status' => 'publish',
+        ]))->execute();
+
+        $second = $this->makeMessage([
+            'title' => 'Gobierno anuncia nuevo plan nacional de viviendas',
+            'content' => '<p>Second agency copy, reworded.</p>',
+            'status' => 'publish',
+        ]);
+
+        $result = new PushMessageToWordPressAction($second)->execute();
+
+        $this->assertSame('created', $result['action']);
+        $this->assertSame('title', $result['possible_duplicate']['match']);
+        $this->assertSame(101, $result['possible_duplicate']['post_id']);
+        $this->assertSame(101, $second->get(CustomFieldEnum::POSSIBLE_DUPLICATE_OF->value)['post_id']);
+
+        Http::assertSent(fn (Request $request): bool => $this->isPostCreate($request)
+            && $request->data()['title'] === 'Gobierno anuncia nuevo plan nacional de viviendas'
+            && $request->data()['status'] === 'pending');
+    }
+
+    public function testAnUnrelatedStoryGoesLiveUnflagged(): void
+    {
+        $this->fakeWordPress();
+
+        new PushMessageToWordPressAction($this->makeMessage([
+            'title' => 'Gobierno anuncia nuevo plan nacional de vivienda',
+            'content' => '<p>Housing.</p>',
+            'status' => 'publish',
+        ]))->execute();
+
+        $result = new PushMessageToWordPressAction($this->makeMessage([
+            'title' => 'Tormenta tropical se acerca a la costa sur',
+            'content' => '<p>Weather.</p>',
+            'status' => 'publish',
+        ]))->execute();
+
+        $this->assertNull($result['possible_duplicate']);
+        $this->assertSame('publish', $result['status']);
     }
 
     private function postResponse(string $status): array

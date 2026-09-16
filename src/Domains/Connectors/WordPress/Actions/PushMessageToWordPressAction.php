@@ -4,20 +4,25 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WordPress\Actions;
 
+use Kanvas\Connectors\WordPress\DataTransferObject\PossibleDuplicate;
 use Kanvas\Connectors\WordPress\DataTransferObject\WordPressPost;
 use Kanvas\Connectors\WordPress\Enums\ConfigurationEnum;
 use Kanvas\Connectors\WordPress\Enums\CustomFieldEnum;
 use Kanvas\Connectors\WordPress\Enums\PostStatusEnum;
 use Kanvas\Connectors\WordPress\RestClient;
+use Kanvas\Connectors\WordPress\Services\WordPressDuplicateService;
 use Kanvas\Connectors\WordPress\Services\WordPressMediaService;
 use Kanvas\Connectors\WordPress\Services\WordPressTermService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Social\Messages\Models\Message;
+use Throwable;
 
 /**
  * Publishes a Kanvas message as a post on the WordPress site connected to the message's company.
  *
  * Re-running is an update, not a second post — the wp post id lives on the message custom fields.
+ * A different message carrying the same story is refused, and a similar one is held for review — see
+ * WordPressDuplicateService.
  */
 class PushMessageToWordPressAction
 {
@@ -44,29 +49,55 @@ class PushMessageToWordPressAction
             throw new ValidationException('Message ' . $this->message->getId() . ' has no content to publish to WordPress');
         }
 
-        $terms = new WordPressTermService($client, $this->allowsTermCreation());
-        // Only the message's own files are named here; a url the agent wrote into the body keeps
-        // falling back to its basename.
-        $media = new WordPressMediaService($client, $this->message->fileNamesByUrl());
-
-        $featuredMediaId = $post->featuredImageUrl !== null
-            ? $media->upload($post->featuredImageUrl)
-            : null;
-
-        $attachmentIds = $media->uploadMany($post->attachmentUrls);
-
-        $payload = $post->toPayload(
-            $terms->resolveIds(WordPressTermService::CATEGORY_TAXONOMY, $post->categories),
-            $terms->resolveIds(WordPressTermService::TAG_TAXONOMY, $post->tags),
-            $featuredMediaId,
-            $this->uploadedVideo($media, $post->videoUrl),
-        );
-
         $existingPostId = $this->existingPostId($client);
 
-        $result = $existingPostId !== null
-            ? $client->updatePost($existingPostId, $payload)
-            : $client->createPost($payload);
+        // An update to this message's own post is never a second story. Claimed before any media upload,
+        // so a refused duplicate costs the site nothing.
+        $isFreshPublish = $existingPostId === null;
+        $duplicates = new WordPressDuplicateService($this->message, $client);
+        $possibleDuplicate = null;
+
+        if ($isFreshPublish) {
+            $duplicates->claim($post);
+        }
+
+        try {
+            if ($isFreshPublish) {
+                $possibleDuplicate = $duplicates->findPossibleDuplicate($post);
+            }
+
+            $terms = new WordPressTermService($client, $this->allowsTermCreation());
+            // Only the message's own files are named here; a url the agent wrote into the body keeps
+            // falling back to its basename.
+            $media = new WordPressMediaService($client, $this->message->fileNamesByUrl());
+
+            $featuredMediaId = $post->featuredImageUrl !== null
+                ? $media->upload($post->featuredImageUrl)
+                : null;
+
+            $attachmentIds = $media->uploadMany($post->attachmentUrls);
+
+            $payload = $post->toPayload(
+                $terms->resolveIds(WordPressTermService::CATEGORY_TAXONOMY, $post->categories),
+                $terms->resolveIds(WordPressTermService::TAG_TAXONOMY, $post->tags),
+                $featuredMediaId,
+                $this->uploadedVideo($media, $post->videoUrl),
+            );
+
+            if ($possibleDuplicate !== null) {
+                $payload['status'] = $this->holdForReview($payload['status']);
+            }
+
+            $result = $existingPostId !== null
+                ? $client->updatePost($existingPostId, $payload)
+                : $client->createPost($payload);
+        } catch (Throwable $e) {
+            if ($isFreshPublish) {
+                $duplicates->release();
+            }
+
+            throw $e;
+        }
 
         $media->attachTo((int) $result['id']);
 
@@ -74,13 +105,14 @@ class PushMessageToWordPressAction
             $client,
             $result,
             $featuredMediaId,
-            $attachmentIds
+            $attachmentIds,
+            $possibleDuplicate
         );
 
         return [
             'id' => (int) $result['id'],
             'link' => (string) ($result['link'] ?? ''),
-            'status' => (string) ($result['status'] ?? $post->status->value),
+            'status' => (string) ($result['status'] ?? $payload['status']),
             'title' => $post->title,
             'action' => $existingPostId !== null ? 'updated' : 'created',
             'featured_media' => $featuredMediaId,
@@ -88,6 +120,7 @@ class PushMessageToWordPressAction
             'tags' => array_map('intval', $result['tags'] ?? []),
             'attachments' => $attachmentIds,
             'media_failures' => $media->failures(),
+            'possible_duplicate' => $possibleDuplicate?->toArray(),
         ];
     }
 
@@ -125,11 +158,22 @@ class PushMessageToWordPressAction
         return $client->postExists($postId) ? $postId : null;
     }
 
+    /**
+     * Only a post that would go live is held back — a draft or private post is already out of sight.
+     */
+    private function holdForReview(string $status): string
+    {
+        return in_array($status, [PostStatusEnum::PUBLISH->value, PostStatusEnum::FUTURE->value], true)
+            ? PostStatusEnum::PENDING->value
+            : $status;
+    }
+
     private function rememberPost(
         RestClient $client,
         array $result,
         ?int $featuredMediaId,
-        array $attachmentIds
+        array $attachmentIds,
+        ?PossibleDuplicate $possibleDuplicate
     ): void {
         $this->message->set(CustomFieldEnum::POST_ID->value, (int) $result['id']);
         $this->message->set(CustomFieldEnum::POST_URL->value, (string) ($result['link'] ?? ''));
@@ -142,6 +186,10 @@ class PushMessageToWordPressAction
 
         if ($attachmentIds !== []) {
             $this->message->set(CustomFieldEnum::MEDIA_IDS->value, $attachmentIds);
+        }
+
+        if ($possibleDuplicate !== null) {
+            $this->message->set(CustomFieldEnum::POSSIBLE_DUPLICATE_OF->value, $possibleDuplicate->toArray());
         }
     }
 
@@ -182,6 +230,6 @@ class PushMessageToWordPressAction
 
     private function config(ConfigurationEnum $key): mixed
     {
-        return $this->message->company?->get($key->value) ?? $this->message->app->get($key->value);
+        return $key->valueFor($this->message->app, $this->message->company);
     }
 }
