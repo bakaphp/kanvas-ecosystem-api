@@ -116,6 +116,15 @@ class Str extends IlluminateStr
     }
 
     /**
+     * Normalizes a value for case-insensitive comparison. Multibyte-safe on purpose: plain `strtolower`
+     * leaves accented capitals untouched, so "ÚNICO" and "único" would never match.
+     */
+    public static function lowerTrim(?string $value): string
+    {
+        return mb_strtolower(trim((string) $value));
+    }
+
+    /**
      * Rich-text stored by an editor, flattened for somewhere that cannot render it — an LLM prompt, a
      * plain-text email, a log line.
      *

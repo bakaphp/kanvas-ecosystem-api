@@ -4,19 +4,25 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
+use Kanvas\Guild\Deals\Models\Deal;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesDealForTool;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 #[AgentTool(name: 'Deal Reference', category: 'crm')]
-class GetDealRefTool extends Tool
+class GetDealRefTool extends Tool implements HasRunKey
 {
+    use GuardsRepeatCalls;
     use HasKanvasContext;
     use ResolvesDealForTool;
+    use TrackByInputs;
 
     public function __construct()
     {
@@ -24,8 +30,11 @@ class GetDealRefTool extends Tool
             name: 'get_deal_ref',
             description: 'Get the full detail of a deal by its deal_id: title, description, contact person, '
                 . 'organization, owner, pipeline + stage, status, notes and the lead it came from. Use this to '
-                . 'load a deal\'s context before acting on it.',
+                . 'load a deal\'s context before acting on it. Load a deal once per turn — re-reading it returns '
+                . 'nothing new unless you changed it in between.',
         );
+
+        $this->initRepeatGuard();
     }
 
     /**
@@ -45,16 +54,31 @@ class GetDealRefTool extends Tool
     }
 
     /**
+     * Keyed on the payload, not just deal_id: a re-read after update_deal must return the new state, and
+     * notes live in custom fields that never bump deals.updated_at. Only a byte-identical answer is
+     * flagged as a repeat (KANVAS-ECOSYSTEM-6ED: a scheduled wake re-read one deal until the turn died).
+     *
      * @return array<string, mixed>
      */
     public function __invoke(int $deal_id): array
     {
         $result = $this->resolveDealOrError($deal_id);
-        if (is_array($result)) {
-            return $result;
-        }
-        $deal = $result;
+        $detail = is_array($result) ? $result : $this->describe($result);
 
+        return $this->oncePerTurn(
+            [
+                'deal_id' => $deal_id,
+                'detail' => sha1((string) json_encode($detail)),
+            ],
+            fn (): array => $detail,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function describe(Deal $deal): array
+    {
         $people = $deal->people;
 
         return [

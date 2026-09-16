@@ -127,7 +127,7 @@ class PaymentMutation
         }
 
         try {
-            $formData['amount'] = $formData['amount'] ?? $order->getTotalAmount();
+            $formData['amount'] = $formData['amount'] ?? $order->getTotalDueAmount();
             $formData['payment_method_type'] = $paymentMethodType;
 
             if ($paymentMethodType === PaymentMethodTypesEnum::CASH->value) {

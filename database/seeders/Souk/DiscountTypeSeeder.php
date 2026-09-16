@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Seeders\Souk;
 
 use Illuminate\Database\Seeder;
+use Kanvas\Souk\Discounts\Enums\DiscountTypeEnum;
 use Kanvas\Souk\Discounts\Models\DiscountType;
 
 class DiscountTypeSeeder extends Seeder
@@ -54,6 +55,10 @@ class DiscountTypeSeeder extends Seeder
             [
                 'name' => 'Referral',
                 'description' => 'Discount for customers referred by existing customers',
+            ],
+            [
+                'name' => DiscountTypeEnum::AUTO_APPLIED_CREDIT->label(),
+                'description' => 'Credit owed to a company, applied automatically to its next order',
             ],
         ];
 

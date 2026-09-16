@@ -39,8 +39,16 @@ class VariantService
     /**
      * Create a new product variants.
      */
-    public static function createVariantsFromArray(Products $product, array $variants, UserInterface $user): array
-    {
+    public static function createVariantsFromArray(
+        Products $product,
+        array $variants,
+        UserInterface $user,
+        bool $runWorkflow = true
+    ): array {
+        if (! $runWorkflow) {
+            $product->disableWorkflows();
+        }
+
         $variantsData = [];
 
         foreach ($variants as $variant) {
@@ -137,7 +145,7 @@ class VariantService
                     } else {
                         $warehouse = Warehouses::getDefault($company, $product->app);
                     }
-                    $channel = ChannelRepository::getById(
+                    $channel = ChannelRepository::getByIdOrGlobal(
                         (int) $variantChannel['channels_id'],
                         $company,
                         $product->app
