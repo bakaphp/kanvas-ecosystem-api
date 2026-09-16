@@ -31,6 +31,15 @@ class ContactRejectionService
         };
     }
 
+    /**
+     * A lookup of a contact we only reference (a co-buyer) that VinSolutions says is gone or off-limits
+     * to this dealer user. The lead itself is fine, so it is logged, not reported.
+     */
+    public static function isUnreachableContact(ClientException $e): bool
+    {
+        return $e->getResponse()?->getStatusCode() === 404 || self::isUnauthorizedContact($e);
+    }
+
     public static function reason(ClientException $e): string
     {
         $body = (string) $e->getResponse()?->getBody();
