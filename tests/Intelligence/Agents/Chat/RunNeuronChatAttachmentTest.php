@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Agents\Chat;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Exceptions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -145,6 +146,49 @@ class RunNeuronChatAttachmentTest extends TestCase
         $this->assertNull($this->firstOfType($blocks, AudioContent::class));
         // Only the user's own message text should be present, never the zip bytes.
         $this->assertNull($this->firstTextContaining($blocks, 'Attached file ('));
+    }
+
+    public function testUnreachableAttachmentTellsTheModelInsteadOfDroppingSilently(): void
+    {
+        Exceptions::fake();
+
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agentType = AgentType::factory()
+            ->withAppId($app->getId())
+            ->create(['provider' => 'neuron', 'handler' => CapturingNeuronAgentStub::class]);
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['agent_type_id' => $agentType->getId()]);
+
+        $handler = new CapturingNeuronAgentStub();
+        $handler->setConfiguration(agent: $agent, user: $user);
+
+        $unreachable = 'http://127.0.0.1/pizza.jpg';
+
+        $response = new RunNeuronChatAction(
+            agent: $agent,
+            session: null,
+            message: 'what pizza is this?',
+            app: $app,
+            user: $user,
+            handler: $handler,
+            media: [$unreachable, $this->writeTempFile('png', $this->pngBytes())],
+        )->execute();
+
+        $this->assertSame('Captured reply', $response);
+
+        $blocks = $this->capturedBlocks($handler);
+
+        $note = $this->firstTextContaining($blocks, $unreachable);
+        $this->assertNotNull($note, 'The model must be told the attachment could not be loaded');
+        $this->assertNotNull($this->firstOfType($blocks, ImageContent::class), 'The readable attachment still goes through');
+
+        Exceptions::assertNothingReported();
     }
 
     /**

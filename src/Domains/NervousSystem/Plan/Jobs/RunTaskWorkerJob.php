@@ -16,7 +16,9 @@ use Illuminate\Support\Str;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Plan\Support\WorkerToolPolicy;
 use Throwable;
@@ -87,6 +89,10 @@ class RunTaskWorkerJob implements ShouldQueue
         $owner = $plan->user ?? $agent?->user;
 
         if ($agent === null || $owner === null) {
+            return;
+        }
+
+        if (! $this->planAllowsWork($plan)) {
             return;
         }
 
@@ -203,6 +209,18 @@ class RunTaskWorkerJob implements ShouldQueue
                 ? 'Detail: ' . $this->task->description . "\n"
                 : '',
         );
+    }
+
+    /**
+     * Moves the plan off TODO before the task runs, since the task's own save is quiet and skips
+     * TaskObserver. A plan that turns out to need sign-off is held, and its task stays pending until
+     * approval wakes the agent again — including workers already queued in the same band.
+     */
+    private function planAllowsWork(Plan $plan): bool
+    {
+        $plan->startWork();
+
+        return PlanStatusEnum::from($plan->status)->isExecutable();
     }
 
     private function markInProgress(): void

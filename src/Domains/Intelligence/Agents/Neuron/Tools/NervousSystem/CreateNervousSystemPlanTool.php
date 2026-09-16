@@ -123,7 +123,6 @@ class CreateNervousSystemPlanTool extends Tool implements HasRunKey
                 planType: 'project_work',
                 user: $this->user,
                 description: $description,
-                status: PlanStatusEnum::ACTIVE,
                 requiresHumanApproval: (bool) $requires_human_approval,
                 createdByAgent: $this->contextAgent(),
             ),

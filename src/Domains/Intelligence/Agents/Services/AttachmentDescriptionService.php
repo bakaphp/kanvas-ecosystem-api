@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
-use Baka\Http\SafeUrlFetcher;
 use finfo;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -134,13 +133,13 @@ class AttachmentDescriptionService
 
     public function describeUrl(string $url, ?string $filename = null): string
     {
+        $binary = AttachmentFetchService::fetch($url);
+
+        if ($binary === null || $binary === '') {
+            return '';
+        }
+
         try {
-            $binary = SafeUrlFetcher::fetch($url);
-
-            if ($binary === '') {
-                return '';
-            }
-
             $mimeType = $this->detectMimeType($binary);
             $block = $this->buildContentBlock($binary, $mimeType);
 

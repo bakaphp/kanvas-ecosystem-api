@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\ScrapingDog\Repositories;
 use Baka\Contracts\AppInterface;
 use Exception;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Promise\PromiseInterface;
 use Kanvas\Connectors\ScrapingDog\Enums\ConfigEnum;
@@ -106,14 +107,23 @@ class ScrapingDogRepository
      */
     public function scrapeWithAi(string $url, string $aiQuery): array
     {
-        $response = $this->client->get('/scrape', [
-            'query' => [
-                'api_key' => $this->defaultParams['api_key'],
+        try {
+            $response = $this->client->get('/scrape', [
+                'query' => [
+                    'api_key' => $this->defaultParams['api_key'],
+                    'url' => $url,
+                    'dynamic' => 'false',
+                    'ai_query' => $aiQuery,
+                ],
+            ]);
+        } catch (RequestException | ConnectException $e) {
+            logger()->warning('ScrapingDog AI scrape failed', [
                 'url' => $url,
-                'dynamic' => 'false',
-                'ai_query' => $aiQuery,
-            ],
-        ]);
+                'status' => $e instanceof RequestException ? $e->getResponse()?->getStatusCode() : null,
+            ]);
+
+            return [];
+        }
 
         $data = json_decode($response->getBody()->getContents(), true);
 

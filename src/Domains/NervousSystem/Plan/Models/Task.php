@@ -6,6 +6,7 @@ namespace Kanvas\NervousSystem\Plan\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
@@ -13,6 +14,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Observers\TaskObserver;
 use Kanvas\NervousSystem\Plan\Traits\TruncatesTitleTrait;
 use Override;
 
@@ -37,6 +39,7 @@ use Override;
  * @property Carbon $created_at
  * @property Carbon|null $updated_at
  */
+#[ObservedBy([TaskObserver::class])]
 class Task extends BaseModel
 {
     use EmitsLedgerEventsForEntity;
