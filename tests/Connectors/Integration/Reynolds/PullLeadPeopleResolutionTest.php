@@ -99,7 +99,7 @@ final class PullLeadPeopleResolutionTest extends TestCase
         );
     }
 
-    public function testEnvelopeWithoutNameRecIdDoesNotReuseAPeopleThatSharesContacts(): void
+    public function testEnvelopeWithoutNameRecIdReusesAPeopleThatSharesContactsAndKeepsItsIdentifier(): void
     {
         $nameRecId = $this->uniqueId();
         $email = $this->uniqueEmail();
@@ -107,11 +107,26 @@ final class PullLeadPeopleResolutionTest extends TestCase
 
         $lead = $this->pullLead($this->uniqueId(), null, email: $email);
 
-        $this->assertNotSame($existing->getId(), (int) $lead->people_id);
+        $this->assertSame($existing->getId(), (int) $lead->people_id);
         $this->assertSame(
             $nameRecId,
-            (string) People::find($existing->getId())->get(CustomFieldEnum::NAME_REC_ID->value)
+            (string) People::find($existing->getId())->get(CustomFieldEnum::NAME_REC_ID->value),
+            'A synthetic prospect key must never overwrite a real NameRecId.'
         );
+    }
+
+    public function testEnvelopeWithoutNameRecIdMatchesByAnyPhoneType(): void
+    {
+        $workPhone = $this->uniquePhone();
+        $existing = $this->createPeople([], phone: $workPhone, phoneType: ContactTypeEnum::WORK_PHONE);
+
+        $lead = $this->pullLead(
+            $this->uniqueId(),
+            null,
+            phones: [['Type' => 'B', 'Num' => $this->formatPhone($workPhone)]],
+        );
+
+        $this->assertSame($existing->getId(), (int) $lead->people_id);
     }
 
     public function testLaterEnvelopeWithNameRecIdClaimsThePeopleCreatedWithoutOne(): void
@@ -183,14 +198,15 @@ final class PullLeadPeopleResolutionTest extends TestCase
     private function createPeople(
         array $customFields,
         ?string $email = null,
-        ?string $phone = null
+        ?string $phone = null,
+        ContactTypeEnum $phoneType = ContactTypeEnum::CELLPHONE
     ): People {
         $contacts = [];
         if ($email !== null) {
             $contacts[] = ['value' => $email, 'contacts_types_id' => ContactTypeEnum::EMAIL->value, 'weight' => 0];
         }
         if ($phone !== null) {
-            $contacts[] = ['value' => $phone, 'contacts_types_id' => ContactTypeEnum::CELLPHONE->value, 'weight' => 0];
+            $contacts[] = ['value' => $phone, 'contacts_types_id' => $phoneType->value, 'weight' => 0];
         }
 
         return new CreatePeopleAction(PeopleData::from([
@@ -220,5 +236,10 @@ final class PullLeadPeopleResolutionTest extends TestCase
     private function uniquePhone(): string
     {
         return '229' . random_int(1000000, 9999999);
+    }
+
+    private function formatPhone(string $digits): string
+    {
+        return sprintf('(%s) %s-%s', substr($digits, 0, 3), substr($digits, 3, 3), substr($digits, 6));
     }
 }

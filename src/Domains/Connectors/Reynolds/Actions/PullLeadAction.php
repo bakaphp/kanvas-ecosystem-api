@@ -6,12 +6,16 @@ namespace Kanvas\Connectors\Reynolds\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Reynolds\Entities\Customer as CustomerEntity;
 use Kanvas\Connectors\Reynolds\Entities\Lead as LeadEntity;
 use Kanvas\Connectors\Reynolds\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Reynolds\Exceptions\ReynoldsException;
 use Kanvas\Connectors\Reynolds\Services\SalespersonResolver;
+use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People as PeopleModel;
+use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadData;
 use Kanvas\Guild\Leads\Models\Lead as LeadModel;
@@ -171,12 +175,11 @@ class PullLeadAction
     }
 
     /**
-     * The People identity is the REYNOLDS_NAME_REC_ID custom field, never a
-     * shared email or phone — two customers can share a contact and must
-     * stay two People. The only other anchor is the same prospect's People,
-     * and only while it carries no real NameRecId of its own (the `prospect:`
-     * synthetic key from an OSL without NameRecId, or the bare ProspectId that
-     * PushLeadAction stamps because the ISL response has no NameRecId).
+     * With a NameRecId the People identity is the REYNOLDS_NAME_REC_ID custom
+     * field alone — an unknown id becomes a new People even if it shares an
+     * email or phone with someone, so two customers can share a contact and
+     * stay two People. Only an envelope without NameRecId falls back to the
+     * prospect's current People and then to any shared contact.
      */
     private function resolveExistingPeople(LeadEntity $entity, ?LeadModel $existingLead): ?PeopleModel
     {
@@ -190,17 +193,61 @@ class PullLeadAction
                 $this->company,
             );
 
-            if ($people !== null) {
-                return $people;
-            }
+            return $people ?? $this->prospectPeopleWithPlaceholderIdentity($entity, $existingLead);
         }
 
-        $prospectPeople = $existingLead?->people;
-        if ($prospectPeople instanceof PeopleModel && $this->isPlaceholderIdentity($prospectPeople, $entity)) {
-            return $prospectPeople;
+        return $existingLead?->people
+            ?? $this->findPeopleByContacts($entity->customer)->first();
+    }
+
+    /**
+     * An OSL without NameRecId (synthetic `prospect:` key) or an outbound push
+     * (PushLeadAction stamps the bare ProspectId because the ISL response has
+     * no NameRecId) leaves the prospect's People with a placeholder identity
+     * that the first LDU carrying the real id must reclaim — but a People
+     * already owned by a different real NameRecId is never reused.
+     */
+    private function prospectPeopleWithPlaceholderIdentity(LeadEntity $entity, ?LeadModel $existingLead): ?PeopleModel
+    {
+        $people = $existingLead?->people;
+        if (! $people instanceof PeopleModel) {
+            return null;
         }
 
-        return null;
+        $current = Str::trimToNull((string) $people->get(CustomFieldEnum::NAME_REC_ID->value));
+
+        $isPlaceholder = $current === null
+            || $current === (string) $entity->prospectId
+            || str_starts_with($current, self::SYNTHETIC_NAME_REC_ID_PREFIX);
+
+        return $isPlaceholder ? $people : null;
+    }
+
+    /**
+     * @return Collection<int, PeopleModel>
+     */
+    private function findPeopleByContacts(?CustomerEntity $customer): Collection
+    {
+        if ($customer === null) {
+            return new Collection();
+        }
+
+        $emails = array_filter([$customer->email]);
+        $phones = array_filter(array_map(
+            fn (array $phone) => Contact::cleanPhone((string) ($phone['num'] ?? '')),
+            $customer->phones
+        ));
+
+        if (empty($emails) && empty($phones)) {
+            return new Collection();
+        }
+
+        return PeoplesRepository::getByAnyContact(
+            app: $this->app,
+            company: $this->company,
+            emails: $emails,
+            phones: $phones,
+        )->get();
     }
 
     /**
@@ -221,16 +268,6 @@ class PullLeadAction
     private function realNameRecId(LeadEntity $entity): ?string
     {
         return Str::trimToNull($entity->customer?->nameRecId);
-    }
-
-    private function isPlaceholderIdentity(PeopleModel $people, LeadEntity $entity): bool
-    {
-        $current = Str::trimToNull((string) $people->get(CustomFieldEnum::NAME_REC_ID->value));
-
-        return $current === null
-            || $this->realNameRecId($entity) === null
-            || $current === (string) $entity->prospectId
-            || str_starts_with($current, self::SYNTHETIC_NAME_REC_ID_PREFIX);
     }
 
     private function buildTitle(LeadEntity $entity): string
