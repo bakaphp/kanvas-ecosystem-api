@@ -8,6 +8,7 @@ use Closure;
 use GraphQL\Error\Error;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Nuwave\Lighthouse\Execution\ErrorHandler;
+use Override;
 
 class CountErrorHandler implements ErrorHandler
 {

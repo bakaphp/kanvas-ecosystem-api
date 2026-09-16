@@ -467,9 +467,6 @@ class CreateApBillTool extends Tool implements HasRunKey
     }
 
     /**
-     * @param array<int, array{gl_account_number?: string, amount?: float|int|string, description?: string}> $lineInputs
-     */
-    /**
      * @return array<string, mixed>
      */
     private function duplicateInvoiceResult(DuplicateBillNumberException $e, string $vendorDisplayName): array
