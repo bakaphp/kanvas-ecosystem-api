@@ -38,20 +38,13 @@ class CreatePlanAction
         new CreateInCurrentAppAction($this->data->app)->execute(Plan::class);
 
         return DB::connection('intelligence')->transaction(function (): Plan {
-            $boardColumn = null;
-            $requestedStatus = $this->data->status;
-
-            if ($this->data->boardColumnKey !== null) {
-                if ($this->data->project === null) {
-                    throw new ValidationException('A board column requires a project.');
-                }
-
-                $boardColumn = new ProjectBoardColumns()->find(
-                    $this->data->project,
-                    $this->data->boardColumnKey,
-                );
-                $requestedStatus = PlanStatusEnum::from($boardColumn['plan_status']);
-            }
+            $boardColumn = new ProjectBoardColumns()->resolveForPlan(
+                $this->data->project,
+                $this->data->boardColumnKey,
+            );
+            $requestedStatus = $boardColumn !== null
+                ? PlanStatusEnum::from($boardColumn['plan_status'])
+                : $this->data->status;
 
             $effectiveStatus = $this->data->requiresHumanApproval
                 && $requestedStatus === PlanStatusEnum::ACTIVE
@@ -85,9 +78,7 @@ class CreatePlanAction
             $plan->title = $this->data->title;
             $plan->description = $this->data->description;
             $plan->status = $effectiveStatus->value;
-            if ($boardColumn !== null) {
-                $plan->board_column_key = $this->data->boardColumnKey;
-            }
+            $plan->board_column_key = $boardColumn['key'] ?? null;
             $plan->priority = $this->data->priority;
             $plan->completion_pct = 0;
             $plan->deadline_at = $this->data->deadlineAt;

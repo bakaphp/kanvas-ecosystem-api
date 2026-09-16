@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Illuminate\Testing\TestResponse;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
@@ -219,6 +220,30 @@ class ProjectCrudTest extends TestCase
 
     public function testMovingPlanToProjectBoardColumnPreservesPlanAndUsesColumnStatus(): void
     {
+        [$planId, $columnKey] = $this->createPlanAndBoardColumn('Board moves', 'Pending Review', 'awaiting_approval');
+
+        $this->updatePlan($planId, ['board_column_key' => $columnKey])
+            ->assertJsonPath('data.updateNervousSystemPlan.id', (string) $planId)
+            ->assertJsonPath('data.updateNervousSystemPlan.title', 'Keep this plan')
+            ->assertJsonPath('data.updateNervousSystemPlan.status', 'awaiting_approval')
+            ->assertJsonPath('data.updateNervousSystemPlan.board_column_key', 'pending_review');
+    }
+
+    public function testUpdatingPlanStatusIsNotOverriddenByItsBoardColumn(): void
+    {
+        [$planId, $columnKey] = $this->createPlanAndBoardColumn('Board status wins', 'Review Queue', 'awaiting_approval');
+        $this->updatePlan($planId, ['board_column_key' => $columnKey])->assertGraphQLErrorFree();
+
+        $this->updatePlan($planId, ['status' => 'done'])
+            ->assertJsonPath('data.updateNervousSystemPlan.status', 'done')
+            ->assertJsonPath('data.updateNervousSystemPlan.board_column_key', 'review_queue');
+    }
+
+    /**
+     * @return array{0: string, 1: string} plan id, board column key
+     */
+    private function createPlanAndBoardColumn(string $projectTitle, string $columnName, string $columnStatus): array
+    {
         [$app, $company, $user] = $this->context();
         $agent = $this->makeAgent($app, $company, $user);
         $project = new CreateProjectAction(
@@ -226,7 +251,7 @@ class ProjectCrudTest extends TestCase
                 $app,
                 $user,
                 $company,
-                ['title' => 'Board moves', 'agent_id' => $agent->id],
+                ['title' => $projectTitle, 'agent_id' => $agent->id],
             ),
         )->execute();
 
@@ -238,12 +263,11 @@ class ProjectCrudTest extends TestCase
             }
         ', [
             'projectId' => $project->id,
-            'input' => ['name' => 'Pending Review', 'plan_status' => 'awaiting_approval'],
+            'input' => ['name' => $columnName, 'plan_status' => $columnStatus],
         ])
             ->assertSuccessful()
             ->assertGraphQLErrorFree();
 
-        $columnKey = $columnResponse->json('data.createNervousSystemProjectBoardColumn.key');
         $planResponse = $this->graphQL('
             mutation ($input: CreateNervousSystemPlanInput!) {
                 createNervousSystemPlan(input: $input) { id status board_column_key }
@@ -257,9 +281,18 @@ class ProjectCrudTest extends TestCase
             ->assertSuccessful()
             ->assertGraphQLErrorFree();
 
-        $planId = $planResponse->json('data.createNervousSystemPlan.id');
+        return [
+            $planResponse->json('data.createNervousSystemPlan.id'),
+            $columnResponse->json('data.createNervousSystemProjectBoardColumn.key'),
+        ];
+    }
 
-        $this->graphQL('
+    /**
+     * @param array<string, mixed> $input
+     */
+    private function updatePlan(string $planId, array $input): TestResponse
+    {
+        return $this->graphQL('
             mutation ($id: ID!, $input: UpdateNervousSystemPlanInput!) {
                 updateNervousSystemPlan(id: $id, input: $input) {
                     id
@@ -268,15 +301,8 @@ class ProjectCrudTest extends TestCase
                     board_column_key
                 }
             }
-        ', [
-            'id' => $planId,
-            'input' => ['board_column_key' => $columnKey],
-        ])
-            ->assertSuccessful()
-            ->assertJsonPath('data.updateNervousSystemPlan.id', (string) $planId)
-            ->assertJsonPath('data.updateNervousSystemPlan.title', 'Keep this plan')
-            ->assertJsonPath('data.updateNervousSystemPlan.status', 'awaiting_approval')
-            ->assertJsonPath('data.updateNervousSystemPlan.board_column_key', 'pending_review');
+        ', ['id' => $planId, 'input' => $input])
+            ->assertSuccessful();
     }
 
     public function testDeleteProjectViaGraphQL(): void

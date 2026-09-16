@@ -15,8 +15,12 @@ use Kanvas\NervousSystem\Project\Actions\UpdateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Enums\ProjectIngestTypeEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
+use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
 use Kanvas\Social\Messages\Models\Message;
 
+/**
+ * @phpstan-import-type BoardColumn from ProjectBoardColumns
+ */
 class ProjectMutation
 {
     use ResolvesActingContext;
@@ -80,7 +84,7 @@ class ProjectMutation
     }
 
     /**
-     * @return array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}
+     * @return BoardColumn
      */
     public function createBoardColumn(mixed $rootValue, array $request): array
     {
@@ -97,7 +101,7 @@ class ProjectMutation
     }
 
     /**
-     * @return array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}
+     * @return BoardColumn
      */
     public function renameBoardColumn(mixed $rootValue, array $request): array
     {
@@ -114,7 +118,7 @@ class ProjectMutation
     }
 
     /**
-     * @return array<int, array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}>
+     * @return array<int, BoardColumn>
      */
     public function reorderBoardColumns(mixed $rootValue, array $request): array
     {

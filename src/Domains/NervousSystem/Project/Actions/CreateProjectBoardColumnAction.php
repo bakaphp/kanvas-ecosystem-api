@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
 
+/**
+ * @phpstan-import-type BoardColumn from ProjectBoardColumns
+ */
 class CreateProjectBoardColumnAction
 {
     public function __construct(
@@ -18,7 +21,7 @@ class CreateProjectBoardColumnAction
     }
 
     /**
-     * @return array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}
+     * @return BoardColumn
      */
     public function execute(): array
     {

@@ -9,12 +9,15 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Project\Models\Project;
 
+/**
+ * @phpstan-type BoardColumn array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}
+ */
 final class ProjectBoardColumns
 {
     public const string CONFIG_KEY = 'board_columns';
 
     /**
-     * @return array<int, array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}>
+     * @return array<int, BoardColumn>
      */
     public function forProject(Project $project): array
     {
@@ -29,7 +32,7 @@ final class ProjectBoardColumns
     }
 
     /**
-     * @return array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}
+     * @return BoardColumn
      */
     public function create(Project $project, string $name, ?string $planStatus = null): array
     {
@@ -56,38 +59,24 @@ final class ProjectBoardColumns
     }
 
     /**
-     * @return array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}
+     * @return BoardColumn
      */
     public function rename(Project $project, string $key, string $name): array
     {
         $name = $this->validName($name);
         $columns = $this->forProject($project);
         $this->assertUniqueName($columns, $name, $key);
-        $renamed = null;
 
-        foreach ($columns as &$column) {
-            if ($column['key'] !== $key) {
-                continue;
-            }
-
-            $column['name'] = $name;
-            $renamed = $column;
-            break;
-        }
-        unset($column);
-
-        if ($renamed === null) {
-            throw new ValidationException("Project board column {$key} was not found.");
-        }
-
+        $index = $this->indexOf($columns, $key);
+        $columns[$index]['name'] = $name;
         $this->persist($project, $columns);
 
-        return $renamed;
+        return $columns[$index];
     }
 
     /**
      * @param array<int, string> $keys
-     * @return array<int, array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}>
+     * @return array<int, BoardColumn>
      */
     public function reorder(Project $project, array $keys): array
     {
@@ -126,21 +115,33 @@ final class ProjectBoardColumns
     }
 
     /**
-     * @return array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}
+     * @return BoardColumn
      */
     public function find(Project $project, string $key): array
     {
-        foreach ($this->forProject($project) as $column) {
-            if ($column['key'] === $key) {
-                return $column;
-            }
-        }
+        $columns = $this->forProject($project);
 
-        throw new ValidationException("Project board column {$key} was not found.");
+        return $columns[$this->indexOf($columns, $key)];
     }
 
     /**
-     * @return array<int, array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}>
+     * @return BoardColumn|null
+     */
+    public function resolveForPlan(?Project $project, ?string $key): ?array
+    {
+        if ($key === null) {
+            return null;
+        }
+
+        if ($project === null) {
+            throw new ValidationException('A board column requires a project.');
+        }
+
+        return $this->find($project, $key);
+    }
+
+    /**
+     * @return array<int, BoardColumn>
      */
     public function defaults(): array
     {
@@ -182,7 +183,7 @@ final class ProjectBoardColumns
 
     /**
      * @param array<int, mixed> $columns
-     * @return array<int, array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}>
+     * @return array<int, BoardColumn>
      */
     private function normalize(array $columns): array
     {
@@ -214,7 +215,7 @@ final class ProjectBoardColumns
     }
 
     /**
-     * @param array<int, array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}> $columns
+     * @param array<int, BoardColumn> $columns
      */
     private function persist(Project $project, array $columns): void
     {
@@ -249,6 +250,20 @@ final class ProjectBoardColumns
                 throw new ValidationException("Project board column {$name} already exists.");
             }
         }
+    }
+
+    /**
+     * @param array<int, array{key: string}> $columns
+     */
+    private function indexOf(array $columns, string $key): int
+    {
+        foreach ($columns as $index => $column) {
+            if ($column['key'] === $key) {
+                return $index;
+            }
+        }
+
+        throw new ValidationException("Project board column {$key} was not found.");
     }
 
     /**

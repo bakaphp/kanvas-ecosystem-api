@@ -37,6 +37,8 @@ use Override;
  * agents), its plans/tasks and a unified message feed together, so an agent has full situational
  * awareness before it executes. Every project has a default PM agent (agent_id) that orchestrates it.
  *
+ * @phpstan-import-type BoardColumn from ProjectBoardColumns
+ *
  * @property int $id
  * @property string $uuid
  * @property int $apps_id
@@ -188,7 +190,7 @@ class Project extends BaseModel implements HandlesAgentMention
     }
 
     /**
-     * @return array<int, array{key: string, name: string, position: int, plan_status: string, legacy_statuses: array<int, string>}>
+     * @return array<int, BoardColumn>
      */
     public function boardColumns(): array
     {
