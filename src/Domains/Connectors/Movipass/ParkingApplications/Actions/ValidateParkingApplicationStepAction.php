@@ -1,0 +1,529 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Kanvas\Connectors\Movipass\ParkingApplications\Actions;
+
+use Baka\Support\Str;
+use Illuminate\Support\Carbon;
+use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationFieldEnum;
+use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationFieldTypeEnum;
+use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationStepEnum;
+use Kanvas\Exceptions\ValidationException;
+use Throwable;
+
+/**
+ * Validates and normalizes one wizard step's `custom_fields` payload against the
+ * ParkingApplicationFieldEnum catalog, rejecting unknown/bookkeeping keys and keys outside
+ * `$step` when one is given.
+ *
+ * Contradiction rules always run, once every field they depend on is present. Required-ness
+ * rules only run when `$step` is given — i.e. the caller asserts "this is a complete submission
+ * of this step" — so a partial `updateLead` patch (e.g. applicant_type in one call, the identity
+ * fields in the next) is never rejected mid-sequence. An explicit `null` clears any non-required
+ * key.
+ */
+class ValidateParkingApplicationStepAction
+{
+    public function __construct(
+        protected readonly array $fields,
+        protected readonly ?ParkingApplicationStepEnum $step = null,
+    ) {
+    }
+
+    public function execute(): array
+    {
+        $normalized = [];
+
+        foreach ($this->fields as $key => $value) {
+            $field = ParkingApplicationFieldEnum::tryFrom((string) $key);
+
+            if ($field === null) {
+                throw new ValidationException("Unknown parking application field: {$key}");
+            }
+
+            if ($field->step() === null) {
+                throw new ValidationException("{$field->value} cannot be written through this validator");
+            }
+
+            if ($this->step !== null && $field->step() !== $this->step) {
+                throw new ValidationException("{$field->value} does not belong to step {$this->step->value}");
+            }
+
+            $normalized[$field->value] = $this->normalizeValue($field, $value);
+        }
+
+        $this->assertCapacityBreakdownWithinTotal($normalized);
+        $this->assertIs24_7NotContradictedBySchedule($normalized);
+
+        if ($this->step !== null) {
+            $this->assertScheduleRequiredWhenNot24_7($normalized);
+            $this->assertApplicantTypeIdentityIsComplete($normalized);
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeValue(ParkingApplicationFieldEnum $field, mixed $value): mixed
+    {
+        return match ($field->type()) {
+            ParkingApplicationFieldTypeEnum::STRING,
+            ParkingApplicationFieldTypeEnum::TEXT => $this->normalizeString($field, $value),
+            ParkingApplicationFieldTypeEnum::INTEGER => $this->normalizeInteger($field, $value),
+            ParkingApplicationFieldTypeEnum::DECIMAL => $this->normalizeDecimal($field, $value),
+            ParkingApplicationFieldTypeEnum::BOOLEAN => $this->normalizeBoolean($field, $value),
+            ParkingApplicationFieldTypeEnum::ENUM => $this->normalizeEnum($field, $value),
+            ParkingApplicationFieldTypeEnum::EMAIL => $this->normalizeEmail($field, $value),
+            ParkingApplicationFieldTypeEnum::SCHEDULE => $this->normalizeSchedule($value),
+            ParkingApplicationFieldTypeEnum::CLOSURES => $this->normalizeClosures($value),
+            ParkingApplicationFieldTypeEnum::PAYMENT_METHODS => $this->normalizePaymentMethods($field, $value),
+        };
+    }
+
+    private function assertScalar(mixed $value, string $label): void
+    {
+        if (! is_scalar($value)) {
+            throw new ValidationException("{$label} must be a single value, not a list or object");
+        }
+    }
+
+    private function normalizeString(ParkingApplicationFieldEnum $field, mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $this->assertScalar($value, $field->value);
+
+        return Str::trimToNull((string) $value);
+    }
+
+    private function normalizeInteger(ParkingApplicationFieldEnum $field, mixed $value): ?int
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $this->assertScalar($value, $field->value);
+
+        if (! is_numeric($value) || (int) $value != $value) {
+            throw new ValidationException("{$field->value} must be an integer");
+        }
+
+        $integer = (int) $value;
+
+        if ($integer < 0) {
+            throw new ValidationException("{$field->value} must not be negative");
+        }
+
+        if ($field === ParkingApplicationFieldEnum::CAPACITY_TOTAL && $integer <= 0) {
+            throw new ValidationException("{$field->value} must be greater than zero");
+        }
+
+        return $integer;
+    }
+
+    private function normalizeDecimal(ParkingApplicationFieldEnum $field, mixed $value): ?float
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $this->assertScalar($value, $field->value);
+
+        if (! is_numeric($value)) {
+            throw new ValidationException("{$field->value} must be a decimal number");
+        }
+
+        $decimal = (float) $value;
+
+        if (! $this->allowsNegativeDecimal($field) && $decimal < 0) {
+            throw new ValidationException("{$field->value} must not be negative");
+        }
+
+        $this->assertDecimalWithinRange($field, $decimal);
+
+        return $decimal;
+    }
+
+    private function allowsNegativeDecimal(ParkingApplicationFieldEnum $field): bool
+    {
+        return $field === ParkingApplicationFieldEnum::LATITUDE || $field === ParkingApplicationFieldEnum::LONGITUDE;
+    }
+
+    private function assertDecimalWithinRange(ParkingApplicationFieldEnum $field, float $value): void
+    {
+        $range = match ($field) {
+            ParkingApplicationFieldEnum::LATITUDE => [-90.0, 90.0],
+            ParkingApplicationFieldEnum::LONGITUDE => [-180.0, 180.0],
+            default => null,
+        };
+
+        if ($range === null) {
+            return;
+        }
+
+        [$min, $max] = $range;
+
+        if ($value < $min || $value > $max) {
+            throw new ValidationException("{$field->value} must be between {$min} and {$max}");
+        }
+    }
+
+    private function normalizeBoolean(ParkingApplicationFieldEnum $field, mixed $value): ?bool
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $this->assertScalar($value, $field->value);
+
+        $normalized = filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
+
+        if ($normalized === null) {
+            throw new ValidationException("{$field->value} must be a boolean");
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeEnum(ParkingApplicationFieldEnum $field, mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $this->assertScalar($value, $field->value);
+
+        $options = $field->options() ?? [];
+        $normalized = Str::trimToNull((string) $value);
+
+        if ($normalized === null || ! in_array($normalized, $options, true)) {
+            throw new ValidationException("{$field->value} must be one of: " . implode(', ', $options));
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeEmail(ParkingApplicationFieldEnum $field, mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $this->assertScalar($value, $field->value);
+
+        $email = Str::lowerTrim((string) $value);
+
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            throw new ValidationException("{$field->value} must be a valid email address");
+        }
+
+        return $email;
+    }
+
+    /**
+     * `{ weekdays: [...], saturday: [...], sunday_holidays: [...] }`, each a list of
+     * `{ open: "HH:MM", close: "HH:MM" }` bands. A band whose close <= open crosses midnight and
+     * is valid; bands within one group may not overlap, including across the midnight wrap.
+     */
+    private function normalizeSchedule(mixed $value): array
+    {
+        if (! is_array($value)) {
+            throw new ValidationException('parking_application_schedule must be an object');
+        }
+
+        $allowedGroups = ['weekdays', 'saturday', 'sunday_holidays'];
+        $normalized = [];
+
+        foreach ($value as $group => $bands) {
+            if (! in_array($group, $allowedGroups, true)) {
+                throw new ValidationException("parking_application_schedule has an unknown group: {$group}");
+            }
+
+            if (! is_array($bands)) {
+                throw new ValidationException("parking_application_schedule.{$group} must be a list of bands");
+            }
+
+            $normalized[$group] = $this->normalizeScheduleGroupBands($group, $bands);
+        }
+
+        return $normalized;
+    }
+
+    private function normalizeScheduleGroupBands(string $group, array $bands): array
+    {
+        $normalizedBands = array_map(
+            fn (mixed $band): array => $this->normalizeScheduleBand($group, $band),
+            $bands,
+        );
+
+        $this->assertBandsDoNotOverlap($group, $normalizedBands);
+
+        return $normalizedBands;
+    }
+
+    private function normalizeScheduleBand(string $group, mixed $band): array
+    {
+        if (! is_array($band) || ! isset($band['open'], $band['close'])) {
+            throw new ValidationException("parking_application_schedule.{$group} bands need open and close");
+        }
+
+        $this->assertScalar($band['open'], "parking_application_schedule.{$group} open");
+        $this->assertScalar($band['close'], "parking_application_schedule.{$group} close");
+
+        $open = $this->normalizeTime($group, (string) $band['open']);
+        $close = $this->normalizeTime($group, (string) $band['close']);
+
+        // "00:00" -> "00:00" is the wizard's convention for "open 24h for this group" (e.g.
+        // weekdays 24h, Saturday 08-14). Any other open === close pair is a zero-length band.
+        if ($open === $close && $open !== '00:00') {
+            throw new ValidationException("parking_application_schedule.{$group} has a zero-length band");
+        }
+
+        return ['open' => $open, 'close' => $close];
+    }
+
+    private function normalizeTime(string $group, string $time): string
+    {
+        if (! preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $time)) {
+            throw new ValidationException("parking_application_schedule.{$group} has an invalid time: {$time}");
+        }
+
+        return $time;
+    }
+
+    private function assertBandsDoNotOverlap(string $group, array $bands): void
+    {
+        $occupiedMinutes = [];
+
+        foreach ($bands as $band) {
+            [$start, $end] = $this->bandToMinuteRange($band);
+
+            for ($minute = $start; $minute < $end; ++$minute) {
+                $minuteOfDay = $minute % 1440;
+
+                if (isset($occupiedMinutes[$minuteOfDay])) {
+                    throw new ValidationException("parking_application_schedule.{$group} has overlapping bands");
+                }
+
+                $occupiedMinutes[$minuteOfDay] = true;
+            }
+        }
+    }
+
+    private function bandToMinuteRange(array $band): array
+    {
+        $start = $this->timeToMinutes($band['open']);
+        $end = $this->timeToMinutes($band['close']);
+
+        return [$start, $end > $start ? $end : $end + 1440];
+    }
+
+    private function timeToMinutes(string $time): int
+    {
+        [$hours, $minutes] = array_map('intval', explode(':', $time));
+
+        return $hours * 60 + $minutes;
+    }
+
+    /**
+     * List of `{ type: "recurring", weekday: 0-6 }` or `{ type: "one_off", date: "YYYY-MM-DD",
+     * reason?: string }`.
+     */
+    private function normalizeClosures(mixed $value): array
+    {
+        if (! is_array($value)) {
+            throw new ValidationException('parking_application_closures must be a list');
+        }
+
+        return array_map(fn (mixed $closure): array => $this->normalizeClosure($closure), $value);
+    }
+
+    private function normalizeClosure(mixed $closure): array
+    {
+        if (! is_array($closure) || ! isset($closure['type'])) {
+            throw new ValidationException('parking_application_closures items need a type');
+        }
+
+        $this->assertScalar($closure['type'], 'parking_application_closures type');
+
+        return match ($closure['type']) {
+            'recurring' => $this->normalizeRecurringClosure($closure),
+            'one_off' => $this->normalizeOneOffClosure($closure),
+            default => throw new ValidationException("parking_application_closures has an unknown type: {$closure['type']}"),
+        };
+    }
+
+    private function normalizeRecurringClosure(array $closure): array
+    {
+        $weekday = $closure['weekday'] ?? null;
+        $isValidWeekday = is_numeric($weekday) && (int) $weekday == $weekday && (int) $weekday >= 0 && (int) $weekday <= 6;
+
+        if (! $isValidWeekday) {
+            throw new ValidationException('parking_application_closures recurring entries need an integer weekday between 0 and 6');
+        }
+
+        return ['type' => 'recurring', 'weekday' => (int) $weekday];
+    }
+
+    private function normalizeOneOffClosure(array $closure): array
+    {
+        if (isset($closure['date'])) {
+            $this->assertScalar($closure['date'], 'parking_application_closures date');
+        }
+
+        $date = (string) ($closure['date'] ?? '');
+
+        try {
+            $parsed = Carbon::createFromFormat('!Y-m-d', $date);
+        } catch (Throwable) {
+            $parsed = false;
+        }
+
+        if ($parsed === false || $parsed->format('Y-m-d') !== $date) {
+            throw new ValidationException('parking_application_closures one_off entries need a valid YYYY-MM-DD date');
+        }
+
+        $normalized = ['type' => 'one_off', 'date' => $date];
+
+        if (isset($closure['reason'])) {
+            $this->assertScalar($closure['reason'], 'parking_application_closures reason');
+
+            $reason = Str::trimToNull((string) $closure['reason']);
+
+            if ($reason !== null) {
+                $normalized['reason'] = $reason;
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function normalizePaymentMethods(ParkingApplicationFieldEnum $field, mixed $value): array
+    {
+        if (! is_array($value) || $value === []) {
+            throw new ValidationException("{$field->value} must be a non-empty list");
+        }
+
+        $options = $field->options() ?? [];
+        $methods = [];
+
+        foreach ($value as $method) {
+            $this->assertScalar($method, "{$field->value} entry");
+
+            $method = Str::trimToNull((string) $method);
+
+            if ($method === null || ! in_array($method, $options, true)) {
+                throw new ValidationException("{$field->value} must only contain: " . implode(', ', $options));
+            }
+
+            $methods[$method] = $method;
+        }
+
+        if (! isset($methods['movipass'])) {
+            throw new ValidationException("{$field->value} must include movipass");
+        }
+
+        return array_values($methods);
+    }
+
+    /**
+     * Only CAPACITY_TOTAL needs to be present to fire — every breakdown key not given is treated
+     * as 0. Since each breakdown key is validated >= 0 individually, a partial sum that already
+     * exceeds the total is a genuine contradiction regardless of which keys are missing.
+     */
+    private function assertCapacityBreakdownWithinTotal(array $normalized): void
+    {
+        if (! array_key_exists(ParkingApplicationFieldEnum::CAPACITY_TOTAL->value, $normalized)) {
+            return;
+        }
+
+        $total = $normalized[ParkingApplicationFieldEnum::CAPACITY_TOTAL->value];
+
+        $breakdownKeys = [
+            ParkingApplicationFieldEnum::CAPACITY_LIGHT_VEHICLES,
+            ParkingApplicationFieldEnum::CAPACITY_MOTORCYCLES,
+            ParkingApplicationFieldEnum::CAPACITY_DISABILITY,
+        ];
+
+        $breakdown = 0;
+
+        foreach ($breakdownKeys as $key) {
+            $breakdown += $normalized[$key->value] ?? 0;
+        }
+
+        if ($breakdown > $total) {
+            throw new ValidationException('parking_application_capacity breakdown must not exceed the total');
+        }
+    }
+
+    private function scheduleHasAtLeastOneBand(array $normalized): bool
+    {
+        $schedule = $normalized[ParkingApplicationFieldEnum::SCHEDULE->value] ?? null;
+
+        if (! is_array($schedule)) {
+            return false;
+        }
+
+        foreach ($schedule as $bands) {
+            if (! empty($bands)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function assertIs24_7NotContradictedBySchedule(array $normalized): void
+    {
+        $is24_7 = $normalized[ParkingApplicationFieldEnum::IS_24_7->value] ?? null;
+
+        if ($is24_7 !== true) {
+            return;
+        }
+
+        if ($this->scheduleHasAtLeastOneBand($normalized)) {
+            throw new ValidationException('parking_application_is_24_7 cannot be true alongside a schedule');
+        }
+    }
+
+    private function assertScheduleRequiredWhenNot24_7(array $normalized): void
+    {
+        $is24_7 = $normalized[ParkingApplicationFieldEnum::IS_24_7->value] ?? null;
+
+        if ($is24_7 !== false) {
+            return;
+        }
+
+        if (! $this->scheduleHasAtLeastOneBand($normalized)) {
+            throw new ValidationException('parking_application_is_24_7 is false but no schedule was given');
+        }
+    }
+
+    private function assertApplicantTypeIdentityIsComplete(array $normalized): void
+    {
+        $applicantType = $normalized[ParkingApplicationFieldEnum::APPLICANT_TYPE->value] ?? null;
+
+        if ($applicantType === null) {
+            return;
+        }
+
+        if ($applicantType === 'juridica') {
+            $this->assertPresent($normalized, ParkingApplicationFieldEnum::RNC);
+            $this->assertPresent($normalized, ParkingApplicationFieldEnum::LEGAL_NAME);
+        }
+
+        if ($applicantType === 'natural') {
+            $this->assertPresent($normalized, ParkingApplicationFieldEnum::NATIONAL_ID);
+            $this->assertPresent($normalized, ParkingApplicationFieldEnum::FULL_NAME);
+        }
+    }
+
+    private function assertPresent(array $normalized, ParkingApplicationFieldEnum $field): void
+    {
+        if (! array_key_exists($field->value, $normalized) || $normalized[$field->value] === null) {
+            throw new ValidationException("{$field->value} is required for this applicant type");
+        }
+    }
+}
