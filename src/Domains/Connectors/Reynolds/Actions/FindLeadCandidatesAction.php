@@ -43,13 +43,17 @@ class FindLeadCandidatesAction
 
         /** @var array<int, LeadCandidate> $candidates */
         $candidates = [];
-        /** @var array<int, true> $anchoredIds */
-        $anchoredIds = [];
+
+        $rankOf = fn (People $people): float => PeopleMatchScore::for(
+            $people,
+            firstname: $firstname,
+            lastname: $lastname,
+            phones: [$phone],
+            emails: [$email],
+        )->value;
 
         foreach ($this->leadsAnchoredOnClientId($clientId) as $lead) {
-            // A client-id match is identity, so it must outrank a lone exact email that also scores 1.0.
-            $candidates[$lead->getId()] = new LeadCandidate($lead, 1.0);
-            $anchoredIds[$lead->getId()] = true;
+            $candidates[$lead->getId()] = new LeadCandidate($lead, $rankOf($lead->people));
         }
 
         $matchedPeople = People::getAllByPhoneOrEmail(
@@ -60,13 +64,8 @@ class FindLeadCandidatesAction
         );
 
         foreach ($matchedPeople as $people) {
-            $rank = PeopleMatchScore::for(
-                $people,
-                firstname: $firstname,
-                lastname: $lastname,
-                phones: [$phone],
-                emails: [$email],
-            )->value;
+            // Scored once per person, not per lead: PeopleMatchScore queries phones and emails.
+            $rank = $rankOf($people);
 
             foreach (LeadsRepository::getPeopleNonClosedLeads($people)->get() as $lead) {
                 $candidates[$lead->getId()] ??= new LeadCandidate($lead, $rank);
@@ -77,15 +76,8 @@ class FindLeadCandidatesAction
 
         usort(
             $candidates,
-            fn (LeadCandidate $a, LeadCandidate $b) => [
-                $b->rank,
-                isset($anchoredIds[$b->lead->getId()]),
-                $b->lead->getId(),
-            ] <=> [
-                $a->rank,
-                isset($anchoredIds[$a->lead->getId()]),
-                $a->lead->getId(),
-            ]
+            fn (LeadCandidate $a, LeadCandidate $b) => [$b->rank, $b->lead->getId()]
+                <=> [$a->rank, $a->lead->getId()]
         );
 
         return array_map(fn (LeadCandidate $candidate) => $candidate->toArray(), $candidates);
