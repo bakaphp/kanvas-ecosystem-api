@@ -11,9 +11,11 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Routing\Redirector;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Contracts\OAuthProviderFactory;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
@@ -45,7 +47,16 @@ class OAuthIntegrationController extends BaseController
             'app_id' => $app->getId(),
         ]));
 
-        $authUrl = $provider->getAuthorizationUrl($receiver, $app, $request, $nonce);
+        try {
+            $authUrl = $provider->getAuthorizationUrl($receiver, $app, $request, $nonce);
+        } catch (ValidationException $e) {
+            // A setup the person can fix (no client registered with the vendor, agent may not hold the tool),
+            // not a fault: logged for Sentry Logs and told to the UI, not raised as a Sentry issue.
+            $this->logValidationFailure('oauth.integration.auth_failed', $receiver, $e);
+            Redis::del($stateKey);
+
+            return $this->failureResponse($receiver, $e, 422);
+        }
 
         return redirect()->away($authUrl);
     }
@@ -101,14 +112,18 @@ class OAuthIntegrationController extends BaseController
                 ...$callbackResult,
             ]);
         } catch (Exception $e) {
-            Sentry::withScope(function ($scope) use ($e, $uuid, $request) {
-                $scope->setContext('Request Data', [
-                    'uuid' => $uuid,
-                    'payload' => $request->all(),
-                    'exception' => $e->getMessage(),
-                ]);
-                Sentry::captureException($e);
-            });
+            if ($e instanceof ValidationException) {
+                $this->logValidationFailure('oauth.integration.callback_failed', $receiver, $e);
+            } else {
+                Sentry::withScope(function ($scope) use ($e, $uuid, $request) {
+                    $scope->setContext('Request Data', [
+                        'uuid' => $uuid,
+                        'payload' => $request->all(),
+                        'exception' => $e->getMessage(),
+                    ]);
+                    Sentry::captureException($e);
+                });
+            }
 
             Redis::del($stateKey);
 
@@ -123,20 +138,39 @@ class OAuthIntegrationController extends BaseController
                 ]);
             }
 
-            // Back to the UI on failure as well: otherwise the person is stranded on a raw JSON page on
-            // the API's domain, and the UI never learns why the connection didn't happen.
-            if ($redirectUrl !== null) {
-                return redirect()->away($this->withResult($redirectUrl, [
-                    'status' => 'error',
-                    'message' => mb_substr($e->getMessage(), 0, self::REDIRECT_MESSAGE_MAX),
-                ]));
-            }
-
-            return response()->json([
-                'error' => 'Authentication error',
-                'message' => $e->getMessage(),
-            ], 500);
+            return $this->failureResponse($receiver, $e, 500);
         }
+    }
+
+    private function logValidationFailure(string $event, ReceiverWebhook $receiver, ValidationException $e): void
+    {
+        Log::warning($event, [
+            'message' => $e->getMessage(),
+            'receiver_uuid' => $receiver->uuid,
+            'app_id' => $receiver->apps_id,
+            'company_id' => $receiver->companies_id,
+        ]);
+    }
+
+    /**
+     * Back to the UI on failure: otherwise the person is stranded on a raw JSON page on the API's domain,
+     * and the UI never learns why the connection didn't happen.
+     */
+    private function failureResponse(ReceiverWebhook $receiver, Exception $e, int $status): JsonResponse|RedirectResponse
+    {
+        $redirectUrl = $this->redirectUrlOf($receiver);
+
+        if ($redirectUrl !== null) {
+            return redirect()->away($this->withResult($redirectUrl, [
+                'status' => 'error',
+                'message' => mb_substr($e->getMessage(), 0, self::REDIRECT_MESSAGE_MAX),
+            ]));
+        }
+
+        return response()->json([
+            'error' => 'Authentication error',
+            'message' => $e->getMessage(),
+        ], $status);
     }
 
     /**

@@ -22,6 +22,45 @@ only entry point needed. Don't add a `wordpressPublishMessage`-style mutation.
 Re-running is an **update**, not a second post: the wp post id is stored on the message
 (`WORDPRESS_POST_ID` + `WORDPRESS_POST_SITE_URL`) and reused as long as the site hasn't changed.
 
+## Duplicate stories across messages
+
+The per-message post id does nothing for two **different** messages carrying the same story — two
+agencies forwarding one press release, a burst that re-sends it. `WordPressDuplicateService` handles
+that, and only on a fresh publish (an update to the message's own post is never a second story).
+
+| Case | Detection | Outcome |
+|---|---|---|
+| Identical | sha256 of site url + normalized title and text (`Str::slug`: case, accents, punctuation, spacing ignored), stored on the message as the `WORDPRESS_POST_FINGERPRINT` custom field | refused — `ValidationException`, so the activity flags FAILED with "Identical to WordPress post #N" |
+| Similar | embeddings + Typesense (primary), then `similar_text` on titles ≥ 85% (always) — against messages whose `WORDPRESS_POST_TITLE` custom field was set within `wordpress_duplicate_window_hours` (72) in the same company | published, but `publish`/`future` is downgraded to `pending`; match recorded in `WORDPRESS_POSSIBLE_DUPLICATE_OF` and `possible_duplicate` on the result |
+
+**No table of its own, deliberately.** The claim is state on the message (custom fields, looked up
+through the `idx_company_model_name_value_is_deleted` index); don't add a model for it.
+
+Why it is built this way — don't "simplify" these away:
+
+- **The claim is taken under a `Cache::lock` keyed on company + fingerprint, before anything reaches
+  the site** (before media uploads, too). Without the lock two messages arriving together both read
+  "no owner" and both publish.
+- **A failed publish deletes its claim fields** (and its vector), or the retry would be refused as a
+  duplicate of a post that never existed.
+- **A claim is taken over only when provably abandoned**: its post returns 404/410
+  (`RestClient::postWasDeleted()` — not `! postExists()`, a timeout is not proof), or it has had no
+  post id for an hour (a worker died mid-publish). Otherwise an editor who deleted a bad post could
+  never have the story filed again.
+- **The owner lookup uses `getByCustomFieldBuilderTransactionSafe`**: the plain join straddles the
+  `ecosystem` and `social` connections and returns nothing under a test's open transaction.
+- **A similar story is held, not refused** — a follow-up on the same topic is legitimate; an editor
+  decides.
+- **The vector is indexed before the search**, so two reworded stories racing each other both find
+  the other and both land as `pending`, rather than both going live.
+- **Vectors live in a dedicated collection** (`{scout.prefix}wordpress_posts_{appId}`), never the
+  shared knowledge collection, where published posts would surface in agent RAG.
+- **The semantic check is fail-open**: an embeddings/Typesense outage is `report()`ed and the title
+  check still runs. It is on when `wordpress_semantic_duplicate_check` is truthy, falling back to the
+  app's `neuron_lead_rag_enabled`. Similarity floor: `wordpress_duplicate_min_score` (0.9).
+
+Posts published before this existed carry no fingerprint/title fields, so they are not matched against.
+
 ## Message body structure
 
 Post fields live at the top level of the message body, or nested under a `wordpress` key when the

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Mcp;
 
 use Kanvas\Intelligence\Agents\Neuron\Tools\Mcp\CachedMcpConnector;
+use NeuronAI\Tools\HasRunKey;
 use Tests\Stubs\Connectors\Mcp\FakeMcpServer;
 use Tests\TestCase;
 
@@ -64,6 +65,24 @@ final class CachedMcpConnectorTest extends TestCase
         $this->assertIsString($second);
         $this->assertStringContainsString('budget exhausted', $second);
         $this->assertSame(1, $connector->callCount(), 'The refused call must not reach the vendor.');
+    }
+
+    /** KANVAS-ECOSYSTEM-64Q: reading eleven different files must not share one per-name budget of ten. */
+    public function testRunBudgetIsKeyedByArgumentsNotToolName(): void
+    {
+        $connector = new CachedMcpConnector(['transport' => FakeMcpServer::handshakeThenCalls([], 0)]);
+        $tool = $connector->toolsFromDescriptors(FakeMcpServer::twoTools(), 'jira')[0];
+
+        $this->assertInstanceOf(HasRunKey::class, $tool);
+
+        $tool->setInputs(['jql' => 'project = A']);
+        $first = $tool->getRunKey();
+        $tool->setInputs(['jql' => 'project = B']);
+        $second = $tool->getRunKey();
+        $tool->setInputs(['jql' => 'project = A']);
+
+        $this->assertNotSame($first, $second);
+        $this->assertSame($first, $tool->getRunKey(), 'An identical-arguments loop must still share one budget.');
     }
 
     public function testCountersAreExposedForTheTurnRecord(): void

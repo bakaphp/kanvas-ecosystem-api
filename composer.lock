@@ -385,16 +385,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.395.0",
+            "version": "3.395.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "c8f42d03b697a61b4910d162d753b13d2de297fc"
+                "reference": "f5eda89b1f2ecd4aea56eb04d58874bad12ef02e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/c8f42d03b697a61b4910d162d753b13d2de297fc",
-                "reference": "c8f42d03b697a61b4910d162d753b13d2de297fc",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/f5eda89b1f2ecd4aea56eb04d58874bad12ef02e",
+                "reference": "f5eda89b1f2ecd4aea56eb04d58874bad12ef02e",
                 "shasum": ""
             },
             "require": {
@@ -476,9 +476,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.395.0"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.395.1"
             },
-            "time": "2026-09-11T18:07:54+00:00"
+            "time": "2026-09-13T18:43:19+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -6338,12 +6338,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/SpartnerNL/Laravel-Excel.git",
-                "reference": "ef394281b16262a0de4ca52aedac27557f4c46f1"
+                "reference": "050985813424582bf084b93eb8c3fee0fb12c6c4"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/SpartnerNL/Laravel-Excel/zipball/ef394281b16262a0de4ca52aedac27557f4c46f1",
-                "reference": "ef394281b16262a0de4ca52aedac27557f4c46f1",
+                "url": "https://api.github.com/repos/SpartnerNL/Laravel-Excel/zipball/050985813424582bf084b93eb8c3fee0fb12c6c4",
+                "reference": "050985813424582bf084b93eb8c3fee0fb12c6c4",
                 "shasum": ""
             },
             "require": {
@@ -6420,7 +6420,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-09-10T18:47:46+00:00"
+            "time": "2026-09-14T12:30:46+00:00"
         },
         {
             "name": "maennchen/zipstream-php",
@@ -7527,16 +7527,16 @@
         },
         {
             "name": "neuron-core/neuron-ai",
-            "version": "3.16.14",
+            "version": "3.16.15",
             "source": {
                 "type": "git",
                 "url": "https://github.com/neuron-core/neuron-ai.git",
-                "reference": "72e91c361e4a6fb5bceb079d43c638e3320a7fe6"
+                "reference": "5a7870a5ee9e1c692ea4a7e8379dbebf9c600c94"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/72e91c361e4a6fb5bceb079d43c638e3320a7fe6",
-                "reference": "72e91c361e4a6fb5bceb079d43c638e3320a7fe6",
+                "url": "https://api.github.com/repos/neuron-core/neuron-ai/zipball/5a7870a5ee9e1c692ea4a7e8379dbebf9c600c94",
+                "reference": "5a7870a5ee9e1c692ea4a7e8379dbebf9c600c94",
                 "shasum": ""
             },
             "require": {
@@ -7587,7 +7587,7 @@
             "description": "The PHP Agentic Framework.",
             "support": {
                 "issues": "https://github.com/neuron-core/neuron-ai/issues",
-                "source": "https://github.com/neuron-core/neuron-ai/tree/3.16.14"
+                "source": "https://github.com/neuron-core/neuron-ai/tree/3.16.15"
             },
             "funding": [
                 {
@@ -7595,7 +7595,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-09-13T09:37:39+00:00"
+            "time": "2026-09-14T09:26:34+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",
@@ -7667,16 +7667,16 @@
         },
         {
             "name": "nikic/php-parser",
-            "version": "v5.8.0",
+            "version": "v5.9.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nikic/PHP-Parser.git",
-                "reference": "044a6a392ff8ad0d61f14370a5fbbd0a0107152f"
+                "reference": "9e33da9553fe7786f0962b35f4e4ecf01be89def"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/044a6a392ff8ad0d61f14370a5fbbd0a0107152f",
-                "reference": "044a6a392ff8ad0d61f14370a5fbbd0a0107152f",
+                "url": "https://api.github.com/repos/nikic/PHP-Parser/zipball/9e33da9553fe7786f0962b35f4e4ecf01be89def",
+                "reference": "9e33da9553fe7786f0962b35f4e4ecf01be89def",
                 "shasum": ""
             },
             "require": {
@@ -7718,9 +7718,9 @@
             ],
             "support": {
                 "issues": "https://github.com/nikic/PHP-Parser/issues",
-                "source": "https://github.com/nikic/PHP-Parser/tree/v5.8.0"
+                "source": "https://github.com/nikic/PHP-Parser/tree/v5.9.0"
             },
-            "time": "2026-07-04T14:30:18+00:00"
+            "time": "2026-09-13T18:51:52+00:00"
         },
         {
             "name": "nunomaduro/termwind",
@@ -14120,16 +14120,16 @@
         },
         {
             "name": "symfony/http-client",
-            "version": "v8.1.6",
+            "version": "v8.1.7",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/http-client.git",
-                "reference": "fe91dd1ddf09b61aa01e73d29907acbf1775c0a9"
+                "reference": "099aae7d3619bffb5e68b33dbbadf6649c6d49c5"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/http-client/zipball/fe91dd1ddf09b61aa01e73d29907acbf1775c0a9",
-                "reference": "fe91dd1ddf09b61aa01e73d29907acbf1775c0a9",
+                "url": "https://api.github.com/repos/symfony/http-client/zipball/099aae7d3619bffb5e68b33dbbadf6649c6d49c5",
+                "reference": "099aae7d3619bffb5e68b33dbbadf6649c6d49c5",
                 "shasum": ""
             },
             "require": {
@@ -14193,7 +14193,7 @@
                 "http"
             ],
             "support": {
-                "source": "https://github.com/symfony/http-client/tree/v8.1.6"
+                "source": "https://github.com/symfony/http-client/tree/v8.1.7"
             },
             "funding": [
                 {
@@ -14213,7 +14213,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-08-30T14:03:40+00:00"
+            "time": "2026-09-08T13:39:13+00:00"
         },
         {
             "name": "symfony/http-client-contracts",
@@ -18582,16 +18582,16 @@
         },
         {
             "name": "larastan/larastan",
-            "version": "v3.12.0",
+            "version": "v3.12.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/larastan/larastan.git",
-                "reference": "ab26fdf90d84877061388109e1e251f67ca3ff7a"
+                "reference": "168fd3b955e723c51dbf81709849b0c3ac4ac5f6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/larastan/larastan/zipball/ab26fdf90d84877061388109e1e251f67ca3ff7a",
-                "reference": "ab26fdf90d84877061388109e1e251f67ca3ff7a",
+                "url": "https://api.github.com/repos/larastan/larastan/zipball/168fd3b955e723c51dbf81709849b0c3ac4ac5f6",
+                "reference": "168fd3b955e723c51dbf81709849b0c3ac4ac5f6",
                 "shasum": ""
             },
             "require": {
@@ -18604,7 +18604,7 @@
                 "illuminate/pipeline": "^11.44.2 || ^12.4.1 || ^13",
                 "illuminate/support": "^11.44.2 || ^12.4.1 || ^13",
                 "php": "^8.2",
-                "phpstan/phpstan": "^2.2.2"
+                "phpstan/phpstan": "^2.2.14"
             },
             "require-dev": {
                 "doctrine/coding-standard": "^14",
@@ -18659,7 +18659,7 @@
             ],
             "support": {
                 "issues": "https://github.com/larastan/larastan/issues",
-                "source": "https://github.com/larastan/larastan/tree/v3.12.0"
+                "source": "https://github.com/larastan/larastan/tree/v3.12.1"
             },
             "funding": [
                 {
@@ -18667,7 +18667,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-09-10T09:06:54+00:00"
+            "time": "2026-09-13T15:17:35+00:00"
         },
         {
             "name": "laravel/agent-detector",

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WordPress\Enums;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
+
 enum ConfigurationEnum: string
 {
     case NAME = 'WordPress';
@@ -24,4 +27,16 @@ enum ConfigurationEnum: string
     case DEFAULT_CATEGORIES = 'wordpress_default_categories';
     case DEFAULT_TAGS = 'wordpress_default_tags';
     case ALLOW_TERM_CREATION = 'wordpress_allow_term_creation';
+    case SEMANTIC_DUPLICATE_CHECK = 'wordpress_semantic_duplicate_check';
+    case DUPLICATE_WINDOW_HOURS = 'wordpress_duplicate_window_hours';
+    case DUPLICATE_MIN_SCORE = 'wordpress_duplicate_min_score';
+
+    /**
+     * Credentials and publishing defaults live on the company (a site belongs to a tenant), with the
+     * app as a per-key fallback for an app-wide default site.
+     */
+    public function valueFor(AppInterface $app, ?CompanyInterface $company = null): mixed
+    {
+        return $company?->get($this->value) ?? $app->get($this->value);
+    }
 }

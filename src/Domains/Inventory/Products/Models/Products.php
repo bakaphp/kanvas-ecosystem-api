@@ -1003,6 +1003,30 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
         $this->save();
     }
 
+    /**
+     * Distinct channels (id + slug) this product currently has a published variant membership in.
+     * A plain Product update carries no channel context on its own — this is what lets the caller
+     * (UpdateProductAction) notify per-channel listeners (e.g. secondary-index Rules) with the same
+     * flat `channel_id`/`channel_slug` shape the `products_variants_channels` row save already fires,
+     * instead of a Rule condition having to call back into the model.
+     *
+     * @return array<int, array{channel_id: int, channel_slug: string}>
+     */
+    public function activeChannelMemberships(): array
+    {
+        return DB::connection($this->getConnectionName())
+            ->table('products_variants_channels as pvc')
+            ->join('channels as c', 'c.id', '=', 'pvc.channels_id')
+            ->join('products_variants as v', 'v.id', '=', 'pvc.products_variants_id')
+            ->where('v.products_id', $this->getId())
+            ->where('pvc.is_published', 1)
+            ->where('pvc.is_deleted', 0)
+            ->distinct()
+            ->get(['c.id as channel_id', 'c.slug as channel_slug'])
+            ->map(fn ($row) => ['channel_id' => (int) $row->channel_id, 'channel_slug' => $row->channel_slug])
+            ->all();
+    }
+
     public function publish(): void
     {
         $this->is_published = 1;

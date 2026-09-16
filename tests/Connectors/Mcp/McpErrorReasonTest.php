@@ -57,6 +57,26 @@ final class McpErrorReasonTest extends TestCase
         $this->assertSame('', McpErrorReason::fromBody("event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":2,\"result\":"));
     }
 
+    public function testAToolResultFlaggedAsAnErrorSurfacesItsText(): void
+    {
+        $body = json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 3,
+            'result' => [
+                'isError' => true,
+                'content' => [['type' => 'text', 'text' => 'Invalid attendee email.']],
+            ],
+        ]);
+
+        $this->assertSame('Invalid attendee email.', McpErrorReason::fromBody((string) $body));
+        $this->assertSame('Invalid attendee email.', McpErrorReason::fromBody("event: message\ndata: " . $body . "\n\n"));
+    }
+
+    public function testAPlainTextEventIsSurfacedWithoutItsFraming(): void
+    {
+        $this->assertSame('Upstream unavailable', McpErrorReason::fromBody("event: error\ndata: Upstream unavailable\n\n"));
+    }
+
     public function testAnyChallengeIsSurfaced(): void
     {
         $challenge = 'Bearer realm="https://accounts.google.com/", scope="https://www.googleapis.com/auth/drive"';

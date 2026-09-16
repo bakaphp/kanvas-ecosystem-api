@@ -6,6 +6,11 @@ namespace Tests\GraphQL\Event;
 
 use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Currencies\Models\Currencies;
+use Kanvas\Event\Events\Actions\CreateEventVersionAction;
+use Kanvas\Event\Events\DataTransferObject\EventDate;
+use Kanvas\Event\Events\DataTransferObject\EventVersion as EventVersionData;
+use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Events\Models\EventVersion;
@@ -388,5 +393,58 @@ class EventAdvancedMutationsTest extends TestCase
         $versionId = $r->json('data.createEvent.versions.data.0.id');
 
         $this->assertEquals($config, EventVersion::find($versionId)->metadata);
+    }
+
+    public function testSearchArrayConfigReflectsTheLatestVersionNotTheFirst(): void
+    {
+        $this->runEventSetup();
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        $input = [
+            'name' => 'Config Search Event ' . uniqid(),
+            'category_id' => EventCategory::fromCompany($company)->fromApp($app)->first()->getId(),
+            'type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
+            'dates' => [[
+                'date' => Carbon::now()->addWeeks(2)->toDateString(),
+                'start_time' => '10:00',
+                'end_time' => '12:00',
+            ]],
+            'config' => ['source' => 'first_import'],
+        ];
+
+        $r = $this->graphQL('
+            mutation($input: EventInput!) {
+                createEvent(input: $input) { id }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        /** @var Event $event */
+        $event = Event::find($r->json('data.createEvent.id'));
+
+        // Re-running an import creates a NEW version rather than updating the existing one
+        // (CreateEventVersionAction::execute() always inserts) — this is exactly what happens in
+        // production when the same import runs again with an updated config.
+        $latestVersion = new CreateEventVersionAction(
+            new EventVersionData(
+                event: $event,
+                user: $user,
+                currency: Currencies::getBaseCurrency(),
+                name: $event->name,
+                version: 2,
+                dates: EventDate::collect([[
+                    'date' => Carbon::now()->addWeeks(2)->toDateString(),
+                    'start_time' => '10:00',
+                    'end_time' => '12:00',
+                ]], DataCollection::class),
+                metadata: ['source' => 're_import'],
+            )
+        )->execute();
+
+        $event->refresh();
+
+        $this->assertSame(['source' => 're_import'], $event->toSearchableArray()['config']);
+        $this->assertSame(['source' => 're_import'], $latestVersion->toSearchableArray()['config']);
     }
 }

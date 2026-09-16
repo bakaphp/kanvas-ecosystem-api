@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Inventory;
 
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Channels\Actions\UnPublishAllVariantsAction;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
+use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
@@ -254,6 +258,128 @@ class ChannelTest extends TestCase
 
         $this->assertNotNull($idField);
         $this->assertSame('string', $idField['type'], 'Typesense requires the document id field to be a string');
+    }
+
+    /**
+     * ChannelObserver::creating() would fatal resolving `$channel->company` (null for
+     * companies_id = 0), so the global row is seeded via a raw insert — the same way it would
+     * actually be provisioned in production (a one-time seed, not through createChannel).
+     */
+    private function createGlobalChannel(): int
+    {
+        $name = 'Global Channel ' . fake()->unique()->word();
+
+        return DB::connection('inventory')->table('channels')->insertGetId([
+            'users_id' => auth()->user()->getId(),
+            'companies_id' => 0,
+            'apps_id' => app(Apps::class)->getId(),
+            'uuid' => (string) Str::uuid(),
+            'name' => $name,
+            'slug' => Str::slug($name),
+            'is_published' => 1,
+            'is_deleted' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    public function testChannelsQueryIncludesGlobalChannelRegardlessOfCrossCompanyFlag(): void
+    {
+        $app = app(Apps::class);
+        $originalFlag = $app->get(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value);
+        // Channels overrides scopeFromCompanyOrGlobal() specifically to NOT depend on this flag —
+        // it's off here on purpose, proving the global channel shows up either way.
+        $app->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, 0);
+
+        try {
+            $globalId = $this->createGlobalChannel();
+
+            // `companies` must be nullable on the Channel type — a companies_id = 0 row has no
+            // owning company, and selecting the relation used to fatal with "Cannot return null
+            // for non-nullable field Channel.companies".
+            $this->graphQL('
+                query($id: Mixed!) {
+                    channels(where: {column: ID, operator: EQ, value: $id}) {
+                        data { id companies_id companies { id } }
+                    }
+                }
+            ', ['id' => $globalId])->assertJson([
+                'data' => ['channels' => ['data' => [[
+                    'id' => (string) $globalId,
+                    'companies_id' => 0,
+                    'companies' => null,
+                ]]]],
+            ]);
+        } finally {
+            $app->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, $originalFlag);
+        }
+    }
+
+    public function testUnPublishAllVariantsActionDoesNotFatalOnAGlobalChannel(): void
+    {
+        $globalId = $this->createGlobalChannel();
+
+        // Used to fatal on `$this->channel->company->get(...)` — a companies_id = 0 channel has
+        // no owning company to read the "don't unpublish" setting from.
+        new UnPublishAllVariantsAction(Channels::findOrFail($globalId))->execute();
+
+        $this->addToAssertionCount(1);
+    }
+
+    public function testChannelsQueryReturnsBothTheCompanyChannelAndTheGlobalOneTogether(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $globalId = $this->createGlobalChannel();
+        $companyChannel = Channels::create([
+            'users_id' => $user->getId(),
+            'companies_id' => $company->getId(),
+            'apps_id' => $app->getId(),
+            'name' => 'Company Channel ' . fake()->unique()->word(),
+            'is_default' => 1,
+            'is_published' => 1,
+            'is_deleted' => 0,
+        ]);
+
+        $response = $this->graphQL('
+            query($ids: Mixed!) {
+                channels(where: {column: ID, operator: IN, value: $ids}) {
+                    data { id companies_id }
+                }
+            }
+        ', ['ids' => [$globalId, $companyChannel->getId()]])->assertSuccessful();
+
+        $returnedIds = collect($response->json('data.channels.data'))->pluck('id')->all();
+
+        $this->assertContains((string) $globalId, $returnedIds);
+        $this->assertContains((string) $companyChannel->getId(), $returnedIds);
+        $this->assertCount(2, $returnedIds);
+    }
+
+    public function testChannelsQueryStillScopesToOwnCompanyForNonGlobalChannels(): void
+    {
+        $app = app(Apps::class);
+        $otherCompanyChannel = Channels::create([
+            'users_id' => auth()->user()->getId(),
+            'companies_id' => Companies::factory()->create()->getId(),
+            'apps_id' => $app->getId(),
+            'name' => 'Other Company Channel ' . fake()->unique()->word(),
+            'is_default' => 1,
+            'is_published' => 1,
+            'is_deleted' => 0,
+        ]);
+
+        $this->graphQL('
+            query($id: Mixed!) {
+                channels(where: {column: ID, operator: EQ, value: $id}) {
+                    data { id }
+                }
+            }
+        ', ['id' => $otherCompanyChannel->getId()])->assertJson([
+            'data' => ['channels' => ['data' => []]],
+        ]);
     }
 
     public function testChannelRegionsResolvesFromVariantChannels(): void

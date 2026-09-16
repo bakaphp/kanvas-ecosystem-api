@@ -31,6 +31,13 @@ class UpdateProductAction
             $this->user
         );
 
+        // Disabling BEFORE the update (not just guarding the explicit fire below) so
+        // ProductsObserver::saved() — which fires on this same $this->product instance as part of
+        // the update() call — also honors runWorkflow, instead of only the explicit call at the end.
+        if (! $this->runWorkflow) {
+            $this->product->disableWorkflows();
+        }
+
         try {
             DB::connection('inventory')->beginTransaction();
 
@@ -90,12 +97,12 @@ class UpdateProductAction
             $this->product->unsearchable();
         }
 
-        if ($this->runWorkflow) {
-            $this->product->fireWorkflow(
-                WorkflowEnum::UPDATED->value,
-                true
-            );
-        }
+        // No `if ($this->runWorkflow)` guard here — disableWorkflows() above already makes this
+        // (and anything else on $this->product) a no-op when the caller asked to suppress workflows.
+        $this->product->fireWorkflow(
+            WorkflowEnum::UPDATED->value,
+            true
+        );
 
         return $this->product;
     }
