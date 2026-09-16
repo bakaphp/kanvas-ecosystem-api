@@ -23,6 +23,7 @@ use Kanvas\NervousSystem\Project\Enums\ProjectStatusEnum;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Observers\ProjectObserver;
 use Kanvas\NervousSystem\Project\Services\ProjectMentionTriggerService;
+use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
@@ -35,6 +36,8 @@ use Override;
  * A Jira-style work container: the aggregate root that ties an objective, its members (humans and
  * agents), its plans/tasks and a unified message feed together, so an agent has full situational
  * awareness before it executes. Every project has a default PM agent (agent_id) that orchestrates it.
+ *
+ * @phpstan-import-type BoardColumn from ProjectBoardColumns
  *
  * @property int $id
  * @property string $uuid
@@ -184,6 +187,14 @@ class Project extends BaseModel implements HandlesAgentMention
             'project_id',
             'id'
         )->where('is_deleted', 0);
+    }
+
+    /**
+     * @return array<int, BoardColumn>
+     */
+    public function boardColumns(): array
+    {
+        return new ProjectBoardColumns()->forProject($this);
     }
 
     public function members(): HasMany

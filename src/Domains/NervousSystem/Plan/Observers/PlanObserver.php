@@ -9,6 +9,7 @@ use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfBlockedPlanJob;
 use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfCompletedPlanJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Jobs\NotifyProjectOwnerOfBlockedPlanJob;
+use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelData;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
@@ -19,6 +20,16 @@ class PlanObserver
     public function updating(Plan $plan): void
     {
         $plan->clearLightHouseCache(withKanvasConfiguration: false);
+
+        // Only a board drag writes board_column_key, so every other writer of `status` would leave the
+        // card in a column that no longer matches it. Sitting on the model covers all of them at once.
+        if ($this->shouldRepointBoardColumn($plan)) {
+            $plan->board_column_key = new ProjectBoardColumns()->keyForStatus(
+                $plan->project,
+                $plan->status,
+                $plan->board_column_key,
+            );
+        }
 
         // Record the assignee that just blocked this plan so the PM can't re-hand it to the same agent
         // (which would only re-block). Folded into this same UPDATE — no extra write. See NS-6909.
@@ -66,6 +77,18 @@ class PlanObserver
         // Delay so a burst of near-simultaneous blocks settles — the first job to run then digests
         // ALL of them into ONE alert, and the rest are suppressed by the per-project throttle.
         NotifyProjectOwnerOfBlockedPlanJob::dispatch($plan)->delay(now()->addSeconds(45));
+    }
+
+    /**
+     * An explicit column move is authoritative — it writes both fields, and re-pointing it would undo
+     * a move into the second of two columns that share a plan_status.
+     */
+    private function shouldRepointBoardColumn(Plan $plan): bool
+    {
+        return $plan->isDirty('status')
+            && ! $plan->isDirty('board_column_key')
+            && $plan->board_column_key !== null
+            && $plan->project !== null;
     }
 
     public function created(Plan $plan): void

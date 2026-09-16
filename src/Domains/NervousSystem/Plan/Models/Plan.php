@@ -64,6 +64,7 @@ use Throwable;
  * @property string $title
  * @property string|null $description
  * @property string $status
+ * @property string|null $board_column_key
  * @property array|null $capability_declined_agent_ids
  * @property int $priority
  * @property \Illuminate\Support\Carbon|null $deadline_at

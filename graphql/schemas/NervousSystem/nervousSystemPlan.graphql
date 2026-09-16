@@ -15,6 +15,7 @@ type NervousSystemPlan {
     title: String!
     description: String
     status: String!
+    board_column_key: String
     priority: Int!
     deadline_at: DateTime
     completion_pct: Int!
@@ -86,6 +87,7 @@ input CreateNervousSystemPlanInput {
     entity_id: Int
     description: String
     status: String
+    board_column_key: String
     priority: Int
     deadline_at: DateTime
     input: Mixed
@@ -103,6 +105,7 @@ input UpdateNervousSystemPlanInput {
     project_id: Int
     description: String
     status: String
+    board_column_key: String
     priority: Int
     deadline_at: DateTime
     input: Mixed
@@ -142,6 +145,7 @@ extend type Query @guard {
                     "entity_id"
                     "plan_type"
                     "status"
+                    "board_column_key"
                     "priority"
                     "parent_plan_id"
                     "project_id"

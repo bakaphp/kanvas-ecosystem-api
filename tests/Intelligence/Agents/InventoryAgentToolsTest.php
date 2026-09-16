@@ -19,8 +19,10 @@ use Kanvas\Inventory\Categories\Models\Categories;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
+use Kanvas\Inventory\Variants\Services\VariantSearchService;
 use Kanvas\Users\Models\Users;
 use Laravel\Ai\Tools\Request;
+use Mockery;
 use Tests\TestCase;
 
 class InventoryAgentToolsTest extends TestCase
@@ -258,31 +260,37 @@ class InventoryAgentToolsTest extends TestCase
         $this->assertEquals($uniqueName, $data['categories'][0]['name']);
     }
 
-    public function testVariantSearchToolFindsByName(): void
+    public function testVariantSearchToolReturnsMatchingVariants(): void
     {
         $company = $this->user->getCurrentCompany();
         $uniqueName = 'VarTest' . uniqid();
 
-        new CreateProductAction(
-            new Product(
-                app: $this->kanvasApp,
-                company: $company,
-                user: $this->user,
-                name: 'Product for variant ' . uniqid(),
-                sku: 'PVRT-' . uniqid(),
-                variants: [['name' => $uniqueName, 'sku' => 'SKU-VAR-' . uniqid()]],
-            ),
-            $this->user
-        )->execute();
+        $variants = [['id' => 123, 'name' => $uniqueName, 'sku' => 'SKU-VAR-123']];
+        $search = Mockery::mock(VariantSearchService::class);
+        $search->expects('search')
+            ->with($this->kanvasApp, $company, $uniqueName)
+            ->andReturn($variants);
 
-        $result = (new VariantSearchTool())
+        $result = (new VariantSearchTool($search))
             ->withContext($this->kanvasApp, $company)
             ->handle(new Request(['keyword' => $uniqueName]));
 
-        $data = json_decode((string) $result, true);
-        $this->assertIsArray($data);
-        $this->assertNotEmpty($data);
-        $this->assertEquals($uniqueName, $data[0]['name']);
+        $this->assertSame($variants, json_decode((string) $result, true, flags: JSON_THROW_ON_ERROR));
+    }
+
+    public function testVariantSearchToolReportsNoMatches(): void
+    {
+        $company = $this->user->getCurrentCompany();
+        $search = Mockery::mock(VariantSearchService::class);
+        $search->expects('search')
+            ->with($this->kanvasApp, $company, 'missing-variant')
+            ->andReturn([]);
+
+        $result = (new VariantSearchTool($search))
+            ->withContext($this->kanvasApp, $company)
+            ->handle(new Request(['keyword' => 'missing-variant']));
+
+        $this->assertSame("No variants found matching 'missing-variant'.", (string) $result);
     }
 
     public function testVariantSearchToolRequiresKeyword(): void

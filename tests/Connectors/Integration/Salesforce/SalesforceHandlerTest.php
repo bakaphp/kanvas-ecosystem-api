@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Salesforce\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Salesforce\Enums\GrantTypeEnum;
 use Kanvas\Connectors\Salesforce\Handlers\SalesforceHandler;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Regions\Models\Regions;
@@ -54,6 +55,7 @@ final class SalesforceHandlerTest extends TestCase
         $handler = new SalesforceHandler($app, $company, $region, [
             'client_id' => 'test-client-id',
             'client_secret' => 'test-client-secret',
+            'grant_type' => GrantTypeEnum::REFRESH_TOKEN->value,
             'refresh_token' => 'test-refresh-token',
             'login_url' => self::SALESFORCE_LOGIN_URL,
         ]);
@@ -61,7 +63,26 @@ final class SalesforceHandlerTest extends TestCase
         $this->assertTrue($handler->setup());
         $this->assertSame('test-client-id', $company->get(ConfigurationEnum::CLIENT_ID->value));
         $this->assertSame('test-client-secret', $company->get(ConfigurationEnum::CLIENT_SECRET->value));
+        $this->assertSame(GrantTypeEnum::REFRESH_TOKEN->value, $company->get(ConfigurationEnum::GRANT_TYPE->value));
         $this->assertSame('test-refresh-token', $company->get(ConfigurationEnum::REFRESH_TOKEN->value));
         $this->assertSame(self::SALESFORCE_LOGIN_URL, $company->get(ConfigurationEnum::LOGIN_URL->value));
+    }
+
+    public function testRefreshTokenGrantRequiresARefreshToken(): void
+    {
+        $app = app(Apps::class);
+        $company = static::$cachedUser->getCurrentCompany();
+        $region = Regions::getDefault($company, $app);
+
+        $handler = new SalesforceHandler($app, $company, $region, [
+            'client_id' => 'test-client-id',
+            'client_secret' => 'test-client-secret',
+            'grant_type' => GrantTypeEnum::REFRESH_TOKEN->value,
+        ]);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Salesforce refresh_token is not set');
+
+        $handler->setup();
     }
 }
