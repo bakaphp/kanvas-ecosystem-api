@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Slack\Actions;
 
 use Kanvas\Connectors\Slack\Client;
-use Kanvas\Connectors\Slack\Services\SlackMarkdownService;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
@@ -84,7 +83,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
                 $client->replacePlaceholderWithReply(
                     $slackChannelId,
                     $placeholderTs,
-                    SlackMarkdownService::toMrkdwn($responseText),
+                    $responseText,
                     $threadTs !== '' ? $threadTs : null,
                 );
             } catch (Throwable $e) {

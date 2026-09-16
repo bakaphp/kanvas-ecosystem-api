@@ -90,7 +90,7 @@ class SendSlackDirectMessageTool extends Tool
                 ];
             }
 
-            $client->postMessage($client->openDirectMessageChannel($slackUserId), $message);
+            $client->postMarkdownMessage($client->openDirectMessageChannel($slackUserId), $message);
         } catch (ValidationException $e) {
             return ['status' => 'error', 'message' => 'Slack could not deliver the DM: ' . $e->getMessage()];
         } catch (Throwable $e) {
