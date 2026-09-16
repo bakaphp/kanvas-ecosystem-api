@@ -116,6 +116,22 @@ final class ContactRejectionTest extends TestCase
         );
     }
 
+    public function testMissingOrUnauthorizedCoBuyerIsUnreachableButOtherErrorsStillSurface(): void
+    {
+        $this->assertTrue(ContactRejectionService::isUnreachableContact($this->unauthorizedContact()));
+        $this->assertTrue(
+            ContactRejectionService::isUnreachableContact($this->vinSolutionRejection(status: 404, body: 'Not Found'))
+        );
+
+        $this->assertFalse(
+            ContactRejectionService::isUnreachableContact(
+                $this->vinSolutionRejection(status: 401, body: 'Invalid or expired access token')
+            ),
+            'a real credential failure is a system fault and must still reach Sentry'
+        );
+        $this->assertFalse(ContactRejectionService::isUnreachableContact($this->vinSolutionRejection(status: 429)));
+    }
+
     private function unauthorizedContact(): ClientException
     {
         return new ClientException(

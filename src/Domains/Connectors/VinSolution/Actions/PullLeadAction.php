@@ -9,6 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
@@ -22,6 +23,7 @@ use Kanvas\Connectors\VinSolution\Exceptions\ContactNotFoundException;
 use Kanvas\Connectors\VinSolution\Exceptions\VinSolutionException;
 use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
+use Kanvas\Connectors\VinSolution\Services\ContactRejectionService;
 use Kanvas\Connectors\VinSolution\Vehicles\Interest;
 use Kanvas\Connectors\VinSolution\Vehicles\TradeIn;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
@@ -232,6 +234,21 @@ class PullLeadAction
         } catch (ContactNotFoundException) {
             // The co-buyer VinSolutions points at is gone or belongs to another dealer;
             // the lead itself is still valid, so there is nothing to report.
+        } catch (ClientException $e) {
+            if (! ContactRejectionService::isUnreachableContact($e)) {
+                report($e);
+
+                return;
+            }
+
+            Log::warning('VinSolutions co-buyer contact unreachable, skipped', [
+                'lead_id' => $lead->getId(),
+                'vin_lead_id' => $currentLead['LeadId'] ?? null,
+                'dealer_id' => $vinCompany->id,
+                'user_id' => $user->id,
+                'status' => $e->getResponse()?->getStatusCode(),
+                'reason' => ContactRejectionService::reason($e),
+            ]);
         } catch (Throwable $e) {
             report($e);
         }

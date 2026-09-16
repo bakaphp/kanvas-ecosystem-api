@@ -6,7 +6,10 @@ namespace Kanvas\Connectors\WaSender\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\ServerException;
 use Kanvas\Connectors\WaSender\Client;
+use Throwable;
 
 /**
  * Outbound WhatsApp. **No many-recipient send belongs here** — this is an unofficial client and
@@ -120,7 +123,12 @@ class MessageService
 
     public function decryptMediaFile(array $payload): array
     {
-        return $this->client->post('/api/decrypt-media', $payload);
+        // Decryption can be repeated safely; outbound sends must not inherit these retries.
+        return retry(
+            times: [1000, 2000],
+            callback: fn (): array => $this->client->post('/api/decrypt-media', $payload),
+            when: fn (Throwable $e): bool => $e instanceof ServerException || $e instanceof ConnectException,
+        );
     }
 
     /**
