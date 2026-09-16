@@ -125,6 +125,34 @@ final class ProjectBoardColumns
     }
 
     /**
+     * The column a plan carrying $status belongs in: its current one while that still covers the
+     * status, else the leftmost column mapping to it. Null when the board has no home for it.
+     */
+    public function keyForStatus(Project $project, string $status, ?string $currentKey = null): ?string
+    {
+        $exact = null;
+        $legacy = null;
+
+        foreach ($this->forProject($project) as $column) {
+            if (! $this->covers($column, $status)) {
+                continue;
+            }
+
+            if ($column['key'] === $currentKey) {
+                return $currentKey;
+            }
+
+            if ($exact === null && $column['plan_status'] === $status) {
+                $exact = $column['key'];
+            }
+
+            $legacy ??= $column['key'];
+        }
+
+        return $exact ?? $legacy;
+    }
+
+    /**
      * @return BoardColumn|null
      */
     public function resolveForPlan(?Project $project, ?string $key): ?array
@@ -250,6 +278,15 @@ final class ProjectBoardColumns
                 throw new ValidationException("Project board column {$name} already exists.");
             }
         }
+    }
+
+    /**
+     * @param BoardColumn $column
+     */
+    private function covers(array $column, string $status): bool
+    {
+        return $column['plan_status'] === $status
+            || in_array($status, $column['legacy_statuses'], true);
     }
 
     /**

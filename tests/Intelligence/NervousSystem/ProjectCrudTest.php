@@ -236,7 +236,7 @@ class ProjectCrudTest extends TestCase
 
         $this->updatePlan($planId, ['status' => 'done'])
             ->assertJsonPath('data.updateNervousSystemPlan.status', 'done')
-            ->assertJsonPath('data.updateNervousSystemPlan.board_column_key', 'review_queue');
+            ->assertJsonPath('data.updateNervousSystemPlan.board_column_key', 'done');
     }
 
     /**
