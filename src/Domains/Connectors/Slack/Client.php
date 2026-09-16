@@ -8,6 +8,7 @@ use Baka\Http\SafeUrl;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Slack\Services\SlackMarkdownService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -90,6 +91,26 @@ class Client
         $this->call('chat.delete', ['channel' => $channel, 'ts' => $ts]);
     }
 
+    public function postMarkdownMessage(
+        string $channel,
+        string $markdown,
+        ?string $threadTs = null
+    ): string {
+        $firstTs = null;
+
+        foreach (SlackMarkdownService::split($markdown, self::MAX_TEXT_LENGTH) as $chunk) {
+            $response = $this->call('chat.postMessage', array_filter([
+                'channel' => $channel,
+                'markdown_text' => $chunk,
+                'thread_ts' => $threadTs ?: $firstTs,
+            ], static fn ($value): bool => $value !== null && $value !== ''));
+
+            $firstTs ??= (string) $response['ts'];
+        }
+
+        return (string) $firstTs;
+    }
+
     /**
      * Deliver the finished reply as NEW messages, then drop the placeholder.
      *
@@ -107,24 +128,7 @@ class Client
         string $text,
         ?string $threadTs = null
     ): void {
-        $chunks = self::splitText($text);
-
-        $firstTs = $this->postMessage(
-            $channel,
-            $chunks[0],
-            $threadTs
-        );
-
-        // Keep follow-ups in the same thread; when the turn wasn't threaded, hang them off the first
-        // chunk so the reply stays a single readable unit.
-        $thread = $threadTs !== null && $threadTs !== '' ? $threadTs : $firstTs;
-        foreach (array_slice($chunks, 1) as $chunk) {
-            $this->postMessage(
-                $channel,
-                $chunk,
-                $thread
-            );
-        }
+        $this->postMarkdownMessage($channel, $text, $threadTs);
 
         try {
             $this->deleteMessage($channel, $placeholderTs);
