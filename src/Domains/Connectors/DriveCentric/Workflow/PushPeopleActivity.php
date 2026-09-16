@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\DriveCentric\Workflow;
 
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DriveCentric\Actions\PushPeopleAction;
+use Kanvas\Connectors\DriveCentric\Exceptions\DriveCentricException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
@@ -25,19 +27,30 @@ class PushPeopleActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::DRIVE_CENTRIC,
             additionalParams: $params,
-            integrationOperation: function ($people, $app, $integrationCompany, $additionalParams) use ($params): array {
-                $pushAction = new PushPeopleAction($people);
-                $result = $pushAction->execute();
+            integrationOperation: function (
+                People $people,
+                Apps $app,
+                mixed $integrationCompany,
+                array $additionalParams
+            ): array {
+                try {
+                    $result = new PushPeopleAction($people)->execute();
+                } catch (DriveCentricException $e) {
+                    if (! $e->isDataRejection()) {
+                        throw $e;
+                    }
 
-                /*  // Handle credit app if provided
-                 if (! empty($params['credit_app'])) {
-                     $pushAction->addCreditApp($params['credit_app']);
-                 }
+                    Log::warning('Push people to DriveCentric failed', [
+                        'people_id' => $people->getId(),
+                        'company_id' => $people->company->getId(),
+                        'error' => $e->getMessage(),
+                    ]);
 
-                 // Handle additional contact info if provided
-                 if (! empty($params['contact_info'])) {
-                     $pushAction->addContact($params['contact_info']);
-                 } */
+                    return $this->failWorkflow([
+                        'error' => $e->getMessage(),
+                        'people_id' => $people->getId(),
+                    ]);
+                }
 
                 return [
                     'message' => 'People pushed successfully to DriveCentric',

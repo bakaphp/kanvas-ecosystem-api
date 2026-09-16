@@ -31,6 +31,7 @@ use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
+use Kanvas\Inventory\Bundles\Models\BundleItem;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
@@ -106,7 +107,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     use LogsActivity;
     use ResolvesAttributesTrait;
 
-    protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
+    protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes', 'bundleItems'];
     public $translatable = ['name','description','short_description','html_description'];
 
     protected $table = 'products_variants';
@@ -149,6 +150,11 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     public function adminLinkSection(): AdminLinkSectionEnum
     {
         return AdminLinkSectionEnum::PRODUCT_VARIANT;
+    }
+
+    public function bundleItems(): HasMany
+    {
+        return $this->hasMany(BundleItem::class, 'variant_id');
     }
 
     public static function searchableIndex(): string

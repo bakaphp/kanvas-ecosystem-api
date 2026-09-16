@@ -12,6 +12,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
@@ -143,7 +144,10 @@ class RunNeuronChatAction
                 throw $e;
             }
 
-            report($e);
+            // A safety block is the provider judging the content, not a fault to fix — the person is told why instead.
+            if (! $e instanceof ProviderContentBlockedException) {
+                report($e);
+            }
 
             return $fallback;
         }
@@ -177,7 +181,6 @@ class RunNeuronChatAction
         return $content;
     }
 
-    /** A duplicate-key violation is a recoverable, explainable case — everything else stays generic. */
     private function humanizedFallback(Throwable $e): string
     {
         if ($this->isDuplicateEntryError($e)) {
@@ -190,6 +193,13 @@ class RunNeuronChatAction
         if ($e instanceof ToolRunsExceededException) {
             return 'I kept retrying the same lookup without getting anywhere. Could you narrow it down for me — '
                 . 'an exact name, email, or date range — and ask again?';
+        }
+
+        // Rephrasing doesn't help: the blocked content stays in the history and every later turn is refused too.
+        if ($e instanceof ProviderContentBlockedException) {
+            return "I can't respond to this conversation — the AI provider's content safety filter blocked it. "
+                . 'This is an automatic check on their side, so sending it again will be blocked too. '
+                . 'Starting a new conversation without the flagged content should work.';
         }
 
         // Nothing about the request was wrong, so telling the person to rephrase sends them to fix

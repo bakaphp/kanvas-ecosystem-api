@@ -7,6 +7,7 @@ namespace Tests\Connectors\Integration\DealerSocket;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DealerSocket\Actions\PullPeopleAction;
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketCustomerService;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Customers\Models\People;
 use Tests\Connectors\Traits\HasDealerSocketConfiguration;
 use Tests\TestCase;
@@ -189,5 +190,18 @@ final class CustomerTest extends TestCase
         );
 
         $this->assertEquals($people->firstname, $pulledPeople->firstname);
+    }
+
+    public function testPullPeopleActionMissingCustomerIsClientSafe(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $this->setupDealerSocketConfiguration($company, $app);
+
+        $this->expectException(ModelNotFoundException::class);
+
+        new PullPeopleAction($app, $company, $user)->execute(customerId: 999999999);
     }
 }

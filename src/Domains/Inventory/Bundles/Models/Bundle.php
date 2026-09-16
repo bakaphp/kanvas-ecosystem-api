@@ -51,6 +51,6 @@ class Bundle extends BaseModel
 
     public function bundleItems(): HasMany
     {
-        return $this->hasMany(BundleItem::class, 'bundle_id');
+        return $this->hasMany(BundleItem::class, 'bundle_id')->whereHas('variant');
     }
 }
