@@ -29,7 +29,7 @@ class ChannelService
 
         foreach ($variantsChannels as $variantChannel) {
             $warehouse = WarehouseRepository::getById((int) $variantChannel['warehouses_id']);
-            $channel = ChannelRepository::getById((int) $variantChannel['channels_id'], $variant->product->company()->get()->first());
+            $channel = ChannelRepository::getByIdOrGlobal((int) $variantChannel['channels_id'], $variant->product->company()->get()->first());
 
             // Check if the 'config' key exists in the input array
             $key = $warehouse->getId() . '-' . $channel->getId();

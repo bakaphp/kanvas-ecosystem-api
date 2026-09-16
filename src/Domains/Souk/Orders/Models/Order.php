@@ -33,6 +33,7 @@ use Kanvas\Souk\Affiliates\Models\AffiliateConversion;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\OrderDiscount;
 use Kanvas\Souk\Discounts\Services\DiscountService;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Orders\Actions\TransitionOrderStateAction;
 use Kanvas\Souk\Orders\DataTransferObject\OrderItem as OrderItemDto;
@@ -41,6 +42,7 @@ use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Factories\OrderFactory;
 use Kanvas\Souk\Orders\Observers\OrderObserver;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Services\B2BConfigurationService;
 use Kanvas\Souk\Traits\PayableTrait;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
@@ -958,7 +960,7 @@ class Order extends BaseModel implements PayableInterface
         $orderTotal = (float) ($total->price ?? 0);
 
         // Get discount amount from orderDiscounts relationship (single source of truth)
-        $discountAmount = (float) $this->orderDiscounts()->sum('amount');
+        $discountAmount = $this->appliedDiscountAmount();
 
         $this->total_gross_amount = $orderTotal;
         $this->discount_amount = $discountAmount;
@@ -981,6 +983,28 @@ class Order extends BaseModel implements PayableInterface
     protected static function newFactory()
     {
         return new OrderFactory();
+    }
+
+    // Under USE_B2B_COMPANY_GROUP the order is created on the global company and only later moved to the
+    // buyer by B2BUpdateCompanyOrderActivity, so anything company-specific at creation must ask the user.
+    public function buyerCompany(): Companies
+    {
+        $isOnGlobalB2BCompany = B2BConfigurationService::hasGlobalCompany($this->app)
+            && (int) $this->companies_id === (int) $this->app->get(ConfigurationEnum::B2B_GLOBAL_COMPANY->value);
+
+        return $isOnGlobalB2BCompany
+            ? ($this->user?->getCurrentCompany() ?? $this->company)
+            : $this->company;
+    }
+
+    public function appliedDiscountAmount(): float
+    {
+        return (float) $this->orderDiscounts()->notDeleted()->sum('amount');
+    }
+
+    public function remainingNetAmount(): float
+    {
+        return max(0.0, (float) $this->total_gross_amount - $this->appliedDiscountAmount());
     }
 
     public function applyDiscountCode(string $code): ?Discount
