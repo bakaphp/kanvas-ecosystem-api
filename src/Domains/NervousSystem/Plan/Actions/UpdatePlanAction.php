@@ -10,6 +10,7 @@ use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
 
 class UpdatePlanAction
 {
@@ -54,7 +55,15 @@ class UpdatePlanAction
             $this->plan->impact_summary = $this->data->impactSummary;
             $this->plan->status_pill = $this->data->statusPill;
 
-            $newStatus = $this->data->status->value;
+            // PlanData::forUpdate re-sends the plan's own column key on every partial update, so only
+            // an actual column *change* may drive the status — otherwise an agent marking a plan done
+            // would be silently reverted to the column's. No project means no board, hence no column.
+            $column = $this->data->project === null
+                ? null
+                : new ProjectBoardColumns()->resolveForPlan($this->data->project, $this->data->boardColumnKey);
+            $columnChanged = $column !== null && $column['key'] !== $this->plan->board_column_key;
+            $this->plan->board_column_key = $column['key'] ?? null;
+            $newStatus = $columnChanged ? $column['plan_status'] : $this->data->status->value;
 
             // Asking for approval mid-flight has to actually gate, the way it already does at
             // creation. Setting the flag alone changed nothing: the plan stayed active, the loop kept

@@ -17,6 +17,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\ListOpenSalesOrdersTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\SalesByCustomerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\SalesByProductTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\SalesRevenueTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\IssueCompanyCreditTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\ListOrderTypesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderBreakdownTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Souk\OrderCommissionStatsTool;
@@ -33,21 +34,26 @@ use Override;
  * (orders, affiliate-commission reports, …) via export_records.
  *
  * Extends SystemUserAgent (internal teammate: it IS a Kanvas user, has identity + ledger memory).
- * Read/report-first; the only write paths are create_sample_order ($0 draft, human-approved) and the
- * export tool (which just writes a file to the tenant bucket). It never touches accounting documents —
- * receivables/invoices belong to the Accounts Receivable agent.
+ * Read/report-first; the write paths are create_sample_order ($0 draft, human-approved),
+ * issue_company_credit (a credit the client's next order consumes — real money, so confirm the amount
+ * and the company before calling it) and the export tool (which just writes a file to the tenant
+ * bucket). It never touches accounting documents — receivables/invoices belong to the Accounts
+ * Receivable agent.
  */
 #[AgentTypeDefinition(
     name: 'Commerce Agent',
     description: 'Commerce back-office teammate — sales/order reporting (revenue, breakdowns, top customers/products, '
-        . 'commissions), sales-order + product lookups, sample orders, and CSV exports including affiliate-commission '
-        . 'reports, over the Souk tools. Also sets up and diagnoses natural-language product discovery '
+        . 'commissions), sales-order + product lookups, sample orders, client credits applied to their next order, '
+        . 'and CSV exports including affiliate-commission reports, over the Souk tools. Also sets up and diagnoses '
+        . 'natural-language product discovery '
         . 'for the storefront.',
     provider: 'neuron',
     soul: 'You are the Commerce teammate. You run reporting and back-office operations for the store using the Souk '
         . 'tools: sales and order numbers, top customers and products, marketplace commission, order and product '
-        . 'lookups, sample orders, and downloadable CSV exports. You are precise with numbers and always clear about '
-        . 'the date range. You never invent figures — if a tool returns nothing, you say so plainly.',
+        . 'lookups, sample orders, client credits (issue_company_credit — confirm company and amount first; it is '
+        . 'applied automatically to the client on its next order), and downloadable CSV exports. You are precise with '
+        . 'numbers and always clear about the date range. You never invent figures — if a tool returns nothing, you '
+        . 'say so plainly.',
     outputFormat: 'Plain text. Lead with the headline number, then the top 3-5 items; lists only for distinct items. '
         . 'When you produce an export, give the download link and the row count.',
 )]
@@ -68,6 +74,7 @@ class CommerceAgent extends SystemUserAgent
             new ListOpenSalesOrdersTool(),
             new FindProductTool(),
             new CreateSampleOrderTool(),
+            new IssueCompanyCreditTool(),
             new SalesByCustomerTool(),
             new SalesByProductTool(),
             new SalesRevenueTool(),
@@ -96,6 +103,7 @@ class CommerceAgent extends SystemUserAgent
             '- "Revenue this quarter" / sales trend → sales_revenue (set by_month for a trend). "Top customers" / "biggest buyers" → sales_by_customer. "Best sellers" / "top products" → sales_by_product. All exclude draft/canceled orders — state the date range.',
             '- "Look up sales order #X" → find_sales_order. "What orders are open" / a customer\'s in-flight orders → list_open_sales_orders.',
             '- "Send a sample" / free unit for a reviewer → find_product to turn the product NAME into a SKU, then create_sample_order (customer email + name, SKU, qty). Ask for the email if missing — it is a real shipment. It creates a $0 DRAFT that pushes to the ERP only after a human approves it.',
+            '- "Give client X a credit" / "we owe them for the missing units" → issue_company_credit (company id or exact name, amount, reason, and the order number it compensates if known). It is real money applied to the client on its next order, so confirm company and amount before calling it.',
             '- "Export" / "download" / "give me a CSV" of orders, affiliate commissions, etc. → export_records. Pick record_type from that tool\'s list (e.g. affiliate_commissions, orders); pass filters as an object — the orders export takes status, order_type, from_date and to_date. For an affiliate commission report ask for the affiliate code (e.g. UA20) and the date range if the user did not give them; with no affiliate it exports every affiliate in the company.',
             '- Lead with the headline number, then the top 3-5 items. Always be clear about the date range; if a tool returns nothing, say so instead of guessing.',
             '- Accounting documents (invoices, receivables, who owes us) are the Accounts Receivable agent\'s area, not yours.',

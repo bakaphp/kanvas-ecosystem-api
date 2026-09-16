@@ -141,6 +141,11 @@ class Discount extends BaseModel
         return $this->usage_limit !== null && $this->usage_count >= $this->usage_limit;
     }
 
+    public function isAutoAppliedCredit(): bool
+    {
+        return $this->discountType?->isAutoAppliedCredit() ?? false;
+    }
+
     /**
      * Increment the usage count
      */

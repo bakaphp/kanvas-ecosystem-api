@@ -12,6 +12,7 @@ use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 
 class CreatePlanAction
@@ -37,10 +38,18 @@ class CreatePlanAction
         new CreateInCurrentAppAction($this->data->app)->execute(Plan::class);
 
         return DB::connection('intelligence')->transaction(function (): Plan {
-            $effectiveStatus = $this->data->requiresHumanApproval
-                && $this->data->status === PlanStatusEnum::ACTIVE
-                ? PlanStatusEnum::AWAITING_APPROVAL
+            $boardColumn = new ProjectBoardColumns()->resolveForPlan(
+                $this->data->project,
+                $this->data->boardColumnKey,
+            );
+            $requestedStatus = $boardColumn !== null
+                ? PlanStatusEnum::from($boardColumn['plan_status'])
                 : $this->data->status;
+
+            $effectiveStatus = $this->data->requiresHumanApproval
+                && $requestedStatus === PlanStatusEnum::ACTIVE
+                ? PlanStatusEnum::AWAITING_APPROVAL
+                : $requestedStatus;
 
             // Demote any existing active mission for this swarm BEFORE
             // saving the new plan, so the unique-active invariant holds
@@ -69,6 +78,7 @@ class CreatePlanAction
             $plan->title = $this->data->title;
             $plan->description = $this->data->description;
             $plan->status = $effectiveStatus->value;
+            $plan->board_column_key = $boardColumn['key'] ?? null;
             $plan->priority = $this->data->priority;
             $plan->completion_pct = 0;
             $plan->deadline_at = $this->data->deadlineAt;
