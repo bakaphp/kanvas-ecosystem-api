@@ -446,8 +446,6 @@ class CreateOrderInESimActivity extends KanvasActivity
                 'update' => $updateResponse ?? null,
             ];
         } catch (Throwable $e) {
-            report($e);
-
             return [
                 'status' => 'error',
                 'message' => 'Error sending order to commerce',

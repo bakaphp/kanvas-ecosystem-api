@@ -11,9 +11,11 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Routing\Redirector;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Contracts\OAuthProviderFactory;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
@@ -21,6 +23,9 @@ use Sentry\Laravel\Facade as Sentry;
 
 class OAuthIntegrationController extends BaseController
 {
+    /** Long enough for a vendor's explanation, short enough to stay a sane query string. */
+    private const int REDIRECT_MESSAGE_MAX = 300;
+
     public function auth(string $uuid, Request $request): JsonResponse|RedirectResponse|Redirector
     {
         $result = $this->getReceiverAndApp($uuid, $request);
@@ -42,7 +47,16 @@ class OAuthIntegrationController extends BaseController
             'app_id' => $app->getId(),
         ]));
 
-        $authUrl = $provider->getAuthorizationUrl($receiver, $app, $request, $nonce);
+        try {
+            $authUrl = $provider->getAuthorizationUrl($receiver, $app, $request, $nonce);
+        } catch (ValidationException $e) {
+            // A setup the person can fix (no client registered with the vendor, agent may not hold the tool),
+            // not a fault: logged for Sentry Logs and told to the UI, not raised as a Sentry issue.
+            $this->logValidationFailure('oauth.integration.auth_failed', $receiver, $e);
+            Redis::del($stateKey);
+
+            return $this->failureResponse($receiver, $e, 422);
+        }
 
         return redirect()->away($authUrl);
     }
@@ -75,6 +89,7 @@ class OAuthIntegrationController extends BaseController
         }
 
         $receiverCall = ReceiverWebhookCall::where('uuid', $nonce)->notDeleted()->first();
+        $redirectUrl = $this->redirectUrlOf($receiver);
 
         try {
             $callbackResult = $provider->handleCallback($receiver, $app, $request);
@@ -88,12 +103,8 @@ class OAuthIntegrationController extends BaseController
                 ]);
             }
 
-            /** @var array<string, mixed> $config */
-            $config = $receiver->configuration;
-            $redirectUrl = $config['redirect_url'] ?? null;
-
-            if (is_string($redirectUrl) && filter_var($redirectUrl, FILTER_VALIDATE_URL)) {
-                return redirect()->away($redirectUrl);
+            if ($redirectUrl !== null) {
+                return redirect()->away($this->withResult($redirectUrl, ['status' => 'success']));
             }
 
             return response()->json([
@@ -101,14 +112,18 @@ class OAuthIntegrationController extends BaseController
                 ...$callbackResult,
             ]);
         } catch (Exception $e) {
-            Sentry::withScope(function ($scope) use ($e, $uuid, $request) {
-                $scope->setContext('Request Data', [
-                    'uuid' => $uuid,
-                    'payload' => $request->all(),
-                    'exception' => $e->getMessage(),
-                ]);
-                Sentry::captureException($e);
-            });
+            if ($e instanceof ValidationException) {
+                $this->logValidationFailure('oauth.integration.callback_failed', $receiver, $e);
+            } else {
+                Sentry::withScope(function ($scope) use ($e, $uuid, $request) {
+                    $scope->setContext('Request Data', [
+                        'uuid' => $uuid,
+                        'payload' => $request->all(),
+                        'exception' => $e->getMessage(),
+                    ]);
+                    Sentry::captureException($e);
+                });
+            }
 
             Redis::del($stateKey);
 
@@ -123,11 +138,56 @@ class OAuthIntegrationController extends BaseController
                 ]);
             }
 
-            return response()->json([
-                'error' => 'Authentication error',
-                'message' => $e->getMessage(),
-            ], 500);
+            return $this->failureResponse($receiver, $e, 500);
         }
+    }
+
+    private function logValidationFailure(string $event, ReceiverWebhook $receiver, ValidationException $e): void
+    {
+        Log::warning($event, [
+            'message' => $e->getMessage(),
+            'receiver_uuid' => $receiver->uuid,
+            'app_id' => $receiver->apps_id,
+            'company_id' => $receiver->companies_id,
+        ]);
+    }
+
+    /**
+     * Back to the UI on failure: otherwise the person is stranded on a raw JSON page on the API's domain,
+     * and the UI never learns why the connection didn't happen.
+     */
+    private function failureResponse(ReceiverWebhook $receiver, Exception $e, int $status): JsonResponse|RedirectResponse
+    {
+        $redirectUrl = $this->redirectUrlOf($receiver);
+
+        if ($redirectUrl !== null) {
+            return redirect()->away($this->withResult($redirectUrl, [
+                'status' => 'error',
+                'message' => mb_substr($e->getMessage(), 0, self::REDIRECT_MESSAGE_MAX),
+            ]));
+        }
+
+        return response()->json([
+            'error' => 'Authentication error',
+            'message' => $e->getMessage(),
+        ], $status);
+    }
+
+    /**
+     * The one callback URL for providers that accept only redirect URIs registered in advance (Google):
+     * the receiver comes from `state`, which is the ReceiverWebhookCall uuid auth() issued.
+     */
+    public function callbackByState(Request $request): JsonResponse|RedirectResponse|Redirector
+    {
+        $state = (string) $request->input('state', '');
+        $call = $state === '' ? null : ReceiverWebhookCall::where('uuid', $state)->notDeleted()->first();
+        $receiver = $call?->receiverWebhook;
+
+        if (! $receiver instanceof ReceiverWebhook) {
+            return response()->json(['error' => 'OAuth state expired or invalid'], 400);
+        }
+
+        return $this->callback($receiver->uuid, $request);
     }
 
     /**
@@ -156,5 +216,27 @@ class OAuthIntegrationController extends BaseController
         }
 
         return ['receiver' => $receiver, 'app' => $receiver->app];
+    }
+
+    private function redirectUrlOf(ReceiverWebhook $receiver): ?string
+    {
+        $configuration = is_array($receiver->configuration) ? $receiver->configuration : [];
+        $redirectUrl = $configuration['redirect_url'] ?? null;
+
+        return is_string($redirectUrl) && filter_var($redirectUrl, FILTER_VALIDATE_URL) ? $redirectUrl : null;
+    }
+
+    /**
+     * Appends the result to the UI's URL, keeping any `#fragment` last — single-page apps route on the
+     * hash, and a query string placed after it would never reach the server or the router.
+     *
+     * @param array<string, string> $params
+     */
+    private function withResult(string $url, array $params): string
+    {
+        [$base, $fragment] = array_pad(explode('#', $url, 2), 2, null);
+        $separator = str_contains((string) $base, '?') ? '&' : '?';
+
+        return $base . $separator . http_build_query($params) . ($fragment !== null ? '#' . $fragment : '');
     }
 }

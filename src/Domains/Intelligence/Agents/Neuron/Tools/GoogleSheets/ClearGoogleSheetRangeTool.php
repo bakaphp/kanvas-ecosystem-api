@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets;
 use Kanvas\Connectors\GoogleSheets\Actions\ClearSheetRangeAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesGoogleSheetsServiceForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesSpreadsheetIdForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -19,6 +20,7 @@ use Throwable;
 class ClearGoogleSheetRangeTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesGoogleSheetsServiceForTool;
     use ResolvesSpreadsheetIdForTool;
 
     public function __construct()
@@ -27,8 +29,9 @@ class ClearGoogleSheetRangeTool extends Tool
             name: 'clear_google_sheet_range',
             description: 'Wipes the contents of a cell, row, or range on a Google Sheet the user shared a link to '
                 . '— e.g. clearing out a cancelled invoice row. This does NOT delete the row itself, only its '
-                . 'values; the row stays in place and other rows are never shifted. The sheet must already be '
-                . 'shared as an Editor with this app\'s Google service account.',
+                . 'values; the row stays in place and other rows are never shifted. Clears any sheet the Google '
+                . 'account this agent is connected to can open; where the app uses a shared service account '
+                . 'instead, the sheet must be shared with that account as an Editor.',
         );
     }
 
@@ -69,7 +72,12 @@ class ClearGoogleSheetRangeTool extends Tool
         }
 
         try {
-            $result = new ClearSheetRangeAction($this->app, $spreadsheetId, $range)->execute();
+            $result = new ClearSheetRangeAction(
+                $this->app,
+                $spreadsheetId,
+                $range,
+                $this->sheetsServiceForAgent(),
+            )->execute();
         } catch (Throwable $e) {
             return [
                 'success' => false,

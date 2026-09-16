@@ -12,6 +12,7 @@ use Kanvas\Intelligence\Agents\Actions\CreateAgentAction;
 use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Actions\UpdateAgentAction;
 use Kanvas\Intelligence\Agents\Actions\Voice\ConfigureAgentInboundWebhookAction;
+use Kanvas\Intelligence\Agents\Actions\Voice\ReleaseInboundWebhookForNumberAction;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentDTO;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
@@ -112,6 +113,9 @@ class AgentManagementMutation
         $app = app(Apps::class);
         $company = auth()->user()->getCurrentCompany();
         $agent = Agent::getByIdFromCompanyApp((int) $req['id'], $company, $app);
+        // Capture the agent's number BEFORE the update overwrites voice_config, so
+        // we can release the OLD number's inbound webhook if it changes below.
+        $previousNumber = trim((string) ($agent->voice_config['phone_number'] ?? ''));
         $agentType = AgentTypeModel::getById($input['agent_type_id'], app: $app);
         $agentModel = isset($input['agent_model_id']) ? AgentModel::getById($input['agent_model_id'], app: $app) : null;
         $task = isset($input['company_task_list_id']) ? TaskList::getById($input['company_task_list_id'], app: $app) : null;
@@ -165,6 +169,24 @@ class AgentManagementMutation
         // Best-effort: (re)point the agent's Twilio number at the inbound webhook
         // when its number changes. Never throws — must not block the update.
         new ConfigureAgentInboundWebhookAction($agent, $app)->execute();
+
+        // If the number actually changed (or was cleared), release the OLD number's
+        // webhook — but only when no agent anywhere still owns it (account-wide, in
+        // the action). Compare on digits so a mere format change isn't treated as a
+        // move (which would wrongly clear the number this agent still uses).
+        $newNumber = trim((string) ($agent->voice_config['phone_number'] ?? ''));
+        if (
+            $previousNumber !== ''
+            && AgentsRepository::normalizePhoneNumber($previousNumber)
+                !== AgentsRepository::normalizePhoneNumber($newNumber)
+        ) {
+            new ReleaseInboundWebhookForNumberAction(
+                $previousNumber,
+                $app,
+                $company,
+                $agent->getId(),
+            )->execute();
+        }
 
         return $agent->refresh();
     }

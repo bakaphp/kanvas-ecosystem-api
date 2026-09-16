@@ -54,6 +54,9 @@ class SalesforceBackfillCommand extends Command
         return self::SUCCESS;
     }
 
+    // TODO: chunk both dispatches below. The whole result set goes into a single queue payload,
+    // so a large Salesforce org means a multi-MB Redis entry and an OOM risk in the worker —
+    // array_chunk before dispatch. OdooBackfillCommand has the same problem.
     private function backfillOrganizations(Apps $app, Companies $company): void
     {
         $records = new PullAllOrganizationsAction($app, $company)->execute();

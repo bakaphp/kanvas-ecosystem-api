@@ -247,6 +247,7 @@ class EventVersion extends BaseModel
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->description,
+            'config' => $this->metadata,
             'apps_id' => $this->apps_id,
             'companies_id' => $this->companies_id,
         ];
@@ -284,6 +285,11 @@ class EventVersion extends BaseModel
                     'optional' => true,
                 ],
                 [
+                    'name' => 'config',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
                     'name' => 'apps_id',
                     'type' => 'int64',
                 ],
@@ -293,6 +299,7 @@ class EventVersion extends BaseModel
                     'facet' => true,
                 ],
             ],
+            'enable_nested_fields' => true,
         ];
     }
 

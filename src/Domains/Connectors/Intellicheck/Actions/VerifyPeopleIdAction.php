@@ -5,23 +5,28 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Intellicheck\Actions;
 
 use Baka\Support\Str;
+use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as DataTransferObjectEngagement;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Services\DriverLicenseCombinedPdfService;
 use Kanvas\Connectors\SalesAssist\Services\DriverLicenseVerificationService;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\PdfService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Throwable;
 
 class VerifyPeopleIdAction
@@ -34,16 +39,17 @@ class VerifyPeopleIdAction
 
     public function execute(
         array $verificationData,
-        bool $sendNotification = true
+        bool $sendNotification = true,
+        ?Engagement $parentEngagement = null,
+        ?array $images = null,
+        bool $reuseExistingEngagement = false
     ): array {
-        //$isShowRoom = $params['is_showroom'] ?? false;
+        // An in-store scan carries no IPQS block; the fraud rules only apply to remote ones.
         $isShowRoom = ! isset($verificationData['ipqs']);
-        // Get person name from lead entity
         $name = IdVerificationService::getName($verificationData);
-        $name = $name !== 'Unknown' ? $this->people->name ?? 'Customer' : 'Customer';
+        $name = $name !== 'Unknown' ? $name : ($this->lead->title ?? ($this->people->name ?? 'Customer'));
         $app = $this->lead->app;
 
-        // Process data to generate verification results
         $verificationResults = IdVerificationService::processVerificationData($verificationData, $name, $isShowRoom);
 
         $reportData = [
@@ -80,22 +86,15 @@ class VerifyPeopleIdAction
             'intellicheckResponse' => $reportData['status'] === 'green' ? 'passed' : $reportData['status'],
         ];
 
-        // Get lead and people from entity
         $lead = $this->lead;
         $people = $this->people;
-        $isLeadPeople = false;
+        $isLeadPeople = $lead->people_id === $people->id;
 
-        if ($this->lead->people_id === $this->people->id) {
-            $isLeadPeople = true;
-            $lead->set(
-                'id_verification',
-                $resultsFromIntellicheck
-            );
+        $people->set('id_verification', $resultsFromIntellicheck);
 
-            $people->set(
-                'id_verification',
-                $resultsFromIntellicheck
-            );
+        // The lead's own slots only ever describe the main buyer, never a co-buyer.
+        if ($isLeadPeople) {
+            $lead->set('id_verification', $resultsFromIntellicheck);
         }
 
         // The lead field is only a showroom hand-off; persist so direct pushes see it too.
@@ -112,14 +111,15 @@ class VerifyPeopleIdAction
         }
         $people->del('get_docs_drivers_license');
 
+        $engagement = null;
+
         if ($sendNotification) {
-            $this->sendNotification(
-                verificationData: $verificationData,
+            $engagement = $this->sendNotification(
                 reportData: $reportData,
                 isShowRoom: $isShowRoom,
-                lead: $lead,
-                people: $people,
-                name: $name
+                parentEngagement: $parentEngagement,
+                images: $images,
+                reuseExistingEngagement: $reuseExistingEngagement
             );
         }
 
@@ -130,104 +130,149 @@ class VerifyPeopleIdAction
             'data' => $reportData,
             'resultsFromIntellicheck' => $resultsFromIntellicheck,
             'getDocsDriversLicense' => $getDocsDriversLicense ?? null,
+            'engagement_id' => $engagement?->getId(),
         ];
     }
 
+    /**
+     * A short TTL rather than a persisted flag: a queue retry must not send a second report, but a
+     * re-scan after a failed check must. Keyed by person id, not display name — an unreadable document
+     * resolves the name back to the main buyer's, and the two would skip each other.
+     */
     protected function sendNotification(
-        array $verificationData,
         array $reportData,
         bool $isShowRoom,
-        Lead $lead,
-        People $people,
-        string $name,
-    ): void {
-        $key = IntegrationsEnum::INTELLICHECK->value . '_sent_report';
-        if ($people->get($key)) {
-            // If the report has already been sent, we skip the rest of the process
-            return;
+        ?Engagement $parentEngagement,
+        ?array $images,
+        bool $reuseExistingEngagement
+    ): ?Engagement {
+        $cacheKey = 'intellicheck_report_' . $this->lead->getId() . '_' . $this->people->getId();
+
+        if (Cache::has($cacheKey)) {
+            return null;
         }
 
-        //$usersToNotify = UsersRepository::findUsersByArray($people->company->get('company_manager'), $app);
-        $managers = UsersRepository::getCompanyAppUserByRole($people->company, $people->app, 'Manager')->get();
+        Cache::put($cacheKey, true, now()->addMinutes(3));
 
-        $notification = new Blank(
-            'id-verification-report',
-            [
-                'message' => $reportData['message'],
-                'status' => $reportData['status'],
-                'flags' => $reportData['flags'],
-                'failures' => $reportData['failures'],
-                'results' => $reportData['results'],
-                'isShowRoom' => $isShowRoom,
-                'verificationData' => $verificationData,
-            ],
-            ['mail'],
-            $lead,
-        );
+        if (! $this->lead->company->get('disable_id_verification_email', false)) {
+            $notification = new Blank(
+                'id-verification-report',
+                $this->templateData($reportData, $isShowRoom),
+                ['mail'],
+                $this->lead,
+            );
+            $notification->setSubject($reportData['name'] . ' - ID Verification Report');
 
-        $people->set($key, true);
-        $notification->setSubject($name . ' - ID Verification Report');
-        //Notification::send($usersToNotify, $notification);
-        $lead->owner?->notify($notification);
-
-        foreach ($managers as $manager) {
-            $manager->notify($notification);
+            Notification::send($this->reportRecipients(), $notification);
         }
 
-        // Generate PDF
-        $this->generateReportPdf(
+        return $this->generateReportPdf(
             $reportData,
             $isShowRoom,
-            $verificationData
+            $parentEngagement,
+            $images,
+            $reuseExistingEngagement
         );
     }
 
     protected function generateReportPdf(
         array $reportData,
         bool $isShowRoom,
-        array $verificationData,
-    ): void {
+        ?Engagement $parentEngagement,
+        ?array $images,
+        bool $reuseExistingEngagement
+    ): ?Engagement {
         try {
             $pdfReport = PdfService::generatePdfFromTemplate(
                 $this->lead->app,
                 $this->people->user,
                 'id-verification-report',
                 $this->people,
-                [
-                   'message' => $reportData['message'],
-                   'status' => $reportData['status'],
-                   'flags' => $reportData['flags'],
-                   'failures' => $reportData['failures'],
-                   'results' => $reportData['results'],
-                   'isShowRoom' => $isShowRoom,
-                   'verificationData' => $verificationData,
-                               ]
+                $this->templateData($reportData, $isShowRoom)
             );
 
-            $engagement = $this->createEngagement();
+            $engagement = $this->resolveEngagement($parentEngagement, $reuseExistingEngagement);
 
             if ($engagement === null) {
-                return;
+                return null;
             }
 
             $this->processDriverLicenseImages(
                 engagement: $engagement,
+                imageFields: $this->resolveImageFields($images, $parentEngagement, $reuseExistingEngagement),
                 isIdValid: in_array($reportData['status'], ['green', 'flag']),
                 verificationResults: $reportData,
                 isExpired: $reportData['status'] === 'flag'
             );
-            $message = $engagement->message;
-            $message->addFile($pdfReport, 'id-verification');
+            $engagement->message->addFile($pdfReport, 'id-verification');
+
+            return $engagement;
         } catch (Throwable $e) {
             report($e);
+
+            return null;
         }
     }
 
-    protected function createEngagement(): ?Engagement
+    protected function templateData(array $reportData, bool $isShowRoom): array
     {
-        // Unassigned leads carry leads_owner_id = 0, so owner is null; the engagement
-        // still needs a real user for the message copy and the lead follow.
-        $user = $this->lead->owner ?? $this->lead->user;
+        return [
+            'message' => $reportData['message'],
+            'status' => $reportData['status'],
+            'flags' => $reportData['flags'],
+            'failures' => $reportData['failures'],
+            'results' => $reportData['results'],
+            'isShowRoom' => $isShowRoom,
+            'verificationData' => $reportData['verificationData'],
+        ];
+    }
+
+    protected function reportRecipients(): Collection
+    {
+        $company = $this->lead->company;
+
+        $recipients = UsersRepository::findUsersByArray((array) $company->get('company_manager'), $this->lead->app);
+
+        // A company that never created the Manager role has no managers; that must not sink the report.
+        try {
+            $recipients = $recipients->merge(
+                UsersRepository::getCompanyAppUserByRole($company, $this->lead->app, 'Manager')->get()
+            );
+        } catch (EloquentModelNotFoundException) {
+        }
+
+        return $this->lead->owner !== null ? $recipients->merge([$this->lead->owner]) : $recipients;
+    }
+
+    /**
+     * A report that creates its own root message renders as a second folder, so it threads under the
+     * scan's engagement or reuses this person's. Reuse is opt-in because it moves where the legacy
+     * callers' files land — see `Connectors/Intellicheck/CLAUDE.md`.
+     */
+    public function resolveEngagement(?Engagement $parentEngagement = null, bool $reuseExistingEngagement = false): ?Engagement
+    {
+        if ($parentEngagement !== null) {
+            return $this->createEngagement($parentEngagement);
+        }
+
+        if (! $reuseExistingEngagement) {
+            return $this->createEngagement();
+        }
+
+        $existing = EngagementRepository::findEngagementForLeadPeople(
+            $this->lead,
+            $this->people,
+            ConfigurationEnum::ID_VERIFICATION->value,
+            ActionStatusEnum::SUBMITTED->value
+        );
+
+        // Every caller dereferences ->message, so an engagement without one is no use.
+        return $existing?->message !== null ? $existing : $this->createEngagement();
+    }
+
+    protected function createEngagement(?Engagement $parentEngagement = null): ?Engagement
+    {
+        $user = $this->resolveEngagementUser();
 
         if ($user === null) {
             return null;
@@ -245,7 +290,8 @@ class VerifyPeopleIdAction
             user: $user,
             lead: $this->lead,
             action: ConfigurationEnum::ID_VERIFICATION->value,
-            requestId: Str::uuid()->toString(),
+            // Reusing the parent's entity_uuid keeps `stageHistory()` grouping the two rows together.
+            requestId: $parentEngagement->entity_uuid ?? Str::uuid()->toString(),
             source: 'workflow',
             status: ActionStatusEnum::SUBMITTED,
             people: $this->people,
@@ -253,44 +299,109 @@ class VerifyPeopleIdAction
             taskId: $taskId,
             via: 'webhook',
             data: [],
-            //formType: $metadata['form_type'] ?? null,
-            //extraField: $metadata['extra_field'] ?? [],
-            //extraData: [],
-            //channelId: $metadata['channel_id'] ?? null,
+            parentEngagement: $parentEngagement,
         );
 
         return new CreateEngagementAction($engagementData)->execute();
     }
 
+    /**
+     * Unassigned leads carry `leads_owner_id = 0`, and a stale `users_id` outside the app makes
+     * `CreateEngagementAction` throw while following the lead — so each candidate is checked for
+     * membership before it owns the engagement.
+     */
+    protected function resolveEngagementUser(): ?Users
+    {
+        foreach ([$this->lead->owner, $this->lead->user, $this->people->user] as $candidate) {
+            if ($candidate === null) {
+                continue;
+            }
+
+            try {
+                UsersRepository::belongsToThisApp(
+                    $candidate,
+                    $this->lead->app,
+                    $this->lead->company
+                );
+
+                return $candidate;
+            } catch (ModelNotFoundException) {
+                continue;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Each side is base64 or a filesystem uuid. The parent's file is re-linked because a folder renders
+     * only its last submitted child's files, so a side left on the parent vanishes from the UI.
+     *
+     * @return array<string, ?string>
+     */
+    protected function resolveImageFields(
+        ?array $images,
+        ?Engagement $parentEngagement,
+        bool $reuseExistingEngagement
+    ): array {
+        $fallback = $reuseExistingEngagement ? [] : $this->customFieldImages();
+        $resolved = ['face_image' => $images['face'] ?? null];
+
+        foreach (['front' => 'drivers_license_front', 'back' => 'drivers_license_back'] as $side => $fieldName) {
+            $resolved[$fieldName] = $images[$side]
+                ?? $this->parentMessageImage($parentEngagement, $fieldName)
+                ?? $fallback[$side]
+                ?? null;
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * @deprecated `people.driver_license_images` is a one-shot base64 mailbox written late by an external
+     *             caller. Drop with `after-id-verification`; read without `del()` because that verb still
+     *             waits on it.
+     *
+     * @return array<string, ?string>
+     */
+    protected function customFieldImages(): array
+    {
+        $images = $this->people->get('driver_license_images');
+
+        return is_array($images) ? $images : [];
+    }
+
+    protected function parentMessageImage(?Engagement $parentEngagement, string $fieldName): ?string
+    {
+        return $parentEngagement?->message?->getFileByName($fieldName)?->filesystem?->uuid;
+    }
+
     protected function processDriverLicenseImages(
         Engagement $engagement,
+        array $imageFields,
         bool $isIdValid,
         array $verificationResults,
         bool $isExpired = false
     ): void {
-        // Process back image
-        $driverLicenseImages = $this->people->get('driver_license_images');
-        if (isset($driverLicenseImages['back'])) {
-            $backFile = $this->createFileFromBase64($driverLicenseImages['back'], 'drivers_license_back.jpg');
-            $engagement->message->addFile($backFile, 'drivers_license_back');
+        foreach ($imageFields as $fieldName => $image) {
+            // `addFile` repoints an existing field_name, which would overwrite the customer's own upload
+            // with a re-uploaded copy of the same document.
+            if ($image === null || $engagement->message->getFileByName($fieldName) !== null) {
+                continue;
+            }
 
-            // Set verification metadata
-            $backFile->set('id_verify', (int) $isIdValid);
-            $backFile->set('id_expired', (int) $isExpired);
-            $backFile->set('id_verification_msg', $verificationResults['message']);
-            $backFile->set('id_verification_status', $verificationResults['status'] ?? 'unknown');
-        }
+            $file = $this->resolveFile($image, $fieldName . '.jpg');
 
-        // Process front image
-        if (isset($driverLicenseImages['front'])) {
-            $frontFile = $this->createFileFromBase64($driverLicenseImages['front'], 'drivers_license_front.jpg');
-            $engagement->message->addFile($frontFile, 'drivers_license_front');
+            if ($file === null) {
+                continue;
+            }
 
-            // Set verification metadata
-            $frontFile->set('id_verify', (int) $isIdValid);
-            $frontFile->set('id_expired', (int) $isExpired);
-            $frontFile->set('id_verification_msg', $verificationResults['message']);
-            $frontFile->set('id_verification_status', $verificationResults['status'] ?? 'unknown');
+            $engagement->message->addFile($file, $fieldName);
+
+            $file->set('id_verify', (int) $isIdValid);
+            $file->set('id_expired', (int) $isExpired);
+            $file->set('id_verification_msg', $verificationResults['message']);
+            $file->set('id_verification_status', $verificationResults['status'] ?? 'unknown');
         }
 
         new DriverLicenseCombinedPdfService($engagement->message)->attach(
@@ -299,6 +410,23 @@ class VerifyPeopleIdAction
             (string) ($verificationResults['message'] ?? ''),
             (string) ($verificationResults['status'] ?? 'unknown'),
         );
+    }
+
+    /**
+     * Tenant-scoped because the uuid comes from a caller: an unscoped lookup would attach another
+     * company's file.
+     */
+    protected function resolveFile(string $image, string $fileName): ?Filesystem
+    {
+        if (! Str::isUuid($image)) {
+            return $this->createFileFromBase64($image, $fileName);
+        }
+
+        try {
+            return Filesystem::getByUuidFromCompanyApp($image, $this->lead->company, $this->lead->app);
+        } catch (Throwable) {
+            return null;
+        }
     }
 
     protected function createFileFromBase64(

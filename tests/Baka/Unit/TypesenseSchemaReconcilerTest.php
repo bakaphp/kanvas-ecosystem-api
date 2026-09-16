@@ -212,6 +212,104 @@ final class TypesenseSchemaReconcilerTest extends TestCase
         $this->assertSame([], $this->reconciler($collection)->drift($this->model()));
     }
 
+    /**
+     * A collection created before the model marked the field optional keeps it required, and then
+     * answers "Field `barcode` must be a string." for every document that sends null for it.
+     */
+    public function testReportsAFieldTheLiveCollectionStillRequires(): void
+    {
+        $reconciler = $this->reconciler($this->liveFieldList([
+            ['name' => 'items', 'type' => 'object[]'],
+            ['name' => 'items.unit_price_net_amount', 'type' => 'float[]', 'optional' => false],
+            ['name' => 'items.quantity', 'type' => 'float[]', 'optional' => true],
+        ]));
+
+        $drift = $reconciler->drift($this->model());
+
+        $this->assertCount(1, $drift);
+        $this->assertSame('items.unit_price_net_amount', $drift[0]['name']);
+        $this->assertSame('float[] (required)', $drift[0]['from']);
+        $this->assertSame('float[] (optional)', $drift[0]['to']);
+        $this->assertTrue($drift[0]['widening'], 'relaxing to optional invalidates nothing already indexed');
+    }
+
+    public function testARequiredFieldIsRelaxedWithoutWaitingForAllDrift(): void
+    {
+        $collection = Mockery::mock(TypesenseCollection::class);
+        $collection->shouldReceive('retrieve')->andReturn([
+            'fields' => [
+                ['name' => 'items', 'type' => 'object[]'],
+                ['name' => 'items.unit_price_net_amount', 'type' => 'float[]', 'optional' => false],
+                ['name' => 'items.quantity', 'type' => 'float[]', 'optional' => true],
+            ],
+        ]);
+
+        $collection->shouldReceive('update')
+            ->once()
+            ->with([
+                'fields' => [
+                    ['name' => 'items.unit_price_net_amount', 'drop' => true],
+                    ['name' => 'items.unit_price_net_amount', 'type' => 'float[]', 'optional' => true],
+                ],
+            ])
+            ->andReturn([]);
+
+        $result = $this->reconciler($collection)->reconcile($this->model(), wideningOnly: true);
+
+        $this->assertSame([], $result['failed']);
+        $this->assertCount(1, $result['altered']);
+    }
+
+    public function testAFieldTheModelDeclaresRequiredIsLeftRequired(): void
+    {
+        $collection = Mockery::mock(TypesenseCollection::class);
+        $collection->shouldReceive('retrieve')->andReturn([
+            'fields' => [
+                ['name' => 'items', 'type' => 'object[]'],
+                ['name' => 'barcode', 'type' => 'string', 'optional' => false],
+            ],
+        ]);
+        $collection->shouldNotReceive('update');
+
+        $model = $this->model([
+            ['name' => 'items', 'type' => 'object[]'],
+            ['name' => 'barcode', 'type' => 'string'],
+        ]);
+
+        $this->assertSame([], $this->reconciler($collection)->drift($model));
+    }
+
+    /**
+     * Typesense always reports the flag; a schema that omits it is telling us nothing, and a drop +
+     * re-add on that guess reindexes the field for no reason.
+     */
+    public function testAnUnreportedOptionalFlagIsNotTreatedAsRequired(): void
+    {
+        $reconciler = $this->reconciler($this->liveFields([
+            'items' => 'object[]',
+            'items.unit_price_net_amount' => 'float[]',
+            'items.quantity' => 'float[]',
+        ]));
+
+        $this->assertSame([], $reconciler->drift($this->model()));
+    }
+
+    public function testATypeAndOptionalDriftOnOneFieldIsReportedOnce(): void
+    {
+        $reconciler = $this->reconciler($this->liveFieldList([
+            ['name' => 'items', 'type' => 'object[]'],
+            ['name' => 'items.unit_price_net_amount', 'type' => 'int64[]', 'optional' => false],
+            ['name' => 'items.quantity', 'type' => 'float[]', 'optional' => true],
+        ]));
+
+        $drift = $reconciler->drift($this->model());
+
+        $this->assertCount(1, $drift);
+        $this->assertSame('int64[] (required)', $drift[0]['from']);
+        $this->assertSame('float[] (optional)', $drift[0]['to']);
+        $this->assertTrue($drift[0]['widening']);
+    }
+
     private function model(?array $fields = null): Model
     {
         $fields ??= [

@@ -17,6 +17,10 @@ use Typesense\Client as TypesenseClient;
  * zero fraction, so a float 100.00 goes over the wire as `100`, the field locks to int64, and every
  * later 99.99 is rejected for the life of the collection (Sentry KANVAS-ECOSYSTEM-628).
  *
+ * The same goes for the `optional` flag: a collection born before the model marked a field optional
+ * keeps it required, and then rejects every document that sends null for it — "Field `barcode` must
+ * be a string" on every variant without a barcode, same issue.
+ *
  * Typesense can re-type a field in place (drop + re-add, re-indexed from the stored documents),
  * which is what this reconciles.
  */
@@ -71,14 +75,19 @@ class TypesenseSchemaReconciler
             return [];
         }
 
-        /** @var list<array{name: string, type: string}> $liveFields */
+        /** @var list<array{name: string, type: string, optional?: bool}> $liveFields */
         $liveFields = $live['fields'] ?? [];
 
         // Keyed by name into a list, because a half-applied alter can leave the same field twice
         // under two types — collapsing to one would hide exactly the breakage worth repairing.
         $liveTypes = [];
+        $liveRequired = [];
         foreach ($liveFields as $liveField) {
             $liveTypes[$liveField['name']][] = $liveField['type'];
+            // Absent means the server didn't say, not that the field is required — a drop + reindex
+            // on that guess would cost a field rebuild for nothing.
+            $liveRequired[$liveField['name']][] = array_key_exists('optional', $liveField)
+                && $liveField['optional'] === false;
         }
 
         $protected = ['id', $live['default_sorting_field'] ?? null];
@@ -96,11 +105,21 @@ class TypesenseSchemaReconciler
 
             // A field the collection doesn't have yet is auto-typed on the next document that
             // carries it, so there is nothing to re-type — adding it is a separate concern.
-            if ($current === null || $current === [$declared]) {
+            if ($current === null) {
                 continue;
             }
 
-            $widening = $this->isWidening($current, $declared);
+            $typeDrift = $current !== [$declared];
+            $requiredDrift = ($field['optional'] ?? false)
+                && in_array(true, $liveRequired[$name], true);
+
+            if (! $typeDrift && ! $requiredDrift) {
+                continue;
+            }
+
+            // Relaxing a field to optional invalidates nothing already indexed — every stored
+            // document carries a value for it — so on its own it is always safe to apply.
+            $widening = ! $typeDrift || $this->isWidening($current, $declared);
 
             if ($wideningOnly && ! $widening) {
                 continue;
@@ -108,8 +127,8 @@ class TypesenseSchemaReconciler
 
             $drift[] = [
                 'name' => $name,
-                'from' => implode(' + ', $current),
-                'to' => $declared,
+                'from' => implode(' + ', $current) . ($requiredDrift ? ' (required)' : ''),
+                'to' => $declared . ($requiredDrift ? ' (optional)' : ''),
                 'widening' => $widening,
             ];
         }
@@ -156,7 +175,7 @@ class TypesenseSchemaReconciler
     }
 
     /**
-     * @return list<array{name?: string, type?: string}>
+     * @return list<array{name?: string, type?: string, optional?: bool}>
      */
     private function declaredFields(Model $model): array
     {

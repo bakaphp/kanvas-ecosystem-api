@@ -9,6 +9,40 @@ use Throwable;
 
 class IdVerificationService
 {
+    private const int OCR_MISMATCH_FAILURE_THRESHOLD = 4;
+
+    /**
+     * Each match flag paired with the two sides it compares: [idcheck keys, OCR key].
+     * A side that arrives blank means the field was never really compared.
+     */
+    private const array OCR_FIELD_SOURCES = [
+        'isNameMatch' => [['firstName', 'lastName'], 'fullName'],
+        'isDocumentNumberMatch' => [['dLIDNumberRaw'], 'documentNumber'],
+        'isDobMatch' => [['dateOfBirth'], 'dateOfBirthFormatted'],
+        'isSexMatch' => [['gender'], 'sex'],
+        'isAddressMatch' => [['address1'], 'address'],
+        'isExpirationDateMatch' => [['expirationDate'], 'dateOfExpiryFormatted'],
+        'isIssuerNameMatch' => [['issuingJurisdictionCvt'], 'issuerName'],
+        'isIssueDateMatch' => [['issueDate'], 'dateOfIssueFormatted'],
+        'isRealIdMatch' => [['isRealID'], 'isRealID'],
+        'isHeightMatch' => [['heightCentimeters'], 'height'],
+        'isDlClassMatch' => [['driverClass'], 'dlClass'],
+    ];
+
+    /**
+     * Only these can mark the comparison incomplete. The rest are optional per issuing
+     * jurisdiction — a state that doesn't print Real ID or height omits them from the
+     * payload, and treating that as incomplete would make green unreachable there.
+     */
+    private const array OCR_REQUIRED_FIELDS = [
+        'isNameMatch',
+        'isDocumentNumberMatch',
+        'isDobMatch',
+        'isSexMatch',
+        'isAddressMatch',
+        'isExpirationDateMatch',
+    ];
+
     public static function getName(array $verificationData): string
     {
         // Try to get name from idcheck data first
@@ -91,6 +125,7 @@ class IdVerificationService
         $results = [];
         $message = '';
         $flagNotice = false;
+        $ocrNotice = false;
         $ocMatch = false;
 
         // Extract nested data safely with null coalescing
@@ -117,118 +152,48 @@ class IdVerificationService
         $results['facial_match_probability'] = $facial['matchProbability'] ?? null;
         $results['facial_liveness_probability'] = $facial['livenessProbability'] ?? null;
 
-        // OCR CHECK - ADJUSTED FOR SHOWROOM MODE
-        $hasOcrFailure = false;
-        $ocrMatchFields = [
-            'isDlClassMatch',
-            'isDobMatch',
-            'isHeightMatch',
-            'isAddressMatch',
-            'isIssueDateMatch',
-            'isDocumentNumberMatch',
-            'isIssuerNameMatch',
-            'isRealIdMatch',
-            'isSexMatch',
-            'isExpirationDateMatch',
-            'isNameMatch',
-        ];
+        $ocrMismatchedFields = [];
+        $ocrIncompleteFields = [];
+        $ocrComparedCount = 0;
 
-        // Define critical fields for showroom mode
-        $criticalFields = [
-            'isNameMatch',
-            'isDocumentNumberMatch',
-            'isDobMatch',
-            'isSexMatch',
-        ];
-
-        $ocrFailedFields = [];
-        $criticalFailedFields = [];
-        $nonCriticalFailedFields = [];
-        $allFieldsFailed = true;
-
-        foreach ($ocrMatchFields as $field) {
-            if (isset($ocrMatch[$field])) {
-                if ($ocrMatch[$field] === false) {
-                    $ocrFailedFields[] = $field;
-
-                    // Separate critical vs non-critical fields for showroom mode
-                    if ($isShowRoom && in_array($field, $criticalFields)) {
-                        $criticalFailedFields[] = $field;
-                    } else {
-                        $nonCriticalFailedFields[] = $field;
-                    }
-                } else {
-                    $allFieldsFailed = false;
+        foreach (array_keys(self::OCR_FIELD_SOURCES) as $field) {
+            if (! isset($ocrMatch[$field]) || self::hasBlankComparisonSide($field, $idCheck, $ocrData)) {
+                if (in_array($field, self::OCR_REQUIRED_FIELDS, true)) {
+                    $ocrIncompleteFields[] = $field;
                 }
-            } else {
-                $allFieldsFailed = false;
+
+                continue;
+            }
+
+            $ocrComparedCount++;
+
+            if ($ocrMatch[$field] === false) {
+                $ocrMismatchedFields[] = $field;
             }
         }
 
-        // Handle OCR failures based on mode
-        if ($isShowRoom) {
-            // In showroom mode: critical field mismatches are failures, others are flags
-            if (! empty($criticalFailedFields)) {
-                $criticalReadableFields = array_map(function ($field) {
-                    $readable = str_replace(['is', 'Match'], '', $field);
+        $ocrMismatchCount = count($ocrMismatchedFields);
+        $hasOcrFailure = $ocrMismatchCount >= self::OCR_MISMATCH_FAILURE_THRESHOLD;
 
-                    return trim(preg_replace('/(?<!^)[A-Z]/', ' $0', $readable));
-                }, $criticalFailedFields);
-
-                $failures[] = 'Critical OCR verification failed: ' . implode(', ', $criticalReadableFields);
-                $failureGroups[] = 'OCR critical mismatch';
-                $hasOcrFailure = true;
-            }
-
-            if (! empty($nonCriticalFailedFields)) {
-                $nonCriticalReadableFields = array_map(function ($field) {
-                    $readable = str_replace(['is', 'Match'], '', $field);
-
-                    return trim(preg_replace('/(?<!^)[A-Z]/', ' $0', $readable));
-                }, $nonCriticalFailedFields);
-
-                $flags[] = 'OCR verification issues: ' . implode(', ', $nonCriticalReadableFields);
-                $flagGroups[] = 'OCR non-critical mismatch';
-                $flagNotice = true;
-            }
-        } else {
-            // Original logic for non-showroom mode
-            if ($allFieldsFailed && ! empty($ocrFailedFields)) {
-                $failures[] = 'OCR verification failed: ' . implode(', ', $ocrFailedFields);
-                $failureGroups[] = 'OCR mismatch';
-            }
-
-            if (! empty($ocrFailedFields)) {
-                $readableFailedFields = array_map(function ($field) {
-                    $readable = str_replace(['is', 'Match'], '', $field);
-
-                    return trim(preg_replace('/(?<!^)[A-Z]/', ' $0', $readable));
-                }, $ocrFailedFields);
-
-                $flags[] = 'OCR verification issues: ' . implode(', ', $readableFailedFields);
-                $flagGroups[] = 'OCR mismatch';
-                $flagNotice = true;
-            }
+        if ($hasOcrFailure) {
+            $failures[] = 'Computer Vision verification failed: ' . self::readableOcrFields($ocrMismatchedFields);
+            $failureGroups[] = 'OCR mismatch';
+        } elseif ($ocrMismatchCount > 0) {
+            $flags[] = 'Computer Vision mismatches: ' . self::readableOcrFields($ocrMismatchedFields);
+            $flagGroups[] = 'OCR mismatch';
+            $flagNotice = true;
+            $ocrNotice = true;
         }
 
-        // Count total matches for reporting purposes
-        $ocrRequiredMatches = array_filter([
-            $ocrMatch['isDlClassMatch'] ?? false,
-            $ocrMatch['isDobMatch'] ?? false,
-            $ocrMatch['isHeightMatch'] ?? false,
-            $ocrMatch['isAddressMatch'] ?? false,
-            $ocrMatch['isIssueDateMatch'] ?? false,
-            $ocrMatch['isDocumentNumberMatch'] ?? false,
-            $ocrMatch['isIssuerNameMatch'] ?? false,
-            $ocrMatch['isRealIdMatch'] ?? false,
-            $ocrMatch['isSexMatch'] ?? false,
-            $ocrMatch['isExpirationDateMatch'] ?? false,
-            $ocrMatch['isNameMatch'] ?? false,
-        ]);
+        if (! empty($ocrIncompleteFields)) {
+            $flags[] = 'Computer Vision could not compare: ' . self::readableOcrFields($ocrIncompleteFields);
+            $flagGroups[] = 'OCR incomplete';
+            $flagNotice = true;
+            $ocrNotice = true;
+        }
 
-        $totalOcrMatches = count($ocrRequiredMatches);
-        $ocrMatchScore = $totalOcrMatches > 0 ? $totalOcrMatches / 11 * 100 : 0;
-        $results['ocr_required_matches'] = $ocrMatchScore;
+        $results['ocr_required_matches'] =
+            ($ocrComparedCount - $ocrMismatchCount) / count(self::OCR_FIELD_SOURCES) * 100;
         $ocMatch = ! $hasOcrFailure;
 
         // ID CHECK
@@ -404,14 +369,17 @@ class IdVerificationService
 
         if (empty($failures)) {
             // Always make sure expired IDs are flagged
-            if ($isExpired || $idCheckUnverifiable || ($flagNotice && count($flagGroupScores) >= 2)) {
+            if ($isExpired || $idCheckUnverifiable || $ocrNotice || ($flagNotice && count($flagGroupScores) >= 2)) {
                 // Create message using flag groups
                 $flagReasons = [];
                 foreach ($flaggedGroups as $group) {
                     switch ($group) {
                         case 'OCR mismatch':
-                        case 'OCR non-critical mismatch':
                             $flagReasons[] = 'document verification concerns';
+
+                            break;
+                        case 'OCR incomplete':
+                            $flagReasons[] = 'incomplete document comparison';
 
                             break;
                         case 'ID check incomplete':
@@ -458,5 +426,43 @@ class IdVerificationService
             'results' => $results,
             'ocMatch' => $ocMatch,
         ];
+    }
+
+    private static function readableOcrFields(array $fields): string
+    {
+        return implode(', ', array_map(
+            function (string $field): string {
+                $readable = str_replace(['is', 'Match'], '', $field);
+
+                return trim((string) preg_replace('/(?<!^)[A-Z]/', ' $0', $readable));
+            },
+            $fields
+        ));
+    }
+
+    private static function hasBlankComparisonSide(string $field, array $idCheck, array $ocrData): bool
+    {
+        [$idCheckKeys, $ocrKey] = self::OCR_FIELD_SOURCES[$field];
+
+        foreach ($idCheckKeys as $idCheckKey) {
+            if (self::isBlankValue($idCheck[$idCheckKey] ?? null)) {
+                return true;
+            }
+        }
+
+        return self::isBlankValue($ocrData[$ocrKey] ?? null);
+    }
+
+    /**
+     * A boolean false is a real answer, not a blank — `empty()` would wrongly
+     * discard a legitimate "Real ID: no".
+     */
+    private static function isBlankValue(mixed $value): bool
+    {
+        if ($value === null) {
+            return true;
+        }
+
+        return is_string($value) && trim($value) === '';
     }
 }

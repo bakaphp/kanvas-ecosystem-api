@@ -3,11 +3,39 @@
 Loads when work touches `src/Domains/Connectors/`. For the full scaffold pattern (Handler + Client + DTO + Enums + Webhook + Workflow + GraphQL + `integrations` row), invoke the `kanvas-connector` skill.
 
 Per-connector `CLAUDE.md` (load when working in that connector's tree):
+- [`Mcp/CLAUDE.md`](Mcp/CLAUDE.md) — **production debugging reference** for remote MCP servers: where every piece of state lives (grants, per-agent credentials, OAuth clients, the two cache tiers), what each log line means, a symptom playbook, verified vendor quirks (Google preview gates and Calendar's read-only scopes, Meta's refused registration, redirects, query-string keys), timeouts, how to add a server safely, and the known limits that are decisions rather than bugs.
 - [`PiDev/CLAUDE.md`](PiDev/CLAUDE.md) — pi.dev coding-agent job runner: agent-scoped GitHub token/allow-list, 3-tier rules of engagement, Kanvas-owned job durability + poller, `Neuron/Tools/Coding/` tools.
+- [`Intellicheck/CLAUDE.md`](Intellicheck/CLAUDE.md) — ID verification: the inbound base64 + `private_data.result` contract, the selfie in `facial.data.photoFace`, why a "folder" is a root message and the report must thread as a child, the `generate-id-verification` vs deprecated `after-id-verification` split, and the two DB rows without which firing a verb does nothing silently.
 - [`WordPress/CLAUDE.md`](WordPress/CLAUDE.md) — publishing a Message as a wp/v2 post: the message body post structure + fallbacks, Application Password setup through the generic `integrationCompany` mutation, and why the scraper `Client` and the `RestClient` are unrelated.
 - [`UniversalSeguros/CLAUDE.md`](UniversalSeguros/CLAUDE.md) — auto-insurance SDK + its `Providers/UniversalSegurosProvider` implementation of the `Kanvas\Insurance` contracts. Per-product emit scopes, QA chassis blocker, problem+json error shape.
 - [`WaSender/CLAUDE.md`](WaSender/CLAUDE.md) — inbound WhatsApp: the three conversation shapes (lead DM / assistant DM / group) and how they route, the full `receiver_webhooks.configuration` key table, burst debouncing, which entity each workflow event carries (and why group traffic must never hit the DM event), and the lid-addressing + `slug`-vs-`uuid` foot-guns.
 - [`Yusen/CLAUDE.md`](Yusen/CLAUDE.md) — 3PL Item Balance XML → discrepancy report: the exact POST Yusen makes (multipart vs raw body), why the connector writes no stock (a per-source warehouse double-counts `Variants::setTotalQuantity()`), the lot-summing assumption and its `multi_record_items` tripwire, and the synthetic-fixture rule.
+
+## Known duplication — flagged, not yet resolved
+
+### Salesforce and Odoo are structurally the same CRM connector
+
+`Odoo/` was built as a fork of `Salesforce/`, so the following pairs are near-verbatim copies:
+
+| Salesforce | Odoo |
+|---|---|
+| `Actions/Concerns/UpsertsByExternalId.php` | same |
+| `Actions/PullOrganizationAction.php` / `PullPeopleAction.php` / `PullLeadAction.php` | same |
+| `Activities/Push{Lead,People,Organization}Activity.php` | same |
+| `app/Console/Commands/Connectors/*/…BackfillCommand.php` | same |
+| `Jobs/…BackfillImportJob.php` | same |
+
+The two backfill **jobs** are the strongest candidate to unify — the record loop, the
+processed/failed counters, the per-record `try/catch → report()` and the summary log line are
+byte-identical, differing only in the id key (`Id` vs `id`) and which `Pull*Action` each entity
+type maps to. A shared abstract job taking those two as template methods would collapse both.
+
+The three `Push*Activity` classes are **not** worth unifying — the framework discovers one class
+per `#[WorkflowAction]` attribute, so that repetition is structural, not accidental.
+
+Deliberately left alone for now (2026-09-12): merging would mean editing the live Salesforce
+connector from an unrelated PR. Do it as its own change, with the Salesforce suite green, before
+a third CRM connector lands and makes it three copies.
 
 ## Hard rules specific to this tree
 
@@ -57,11 +85,11 @@ All calls to `$this->executeIntegration()` in workflow activities must include `
 When shipping a new connector, provide the SQL insert for the `integrations` table:
 
 ```sql
-INSERT INTO integrations (name, uuid, apps_id, config, handler, actions_id, receivers_id, is_deleted, created_at, updated_at)
-VALUES ('{name}', UUID(), 0, '{"api_key": {"type": "text", "required": true}}', 'Kanvas\\Connectors\\{Name}\\Handlers\\{Name}Handler', NULL, NULL, 0, NOW(), NOW());
+INSERT INTO integrations (name, uuid, apps_id, config, handler, type, actions_id, receivers_id, is_deleted, created_at, updated_at)
+VALUES ('{name}', UUID(), 0, '{"api_key": {"type": "text", "required": true}}', 'Kanvas\\Connectors\\{Name}\\Handlers\\{Name}Handler', 'key', NULL, NULL, 0, NOW(), NOW());
 ```
 
-`apps_id = 0` means global (available to all apps). Reference the `DriveCentric` row for format.
+`apps_id = 0` means global (available to all apps). Reference the `DriveCentric` row for format. `type` (`IntegrationTypeEnum`: `key` | `oauth` | `mcp`) is what the UIs filter on — see the `kanvas-connector` skill.
 
 ### Register workflow activities
 

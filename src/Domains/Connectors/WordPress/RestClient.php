@@ -59,7 +59,7 @@ class RestClient
     public static function isConfigured(AppInterface $app, ?CompanyInterface $company = null): bool
     {
         foreach ([ConfigurationEnum::SITE_URL, ConfigurationEnum::USERNAME, ConfigurationEnum::APPLICATION_PASSWORD] as $key) {
-            $value = $company?->get($key->value) ?? $app->get($key->value);
+            $value = $key->valueFor($app, $company);
 
             if (empty($value)) {
                 return false;
@@ -107,7 +107,23 @@ class RestClient
 
     public function postExists(int $postId): bool
     {
-        return $this->request()->get($this->endpoint('/posts/' . $postId))->successful();
+        $status = $this->postStatus($postId);
+
+        return $status >= 200 && $status < 300;
+    }
+
+    /**
+     * Not `! postExists()`: a timeout or a rejected credential is not proof the post is gone, and
+     * treating it as such would free an identical story to be published a second time.
+     */
+    public function postWasDeleted(int $postId): bool
+    {
+        return in_array($this->postStatus($postId), [404, 410], true);
+    }
+
+    protected function postStatus(int $postId): int
+    {
+        return $this->request()->get($this->endpoint('/posts/' . $postId))->status();
     }
 
     /**
@@ -253,6 +269,6 @@ class RestClient
 
     protected function config(ConfigurationEnum $key): mixed
     {
-        return $this->company?->get($key->value) ?? $this->app->get($key->value);
+        return $key->valueFor($this->app, $this->company);
     }
 }
