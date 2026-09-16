@@ -7,13 +7,16 @@ namespace Tests\Intelligence\Agents\Chat;
 use GuzzleHttp\Exception\ServerException;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
+use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Mockery;
 use PDOException;
 use RuntimeException;
 use Tests\Stubs\Intelligence\ThrowingNeuronHandlerStub;
@@ -172,6 +175,35 @@ class RunNeuronChatErrorHandlingTest extends TestCase
         $this->assertStringNotContainsString('generativelanguage.googleapis.com', $response);
         $this->assertStringNotContainsString('ServerException', $response);
         $this->assertStringNotContainsString('gemini', strtolower($response));
+    }
+
+    /** KANVAS-ECOSYSTEM-6EQ: a safety block was answered with the generic hiccup and sent to Sentry. */
+    public function testASafetyBlockTellsThePersonWhyInsteadOfTheHiccup(): void
+    {
+        $response = $this->runChatWithThrowingHandler($this->contentBlocked());
+
+        $this->assertStringContainsString('safety filter blocked', $response);
+        $this->assertStringNotContainsString('I ran into a hiccup', $response);
+        $this->assertStringNotContainsString('PROHIBITED_CONTENT', $response);
+        $this->assertStringNotContainsString('gemini', strtolower($response));
+    }
+
+    public function testASafetyBlockIsNotReportedAsAnError(): void
+    {
+        $handler = Mockery::spy(ExceptionHandler::class);
+        $this->app->instance(ExceptionHandler::class, $handler);
+
+        $this->runChatWithThrowingHandler($this->contentBlocked());
+
+        $handler->shouldNotHaveReceived('report');
+    }
+
+    private function contentBlocked(): ProviderContentBlockedException
+    {
+        return new ProviderContentBlockedException(
+            blockReason: 'PROHIBITED_CONTENT',
+            message: 'Gemini blocked the request (PROHIBITED_CONTENT), model gemini-3.8-flash, prompt tokens 81316.',
+        );
     }
 
     private function providerOverload(int $status): ServerException
