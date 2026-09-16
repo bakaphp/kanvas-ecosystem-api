@@ -21,10 +21,9 @@ class PlanObserver
     {
         $plan->clearLightHouseCache(withKanvasConfiguration: false);
 
-        // Only a board drag sets board_column_key, so every other writer of `status` — the approval
-        // gate, the verifier, the PiDev poller, an agent tool — would leave the card sitting in a
-        // column that no longer matches it. Re-point here so all of them are covered at once.
-        if ($this->repointsBoardColumn($plan)) {
+        // Only a board drag writes board_column_key, so every other writer of `status` would leave the
+        // card in a column that no longer matches it. Sitting on the model covers all of them at once.
+        if ($this->shouldRepointBoardColumn($plan)) {
             $plan->board_column_key = new ProjectBoardColumns()->keyForStatus(
                 $plan->project,
                 $plan->status,
@@ -84,7 +83,7 @@ class PlanObserver
      * An explicit column move is authoritative — it writes both fields, and re-pointing it would undo
      * a move into the second of two columns that share a plan_status.
      */
-    private function repointsBoardColumn(Plan $plan): bool
+    private function shouldRepointBoardColumn(Plan $plan): bool
     {
         return $plan->isDirty('status')
             && ! $plan->isDirty('board_column_key')

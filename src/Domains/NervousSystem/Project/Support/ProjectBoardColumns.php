@@ -131,7 +131,7 @@ final class ProjectBoardColumns
     public function keyForStatus(Project $project, string $status, ?string $currentKey = null): ?string
     {
         $exact = null;
-        $legacy = null;
+        $fallback = null;
 
         foreach ($this->forProject($project) as $column) {
             if (! $this->covers($column, $status)) {
@@ -146,10 +146,10 @@ final class ProjectBoardColumns
                 $exact = $column['key'];
             }
 
-            $legacy ??= $column['key'];
+            $fallback ??= $column['key'];
         }
 
-        return $exact ?? $legacy;
+        return $exact ?? $fallback;
     }
 
     /**

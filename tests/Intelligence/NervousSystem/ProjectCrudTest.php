@@ -239,8 +239,62 @@ class ProjectCrudTest extends TestCase
             ->assertJsonPath('data.updateNervousSystemPlan.board_column_key', 'done');
     }
 
+    public function testBoardColumnsCanBeQueriedOnTheirOwn(): void
+    {
+        [$planId, $columnKey, $projectId] = $this->createPlanAndBoardColumn('Header query', 'Triage', 'draft');
+
+        $this->graphQL('
+            query ($projectId: ID!) {
+                nervousSystemProjectBoardColumns(project_id: $projectId) {
+                    key
+                    name
+                    position
+                    plan_status
+                    legacy_statuses
+                }
+            }
+        ', ['projectId' => $projectId])
+            ->assertSuccessful()
+            ->assertGraphQLErrorFree()
+            ->assertJsonPath('data.nervousSystemProjectBoardColumns.0.key', 'todo')
+            ->assertJsonPath('data.nervousSystemProjectBoardColumns.0.position', 0)
+            ->assertJsonPath('data.nervousSystemProjectBoardColumns.4.key', $columnKey)
+            ->assertJsonPath('data.nervousSystemProjectBoardColumns.4.position', 4);
+    }
+
+    public function testPlansCanBeFilteredByBoardColumn(): void
+    {
+        [$planId, $columnKey, $projectId] = $this->createPlanAndBoardColumn('Column filter', 'Triage', 'draft');
+        $this->updatePlan($planId, ['board_column_key' => $columnKey])->assertGraphQLErrorFree();
+
+        $response = $this->graphQL('
+            query ($projectId: Mixed!, $key: Mixed!) {
+                nervousSystemPlans(
+                    where: {
+                        AND: [
+                            { column: PROJECT_ID, operator: EQ, value: $projectId }
+                            { column: BOARD_COLUMN_KEY, operator: EQ, value: $key }
+                        ]
+                    }
+                ) {
+                    data { id board_column_key }
+                }
+            }
+        ', ['projectId' => $projectId, 'key' => $columnKey])
+            ->assertSuccessful()
+            ->assertGraphQLErrorFree()
+            ->assertJsonPath('data.nervousSystemPlans.data.0.id', (string) $planId)
+            ->assertJsonPath('data.nervousSystemPlans.data.0.board_column_key', $columnKey);
+
+        $this->assertCount(
+            1,
+            $response->json('data.nervousSystemPlans.data'),
+            'Only the card sitting in that column may come back.',
+        );
+    }
+
     /**
-     * @return array{0: string, 1: string} plan id, board column key
+     * @return array{0: string, 1: string, 2: int} plan id, board column key, project id
      */
     private function createPlanAndBoardColumn(string $projectTitle, string $columnName, string $columnStatus): array
     {
@@ -284,6 +338,7 @@ class ProjectCrudTest extends TestCase
         return [
             $planResponse->json('data.createNervousSystemPlan.id'),
             $columnResponse->json('data.createNervousSystemProjectBoardColumn.key'),
+            (int) $project->id,
         ];
     }
 

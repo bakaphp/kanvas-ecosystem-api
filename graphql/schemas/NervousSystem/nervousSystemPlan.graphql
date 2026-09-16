@@ -145,6 +145,7 @@ extend type Query @guard {
                     "entity_id"
                     "plan_type"
                     "status"
+                    "board_column_key"
                     "priority"
                     "parent_plan_id"
                     "project_id"

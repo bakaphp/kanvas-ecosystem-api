@@ -128,6 +128,11 @@ input UpdateNervousSystemProjectInput {
 }
 
 extend type Query @guard {
+    nervousSystemProjectBoardColumns(project_id: ID!): [NervousSystemProjectBoardColumn!]!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Queries\\ProjectBoardColumnQuery@list"
+        )
+
     nervousSystemWorkspaces(
         where: _ @whereConditions(columns: ["id", "uuid", "name", "status"])
         orderBy: _ @orderBy(columns: ["id", "name", "created_at", "updated_at"])
