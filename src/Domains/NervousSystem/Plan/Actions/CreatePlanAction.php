@@ -10,6 +10,7 @@ use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
@@ -44,12 +45,9 @@ class CreatePlanAction
             );
             $requestedStatus = $boardColumn !== null
                 ? PlanStatusEnum::from($boardColumn['plan_status'])
-                : $this->data->status;
+                : $this->initialStatus();
 
-            $effectiveStatus = $this->data->requiresHumanApproval
-                && $requestedStatus === PlanStatusEnum::ACTIVE
-                ? PlanStatusEnum::AWAITING_APPROVAL
-                : $requestedStatus;
+            $effectiveStatus = $requestedStatus->heldForApproval($this->data->requiresHumanApproval);
 
             // Demote any existing active mission for this swarm BEFORE
             // saving the new plan, so the unique-active invariant holds
@@ -129,5 +127,20 @@ class CreatePlanAction
 
             return $plan;
         });
+    }
+
+    /**
+     * Every plan is born in TODO, except one recorded for work that is already running — a dispatched
+     * coding job or Claude session — which is in progress from its first row.
+     */
+    private function initialStatus(): PlanStatusEnum
+    {
+        $alreadyRunning = $this->data->status === PlanStatusEnum::DRAFT
+            && array_any(
+                $this->tasks,
+                fn (TaskData $task): bool => $task->status === TaskStatusEnum::IN_PROGRESS,
+            );
+
+        return $alreadyRunning ? PlanStatusEnum::ACTIVE : $this->data->status;
     }
 }

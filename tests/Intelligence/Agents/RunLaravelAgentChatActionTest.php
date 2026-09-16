@@ -123,6 +123,46 @@ class RunLaravelAgentChatActionTest extends TestCase
         $this->assertSame('I see a 1x1 image.', $result);
     }
 
+    public function testUnreachableAttachmentIsNotedInThePrompt(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['user_id' => $user->getId()]);
+
+        $unreachable = 'http://127.0.0.1/pizza.jpg';
+        $response = new AgentResponse('inv-4', 'I could not open that image.', new Usage(1, 1), new Meta());
+
+        $handler = Mockery::mock(KanvasLaravelAgent::class);
+        $handler->shouldReceive('promptWithConfig')
+            ->once()
+            ->with(
+                Mockery::on(
+                    static fn (string $prompt): bool => str_starts_with($prompt, 'what pizza is this?')
+                        && str_contains($prompt, $unreachable),
+                ),
+                [],
+            )
+            ->andReturn($response);
+
+        $result = new RunLaravelAgentChatAction(
+            agent: $agent,
+            session: null,
+            message: 'what pizza is this?',
+            app: $app,
+            company: $company,
+            user: $user,
+            handler: $handler,
+            media: [$unreachable],
+        )->execute();
+
+        $this->assertSame('I could not open that image.', $result);
+    }
+
     public function testDispatchesCaptionJobToRememberImagesInHistory(): void
     {
         Queue::fake();

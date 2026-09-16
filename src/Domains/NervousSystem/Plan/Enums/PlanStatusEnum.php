@@ -48,6 +48,17 @@ enum PlanStatusEnum: string
     }
 
     /**
+     * Draft is executable, so a plan still waiting on sign-off is held whether or not it has started —
+     * holding only an active one would let a draft be worked before anyone was asked.
+     */
+    public function heldForApproval(bool $needsApproval): self
+    {
+        return $needsApproval && in_array($this, [self::DRAFT, self::ACTIVE], true)
+            ? self::AWAITING_APPROVAL
+            : $this;
+    }
+
+    /**
      * Statuses that count as "terminal" — the plan won't change further.
      * @return array<int, self>
      */

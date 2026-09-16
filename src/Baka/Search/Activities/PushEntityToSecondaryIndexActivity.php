@@ -40,7 +40,7 @@ class PushEntityToSecondaryIndexActivity extends KanvasActivity
     public $tries = 4;
 
     /**
-     * @param array{index_name: string, search_engine?: string} $params
+     * @param array{index_name: string, search_engine?: string, channel_active?: bool} $params
      */
     public function execute(Model $entity, Apps $app, array $params): array
     {
@@ -60,11 +60,17 @@ class PushEntityToSecondaryIndexActivity extends KanvasActivity
             entity: $entity,
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
-            integrationOperation: function () use ($entity, $app, $indexName, $searchEngine): array {
+            integrationOperation: function () use ($entity, $app, $indexName, $searchEngine, $params): array {
                 try {
                     $service = $this->resolveSecondaryIndexService($searchEngine, $app);
 
-                    if (! $entity->shouldBeSearchable()) {
+                    // `channel_active` is optional context a caller (e.g. VariantsChannelObserver)
+                    // can pass to say "this entity is also gated by membership in some channel" —
+                    // absent, it defaults to true so unrelated triggers keep today's behavior of
+                    // relying on the entity's own shouldBeSearchable() alone.
+                    $isActive = $entity->shouldBeSearchable() && ($params['channel_active'] ?? true);
+
+                    if (! $isActive) {
                         $service->removeEntity($entity, $indexName);
 
                         return [

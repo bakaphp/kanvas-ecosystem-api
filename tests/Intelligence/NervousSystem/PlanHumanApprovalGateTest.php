@@ -73,6 +73,33 @@ final class PlanHumanApprovalGateTest extends TestCase
         $this->assertSame(PlanStatusEnum::AWAITING_APPROVAL->value, $held->status);
     }
 
+    /** A draft is workable too, so asking for approval on one has to hold it before anyone picks it up. */
+    public function testAskingForApprovalOnADraftHoldsItBeforeAnyoneWorksIt(): void
+    {
+        $draft = new CreatePlanAction(
+            new PlanData(
+                app: app(Apps::class),
+                company: $this->human()->getCurrentCompany(),
+                title: 'Draft approval ' . fake()->unique()->lexify('?????'),
+                planType: 'project_work',
+                user: $this->human(),
+            ),
+        )->execute();
+        $this->assertSame(PlanStatusEnum::DRAFT->value, $draft->status);
+
+        $held = new UpdatePlanAction(
+            $draft,
+            PlanData::forUpdate(
+                $draft,
+                app(Apps::class),
+                $this->human()->getCurrentCompany(),
+                ['requires_human_approval' => true],
+            ),
+        )->execute();
+
+        $this->assertSame(PlanStatusEnum::AWAITING_APPROVAL->value, $held->status);
+    }
+
     /** An approved plan is not sent back for approval every time it is saved. */
     public function testAnAlreadyApprovedPlanIsNotReheld(): void
     {

@@ -1,2 +1,4 @@
+@use('Kanvas\Notifications\Support\MarkdownEmailRenderer')
+
 <h2>{{ $agentName ?? 'Your agent' }} replied to your message</h2>
-<p>{!! nl2br(e($body ?? '')) !!}</p>
+{!! MarkdownEmailRenderer::toEmailHtml($body ?? '', allowHtml: false) !!}

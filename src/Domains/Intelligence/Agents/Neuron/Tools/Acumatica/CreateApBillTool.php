@@ -24,6 +24,7 @@ use Kanvas\Scribe\Bills\Actions\CreateBillAction;
 use Kanvas\Scribe\Bills\Actions\SubmitBillForApprovalAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
+use Kanvas\Scribe\Bills\Exceptions\DuplicateBillNumberException;
 use Kanvas\Scribe\Ledger\Models\Account;
 use Kanvas\Scribe\Ledger\Models\Subaccount;
 use NeuronAI\Tools\ArrayProperty;
@@ -285,21 +286,25 @@ class CreateApBillTool extends Tool implements HasRunKey
         $actingUser = $this->user;
         $parsedDueDate = $this->parseDueDate($due_date);
 
-        $bill = new CreateBillAction(
-            new BillData(
-                app: $app,
-                company: $company,
-                vendor: $vendor,
-                lines: new DataCollection(BillLineData::class, $billLines),
-                currency: $currency,
-                fx_rate_to_base: 1.0,
-                bill_number: $invoice_number,
-                bill_date: Carbon::today(),
-                due_date: $parsedDueDate,
-                notes: $memo,
-            ),
-            $actingUser,
-        )->execute();
+        try {
+            $bill = new CreateBillAction(
+                new BillData(
+                    app: $app,
+                    company: $company,
+                    vendor: $vendor,
+                    lines: new DataCollection(BillLineData::class, $billLines),
+                    currency: $currency,
+                    fx_rate_to_base: 1.0,
+                    bill_number: $invoice_number,
+                    bill_date: Carbon::today(),
+                    due_date: $parsedDueDate,
+                    notes: $memo,
+                ),
+                $actingUser,
+            )->execute();
+        } catch (DuplicateBillNumberException $e) {
+            return $this->duplicateInvoiceResult($e, $vendorDisplayName);
+        }
 
         $bill = new SubmitBillForApprovalAction($bill, $actingUser)->execute();
 
@@ -462,8 +467,25 @@ class CreateApBillTool extends Tool implements HasRunKey
     }
 
     /**
-     * @param array<int, array{gl_account_number?: string, amount?: float|int|string, description?: string}> $lineInputs
+     * @return array<string, mixed>
      */
+    private function duplicateInvoiceResult(DuplicateBillNumberException $e, string $vendorDisplayName): array
+    {
+        $existing = $e->existing;
+
+        return [
+            'created' => false,
+            'reason' => 'duplicate_invoice',
+            'message' => "Invoice {$e->billNumber} from {$vendorDisplayName} was already recorded"
+                . ($existing !== null ? " as bill {$existing->getId()}" : '')
+                . ($existing?->is_deleted ? ', which was deleted — its invoice number cannot be reused' : '')
+                . '. No new bill was created; tell the user instead of retrying.',
+            'bill_id' => $existing?->getId(),
+            'document_status' => $existing?->document_status->value,
+            'is_deleted' => $existing?->is_deleted,
+        ];
+    }
+
     private function lineSummaryText(array $lineInputs): string
     {
         $rows = array_map(

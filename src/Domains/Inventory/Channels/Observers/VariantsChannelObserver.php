@@ -30,6 +30,7 @@ class VariantsChannelObserver
             'channel_id' => $variantChannel->channels_id,
             'channel_slug' => $variantChannel->channel?->slug,
             'variant_id' => $variantChannel->products_variants_id,
+            'channel_active' => (bool) $variantChannel->is_published,
         ]);
 
         VariantSearchDocumentChanged::dispatchFor($variantChannel->variant);

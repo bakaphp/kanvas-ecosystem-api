@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Intelligence;
 
+use Illuminate\Contracts\Debug\ShouldntReport;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Guild\Organizations\Actions\AddApproverToOrganizationAction;
 use Kanvas\Guild\Organizations\Actions\ImportVendorApproversFromRowsAction;
@@ -38,6 +40,7 @@ use Kanvas\Scribe\Bills\Actions\ReceiveBillAction;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
+use Kanvas\Scribe\Bills\Exceptions\DuplicateBillNumberException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
 use Kanvas\Scribe\Ledger\Models\Account;
@@ -328,6 +331,106 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
 
         $bill = Bill::query()->where('id', $result['bill_id'])->first();
         $this->assertSame(BillDocumentStatusEnum::PENDING_APPROVAL, $bill->document_status);
+    }
+
+    /** KANVAS-ECOSYSTEM-65K: a re-sent invoice failed the whole chat turn on the unique index and paged Sentry. */
+    public function test_create_ap_bill_reports_an_already_recorded_invoice_instead_of_throwing(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $createInvoice = fn (): array => new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 2600.0,
+                gl_account_number: $accountCode,
+                memo: 'Freight',
+                invoice_number: 'TC2609051',
+                push_to_acumatica: false,
+            );
+
+        $first = $createInvoice();
+        $second = $createInvoice();
+
+        $this->assertTrue($first['created']);
+        $this->assertFalse($second['created']);
+        $this->assertSame('duplicate_invoice', $second['reason']);
+        $this->assertSame($first['bill_id'], $second['bill_id']);
+        $this->assertStringNotContainsString('SQLSTATE', $second['message']);
+        $this->assertSame(1, Bill::query()
+            ->where('companies_id', $this->company->getId())
+            ->where('bill_number', 'TC2609051')
+            ->count());
+    }
+
+    public function test_a_deleted_bill_still_holds_its_invoice_number(): void
+    {
+        $this->seedTestOrganization('Windwalk Games Corp');
+        $accountCode = (string) Account::query()
+            ->where('id', $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS))
+            ->value('account_number');
+
+        $createInvoice = fn (): array => new CreateApBillTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(
+                vendor_name: 'Windwalk Games Corp',
+                amount: 100.0,
+                gl_account_number: $accountCode,
+                memo: 'Freight',
+                invoice_number: 'DEL-1',
+                push_to_acumatica: false,
+            );
+
+        $first = $createInvoice();
+        Bill::query()->where('id', $first['bill_id'])->first()->delete();
+
+        $second = $createInvoice();
+
+        $this->assertSame('duplicate_invoice', $second['reason']);
+        $this->assertTrue($second['is_deleted']);
+    }
+
+    public function test_a_duplicate_bill_number_is_client_safe_and_not_reported(): void
+    {
+        $vendor = $this->seedTestOrganization('Windwalk Games Corp');
+        $createBill = fn (): Bill => new CreateBillAction(
+            new BillData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                vendor: $vendor,
+                lines: new DataCollection(BillLineData::class, [
+                    new BillLineData(
+                        description: 'Materials',
+                        quantity: 1,
+                        unit_price_native: 10.0,
+                        expense_account_id: $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS),
+                    ),
+                ]),
+                currency: 'USD',
+                fx_rate_to_base: 1.0,
+                bill_number: 'GQL-1',
+            ),
+            static::$cachedUser,
+        )->execute();
+
+        $existing = $createBill();
+        Log::spy();
+
+        try {
+            $createBill();
+            $this->fail('Expected a DuplicateBillNumberException.');
+        } catch (DuplicateBillNumberException $e) {
+            $this->assertTrue($e->isClientSafe());
+            $this->assertInstanceOf(ShouldntReport::class, $e);
+            $this->assertSame($existing->getId(), $e->existing?->getId());
+        }
+
+        Log::shouldHaveReceived('warning')
+            ->once()
+            ->withArgs(fn (string $message, array $context): bool => $context['existing_bill_id'] === $existing->getId());
     }
 
     public function test_create_ap_bill_reports_the_approver_sheets_vendor_spelling_not_the_organizations_own_name(): void

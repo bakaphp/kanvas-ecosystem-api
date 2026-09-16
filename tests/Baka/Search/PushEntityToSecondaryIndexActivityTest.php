@@ -88,6 +88,50 @@ final class PushEntityToSecondaryIndexActivityTest extends TestCase
         $this->assertStringContainsString('removed', $result['message']);
     }
 
+    public function testChannelActiveFalseForcesRemovalEvenWhenEntityShouldBeSearchable(): void
+    {
+        $product = $this->createProduct();
+        $this->setUpInternalIntegration($product);
+
+        $service = $this->createMock(SecondaryIndexServiceInterface::class);
+        $service->expects($this->once())
+            ->method('removeEntity')
+            ->with($product, 'popular_index');
+        $service->expects($this->never())->method('indexEntity');
+
+        $result = $this->activityWithService($service)->execute($product, app(Apps::class), [
+            'index_name' => 'popular_index',
+            'search_engine' => 'algolia',
+            'channel_active' => false,
+        ]);
+
+        $this->assertTrue($result['result']);
+        $this->assertStringContainsString('removed', $result['message']);
+    }
+
+    public function testChannelActiveTrueDoesNotOverrideEntityNotBeingSearchable(): void
+    {
+        $product = $this->createProduct();
+        $product->is_published = 0;
+        $product->save();
+        $this->setUpInternalIntegration($product);
+
+        $service = $this->createMock(SecondaryIndexServiceInterface::class);
+        $service->expects($this->once())
+            ->method('removeEntity')
+            ->with($product, 'popular_index');
+        $service->expects($this->never())->method('indexEntity');
+
+        $result = $this->activityWithService($service)->execute($product, app(Apps::class), [
+            'index_name' => 'popular_index',
+            'search_engine' => 'algolia',
+            'channel_active' => true,
+        ]);
+
+        $this->assertTrue($result['result']);
+        $this->assertStringContainsString('removed', $result['message']);
+    }
+
     private function activity(): PushEntityToSecondaryIndexActivity
     {
         return new PushEntityToSecondaryIndexActivity(
