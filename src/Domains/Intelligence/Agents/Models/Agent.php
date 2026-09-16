@@ -435,6 +435,17 @@ class Agent extends BaseModel
     }
 
     /**
+     * A role section (background, steps, output) as one prompt string. Tenants store each section
+     * either as a single string or as an array of lines, so every prompt builder must accept both.
+     */
+    public function roleSection(string $key, string $separator = ' '): string
+    {
+        $section = is_array($this->role) ? ($this->role[$key] ?? null) : null;
+
+        return is_array($section) ? implode($separator, $section) : (string) $section;
+    }
+
+    /**
      * The agent whose identity is this user, within a tenant — how any user-targeted
      * signal (assignment, @mention, ...) asks "is this teammate actually an agent?".
      * Company-scoped, so it never resolves an agent from another tenant.

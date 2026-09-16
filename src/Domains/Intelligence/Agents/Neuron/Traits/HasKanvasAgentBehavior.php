@@ -340,16 +340,14 @@ trait HasKanvasAgentBehavior
     #[Override]
     public function instructions(): string
     {
-        $role = $this->agent->role ?? [];
-
         return new SystemPrompt(
             background: [
-                ...explode("\n", $role['background'] ?? ''),
+                ...explode("\n", $this->agent?->roleSection('background', "\n") ?? ''),
                 ...$this->temporalContextLines($this->resolveTenantTimezone()),
                 ...self::platformContext(),
             ],
-            steps: explode("\n", $role['steps'] ?? ''),
-            output: explode("\n", $role['output'] ?? ''),
+            steps: explode("\n", $this->agent?->roleSection('steps', "\n") ?? ''),
+            output: explode("\n", $this->agent?->roleSection('output', "\n") ?? ''),
         )->__toString();
     }
 

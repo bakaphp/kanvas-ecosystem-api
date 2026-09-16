@@ -292,7 +292,7 @@ class CreateMessageFollowUpAction
             'day' => $this->day,
         ];
 
-        return Blade::render(implode(' ', $this->agent->role['background']), $data) . $this->buildAntiRepeatDirective();
+        return Blade::render($this->agent->roleSection('background'), $data) . $this->buildAntiRepeatDirective();
     }
 
     /**

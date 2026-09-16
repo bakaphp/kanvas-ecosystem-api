@@ -66,8 +66,6 @@ class CFOAgent extends BaseRagAgent
     #[Override]
     public function instructions(): string
     {
-        $role = $this->agent->role ?? [];
-
         $defaultBackground = [
             'You are a CFO-style advisor for a small/medium business. Your job is to answer questions about '
             . 'the company\'s finances using the read-only tools provided. You DO NOT make journal entries, '
@@ -101,15 +99,15 @@ class CFOAgent extends BaseRagAgent
         ];
 
         $background = array_filter(
-            explode("\n", $role['background'] ?? ''),
+            explode("\n", $this->agent?->roleSection('background', "\n") ?? ''),
             fn (string $line): bool => trim($line) !== '',
         );
         $steps = array_filter(
-            explode("\n", $role['steps'] ?? ''),
+            explode("\n", $this->agent?->roleSection('steps', "\n") ?? ''),
             fn (string $line): bool => trim($line) !== '',
         );
         $output = array_filter(
-            explode("\n", $role['output'] ?? ''),
+            explode("\n", $this->agent?->roleSection('output', "\n") ?? ''),
             fn (string $line): bool => trim($line) !== '',
         );
 
