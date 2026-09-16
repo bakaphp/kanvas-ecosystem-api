@@ -37,8 +37,8 @@ class CompletionStatusTool implements ContextToolInterface
             'company' => $this->entity->company->toArray(),
             'additional_context_information' => $this->entity->get(ConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [],
         ];
-        $background = is_array($this->agent->role['background']) ? implode(' ', $this->agent->role['background']) : $this->agent->role['background'];
-        $steps = is_array($this->agent->role['steps']) ? implode(' ', $this->agent->role['steps']) : $this->agent->role['steps'];
+        $background = $this->agent->roleSection('background');
+        $steps = $this->agent->roleSection('steps');
         /** @var StructuredAgentResponse $response */
         $response = agent(
             instructions: Blade::render($background, $data),

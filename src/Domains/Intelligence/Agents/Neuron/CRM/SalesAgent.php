@@ -75,12 +75,11 @@ class SalesAgent extends BaseRagAgent implements ConversesWithCustomer
     #[Override]
     public function instructions(): string
     {
-        $role = $this->agent->role;
         $lead = $this->resolveLeadForTurn();
 
-        $background = Blade::render($role['background'], ['lead' => $lead]);
-        $steps = Blade::render($role['steps'], ['lead' => $lead]);
-        $output = Blade::render($role['output'], ['lead' => $lead]);
+        $background = Blade::render($this->agent->roleSection('background', "\n"), ['lead' => $lead]);
+        $steps = Blade::render($this->agent->roleSection('steps', "\n"), ['lead' => $lead]);
+        $output = Blade::render($this->agent->roleSection('output', "\n"), ['lead' => $lead]);
         $background = explode('\n', $background);
 
         $timezone = $lead?->company?->timezone

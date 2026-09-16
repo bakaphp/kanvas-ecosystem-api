@@ -26,12 +26,7 @@ class WorkspaceFileBuilderService
 {
     public static function buildSoulMd(Agent $agent): string
     {
-        $soul = $agent->soul;
-
-        if ($soul === null) {
-            $background = $agent->role['background'] ?? [];
-            $soul = is_array($background) ? implode("\n", $background) : (string) $background;
-        }
+        $soul = $agent->soul ?? $agent->roleSection('background', "\n");
 
         $content = "# SOUL\n\n" . $soul;
 
@@ -44,14 +39,7 @@ class WorkspaceFileBuilderService
 
     public static function buildAgentsMd(Agent $agent): string
     {
-        $instructions = $agent->instructions;
-
-        if ($instructions === null) {
-            $steps = $agent->role['steps'] ?? [];
-            $instructions = is_array($steps) ? implode("\n", $steps) : (string) $steps;
-        }
-
-        return "# AGENTS\n\n" . $instructions;
+        return "# AGENTS\n\n" . ($agent->instructions ?? $agent->roleSection('steps', "\n"));
     }
 
     public static function buildIdentityMd(Agent $agent): string
