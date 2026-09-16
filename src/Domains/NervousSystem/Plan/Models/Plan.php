@@ -404,23 +404,25 @@ class Plan extends BaseModel implements HandlesAgentMention
         }
 
         $previousStatus = $this->status;
+        $this->status = PlanStatusEnum::ACTIVE->heldForApproval($this->needsApproval())->value;
 
-        if ($this->needsApproval()) {
-            $this->status = PlanStatusEnum::AWAITING_APPROVAL->value;
-        } else {
-            $this->status = PlanStatusEnum::ACTIVE->value;
+        if ($this->status === PlanStatusEnum::ACTIVE->value) {
             $this->started_at ??= Carbon::now();
         }
 
         $this->saveOrFail();
+        $this->announceUpdate($previousStatus);
+    }
 
+    public function announceUpdate(string $previousStatus, bool $fromSync = false): void
+    {
         $this->emitLedgerEvent('plan.updated', payload: [
             'status_from' => $previousStatus,
             'status_to' => $this->status,
             'completion_pct' => $this->completion_pct,
         ]);
 
-        $this->broadcastChange(PlanChangeTypeEnum::UPDATED, previousStatus: $previousStatus);
+        $this->broadcastChange(PlanChangeTypeEnum::UPDATED, previousStatus: $previousStatus, fromSync: $fromSync);
     }
 
     public function broadcastChange(

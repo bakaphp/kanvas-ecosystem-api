@@ -47,12 +47,7 @@ class CreatePlanAction
                 ? PlanStatusEnum::from($boardColumn['plan_status'])
                 : $this->initialStatus();
 
-            // A plan that has not started asks for sign-off at birth. Waiting until its first task runs
-            // would mean the work had already begun by the time anyone was asked.
-            $effectiveStatus = $this->data->requiresHumanApproval
-                && in_array($requestedStatus, [PlanStatusEnum::DRAFT, PlanStatusEnum::ACTIVE], true)
-                ? PlanStatusEnum::AWAITING_APPROVAL
-                : $requestedStatus;
+            $effectiveStatus = $requestedStatus->heldForApproval($this->data->requiresHumanApproval);
 
             // Demote any existing active mission for this swarm BEFORE
             // saving the new plan, so the unique-active invariant holds

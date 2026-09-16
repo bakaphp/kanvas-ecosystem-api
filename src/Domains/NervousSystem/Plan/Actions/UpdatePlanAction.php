@@ -7,7 +7,6 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
-use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
@@ -65,13 +64,7 @@ class UpdatePlanAction
             $this->plan->board_column_key = $column['key'] ?? null;
             $newStatus = $columnChanged ? $column['plan_status'] : $this->data->status->value;
 
-            // Asking for approval mid-flight has to actually gate, the way it already does at
-            // creation. Setting the flag alone changed nothing: the plan stayed active, the loop kept
-            // dispatching, and "waiting for approval" was a sentence in a comment that nothing
-            // enforced (plan 25667). Already-approved plans are left alone — approval is not re-asked.
-            if ($this->plan->needsApproval() && $newStatus === PlanStatusEnum::ACTIVE->value) {
-                $newStatus = PlanStatusEnum::AWAITING_APPROVAL->value;
-            }
+            $newStatus = PlanStatusEnum::from($newStatus)->heldForApproval($this->plan->needsApproval())->value;
 
             if ($newStatus === 'active' && $this->plan->started_at === null) {
                 $this->plan->started_at = Carbon::now();
@@ -90,17 +83,7 @@ class UpdatePlanAction
                 $this->plan->addMultipleFilesFromUrl($this->data->files);
             }
 
-            $this->plan->emitLedgerEvent('plan.updated', payload: [
-                'status_from' => $oldStatus,
-                'status_to' => $newStatus,
-                'completion_pct' => $this->plan->completion_pct,
-            ]);
-
-            $this->plan->broadcastChange(
-                changeType: PlanChangeTypeEnum::UPDATED,
-                previousStatus: $oldStatus,
-                fromSync: $this->fromSync,
-            );
+            $this->plan->announceUpdate($oldStatus, fromSync: $this->fromSync);
 
             // Org-level milestone — only on the actual transition into a
             // terminal state (not on subsequent saves while already terminal).

@@ -15,11 +15,13 @@ use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\RunTaskWorkerJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\Users\Models\Users;
+use ReflectionMethod;
 use Tests\TestCase;
 
 /**
@@ -68,6 +70,29 @@ final class PlanStartsInTodoTest extends TestCase
         $plan->refresh();
         $this->assertSame(PlanStatusEnum::ACTIVE->value, $plan->status);
         $this->assertNotNull($plan->started_at);
+    }
+
+    /**
+     * The worker is how an agent actually starts a task, and it saves quietly — which skips the observer
+     * that moves the plan. Without its own call the card would sit in TODO while the work runs.
+     */
+    public function testAWorkerPickingUpATaskMovesThePlanToInProgress(): void
+    {
+        $plan = $this->plan(tasks: [$this->pendingTask()]);
+
+        $this->assertTrue($this->workerMayStart($plan));
+        $this->assertSame(PlanStatusEnum::ACTIVE->value, $plan->fresh()->status);
+    }
+
+    public function testAWorkerWillNotStartATaskOnAPlanWaitingForApproval(): void
+    {
+        $plan = $this->plan(tasks: [$this->pendingTask()]);
+        $plan->requires_human_approval = true;
+        $plan->saveQuietly();
+
+        $this->assertFalse($this->workerMayStart($plan), 'The task would run before anyone signed off.');
+        $this->assertSame(PlanStatusEnum::AWAITING_APPROVAL->value, $plan->fresh()->status);
+        $this->assertSame(TaskStatusEnum::PENDING->value, $plan->tasks()->firstOrFail()->status);
     }
 
     public function testAPlanNeedingApprovalAsksForItAtBirth(): void
@@ -138,6 +163,15 @@ final class PlanStartsInTodoTest extends TestCase
     private function pendingTask(): TaskData
     {
         return new TaskData(plan: null, title: 'First step');
+    }
+
+    private function workerMayStart(Plan $plan): bool
+    {
+        /** @var Task $task */
+        $task = $plan->tasks()->firstOrFail();
+        $job = new RunTaskWorkerJob($task);
+
+        return new ReflectionMethod($job, 'planAllowsWork')->invoke($job, $task->plan);
     }
 
     private function startFirstTask(Plan $plan): void

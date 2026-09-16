@@ -10,8 +10,8 @@ use Kanvas\NervousSystem\Plan\Models\Task;
 class TaskObserver
 {
     /**
-     * Every plan is born in TODO; the first task to start is what moves it. Sitting on the model means
-     * no writer of task status — agent tools, kanban sync, the PiDev poller — can forget to.
+     * Every plan is born in TODO; the first task to start is what moves it. A writer that saves a task
+     * quietly bypasses this and must call Plan::startWork() itself, as RunTaskWorkerJob does.
      */
     public function saved(Task $task): void
     {
