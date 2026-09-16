@@ -12,6 +12,7 @@ use Kanvas\Guild\Organizations\DataTransferObject\Address as AddressData;
 use Kanvas\Guild\Organizations\DataTransferObject\Organization as DataTransferObjectOrganization;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationType;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class OrganizationManagementMutation
 {
@@ -110,8 +111,18 @@ class OrganizationManagementMutation
         $app = app(Apps::class);
 
         $organization = Organization::getByIdFromCompanyApp((int) $req['id'], $user->getCurrentCompany(), $app);
+        $deleted = $organization->softDelete();
 
-        return $organization->softDelete();
+        $organization->fireWorkflow(
+            WorkflowEnum::DELETED->value,
+            true,
+            [
+                'app' => $organization->app,
+                'company' => $organization->company,
+            ]
+        );
+
+        return $deleted;
     }
 
     public function restore(mixed $root, array $req): bool
