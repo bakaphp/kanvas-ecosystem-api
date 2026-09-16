@@ -16,7 +16,6 @@ use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Companies\DataTransferObject\Company as CompanyData;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
-use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -188,9 +187,9 @@ class EnableCorporateModeAction
                 $this->user->getCurrentCompany(),
                 $this->app,
             );
-            $company->set(CustomFieldEnum::COMPANY_REGION_ID->value, $region->getId());
+            new SetCompanyRegionAction($company, $region->getId())->execute();
         } elseif (app()->bound(Regions::class)) {
-            $company->set(CustomFieldEnum::COMPANY_REGION_ID->value, app(Regions::class)->getId());
+            new SetCompanyRegionAction($company, app(Regions::class)->getId())->execute();
         }
     }
 

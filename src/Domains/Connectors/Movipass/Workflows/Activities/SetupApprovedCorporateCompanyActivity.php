@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Movipass\Actions\SetCompanyRegionAction;
 use Kanvas\Connectors\Movipass\Jobs\MigrateCorporateUserVariantsJob;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -67,13 +67,13 @@ class SetupApprovedCorporateCompanyActivity extends KanvasActivity implements Wo
         $regionId = $lead->get('region_id');
 
         if (! empty($regionId)) {
-            $company->set(CustomFieldEnum::COMPANY_REGION_ID->value, $regionId);
+            new SetCompanyRegionAction($company, (int) $regionId)->execute();
 
             return;
         }
 
         if (app()->bound(Regions::class)) {
-            $company->set(CustomFieldEnum::COMPANY_REGION_ID->value, app(Regions::class)->getId());
+            new SetCompanyRegionAction($company, app(Regions::class)->getId())->execute();
         }
     }
 

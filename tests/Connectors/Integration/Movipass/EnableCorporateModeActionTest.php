@@ -15,21 +15,25 @@ use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum a
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Actions\EnableCorporateModeAction;
+use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Jobs\MigrateCorporateUserVariantsJob;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SetupApprovedCorporateCompanyActivity;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Inventory\Regions\Enums\CustomFieldEnum as RegionCustomFieldEnum;
 use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasIntegrationCompany;
+use Tests\Connectors\Traits\MakesGlobalRegions;
 use Tests\TestCase;
 
 final class EnableCorporateModeActionTest extends TestCase
 {
     use HasIntegrationCompany;
+    use MakesGlobalRegions;
 
     private Users $kanvasUser;
     private Apps $kanvasApp;
@@ -161,6 +165,57 @@ final class EnableCorporateModeActionTest extends TestCase
         $this->assertTrue($result['variants_migration_dispatched']);
 
         Bus::assertDispatched(MigrateCorporateUserVariantsJob::class);
+    }
+
+    /**
+     * Both region keys must land: movipass_region_id for the legacy readers and default_region_id
+     * for RegionResolutionService::forCompany(). The manual-approval branch dropped the second
+     * write while development added it — a merge that no textual conflict flags.
+     */
+    public function testRequestWritesBothRegionKeys(): void
+    {
+        Bus::fake();
+
+        $region = $this->makeGlobalRegion($this->kanvasApp, 'test-corporate-request-' . uniqid(), 'TCRR');
+
+        $company = $this->request(['region_id' => $region->getId()]);
+
+        $this->assertEquals($region->getId(), (int) $company->get(CustomFieldEnum::COMPANY_REGION_ID->value));
+        $this->assertEquals($region->getId(), (int) $company->get(RegionCustomFieldEnum::DEFAULT_REGION_ID->value));
+    }
+
+    public function testApprovalActivityWritesBothRegionKeys(): void
+    {
+        Bus::fake();
+
+        $this->setIntegration(
+            $this->kanvasApp,
+            IntegrationsEnum::MOVIPASS,
+            MovipassHandler::class,
+            $this->kanvasUser->getCurrentCompany(),
+            $this->kanvasUser
+        );
+
+        $region = $this->makeGlobalRegion($this->kanvasApp, 'test-corporate-approval-' . uniqid(), 'TCAR');
+
+        $company = $this->request();
+        $company->del(CustomFieldEnum::COMPANY_REGION_ID->value);
+        $company->del(RegionCustomFieldEnum::DEFAULT_REGION_ID->value);
+
+        $lead = $this->latestRequestLead();
+        $lead->set('region_id', $region->getId());
+        new ApproveCorporateApplicationAction($lead, $this->kanvasApp, $this->kanvasUser)->execute();
+
+        new SetupApprovedCorporateCompanyActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        )->execute($lead->fresh(), $this->kanvasApp, []);
+
+        $company = $company->fresh();
+        $this->assertEquals($region->getId(), (int) $company->get(CustomFieldEnum::COMPANY_REGION_ID->value));
+        $this->assertEquals($region->getId(), (int) $company->get(RegionCustomFieldEnum::DEFAULT_REGION_ID->value));
     }
 
     public function testDispatchesOnboardingForTheCorporateCompany(): void
