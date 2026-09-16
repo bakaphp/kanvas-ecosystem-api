@@ -19,7 +19,8 @@ class UnPublishAllVariantsAction
 
     public function execute(): void
     {
-        $dontUnPublishVariantsId = $this->channel->company->get('dont_unpublish_variants', []);
+        // An app-global channel (companies_id = 0) has no owning company to read the setting from.
+        $dontUnPublishVariantsId = $this->channel->company?->get('dont_unpublish_variants', []) ?? [];
 
         $query = $this->channel->availableProducts()->where('is_published', 1);
 

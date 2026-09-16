@@ -2,7 +2,8 @@ type Channel {
     id: ID!
     companies_id: Int!
     users_id: Int!
-    companies: Company! @belongsTo(relation: "company")
+    # Nullable: an app-global channel (companies_id = 0) has no owning company.
+    companies: Company @belongsTo(relation: "company")
     regions: [Region]! @method(name: "getRegions")
     users: User
     name: String!
