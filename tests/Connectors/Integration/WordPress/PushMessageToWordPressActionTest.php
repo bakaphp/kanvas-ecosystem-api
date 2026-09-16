@@ -26,14 +26,17 @@ final class PushMessageToWordPressActionTest extends TestCase
 {
     use DatabaseTransactions;
 
-    // Messages live on `social`, their duplicate-claim custom fields on the default connection; both must roll back.
-    protected $connectionsToTransact = [null, 'social'];
+    protected $connectionsToTransact = [null, 'ecosystem', 'social'];
+
+    private Companies $wordPressCompany;
 
     private const string SITE_URL = 'https://example.com';
 
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->wordPressCompany = Companies::factory()->create();
 
         $this->company()->set(ConfigurationEnum::SITE_URL->value, self::SITE_URL);
         $this->company()->set(ConfigurationEnum::USERNAME->value, 'editor');
@@ -756,6 +759,6 @@ final class PushMessageToWordPressActionTest extends TestCase
 
     private function company(): Companies
     {
-        return auth()->user()->getCurrentCompany();
+        return $this->wordPressCompany;
     }
 }
