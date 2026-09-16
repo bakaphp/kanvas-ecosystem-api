@@ -163,8 +163,7 @@ class Event extends BaseModel
                 'field_name' => $file->field_name,
             ]),
             // `config` from EventInput has no first-class column on `events` — it's persisted as
-            // the first EventVersion's `metadata` (see EventManagementMutation::create()).
-            'config' => $this->versions()->orderBy('version')->first()?->metadata,
+            'config' => $this->versions()->latest('version')->first()?->metadata,
             'apps_id' => $this->apps_id,
             'companies_id' => $this->companies_id,
         ];

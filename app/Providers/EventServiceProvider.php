@@ -13,6 +13,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
 use Kanvas\Guild\Customers\Observers\PeopleObserver;
+use Kanvas\Guild\Leads\Listeners\QueueVariantInterestReindexListener;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
 use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
@@ -31,6 +32,7 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Regions\Observers\RegionObserver;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Observers\StatusObserver;
+use Kanvas\Inventory\Variants\Events\VariantSearchDocumentChanged;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Observers\WarehouseObserver;
@@ -98,6 +100,9 @@ class EventServiceProvider extends ServiceProvider
         ],
         KnowledgeIndexRequested::class => [
             QueueKnowledgeIndexListener::class,
+        ],
+        VariantSearchDocumentChanged::class => [
+            QueueVariantInterestReindexListener::class,
         ],
         MessageMentionsStoredEvent::class => [
             RespondToAgentMentionListener::class,

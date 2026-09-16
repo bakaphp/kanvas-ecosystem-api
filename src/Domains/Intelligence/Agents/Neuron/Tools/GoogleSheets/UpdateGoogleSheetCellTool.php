@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\GoogleSheets;
 use Kanvas\Connectors\GoogleSheets\Actions\UpdateSheetRangeAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesGoogleSheetsServiceForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesSpreadsheetIdForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -19,6 +20,7 @@ use Throwable;
 class UpdateGoogleSheetCellTool extends Tool
 {
     use HasKanvasContext;
+    use ResolvesGoogleSheetsServiceForTool;
     use ResolvesSpreadsheetIdForTool;
 
     public function __construct()
@@ -27,8 +29,9 @@ class UpdateGoogleSheetCellTool extends Tool
             name: 'update_google_sheet_cell',
             description: 'Overwrites a specific cell (or small range) on a Google Sheet the user shared a link '
                 . 'to — e.g. changing an invoice row\'s status column to "Approved". Use write_google_sheet '
-                . 'instead when adding brand-new rows. The sheet must already be shared as an Editor with this '
-                . 'app\'s Google service account.',
+                . 'instead when adding brand-new rows. Writes to any sheet the Google account this agent is '
+                . 'connected to can open; where the app uses a shared service account instead, the sheet must be '
+                . 'shared with that account as an Editor.',
         );
     }
 
@@ -77,7 +80,13 @@ class UpdateGoogleSheetCellTool extends Tool
         }
 
         try {
-            $result = new UpdateSheetRangeAction($this->app, $spreadsheetId, $range, [[$value]])->execute();
+            $result = new UpdateSheetRangeAction(
+                $this->app,
+                $spreadsheetId,
+                $range,
+                [[$value]],
+                $this->sheetsServiceForAgent(),
+            )->execute();
         } catch (Throwable $e) {
             return [
                 'success' => false,

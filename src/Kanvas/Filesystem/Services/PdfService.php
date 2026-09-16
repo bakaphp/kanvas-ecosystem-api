@@ -6,7 +6,7 @@ namespace Kanvas\Filesystem\Services;
 
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
-use Baka\Support\PdfGenerator;
+use Baka\Support\TempFile;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -27,21 +27,17 @@ class PdfService
         ?string $fileName = null,
         array $options = []
     ): ModelsFilesystem {
-        //$response = PdfGenerator::fromHtml($html, $options);
-        // Define the file name
-        //$fileName = $fileName ?? uniqid('pdf_', true) . '.pdf';
-        //$tempFilePath = sys_get_temp_dir() . '/' . $fileName;
-        // Define the file name
         $fileName = $fileName ?? uniqid('pdf_', true) . '.pdf';
 
-        // Ensure temp directory exists
         $tempDir = sys_get_temp_dir() ?: '/tmp';
         if (! is_dir($tempDir) || ! is_writable($tempDir)) {
             $tempDir = storage_path('app/temp');
         }
         chdir($tempDir);
 
-        $tempFilePath = $tempDir . '/' . $fileName;
+        // Never build the temp path from $fileName: callers pass stable names ("order-123.pdf"),
+        // so two concurrent renders would share a path and one's cleanup would delete the other's PDF.
+        $tempFilePath = TempFile::path('pdf', directory: $tempDir);
 
         $snappy = new Pdf(self::BINARY_PATH, $options);
 
@@ -53,25 +49,22 @@ class PdfService
         $snappy->setOption('enable-local-file-access', true);
         $snappy->setOption('page-size', 'A4');
         $snappy->setTemporaryFolder($tempDir);
-        $snappy->generateFromHtml($html, $tempFilePath);
 
-        // Create an UploadedFile instance from the temporary file
-        $uploadedFile = new UploadedFile(
-            $tempFilePath,
-            $fileName,
-            'application/pdf',
-            null,
-            true
-        );
+        try {
+            $snappy->generateFromHtml($html, $tempFilePath);
 
-        $filesystem = new FilesystemServices($app);
-        $uploadedFileEntry = $filesystem->upload($uploadedFile, $user);
-
-        // Clean up the temporary file
-        unlink($tempFilePath);
-
-        // Return the file URL
-        return $uploadedFileEntry;
+            return new FilesystemServices($app)->upload(
+                new UploadedFile(
+                    path: $tempFilePath,
+                    originalName: $fileName,
+                    mimeType: 'application/pdf',
+                    test: true
+                ),
+                $user
+            );
+        } finally {
+            TempFile::delete($tempFilePath);
+        }
     }
 
     public static function generatePdfFromTemplate(

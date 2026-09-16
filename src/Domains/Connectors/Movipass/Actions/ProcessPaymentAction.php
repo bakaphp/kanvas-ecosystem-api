@@ -6,6 +6,7 @@ use Exception;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\EchoPay\DataTransferObject\ConsumerAuthentication;
 use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Movipass\Jobs\RetryPaymentReversalJob;
 use Kanvas\Connectors\PasoRapido\Actions\CreatePasoRapidoOrderAction;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
@@ -18,13 +19,14 @@ class ProcessPaymentAction
     public function __construct(
         protected Apps $app,
         protected Payments $payment,
-        protected Order $order
+        protected Order $order,
+        protected ?PortalPaymentProcessor $paymentProcessor = null,
     ) {
     }
 
     public function execute(ConsumerAuthentication $consumerData): array
     {
-        $paymentProcessor = new PortalPaymentProcessor(
+        $paymentProcessor = $this->paymentProcessor ?? new PortalPaymentProcessor(
             $this->app,
             $this->payment->company,
             []
@@ -111,6 +113,15 @@ class ProcessPaymentAction
         ]);
 
         $response = $paymentProcessor->reversePayment($this->payment, $this->order, $bankTransaction, $reason);
+
+        // The gateway failed the reversal: the card still holds the money, so keep the row
+        // AUTHORIZED and hand it to the retry job instead of letting it be marked FAILED.
+        if ($response['status'] === 'error') {
+            RetryPaymentReversalJob::markPending($this->payment, $reason, (string) $response['message']);
+
+            RetryPaymentReversalJob::dispatch($this->app, $this->payment, $this->order, $reason)
+                ->delay(now()->addMinute());
+        }
 
         return [
             'status' => PaymentStatusEnum::FAILED->value,

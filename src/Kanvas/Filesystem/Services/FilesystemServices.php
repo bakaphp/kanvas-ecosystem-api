@@ -6,6 +6,7 @@ namespace Kanvas\Filesystem\Services;
 
 use Baka\Contracts\CompanyInterface;
 use Baka\Http\SafeUrl;
+use Baka\Support\TempFile;
 use Exception;
 use finfo;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -228,19 +229,21 @@ class FilesystemServices
             throw new InvalidArgumentException('Invalid Base64 string provided');
         }
 
-        // Save to a temporary file
-        $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '_' . $originalName;
-        file_put_contents($tempFilePath, $decodedContent);
+        return TempFile::using(
+            function (string $tempFilePath) use ($decodedContent, $originalName, $user): ModelsFilesystem {
+                file_put_contents($tempFilePath, $decodedContent);
 
-        return $this->upload(
-            new UploadedFile(
-                $tempFilePath,               // Path to the file
-                $originalName,               // Original file name
-                self::detectMimeType($tempFilePath), // MIME type
-                null,                        // Error (null means no error)
-                true                         // Mark it as a test file (will not delete original file)
-            ),
-            $user
+                return $this->upload(
+                    new UploadedFile(
+                        path: $tempFilePath,
+                        originalName: $originalName,
+                        mimeType: self::detectMimeType($tempFilePath),
+                        test: true
+                    ),
+                    $user
+                );
+            },
+            extension: pathinfo($originalName, PATHINFO_EXTENSION)
         );
     }
 
@@ -301,33 +304,29 @@ class FilesystemServices
             throw new InvalidArgumentException('Failed to download file from URL: ' . $fileUrl);
         }
 
-        $originalName = trim((string) $fileName) !== ''
-            ? basename(str_replace('\\', '/', (string) $fileName))
-            : basename(parse_url($fileUrl, PHP_URL_PATH) ?? '');
-
-        // Neither the caller nor the URL gave a usable name
-        $mimeType = self::detectMimeType($tempFilePath);
-        if (empty($originalName) || strpos($originalName, '.') === false) {
-            $extension = self::getExtensionFromMimeType($mimeType);
-            $originalName = uniqid('file_') . '.' . $extension;
-        }
-
         try {
-            // Create an UploadedFile instance and upload it
-            $uploadedFile = new UploadedFile(
-                $tempFilePath,
-                $originalName,
-                $mimeType,
-                null,
-                true
-            );
+            $originalName = trim((string) $fileName) !== ''
+                ? basename(str_replace('\\', '/', (string) $fileName))
+                : basename(parse_url($fileUrl, PHP_URL_PATH) ?? '');
 
-            return $this->upload($uploadedFile, $user);
-        } finally {
-            // Clean up the temporary file
-            if (file_exists($tempFilePath)) {
-                @unlink($tempFilePath);
+            // Neither the caller nor the URL gave a usable name
+            $mimeType = self::detectMimeType($tempFilePath);
+            if (empty($originalName) || strpos($originalName, '.') === false) {
+                $extension = self::getExtensionFromMimeType($mimeType);
+                $originalName = uniqid('file_') . '.' . $extension;
             }
+
+            return $this->upload(
+                new UploadedFile(
+                    path: $tempFilePath,
+                    originalName: $originalName,
+                    mimeType: $mimeType,
+                    test: true
+                ),
+                $user
+            );
+        } finally {
+            TempFile::delete($tempFilePath);
         }
     }
 
@@ -349,9 +348,7 @@ class FilesystemServices
                 $extension = self::getExtensionFromMimeType($contentType);
             }
 
-            $tempFilePath = sys_get_temp_dir() . '/' . uniqid() . '.' . $extension;
-
-            // Write the response body to file
+            $tempFilePath = TempFile::path($extension);
             file_put_contents($tempFilePath, $response->body());
 
             return $tempFilePath;

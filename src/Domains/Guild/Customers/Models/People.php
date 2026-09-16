@@ -661,6 +661,31 @@ class People extends BaseModel
             ->get();
     }
 
+    /**
+     * A phone is also matched as a raw contact value, so a number stored under a non-phone
+     * contact type still finds its person.
+     */
+    public static function getAllByPhoneOrEmail(
+        ?string $phone,
+        ?string $email,
+        Companies $company,
+        Apps $app
+    ): Collection {
+        $people = new Collection();
+
+        if ($phone !== null && $phone !== '') {
+            $people = $people
+                ->merge(self::getAllByPhoneMatchingValue($phone, $company, $app))
+                ->merge(self::getAllByMatchingValue($phone, $company, $app));
+        }
+
+        if ($email !== null && $email !== '') {
+            $people = $people->merge(self::getAllByMatchingValue($email, $company, $app));
+        }
+
+        return $people->unique('id');
+    }
+
     #[Override]
     public function shouldBeSearchable(): bool
     {

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Reynolds\Activities;
 
 use Baka\Support\Url;
-use Exception;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
@@ -72,7 +71,10 @@ class PushLeadNotesActivity extends KanvasActivity
 
         $lead = $message->entity();
         if (! $lead instanceof Lead) {
-            throw new Exception('Lead not found');
+            return $this->failWorkflow([
+                'message_id' => $message->getId(),
+                'error' => 'Lead not found',
+            ]);
         }
 
         return $this->executeIntegration(

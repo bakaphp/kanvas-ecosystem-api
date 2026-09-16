@@ -74,6 +74,7 @@ class CreateChannelAction
                 ],
             )
             ->where('entity_id', $this->channelDto->entity_id)
+            ->orderByDesc('last_message_id')
             ->first();
     }
 

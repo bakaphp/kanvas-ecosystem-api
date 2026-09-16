@@ -7,19 +7,24 @@ namespace Kanvas\Connectors\Internal\Activities;
 use Baka\Contracts\AppInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Tasks\Actions\ChangeTaskEngagementItemStatusAction;
+use Kanvas\ActionEngine\Tasks\Enums\ChecklistPdfGenerationEnum;
 use Kanvas\ActionEngine\Tasks\Enums\TaskStatusEnum;
+use Kanvas\ActionEngine\Tasks\Events\ChecklistGeneratePdfEvent;
 use Kanvas\ActionEngine\Tasks\Models\TaskListItem;
 use Kanvas\Filesystem\Services\PdfService;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
+use Throwable;
 
 #[WorkflowAction(
     name: 'Generate PDF From Template',
@@ -34,6 +39,8 @@ use Override;
 )]
 class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    public const string CHECKLIST_PDF_CUSTOM_FIELD = 'checklist.generate.pdf';
+
     public $tries = 3;
 
     #[Override]
@@ -66,55 +73,78 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
                     ];
                 }
 
+                $engagement = null;
+                $taskListItem = null;
+
+                if ($entity instanceof Message && isset($entity->message['checkListId'])) {
+                    try {
+                        $action = Action::query()
+                            ->where('slug', $entity->message['verb'] ?? '')
+                            ->notDeleted()
+                            ->firstOrFail();
+
+                        $companyAction = CompanyAction::getByAction($action, $entity->company, $app);
+                        $engagement = Engagement::getByMessageId($entity->getId());
+
+                        $taskListItem = TaskListItem::query()
+                            ->where('companies_action_id', $companyAction->getId())
+                            ->where('task_list_id', $entity->message['checkListId'])
+                            ->where('is_deleted', 0)
+                            ->first();
+                    } catch (Exception $e) {
+                        $errorMessage = $e->getMessage() . $e->getTraceAsString();
+                    }
+                }
+
+                $this->trackChecklistPdf($engagement, $taskListItem, ChecklistPdfGenerationEnum::GENERATING);
+
                 $pdfData = array_merge([
                     'app' => $app,
                 ], $params);
 
-                $pdfFile = PdfService::generatePdfFromTemplate(
-                    $app,
-                    $entity->user,
-                    $pdfTemplate,
-                    $entity,
-                    $pdfData
-                );
+                try {
+                    $pdfFile = PdfService::generatePdfFromTemplate(
+                        $app,
+                        $entity->user,
+                        $pdfTemplate,
+                        $entity,
+                        $pdfData
+                    );
 
-                $entity->addFile($pdfFile, $pdfFileName);
+                    $entity->addFile($pdfFile, $pdfFileName);
 
-                //@todo any better way to do this?
-                if ($entity instanceof Message && $entity->parent) {
-                    $entity->parent->addFile($pdfFile, $pdfFileName);
+                    //@todo any better way to do this?
+                    if ($entity instanceof Message && $entity->parent) {
+                        $entity->parent->addFile($pdfFile, $pdfFileName);
+                    }
+                } catch (Throwable $e) {
+                    $this->trackChecklistPdf($engagement, $taskListItem, ChecklistPdfGenerationEnum::FAILED);
+
+                    throw $e;
                 }
 
                 /**
                  * @todo MOVE THIS TO ITS OWN ACTIVITY
                  */
-                if ($entity instanceof Message && isset($entity->message['checkListId'])) {
+                if ($engagement !== null && $taskListItem !== null) {
                     try {
-                        $action = Action::getBySlug($entity->message['verb'], $entity->company);
-                        $companyAction = CompanyAction::getByAction($action, $entity->company, $app);
-                        $engagement = Engagement::getByMessageId($entity->getId());
-
-                        $companyTaskList = TaskListItem::query()->where('companies_action_id', $companyAction->getId())
-                            ->where('task_list_id', $entity->message['checkListId'])
-                            ->where('is_deleted', 0)
-                            ->first();
-
-                        //$entity->message['checkListId'] = $entity->message['checkListId'];
-                        if ($companyTaskList) {
-                            new ChangeTaskEngagementItemStatusAction(
-                                taskListItem: $companyTaskList,
-                                lead: $engagement->lead,
-                                status: TaskStatusEnum::COMPLETED->value,
-                                user: $engagement->user,
-                                app: $app,
-                                company: $engagement->company,
-                                message: $entity
-                            )->execute();
-                        }
+                        new ChangeTaskEngagementItemStatusAction(
+                            taskListItem: $taskListItem,
+                            lead: $engagement->lead,
+                            status: TaskStatusEnum::COMPLETED->value,
+                            user: $engagement->user,
+                            app: $app,
+                            company: $engagement->company,
+                            message: $entity
+                        )->execute();
                     } catch (Exception $e) {
                         $errorMessage = $e->getMessage() . $e->getTraceAsString();
                     }
                 }
+
+                // Cleared even when the status change failed: the PDF itself is attached, and the task
+                // row has its own lead-tasks channel.
+                $this->trackChecklistPdf($engagement, $taskListItem, null);
 
                 if ($errorMessage !== null) {
                     return $this->failWorkflow([
@@ -136,5 +166,61 @@ class GeneratePdfActivity extends KanvasActivity implements WorkflowActivityInte
             },
             company: $entity->company
         );
+    }
+
+    /**
+     * Upserts this task's entry in the lead's checklist PDF custom field (a null status removes it)
+     * and tells the lead channel to re-read it. UI state only, so a failure here is reported and
+     * never allowed to fail the PDF.
+     */
+    private function trackChecklistPdf(
+        ?Engagement $engagement,
+        ?TaskListItem $taskListItem,
+        ?ChecklistPdfGenerationEnum $status
+    ): void {
+        $lead = $engagement?->lead;
+
+        if ($taskListItem === null || ! $lead instanceof Lead) {
+            return;
+        }
+
+        try {
+            // Keyed by lead, not task: two checklist items on one lead can generate at the same time.
+            Cache::lock('checklist_generate_pdf:' . $lead->getId(), 10)->block(10, function () use ($lead, $engagement, $taskListItem, $status): void {
+                $entries = array_values(array_filter(
+                    (array) $lead->get(self::CHECKLIST_PDF_CUSTOM_FIELD, []),
+                    fn (mixed $entry): bool => is_array($entry) && (int) ($entry['task_id'] ?? 0) !== $taskListItem->getId()
+                ));
+
+                if ($status !== null) {
+                    $entries[] = [
+                        'action_id' => (int) $taskListItem->companyAction->actions_id,
+                        'company_action_id' => (int) $taskListItem->companies_action_id,
+                        'task_id' => $taskListItem->getId(),
+                        'message_id' => (int) $engagement->message_id,
+                        'status' => $status->value,
+                    ];
+                }
+
+                // set() fires CREATE_CUSTOM_FIELD workflows from inside this running workflow, and the
+                // same Lead instance goes to ChangeTaskEngagementItemStatusAction next, hence finally.
+                $lead->disableWorkflows();
+
+                try {
+                    // Never set([]): get() treats an empty Redis value as a miss and returns the stale DB row.
+                    if ($entries === []) {
+                        $lead->del(self::CHECKLIST_PDF_CUSTOM_FIELD);
+                    } else {
+                        $lead->set(self::CHECKLIST_PDF_CUSTOM_FIELD, $entries);
+                    }
+                } finally {
+                    $lead->enableWorkflows();
+                }
+            });
+
+            ChecklistGeneratePdfEvent::dispatch((string) $lead->uuid);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 }

@@ -26,8 +26,7 @@ trait ResolvesSpreadsheetIdForTool
             return [
                 'reason' => 'sheet_reference_required',
                 'message' => 'This tool needs a link to an EXISTING Google Sheets document and none was given. '
-                    . 'It does NOT create a new spreadsheet, and no tool does. If the user asked for a new '
-                    . 'sheet, tell them that and ask which existing document to work in.',
+                    . 'It does NOT create a new spreadsheet — use create_google_spreadsheet for that.',
             ];
         }
 

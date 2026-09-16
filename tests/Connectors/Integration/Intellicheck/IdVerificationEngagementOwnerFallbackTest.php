@@ -11,15 +11,13 @@ use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\ActionEngine\Pipelines\Models\PipelineStage;
 use Kanvas\Apps\Actions\SyncEmailTemplateAction;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Intellicheck\Activities\IdVerificationReportActivity;
+use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdAction;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel;
 use Kanvas\Users\Models\Users;
-use ReflectionClass;
-use ReflectionMethod;
 use Tests\TestCase;
 
 /**
@@ -31,10 +29,7 @@ final class IdVerificationEngagementOwnerFallbackTest extends TestCase
 {
     private function invokeCreateEngagement(Lead $lead, People $people): ?Engagement
     {
-        $activity = new ReflectionClass(IdVerificationReportActivity::class)->newInstanceWithoutConstructor();
-        $method = new ReflectionMethod(IdVerificationReportActivity::class, 'createIdVerificationEngagement');
-
-        return $method->invoke($activity, $lead, $people);
+        return new VerifyPeopleIdAction($people, $lead)->resolveEngagement(reuseExistingEngagement: true);
     }
 
     public function testFallsBackToLeadUserWhenLeadHasNoOwner(): void
