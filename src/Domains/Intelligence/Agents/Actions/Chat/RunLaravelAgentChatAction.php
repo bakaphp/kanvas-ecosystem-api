@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
-use Baka\Http\SafeUrlFetcher;
 use finfo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -15,6 +14,7 @@ use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
+use Kanvas\Intelligence\Agents\Services\AttachmentFetchService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
@@ -24,7 +24,6 @@ use Laravel\Ai\Files\Document;
 use Laravel\Ai\Files\File;
 use Laravel\Ai\Files\Image;
 use Laravel\Ai\Responses\StructuredAgentResponse;
-use Throwable;
 
 class RunLaravelAgentChatAction
 {
@@ -55,7 +54,10 @@ class RunLaravelAgentChatAction
                 : $this->handler->forUser($this->user);
         }
 
-        $response = $this->handler->promptWithConfig($this->message, $this->buildAttachments());
+        [$attachments, $unavailableNotes] = $this->buildAttachments();
+        $prompt = implode("\n\n", [$this->message, ...$unavailableNotes]);
+
+        $response = $this->handler->promptWithConfig($prompt, $attachments);
         // Structured-output agents (HasStructuredOutput) return their payload in
         // ->structured; ->text is empty in JSON mode. Surface the JSON as the
         // reply so the recommendations actually reach the caller instead of "".
@@ -134,40 +136,37 @@ class RunLaravelAgentChatAction
     }
 
     /**
-     * Fetch each attachment and wrap it as the matching base64 laravel-ai file (image / audio /
-     * document) so the model sees it on this turn. SSRF guard: remote URLs go through the validated
-     * fetcher (blocks internal hosts / cloud-metadata); local paths keep the raw read. A failed
-     * fetch or a non-native type is skipped, not fatal.
+     * Wrap each attachment as the matching base64 laravel-ai file (image / audio / document) so the
+     * model sees it on this turn. A non-native type is skipped; an unreadable one becomes a note on
+     * the prompt instead.
      *
-     * @return list<File>
+     * @return array{0: list<File>, 1: list<string>} `[$attachments, $unavailableNotes]`
      */
     private function buildAttachments(): array
     {
         $attachments = [];
+        $unavailableNotes = [];
 
         foreach ($this->media as $url) {
-            try {
-                if (preg_match('#^https?://#i', $url)) {
-                    $binary = SafeUrlFetcher::fetch($url);
-                } else {
-                    $raw = file_get_contents($url);
-                    $binary = $raw === false ? '' : $raw;
-                }
+            $binary = AttachmentFetchService::fetch($url);
 
-                if ($binary === '') {
-                    continue;
-                }
+            if ($binary === null) {
+                $unavailableNotes[] = AttachmentFetchService::unavailableNote($url);
 
-                $file = $this->wrapAttachment($binary);
-                if ($file !== null) {
-                    $attachments[] = $file;
-                }
-            } catch (Throwable $e) {
-                report($e);
+                continue;
+            }
+
+            if ($binary === '') {
+                continue;
+            }
+
+            $file = $this->wrapAttachment($binary);
+            if ($file !== null) {
+                $attachments[] = $file;
             }
         }
 
-        return $attachments;
+        return [$attachments, $unavailableNotes];
     }
 
     private function wrapAttachment(string $binary): ?File

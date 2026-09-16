@@ -13,6 +13,7 @@ return [
     'timeout' => (float) env('SSRF_TIMEOUT', 15),
     'connect_timeout' => (float) env('SSRF_CONNECT_TIMEOUT', 5),
     'max_redirects' => (int) env('SSRF_MAX_REDIRECTS', 3),
+    'user_agent' => env('SSRF_USER_AGENT', 'KanvasBot/1.0 (+https://kanvas.dev)'),
 
     /*
      * Operator-specific extra ranges to block, merged on top of the hardcoded baseline in

@@ -43,6 +43,9 @@ final class SafeUrlFetcher
             'connect_timeout' => (float) config('ssrf.connect_timeout', 5),
             'timeout' => (float) config('ssrf.timeout', 15),
             'stream' => true,
+            'headers' => [
+                'User-Agent' => (string) config('ssrf.user_agent', 'KanvasBot/1.0 (+https://kanvas.dev)'),
+            ],
             'allow_redirects' => [
                 'max' => (int) config('ssrf.max_redirects', 3),
                 'strict' => true,

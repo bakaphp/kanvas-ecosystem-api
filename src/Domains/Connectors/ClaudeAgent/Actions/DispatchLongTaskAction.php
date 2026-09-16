@@ -10,7 +10,6 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
-use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Users\Models\Users;
@@ -81,7 +80,6 @@ class DispatchLongTaskAction
                 // back to the agent's own user.
                 user: $this->requestedBy ?? $this->agent->user,
                 description: $brief,
-                status: PlanStatusEnum::ACTIVE,
                 input: ['repo_slugs' => $this->repoSlugs, 'graded' => $this->rubric !== null],
             ),
             tasks: [

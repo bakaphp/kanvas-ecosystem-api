@@ -4,13 +4,15 @@ namespace App\Exceptions;
 
 use Baka\Exceptions\LightHouseCustomException;
 use Baka\Support\Str;
+use Closure;
 use GraphQL\Error\Error;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Nuwave\Lighthouse\Execution\ErrorHandler;
 
 class CountErrorHandler implements ErrorHandler
 {
-    public function __invoke(?Error $error, \Closure $next): ?array
+    #[Override]
+    public function __invoke(?Error $error, Closure $next): ?array
     {
         if ($error === null) {
             return $next(null);

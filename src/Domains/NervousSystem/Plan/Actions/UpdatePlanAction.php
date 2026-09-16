@@ -69,10 +69,7 @@ class UpdatePlanAction
             // creation. Setting the flag alone changed nothing: the plan stayed active, the loop kept
             // dispatching, and "waiting for approval" was a sentence in a comment that nothing
             // enforced (plan 25667). Already-approved plans are left alone — approval is not re-asked.
-            if ($this->plan->requires_human_approval
-                && $this->plan->approved_at === null
-                && $newStatus === PlanStatusEnum::ACTIVE->value
-            ) {
+            if ($this->plan->needsApproval() && $newStatus === PlanStatusEnum::ACTIVE->value) {
                 $newStatus = PlanStatusEnum::AWAITING_APPROVAL->value;
             }
 

@@ -18,7 +18,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
-use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Users\Models\Users;
 
@@ -79,7 +79,6 @@ class DispatchCodingJobAction
                 agent: $this->agent,
                 user: $this->requestedBy ?? $this->agent->user,
                 description: $this->task,
-                status: PlanStatusEnum::ACTIVE,
                 input: ['repo_slug' => $this->repoSlug, 'repo_url' => $repoUrl],
             ),
             tasks: [
@@ -87,6 +86,7 @@ class DispatchCodingJobAction
                     plan: null,
                     title: Str::limit(trim($this->task), 120),
                     description: $this->task,
+                    status: TaskStatusEnum::IN_PROGRESS,
                 ),
             ],
             fromSync: true,

@@ -387,6 +387,42 @@ class Plan extends BaseModel implements HandlesAgentMention
             ->where('entity_id', $entityId);
     }
 
+    public function needsApproval(): bool
+    {
+        return $this->requires_human_approval && $this->approved_at === null;
+    }
+
+    /**
+     * Takes a plan off the TODO column once its work actually begins. A plan still waiting on sign-off
+     * goes to awaiting_approval instead — starting a task is what asks for the approval, never what
+     * slips past it.
+     */
+    public function startWork(): void
+    {
+        if ($this->status !== PlanStatusEnum::DRAFT->value) {
+            return;
+        }
+
+        $previousStatus = $this->status;
+
+        if ($this->needsApproval()) {
+            $this->status = PlanStatusEnum::AWAITING_APPROVAL->value;
+        } else {
+            $this->status = PlanStatusEnum::ACTIVE->value;
+            $this->started_at ??= Carbon::now();
+        }
+
+        $this->saveOrFail();
+
+        $this->emitLedgerEvent('plan.updated', payload: [
+            'status_from' => $previousStatus,
+            'status_to' => $this->status,
+            'completion_pct' => $this->completion_pct,
+        ]);
+
+        $this->broadcastChange(PlanChangeTypeEnum::UPDATED, previousStatus: $previousStatus);
+    }
+
     public function broadcastChange(
         PlanChangeTypeEnum $changeType,
         ?Task $task = null,

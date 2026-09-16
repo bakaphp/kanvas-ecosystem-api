@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
-use Baka\Http\SafeUrlFetcher;
 use finfo;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -17,6 +16,7 @@ use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
+use Kanvas\Intelligence\Agents\Services\AttachmentFetchService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
@@ -70,24 +70,19 @@ class RunNeuronChatAction
 
         $userMessage = new UserMessage($this->message);
         foreach ($this->media as $attachment) {
-            // One unreachable/oversized attachment must not sink the whole turn — fetch failures
-            // (SafeUrlFetcher throws on transport/SSRF) are reported and skipped, not propagated.
-            try {
-                // SSRF guard: remote URLs go through the validated fetcher (blocks internal
-                // hosts / cloud-metadata); data: URIs and local paths keep the raw read.
-                if (preg_match('#^https?://#i', $attachment)) {
-                    $binary = SafeUrlFetcher::fetch($attachment);
-                } else {
-                    $raw = file_get_contents($attachment);
-                    $binary = $raw === false ? '' : $raw;
-                }
+            $binary = AttachmentFetchService::fetch($attachment);
 
-                $block = $this->buildContentBlock($binary);
-                if ($block !== null) {
-                    $userMessage->addContent($block);
-                }
-            } catch (Throwable $e) {
-                report($e);
+            if ($binary === null) {
+                $userMessage->addContent(
+                    new TextContent(AttachmentFetchService::unavailableNote($attachment))
+                );
+
+                continue;
+            }
+
+            $block = $this->buildContentBlock($binary);
+            if ($block !== null) {
+                $userMessage->addContent($block);
             }
         }
 
