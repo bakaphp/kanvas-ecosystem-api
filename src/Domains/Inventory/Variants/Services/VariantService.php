@@ -145,7 +145,7 @@ class VariantService
                     } else {
                         $warehouse = Warehouses::getDefault($company, $product->app);
                     }
-                    $channel = ChannelRepository::getById(
+                    $channel = ChannelRepository::getByIdOrGlobal(
                         (int) $variantChannel['channels_id'],
                         $company,
                         $product->app
