@@ -4,7 +4,8 @@ type FilesystemMapper {
     company: Company!
     name: String!
     description: String
-    file_header: Mixed!
+    file_header: Mixed
+    has_header: Boolean!
     mapping: Mixed!
     configuration: Mixed
     is_default: Boolean
@@ -55,6 +56,7 @@ input UpdateFilesystemImportInput {
     mapper_id: ID!
     name: String!
     description: String
+    has_header: Boolean
     file_header: Mixed
     mapping: Mixed!
     configuration: Mixed

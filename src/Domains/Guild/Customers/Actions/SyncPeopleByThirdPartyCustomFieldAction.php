@@ -42,7 +42,7 @@ class SyncPeopleByThirdPartyCustomFieldAction
             // The concurrent sync owns the canonical people record for this reference.
             // Yield to it instead of surfacing a 500; only rethrow if it isn't there yet.
             /** @var ModelsPeople|null $people */
-            $people = ModelsPeople::getByCustomField($customFieldKey, $customFieldValue, $company);
+            $people = ModelsPeople::getByCustomFieldTransactionSafe($customFieldKey, $customFieldValue, $company);
 
             if ($people !== null) {
                 return $people;
@@ -55,7 +55,7 @@ class SyncPeopleByThirdPartyCustomFieldAction
     private function sync(string $customFieldKey, string $customFieldValue): ModelsPeople
     {
         /** @var ModelsPeople|null $people */
-        $people = ModelsPeople::getByCustomField(
+        $people = ModelsPeople::getByCustomFieldTransactionSafe(
             $customFieldKey,
             $customFieldValue,
             $this->people->branch->company,

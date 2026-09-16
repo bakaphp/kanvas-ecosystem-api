@@ -9,6 +9,7 @@ use Baka\Traits\UuidTrait;
 use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Models\BaseModel;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Traits\DefaultTrait;
@@ -48,15 +49,17 @@ class FilesystemMapper extends BaseModel
         'name',
         'description',
         'file_header',
+        'has_header',
         'mapping',
         'is_default',
-        'configuration'
+        'configuration',
     ];
 
     protected $casts = [
         'file_header' => Json::class,
+        'has_header' => 'boolean',
         'mapping' => Json::class,
-        'configuration' => Json::class
+        'configuration' => Json::class,
     ];
 
     /**
@@ -65,6 +68,11 @@ class FilesystemMapper extends BaseModel
     public function systemModule(): BelongsTo
     {
         return $this->belongsTo(SystemModules::class, 'system_modules_id');
+    }
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(CompaniesBranches::class, 'companies_branches_id');
     }
 
     public function imports(): HasMany

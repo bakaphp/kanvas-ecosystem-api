@@ -7,10 +7,13 @@ namespace Kanvas\Filesystem\DataTransferObject;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Filesystem\DataTransferObject\Concerns\DeclaresFileHeader;
 use Spatie\LaravelData\Data;
 
 class FilesystemMapperUpdate extends Data
 {
+    use DeclaresFileHeader;
+
     public function __construct(
         public AppInterface $app,
         public CompaniesBranches $branch,
@@ -20,6 +23,7 @@ class FilesystemMapperUpdate extends Data
         public array $mapping,
         public array $configuration = [],
         public bool $is_default = false,
+        public bool $has_header = false,
         public ?string $description = null
     ) {
     }
@@ -30,16 +34,19 @@ class FilesystemMapperUpdate extends Data
         UserInterface $user,
         array $data
     ): self {
+        $header = $data['header'] ?? $data['file_header'] ?? [];
+
         return new self(
-            $app,
-            $branch,
-            $user,
-            $data['name'],
-            $data['header'] ?? $data['file_header'] ?? [],
-            $data['mapping'],
-            json_decode(json_encode($data['configuration'] ?? []), true),
-            $data['is_default'] ?? false,
-            $data['description'] ?? null,
+            app: $app,
+            branch: $branch,
+            user: $user,
+            name: $data['name'],
+            header: $header,
+            mapping: $data['mapping'],
+            configuration: json_decode(json_encode($data['configuration'] ?? []), true),
+            is_default: $data['is_default'] ?? false,
+            has_header: (bool) ($data['has_header'] ?? ! empty($header)),
+            description: $data['description'] ?? null,
         );
     }
 }

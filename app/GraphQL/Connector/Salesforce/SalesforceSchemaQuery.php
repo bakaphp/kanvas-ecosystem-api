@@ -7,7 +7,7 @@ namespace App\GraphQL\Connector\Salesforce;
 use App\GraphQL\Concerns\ResolvesActingContext;
 use Kanvas\Connectors\Salesforce\Client;
 use Kanvas\Connectors\Salesforce\Services\SalesforceApiClient;
-use Kanvas\Exceptions\ValidationException;
+use Kanvas\Connectors\Salesforce\Support\Soql;
 
 class SalesforceSchemaQuery
 {
@@ -48,7 +48,7 @@ class SalesforceSchemaQuery
     {
         $client = $this->client();
 
-        $objectName = $this->assertValidObjectName((string) $request['object_name']);
+        $objectName = Soql::assertValidIdentifier((string) $request['object_name']);
         $fields = $client->describeObject($objectName)['fields'] ?? [];
 
         return array_map(
@@ -69,12 +69,12 @@ class SalesforceSchemaQuery
     {
         $client = $this->client();
 
-        $objectName = $this->assertValidObjectName((string) $request['object_name']);
+        $objectName = Soql::assertValidIdentifier((string) $request['object_name']);
         $limit = min((int) ($request['limit'] ?? 50), 200);
 
         $soql = "SELECT Id, Name FROM {$objectName}";
         if (! empty($request['search'])) {
-            $soql .= " WHERE Name LIKE '%" . $this->escapeSoqlLiteral((string) $request['search']) . "%'";
+            $soql .= " WHERE Name LIKE '%" . Soql::escapeLiteral((string) $request['search']) . "%'";
         }
         $soql .= " LIMIT {$limit}";
 
@@ -94,19 +94,5 @@ class SalesforceSchemaQuery
         $ctx = $this->actingContext();
 
         return Client::getInstance($ctx->app, $ctx->company);
-    }
-
-    private function assertValidObjectName(string $objectName): string
-    {
-        if (! preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $objectName)) {
-            throw new ValidationException("Invalid Salesforce object name: {$objectName}");
-        }
-
-        return $objectName;
-    }
-
-    private function escapeSoqlLiteral(string $value): string
-    {
-        return str_replace(['\\', "'"], ['\\\\', "\\'"], $value);
     }
 }

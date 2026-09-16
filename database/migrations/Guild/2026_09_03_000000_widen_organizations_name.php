@@ -9,13 +9,11 @@ use Illuminate\Support\Facades\Schema;
 /**
  * Widen `organizations.name` from VARCHAR(128) to VARCHAR(255).
  *
- * A real Salesforce Account backfill (`kanvas:salesforce-backfill`) hit
- * `SQLSTATE[22001]: String data, right truncated` on an estate/trust-style
- * Account whose Name lists multiple beneficiaries (196 chars) — e.g.
- * "R.E. Nohlgren, Hannah V. Nohlgren, Estate of Harold Boyd Harold E. Hansen,
- * Lori Hanson Olson, ...". 128 chars is too tight for that naming pattern;
- * 255 matches the column's own `shortname`-adjacent siblings elsewhere in
- * this schema and gives real headroom without going unbounded.
+ * A Salesforce Account backfill (`kanvas:salesforce-backfill`) hit
+ * `SQLSTATE[22001]: String data, right truncated` on an estate/trust-style Account
+ * whose Name enumerates every beneficiary — 196 chars in the case that failed. 128
+ * is too tight for that naming pattern; 255 gives real headroom without going
+ * unbounded.
  */
 return new class () extends Migration {
     protected $connection = 'crm';

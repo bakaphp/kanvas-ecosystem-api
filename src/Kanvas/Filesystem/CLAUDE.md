@@ -15,12 +15,12 @@ multi-tenant field-mapping mechanism — not just the CSV import path it origina
   `FilesystemImports` row, no queue required. This is what a connector (Salesforce today, Odoo or
   anything else later) should call — never reach for the file pipeline just to process one record.
 
-Both read the **same** `FilesystemMapper.mapping` shape, via `FilesystemMapperWalker` (extracted
-from `ImportProductFromFilesystemAction::mapper()`, used by both paths — don't reintroduce a second
-copy; `src/Kanvas/Filesystem/Actions/ImportDataFromFilesystemAction.php` is exactly that mistake
-already made once — it has its own duplicate `mapper()`/`getJob()` and is **dead code**, unreachable
-from anywhere in the app because `People` never implemented the interface it expects. Don't revive
-it; don't copy its shape as precedent).
+Both read the **same** `FilesystemMapper.mapping` shape, via `FilesystemMapperWalkerService` — one
+implementation, used by both paths. Don't reintroduce a second copy.
+
+`ApplyFilesystemMapperAction` derives `app` and `company` from the mapper itself; only the acting
+`user` is passed, because the mapper's own `users_id` is whoever authored it, not whoever is
+importing now.
 
 ## `mapping` syntax — the field that's easy to get wrong
 
@@ -36,7 +36,7 @@ field; a nested array recurses.
 
 ### `attributes` — the actual gotcha
 
-The `attributes` key is special-cased (`FilesystemMapperWalker::walk()`), and its shape is **not**
+The `attributes` key is special-cased (`FilesystemMapperWalkerService::walk()`), and its shape is **not**
 `{ "AttrName": "source_field" }` — that produces an empty result, because `mapAttributes()` requires
 each entry to already be an array. The correct shape is a **list of single-key dicts, the key is the
 literal attribute name**:
@@ -57,15 +57,27 @@ one literally named `"name"`/`"value"`. `fromProduct: true|false` is an optional
 `ImportProductFromFilesystemAction::buildProductFromVariants()`; `ApplyFilesystemMapperAction`
 ignores it (it calls `Products::addAttributes()` directly, bypassing that promotion step).
 
-## `configuration` — free JSON, two known keys
+## `configuration` — free JSON, three known keys
 
-`FilesystemMapper.configuration` is an arbitrary JSON column. Two keys `ApplyFilesystemMapperAction`
+`FilesystemMapper.configuration` is an arbitrary JSON column. Three keys `ApplyFilesystemMapperAction`
 actually reads:
 
 | Key | Read by | Meaning |
 |---|---|---|
-| `product_type_id` | `ApplyFilesystemMapperAction::createProduct()` (and `ImportProductFromFilesystemAction::resolveProductType()` on the CSV path — near-duplicate logic, not yet unified across the two domains) | Required when the mapper targets `Products`. Throws `ValidationException` if missing. |
+| `external_id_field` | `ApplyFilesystemMapperAction::externalIdField()` | **Required.** The custom field holding the source system's own id for the record. Throws `ValidationException` if missing. |
+| `product_type_id` | `ProductsTypesRepository::getFromConfiguredId()`, shared with `ImportProductFromFilesystemAction` on the CSV path | Required when the mapper targets `Products`. Throws `ValidationException` if missing. |
 | `links` | `ApplyFilesystemMapperAction::applyLinks()` | Describes a related entity to also create from the *same* source record family — see below. |
+
+### `external_id_field` — why it is mandatory
+
+The same source record arrives repeatedly: a webhook re-fires on every upstream edit, a backfill
+re-runs. Without an id of its own to match on, a re-import falls through to whatever the create
+actions dedupe on — a product's slug (derived from its **name**) and a person's **email/phone**.
+All of those are mutable upstream, so the first rename or address change silently forks the record
+into a second one, with nothing left to link them by. The field is written on every apply and
+matched before create, using the **transaction-safe** custom-field lookup (`apps_custom_fields`
+lives on `ecosystem` while the entity lives on `inventory`/`crm`; the plain joining builder reads
+stale across an open transaction — see `HasCustomFields`).
 
 ### `links` — the multi-entity "recipe"
 
@@ -90,8 +102,8 @@ actually reads:
   `match_field` = the field on it that equals the primary record's id). `ApplyFilesystemMapperAction`
   never talks to any API itself — it only calls the closure the caller gave it. **Whoever builds that
   closure is responsible for escaping/validating these two values before they reach a query string**
-  — see `SalesforceOutboundMessageWebhookJob::applyMapper()` for the SOQL-injection guard pattern
-  (`assertValidSoqlIdentifier()` + `escapeSoqlLiteral()`); they aren't safe to interpolate raw.
+  — see `SalesforceOutboundMessageWebhookJob::applyMapper()`, which routes both through
+  `Kanvas\Connectors\Salesforce\Support\Soql`; they aren't safe to interpolate raw.
 - `link_field` — the custom field on the primary entity where the linked entity's id gets stored
   (`$entity->set($linkField, $linkedEntity->getId())`).
 
@@ -115,4 +127,8 @@ it only if a real two-level chain shows up.
 `EntityImportFilesystemInterface::getImportHandler()`: that interface is shaped for the file
 pipeline (`FilesystemImports`), and reusing it for a single in-memory record would be an interface
 lying about its own contract. Adding a third entity type means one more `match` arm plus a
-`createX()` method here — small, contained growth.
+`syncX()` method here — small, contained growth.
+
+People go through `SyncPeopleByThirdPartyCustomFieldAction` (match-or-create by custom field, under
+a lock) rather than `CreatePeopleAction` directly — the same path the standard Salesforce objects
+use. Don't fork it.

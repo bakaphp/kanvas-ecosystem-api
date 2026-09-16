@@ -9,12 +9,10 @@ use Illuminate\Support\Str;
 use Kanvas\Social\Tags\Models\Tag;
 
 /**
- * Interprets a `FilesystemMapper.mapping` template against one row of raw source data —
- * originally lived inside `ImportProductFromFilesystemAction`, extracted so any entity (not just
- * Products) can turn a mapper + raw record into Kanvas-shaped data, regardless of where the raw
- * record came from (a CSV row, a connector's API response, ...).
+ * Interprets a `FilesystemMapper.mapping` template against one row of raw source data, whatever
+ * produced it — a CSV row, a connector's API response, a webhook payload.
  */
-class FilesystemMapperWalker
+class FilesystemMapperWalkerService
 {
     /**
      * Mapper keys that live on a source row but mean something different once the row becomes a
