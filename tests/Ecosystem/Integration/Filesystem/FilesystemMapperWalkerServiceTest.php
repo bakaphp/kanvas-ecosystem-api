@@ -7,9 +7,8 @@ namespace Tests\Ecosystem\Integration\Filesystem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Filesystem\Actions\CreateFilesystemMapperAction;
-use Kanvas\Filesystem\Actions\ImportDataFromFilesystemAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemMapper;
-use Kanvas\Filesystem\Models\FilesystemImports;
+use Kanvas\Filesystem\Services\FilesystemMapperWalkerService;
 use Kanvas\Inventory\Importer\Actions\ProductImporterAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Products\Models\Products;
@@ -21,7 +20,7 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
-final class ImportDataFromFilesystemActionTest extends TestCase
+final class FilesystemMapperWalkerServiceTest extends TestCase
 {
     private function buildBaseMapper(): array
     {
@@ -127,8 +126,8 @@ final class ImportDataFromFilesystemActionTest extends TestCase
             'Tags' => 'sale,new arrival, featured',
         ];
 
-        $action = new ImportDataFromFilesystemAction(new FilesystemImports());
-        $result = $action->mapper($filesystemMapper->mapping, $values);
+        $action = new FilesystemMapperWalkerService();
+        $result = $action->walk($filesystemMapper->mapping, $values);
 
         $this->assertIsArray($result['tags']);
         $this->assertCount(3, $result['tags']);
@@ -157,8 +156,8 @@ final class ImportDataFromFilesystemActionTest extends TestCase
             )
         ))->execute();
 
-        $action = new ImportDataFromFilesystemAction(new FilesystemImports());
-        $result = $action->mapper($filesystemMapper->mapping, [
+        $action = new FilesystemMapperWalkerService();
+        $result = $action->walk($filesystemMapper->mapping, [
             'Product Name' => fake()->word(),
             'SKU' => fake()->numerify('SKU-####'),
             'Description' => fake()->sentence(),
@@ -191,8 +190,8 @@ final class ImportDataFromFilesystemActionTest extends TestCase
             )
         ))->execute();
 
-        $action = new ImportDataFromFilesystemAction(new FilesystemImports());
-        $result = $action->mapper($filesystemMapper->mapping, [
+        $action = new FilesystemMapperWalkerService();
+        $result = $action->walk($filesystemMapper->mapping, [
             'Product Name' => fake()->word(),
             'SKU' => fake()->numerify('SKU-####'),
             'Description' => fake()->sentence(),
@@ -240,8 +239,8 @@ final class ImportDataFromFilesystemActionTest extends TestCase
             'Tags' => $tagOne . ',' . $tagTwo,
         ];
 
-        $action = new ImportDataFromFilesystemAction(new FilesystemImports());
-        $mapped = $action->mapper($filesystemMapper->mapping, $values);
+        $action = new FilesystemMapperWalkerService();
+        $mapped = $action->walk($filesystemMapper->mapping, $values);
 
         $product = (new ProductImporterAction(
             ProductImporter::from($mapped),
@@ -280,10 +279,10 @@ final class ImportDataFromFilesystemActionTest extends TestCase
         ))->execute();
 
         $sharedTag = 'shared-' . uniqid();
-        $action = new ImportDataFromFilesystemAction(new FilesystemImports());
+        $action = new FilesystemMapperWalkerService();
 
         $skuA = fake()->numerify('SKU-####');
-        $mappedA = $action->mapper($filesystemMapper->mapping, [
+        $mappedA = $action->walk($filesystemMapper->mapping, [
             'Product Name' => fake()->word(),
             'SKU' => $skuA,
             'Description' => fake()->sentence(),
@@ -301,7 +300,7 @@ final class ImportDataFromFilesystemActionTest extends TestCase
         ))->execute();
 
         $skuB = fake()->numerify('SKU-####');
-        $mappedB = $action->mapper($filesystemMapper->mapping, [
+        $mappedB = $action->walk($filesystemMapper->mapping, [
             'Product Name' => fake()->word(),
             'SKU' => $skuB,
             'Description' => fake()->sentence(),

@@ -89,6 +89,7 @@ class FilesystemMapperTest extends TestCase
             ],
         ]);
     }
+
     public function testCreateFilesystemMapperDefault(): void
     {
         $app = app(Apps::class);
@@ -150,12 +151,13 @@ class FilesystemMapperTest extends TestCase
                 'createFilesystemMapper' => [
                     'id',
                     'name',
-                    'is_default'
+                    'is_default',
                 ],
             ],
         ]);
         $this->assertEquals('test', $response->json('data.createFilesystemMapper.name'));
     }
+
     public function testUpdateFilesystemMapper(): void
     {
         $app = app(Apps::class);
@@ -372,6 +374,9 @@ class FilesystemMapperTest extends TestCase
                 'email' => 'Contact_Email__c',
                 'phone' => 'Contact_Phone__c',
             ],
+            'configuration' => [
+                'external_id_field' => 'salesforce_location_contact_id',
+            ],
         ];
 
         $peopleResponse = $this->graphQL(/** @lang GraphQL */ '
@@ -415,6 +420,7 @@ class FilesystemMapperTest extends TestCase
             ],
             'configuration' => [
                 'product_type_id' => $productType->getId(),
+                'external_id_field' => 'salesforce_location_id',
             ],
         ];
 
@@ -438,6 +444,7 @@ class FilesystemMapperTest extends TestCase
             'mapping' => $productMapperInput['mapping'],
             'configuration' => [
                 'product_type_id' => $productType->getId(),
+                'external_id_field' => 'salesforce_location_id',
                 'links' => [
                     [
                         'mapper_id' => $peopleMapperId,
@@ -492,12 +499,10 @@ class FilesystemMapperTest extends TestCase
         $productMapper = FilesystemMapper::find($productMapperId);
 
         $product = new ApplyFilesystemMapperAction(
-            $app,
-            $company,
-            $user,
-            $productMapper,
-            'SFFLOW001',
-            [
+            user: $user,
+            mapper: $productMapper,
+            primaryId: 'SFFLOW001',
+            rawData: [
                 'Id' => 'SFFLOW001',
                 'Property_Name__c' => 'Mapper Flow Test Property',
                 'Brand__c' => 'Test Brand',
@@ -516,7 +521,7 @@ class FilesystemMapperTest extends TestCase
                 'Latitude__c' => '44.2769',
                 'Longitude__c' => '-83.4327',
             ],
-            [
+            correlatedRecords: [
                 $peopleMapperId => [
                     'Id' => 'SFFLOWCONTACT001',
                     'Contact_Name__c' => 'Mapper Flow Test Broker',

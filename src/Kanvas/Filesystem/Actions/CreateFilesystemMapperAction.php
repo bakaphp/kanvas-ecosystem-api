@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Actions;
 
 use Exception;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\DataTransferObject\FilesystemMapper;
 use Kanvas\Filesystem\Models\FilesystemMapper as ModelsFilesystemMapper;
 
@@ -25,9 +24,7 @@ class CreateFilesystemMapperAction
             throw new Exception('Missing fields in mapping, fields required: ' . implode(', ', $arrayDiff));
         }
 
-        if ($this->filesystemMapping->has_header && empty($this->filesystemMapping->header)) {
-            throw new ValidationException('file_header is required when has_header is true');
-        }
+        $this->filesystemMapping->assertHeaderIsUsable();
 
         return ModelsFilesystemMapper::firstOrCreate([
             'apps_id' => $this->filesystemMapping->app->getId(),
@@ -38,6 +35,7 @@ class CreateFilesystemMapperAction
             'name' => $this->filesystemMapping->name,
         ], [
             'file_header' => $this->filesystemMapping->header,
+            'has_header' => $this->filesystemMapping->has_header,
             'mapping' => $this->filesystemMapping->mapping,
             'description' => $this->filesystemMapping->description,
             'configuration' => $this->filesystemMapping->configuration,

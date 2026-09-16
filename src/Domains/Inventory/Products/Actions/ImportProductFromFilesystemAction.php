@@ -6,11 +6,10 @@ namespace Kanvas\Inventory\Products\Actions;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Services\CsvReaderService;
-use Kanvas\Filesystem\Services\FilesystemMapperWalker;
+use Kanvas\Filesystem\Services\FilesystemMapperWalkerService;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Products\Models\Products;
@@ -22,13 +21,13 @@ use Throwable;
 
 class ImportProductFromFilesystemAction
 {
-    protected FilesystemMapperWalker $walker;
+    protected FilesystemMapperWalkerService $walker;
 
     public function __construct(
         public FilesystemImports $filesystemImports,
         protected ?FilesystemServices $filesystemService = null,
     ) {
-        $this->walker = new FilesystemMapperWalker();
+        $this->walker = new FilesystemMapperWalkerService();
     }
 
     public function execute(): void
@@ -236,27 +235,11 @@ class ImportProductFromFilesystemAction
      */
     private function resolveProductType(array $configuration): ProductsTypes
     {
-        $productTypeId = $configuration['product_type_id'] ?? null;
-        if ($productTypeId === null || $productTypeId === '' || $productTypeId === 0) {
-            // Product types own the attribute schema for products imported under
-            // them. Without one, attributes have no type to attach to and the
-            // imported products would be data-orphans. Fail fast — before any
-            // CSV processing — with a message that points at the fix.
-            throw new ValidationException(
-                'Product imports require configuration.product_type_id on the FilesystemMapper. '
-                . 'Without it, imported products cannot be associated with their product type, '
-                . 'breaking attribute associations. Set product_type_id on the mapper before importing.'
-            );
-        }
-
-        /** @var ProductsTypes $productType */
-        $productType = ProductsTypesRepository::getByIdOrGlobal(
-            (int) $productTypeId,
+        return ProductsTypesRepository::getFromConfiguredId(
+            $configuration['product_type_id'] ?? null,
             $this->filesystemImports->company,
             $this->filesystemImports->app,
         );
-
-        return $productType;
     }
 
     private function cleanPrice(mixed $price): float

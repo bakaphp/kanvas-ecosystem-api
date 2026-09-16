@@ -17,10 +17,13 @@ class UpdateFilesystemMapperAction
 
     public function execute(): ModelsFilesystemMapper
     {
+        $this->filesystemMapping->assertHeaderIsUsable();
+
         $this->filesystemMapper->update([
             'name' => $this->filesystemMapping->name,
             'description' => $this->filesystemMapping->description,
             'file_header' => $this->filesystemMapping->header,
+            'has_header' => $this->filesystemMapping->has_header,
             'mapping' => $this->filesystemMapping->mapping,
             'configuration' => $this->filesystemMapping->configuration,
             'is_default' => $this->filesystemMapping->is_default,

@@ -7,9 +7,8 @@ namespace Tests\Ecosystem\Integration\Filesystem;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Filesystem\Actions\CreateFilesystemMapperAction;
-use Kanvas\Filesystem\Actions\ImportDataFromFilesystemAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemMapper;
-use Kanvas\Filesystem\Models\FilesystemImports;
+use Kanvas\Filesystem\Services\FilesystemMapperWalkerService;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
@@ -63,8 +62,8 @@ final class IntegrationMapperTest extends TestCase
                 ],
                 [
                     'name' => '_Start Date',
-                    'value' => "Listing Date"
-                ]
+                    'value' => 'Listing Date',
+                ],
             ],
             'variants' => [
                 [
@@ -151,11 +150,11 @@ final class IntegrationMapperTest extends TestCase
                     'Style' => fake()->word,
                     'Position' => fake()->numberBetween(1, 10),
                     'Compensation Comments' => fake()->sentence,
-                    "Listing Date" => "14/2/25", // This is a date for test format date
+                    'Listing Date' => '14/2/25', // This is a date for test format date
             ];
 
-        $importDataFromFilesystemAction = new ImportDataFromFilesystemAction(new FilesystemImports());
-        $dataMapper = $importDataFromFilesystemAction->mapper($filesystemMapper->mapping, $values);
+        $importDataFromFilesystemAction = new FilesystemMapperWalkerService();
+        $dataMapper = $importDataFromFilesystemAction->walk($filesystemMapper->mapping, $values);
         $productDto = ProductImporter::from($dataMapper);
 
         $productImporter = new ProductImporterAction(
@@ -263,8 +262,8 @@ final class IntegrationMapperTest extends TestCase
             'TRB SUBSCRIBER? Y / N' => 'Y',
             ];
 
-        $importDataFromFilesystemAction = new ImportDataFromFilesystemAction(new FilesystemImports());
-        $customerData = $importDataFromFilesystemAction->mapper($filesystemMapper->mapping, $values);
+        $importDataFromFilesystemAction = new FilesystemMapperWalkerService();
+        $customerData = $importDataFromFilesystemAction->walk($filesystemMapper->mapping, $values);
         $customerData = $customerData['input']['mapping'];
         $people = DataTransferObjectPeople::from([
             'app' => $app,

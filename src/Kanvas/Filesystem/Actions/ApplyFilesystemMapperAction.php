@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Actions;
 
-use Baka\Contracts\AppInterface;
-use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Closure;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\FilesystemMapper;
-use Kanvas\Filesystem\Services\FilesystemMapperWalker;
-use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Filesystem\Services\FilesystemMapperWalkerService;
+use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleData;
@@ -24,20 +24,19 @@ use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
 use Spatie\LaravelData\DataCollection;
 
 /**
- * Interprets one `FilesystemMapper` (mapping + configuration.links) against one raw source
- * record and creates/updates the Kanvas entity it describes — generic across whatever produced
- * the raw record (a CSV row, a connector's live API response, a webhook payload). Reused instead
- * of duplicating `ImportProductFromFilesystemAction`'s Product-only mapping logic per connector.
+ * Applies one `FilesystemMapper` to one raw source record, whatever produced it — a CSV row, a
+ * connector's API response, a webhook payload.
  *
- * `$correlatedRecords` (keyed by linked mapper id) covers the case where the caller already has
- * every related raw record on hand (a bulk pull). `$relatedRecordFetcher` covers the case where
- * only the primary record is known yet (a single webhook event) — the caller supplies a closure
- * that knows how to fetch a related record from its own source; this class never talks to any
- * external API itself, keeping it usable by future connectors without modification.
+ * `$correlatedRecords` covers the caller that already holds every related raw record (a bulk pull);
+ * `$relatedRecordFetcher` covers the caller that holds only the primary one (a single webhook
+ * event) and must fetch the rest on demand. This class never talks to an external API itself, so a
+ * new connector can reuse it by supplying its own fetcher.
  */
 class ApplyFilesystemMapperAction
 {
-    protected FilesystemMapperWalker $walker;
+    protected FilesystemMapperWalkerService $walker;
+    protected Apps $app;
+    protected Companies $company;
 
     /**
      * @param array<string, mixed> $rawData
@@ -47,8 +46,6 @@ class ApplyFilesystemMapperAction
      *        against infinite recursion when a mapper's `configuration.links` forms a cycle
      */
     public function __construct(
-        protected AppInterface $app,
-        protected CompanyInterface $company,
         protected UserInterface $user,
         protected FilesystemMapper $mapper,
         protected string $primaryId,
@@ -57,7 +54,9 @@ class ApplyFilesystemMapperAction
         protected ?Closure $relatedRecordFetcher = null,
         protected array $visitedMapperIds = [],
     ) {
-        $this->walker = new FilesystemMapperWalker();
+        $this->walker = new FilesystemMapperWalkerService();
+        $this->app = $mapper->app;
+        $this->company = $mapper->company;
     }
 
     public function execute(): Products|People
@@ -65,8 +64,8 @@ class ApplyFilesystemMapperAction
         $mapped = $this->walker->walk($this->mapper->mapping, $this->rawData);
 
         $entity = match ($this->mapper->systemModule->model_name) {
-            Products::class => $this->createProduct($mapped),
-            People::class => $this->createPeople($mapped),
+            Products::class => $this->syncProduct($mapped),
+            People::class => $this->syncPeople($mapped),
             default => throw new ValidationException(
                 'ApplyFilesystemMapperAction does not support entity type: ' . $this->mapper->systemModule->model_name,
             ),
@@ -95,22 +94,39 @@ class ApplyFilesystemMapperAction
             $linkedMapper = FilesystemMapper::getByIdFromCompanyApp($linkedMapperId, $this->company, $this->app);
 
             $linkedEntity = new self(
-                $this->app,
-                $this->company,
-                $this->user,
-                $linkedMapper,
-                (string) ($relatedRaw['Id'] ?? ''),
-                $relatedRaw,
+                user: $this->user,
+                mapper: $linkedMapper,
+                primaryId: (string) ($relatedRaw['Id'] ?? ''),
+                rawData: $relatedRaw,
                 visitedMapperIds: [...$this->visitedMapperIds, $this->mapper->getId()],
             )->execute();
 
-            $entity->set($linkField, (string) $linkedEntity->getId());
+            $entity->set($linkField, $linkedEntity->getId());
         }
     }
 
     private function configuration(): array
     {
         return is_array($this->mapper->configuration) ? $this->mapper->configuration : [];
+    }
+
+    /**
+     * The custom field holding the source system's own id for this record. Without it a re-run of
+     * the same source record can only be matched on mutable data (a product's name, a person's
+     * email), which duplicates the row as soon as that data changes upstream.
+     */
+    private function externalIdField(): string
+    {
+        $field = (string) ($this->configuration()['external_id_field'] ?? '');
+
+        if ($field === '') {
+            throw new ValidationException(
+                'FilesystemMapper ' . $this->mapper->getId()
+                . ' requires configuration.external_id_field so records can be matched on re-import.',
+            );
+        }
+
+        return $field;
     }
 
     /**
@@ -133,17 +149,19 @@ class ApplyFilesystemMapperAction
         return ($this->relatedRecordFetcher)($sourceObject, $matchField, $this->primaryId);
     }
 
-    private function createProduct(array $mapped): Products
+    private function syncProduct(array $mapped): Products
     {
-        $productTypeId = $this->configuration()['product_type_id'] ?? null;
+        $externalIdField = $this->externalIdField();
+        $productType = ProductsTypesRepository::getFromConfiguredId(
+            $this->configuration()['product_type_id'] ?? null,
+            $this->company,
+            $this->app,
+        );
 
-        if ($productTypeId === null || $productTypeId === '' || $productTypeId === 0) {
-            throw new ValidationException(
-                'Product mappers require configuration.product_type_id on the FilesystemMapper.',
-            );
-        }
-
-        $productType = ProductsTypesRepository::getByIdOrGlobal((int) $productTypeId, $this->company, $this->app);
+        // Transaction-safe variant: CreateProductAction opens its own `inventory` transaction, and
+        // the plain builder joins `apps_custom_fields` across connections — see HasCustomFields.
+        /** @var Products|null $existing */
+        $existing = Products::getByCustomFieldTransactionSafe($externalIdField, $this->primaryId, $this->company);
 
         $productData = new ProductData(
             app: $this->app,
@@ -152,15 +170,20 @@ class ApplyFilesystemMapperAction
             name: (string) ($mapped['name'] ?? ''),
             description: $mapped['description'] ?? null,
             productsType: $productType,
-            slug: $mapped['slug'] ?? null,
+            // CreateProductAction matches on slug, so reusing the existing product's slug is what
+            // turns this into an update rather than a second row under a renamed source record.
+            slug: $existing?->slug ?? $mapped['slug'] ?? null,
             sku: $mapped['sku'] ?? null,
             attributes: $mapped['attributes'] ?? [],
         );
 
-        return new CreateProductAction($productData, $this->user)->execute();
+        $product = new CreateProductAction($productData, $this->user)->execute();
+        $product->set($externalIdField, $this->primaryId);
+
+        return $product;
     }
 
-    private function createPeople(array $mapped): People
+    private function syncPeople(array $mapped): People
     {
         $contacts = [];
         if (! empty($mapped['email'])) {
@@ -172,15 +195,20 @@ class ApplyFilesystemMapperAction
 
         $peopleData = new PeopleData(
             app: $this->app,
-            branch: $this->company->defaultBranch ?? $this->user->getCurrentCompany()->branch,
+            branch: $this->mapper->branch,
             user: $this->user,
             firstname: (string) ($mapped['firstname'] ?? ''),
             contacts: Contact::collect($contacts, DataCollection::class),
             address: Address::collect([], DataCollection::class),
             lastname: (string) ($mapped['lastname'] ?? ''),
+            custom_fields: [$this->externalIdField() => $this->primaryId],
             runWorkflow: false,
+            // Matching is handled by the external id below — a shared phone/email with an
+            // unrelated existing People is a duplicate for the merge flow to catch, not a reason
+            // to fold this record into that one.
+            skipDuplicateContactCheck: true,
         );
 
-        return new CreatePeopleAction($peopleData)->execute();
+        return new SyncPeopleByThirdPartyCustomFieldAction($peopleData)->execute();
     }
 }

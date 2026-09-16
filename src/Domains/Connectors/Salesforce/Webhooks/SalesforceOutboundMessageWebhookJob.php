@@ -9,7 +9,7 @@ use Kanvas\Connectors\Salesforce\Actions\PullLeadAction;
 use Kanvas\Connectors\Salesforce\Actions\PullOrganizationAction;
 use Kanvas\Connectors\Salesforce\Actions\PullPeopleAction;
 use Kanvas\Connectors\Salesforce\Client;
-use Kanvas\Exceptions\ValidationException;
+use Kanvas\Connectors\Salesforce\Support\Soql;
 use Kanvas\Filesystem\Actions\ApplyFilesystemMapperAction;
 use Kanvas\Filesystem\Models\FilesystemMapper;
 use Kanvas\Guild\Customers\Models\People;
@@ -133,11 +133,9 @@ class SalesforceOutboundMessageWebhookJob extends ProcessWebhookJob
     }
 
     /**
-     * Handles any Salesforce object that isn't one of the four standard ones above — custom
-     * objects are tenant-specific, so there's no name to match on here. The receiver instead
-     * carries `configuration['mapper_id']`, pointing at a `FilesystemMapper` that already knows
-     * how to turn this object's fields into a Kanvas entity (and, via `configuration.links` on
-     * that mapper, how to find and create any related entity too).
+     * A custom object's name is tenant-specific, so there is nothing to match on here — the
+     * receiver carries `configuration['mapper_id']` instead, pointing at a `FilesystemMapper`
+     * that knows how to turn this object's fields into a Kanvas entity.
      */
     private function applyMapper(array $fields, string $salesforceId): Products|People|null
     {
@@ -151,36 +149,21 @@ class SalesforceOutboundMessageWebhookJob extends ProcessWebhookJob
         $mapper = FilesystemMapper::getByIdFromCompanyApp($mapperId, $company, $app);
 
         return new ApplyFilesystemMapperAction(
-            $app,
-            $company,
-            $company->user,
-            $mapper,
-            $salesforceId,
-            $fields,
-            [],
-            function (string $sourceObject, string $matchField, string $primaryId) use ($app, $company): ?array {
-                $sourceObject = $this->assertValidSoqlIdentifier($sourceObject);
-                $matchField = $this->assertValidSoqlIdentifier($matchField);
-                $escapedId = $this->escapeSoqlLiteral($primaryId);
+            user: $company->user,
+            mapper: $mapper,
+            primaryId: $salesforceId,
+            rawData: $fields,
+            // The webhook carries only the record that changed, never its linked record, so a
+            // link has to be resolved with a live query.
+            relatedRecordFetcher: function (string $sourceObject, string $matchField, string $primaryId) use ($app, $company): ?array {
+                $sourceObject = Soql::assertValidIdentifier($sourceObject);
+                $matchField = Soql::assertValidIdentifier($matchField);
+                $escapedId = Soql::escapeLiteral($primaryId);
 
                 $soql = "SELECT FIELDS(ALL) FROM {$sourceObject} WHERE {$matchField} = '{$escapedId}' LIMIT 1";
 
                 return Client::getInstance($app, $company)->query($soql)['records'][0] ?? null;
             },
         )->execute();
-    }
-
-    private function assertValidSoqlIdentifier(string $identifier): string
-    {
-        if (! preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $identifier)) {
-            throw new ValidationException("Invalid Salesforce object/field name: {$identifier}");
-        }
-
-        return $identifier;
-    }
-
-    private function escapeSoqlLiteral(string $value): string
-    {
-        return str_replace(['\\', "'"], ['\\\\', "\\'"], $value);
     }
 }

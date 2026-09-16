@@ -30,25 +30,29 @@ custom object, add `configuration['mapper_id']` to that same receiver row:
 
 **That closure is the one place in this whole feature that builds a raw query string from
 mapper-configured values (`link.source_object` / `link.match_field`) and payload data (the primary
-id).** It validates the two identifiers with `assertValidSoqlIdentifier()` (alphanumeric/underscore
-only — an identifier can't be escaped, only accepted or rejected) and escapes the literal id with
-`escapeSoqlLiteral()` before interpolating — same pattern as `SalesforceSchemaQuery` uses for its
-schema-browser queries, duplicated locally rather than shared (they're `private` methods on an
-unrelated GraphQL resolver class). Don't interpolate any of these three values into a SOQL string
-without going through both guards first — the primary id comes straight off an external webhook
-payload.
+id).** Both identifiers go through `Soql::assertValidIdentifier()` (alphanumeric/underscore only —
+an identifier can't be escaped, only accepted or rejected) and the literal id through
+`Soql::escapeLiteral()` before interpolating. `Kanvas\Connectors\Salesforce\Support\Soql` is the
+single home for both; `SalesforceSchemaQuery` uses it too. Don't interpolate any of these three
+values into a SOQL string without going through the guards first — the primary id comes straight
+off an external webhook payload, and a second copy of these two methods is how one of them ends up
+fixed and the other not.
 
 ## Setup checklist for a new custom-object mapping
 
 1. Build the field list with the schema browser (`salesforceObjects` / `salesforceObjectFields` /
    `salesforceRecords` GraphQL queries) — don't ask the client for field names by hand.
 2. Create a `FilesystemMapper` per target entity (`createFilesystemMapper`), `system_module_id`
-   pointing at the Kanvas entity (Products / People today), `has_header: false` (no file — see
-   `src/Kanvas/Filesystem/CLAUDE.md` for why that's allowed).
-3. If the primary entity has a related one (a property's broker), add `configuration.links` on the
+   pointing at the Kanvas entity (Products / People today), and no `file_header` (no file — see
+   `src/Kanvas/Filesystem/CLAUDE.md`).
+3. Set `configuration.external_id_field` on **every** mapper — the custom field that will hold the
+   Salesforce record id (`salesforce_location_id`, …). Without it the mapper refuses to run, because
+   re-imports would otherwise match on the entity's name or email and duplicate the row the moment
+   that changes upstream.
+4. If the primary entity has a related one (a property's broker), add `configuration.links` on the
    *primary* mapper's create/update call, referencing the secondary mapper's id — see
    `src/Kanvas/Filesystem/CLAUDE.md` for the exact shape.
-4. Wire the receiver: `updateReceiverWebhook` with
+5. Wire the receiver: `updateReceiverWebhook` with
    `configuration: { salesforce_object: "<Object__c>", mapper_id: <id> }` (replaces `configuration`
    wholesale — include `salesforce_object` even if unchanged).
 

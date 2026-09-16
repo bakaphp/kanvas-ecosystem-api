@@ -6,6 +6,7 @@ namespace Tests\Ecosystem\Integration\Filesystem;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Actions\ApplyFilesystemMapperAction;
 use Kanvas\Filesystem\Actions\CreateFilesystemMapperAction;
 use Kanvas\Filesystem\DataTransferObject\FilesystemMapper as FilesystemMapperData;
@@ -21,29 +22,29 @@ final class ApplyFilesystemMapperActionTest extends TestCase
 {
     use DatabaseTransactions;
 
+    // `inventory` is deliberately absent: CreateProductAction opens its own retrying transaction
+    // and listing it here would demote that to a savepoint. See tests/CLAUDE.md.
     protected $connectionsToTransact = [null, 'crm'];
+
+    private const EXTERNAL_ID_FIELD = 'salesforce_location_id';
+    private const CONTACT_ID_FIELD = 'salesforce_location_contact_id';
 
     public function testCreatesProductOnlyWhenMapperHasNoLinks(): void
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-
         $mapper = $this->makeProductMapper();
 
         $entity = new ApplyFilesystemMapperAction(
-            $app,
-            $company,
-            $user,
-            $mapper,
-            'SFID001',
-            $this->samplePropertyRawData('SFID001', 'Test Property One'),
+            user: auth()->user(),
+            mapper: $mapper,
+            primaryId: 'SFID001',
+            rawData: $this->samplePropertyRawData('SFID001', 'Test Property One'),
         )->execute();
 
         $this->assertInstanceOf(Products::class, $entity);
         $this->assertSame('Test Property One', $entity->name);
         $this->assertSame('Test Brand', $entity->description);
         $this->assertNull($entity->get('broker_people_id'));
+        $this->assertSame('SFID001', $entity->get(self::EXTERNAL_ID_FIELD));
 
         $this->assertSame('Negotiations Ongoing', $entity->getAttributeByName('Deal Status')?->value);
         $this->assertSame('Active', $entity->getAttributeByName('Marketing Status')?->value);
@@ -61,12 +62,86 @@ final class ApplyFilesystemMapperActionTest extends TestCase
         $this->assertEquals(-83.4327, $entity->getAttributeByName('Longitude')?->value);
     }
 
+    /**
+     * The webhook re-fires for the same Salesforce record whenever it changes, including a rename.
+     * Matching on the external id is what keeps that a single product; matching on the slug derived
+     * from the name would produce a second one here.
+     */
+    public function testReapplyingTheSameRecordUpdatesTheProductEvenWhenRenamed(): void
+    {
+        $mapper = $this->makeProductMapper();
+
+        $first = new ApplyFilesystemMapperAction(
+            user: auth()->user(),
+            mapper: $mapper,
+            primaryId: 'SFID010',
+            rawData: $this->samplePropertyRawData('SFID010', 'Original Property Name'),
+        )->execute();
+
+        $second = new ApplyFilesystemMapperAction(
+            user: auth()->user(),
+            mapper: $mapper,
+            primaryId: 'SFID010',
+            rawData: $this->samplePropertyRawData('SFID010', 'Renamed Property'),
+        )->execute();
+
+        $this->assertSame($first->getId(), $second->getId());
+        $this->assertSame('Renamed Property', $second->name);
+        $this->assertSame(
+            1,
+            Products::getByCustomFieldBuilderTransactionSafe(self::EXTERNAL_ID_FIELD, 'SFID010', $mapper->company)->count(),
+        );
+    }
+
+    public function testReapplyingTheSameRecordUpdatesThePersonEvenWhenTheEmailChanges(): void
+    {
+        $mapper = $this->makePeopleMapper();
+
+        $first = new ApplyFilesystemMapperAction(
+            user: auth()->user(),
+            mapper: $mapper,
+            primaryId: 'SFCONTACT010',
+            rawData: [
+                'Id' => 'SFCONTACT010',
+                'Contact_Name__c' => 'Original Broker',
+                'Contact_Email__c' => 'original@test.com',
+                'Contact_Phone__c' => '555-0010',
+            ],
+        )->execute();
+
+        $second = new ApplyFilesystemMapperAction(
+            user: auth()->user(),
+            mapper: $mapper,
+            primaryId: 'SFCONTACT010',
+            rawData: [
+                'Id' => 'SFCONTACT010',
+                'Contact_Name__c' => 'Renamed Broker',
+                'Contact_Email__c' => 'renamed@test.com',
+                'Contact_Phone__c' => '555-0011',
+            ],
+        )->execute();
+
+        $this->assertSame($first->getId(), $second->getId());
+        $this->assertSame('Renamed Broker', $second->firstname);
+    }
+
+    public function testFailsWhenTheMapperDeclaresNoExternalIdField(): void
+    {
+        $mapper = $this->makePeopleMapper(externalIdField: null);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessageMatches('/external_id_field/');
+
+        new ApplyFilesystemMapperAction(
+            user: auth()->user(),
+            mapper: $mapper,
+            primaryId: 'SFCONTACT020',
+            rawData: ['Id' => 'SFCONTACT020', 'Contact_Name__c' => 'No External Id'],
+        )->execute();
+    }
+
     public function testCreatesLinkedPeopleViaCorrelatedRecords(): void
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-
         $peopleMapper = $this->makePeopleMapper();
         $productMapper = $this->makeProductMapper([
             [
@@ -78,13 +153,11 @@ final class ApplyFilesystemMapperActionTest extends TestCase
         ]);
 
         $entity = new ApplyFilesystemMapperAction(
-            $app,
-            $company,
-            $user,
-            $productMapper,
-            'SFID002',
-            $this->samplePropertyRawData('SFID002', 'Test Property Two'),
-            [
+            user: auth()->user(),
+            mapper: $productMapper,
+            primaryId: 'SFID002',
+            rawData: $this->samplePropertyRawData('SFID002', 'Test Property Two'),
+            correlatedRecords: [
                 $peopleMapper->id => [
                     'Id' => 'SFCONTACT002',
                     'Contact_Name__c' => 'Test Broker Two',
@@ -104,10 +177,6 @@ final class ApplyFilesystemMapperActionTest extends TestCase
 
     public function testCreatesLinkedPeopleViaRelatedRecordFetcher(): void
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-
         $peopleMapper = $this->makePeopleMapper();
         $productMapper = $this->makeProductMapper([
             [
@@ -131,14 +200,11 @@ final class ApplyFilesystemMapperActionTest extends TestCase
         };
 
         $entity = new ApplyFilesystemMapperAction(
-            $app,
-            $company,
-            $user,
-            $productMapper,
-            'SFID003',
-            $this->samplePropertyRawData('SFID003', 'Test Property Three'),
-            [],
-            $fetcher,
+            user: auth()->user(),
+            mapper: $productMapper,
+            primaryId: 'SFID003',
+            rawData: $this->samplePropertyRawData('SFID003', 'Test Property Three'),
+            relatedRecordFetcher: $fetcher,
         )->execute();
 
         $this->assertCount(1, $fetcherCalls);
@@ -233,6 +299,7 @@ final class ApplyFilesystemMapperActionTest extends TestCase
                 ],
                 'configuration' => [
                     'product_type_id' => $productType->getId(),
+                    'external_id_field' => self::EXTERNAL_ID_FIELD,
                     'links' => $links,
                 ],
             ],
@@ -241,7 +308,7 @@ final class ApplyFilesystemMapperActionTest extends TestCase
         return new CreateFilesystemMapperAction($dto)->execute();
     }
 
-    private function makePeopleMapper(): FilesystemMapper
+    private function makePeopleMapper(?string $externalIdField = self::CONTACT_ID_FIELD): FilesystemMapper
     {
         $app = app(Apps::class);
         $user = auth()->user();
@@ -263,6 +330,9 @@ final class ApplyFilesystemMapperActionTest extends TestCase
                     'email' => 'Contact_Email__c',
                     'phone' => 'Contact_Phone__c',
                 ],
+                'configuration' => $externalIdField === null
+                    ? []
+                    : ['external_id_field' => $externalIdField],
             ],
         );
 
