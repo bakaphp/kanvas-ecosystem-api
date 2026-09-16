@@ -38,7 +38,7 @@ class SlackMarkdownService
             $text = implode('', array_slice($lines, $offset, $end - $offset));
             $offset = $end;
 
-            if (strlen($current . $text) <= $limit) {
+            if (strlen($current) + strlen($text) <= $limit) {
                 $current .= $text;
 
                 continue;
@@ -55,28 +55,31 @@ class SlackMarkdownService
                 continue;
             }
 
-            // Each message is parsed independently, so oversized code fences must be reopened.
-            if ($block instanceof FencedCode) {
-                $fence = str_repeat($block->getChar(), $block->getLength());
-                $opening = $fence . ($block->getInfo() ?? '') . "\n";
-                $closing = "\n" . $fence;
-                $budget = $limit - strlen($opening . $closing);
-
-                if ($budget >= 4) {
-                    foreach (self::splitVerbatim($block->getLiteral(), $budget) as $part) {
-                        $chunks[] = $opening . $part . $closing;
-                    }
-
-                    continue;
-                }
-            }
-
-            array_push($chunks, ...self::splitVerbatim($text, $limit));
+            $parts = $block instanceof FencedCode ? self::splitCodeBlock($block, $limit) : null;
+            array_push($chunks, ...($parts ?? self::splitVerbatim($text, $limit)));
         }
 
         $current .= implode('', array_slice($lines, $offset));
-        if ($current !== '') {
-            array_push($chunks, ...self::splitVerbatim($current, $limit));
+
+        return array_merge($chunks, self::splitVerbatim($current, $limit));
+    }
+
+    /** @return list<string>|null */
+    private static function splitCodeBlock(FencedCode $block, int $limit): ?array
+    {
+        $fence = str_repeat($block->getChar(), $block->getLength());
+        $opening = $fence . ($block->getInfo() ?? '') . "\n";
+        $closing = "\n" . $fence;
+        $budget = $limit - strlen($opening . $closing);
+
+        if ($budget < 4) {
+            return null;
+        }
+
+        // Each message is parsed independently, so code fences must be reopened.
+        $chunks = [];
+        foreach (self::splitVerbatim($block->getLiteral(), $budget) as $part) {
+            $chunks[] = $opening . $part . $closing;
         }
 
         return $chunks;

@@ -58,10 +58,7 @@ class Client
         return new self($botToken);
     }
 
-    /**
-     * The posted message's `ts`, which doubles as its id for updateMessage() — the
-     * placeholder-then-edit pattern an agent turn needs, since it outlives Slack's ack window.
-     */
+    /** Returns the message timestamp used to update, delete, or reply to it. */
     public function postMessage(
         string $channel,
         string $text,
@@ -91,11 +88,8 @@ class Client
         $this->call('chat.delete', ['channel' => $channel, 'ts' => $ts]);
     }
 
-    public function postMarkdownMessage(
-        string $channel,
-        string $markdown,
-        ?string $threadTs = null
-    ): string {
+    public function postMarkdownMessage(string $channel, string $markdown, ?string $threadTs = null): string
+    {
         $firstTs = null;
 
         foreach (SlackMarkdownService::split($markdown, self::MAX_TEXT_LENGTH) as $chunk) {
@@ -112,15 +106,8 @@ class Client
     }
 
     /**
-     * Deliver the finished reply as NEW messages, then drop the placeholder.
-     *
-     * Slack fires no push, sound, badge or unread marker for chat.update, so editing the placeholder
-     * in place made every agent reply land silently — the only ping a user ever got said "working on
-     * it…". Posting the answer is what makes Slack treat it as a real incoming message. Chunking also
-     * keeps a long reply under the per-message byte limit (`msg_too_long`).
-     *
-     * The delete runs last on purpose: if a chunk fails to post, the placeholder is still there for
-     * the caller to overwrite with its failure notice.
+     * Post a new reply to trigger notifications; chat.update does not notify.
+     * Delete the placeholder only after every chunk succeeds so failures can still update it.
      */
     public function replacePlaceholderWithReply(
         string $channel,
@@ -133,8 +120,7 @@ class Client
         try {
             $this->deleteMessage($channel, $placeholderTs);
         } catch (Throwable $e) {
-            // The reply is already delivered; a surviving hourglass is cosmetic. Letting this bubble
-            // would make the caller replace it with a failure notice that isn't true.
+            // A cleanup failure must not mark an already-delivered reply as failed.
             report($e);
         }
     }
