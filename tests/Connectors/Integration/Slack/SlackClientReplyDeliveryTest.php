@@ -10,24 +10,55 @@ use Kanvas\Connectors\Slack\Client;
 use Kanvas\Exceptions\ValidationException;
 use Tests\TestCaseUnit;
 
-/**
- * Slack sends no push, badge or unread marker for chat.update, so an agent reply delivered by
- * editing the placeholder arrived silently. These lock in that the answer goes out as a real post.
- */
 final class SlackClientReplyDeliveryTest extends TestCaseUnit
 {
     private const string CHANNEL = 'D0123456789';
     private const string PLACEHOLDER_TS = '1700000000.000100';
 
+    public function testAgentMarkdownUsesTheNativeMarkdownField(): void
+    {
+        $this->fakeSlack();
+        $markdown = "### Active plans\n\n* **Plan #276 — 50%**\n  * [Brief](https://example.com/brief)\n\n---\n\n`wordpress_site_url`";
+
+        new Client('xoxb-test')->replacePlaceholderWithReply(self::CHANNEL, self::PLACEHOLDER_TS, $markdown);
+
+        Http::assertSent(fn (Request $request) => $this->isSlackCall($request, 'chat.postMessage')
+            && $request['markdown_text'] === $markdown
+            && ! isset($request['text'])
+            && ! isset($request['blocks']));
+    }
+
+    public function testStatusMessagesStillUseSlackMrkdwn(): void
+    {
+        $this->fakeSlack();
+
+        new Client('xoxb-test')->postMessage(self::CHANNEL, ':hourglass_flowing_sand: working on it…');
+
+        Http::assertSent(fn (Request $request) => $request['text'] === ':hourglass_flowing_sand: working on it…'
+            && ! isset($request['markdown_text']));
+    }
+
+    public function testFailedContinuationDoesNotDeleteThePlaceholder(): void
+    {
+        Http::fake([
+            'slack.com/api/chat.postMessage' => Http::sequence()
+                ->push(['ok' => true, 'ts' => 'ts-1'])
+                ->push(['ok' => false, 'error' => 'channel_not_found']),
+        ]);
+
+        try {
+            new Client('xoxb-test')->replacePlaceholderWithReply(self::CHANNEL, self::PLACEHOLDER_TS, str_repeat("**Progress:** waiting on credentials.\n\n", 100));
+            $this->fail('The failed continuation must surface to the caller.');
+        } catch (ValidationException) {
+            Http::assertNotSent(fn (Request $request) => $this->isSlackCall($request, 'chat.delete'));
+        }
+    }
+
     public function testReplyIsPostedAsANewMessageAndThePlaceholderIsDeleted(): void
     {
         $this->fakeSlack();
 
-        new Client('xoxb-test')->replacePlaceholderWithReply(
-            self::CHANNEL,
-            self::PLACEHOLDER_TS,
-            'here is your answer',
-        );
+        new Client('xoxb-test')->replacePlaceholderWithReply(self::CHANNEL, self::PLACEHOLDER_TS, 'here is your answer');
 
         $this->assertSlackCallCount('chat.postMessage', 1);
         $this->assertSlackCallCount('chat.update', 0);
@@ -35,7 +66,9 @@ final class SlackClientReplyDeliveryTest extends TestCaseUnit
 
         Http::assertSent(fn (Request $request) => $this->isSlackCall($request, 'chat.postMessage')
             && $request['channel'] === self::CHANNEL
-            && $request['text'] === 'here is your answer'
+            && $request['markdown_text'] === 'here is your answer'
+            && ! isset($request['text'])
+            && ! isset($request['blocks'])
             && ! isset($request['thread_ts']));
 
         Http::assertSent(fn (Request $request) => $this->isSlackCall($request, 'chat.delete')
@@ -61,8 +94,8 @@ final class SlackClientReplyDeliveryTest extends TestCaseUnit
         $this->assertSlackCallCount('chat.delete', 1);
 
         Http::assertSentCount(3);
-        Http::assertSent(fn (Request $request) => ! $this->isSlackCall($request, 'chat.postMessage')
-            || $request['thread_ts'] === $threadTs);
+        Http::assertNotSent(fn (Request $request) => $this->isSlackCall($request, 'chat.postMessage')
+            && ($request['thread_ts'] ?? null) !== $threadTs);
     }
 
     /**
@@ -75,14 +108,10 @@ final class SlackClientReplyDeliveryTest extends TestCaseUnit
 
         $text = implode("\n", array_fill(0, 4, str_repeat('a', 1000)));
 
-        new Client('xoxb-test')->replacePlaceholderWithReply(
-            self::CHANNEL,
-            self::PLACEHOLDER_TS,
-            $text,
-        );
+        new Client('xoxb-test')->replacePlaceholderWithReply(self::CHANNEL, self::PLACEHOLDER_TS, $text);
 
-        Http::assertSent(fn (Request $request) => ! $this->isSlackCall($request, 'chat.postMessage')
-            || ($request['thread_ts'] ?? null) !== self::PLACEHOLDER_TS);
+        Http::assertNotSent(fn (Request $request) => $this->isSlackCall($request, 'chat.postMessage')
+            && ($request['thread_ts'] ?? null) === self::PLACEHOLDER_TS);
 
         Http::assertSent(fn (Request $request) => $this->isSlackCall($request, 'chat.postMessage')
             && ($request['thread_ts'] ?? null) === 'ts-1');
@@ -99,11 +128,7 @@ final class SlackClientReplyDeliveryTest extends TestCaseUnit
             'slack.com/api/chat.delete' => Http::response(['ok' => false, 'error' => 'message_not_found']),
         ]);
 
-        new Client('xoxb-test')->replacePlaceholderWithReply(
-            self::CHANNEL,
-            self::PLACEHOLDER_TS,
-            'here is your answer',
-        );
+        new Client('xoxb-test')->replacePlaceholderWithReply(self::CHANNEL, self::PLACEHOLDER_TS, 'here is your answer');
 
         $this->assertSlackCallCount('chat.postMessage', 1);
         $this->assertSlackCallCount('chat.delete', 1);
@@ -117,11 +142,7 @@ final class SlackClientReplyDeliveryTest extends TestCaseUnit
 
         $this->expectException(ValidationException::class);
 
-        new Client('xoxb-test')->replacePlaceholderWithReply(
-            self::CHANNEL,
-            self::PLACEHOLDER_TS,
-            'here is your answer',
-        );
+        new Client('xoxb-test')->replacePlaceholderWithReply(self::CHANNEL, self::PLACEHOLDER_TS, 'here is your answer');
     }
 
     private function fakeSlack(): void
@@ -145,14 +166,7 @@ final class SlackClientReplyDeliveryTest extends TestCaseUnit
 
     private function assertSlackCallCount(string $method, int $expected): void
     {
-        $count = 0;
-        Http::assertSent(function (Request $request) use ($method, &$count) {
-            if ($this->isSlackCall($request, $method)) {
-                $count++;
-            }
-
-            return true;
-        });
+        $count = Http::recorded(fn (Request $request) => $this->isSlackCall($request, $method))->count();
 
         $this->assertSame($expected, $count, $method . ' call count');
     }
