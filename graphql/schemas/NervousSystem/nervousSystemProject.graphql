@@ -128,7 +128,9 @@ input UpdateNervousSystemProjectInput {
 }
 
 extend type Query @guard {
-    nervousSystemProjectBoardColumns(project_id: ID!): [NervousSystemProjectBoardColumn!]!
+    nervousSystemProjectBoardColumns(
+        project_id: ID!
+    ): [NervousSystemProjectBoardColumn!]!
         @field(
             resolver: "App\\GraphQL\\NervousSystem\\Queries\\ProjectBoardColumnQuery@list"
         )
