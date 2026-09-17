@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
-use Kanvas\Filesystem\Services\FilesystemServices;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;

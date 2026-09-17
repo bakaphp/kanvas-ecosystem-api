@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
-use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\TransformsStructuredOutput;

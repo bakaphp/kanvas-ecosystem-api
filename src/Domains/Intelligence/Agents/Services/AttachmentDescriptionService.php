@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
-use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Users\Models\Users;

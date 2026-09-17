@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\WordPress\Services;
 
 use Baka\Http\SafeUrlFetcher;
-use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Connectors\WordPress\RestClient;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Throwable;
 
 /**

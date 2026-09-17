@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Traits;
 
-use Kanvas\Filesystem\Services\FilesystemServices;
 use Baka\Http\SafeUrlFetcher;
 use Illuminate\Mail\Mailable;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Notifications\KanvasMailable;
 
 trait NotificationMailTrait
