@@ -8,9 +8,11 @@ use Bouncer;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Actions\ApproveCorporateApplicationAction;
+use Kanvas\Companies\CorporateApplications\Actions\RejectCorporateApplicationAction;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Companies\Models\Companies;
@@ -24,6 +26,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Regions\Enums\CustomFieldEnum as RegionCustomFieldEnum;
 use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasIntegrationCompany;
@@ -132,6 +135,54 @@ final class EnableCorporateModeActionTest extends TestCase
         $this->kanvasUser->refresh();
         $this->assertTrue((bool) $this->kanvasUser->get('is_corporate'));
         $this->assertEquals($company->getId(), $this->kanvasUser->default_company);
+    }
+
+    public function testRejectionReleasesTheProvisionalCompany(): void
+    {
+        Bus::fake();
+        Notification::fake();
+
+        $company = $this->request();
+        $lead = $this->latestRequestLead();
+
+        $this->assertTrue($this->userBelongsTo($company));
+
+        $result = new RejectCorporateApplicationAction($lead, $this->kanvasApp, 'RNC no existe', $this->kanvasUser)->execute();
+
+        $this->assertEquals(CorporateApplicationStatusEnum::REJECTED->value, $result['status']);
+        $this->assertTrue((bool) $company->fresh()->is_deleted);
+        $this->assertFalse($this->userBelongsTo($company));
+
+        // The company the user came from is untouched and still theirs.
+        $this->assertTrue($this->userBelongsTo(Companies::getById((int) Field::UPGRADE_SOURCE_COMPANY_ID->readFrom($lead))));
+    }
+
+    public function testAnApprovedUpgradeCannotBeRejected(): void
+    {
+        Bus::fake();
+        Notification::fake();
+
+        $company = $this->request();
+        $lead = $this->latestRequestLead();
+        new ApproveCorporateApplicationAction($lead, $this->kanvasApp, $this->kanvasUser)->execute();
+
+        try {
+            new RejectCorporateApplicationAction($lead->fresh(), $this->kanvasApp, 'too late', $this->kanvasUser)->execute();
+            $this->fail('expected a ValidationException');
+        } catch (ValidationException) {
+        }
+
+        $this->assertFalse((bool) $company->fresh()->is_deleted);
+        $this->assertEquals(CorporateApplicationStatusEnum::APPROVED->value, Field::STATUS->readFrom($lead->fresh()));
+    }
+
+    private function userBelongsTo(Companies $company): bool
+    {
+        return UsersAssociatedApps::query()
+            ->where('users_id', $this->kanvasUser->getId())
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->exists();
     }
 
     /**
