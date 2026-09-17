@@ -97,6 +97,42 @@ class ProductLeadReceiversTest extends TestCase
         );
     }
 
+    public function testProductAndVariantsExposeTheirCompanyReceiversThroughGraphQL(): void
+    {
+        $app = app(Apps::class);
+        $product = $this->createProductForCurrentCompany();
+        $otherCompanyProduct = Products::factory()->create();
+
+        $tradeIn = $this->createReceiver($app, $product->company, 'tradeIn');
+        $contact = $this->createReceiver($app, $product->company, 'contact');
+        $foreign = $this->createReceiver($app, $otherCompanyProduct->company, 'foreign');
+        $deleted = $this->createReceiver($app, $product->company, 'gone');
+        $deleted->softDelete();
+
+        $response = $this->queryProduct($product, '
+            leadReceivers { id name uuid }
+            variants { id leadReceivers { id name uuid } }
+        ')
+            ->assertSuccessful()
+            ->json('data.products.data.0');
+
+        $expected = [
+            (string) $tradeIn->getId() => ['name' => 'tradeIn', 'uuid' => $tradeIn->uuid],
+            (string) $contact->getId() => ['name' => 'contact', 'uuid' => $contact->uuid],
+        ];
+        $foreignIds = [(string) $deleted->getId(), (string) $foreign->getId()];
+
+        $this->assertNotEmpty($response['variants']);
+
+        foreach ([$response, ...$response['variants']] as $owner) {
+            // The dev DB seeds more receivers on the test company; check ours are in and the others out.
+            $byId = collect($owner['leadReceivers'])->keyBy('id')->map(fn ($r) => ['name' => $r['name'], 'uuid' => $r['uuid']]);
+
+            $this->assertEquals($expected, $byId->only(array_keys($expected))->all());
+            $this->assertEmpty($byId->only($foreignIds));
+        }
+    }
+
     public function testReceiverUuidIsThePostableWebhookUuid(): void
     {
         $product = $this->createProductForCurrentCompany();
