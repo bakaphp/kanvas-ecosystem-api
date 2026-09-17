@@ -6,6 +6,7 @@ namespace Tests\Connectors\Integration\Movipass;
 
 use App\GraphQL\Ecosystem\Mutations\Companies\CorporateApplicationMutation;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Actions\ApproveCorporateApplicationAction;
@@ -18,6 +19,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\UsersInvite;
 use Tests\TestCase;
 
@@ -69,6 +71,25 @@ final class CorporateApplicationApprovalTest extends TestCase
         $this->assertNotEmpty($fresh->get(Field::REVIEWED_AT->value));
 
         Notification::assertSentOnDemand(Blank::class);
+    }
+
+    public function testApproveProvisionsTheNewCompanyDefaults(): void
+    {
+        // A brand-new account has no region or warehouse until onboarding runs — the upgrade
+        // path gets it from EnableCorporateModeAction; approval must do the same for a new one.
+        $lead = $this->makePendingApplication();
+        Notification::fake();
+        Bus::fake([OnBoardingJob::class]);
+
+        $result = new ApproveCorporateApplicationAction($lead, $this->kanvasApp, Auth::user())->execute();
+
+        $company = Companies::find($result['company_id']);
+
+        Bus::assertDispatched(
+            OnBoardingJob::class,
+            fn (OnBoardingJob $job): bool => $job->branch->companies_id === $company->getId()
+                && $job->app->getId() === $this->kanvasApp->getId()
+        );
     }
 
     public function testApproveIsIdempotent(): void

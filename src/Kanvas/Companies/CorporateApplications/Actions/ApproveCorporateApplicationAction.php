@@ -17,6 +17,7 @@ use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Companies\DataTransferObject\Company as CompanyData;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
@@ -75,6 +76,7 @@ class ApproveCorporateApplicationAction
         $company = $this->findOrCreateCompany($owner);
 
         $this->copyCompanyFields($company);
+        $this->provisionCompanyDefaults($owner, $company);
 
         $invite = $this->findOrCreateInvite($company, $owner);
 
@@ -154,6 +156,18 @@ class ApproveCorporateApplicationAction
                 phone: trim((string) ($this->application->get('contact_phone') ?: $this->application->phone ?? '')),
             ),
         )->execute();
+    }
+
+    /**
+     * Same onboarding the upgrade path (EnableCorporateModeAction) and self-registration run:
+     * region + warehouse + integrations for the new company. Without it the company exists but
+     * has nowhere to hold inventory, and anything published on approval (a parking, a fleet)
+     * fails at its last step. OnBoardingJob is idempotent per company, so a retried approval
+     * that finds the company already created is safe to run through here again.
+     */
+    private function provisionCompanyDefaults(Users $owner, Companies $company): void
+    {
+        new SetupService()->onBoarding($owner, $this->app, $company);
     }
 
     private function copyCompanyFields(Companies $company): void
