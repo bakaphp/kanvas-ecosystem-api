@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
-use finfo;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
@@ -305,8 +305,7 @@ class RunNeuronChatAction
             return null;
         }
 
-        $mimeType = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
-        $mimeType = is_string($mimeType) && $mimeType !== '' ? $mimeType : 'application/octet-stream';
+        $mimeType = FilesystemServices::detectMimeTypeFromBytes($binary);
         $base64 = base64_encode($binary);
 
         return match (AttachmentDescriptionService::nativeKind($mimeType)) {
