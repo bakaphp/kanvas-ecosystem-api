@@ -14,6 +14,7 @@ use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioWebhookJob;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
@@ -76,6 +77,12 @@ class ProcessTwilioWebhookJobTest extends TestCase
         $this->assertArrayHasKey('message_id', $result[0]);
         $this->assertArrayHasKey('channel_id', $result[0]);
         $this->assertFalse($result[0]['is_from_me']);
+
+        // The job attaches the lead after creating the message; without people_id the inbound
+        // reply is invisible to the Engage usage report.
+        $message = Message::query()->where('id', $result[0]['message_id'])->first();
+        $this->assertSame('contact', $message->sender_type);
+        $this->assertNotNull($message->people_id);
     }
 
     public function testProcessStopMarksPhoneContactsAsOptedOut(): void
