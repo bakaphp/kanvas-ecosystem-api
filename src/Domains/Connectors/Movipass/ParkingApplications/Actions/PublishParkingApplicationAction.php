@@ -67,11 +67,12 @@ class PublishParkingApplicationAction
         }
 
         $fields = $this->validatedFields();
+        $contract = new StampContractAcceptanceAction($this->application)->execute();
         $warehouse = $this->defaultWarehouse($company);
 
-        $product = DB::connection('inventory')->transaction(function () use ($company, $fields, $warehouse): Products {
+        $product = DB::connection('inventory')->transaction(function () use ($company, $fields, $warehouse, $contract): Products {
             $product = new CreateProductAction(
-                $this->productDto($company, $fields, $warehouse),
+                $this->productDto($company, $fields, $warehouse, $contract),
                 $company->user,
             )->setRunWorkflow(false)->execute();
 
@@ -155,8 +156,12 @@ class PublishParkingApplicationAction
         return $warehouse;
     }
 
-    private function productDto(Companies $company, array $fields, Warehouses $warehouse): ProductDto
-    {
+    private function productDto(
+        Companies $company,
+        array $fields,
+        Warehouses $warehouse,
+        array $contract
+    ): ProductDto {
         $name = (string) $fields[Field::PARKING_NAME->value];
         $capacity = (int) $fields[Field::CAPACITY_TOTAL->value];
 
@@ -168,7 +173,7 @@ class PublishParkingApplicationAction
             description: $this->description($fields),
             productsType: $this->parkingType($company),
             is_published: true,
-            attributes: $this->productAttributes($fields, $capacity),
+            attributes: [...$this->productAttributes($fields, $capacity), ['name' => 'contract', 'value' => $contract]],
             files: $this->photos(),
             variants: [[
                 'name' => $name,
