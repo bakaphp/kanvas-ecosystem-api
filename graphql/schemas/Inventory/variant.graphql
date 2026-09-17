@@ -38,6 +38,8 @@ type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
         @method(name: "visibleAttributes")
         @cacheRedis
     companies: Company! @belongsTo(relation: "company")
+    "Lead-capture forms of the variant's company; same set as Product.leadReceivers. Not cached on purpose."
+    leadReceivers: [LeadReceiver!]! @hasMany(relation: "leadReceivers")
     channels(currencyCode: String): [VariantChannelRelationship!]!
         @belongsToMany(relation: "channels")
     channel(currencyCode: String): VariantPricingInfo

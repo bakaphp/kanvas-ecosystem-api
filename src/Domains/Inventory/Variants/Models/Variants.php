@@ -38,6 +38,7 @@ use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Traits\HasLeadReceiversTrait;
 use Kanvas\Inventory\Traits\ResolvesAttributesTrait;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
@@ -105,6 +106,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     use HasTranslationsDefaultFallback;
     use HasWallet;
     use LogsActivity;
+    use HasLeadReceiversTrait;
     use ResolvesAttributesTrait;
 
     protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes', 'bundleItems'];

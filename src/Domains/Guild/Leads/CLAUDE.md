@@ -65,3 +65,13 @@ Two very different creation paths; don't conflate them:
 - **The `lead-company-email` default is opt-in, per app/company**, applied only by the manual/deploy command `kanvas:sa-setup-receivers` ([`SetupReceiversCommand`](../../../../app/Console/Commands/Connectors/SalesAssist/SetupReceiversCommand.php)). It creates/updates a **`LeadRotation`** with `config = { email_template: 'lead-company-email', notification_mode: NOTIFY_AGENTS, notification_user_mode: NOTIFY_ROTATION_USERS }` and wires the SalesAssist receivers to that rotation. The base template name lives in [`EmailTemplatesEnum::LEAD_COMPANY_EMAIL`](../../Connectors/SalesAssist/Enums/EmailTemplatesEnum.php).
 
 So: **template config lives on the rotation, is set by a command, and is not part of company onboarding.** If a receiver "isn't emailing", check that its rotation exists and its `config.email_template` is populated — not the job or the receiver row.
+
+## Receiver ↔ webhook: the uuid is mirrored, but only the webhook is the truth
+
+`POST /api/receiver/{uuid}` takes a **`ReceiverWebhook`** uuid, not a `LeadReceiver` one. The link is one-way — `receiver_webhooks.configuration->receiver_id` (JSON, unindexed, written as int *or* string) — so a receiver cannot `belongsTo` its webhook.
+
+In practice they usually share the same uuid: [`LeadReceiverObserver::created()`](Observers/LeadReceiverObserver.php) auto-creates an active `CreateLeadsFromReceiverJob` webhook **under the receiver's own uuid** whenever the `actions` row for that job exists. It is a copy, not a link — the webhook can be deactivated, deleted or replaced later, and a receiver created while the action row was missing has none at all. So never assume `receiver.uuid` is postable.
+
+The honest answer is `LeadReceiver.submit_webhook_uuid` (resolved by [`LeadReceiverWebhookLoader`](Services/LeadReceiverWebhookLoader.php), batched per (app, company), matched in PHP with an `(int)` cast — do not "optimize" it into a `where('configuration->receiver_id', ...)`, the JSON predicate is type-strict and unindexed). It only counts webhooks wired to `CreateLeadsFromReceiverJob` / `...WithConfirmationJob`: Zoho, WaSender and RespondIO webhooks also carry `receiver_id` but cannot take a form payload. Active first, then highest id; `null` when nothing is wired.
+
+Storefronts reach receivers through `Product.leadReceivers` / `Variant.leadReceivers` (`HasLeadReceiversTrait`, a Compoships `(companies_id, apps_id)` hasMany — which is why `LeadReceiver` uses `Compoships`).
