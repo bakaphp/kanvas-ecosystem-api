@@ -22,6 +22,7 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getPaginatedFileByGraphType"
         )
+    photos_count: Int! @method(name: "getPhotosCount")
     is_published: Boolean
     created_at: DateTime!
     message: [Message] @hasMany(relation: "getIntegrationMessage")

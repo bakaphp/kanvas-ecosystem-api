@@ -104,6 +104,14 @@ enum MediaTypeEnum: string
         };
     }
 
+    /**
+     * @return array<string>
+     */
+    public static function imageExtensions(): array
+    {
+        return self::IMAGE_EXTENSIONS;
+    }
+
     public static function fromExtension(string $extension): self
     {
         $ext = strtolower(trim($extension, '.'));
