@@ -46,7 +46,6 @@ type Product @model(class: "Kanvas\\Inventory\\Products\\Models\\Products") {
         @method(name: "getEntityIntegrationsSummary")
     productsTypes: ProductType @belongsTo
     companies: Company! @belongsTo(relation: "company")
-    "Lead-capture forms of the product's company; `name` is the form identity. Not cached: a receiver change has no hook back to every product of its company."
     leadReceivers: [LeadReceiver!]! @hasMany(relation: "leadReceivers")
     usersRatings: [UserRating!] @hasMany(relation: "usersRatings")
     rating: Float
