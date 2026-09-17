@@ -6,22 +6,20 @@ namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Notification as LaravelNotification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Actions\ApproveCorporateApplicationAction;
+use Kanvas\Companies\CorporateApplications\Concerns\SendsApplicationEmail;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationApprovalModeEnum as ApprovalMode;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Connectors\Movipass\Actions\ValidateCorporateFieldsAction;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
-use Throwable;
 
 /**
  * Despite the name, approval is manual by default — self-reported RNCs and phone numbers turned
@@ -35,6 +33,8 @@ use Throwable;
 #[WorkflowAction]
 class AutoApproveCorporateLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    use SendsApplicationEmail;
+
     #[Override]
     public function execute(Model $lead, AppInterface $app, array $params = []): array
     {
@@ -147,23 +147,13 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
         string $subject,
         array $data
     ): void {
-        $email = trim((string) $lead->email);
-
-        if ($email === '') {
-            return;
-        }
-
-        $data['app'] = $app;
-        $templateName = (string) ($app->get($templateSetting->value) ?: $fallbackTemplate);
-
-        $notification = new Blank($templateName, $data, ['mail'], $lead);
-        $notification->setSubject($subject);
-
-        try {
-            LaravelNotification::route('mail', $email)->notify($notification);
-        } catch (Throwable $e) {
-            // Email failures don't fail the activity — the Lead status is the source of truth.
-            report($e);
-        }
+        $this->sendApplicationEmail(
+            $app,
+            (string) ($app->get($templateSetting->value) ?: $fallbackTemplate),
+            $subject,
+            $data,
+            (string) $lead->email,
+            $lead,
+        );
     }
 }

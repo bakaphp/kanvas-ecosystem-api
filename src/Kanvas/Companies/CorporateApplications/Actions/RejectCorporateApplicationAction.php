@@ -5,18 +5,16 @@ declare(strict_types=1);
 namespace Kanvas\Companies\CorporateApplications\Actions;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Notification as LaravelNotification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\CorporateApplications\Concerns\SendsApplicationEmail;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationSettingEnum as Setting;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Actions\RemoveCompanyAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
-use Throwable;
 
 /**
  * A rejection always reaches the applicant with its reason (§13.3). The app can point
@@ -31,6 +29,8 @@ use Throwable;
  */
 class RejectCorporateApplicationAction
 {
+    use SendsApplicationEmail;
+
     public const string DEFAULT_TEMPLATE = 'corporate-rejected';
 
     public function __construct(
@@ -103,30 +103,17 @@ class RejectCorporateApplicationAction
 
     private function sendRejectionEmail(): bool
     {
-        $email = trim((string) $this->application->email);
-
-        if ($email === '') {
-            return false;
-        }
-
-        $templateName = trim((string) (Setting::REJECTED_TEMPLATE->readFrom($this->app) ?: self::DEFAULT_TEMPLATE));
-
-        $notification = new Blank($templateName, [
-            'app' => $this->app,
-            'lead' => $this->application,
-            'reason' => $this->reason,
-            'contactName' => $this->application->get('contact_name') ?? $this->application->firstname,
-        ], ['mail'], $this->application);
-        $notification->setSubject('Sobre tu solicitud corporativa');
-
-        try {
-            LaravelNotification::route('mail', $email)->notify($notification);
-        } catch (Throwable $e) {
-            report($e);
-
-            return false;
-        }
-
-        return true;
+        return $this->sendApplicationEmail(
+            $this->app,
+            (string) (Setting::REJECTED_TEMPLATE->readFrom($this->app) ?: self::DEFAULT_TEMPLATE),
+            'Sobre tu solicitud corporativa',
+            [
+                'lead' => $this->application,
+                'reason' => $this->reason,
+                'contactName' => $this->application->get('contact_name') ?? $this->application->firstname,
+            ],
+            (string) $this->application->email,
+            $this->application,
+        );
     }
 }

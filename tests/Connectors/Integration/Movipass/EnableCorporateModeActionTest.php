@@ -147,7 +147,12 @@ final class EnableCorporateModeActionTest extends TestCase
 
         $this->assertTrue($this->userBelongsTo($company));
 
-        $result = new RejectCorporateApplicationAction($lead, $this->kanvasApp, 'RNC no existe', $this->kanvasUser)->execute();
+        $result = new RejectCorporateApplicationAction(
+            $lead,
+            $this->kanvasApp,
+            'RNC no existe',
+            $this->kanvasUser
+        )->execute();
 
         $this->assertEquals(CorporateApplicationStatusEnum::REJECTED->value, $result['status']);
         $this->assertTrue((bool) $company->fresh()->is_deleted);
@@ -167,7 +172,12 @@ final class EnableCorporateModeActionTest extends TestCase
         new ApproveCorporateApplicationAction($lead, $this->kanvasApp, $this->kanvasUser)->execute();
 
         try {
-            new RejectCorporateApplicationAction($lead->fresh(), $this->kanvasApp, 'too late', $this->kanvasUser)->execute();
+            new RejectCorporateApplicationAction(
+                $lead->fresh(),
+                $this->kanvasApp,
+                'too late',
+                $this->kanvasUser
+            )->execute();
             $this->fail('expected a ValidationException');
         } catch (ValidationException) {
         }

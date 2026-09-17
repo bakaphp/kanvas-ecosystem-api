@@ -7,16 +7,14 @@ namespace Kanvas\Companies\CorporateApplications\Actions;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Notification as LaravelNotification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\CorporateApplications\Concerns\SendsApplicationEmail;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationSettingEnum as Setting;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
-use Kanvas\Notifications\Templates\Blank;
-use Throwable;
 
 /**
  * §12.4: an application nobody decided within the SLA (24h by default, `corporate_application_sla_hours`
@@ -25,6 +23,8 @@ use Throwable;
  */
 class FlagOverdueCorporateApplicationsAction
 {
+    use SendsApplicationEmail;
+
     public const int DEFAULT_SLA_HOURS = 24;
     public const string DEFAULT_TEMPLATE = 'corporate-overdue';
 
@@ -45,7 +45,7 @@ class FlagOverdueCorporateApplicationsAction
 
         foreach ($this->overdueApplications($now->copy()->subHours($slaHours)) as $application) {
             Field::OVERDUE_AT->writeTo($application, $now->toIso8601String());
-            $this->escalate($application, $slaHours);
+            $this->escalate($application, $slaHours, $now);
             $flagged[] = $application->getId();
         }
 
@@ -112,32 +112,23 @@ class FlagOverdueCorporateApplicationsAction
             ->where('is_deleted', 0);
     }
 
-    private function escalate(Lead $application, int $slaHours): void
+    private function escalate(Lead $application, int $slaHours, Carbon $now): void
     {
-        $recipients = $this->escalationRecipients($application->receiver);
-
-        if ($recipients === []) {
-            return;
-        }
-
-        $templateName = (string) (Setting::OVERDUE_TEMPLATE->readFrom($this->app) ?: self::DEFAULT_TEMPLATE);
-
-        $notification = new Blank($templateName, [
-            'app' => $this->app,
-            'lead' => $application,
-            'applicationTitle' => $application->title,
-            'applicantName' => $application->get('contact_name') ?? trim($application->firstname . ' ' . $application->lastname),
-            'hoursOpen' => (int) $application->created_at->diffInHours($this->now ?? Carbon::now()),
-            'slaHours' => $slaHours,
-            'status' => Field::STATUS->readFrom($application),
-        ], ['mail'], $application);
-        $notification->setSubject('Solicitud atrasada: ' . $application->title);
-
-        try {
-            LaravelNotification::route('mail', $recipients)->notify($notification);
-        } catch (Throwable $e) {
-            report($e);
-        }
+        $this->sendApplicationEmail(
+            $this->app,
+            (string) (Setting::OVERDUE_TEMPLATE->readFrom($this->app) ?: self::DEFAULT_TEMPLATE),
+            'Solicitud atrasada: ' . $application->title,
+            [
+                'lead' => $application,
+                'applicationTitle' => $application->title,
+                'applicantName' => $application->get('contact_name') ?? trim($application->firstname . ' ' . $application->lastname),
+                'hoursOpen' => (int) $application->created_at->diffInHours($now),
+                'slaHours' => $slaHours,
+                'status' => Field::STATUS->readFrom($application),
+            ],
+            $this->escalationRecipients($application->receiver),
+            $application,
+        );
     }
 
     /**

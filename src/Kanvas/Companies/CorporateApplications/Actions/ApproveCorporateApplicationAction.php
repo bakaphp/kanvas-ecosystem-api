@@ -5,18 +5,17 @@ declare(strict_types=1);
 namespace Kanvas\Companies\CorporateApplications\Actions;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Notification as LaravelNotification;
 use Illuminate\Support\Str;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
+use Kanvas\Companies\CorporateApplications\Concerns\SendsApplicationEmail;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationSettingEnum as Setting;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Companies\DataTransferObject\Company as CompanyData;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Models\Users;
@@ -43,6 +42,8 @@ use Throwable;
  */
 class ApproveCorporateApplicationAction
 {
+    use SendsApplicationEmail;
+
     public function __construct(
         protected readonly Model $application,
         protected readonly Apps $app,
@@ -238,32 +239,23 @@ class ApproveCorporateApplicationAction
 
     private function sendWelcomeEmail(Companies $company, UsersInvite $invite): void
     {
-        $email = trim((string) $this->application->email);
-
-        if ($email === '') {
-            return;
-        }
-
-        $templateName = (string) (Setting::WELCOME_TEMPLATE->readFrom($this->app) ?: 'corporate-welcome');
         $inviteBaseUrl = rtrim((string) (Setting::INVITE_LINK_BASE->readFrom($this->app) ?? ''), '/');
 
-        $notification = new Blank($templateName, [
-            'app' => $this->app,
-            'lead' => $this->application,
-            'company' => $company,
-            'invite' => $invite,
-            'inviteHash' => $invite->invite_hash,
-            'inviteUrl' => $inviteBaseUrl !== '' ? $inviteBaseUrl . '/' . $invite->invite_hash : null,
-            'corporateLegalName' => $this->application->get('legal_name'),
-            'contactName' => $this->application->get('contact_name') ?? $this->application->firstname,
-        ], ['mail'], $this->application);
-        $notification->setSubject('Bienvenido al portal corporativo');
-
-        try {
-            LaravelNotification::route('mail', $email)->notify($notification);
-        } catch (Throwable $e) {
-            // Email failures don't fail approval — Company/Invite are the source of truth.
-            report($e);
-        }
+        $this->sendApplicationEmail(
+            $this->app,
+            (string) (Setting::WELCOME_TEMPLATE->readFrom($this->app) ?: 'corporate-welcome'),
+            'Bienvenido al portal corporativo',
+            [
+                'lead' => $this->application,
+                'company' => $company,
+                'invite' => $invite,
+                'inviteHash' => $invite->invite_hash,
+                'inviteUrl' => $inviteBaseUrl !== '' ? $inviteBaseUrl . '/' . $invite->invite_hash : null,
+                'corporateLegalName' => $this->application->get('legal_name'),
+                'contactName' => $this->application->get('contact_name') ?? $this->application->firstname,
+            ],
+            (string) $this->application->email,
+            $this->application,
+        );
     }
 }

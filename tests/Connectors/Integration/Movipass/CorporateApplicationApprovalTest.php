@@ -110,7 +110,12 @@ final class CorporateApplicationApprovalTest extends TestCase
         $lead = $this->makePendingApplication();
         Notification::fake();
 
-        $result = new RejectCorporateApplicationAction($lead, $this->kanvasApp, 'RNC no existe en DGII', Auth::user())->execute();
+        $result = new RejectCorporateApplicationAction(
+            $lead,
+            $this->kanvasApp,
+            'RNC no existe en DGII',
+            Auth::user()
+        )->execute();
 
         $this->assertEquals(CorporateApplicationStatusEnum::REJECTED->value, $result['status']);
         $this->assertEquals('RNC no existe en DGII', $result['reason']);
