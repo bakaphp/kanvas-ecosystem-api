@@ -76,6 +76,7 @@ Never print a credential while debugging — check presence (`rawToken() !== nul
 | Browserbase | Key goes in the query string (`auth_query_param: browserbaseApiKey`), appended at send time and redacted from errors. Reports "connected" even with a wrong key — the key is only checked when a browser opens. |
 | TikTok Ads | Points at the progressive `tt-ads-mcp-layer` endpoint — the flat one's ~400 tools overwhelm a prompt. Issuer is `{server}/oauth`, resolved through the OIDC-suffixed well-known. **Writes with no paused-by-default.** |
 | Higgsfield | Must be `mcp.higgsfield.ai/mcp`; `higgsfield.ai/mcp` 307-redirects and the transport refuses redirects by design. Clerk registers the client. |
+| Vercel | **Hidden.** Registration is allow-listed **by redirect URI**, which is how "only clients Vercel has approved" is enforced: `claude.ai/api/mcp/auth_callback` and `localhost` register, `{app.url}/v1/oauth/callback` gets `invalid_redirect_uri`. No bearer fallback either — a token in the header returns `401 "No authorization provided"`, so the server never reads it as a credential. Needs a hand-made client (`client_key: vercel`) whose redirect Vercel accepts; discovery itself is clean, so don't pin an authorization server. `offline_access` is added to the advertised `openid` or there is no refresh token. |
 | Atlassian | OAuth fails on Atlassian's side; the bearer (service-account key) method works. |
 | n8n | `server_url` must be the resource its metadata names (e.g. `…/mcp-server/http`), not the instance root, or you get `invalid_target`. |
 | Deel | Granted read-only scopes out of ~90 published; widening to payroll/payment writes is deliberate, not a fix. |
@@ -84,7 +85,8 @@ Never print a credential while debugging — check presence (`rawToken() !== nul
 ## Timeouts
 
 `metadata.timeout_ms` is the per-call ceiling. The default is 20 s (CRUD-style servers). Search and reporting
-servers (Tavily, Analytics, ads, n8n, SQL Server, SAP) use 30 s. Anything that renders or searches heavily uses
+servers (Tavily, Analytics, ads, n8n, SQL Server, SAP, Vercel — docs search, runtime logs and Agent Run
+traces) use 30 s. Anything that renders or searches heavily uses
 60 s: Browserbase, Playwright, Higgsfield, and **Sentry**, whose `search_events` translates natural language
 server-side and overran 20 s.
 

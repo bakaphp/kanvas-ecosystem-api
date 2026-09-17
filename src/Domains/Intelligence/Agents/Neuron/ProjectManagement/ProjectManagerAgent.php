@@ -90,6 +90,7 @@ class ProjectManagerAgent extends SystemUserAgent
             turnMedia: $this->turnMedia,
             model: $this->resolvedModelName(),
             privateUserTurn: $this->privateUserTurn,
+            contextWindow: $this->resolvedContextWindow(),
         );
     }
 

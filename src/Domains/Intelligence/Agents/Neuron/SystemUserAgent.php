@@ -94,6 +94,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
                 entity: $this->entity,
                 includeInternal: true,
                 currentLead: $this->currentLead,
+                contextWindow: $this->resolvedContextWindow(),
             );
         }
 
@@ -107,6 +108,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
             turnMedia: $this->turnMedia,
             model: $this->resolvedModelName(),
             privateUserTurn: $this->privateUserTurn,
+            contextWindow: $this->resolvedContextWindow(),
         );
     }
 

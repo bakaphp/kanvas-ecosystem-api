@@ -19,9 +19,9 @@ class TypesenseSyncSchemaCommand extends Command
                             {model : FQCN of the searchable model, e.g. "Kanvas\\Souk\\Orders\\Models\\Order"}
                             {--app= : Limit to one app id (default: every app indexing this model into Typesense)}
                             {--dry-run : Report the drift without altering anything}
-                            {--all : Also re-type non-widening drift, which reindexes the field lossily}';
+                            {--all : Also apply non-widening drift — a lossy re-type, or adding a field the collection requires}';
 
-    protected $description = 'Re-type Typesense fields whose live collection drifted from the type the model declares';
+    protected $description = 'Add or re-type Typesense fields whose live collection drifted from what the model declares';
 
     public function handle(): int
     {
@@ -71,8 +71,8 @@ class TypesenseSyncSchemaCommand extends Command
         }
 
         $this->info($dryRun
-            ? "{$altered} field(s) would be re-typed."
-            : "{$altered} field(s) re-typed.");
+            ? "{$altered} field(s) would be synced."
+            : "{$altered} field(s) synced.");
 
         return self::SUCCESS;
     }
