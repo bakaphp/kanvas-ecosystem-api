@@ -21,6 +21,7 @@ enum ParkingApplicationFieldEnum: string
     case REVIEWED_BY = 'parking_application_reviewed_by';
     case REVIEWED_AT = 'parking_application_reviewed_at';
     case NUMBER = 'parking_application_number';
+    case PRODUCT_ID = 'parking_application_product_id';
 
     /**
      * Server-stamped by the Phase 16 acceptance flow (mirrors StampTermsAcceptanceActivity), not

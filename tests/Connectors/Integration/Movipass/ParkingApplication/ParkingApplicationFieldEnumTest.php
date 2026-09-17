@@ -25,6 +25,7 @@ final class ParkingApplicationFieldEnumTest extends TestCase
         ParkingApplicationFieldEnum::REVIEWED_BY,
         ParkingApplicationFieldEnum::REVIEWED_AT,
         ParkingApplicationFieldEnum::NUMBER,
+        ParkingApplicationFieldEnum::PRODUCT_ID,
         ParkingApplicationFieldEnum::CONTRACT_ACCEPTED_AT,
         ParkingApplicationFieldEnum::CONTRACT_ACCEPTANCE_IP,
     ];
