@@ -46,7 +46,17 @@ class LeadVariantInterestProjectionServiceTest extends TestCase
         $this->assertTrue($fields['variant_interests']['optional']);
         $this->assertSame('string', $fields['variant_search_text']['type']);
         $this->assertTrue($fields['variant_search_text']['optional']);
-        $this->assertStringContainsString('variant_search_text', $lead->searchQueryBy());
+    }
+
+    /**
+     * Leads collections created before the field was declared never learned it, and Typesense answers
+     * "Could not find a field named `variant_search_text` in the schema" to *every* search on such a
+     * collection, not just the ones that would have matched a variant. It only goes back into query_by
+     * once `kanvas:search:typesense-sync-schema` has added the field to every live leads collection.
+     */
+    public function testVariantSearchTextStaysOutOfQueryByUntilLiveCollectionsCarryIt(): void
+    {
+        $this->assertStringNotContainsString('variant_search_text', new Lead()->searchQueryBy());
     }
 
     public function testLeadKnowledgeSourceIncludesVariantInterestDocument(): void
