@@ -203,6 +203,21 @@ trait HasFilesystemTrait
     }
 
     /**
+     * `files()` returns every attached file regardless of type — brochures, PDFs, anything. This
+     * narrows it to actual image files via `Filesystem.file_type`, which is content-sniffed on
+     * upload (see `CreateFilesystemAction::resolveFileType()`), not the client filename.
+     */
+    public function photos(): HasManyThrough
+    {
+        return $this->files()->whereIn('filesystem.file_type', MediaTypeEnum::imageExtensions());
+    }
+
+    public function getPhotosCount(): int
+    {
+        return $this->photos()->count();
+    }
+
+    /**
      * Files shaped exactly like FilesystemQuery@getFileByGraphType (same columns + scoping),
      * exposed as a relation so it can be eager-loaded. Eager-loading this across a page of
      * entities collapses the per-entity `files` N+1 into a single `entity_id IN (...)` query.

@@ -19,7 +19,6 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -34,7 +33,6 @@ use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
 use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Filesystem\Contracts\EntityImportFilesystemInterface;
-use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Inventory\Attributes\Models\Attributes;
 use Kanvas\Inventory\Categories\Models\Categories;
@@ -1126,22 +1124,6 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     public function setTotalVariants(): void
     {
         $this->set('total_variants', Variants::where('products_id', $this->getId())->count());
-    }
-
-    /**
-     * `files()` (from `HasFilesystemTrait`) returns every attached file regardless of type —
-     * brochures, PDFs, anything. This narrows it to actual image files via `Filesystem.file_type`,
-     * which is content-sniffed on upload (see `CreateFilesystemAction::resolveFileType()`), not the
-     * client filename.
-     */
-    public function photos(): HasManyThrough
-    {
-        return $this->files()->whereIn('filesystem.file_type', MediaTypeEnum::imageExtensions());
-    }
-
-    public function getPhotosCount(): int
-    {
-        return $this->photos()->count();
     }
 
     /**
