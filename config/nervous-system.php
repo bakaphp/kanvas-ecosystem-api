@@ -33,16 +33,21 @@ return [
 
         /*
         | Path prefix inside the disk. The full archive path becomes:
-        |   {prefix}/{year}/{week}/events-{from}-to-{to}.jsonl.gz
+        |   {prefix}/{year}/{m-d}/events-{from}-to-{to}-{uuid8}.jsonl.gz
         */
         'archive_path_prefix' => env('NERVOUS_SYSTEM_ARCHIVE_PATH_PREFIX', 'nervous-system'),
 
         /*
-        | Batch size for the archive sweeper. Events are read from MySQL
-        | in chunks of this size, written to the archive blob, then
-        | deleted from MySQL. Larger = faster but more memory pressure.
+        | Rows hydrated per read. A single payload can run to several MB,
+        | so memory tracks payload size far more than this count suggests.
         */
-        'archive_chunk_size' => (int) env('NERVOUS_SYSTEM_ARCHIVE_CHUNK_SIZE', 5000),
+        'archive_chunk_size' => (int) env('NERVOUS_SYSTEM_ARCHIVE_CHUNK_SIZE', 500),
+
+        /*
+        | Events per archive blob. Each blob's rows are deleted from MySQL
+        | before the next one starts, so a crash only loses the current blob.
+        */
+        'archive_events_per_file' => (int) env('NERVOUS_SYSTEM_ARCHIVE_EVENTS_PER_FILE', 50000),
 
         /*
         | Event types the sweeper must NEVER archive-and-delete, regardless

@@ -9,6 +9,7 @@ use Kanvas\Connectors\DealerSocket\Actions\PullLeadAction;
 use Kanvas\Connectors\DealerSocket\Actions\PullPeopleAction;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\SalesAssist\Actions\PullLeadFromADFAction;
+use Kanvas\Connectors\SalesAssist\Services\AdfXmlParserService;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
@@ -22,7 +23,6 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
-use Kiwilan\XmlReader\XmlReader;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
@@ -49,9 +49,7 @@ class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
         $user = $this->webhookRequest->receiverWebhook->user;
         $configuration = $this->webhookRequest->receiverWebhook->configuration ?? [];
 
-        // Parse XML
-        $xml = XmlReader::make($payload['body-plain'], true, true);
-        $data = $xml->toArray();
+        $data = AdfXmlParserService::toArray($payload['body-plain'] ?? null);
 
         if (! isset($data['adf']['prospect'])) {
             return [
@@ -87,13 +85,10 @@ class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
             }
         }
 
-        // Extract email safely
-        $emailData = $contact['email'] ?? null;
-        $email = is_array($emailData) ? ($emailData['@content'] ?? null) : $emailData;
+        $email = AdfXmlParserService::content($contact['email'] ?? null);
 
-        // Extract phone safely
         $phoneData = $contact['phone'] ?? null;
-        $phone = is_array($phoneData) ? ($phoneData['@content'] ?? null) : $phoneData;
+        $phone = AdfXmlParserService::content($phoneData);
         $phoneType = is_array($phoneData) && isset($phoneData['@attributes']['type']) ? $phoneData['@attributes']['type'] : null;
 
         // Extract address

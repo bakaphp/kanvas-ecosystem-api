@@ -48,11 +48,10 @@ class ArchiveOldLedgerEventsCommand extends Command
         }
 
         $this->info(sprintf(
-            'Archived %d events to %s (%d bytes), archive id %d.',
+            'Archived %d events into %d archive files (%d bytes).',
             $result['event_count'],
-            $result['s3_path'],
+            $result['archive_count'],
             $result['size_bytes'],
-            $result['archive_id'],
         ));
 
         return self::SUCCESS;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\DataTransferObject;
 
 use Baka\Users\Contracts\UserInterface;
+use Carbon\CarbonInterface;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Event\Events\Models\Event;
 use Spatie\LaravelData\Attributes\DataCollectionOf;
@@ -27,6 +28,8 @@ class EventVersion extends Data
         public readonly ?string $description = null,
         public readonly mixed $metadata = null,
         public readonly ?string $slug = null,
+        public readonly ?CarbonInterface $startAt = null,
+        public readonly ?CarbonInterface $endAt = null,
     ) {
     }
 

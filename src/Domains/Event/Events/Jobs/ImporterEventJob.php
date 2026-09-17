@@ -80,7 +80,7 @@ class ImporterEventJob extends ProductImporterJob
                     $request['category_id'] = $category->getId();
                 }
                 $data = Event::fromMultiple($this->app, $this->user, $this->branch->company, $request);
-                $event = (new CreateEventAction($data))->execute();
+                $event = new CreateEventAction($data)->withoutNotifications()->execute();
 
                 if ($event->wasRecentlyCreated) {
                     $created++;

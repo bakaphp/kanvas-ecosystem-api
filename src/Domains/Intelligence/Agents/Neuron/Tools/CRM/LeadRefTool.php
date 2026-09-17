@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
@@ -25,8 +26,9 @@ class LeadRefTool extends Tool
     {
         parent::__construct(
             'get_lead_ref',
-            'Get the full reference data of the lead including personal info, owner,
-             company, contacts (emails, phones), address, and photo.
+            'Get the full reference data of the lead including personal info (age), owner,
+             company, contacts (emails, phones), address, photo, and whether this is a new or a
+             returning customer (use get_past_opportunities for the details of a returning one).
              Call this once at the start of the conversation to know who you are talking to. Do not call it again.',
         );
 
@@ -83,6 +85,7 @@ class LeadRefTool extends Tool
                 'middlename' => $people->middlename,
                 'lastname' => $people->lastname,
                 'dob' => $people->dob?->format('Y-m-d'),
+                'age' => $people->dob?->age,
                 'photo' => $people->getPhoto()?->url,
 
                 'contacts' => $people->contacts()->with('type')->get()->map(fn ($contact) => [
@@ -124,6 +127,22 @@ class LeadRefTool extends Tool
             ] : null,
 
             'appointments' => $this->buildAppointmentsList($lead),
+            ...$this->buildCustomerType($lead),
+        ];
+    }
+
+    /**
+     * Count only — the history itself is get_past_opportunities, so this reference payload stays small.
+     *
+     * @return array{customer_type: string, past_opportunities_count: int}
+     */
+    private function buildCustomerType(Lead $lead): array
+    {
+        $count = LeadsRepository::getPastOpportunities($lead)->count();
+
+        return [
+            'customer_type' => $count === 0 ? 'new' : 'returning',
+            'past_opportunities_count' => $count,
         ];
     }
 

@@ -267,7 +267,7 @@ class ProcessCalendlyInviteeAction
             ],
         );
 
-        return new CreateEventAction($dto)->disableWorkflow()->execute();
+        return new CreateEventAction($dto)->disableWorkflow()->withoutNotifications()->execute();
     }
 
     protected function resolveSourceId(AppInterface $app, Companies $company, array $config): int

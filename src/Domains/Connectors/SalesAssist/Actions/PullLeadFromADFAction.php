@@ -7,10 +7,11 @@ namespace Kanvas\Connectors\SalesAssist\Actions;
 use Carbon\Carbon;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\Services\AdfXmlParserService;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\NervousSystem\DailyLearning\Services\CycleWindowResolverService;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
-use Kiwilan\XmlReader\XmlReader;
 
 class PullLeadFromADFAction
 {
@@ -24,21 +25,15 @@ class PullLeadFromADFAction
         $payload = $this->webhookRequest->payload;
         $app = $this->webhookRequest->receiverWebhook->app;
         $company = $this->webhookRequest->receiverWebhook->company;
-        $xml = XmlReader::make($payload['body-plain'], true, true);
-
-        $data = $xml->toArray();
+        $data = AdfXmlParserService::toArray($payload['body-plain'] ?? null);
 
         if (! isset($data['adf']['prospect'])) {
             return null;
         }
 
-        // Extract email - handle both string and array formats
-        $emailData = $data['adf']['prospect']['customer']['contact']['email'] ?? null;
-        $email = is_array($emailData) ? ($emailData['@content'] ?? null) : $emailData;
-
-        // Extract phone - handle both string and array formats
-        $phoneData = $data['adf']['prospect']['customer']['contact']['phone'] ?? null;
-        $phone = is_array($phoneData) ? ($phoneData['@content'] ?? null) : $phoneData;
+        $contact = $data['adf']['prospect']['customer']['contact'] ?? [];
+        $email = AdfXmlParserService::content($contact['email'] ?? null);
+        $phone = AdfXmlParserService::content($contact['phone'] ?? null);
 
         $people = PeoplesRepository::getMatchingEmailPhone(
             $app,
@@ -51,7 +46,12 @@ class PullLeadFromADFAction
             return null;
         }
 
-        $requestDate = Carbon::parse($data['adf']['prospect']['requestdate']);
+        // created_at is stored in UTC. An explicit offset (CARFAX: -04:00) wins; a requestdate without one
+        // is the dealer's wall clock, so it is read in the tenant's timezone rather than as UTC.
+        $requestDate = Carbon::parse(
+            $data['adf']['prospect']['requestdate'],
+            CycleWindowResolverService::resolveTimezone($app, $company)
+        )->utc();
         $minutesForMatch = $company->get(ConfigurationEnum::MINUTES_FOR_MATCH_ADF_LEAD->value) ?? 30;
 
         $lead = Lead::fromApp($app)
@@ -66,6 +66,6 @@ class PullLeadFromADFAction
 
         $lead?->set(LeadCustomFieldEnum::ADF_LEAD_XML->value, $data);
 
-        return $lead ?? null;
+        return $lead;
     }
 }

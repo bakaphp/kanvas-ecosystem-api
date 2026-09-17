@@ -10,6 +10,7 @@ use Baka\Support\Str;
 use Baka\Support\Url;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 use Kanvas\ActionEngine\Actions\Enums\ActionEnum;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
@@ -58,7 +59,8 @@ class CreateEngagementAction
 
     public function __construct(
         protected EngagementData $engagementData,
-        protected bool $allowDuplicate = true
+        protected bool $allowDuplicate = true,
+        protected bool $requireActiveAction = false
     ) {
         $this->app = $engagementData->app;
         $this->company = $engagementData->company;
@@ -210,15 +212,26 @@ class CreateEngagementAction
 
         $action = Action::getBySlug($resolvedActionSlug, $this->company);
         if (! $action) {
-            throw new ModelNotFoundException('Action not found');
+            throw $this->requireActiveAction
+                ? $this->unavailableActionException()
+                : new ModelNotFoundException('Action not found');
         }
-        // Get company action
-        $this->companyAction = CompanyAction::getByAction(
-            $action,
-            $this->company,
-            $this->app,
-            $this->lead->branch
-        );
+
+        try {
+            $this->companyAction = CompanyAction::getByAction(
+                $action,
+                $this->company,
+                $this->app,
+                $this->lead->branch
+            );
+        } catch (ModelNotFoundException $e) {
+            throw $this->requireActiveAction ? $this->unavailableActionException() : $e;
+        }
+
+        // Checked on the resolved row so a variant slug (credit-app-3) is gated by its base Sales App.
+        if ($this->requireActiveAction && ! $this->companyAction->is_active) {
+            throw $this->unavailableActionException();
+        }
 
         // Set parent action for special cases
         $this->companyActionParent = $this->companyAction;
@@ -230,6 +243,11 @@ class CreateEngagementAction
                 $this->lead->branch
             );
         }
+    }
+
+    protected function unavailableActionException(): InvalidArgumentException
+    {
+        return new InvalidArgumentException("The {$this->actionSlug} Sales App is not available for this company.");
     }
 
     protected function generateNewEngagementUrl(Engagement $engagement): ?string

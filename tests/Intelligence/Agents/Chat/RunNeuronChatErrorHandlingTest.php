@@ -16,6 +16,8 @@ use Kanvas\Intelligence\Agents\Actions\Chat\RunNeuronChatAction;
 use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\CRM\ReceptionistAgent;
+use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
 use Mockery;
 use PDOException;
 use RuntimeException;
@@ -103,15 +105,49 @@ class RunNeuronChatErrorHandlingTest extends TestCase
             ->once();
     }
 
-    private function runChatWithThrowingHandler(Throwable $exception, bool $fallbackOnFailure = true): string
+    /**
+     * A prospect is talking to a persona, so no failure may read as a broken system — not the hiccup,
+     * not an overloaded AI, not a safety filter. Internal agents keep the explanatory copy above.
+     */
+    public function testACustomerFacingAgentOnlyAsksWhatThePersonMeant(): void
     {
+        $failures = [
+            new RuntimeException('Gemini returned STOP with no parts'),
+            $this->providerOverload(503),
+            $this->contentBlocked(),
+            $this->uniqueConstraintViolation(),
+        ];
+
+        foreach ([SalesAgent::class, ReceptionistAgent::class] as $agentTypeHandler) {
+            foreach ($failures as $failure) {
+                $this->assertSame(
+                    'What do you mean?',
+                    $this->runChatWithThrowingHandler($failure, agentTypeHandler: $agentTypeHandler),
+                    sprintf('%s answering a %s', class_basename($agentTypeHandler), $failure::class),
+                );
+            }
+        }
+    }
+
+    public function testAnInternalAgentNeverGetsTheCustomerFacingFallback(): void
+    {
+        $response = $this->runChatWithThrowingHandler(new RuntimeException('Gemini returned STOP with no parts'));
+
+        $this->assertNotSame('What do you mean?', $response);
+    }
+
+    private function runChatWithThrowingHandler(
+        Throwable $exception,
+        bool $fallbackOnFailure = true,
+        string $agentTypeHandler = ThrowingNeuronHandlerStub::class
+    ): string {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
         $agentType = AgentType::factory()
             ->withAppId($app->getId())
-            ->create(['provider' => 'neuron', 'handler' => ThrowingNeuronHandlerStub::class]);
+            ->create(['provider' => 'neuron', 'handler' => $agentTypeHandler]);
 
         $agent = Agent::factory()
             ->withAppId($app->getId())
