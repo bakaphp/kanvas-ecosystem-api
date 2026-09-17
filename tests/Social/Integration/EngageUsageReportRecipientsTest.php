@@ -7,6 +7,7 @@ namespace Tests\Social\Integration;
 use Bouncer;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Analytics\Actions\SendEngageUsageReportAction;
@@ -19,13 +20,13 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
- * Drives the auth user rather than freshly registered ones: a new user's company association is
- * written on `ecosystem`, which the transacted `mysql` handle cannot see, so they would never
- * resolve as recipients. The auth user is associated before the transaction opens and already
- * holds the Admin role — which is exactly what the no-fallback case needs.
+ * Drives the auth user and edits its membership through the default `mysql` handle: the recipient
+ * query reads on `mysql`, and a row written on `ecosystem` (same database, separate connection) is
+ * invisible to that transacted handle and never rolled back.
  */
 class EngageUsageReportRecipientsTest extends TestCase
 {
@@ -48,6 +49,8 @@ class EngageUsageReportRecipientsTest extends TestCase
         $this->company = Companies::getById($user->getCurrentCompany()->getId());
 
         Bouncer::scope()->to(RolesEnums::getScope($this->kanvasApp));
+        Bouncer::assign(RolesEnums::MANAGER->value)->to($this->user);
+
         $this->seedActivity();
     }
 
@@ -59,10 +62,8 @@ class EngageUsageReportRecipientsTest extends TestCase
         parent::tearDown();
     }
 
-    public function testSendsToManagers(): void
+    public function testSendsToAnActiveManager(): void
     {
-        Bouncer::assign(RolesEnums::MANAGER->value)->to($this->user);
-
         Notification::fake();
 
         $this->assertSame(1, $this->send());
@@ -70,15 +71,35 @@ class EngageUsageReportRecipientsTest extends TestCase
         Notification::assertSentTo($this->user, EngageUsageReportNotification::class);
     }
 
-    public function testDoesNotFallBackToAdminsWhenThereIsNoManager(): void
+    /**
+     * @param  array<string, int>  $membership
+     */
+    #[DataProvider('inactiveMemberships')]
+    public function testDoesNotSendToAManagerNoLongerActiveInTheCompany(array $membership): void
     {
-        $this->assertTrue($this->user->isAn(RolesEnums::ADMIN->value), 'precondition: the auth user is an Admin');
+        DB::table('users_associated_apps')
+            ->where('users_id', $this->user->getId())
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->where('companies_id', $this->company->getId())
+            ->update($membership);
 
         Notification::fake();
 
         $this->assertSame(0, $this->send());
 
         Notification::assertNothingSent();
+    }
+
+    /**
+     * @return array<string, array{0: array<string, int>}>
+     */
+    public static function inactiveMemberships(): array
+    {
+        return [
+            'removed' => [['is_deleted' => 1]],
+            'deactivated' => [['is_active' => 0]],
+            'banned' => [['banned' => 1]],
+        ];
     }
 
     private function send(): int
