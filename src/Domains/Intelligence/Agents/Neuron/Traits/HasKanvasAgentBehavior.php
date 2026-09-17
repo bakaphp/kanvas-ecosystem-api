@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\CurrentTimeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\DynamicSubAgentTool;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
@@ -17,9 +18,12 @@ use Kanvas\Intelligence\Agents\Traits\HasTemporalContext;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Agent\Nodes\ToolNode;
 use NeuronAI\Agent\SystemPrompt;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Tools\ToolInterface;
+use NeuronAI\Workflow\Middleware\WorkflowMiddleware;
+use NeuronAI\Workflow\NodeInterface;
 use Override;
 
 trait HasKanvasAgentBehavior
@@ -326,6 +330,17 @@ trait HasKanvasAgentBehavior
     protected function provider(): AIProviderInterface
     {
         return AgentProviderService::resolve($this->requireAgent());
+    }
+
+    /**
+     * @return array<class-string<NodeInterface>, WorkflowMiddleware|WorkflowMiddleware[]>
+     */
+    #[Override]
+    protected function middleware(): array
+    {
+        return [
+            ToolNode::class => new BoundToolResultsMiddleware(),
+        ];
     }
 
     private function requireAgent(): Agent
