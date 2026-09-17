@@ -7,7 +7,7 @@ namespace App\GraphQL\Guild\Queries\Leads;
 use GraphQL\Deferred;
 use GraphQL\Type\Definition\ResolveInfo;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
-use Kanvas\Guild\Leads\Services\LeadReceiverWebhookLoader;
+use Kanvas\Guild\Leads\Services\LeadReceiverWebhookService;
 use Nuwave\Lighthouse\Execution\BatchLoader\BatchLoaderRegistry;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -22,7 +22,7 @@ class LeadReceiverWebhookQuery
         // One loader per field path, so every receiver under the same list shares a single lookup.
         $loader = BatchLoaderRegistry::instance(
             $resolveInfo->path,
-            fn (): LeadReceiverWebhookLoader => new LeadReceiverWebhookLoader(),
+            fn (): LeadReceiverWebhookService => new LeadReceiverWebhookService(),
         );
 
         return $loader->load($receiver);

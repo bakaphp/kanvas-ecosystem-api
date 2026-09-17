@@ -20,7 +20,7 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
  * Only webhooks wired to the lead-intake jobs count; a Zoho/WaSender webhook also carries
  * `receiver_id` but cannot process a form payload.
  */
-class LeadReceiverWebhookLoader
+class LeadReceiverWebhookService
 {
     /** @var array<int, LeadReceiver> */
     private array $receivers = [];
