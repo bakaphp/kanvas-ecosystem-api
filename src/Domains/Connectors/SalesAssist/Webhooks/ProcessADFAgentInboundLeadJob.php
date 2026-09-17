@@ -9,6 +9,7 @@ use Kanvas\Connectors\DealerSocket\Actions\PullLeadAction;
 use Kanvas\Connectors\DealerSocket\Actions\PullPeopleAction;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\SalesAssist\Actions\PullLeadFromADFAction;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDTO;
@@ -164,6 +165,8 @@ class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
                         email: $email,
                         phoneNumber: $phone
                     );
+                } catch (ModelNotFoundException) {
+                    $people = null;
                 } catch (InvalidArgumentException $e) {
                     report($e);
                     $people = null;

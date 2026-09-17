@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\GraphQL\Inventory;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Inventory\Bundles\Models\Bundle;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
@@ -50,6 +52,110 @@ class BundleTest extends TestCase
                 ],
             ]
         )->json()['data']['createVariant'];
+    }
+
+    public function testBundleItemsExcludeUnavailableVariantsBeforePagination(): void
+    {
+        $variant = Variants::findOrFail($this->variantResponse['id']);
+        $connection = $variant->getConnection();
+        $connection->beginTransaction();
+
+        try {
+            $bundle = Bundle::create([
+                'apps_id' => $variant->apps_id,
+                'companies_id' => $variant->companies_id,
+                'users_id' => auth()->id(),
+                'name' => fake()->uuid(),
+                'weight' => 0,
+            ]);
+            $deletedVariant = $variant->replicate();
+            $deletedVariant->uuid = fake()->uuid();
+            $deletedVariant->sku = fake()->uuid();
+            $deletedVariant->is_deleted = 1;
+            $deletedVariant->saveQuietly();
+
+            foreach ([null, 0, $deletedVariant->getId(), $variant->getId()] as $index => $variantId) {
+                $connection->table('bundle_items')->insert([
+                    'bundle_id' => $bundle->getId(),
+                    'variant_id' => $variantId,
+                    'quantity' => 1,
+                    'created_at' => now()->subMinutes($index),
+                ]);
+            }
+
+            $query = '
+                query($where: QueryBundlesWhereWhereConditions) {
+                    bundles(where: $where, first: 1) {
+                        data {
+                            bundleItems(first: 1) {
+                                data { variant { id } }
+                                paginatorInfo { total }
+                            }
+                        }
+                        paginatorInfo { total }
+                    }
+                }';
+            $variables = ['where' => ['column' => 'ID', 'operator' => 'EQ', 'value' => $bundle->getId()]];
+
+            $this->graphQL($query, $variables)
+                ->assertSuccessful()
+                ->assertJsonMissingPath('errors')
+                ->assertJsonPath('data.bundles.data.0.bundleItems.paginatorInfo.total', 1)
+                ->assertJsonPath('data.bundles.data.0.bundleItems.data.0.variant.id', (string) $variant->getId());
+
+            $variant->is_deleted = 1;
+            $variant->saveQuietly();
+
+            $this->graphQL($query, $variables)
+                ->assertSuccessful()
+                ->assertJsonMissingPath('errors')
+                ->assertJsonPath('data.bundles.data.0.bundleItems.paginatorInfo.total', 0)
+                ->assertJsonPath('data.bundles.data.0.bundleItems.data', []);
+        } finally {
+            $connection->rollBack();
+        }
+    }
+
+    public function testDeletingVariantSoftDeletesItsBundleItems(): void
+    {
+        $variant = Variants::findOrFail($this->variantResponse['id']);
+        $connection = $variant->getConnection();
+        $connection->beginTransaction();
+
+        try {
+            $otherVariant = $variant->replicate();
+            $otherVariant->uuid = fake()->uuid();
+            $otherVariant->sku = fake()->uuid();
+            $otherVariant->saveQuietly();
+
+            $bundles = [];
+            foreach (range(1, 2) as $index) {
+                $bundle = Bundle::create([
+                    'apps_id' => $variant->apps_id,
+                    'companies_id' => $variant->companies_id,
+                    'users_id' => auth()->id(),
+                    'name' => fake()->uuid(),
+                    'weight' => 0,
+                ]);
+                $bundle->variants()->attach([
+                    $variant->getId() => ['quantity' => 1],
+                    $otherVariant->getId() => ['quantity' => 1],
+                ]);
+                $bundles[] = $bundle;
+            }
+
+            $this->assertTrue($variant->delete());
+
+            foreach ($bundles as $bundle) {
+                $items = $connection->table('bundle_items')->where('bundle_id', $bundle->getId());
+                $this->assertSame(2, (clone $items)->count());
+                $this->assertEquals(1, (clone $items)->where('variant_id', $variant->getId())->value('is_deleted'));
+                $this->assertEquals(0, (clone $items)->where('variant_id', $otherVariant->getId())->value('is_deleted'));
+                $this->assertFalse($bundle->fresh()->is_deleted);
+            }
+        } finally {
+            $connection->rollBack();
+        }
     }
 
     public function testCreateBundle(): void
