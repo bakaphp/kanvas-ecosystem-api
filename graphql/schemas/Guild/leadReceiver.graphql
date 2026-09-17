@@ -14,11 +14,9 @@ type LeadReceiver {
     leadSource: LeadSource @belongsTo(relation: "leadSource")
     leadType: LeadType @belongsTo(relation: "leadType")
     leadRotation: LeadRotation @belongsTo(relation: "rotation")
-    # Aliases from the former duplicate declaration in lead.graphql; same relations as the lead* fields.
     source: LeadSource @belongsTo(relation: "leadSource")
     type: LeadType @belongsTo(relation: "leadType")
     rotation: Rotation @belongsTo(relation: "rotation")
-    "ReceiverWebhook uuid that routes POST /api/receiver/{uuid} to this receiver; null when none is wired."
     submit_webhook_uuid: String
         @field(
             resolver: "App\\GraphQL\\Guild\\Queries\\Leads\\LeadReceiverWebhookQuery@submitWebhookUuid"
