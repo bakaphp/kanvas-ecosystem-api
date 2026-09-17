@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Ecosystem\Unit\Companies;
 
 use Illuminate\Support\Facades\Blade;
+use Kanvas\Companies\CorporateApplications\Actions\FlagOverdueCorporateApplicationsAction;
 use Kanvas\Companies\CorporateApplications\Actions\RejectCorporateApplicationAction;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -27,6 +28,7 @@ final class CorporateApplicationEmailTemplatesTest extends TestCase
             'needs review' => ['corporate-needs-review', $sample + ['reason' => 'RNC must be 9 or 11 digits']],
             'existing account' => ['corporate-existing-account', $sample + ['loginUrl' => 'https://example.com/login']],
             'rejected' => [RejectCorporateApplicationAction::DEFAULT_TEMPLATE, $sample + ['reason' => 'RNC no existe en DGII']],
+            'overdue' => [FlagOverdueCorporateApplicationsAction::DEFAULT_TEMPLATE, $sample + ['applicationTitle' => 'Parqueo Plaza Central', 'applicantName' => 'Juan Pérez', 'hoursOpen' => 30, 'slaHours' => 24, 'status' => 'pending']],
         ];
     }
 
@@ -39,7 +41,7 @@ final class CorporateApplicationEmailTemplatesTest extends TestCase
 
         $html = Blade::render($templates[$name]['template'], $data);
 
-        $this->assertStringContainsString($data['contactName'], $html);
+        $this->assertStringContainsString($data['applicantName'] ?? $data['contactName'], $html);
 
         if (isset($data['reason'])) {
             $this->assertStringContainsString($data['reason'], $html);

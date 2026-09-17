@@ -25,6 +25,7 @@ enum CorporateApplicationFieldEnum: string
     case VALIDATION_HINT = 'corporate_application_validation_hint';
     case REVIEWED_BY = 'corporate_application_reviewed_by';
     case REVIEWED_AT = 'corporate_application_reviewed_at';
+    case OVERDUE_AT = 'corporate_application_overdue_at';
 
     /**
      * Present only on upgrade requests from an already-registered user. Its presence is what

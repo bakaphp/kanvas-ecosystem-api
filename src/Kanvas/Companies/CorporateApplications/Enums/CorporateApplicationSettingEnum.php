@@ -17,6 +17,8 @@ enum CorporateApplicationSettingEnum: string
     case INVITE_LINK_BASE = 'corporate_application_invite_link_base';
     case RECEIVER_ID = 'corporate_application_receiver_id';
     case AUTO_APPROVE = 'corporate_application_auto_approve';
+    case SLA_HOURS = 'corporate_application_sla_hours';
+    case OVERDUE_TEMPLATE = 'corporate_application_overdue_template';
 
     public function legacyKey(): string
     {
