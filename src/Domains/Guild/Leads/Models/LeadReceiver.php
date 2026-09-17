@@ -43,8 +43,7 @@ use Kanvas\Users\Models\Users;
 #[ObservedBy(LeadReceiverObserver::class)]
 class LeadReceiver extends BaseModel
 {
-    // Products/Variants reach receivers through a (companies_id, apps_id) composite hasMany;
-    // the eager-load tuple whereIn runs on this model's query builder, so it must be Compoships-aware.
+    // Products/Variants reach this model through a composite hasMany.
     use Compoships;
     use DatabaseSearchableTrait;
     use DefaultTrait;

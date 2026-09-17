@@ -19,7 +19,6 @@ class LeadReceiverWebhookQuery
         GraphQLContext $context,
         ResolveInfo $resolveInfo
     ): Deferred {
-        // One loader per field path, so every receiver under the same list shares a single lookup.
         $loader = BatchLoaderRegistry::instance(
             $resolveInfo->path,
             fn (): LeadReceiverWebhookService => new LeadReceiverWebhookService(),

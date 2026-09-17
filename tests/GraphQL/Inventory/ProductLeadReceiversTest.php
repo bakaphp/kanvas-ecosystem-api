@@ -71,11 +71,6 @@ class ProductLeadReceiversTest extends TestCase
         );
     }
 
-    /**
-     * Eager loading builds one constraint for the whole batch. A single-column hasMany keyed on
-     * companies_id plus `where apps_id = first row's app` would hand app A's receivers to app B's
-     * product; the composite key must keep each row on its own tenant.
-     */
     public function testEagerLoadKeepsEachProductOnItsOwnApp(): void
     {
         $app = app(Apps::class);

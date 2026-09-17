@@ -11,15 +11,6 @@ use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverWithConfirmationJob;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 
-/**
- * Resolves, for a batch of receivers, the ReceiverWebhook uuid a storefront form must POST to.
- *
- * The link lives inside `receiver_webhooks.configuration->receiver_id` — a JSON key on another
- * connection, unindexed and written as int or string depending on who created the row. So this
- * never puts the JSON key in SQL: one query per (app, company) on indexed columns, matched in PHP.
- * Only webhooks wired to the lead-intake jobs count; a Zoho/WaSender webhook also carries
- * `receiver_id` but cannot process a form payload.
- */
 class LeadReceiverWebhookService
 {
     /** @var array<int, LeadReceiver> */
@@ -64,7 +55,7 @@ class LeadReceiverWebhookService
      */
     private function uuidByReceiverId(int $appId, int $companyId, array $receiverIds): array
     {
-        // Active first, then most recent: the first row seen per receiver wins.
+        // Only lead-intake webhooks can take a form payload; active first, then newest wins.
         $webhooks = ReceiverWebhook::query()
             ->where('apps_id', $appId)
             ->where('companies_id', $companyId)
@@ -83,6 +74,7 @@ class LeadReceiverWebhookService
         $wanted = array_flip($receiverIds);
         $uuids = [];
 
+        // configuration->receiver_id is an unindexed JSON key stored as int or string: match in PHP.
         foreach ($webhooks as $webhook) {
             $receiverId = (int) ($webhook->configuration['receiver_id'] ?? 0);
 
