@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Notification as LaravelNotification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Actions\ApproveCorporateApplicationAction;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationApprovalModeEnum as ApprovalMode;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Connectors\Movipass\Actions\ValidateCorporateFieldsAction;
@@ -23,11 +24,13 @@ use Override;
 use Throwable;
 
 /**
- * Despite the name, approval is manual by default — `movipass_corporate_auto_approve`
- * defaults to false because self-reported RNCs and phone numbers turned out to be frequently
- * fake, so an internal admin decides via approveCorporateApplication /
- * rejectCorporateApplication. The name stays because renaming a #[WorkflowAction] orphans its
- * `workflows_actions` rows and every workflow rule pointing at them.
+ * Despite the name, approval is manual by default — self-reported RNCs and phone numbers turned
+ * out to be frequently fake, so an internal admin decides via approveCorporateApplication /
+ * rejectCorporateApplication. The mode comes from the receiver (`approval_mode` custom field),
+ * falling back to the legacy `movipass_corporate_receiver_id` + `movipass_corporate_auto_approve`
+ * app settings; see CorporateApplicationApprovalModeEnum::resolveFor(). The name stays because
+ * renaming a #[WorkflowAction] orphans its `workflows_actions` rows and every workflow rule
+ * pointing at them.
  */
 #[WorkflowAction]
 class AutoApproveCorporateLeadActivity extends KanvasActivity implements WorkflowActivityInterface
@@ -44,19 +47,15 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
             additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) {
                 /** @var Lead $lead */
-                $configuredReceiverId = $app->get(ConfigurationEnum::CORPORATE_RECEIVER_ID->value);
+                $mode = ApprovalMode::resolveFor($lead, $app);
 
-                if (empty($configuredReceiverId)) {
-                    return $this->skip($lead, 'corporate receiver not configured for this app');
-                }
-
-                if ((int) $lead->leads_receivers_id !== (int) $configuredReceiverId) {
-                    return $this->skip($lead, 'lead is not from the corporate receiver');
+                if ($mode === null) {
+                    return $this->skip($lead, 'receiver does not take corporate applications');
                 }
 
                 $validationError = $this->validate($lead);
 
-                if (! (bool) ($app->get(ConfigurationEnum::CORPORATE_AUTO_APPROVE->value) ?? false)) {
+                if ($mode === ApprovalMode::MANUAL) {
                     return $this->markPending($lead, $app, $validationError);
                 }
 

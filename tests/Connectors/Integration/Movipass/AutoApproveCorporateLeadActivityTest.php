@@ -7,6 +7,7 @@ namespace Tests\Connectors\Integration\Movipass;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationApprovalModeEnum as ApprovalMode;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
@@ -64,6 +65,49 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
 
         $this->assertEquals('skipped', $result['status']);
         $this->assertNull(Field::STATUS->readFrom($lead->fresh()));
+    }
+
+    public function testReceiverManualModeQueuesEvenWhenAppAutoApproves(): void
+    {
+        // App says auto, the receiver says manual — the receiver wins.
+        $this->corporateReceiver->set(ApprovalMode::RECEIVER_KEY, ApprovalMode::MANUAL->value);
+
+        $lead = $this->makeCorporateLead();
+        Notification::fake();
+
+        $result = $this->runActivity($lead);
+
+        $this->assertEquals('pending', $result['status']);
+        $this->assertNull(Field::COMPANY_ID->readFrom($lead->fresh()));
+    }
+
+    public function testReceiverAutoModeApprovesEvenWhenAppSaysManual(): void
+    {
+        $this->kanvasApp->set(ConfigurationEnum::CORPORATE_AUTO_APPROVE->value, false);
+        $this->corporateReceiver->set(ApprovalMode::RECEIVER_KEY, ApprovalMode::AUTO->value);
+
+        $lead = $this->makeCorporateLead();
+        Notification::fake();
+
+        $result = $this->runActivity($lead);
+
+        $this->assertEquals('approved', $result['status']);
+        $this->assertNotNull($result['company_id']);
+    }
+
+    public function testReceiverWithApprovalModeTakesApplicationsWithoutBeingTheAppCorporateReceiver(): void
+    {
+        // A second application receiver (e.g. parking) needs no app-level pointer at all.
+        $this->otherReceiver->set(ApprovalMode::RECEIVER_KEY, ApprovalMode::MANUAL->value);
+
+        $lead = $this->makeCorporateLead(receiver: $this->otherReceiver);
+        Notification::fake();
+
+        $result = $this->runActivity($lead);
+
+        $this->assertEquals('pending', $result['status']);
+        $this->assertEquals('pending', Field::STATUS->readFrom($lead->fresh()));
+        Notification::assertSentOnDemand(Blank::class);
     }
 
     public function testPendingIsTheDefaultWithoutAnyAppConfig(): void
