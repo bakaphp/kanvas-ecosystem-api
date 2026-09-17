@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Event\Events\DataTransferObject\EventDate;
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
@@ -117,6 +118,21 @@ class UpdateEventAction
             if (isset($this->updateData['end_at'])) {
                 $this->eventVersion->end_at = $this->updateData['end_at'];
             }
+
+            // start_at/end_at drive the reminder; left untouched when only the date rows move, the
+            // reminder would keep firing at the old time.
+            if (! empty($this->updateData['dates'])) {
+                $firstDate = reset($this->updateData['dates']);
+                $lastDate = end($this->updateData['dates']);
+
+                if (! isset($this->updateData['start_at'])) {
+                    $this->eventVersion->start_at = Carbon::parse($firstDate['date'])->setTimeFromTimeString($firstDate['start_time']);
+                }
+                if (! isset($this->updateData['end_at'])) {
+                    $this->eventVersion->end_at = Carbon::parse($lastDate['date'])->setTimeFromTimeString($lastDate['end_time']);
+                }
+            }
+
             if (isset($this->updateData['metadata'])) {
                 $existingMetadata = $this->eventVersion->metadata ?? [];
                 $this->eventVersion->metadata = array_merge($existingMetadata, $this->updateData['metadata']);
