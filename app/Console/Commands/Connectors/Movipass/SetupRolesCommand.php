@@ -41,8 +41,11 @@ class SetupRolesCommand extends Command
 
     protected function setupRoles(AppInterface $app): void
     {
+        // parking_manager runs a parking owner's operation end to end; parking_operator is the
+        // booth: sessions, plate/vehicle fixes and payments on tickets, nothing that changes
+        // money totals, reports or the company itself.
         $abilities = [
-            "list-orders" => [
+            'list-orders' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
@@ -50,47 +53,57 @@ class SetupRolesCommand extends Command
                 MovipassRolesEnum::AGENT,
                 MovipassRolesEnum::TRUCK_DRIVER,
                 MovipassRolesEnum::PARQUEAT,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
-            "view-order" => [
+            'view-order' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::AGENT,
                 MovipassRolesEnum::PARQUEAT,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
-            "update-orders" => [
+            'update-orders' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::AGENT,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
-            "update-vouchers" => [
+            'update-vouchers' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
             ],
-            "download-orders" => [
+            'download-orders' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::TRUCK_DRIVER,
+                MovipassRolesEnum::PARKING_MANAGER,
             ],
-            "order-reports" => [
+            'order-reports' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
+                MovipassRolesEnum::PARKING_MANAGER,
             ],
-            "cancel-orders" => [
+            'cancel-orders' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
+                MovipassRolesEnum::PARKING_MANAGER,
             ],
             'configure-company' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
+                MovipassRolesEnum::PARKING_MANAGER,
             ],
             'list-paso-rapido' => [
                 RolesEnums::OWNER,
@@ -141,38 +154,50 @@ class SetupRolesCommand extends Command
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::PARQUEAT,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
             'correct-vehicle-data' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::PARQUEAT,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
             'adjust-amount' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::PARKING_MANAGER,
             ],
             'mark-duplicate' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::PARKING_MANAGER,
             ],
             'add-observations' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
             'associate-payment' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
             'relocate' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::PARQUEAT,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
             'admin-reverse-transition' => [
                 RolesEnums::OWNER,
@@ -183,7 +208,18 @@ class SetupRolesCommand extends Command
             ],
         ];
 
-        Bouncer::scope()->to(RolesEnums::getScope($app));
+        $scope = RolesEnums::getScope($app);
+        Bouncer::scope()->to($scope);
+
+        // disallow() below throws on a role that does not exist yet, which is every new enum
+        // case on a fresh app — make them all exist before touching a single grant.
+        foreach (MovipassRolesEnum::cases() as $movipassRole) {
+            Bouncer::role()->firstOrCreate(
+                ['name' => $movipassRole->value, 'scope' => $scope],
+                ['title' => $movipassRole->value],
+            );
+        }
+
         foreach ($abilities as $ability => $roles) {
             foreach ($roles as $roleName) {
                 Bouncer::allow($roleName->value)->to($ability);
