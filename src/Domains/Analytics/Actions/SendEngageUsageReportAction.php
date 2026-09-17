@@ -17,18 +17,11 @@ use Kanvas\Social\Enums\MessageChannelEnum;
 use Kanvas\Users\Repositories\UsersRepository;
 
 /**
- * Recipients cascade Managers → Admin → Owner, stopping at the first role that yields anyone.
- * A single hardcoded role would mean most tenants silently receive nothing — the failure mode
- * nobody notices until someone asks where their report went.
+ * Managers only — no fallback to Admin or Owner. A company with no manager gets no report, which is
+ * logged; assign the role rather than widening the recipient list.
  */
 class SendEngageUsageReportAction
 {
-    private const array RECIPIENT_ROLES = [
-        RolesEnums::MANAGER,
-        RolesEnums::ADMIN,
-        RolesEnums::OWNER,
-    ];
-
     public function __construct(
         protected readonly AppInterface $app,
         protected readonly Companies $company,
@@ -118,28 +111,20 @@ class SendEngageUsageReportAction
      */
     private function resolveRecipients(): EloquentCollection
     {
-        foreach (self::RECIPIENT_ROLES as $role) {
-            try {
-                $recipients = UsersRepository::getCompanyAppUserByRole(
-                    $this->company,
-                    $this->app,
-                    $role->value,
-                )
-                    ->notDeleted()
-                    ->whereNotNull('users.email')
-                    ->where('users.email', '!=', '')
-                    ->get();
-            } catch (ModelNotFoundException) {
-                // Role not bootstrapped for this app — try the next one down.
-                continue;
-            }
-
-            if ($recipients->isNotEmpty()) {
-                return $recipients;
-            }
+        try {
+            return UsersRepository::getCompanyAppUserByRole(
+                $this->company,
+                $this->app,
+                RolesEnums::MANAGER->value,
+            )
+                ->notDeleted()
+                ->whereNotNull('users.email')
+                ->where('users.email', '!=', '')
+                ->get();
+        } catch (ModelNotFoundException) {
+            // Managers role not bootstrapped for this app.
+            return new EloquentCollection();
         }
-
-        return new EloquentCollection();
     }
 
     private function rangeLabel(): string
