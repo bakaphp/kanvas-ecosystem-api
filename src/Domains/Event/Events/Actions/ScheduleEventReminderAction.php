@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Actions;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Event\Events\Enums\ConfigurationEnum;
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Enums\EventReminderStatusEnum;
 use Kanvas\Event\Events\Enums\EventStatusEnum;
@@ -23,7 +24,7 @@ class ScheduleEventReminderAction
     {
         $this->eventVersion->loadMissing('dates', 'event.eventStatus');
 
-        if ($this->isCancelled()) {
+        if ($this->isCancelled() || ! ConfigurationEnum::emailsEnabled($this->eventVersion->app)) {
             $this->cancelPendingReminder();
 
             return null;
@@ -36,7 +37,10 @@ class ScheduleEventReminderAction
             return null;
         }
 
-        $startAt = Carbon::parse($firstDate->event_date->format('Y-m-d') . ' ' . $firstDate->start_time);
+        // start_at is the real instant; the date row is wall-clock time in the resource's zone,
+        // so parsing it as UTC shifts the reminder by the zone's offset.
+        $startAt = $this->eventVersion->start_at
+            ?? Carbon::parse($firstDate->event_date->format('Y-m-d') . ' ' . $firstDate->start_time);
         if ($startAt->lessThanOrEqualTo(now())) {
             $this->cancelPendingReminder();
 

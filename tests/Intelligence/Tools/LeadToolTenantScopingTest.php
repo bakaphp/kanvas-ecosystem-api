@@ -12,6 +12,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\DeleteDealTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\GetDealRefTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\PastOpportunitiesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\VehicleInterestTool;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
@@ -39,7 +40,7 @@ class LeadToolTenantScopingTest extends TestCase
     {
         $foreignLead = $this->makeForeignLead();
 
-        foreach ([new VehicleInterestTool(), new ArtifactsTool()] as $tool) {
+        foreach ([new VehicleInterestTool(), new ArtifactsTool(), new PastOpportunitiesTool()] as $tool) {
             $result = $this->withTenant($tool)->__invoke(lead_id: $foreignLead->getId());
 
             $this->assertSame(

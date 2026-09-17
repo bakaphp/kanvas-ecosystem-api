@@ -24,6 +24,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\EventConfigurationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadIntentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\PastOpportunitiesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\RescheduleCalendarEventTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SimilarVehiclesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\StopContactTool;
@@ -166,6 +167,7 @@ class SalesAgent extends BaseRagAgent implements ConversesWithCustomer
             new HandOffTool(),
             new LeadIntentTool(),
             new LeadRefTool(),
+            new PastOpportunitiesTool(),
             new SimilarVehiclesTool(),
             new VehicleInterestTool(),
             new VehicleTradeInTool(),

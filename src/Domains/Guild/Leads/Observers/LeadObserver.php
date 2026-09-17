@@ -9,6 +9,7 @@ use Kanvas\Guild\Customers\Actions\CreatePeopleByEmailAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Events\LeadCompanyUpdateEvent;
 use Kanvas\Guild\Leads\Events\LeadUpdateEvent;
+use Kanvas\Guild\Leads\Jobs\SummarizeLeadConversationJob;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
@@ -162,6 +163,11 @@ class LeadObserver
         if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
             new UpdateLeadSessionsAction($lead)->execute();
         }
+
+        if ($lead->wasChanged('leads_status_id')) {
+            SummarizeLeadConversationJob::dispatchIfEligible($lead);
+        }
+
         if ($lead->wasChanged([
             'firstname',
             'lastname',

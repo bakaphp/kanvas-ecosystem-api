@@ -44,6 +44,16 @@ class LeadsRepository
                     ->where('people_id', $people->id);
     }
 
+    public static function getPastOpportunities(Lead $lead): Builder
+    {
+        if ($lead->people === null) {
+            return Lead::query()->whereRaw('1 = 0');
+        }
+
+        return self::leadsForPeople($lead->people)
+                        ->where('id', '!=', $lead->getId());
+    }
+
     public static function getPeopleActiveLeads(People $people): Builder
     {
         $activeStatuses = self::mappedStatusNames($people->company, 'active', ['active', 'created']);

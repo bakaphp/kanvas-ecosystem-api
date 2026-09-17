@@ -183,6 +183,12 @@ class RunNeuronChatAction
 
     private function humanizedFallback(Throwable $e): string
     {
+        // A prospect talks to a persona (Sales, Receptionist): any system wording — a hiccup, an
+        // overloaded AI, a safety filter — breaks it. The real cause is still logged and reported.
+        if ($this->agent->conversesWithCustomer()) {
+            return 'What do you mean?';
+        }
+
         if ($this->isDuplicateEntryError($e)) {
             return "It looks like that already exists — I didn't create a duplicate. Let me know if you'd "
                 . 'like me to look into it or handle it a different way.';

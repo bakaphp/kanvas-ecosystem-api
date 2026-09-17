@@ -144,7 +144,7 @@ class RestoreEventsFromArchiveAction
             throw new RuntimeException("Could not open archive stream for {$path}");
         }
 
-        $tempFile = tempnam(sys_get_temp_dir(), 'ns-restore-') . '.gz';
+        $tempFile = tempnam(sys_get_temp_dir(), 'ns-restore-');
         $sink = fopen($tempFile, 'wb');
 
         if ($sink === false) {

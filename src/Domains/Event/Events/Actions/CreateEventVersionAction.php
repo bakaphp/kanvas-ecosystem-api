@@ -43,6 +43,10 @@ class CreateEventVersionAction
             $endAt = Carbon::parse($lastDate->date->format('Y-m-d') . ' ' . $lastDate->end_time);
         }
 
+        // Date rows carry the resource's wall clock; a caller that knows the zone passes the real instant.
+        $startAt = $this->eventVersion->startAt ?? $startAt;
+        $endAt = $this->eventVersion->endAt ?? $endAt;
+
         $highestVersion = (int) ModelsEventVersion::withTrashed()
             ->where('apps_id', $appId)
             ->where('companies_id', $companyId)

@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
+use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
@@ -49,7 +50,12 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
     private const string USER_VERB = 'user';
 
     // Verbs never expose to the lead
-    private const array INTERNAL_VERBS = ['notes', 'ai_assist', 'internal'];
+    private const array INTERNAL_VERBS = [
+        LeadMessageTypeEnum::NOTES->value,
+        LeadMessageTypeEnum::AI_ASSIST->value,
+        LeadMessageTypeEnum::INTERNAL->value,
+        LeadMessageTypeEnum::CONVERSATION_SUMMARY->value,
+    ];
 
     public function __construct(
         private readonly Apps $app,
