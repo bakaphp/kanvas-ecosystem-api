@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Models;
 
+use Awobaz\Compoships\Compoships;
 use Baka\Casts\Json;
 use Baka\Traits\DatabaseSearchableTrait;
 use Baka\Traits\UuidTrait;
@@ -42,6 +43,8 @@ use Kanvas\Users\Models\Users;
 #[ObservedBy(LeadReceiverObserver::class)]
 class LeadReceiver extends BaseModel
 {
+    // Products/Variants reach this model through a composite hasMany.
+    use Compoships;
     use DatabaseSearchableTrait;
     use DefaultTrait;
     use UuidTrait;

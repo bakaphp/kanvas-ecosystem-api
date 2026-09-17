@@ -10,9 +10,13 @@ type LeadReceiver {
     notification_email: String
     is_default: Boolean!
     template: Mixed
+    total_leads: Int!
     leadSource: LeadSource @belongsTo(relation: "leadSource")
     leadType: LeadType @belongsTo(relation: "leadType")
     leadRotation: LeadRotation @belongsTo(relation: "rotation")
+    source: LeadSource @belongsTo(relation: "leadSource")
+    type: LeadType @belongsTo(relation: "leadType")
+    rotation: Rotation @belongsTo(relation: "rotation")
     created_at: DateTime!
     updated_at: DateTime
 }

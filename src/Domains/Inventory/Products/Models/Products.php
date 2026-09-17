@@ -49,6 +49,7 @@ use Kanvas\Inventory\Recommendations\Enums\AudienceEnum;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum as RecommendationConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Enums\SearchFieldEnum;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Traits\HasLeadReceiversTrait;
 use Kanvas\Inventory\Traits\ResolvesAttributesTrait;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -110,6 +111,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     use HasRating;
     use HasTranslationsDefaultFallback;
     use LogsActivity;
+    use HasLeadReceiversTrait;
     use ResolvesAttributesTrait;
 
     protected $table = 'products';
