@@ -7,13 +7,11 @@ namespace Tests\GraphQL\Inventory;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Zoho\Jobs\SyncZohoLeadFromReceiverJob;
 use Kanvas\Guild\Leads\Jobs\CreateLeadsFromReceiverJob;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Workflow\Models\ReceiverWebhook;
-use Kanvas\Workflow\Models\WorkflowAction;
 use Tests\TestCase;
 
 class ProductLeadReceiversTest extends TestCase
@@ -99,77 +97,21 @@ class ProductLeadReceiversTest extends TestCase
         );
     }
 
-    public function testSubmitWebhookUuidMirrorsTheReceiverUuidByDefault(): void
+    public function testReceiverUuidIsThePostableWebhookUuid(): void
     {
-        // LeadReceiverObserver wires a webhook under the receiver's own uuid on creation.
         $product = $this->createProductForCurrentCompany();
         $receiver = $this->createReceiver(app(Apps::class), $product->company, 'tradeIn');
 
-        $this->assertSame($receiver->uuid, $this->autoWebhook($receiver)->uuid);
-        $this->assertSame($receiver->uuid, $this->submitUuidFor($product)[$receiver->getId()]);
-    }
-
-    public function testSubmitWebhookUuidResolvesThroughGraphQL(): void
-    {
-        $app = app(Apps::class);
-        $product = $this->createProductForCurrentCompany();
-        $company = $product->company;
-
-        $unwired = $this->createReceiver($app, $company, 'contact');
-        $this->autoWebhook($unwired)->update(['is_deleted' => 1]);
-
-        $contested = $this->createReceiver($app, $company, 'offers');
-        $this->createWebhook($app, $company, $contested->getId(), isActive: false);
-        $newerActive = $this->createWebhook($app, $company, $contested->getId());
-
-        $asString = $this->createReceiver($app, $company, 'finance');
-        $this->autoWebhook($asString)->update(['is_deleted' => 1]);
-        $stringWebhook = $this->createWebhook($app, $company, (string) $asString->getId());
-
-        $zohoOnly = $this->createReceiver($app, $company, 'service');
-        $this->autoWebhook($zohoOnly)->update(['is_deleted' => 1]);
-        $this->createWebhook($app, $company, $zohoOnly->getId(), action: SyncZohoLeadFromReceiverJob::class);
-
-        $response = $this->queryProduct($product, '
-            leadReceivers { id name submit_webhook_uuid }
-            variants { leadReceivers { id submit_webhook_uuid } }
-        ')
+        $uuid = collect($this->queryProduct($product, 'leadReceivers { id uuid }')
             ->assertSuccessful()
-            ->json('data.products.data.0');
-
-        $byId = collect($response['leadReceivers'])->keyBy('id');
-
-        $this->assertNull($byId[$unwired->getId()]['submit_webhook_uuid']);
-        $this->assertSame($newerActive->uuid, $byId[$contested->getId()]['submit_webhook_uuid']);
-        $this->assertSame($stringWebhook->uuid, $byId[$asString->getId()]['submit_webhook_uuid']);
-        $this->assertNull($byId[$zohoOnly->getId()]['submit_webhook_uuid']);
-
-        $variantById = collect($response['variants'][0]['leadReceivers'])->keyBy('id');
-        $this->assertSame($newerActive->uuid, $variantById[$contested->getId()]['submit_webhook_uuid']);
-    }
-
-    public function testInactiveWebhookIsUsedOnlyWhenNoActiveOneExists(): void
-    {
-        $product = $this->createProductForCurrentCompany();
-        $receiver = $this->createReceiver(app(Apps::class), $product->company, 'tradeIn');
-        $inactive = $this->autoWebhook($receiver);
-        $inactive->update(['is_active' => false]);
-
-        $this->assertSame($inactive->uuid, $this->submitUuidFor($product)[$receiver->getId()]);
-    }
-
-    /** @return array<int, string|null> receiver id => submit_webhook_uuid */
-    private function submitUuidFor(Products $product): array
-    {
-        return collect($this->queryProduct($product, 'leadReceivers { id submit_webhook_uuid }')
             ->json('data.products.data.0.leadReceivers'))
-            ->pluck('submit_webhook_uuid', 'id')
-            ->all();
-    }
+            ->firstWhere('id', (string) $receiver->getId())['uuid'];
 
-    private function autoWebhook(LeadReceiver $receiver): ReceiverWebhook
-    {
-        return ReceiverWebhook::query()->where('uuid', $receiver->uuid)->firstOrFail();
+        $webhook = ReceiverWebhook::query()->where('uuid', $uuid)->notDeleted()->firstOrFail();
+
+        $this->assertSame($receiver->uuid, $uuid);
+        $this->assertTrue($webhook->is_active);
+        $this->assertSame(CreateLeadsFromReceiverJob::class, $webhook->action->model_name);
     }
 
     private function createProductForCurrentCompany(): Products
@@ -203,29 +145,6 @@ class ProductLeadReceiversTest extends TestCase
             'lead_types_id' => 0,
             'is_default' => false,
         ]);
-    }
-
-    private function createWebhook(
-        Apps $app,
-        Companies $company,
-        int|string $receiverId,
-        bool $isActive = true,
-        string $action = CreateLeadsFromReceiverJob::class
-    ): ReceiverWebhook {
-        $workflowAction = WorkflowAction::firstOrCreate(
-            ['model_name' => $action],
-            ['name' => class_basename($action)],
-        );
-
-        return ReceiverWebhook::factory()
-            ->app($app->getId())
-            ->user($company->users_id)
-            ->company($company->getId())
-            ->create([
-                'action_id' => $workflowAction->getId(),
-                'is_active' => $isActive,
-                'configuration' => ['receiver_id' => $receiverId],
-            ]);
     }
 
     private function createBareApp(): Apps

@@ -17,10 +17,6 @@ type LeadReceiver {
     source: LeadSource @belongsTo(relation: "leadSource")
     type: LeadType @belongsTo(relation: "leadType")
     rotation: Rotation @belongsTo(relation: "rotation")
-    submit_webhook_uuid: String
-        @field(
-            resolver: "App\\GraphQL\\Guild\\Queries\\Leads\\LeadReceiverWebhookQuery@submitWebhookUuid"
-        )
     created_at: DateTime!
     updated_at: DateTime
 }
