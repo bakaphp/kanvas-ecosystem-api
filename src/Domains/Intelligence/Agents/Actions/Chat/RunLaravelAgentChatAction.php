@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
-use finfo;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
@@ -171,8 +171,7 @@ class RunLaravelAgentChatAction
 
     private function wrapAttachment(string $binary): ?File
     {
-        $mimeType = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
-        $mimeType = is_string($mimeType) && $mimeType !== '' ? $mimeType : 'application/octet-stream';
+        $mimeType = FilesystemServices::detectMimeTypeFromBytes($binary);
         $base64 = base64_encode($binary);
 
         return match (AttachmentDescriptionService::nativeKind($mimeType)) {

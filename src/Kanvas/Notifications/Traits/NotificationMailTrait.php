@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Notifications\Traits;
 
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Baka\Http\SafeUrlFetcher;
 use Illuminate\Mail\Mailable;
 use Illuminate\Notifications\AnonymousNotifiable;
@@ -65,7 +66,7 @@ trait NotificationMailTrait
                 $mailMessage->attachData(
                     $bytes,
                     $options['as'] ?? $this->resolveRemoteAttachmentName($source),
-                    array_filter(['mime' => $options['mime'] ?? $this->detectAttachmentMime($bytes)])
+                    array_filter(['mime' => $options['mime'] ?? FilesystemServices::detectMimeTypeFromBytes($bytes)])
                 );
 
                 continue;
@@ -97,18 +98,6 @@ trait NotificationMailTrait
         $name = basename(parse_url($url, PHP_URL_PATH) ?: '');
 
         return $name !== '' ? $name : 'attachment';
-    }
-
-    private function detectAttachmentMime(string $bytes): string
-    {
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime = $finfo ? finfo_buffer($finfo, $bytes) : false;
-
-        if ($finfo) {
-            finfo_close($finfo);
-        }
-
-        return $mime ?: 'application/octet-stream';
     }
 
     private function resolveRecipientEmail(object $notifiable): array|string

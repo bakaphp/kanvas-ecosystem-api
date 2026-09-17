@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesFilesystemForTool;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestDocumentTypeEnum;
+use Kanvas\Scribe\PdfIngest\Exceptions\UnsupportedDocumentTypeException;
 use Kanvas\Scribe\PdfIngest\Traits\ResolvesPdfClassifierTrait;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
@@ -88,6 +89,12 @@ class ExtractExpenseReceiptTool extends Tool implements HasRunKey
 
         try {
             $result = $this->defaultPdfClassifier()->classify($receipt, []);
+        } catch (UnsupportedDocumentTypeException $e) {
+            return $this->invalidArgs(
+                $e->getMessage(),
+                ['reason' => 'unsupported_file_type', 'mime_type' => $e->mimeType],
+                guidance: 'Tell the person this file cannot be read and ask for the receipt as a PDF or a photo.',
+            );
         } catch (Throwable $e) {
             report($e);
 

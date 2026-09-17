@@ -380,6 +380,13 @@ class FilesystemServices
         return MimeTypes::getDefault()->getExtensions($mimeType)[0] ?? 'bin';
     }
 
+    public static function detectMimeTypeFromBytes(string $bytes, string $fallback = 'application/octet-stream'): string
+    {
+        $detected = new finfo(FILEINFO_MIME_TYPE)->buffer($bytes);
+
+        return is_string($detected) && $detected !== '' ? $detected : $fallback;
+    }
+
     public static function detectMimeType(string $filePath): string
     {
         if (is_readable($filePath)) {

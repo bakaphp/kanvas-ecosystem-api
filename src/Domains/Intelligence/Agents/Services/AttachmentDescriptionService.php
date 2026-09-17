@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
-use finfo;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
@@ -140,7 +140,7 @@ class AttachmentDescriptionService
         }
 
         try {
-            $mimeType = $this->detectMimeType($binary);
+            $mimeType = FilesystemServices::detectMimeTypeFromBytes($binary);
             $block = $this->buildContentBlock($binary, $mimeType);
 
             if ($block === null) {
@@ -210,13 +210,6 @@ class AttachmentDescriptionService
                 . 'can recall the image later when the user refers back to it. Capture the key subject '
                 . 'and any text, numbers, or food/product details visible. Output only the description.',
         };
-    }
-
-    private function detectMimeType(string $binary): string
-    {
-        $detected = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
-
-        return is_string($detected) && $detected !== '' ? $detected : 'application/octet-stream';
     }
 
     private function normalize(string $description): string

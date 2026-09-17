@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\WordPress\Services;
 
 use Baka\Http\SafeUrlFetcher;
-use finfo;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Connectors\WordPress\RestClient;
 use Kanvas\Filesystem\Enums\MediaTypeEnum;
 use Throwable;
@@ -53,7 +53,7 @@ class WordPressMediaService
             return $this->fail($url, 'empty response body');
         }
 
-        $mimeType = (string) (new finfo(FILEINFO_MIME_TYPE)->buffer($contents) ?: 'application/octet-stream');
+        $mimeType = FilesystemServices::detectMimeTypeFromBytes($contents);
 
         try {
             $media = $this->client->uploadMedia(
