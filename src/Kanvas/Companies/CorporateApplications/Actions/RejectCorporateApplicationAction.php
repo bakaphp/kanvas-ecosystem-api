@@ -15,12 +15,14 @@ use Kanvas\Users\Models\Users;
 use Throwable;
 
 /**
- * The applicant is only emailed when the app has a rejection template configured — without
- * it the rejection stays internal, so customer-facing wording is an explicit decision rather
- * than a side effect of deploying.
+ * A rejection always reaches the applicant with its reason (§13.3). The app can point
+ * `corporate_application_rejected_template` at its own wording; otherwise the shipped
+ * `corporate-rejected` template (database/data/movipass_corporate_email_templates.json) is used.
  */
 class RejectCorporateApplicationAction
 {
+    public const string DEFAULT_TEMPLATE = 'corporate-rejected';
+
     public function __construct(
         protected readonly Model $application,
         protected readonly Apps $app,
@@ -49,12 +51,13 @@ class RejectCorporateApplicationAction
 
     private function sendRejectionEmail(): bool
     {
-        $templateName = trim((string) (Setting::REJECTED_TEMPLATE->readFrom($this->app) ?? ''));
         $email = trim((string) $this->application->email);
 
-        if ($templateName === '' || $email === '') {
+        if ($email === '') {
             return false;
         }
+
+        $templateName = trim((string) (Setting::REJECTED_TEMPLATE->readFrom($this->app) ?: self::DEFAULT_TEMPLATE));
 
         $notification = new Blank($templateName, [
             'app' => $this->app,

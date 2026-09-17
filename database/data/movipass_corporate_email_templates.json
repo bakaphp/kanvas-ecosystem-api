@@ -1,0 +1,54 @@
+[
+  {
+    "type": "header",
+    "version": "1.0.0",
+    "comment": "MoviPass corporate application email templates. Load with: php artisan kanvas:import-email-templates {app_id} database/data/movipass_corporate_email_templates.json"
+  },
+  {
+    "type": "database",
+    "name": "kanvas_ecosystem"
+  },
+  {
+    "type": "table",
+    "name": "email_templates",
+    "database": "kanvas_ecosystem",
+    "data": [
+      {
+        "name": "corporate-welcome",
+        "title": "Bienvenido al portal corporativo MoviPass",
+        "subject": "Bienvenido al portal corporativo MoviPass",
+        "parent_template_id": "0",
+        "template": "<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\"><title>Bienvenido</title></head><body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;\"><h1 style=\"color: #1a202c;\">¡Bienvenido a MoviPass Corporativo!</h1><p>Hola {{ $contactName ?? 'Equipo' }},</p><p>Tu solicitud para <strong>{{ $corporateLegalName ?? 'tu empresa' }}</strong> fue aprobada y tu portal corporativo ya está activo.</p><p>Para activar tu cuenta y configurar tu contraseña, haz clic en el siguiente enlace:</p><p style=\"text-align: center; margin: 30px 0;\"><a href=\"{{ $inviteUrl ?? '#' }}\" style=\"display: inline-block; background-color: #1a202c; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px;\">Activar mi cuenta</a></p><p style=\"color: #718096; font-size: 13px;\">El enlace incluye un código único de un solo uso. Si tienes problemas para abrirlo, copia y pega esta dirección en tu navegador: {{ $inviteUrl ?? 'No disponible' }}</p><p>Una vez dentro podrás recargar tus TAGs en lote, ver el historial de operaciones y gestionar la información de tu flota.</p><p>Si tienes preguntas, responde a este correo y nuestro equipo te ayudará.</p><p style=\"color: #718096; font-size: 14px; margin-top: 40px;\">— El equipo de MoviPass</p></body></html>",
+        "is_system": "0",
+        "is_deleted": "0"
+      },
+      {
+        "name": "corporate-needs-review",
+        "title": "Tu solicitud está en revisión",
+        "subject": "Tu solicitud está en revisión",
+        "parent_template_id": "0",
+        "template": "<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\"><title>Revisión</title></head><body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;\"><h1 style=\"color: #1a202c;\">Tu solicitud está en revisión</h1><p>Hola {{ $contactName ?? 'Equipo' }},</p><p>Recibimos tu solicitud para activar el portal corporativo MoviPass. Antes de habilitar tu cuenta necesitamos revisar algunos datos manualmente.</p>@if(!empty($reason))<p style=\"background-color: #fef3c7; padding: 12px 16px; border-radius: 6px; color: #78350f;\"><strong>Detalle:</strong> {{ $reason }}</p>@endif<p>Nuestro equipo se pondrá en contacto contigo en menos de 24 horas hábiles. No es necesario que envíes la solicitud nuevamente.</p><p>Si tienes alguna actualización o información adicional, responde a este correo.</p><p style=\"color: #718096; font-size: 14px; margin-top: 40px;\">— El equipo de MoviPass</p></body></html>",
+        "is_system": "0",
+        "is_deleted": "0"
+      },
+      {
+        "name": "corporate-existing-account",
+        "title": "Ya tienes una cuenta",
+        "subject": "Ya tienes una cuenta",
+        "parent_template_id": "0",
+        "template": "<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\"><title>Ya tienes una cuenta</title></head><body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;\"><h1 style=\"color: #1a202c;\">Ya tienes una cuenta MoviPass</h1><p>Hola {{ $contactName ?? 'Equipo' }},</p><p>Recibimos tu solicitud para <strong>{{ $corporateLegalName ?? 'tu empresa' }}</strong>, pero el correo que usaste ya está registrado en MoviPass.</p><p>No necesitas crear una cuenta nueva: simplemente inicia sesión con tus credenciales actuales.</p><p style=\"text-align: center; margin: 30px 0;\"><a href=\"{{ $loginUrl ?? '#' }}\" style=\"display: inline-block; background-color: #1a202c; color: #ffffff; padding: 12px 24px; text-decoration: none; border-radius: 6px;\">Iniciar sesión</a></p><p style=\"color: #718096; font-size: 13px;\">¿Olvidaste tu contraseña? Usa la opción «Recuperar contraseña» en la pantalla de inicio de sesión.</p><p>Si crees que esto es un error o necesitas ayuda para acceder al portal corporativo, responde a este correo y nuestro equipo te asistirá.</p><p style=\"color: #718096; font-size: 14px; margin-top: 40px;\">— El equipo de MoviPass</p></body></html>",
+        "is_system": "0",
+        "is_deleted": "0"
+      },
+      {
+        "name": "corporate-rejected",
+        "title": "Sobre tu solicitud corporativa",
+        "subject": "Sobre tu solicitud corporativa",
+        "parent_template_id": "0",
+        "template": "<!DOCTYPE html><html lang=\"es\"><head><meta charset=\"UTF-8\"><title>Sobre tu solicitud</title></head><body style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;\"><h1 style=\"color: #1a202c;\">Sobre tu solicitud corporativa</h1><p>Hola {{ $contactName ?? 'Equipo' }},</p><p>Revisamos tu solicitud para activar el portal corporativo MoviPass y en esta ocasión no pudimos aprobarla.</p>@if(!empty($reason))<p style=\"background-color: #fee2e2; padding: 12px 16px; border-radius: 6px; color: #7f1d1d;\"><strong>Motivo:</strong> {{ $reason }}</p>@endif<p>Si crees que se trata de un error o puedes aportar la información que falta, responde a este correo y nuestro equipo revisará tu caso nuevamente.</p><p style=\"color: #718096; font-size: 14px; margin-top: 40px;\">— El equipo de MoviPass</p></body></html>",
+        "is_system": "0",
+        "is_deleted": "0"
+      }
+    ]
+  }
+]

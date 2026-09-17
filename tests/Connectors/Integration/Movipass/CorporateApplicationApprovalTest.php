@@ -93,7 +93,7 @@ final class CorporateApplicationApprovalTest extends TestCase
 
         $this->assertEquals(CorporateApplicationStatusEnum::REJECTED->value, $result['status']);
         $this->assertEquals('RNC no existe en DGII', $result['reason']);
-        $this->assertFalse($result['applicant_notified']);
+        $this->assertTrue($result['applicant_notified']);
 
         $fresh = $lead->fresh();
         $this->assertEquals(
@@ -103,12 +103,17 @@ final class CorporateApplicationApprovalTest extends TestCase
         $this->assertEquals('RNC no existe en DGII', $fresh->get(Field::STATUS_REASON->value));
         $this->assertNull($fresh->get(Field::COMPANY_ID->value));
 
-        Notification::assertNothingSent();
+        // The applicant always hears back with the reason, on the shipped template when the app
+        // has not configured its own.
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification): bool => $notification->getTemplateName() === RejectCorporateApplicationAction::DEFAULT_TEMPLATE
+        );
     }
 
-    public function testRejectEmailsApplicantOnlyWhenTemplateIsConfigured(): void
+    public function testRejectUsesTheAppTemplateWhenConfigured(): void
     {
-        $this->kanvasApp->set(ConfigurationEnum::CORPORATE_REJECTED_TEMPLATE->value, 'corporate-rejected');
+        $this->kanvasApp->set(ConfigurationEnum::CORPORATE_REJECTED_TEMPLATE->value, 'corporate-rejected-custom');
 
         try {
             $lead = $this->makePendingApplication();
@@ -117,10 +122,27 @@ final class CorporateApplicationApprovalTest extends TestCase
             $result = new RejectCorporateApplicationAction($lead, $this->kanvasApp, 'Datos de contacto no verificables')->execute();
 
             $this->assertTrue($result['applicant_notified']);
-            Notification::assertSentOnDemand(Blank::class);
+            Notification::assertSentOnDemand(
+                Blank::class,
+                fn (Blank $notification): bool => $notification->getTemplateName() === 'corporate-rejected-custom'
+            );
         } finally {
             $this->kanvasApp->del(ConfigurationEnum::CORPORATE_REJECTED_TEMPLATE->value);
         }
+    }
+
+    public function testRejectWithoutApplicantEmailRecordsButCannotNotify(): void
+    {
+        $lead = $this->makePendingApplication();
+        $lead->email = '';
+        $lead->saveQuietly();
+        Notification::fake();
+
+        $result = new RejectCorporateApplicationAction($lead->fresh(), $this->kanvasApp, 'Sin correo')->execute();
+
+        $this->assertEquals(CorporateApplicationStatusEnum::REJECTED->value, $result['status']);
+        $this->assertFalse($result['applicant_notified']);
+        Notification::assertNothingSent();
     }
 
     public function testApproveMutationDecidesTheApplication(): void
