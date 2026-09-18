@@ -99,6 +99,34 @@ class ScheduledActionChannelDeliveryTest extends TestCase
         return $session->uuid;
     }
 
+    public function testReminderEmailRendersTheAgentsMarkdownAsHtml(): void
+    {
+        [$app, $company, $user] = $this->context();
+
+        $action = new CreateScheduledActionAction(
+            new ScheduledActionData(
+                app: $app,
+                company: $company,
+                user: $user,
+                type: ScheduledActionTypeEnum::REMINDER,
+                timezone: 'UTC',
+                runAt: Carbon::now()->addHour(),
+                agent: $this->makeAgent($app, $company, $user),
+                message: 'Reminder',
+            ),
+        )->execute();
+
+        $html = new ScheduledReminderNotification(
+            $action,
+            "### Daily briefing\n\n- **Gaslink** moved to In Negotiation\n\n<script>alert(1)</script>",
+        )->getEmailContent();
+
+        $this->assertStringContainsString('<h3>Daily briefing</h3>', $html);
+        $this->assertStringContainsString('<li><strong>Gaslink</strong> moved to In Negotiation</li>', $html);
+        $this->assertStringNotContainsString('**', $html);
+        $this->assertStringNotContainsString('<script>', $html);
+    }
+
     public function testReminderWithANonNativeChannelPostsToFeedAndFallsBackToNotification(): void
     {
         Notification::fake();

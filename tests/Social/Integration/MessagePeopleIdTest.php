@@ -59,16 +59,57 @@ class MessagePeopleIdTest extends TestCase
     public function testAnExplicitPeopleOnTheInputWinsOverTheEntity(): void
     {
         $lead = $this->createLead();
-        // A bare People, not a second lead — each Lead::factory() fires LeadObserver ->
-        // CreateChannelAction inside a transaction, and that contention deadlocks under CI.
-        $otherPeople = People::factory()
-            ->withAppId($this->kanvasApp->getId())
-            ->withCompanyId(auth()->user()->getCurrentCompany()->getId())
-            ->create();
+        $otherPeople = $this->createPeople();
 
         $message = $this->createMessage($lead, $otherPeople);
 
         $this->assertSame($otherPeople->getId(), (int) $message->refresh()->people_id);
+    }
+
+    /**
+     * The Twilio / WaSender / RespondIO / agent-reply shape: the message is created bare and the
+     * lead is attached afterwards.
+     */
+    public function testAddEntityFillsPeopleIdFromALeadAttachedAfterCreation(): void
+    {
+        $lead = $this->createLead();
+        $message = $this->createMessage();
+
+        $message->addEntity($lead);
+
+        $this->assertSame((int) $lead->people_id, (int) $message->refresh()->people_id);
+    }
+
+    public function testAddEntityDoesNotLetALeadOverwriteAnExistingPerson(): void
+    {
+        $lead = $this->createLead();
+        $otherPeople = $this->createPeople();
+        $message = $this->createMessage(null, $otherPeople);
+
+        $message->addEntity($lead);
+
+        $this->assertSame($otherPeople->getId(), (int) $message->refresh()->people_id);
+    }
+
+    public function testAddEntityLetsAPeopleLinkOverwriteTheLeadsPerson(): void
+    {
+        $lead = $this->createLead();
+        $otherPeople = $this->createPeople();
+        $message = $this->createMessage($lead);
+
+        $message->addEntity($otherPeople);
+
+        $this->assertSame($otherPeople->getId(), (int) $message->refresh()->people_id);
+    }
+
+    public function testAddEntityLeavesPeopleIdNullOnANonCommunicationMessage(): void
+    {
+        $lead = $this->createLead();
+        $message = $this->createMessage(payload: ['message' => 'an internal note', 'params' => []]);
+
+        $message->addEntity($lead);
+
+        $this->assertNull($message->refresh()->people_id);
     }
 
     public function testLeavesPeopleIdNullWhenNoPersonIsInScope(): void
@@ -179,6 +220,18 @@ class MessagePeopleIdTest extends TestCase
             'apps_id' => $this->kanvasApp->getId(),
             'companies_id' => auth()->user()->getCurrentCompany()->getId(),
         ]);
+    }
+
+    /**
+     * A bare People, not a second lead — each Lead::factory() fires LeadObserver ->
+     * CreateChannelAction inside a transaction, and that contention deadlocks under CI.
+     */
+    private function createPeople(): People
+    {
+        return People::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId(auth()->user()->getCurrentCompany()->getId())
+            ->create();
     }
 
     /**

@@ -47,10 +47,20 @@ class ArchiveOldLedgerEventsCommand extends Command
             return self::SUCCESS;
         }
 
+        foreach ($result['archives'] as $archive) {
+            $this->line(sprintf(
+                'Archive %d: %d events to %s (%d bytes)',
+                $archive['archive_id'],
+                $archive['event_count'],
+                $archive['s3_path'],
+                $archive['size_bytes'],
+            ));
+        }
+
         $this->info(sprintf(
-            'Archived %d events into %d archive files (%d bytes).',
+            'Archived %d events across %d archives (%d bytes).',
             $result['event_count'],
-            $result['archive_count'],
+            count($result['archives']),
             $result['size_bytes'],
         ));
 

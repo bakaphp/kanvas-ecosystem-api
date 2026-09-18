@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use NeuronAI\Agent\AgentState;
 use NeuronAI\Agent\Events\AIInferenceEvent;
+use NeuronAI\Agent\Events\ToolCallEvent;
 use NeuronAI\Agent\Nodes\ParallelToolNode;
 use NeuronAI\Agent\Nodes\ToolNode;
 use NeuronAI\Chat\History\InMemoryChatHistory;
@@ -18,6 +19,7 @@ use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
 use NeuronAI\Tools\Tool;
 use Tests\Stubs\Intelligence\CapturingNeuronAgentStub;
+use Tests\Stubs\Intelligence\RepeatingToolCallNeuronProvider;
 use Tests\Stubs\Intelligence\ScriptedToolCallNeuronProvider;
 use Tests\TestCase;
 
@@ -70,7 +72,106 @@ class BoundToolResultsMiddlewareTest extends TestCase
         $spent = $this->toolWithResult(str_repeat('i', 50_000));
         $this->runAfter($state, $spent);
 
-        $this->assertStringStartsWith('[Tool output omitted', $spent->getResult());
+        // It ran — it was in the same batch that spent the budget — so it must not read as refused.
+        $this->assertStringStartsWith('[This call ran, but its output was withheld', $spent->getResult());
+        $this->assertTrue(BoundToolResultsMiddleware::exhausted($state));
+    }
+
+    /**
+     * A hidden result leaves the model unable to tell whether a write happened, so it reports the item
+     * as pending and the next turn creates it twice. Refusing the call keeps the report true.
+     */
+    public function testOnceTheBudgetIsSpentACallIsRefusedAndNeverRuns(): void
+    {
+        $runs = 0;
+        $state = $this->spentState();
+        $tool = Tool::make('create_workflow', 'Creates a workflow')
+            ->setCallable(function () use (&$runs): string {
+                $runs++;
+
+                return 'created';
+            });
+
+        $this->runBefore($state, $tool);
+        $tool->execute();
+
+        $this->assertSame(0, $runs, 'a refused call must not reach the real tool');
+        $this->assertSame(BoundToolResultsMiddleware::NOT_EXECUTED, $tool->getResult());
+        $this->assertTrue(BoundToolResultsMiddleware::exhausted($state));
+    }
+
+    public function testUnderBudgetACallRunsNormally(): void
+    {
+        $runs = 0;
+        $state = $this->stateWithHistory([new UserMessage('Create the workflows')]);
+        $tool = Tool::make('create_workflow', 'Creates a workflow')
+            ->setCallable(function () use (&$runs): string {
+                $runs++;
+
+                return 'created';
+            });
+
+        $this->runBefore($state, $tool);
+        $tool->execute();
+
+        $this->assertSame(1, $runs);
+        $this->assertSame('created', $tool->getResult());
+        $this->assertFalse(BoundToolResultsMiddleware::exhausted($state));
+    }
+
+    /** The refusal note is the truth about that call; overwriting it with "ran" would undo the point. */
+    public function testARefusedCallKeepsItsNoteThroughTheOutputBound(): void
+    {
+        $tool = $this->toolWithResult(BoundToolResultsMiddleware::NOT_EXECUTED);
+
+        $this->runAfter($this->spentState(), $tool);
+
+        $this->assertSame(BoundToolResultsMiddleware::NOT_EXECUTED, $tool->getResult());
+    }
+
+    public function testExecutedCallsLeaveOutRefusedOnes(): void
+    {
+        $ran = Tool::make('create_workflow', 'A tool')->setInputs(['item' => 1])->setResult('created');
+        $refused = Tool::make('create_workflow', 'A tool')
+            ->setInputs(['item' => 2])
+            ->setResult(BoundToolResultsMiddleware::NOT_EXECUTED);
+
+        $state = $this->stateWithHistory([
+            new UserMessage('Create the workflows'),
+            new ToolCallMessage(null, [$ran]),
+            new ToolResultMessage([$ran]),
+            new ToolCallMessage(null, [$refused]),
+            new ToolResultMessage([$refused]),
+        ]);
+
+        $this->assertSame(
+            ['create_workflow:' . sha1((string) json_encode(['item' => 1]))],
+            BoundToolResultsMiddleware::executedCalls($state),
+        );
+    }
+
+    /**
+     * Through the real agent loop, not the middleware alone: this is what proves the refusal lands before
+     * the tool node executes, rather than after it as the output bound does.
+     */
+    public function testARealTurnStopsRunningToolsOnceItsBudgetIsSpent(): void
+    {
+        $runs = 0;
+        $tool = Tool::make('export_workflow', 'Exports a workflow')
+            ->setCallable(function () use (&$runs): string {
+                $runs++;
+
+                return str_repeat('w', BoundToolResultsMiddleware::MAX_CHARS_PER_RESULT);
+            });
+
+        $agent = new CapturingNeuronAgentStub();
+        $agent->capturedProvider = new RepeatingToolCallNeuronProvider($tool, rounds: 5);
+        $state = $agent->chat(new UserMessage('Export all five workflows'))->run();
+
+        // 150K + 150K + 100K spends the 400K budget, so rounds four and five are refused.
+        $this->assertSame(3, $runs);
+        $this->assertTrue(BoundToolResultsMiddleware::exhausted($state));
+        $this->assertCount(3, BoundToolResultsMiddleware::executedCalls($state));
     }
 
     public function testPreviousTurnsDoNotCountAgainstTheCurrentTurn(): void
@@ -121,6 +222,21 @@ class BoundToolResultsMiddlewareTest extends TestCase
             BoundToolResultsMiddleware::MAX_CHARS_PER_RESULT + 500,
             mb_strlen($sent[0]->getTools()[0]->getResult())
         );
+    }
+
+    private function runBefore(AgentState $state, Tool $tool): void
+    {
+        $event = new ToolCallEvent(new ToolCallMessage(null, [$tool]), new AIInferenceEvent('instructions', []));
+
+        new BoundToolResultsMiddleware()->before(new ToolNode(), $event, $state);
+    }
+
+    private function spentState(): AgentState
+    {
+        return $this->stateWithHistory([
+            new UserMessage('Create the workflows'),
+            ...$this->toolRound('get_diff', str_repeat('d', BoundToolResultsMiddleware::MAX_CHARS_PER_TURN)),
+        ]);
     }
 
     private function runAfter(AgentState $state, Tool $tool): void

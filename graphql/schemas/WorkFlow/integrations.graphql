@@ -7,6 +7,11 @@ type Integrations {
     integrations: [IntegrationsCompanies!]!
         @method(name: "getIntegrationsByCompany")
     config: Mixed
+    files: [Filesystem!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+        )
     created_at: DateTime
     updated_at: DateTime
 }

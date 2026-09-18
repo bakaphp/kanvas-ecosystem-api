@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Sessions\Actions;
 
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -105,7 +106,7 @@ class PersistChatTurnToSocialAction
             $filenames[] = $name;
 
             if (! isset($uploadedNamesByUrl[$url])) {
-                $incoming->addFileFromUrl($url, $name !== '' ? $name : $this->fileTagFromUrl($url), $this->app);
+                $incoming->addFileFromUrl($url, $name !== '' ? $name : Str::fileNameFromUrl($url, 'attachment-' . md5($url)), $this->app);
             }
         }
 
@@ -287,14 +288,6 @@ class PersistChatTurnToSocialAction
             ->first();
 
         return $filesystem !== null ? (string) $filesystem->name : '';
-    }
-
-    private function fileTagFromUrl(string $url): string
-    {
-        $path = parse_url($url, PHP_URL_PATH);
-        $basename = is_string($path) && $path !== '' ? basename($path) : '';
-
-        return $basename !== '' ? $basename : 'attachment-' . md5($url);
     }
 
     /**

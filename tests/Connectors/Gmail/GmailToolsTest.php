@@ -71,6 +71,30 @@ class GmailToolsTest extends TestCase
         $this->assertSame('read_failed', $result['reason']);
     }
 
+    /** KANVAS-ECOSYSTEM-6AE: one message re-read until NeuronAI's run cap killed the turn. */
+    public function test_rereading_the_same_email_in_a_turn_tells_the_model_to_stop(): void
+    {
+        [$app, $company] = $this->context();
+
+        $registered = new ReadEmailDetailsTool()->withContext($app, $company, static::$cachedUser);
+
+        $first = (clone $registered)->__invoke(message_id: 'MSG_1');
+        $second = (clone $registered)->__invoke(message_id: 'MSG_1');
+
+        $this->assertArrayNotHasKey('repeat_call', $first);
+        $this->assertTrue($second['repeat_call']);
+        $this->assertSame('read_failed', $second['reason']);
+    }
+
+    public function test_read_email_details_budgets_runs_per_message_not_per_tool(): void
+    {
+        $first = new ReadEmailDetailsTool()->setInputs(['message_id' => 'MSG_1']);
+        $other = new ReadEmailDetailsTool()->setInputs(['message_id' => 'MSG_2']);
+
+        $this->assertNotSame($first->getRunKey(), $other->getRunKey());
+        $this->assertSame(3, $first->getMaxRuns());
+    }
+
     public function test_download_attachment_surfaces_a_humanized_error_when_gmail_is_not_configured(): void
     {
         [$app, $company] = $this->context();

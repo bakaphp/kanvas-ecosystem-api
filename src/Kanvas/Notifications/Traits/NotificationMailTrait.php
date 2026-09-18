@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Traits;
 
 use Baka\Http\SafeUrlFetcher;
+use Baka\Support\Str;
 use Illuminate\Mail\Mailable;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Kanvas\Apps\Support\SmtpRuntimeConfiguration;
@@ -90,14 +91,7 @@ trait NotificationMailTrait
             ->where('apps_id', $this->app->getId())
             ->value('name');
 
-        return $name ?: $this->attachmentNameFromUrl($url);
-    }
-
-    private function attachmentNameFromUrl(string $url): string
-    {
-        $name = basename(parse_url($url, PHP_URL_PATH) ?: '');
-
-        return $name !== '' ? $name : 'attachment';
+        return $name ?: Str::fileNameFromUrl($url, 'attachment');
     }
 
     private function resolveRecipientEmail(object $notifiable): array|string

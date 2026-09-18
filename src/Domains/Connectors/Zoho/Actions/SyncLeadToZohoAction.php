@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Zoho\Actions;
 
 use Baka\Contracts\AppInterface;
 use Baka\Http\SafeUrlFetcher;
+use Baka\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Zoho\Client;
@@ -279,7 +280,7 @@ class SyncLeadToZohoAction
 
                 try {
                     $fileContent = SafeUrlFetcher::fetch($attachment);
-                    $fileName = basename(parse_url($attachment, PHP_URL_PATH)) ?: 'attachment_' . uniqid();
+                    $fileName = Str::fileNameFromUrl($attachment, 'attachment_' . uniqid());
 
                     $zohoLead->uploadAttachment(
                         (string) $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value),

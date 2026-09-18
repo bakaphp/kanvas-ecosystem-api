@@ -35,6 +35,8 @@ class AgentChatKernel
 {
     protected ?Message $persistedReply = null;
 
+    protected ?RunNeuronChatAction $neuronRun = null;
+
     /**
      * @param list<string> $images Image URLs the model can take natively on every backend.
      * @param list<string> $documents Non-image native attachment URLs (audio / PDF) — sent natively
@@ -59,6 +61,7 @@ class AgentChatKernel
         protected readonly ?string $adkAppName = null,
         protected readonly ?string $adkBaseUrl = null,
         protected readonly bool $fallbackOnFailure = true,
+        protected readonly bool $rendersArtifacts = false,
     ) {
     }
 
@@ -96,9 +99,45 @@ class AgentChatKernel
             $this->persistConversationToSocial($response);
         }
 
-        $this->broadcastChatResponse($sessionId, $response);
+        // A private turn is one nobody typed. Whatever drove it delivers the reply itself, so broadcasting
+        // here would show the driving prompt as a chat message and the reply twice.
+        if (! $this->privateUserTurn) {
+            $this->broadcastChatResponse($sessionId, $response);
+        }
 
         return $response;
+    }
+
+    /**
+     * True when the turn stopped because it spent its tool-output budget, not because the agent was done.
+     * Only the Neuron backend bounds tool output, so every other backend reads false.
+     */
+    public function endedOnToolBudget(): bool
+    {
+        return $this->neuronRun?->endedOnToolBudget() ?? false;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function executedToolCalls(): array
+    {
+        return $this->neuronRun?->executedToolCalls() ?? [];
+    }
+
+    public function agent(): Agent
+    {
+        return $this->agent;
+    }
+
+    public function session(): ?Session
+    {
+        return $this->session;
+    }
+
+    public function user(): Users
+    {
+        return $this->user;
     }
 
     /**
@@ -209,13 +248,14 @@ class AgentChatKernel
             // for describing — the handler itself only ever sees the base64 content blocks.
             $handler->setTurnMedia($this->nativeMedia());
             $handler->setPrivateUserTurn($this->privateUserTurn);
+            $handler->setRendersArtifacts($this->rendersArtifacts);
         }
 
         if ($this->additionalTools !== [] && $handler instanceof BehavesAsKanvasAgent) {
             $handler->addTool($this->additionalTools);
         }
 
-        return new RunNeuronChatAction(
+        $this->neuronRun = new RunNeuronChatAction(
             agent: $this->agent,
             session: $this->session,
             message: $this->message,
@@ -224,7 +264,9 @@ class AgentChatKernel
             handler: $handler,
             media: $this->nativeMedia(),
             fallbackOnFailure: $this->fallbackOnFailure,
-        )->execute();
+        );
+
+        return $this->neuronRun->execute();
     }
 
     protected function trackUsage(
