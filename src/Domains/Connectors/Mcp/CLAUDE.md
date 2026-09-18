@@ -70,11 +70,13 @@ Never print a credential while debugging — check presence (`rawToken() !== nul
 | Google Analytics | Two servers: data answers on `/mcp/v1`, admin on `/mcp`. **Admin publishes no metadata**, so its row pins `authorization_server: https://accounts.google.com`. |
 | Google Ads (official) | No hosted server — self-host only, read-only. `googleads.googleapis.com/mcp` has reserved metadata but every path 404s. |
 | Meta Ads (official) | **Hidden.** Metadata advertises registration, then refuses it: "Dynamic registration is not available for this client". Use `Meta Ads (Pipeboard)`. |
+| WhatsApp Business (official) | **Hidden**, key only. Same registration allow-list as Meta Ads (checked 2026-09-17, every payload refused). A fake bearer gets `403 Unauthorized Access`, which does not say whether a real system-user token from a non-allow-listed app is accepted. Activate the catalog row only after a real token completes `tools/list`. Webhook, payment and `system_user_token` tools are excluded on purpose. |
 | Pipeboard (Meta, Google Ads) | A third party holds the advertiser's platform tokens. Google Ads is granted `mcp:read` only on purpose. |
 | GitHub, DocuSign, HubSpot | No dynamic registration → hand-made client via `client_key`. DocuSign's metadata points at **production** `account.docusign.com`, so a demo-only key will not authorise. HubSpot's path is `/anthropic`; `/mcp` 404s. |
 | Browserbase | Key goes in the query string (`auth_query_param: browserbaseApiKey`), appended at send time and redacted from errors. Reports "connected" even with a wrong key — the key is only checked when a browser opens. |
 | TikTok Ads | Points at the progressive `tt-ads-mcp-layer` endpoint — the flat one's ~400 tools overwhelm a prompt. Issuer is `{server}/oauth`, resolved through the OIDC-suffixed well-known. **Writes with no paused-by-default.** |
 | Higgsfield | Must be `mcp.higgsfield.ai/mcp`; `higgsfield.ai/mcp` 307-redirects and the transport refuses redirects by design. Clerk registers the client. |
+| Vercel | **Hidden.** Registration is allow-listed **by redirect URI**, which is how "only clients Vercel has approved" is enforced: `claude.ai/api/mcp/auth_callback` and `localhost` register, `{app.url}/v1/oauth/callback` gets `invalid_redirect_uri`. No bearer fallback either — a token in the header returns `401 "No authorization provided"`, so the server never reads it as a credential. Needs a hand-made client (`client_key: vercel`) whose redirect Vercel accepts; discovery itself is clean, so don't pin an authorization server. `offline_access` is added to the advertised `openid` or there is no refresh token. |
 | Atlassian | OAuth fails on Atlassian's side; the bearer (service-account key) method works. |
 | n8n | `server_url` must be the resource its metadata names (e.g. `…/mcp-server/http`), not the instance root, or you get `invalid_target`. |
 | Deel | Granted read-only scopes out of ~90 published; widening to payroll/payment writes is deliberate, not a fix. |
@@ -83,7 +85,8 @@ Never print a credential while debugging — check presence (`rawToken() !== nul
 ## Timeouts
 
 `metadata.timeout_ms` is the per-call ceiling. The default is 20 s (CRUD-style servers). Search and reporting
-servers (Tavily, Analytics, ads, n8n, SQL Server, SAP) use 30 s. Anything that renders or searches heavily uses
+servers (Tavily, Analytics, ads, n8n, SQL Server, SAP, Vercel — docs search, runtime logs and Agent Run
+traces) use 30 s. Anything that renders or searches heavily uses
 60 s: Browserbase, Playwright, Higgsfield, and **Sentry**, whose `search_events` translates natural language
 server-side and overran 20 s.
 

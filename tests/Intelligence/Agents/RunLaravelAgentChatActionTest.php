@@ -143,7 +143,8 @@ class RunLaravelAgentChatActionTest extends TestCase
             ->with(
                 Mockery::on(
                     static fn (string $prompt): bool => str_starts_with($prompt, 'what pizza is this?')
-                        && str_contains($prompt, $unreachable),
+                        && str_contains($prompt, 'pizza.jpg')
+                        && ! str_contains($prompt, $unreachable),
                 ),
                 [],
             )

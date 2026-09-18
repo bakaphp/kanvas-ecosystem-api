@@ -88,6 +88,7 @@ class ReceptionistAgent extends BaseRagAgent implements ConversesWithCustomer
             entity: $this->entity,
             threadId: $this->threadId,
             currentLead: $this->currentLead,
+            contextWindow: $this->resolvedContextWindow(),
         );
     }
 

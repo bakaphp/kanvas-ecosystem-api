@@ -184,8 +184,10 @@ class RunNeuronChatAttachmentTest extends TestCase
 
         $blocks = $this->capturedBlocks($handler);
 
-        $note = $this->firstTextContaining($blocks, $unreachable);
+        $note = $this->firstTextContaining($blocks, 'pizza.jpg');
         $this->assertNotNull($note, 'The model must be told the attachment could not be loaded');
+        // Named by file, never by source: the note lands in stored history, and a source can be signed.
+        $this->assertStringNotContainsString($unreachable, $note->content);
         $this->assertNotNull($this->firstOfType($blocks, ImageContent::class), 'The readable attachment still goes through');
 
         Exceptions::assertNothingReported();
