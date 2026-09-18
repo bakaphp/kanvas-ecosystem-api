@@ -7,14 +7,15 @@ namespace Kanvas\Workflow\Integrations\Actions;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\Integrations;
 
 /**
- * Pulls each integration's logo from devicons.io (falling back to Simple Icons) into the app's own
- * storage, so the UI never hotlinks a third-party host. Files hang off a per-app system module, so
- * run it once per app.
+ * Pulls each integration's logo from devicons.io (falling back to Simple Icons) into our own storage,
+ * so the UI never hotlinks a third-party host. Logos are global: they are read back from any app's
+ * system module (FilesystemQuery@getFileByGraphTypeFromAnyApp), so one run covers every app.
  */
 class AttachIntegrationLogosAction
 {
@@ -51,12 +52,14 @@ class AttachIntegrationLogosAction
     private array $uploadedIcons = [];
 
     /**
+     * @param Apps                  $app           whose storage the logos are uploaded to
      * @param array<string, string> $logoOverrides integration name => logo url, for brands no icon set carries;
      *                                             these always replace an existing logo
      */
     public function __construct(
         private readonly Apps $app,
         private readonly Users $user,
+        private readonly bool $onlyAppIntegrations = false,
         private readonly bool $overwrite = false,
         private readonly array $logoOverrides = [],
         private readonly string $deviconsUrl = self::DEVICONS_URL,
@@ -73,7 +76,7 @@ class AttachIntegrationLogosAction
         $filesystem = new FilesystemServices($this->app);
 
         $integrations = Integrations::query()
-            ->fromPublicOrCurrentApp($this->app)
+            ->when($this->onlyAppIntegrations, fn ($query) => $query->fromPublicOrCurrentApp($this->app))
             ->notDeleted()
             ->orderBy('id')
             ->get();
@@ -82,8 +85,9 @@ class AttachIntegrationLogosAction
             $label = $integration->name . ' #' . $integration->getId();
 
             $override = $this->logoOverrides[$integration->name] ?? null;
+            $keepExistingLogo = $override === null && ! $this->overwrite;
 
-            if ($override === null && ! $this->overwrite && $integration->getFileByName(self::FIELD_NAME) !== null) {
+            if ($keepExistingLogo && FilesystemEntitiesRepository::getFileFromEntityByNameFromAnyApp($integration, self::FIELD_NAME) !== null) {
                 $result['skipped'][] = $label;
 
                 continue;
