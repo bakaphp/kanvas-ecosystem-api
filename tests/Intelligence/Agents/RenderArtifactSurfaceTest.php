@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Neuron\HumanResources\HumanResourcesAgent;
 use Kanvas\Intelligence\Agents\Neuron\KanvasGenericNeuronAgent;
 use Kanvas\Intelligence\Agents\Neuron\ProjectManagement\ProjectManagerAgent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use NeuronAI\Tools\ToolInterface;
 use Tests\Stubs\Intelligence\CapturingSystemUserAgentStub;
@@ -74,6 +75,26 @@ final class RenderArtifactSurfaceTest extends TestCase
 
             $this->assertNotContains('render_artifact', $this->toolNames($handler->getTools()), $class);
         }
+    }
+
+    /**
+     * The tool is in the catalog, so an admin can grant it anywhere; the surface still decides.
+     */
+    public function testACatalogGrantIsDroppedOffARenderingSurface(): void
+    {
+        $granted = new class () extends KanvasGenericNeuronAgent {
+            protected function tools(): array
+            {
+                return [new RenderArtifactTool()];
+            }
+        };
+        $granted->setConfiguration($this->makeAgent(KanvasGenericNeuronAgent::class), user: auth()->user());
+
+        $this->assertNotContains('render_artifact', $this->toolNames($granted->getTools()));
+
+        $granted->setRendersArtifacts(true);
+
+        $this->assertContains('render_artifact', $this->toolNames($granted->getTools()));
     }
 
     public function testUserChatRendersArtifacts(): void

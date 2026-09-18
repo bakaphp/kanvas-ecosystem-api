@@ -12,6 +12,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\CurrentTimeTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\DynamicSubAgentTool;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
 use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
@@ -192,7 +193,19 @@ trait HasKanvasAgentBehavior
         // that hardcoded addition since it happens after parent::tools() returns. Keeping the LAST
         // occurrence favors the hardcoded instance, which is always appended after the registry
         // merge in this codebase's array_merge(parent::tools(), [...]) convention.
-        return $this->dedupeByName($tools);
+        $tools = $this->dedupeByName($tools);
+
+        if ($this->rendersArtifacts) {
+            return $tools;
+        }
+
+        // Off a rendering surface the block reaches the reader as raw JSON, whoever granted the tool.
+        return array_values(
+            array_filter(
+                $tools,
+                fn (object $tool): bool => ! $tool instanceof RenderArtifactTool
+            )
+        );
     }
 
     /**

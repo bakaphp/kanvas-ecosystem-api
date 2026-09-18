@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Common;
 
+use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Enums\ArtifactComponentEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
@@ -14,10 +15,10 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 
 /**
- * Only handed to an agent on a surface that renders `kanvas-artifact` blocks (the admin userChat) —
- * anywhere else the block reaches the reader as raw JSON. No #[AgentTool] for the same reason: a
- * catalog grant would put it on Slack and connector surfaces.
+ * Only useful where the reply renders `kanvas-artifact` blocks (the admin userChat) — anywhere else the
+ * reader gets raw JSON. HasKanvasAgentBehavior::getTools() drops it off those surfaces, catalog grant or not.
  */
+#[AgentTool(name: 'Render Artifact', category: 'ecosystem')]
 class RenderArtifactTool extends Tool
 {
     use DecodesJsonObjectParam;
