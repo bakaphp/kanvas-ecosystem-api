@@ -18,8 +18,10 @@ enum CorporateApplicationApprovalModeEnum: string
     {
         $receiverMode = $lead->receiver?->get(self::RECEIVER_KEY);
 
-        if (is_string($receiverMode) && $receiverMode !== '') {
-            return self::from($receiverMode);
+        $receiverOverride = is_string($receiverMode) ? self::tryFrom($receiverMode) : null;
+
+        if ($receiverOverride !== null) {
+            return $receiverOverride;
         }
 
         $corporateReceiverId = (int) (CorporateApplicationSettingEnum::RECEIVER_ID->readFrom($app) ?? 0);

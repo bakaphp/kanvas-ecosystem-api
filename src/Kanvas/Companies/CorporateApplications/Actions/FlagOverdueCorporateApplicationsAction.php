@@ -46,16 +46,13 @@ class FlagOverdueCorporateApplicationsAction
 
     private function overdueApplications(Carbon $filedBefore): iterable
     {
-        $open = self::applicationIdsWithStatus([
-            CorporateApplicationStatusEnum::PENDING->value,
-            CorporateApplicationStatusEnum::NEEDS_REVIEW->value,
-        ]);
+        $open = self::openApplicationIds();
 
         if ($open === []) {
             return [];
         }
 
-        $flagged = self::applicationIdsWithField(Field::OVERDUE_AT);
+        $flagged = self::applicationIds(Field::OVERDUE_AT);
 
         return Lead::query()
             ->fromApp($this->app)
@@ -66,29 +63,21 @@ class FlagOverdueCorporateApplicationsAction
             ->cursor();
     }
 
-    public static function applicationIdsWithStatus(array $statuses): array
+    public static function openApplicationIds(): array
     {
-        return self::customFieldQuery(Field::STATUS)
-            ->whereIn('value', $statuses)
-            ->pluck('entity_id')
-            ->map(fn ($id): int => (int) $id)
-            ->all();
+        return self::applicationIds(Field::STATUS, CorporateApplicationStatusEnum::openValues());
     }
 
-    private static function applicationIdsWithField(Field $field): array
-    {
-        return self::customFieldQuery($field)
-            ->pluck('entity_id')
-            ->map(fn ($id): int => (int) $id)
-            ->all();
-    }
-
-    private static function customFieldQuery(Field $field): Builder
+    private static function applicationIds(Field $field, ?array $values = null): array
     {
         return AppsCustomFields::query()
             ->where('model_name', Lead::class)
             ->where('name', $field->value)
-            ->where('is_deleted', 0);
+            ->where('is_deleted', 0)
+            ->when($values !== null, fn (Builder $query) => $query->whereIn('value', $values))
+            ->pluck('entity_id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
     }
 
     private function escalate(Lead $application, int $slaHours, Carbon $now): void
@@ -120,9 +109,6 @@ class FlagOverdueCorporateApplicationsAction
             ?? Str::trimToNull($receiver->rotation?->leads_rotations_email)
             ?? Str::trimToNull($receiver->user?->email);
 
-        return array_values(array_filter(array_map(
-            static fn (string $email): ?string => Str::trimToNull($email),
-            explode(',', (string) $list),
-        )));
+        return explode(',', (string) $list);
     }
 }

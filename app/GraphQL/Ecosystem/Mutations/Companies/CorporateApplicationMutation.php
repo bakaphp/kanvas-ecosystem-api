@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Ecosystem\Mutations\Companies;
 
+use App\GraphQL\Concerns\ActingContext;
 use App\GraphQL\Concerns\ResolvesActingContext;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Companies\CorporateApplications\Actions\ApproveCorporateApplicationAction;
@@ -21,11 +22,7 @@ class CorporateApplicationMutation
     {
         $ctx = $this->actingContext();
 
-        return new ApproveCorporateApplicationAction(
-            $this->resolveApplication((int) $request['id']),
-            $ctx->app,
-            $ctx->user,
-        )->execute();
+        return new ApproveCorporateApplicationAction($this->resolveApplication((int) $request['id'], $ctx), $ctx->app, $ctx->user)->execute();
     }
 
     public function reject(mixed $rootValue, array $request): array
@@ -39,17 +36,15 @@ class CorporateApplicationMutation
         $ctx = $this->actingContext();
 
         return new RejectCorporateApplicationAction(
-            $this->resolveApplication((int) $request['id']),
+            $this->resolveApplication((int) $request['id'], $ctx),
             $ctx->app,
             $reason,
             $ctx->user,
         )->execute();
     }
 
-    private function resolveApplication(int $id): Model
+    private function resolveApplication(int $id, ActingContext $ctx): Model
     {
-        $ctx = $this->actingContext();
-
         $application = Lead::getByIdFromCompanyApp($id, $ctx->company, $ctx->app);
 
         $status = CorporateApplicationStatusEnum::tryFrom(

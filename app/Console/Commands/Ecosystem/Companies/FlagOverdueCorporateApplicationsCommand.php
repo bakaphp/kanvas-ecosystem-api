@@ -8,7 +8,6 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Actions\FlagOverdueCorporateApplicationsAction;
-use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 
 class FlagOverdueCorporateApplicationsCommand extends Command
@@ -37,10 +36,7 @@ class FlagOverdueCorporateApplicationsCommand extends Command
 
     private function appsWithOpenApplications(): array
     {
-        $open = FlagOverdueCorporateApplicationsAction::applicationIdsWithStatus([
-            CorporateApplicationStatusEnum::PENDING->value,
-            CorporateApplicationStatusEnum::NEEDS_REVIEW->value,
-        ]);
+        $open = FlagOverdueCorporateApplicationsAction::openApplicationIds();
 
         if ($open === []) {
             return [];

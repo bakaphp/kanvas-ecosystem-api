@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Movipass;
 
 use App\GraphQL\Ecosystem\Mutations\Companies\CorporateApplicationMutation;
+use Bouncer;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Actions\ApproveCorporateApplicationAction;
 use Kanvas\Companies\CorporateApplications\Actions\RejectCorporateApplicationAction;
@@ -38,6 +40,7 @@ final class CorporateApplicationApprovalTest extends TestCase
 
         $this->kanvasApp = app(Apps::class);
         $this->receiver = $this->createReceiver();
+        Bouncer::scope()->to(RolesEnums::getScope($this->kanvasApp, Auth::user()->getCurrentCompany()));
     }
 
     public function testApproveCreatesCorporateCompanyAndInvite(): void

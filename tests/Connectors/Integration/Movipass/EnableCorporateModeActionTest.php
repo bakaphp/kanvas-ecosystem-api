@@ -55,9 +55,6 @@ final class EnableCorporateModeActionTest extends TestCase
         $this->kanvasUser->del('is_corporate');
         $this->discardPreviousRequests();
 
-        // Mirror a real GraphQL request: middleware leaves the Bouncer tenant scope on the
-        // user's current company, not the app-global company_0 where roles live. This is the
-        // exact condition that made the admin-role lookup throw "No query results for Role".
         Bouncer::scope()->to(RolesEnums::getScope($this->kanvasApp, $this->kanvasUser->getCurrentCompany()));
     }
 
@@ -270,8 +267,6 @@ final class EnableCorporateModeActionTest extends TestCase
 
         $company = $this->request();
 
-        // Region + warehouse are provisioned by OnBoardingJob (Inventory Setup), the same
-        // path the user-registration/lead-accept flow runs.
         Bus::assertDispatched(
             OnBoardingJob::class,
             fn (OnBoardingJob $job) => $job->branch->companies_id === $company->getId(),

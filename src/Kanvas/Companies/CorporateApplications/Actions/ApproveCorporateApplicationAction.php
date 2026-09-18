@@ -21,7 +21,6 @@ use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Workflow\Enums\WorkflowEnum;
-use Throwable;
 
 class ApproveCorporateApplicationAction
 {
@@ -36,22 +35,16 @@ class ApproveCorporateApplicationAction
 
     public function execute(): array
     {
-        try {
-            $result = Field::UPGRADE_USER_ID->readFrom($this->application)
-                ? $this->grantUpgrade()
-                : $this->provisionNewAccount();
+        $result = Field::UPGRADE_USER_ID->readFrom($this->application)
+            ? $this->grantUpgrade()
+            : $this->provisionNewAccount();
 
-            $this->application->fireWorkflow(
-                WorkflowEnum::CORPORATE_APPLICATION_APPROVED->value,
-                params: ['app' => $this->app],
-            );
+        $this->application->fireWorkflow(
+            WorkflowEnum::CORPORATE_APPLICATION_APPROVED->value,
+            params: ['app' => $this->app],
+        );
 
-            return $result;
-        } catch (Throwable $e) {
-            report($e);
-
-            throw $e;
-        }
+        return $result;
     }
 
     private function provisionNewAccount(): array
@@ -146,16 +139,7 @@ class ApproveCorporateApplicationAction
     private function copyCompanyFields(Companies $company): void
     {
         $company->set('is_corporate', true);
-
-        foreach (Field::COMPANY_FIELDS as $key) {
-            $value = $this->application->get($key);
-
-            if ($value === null || $value === '') {
-                continue;
-            }
-
-            $company->set($key, $value);
-        }
+        Field::copy(Field::COMPANY_FIELDS, $this->application->get(...), $company);
     }
 
     private function findOrCreateInvite(Companies $company, Users $owner): UsersInvite
@@ -163,7 +147,7 @@ class ApproveCorporateApplicationAction
         $existingHash = Field::INVITE_HASH->readFrom($this->application);
 
         if ($existingHash) {
-            $existing = UsersInvite::where('invite_hash', $existingHash)->first();
+            $existing = UsersInvite::where('invite_hash', $existingHash)->fromApp($this->app)->notDeleted()->first();
 
             if ($existing) {
                 return $existing;
@@ -171,7 +155,7 @@ class ApproveCorporateApplicationAction
         }
 
         $branch = $company->branch()->firstOrFail();
-        $adminRole = RolesRepository::getByMixedParamFromCompany(RolesEnums::ADMIN->value, $company, $this->app);
+        $adminRole = RolesRepository::getByNameFromApp(RolesEnums::ADMIN->value, $this->app);
 
         $invite = new UsersInvite();
         $invite->fill([
@@ -189,20 +173,7 @@ class ApproveCorporateApplicationAction
         $invite->saveOrFail();
 
         $invite->set('is_corporate', true);
-
-        foreach (Field::USER_FIELDS as $key) {
-            if ($key === 'is_corporate') {
-                continue;
-            }
-
-            $value = $this->application->get($key);
-
-            if ($value === null || $value === '') {
-                continue;
-            }
-
-            $invite->set($key, $value);
-        }
+        Field::copy(Field::USER_PROFILE_FIELDS, $this->application->get(...), $invite);
 
         return $invite;
     }

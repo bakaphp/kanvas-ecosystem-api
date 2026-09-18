@@ -36,8 +36,7 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
             app: $app,
             integration: IntegrationsEnum::MOVIPASS,
             additionalParams: $params,
-            integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) {
-                /** @var Lead $lead */
+            integrationOperation: function (Lead $lead, $app, $integrationCompany, $additionalParams) {
                 $mode = ApprovalMode::resolveFor($lead, $app);
 
                 if ($mode === null) {
@@ -54,10 +53,7 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
                     return $this->markNeedsReview($lead, $app, $validationError);
                 }
 
-                return new ApproveCorporateApplicationAction(
-                    $lead,
-                    $app instanceof Apps ? $app : app(Apps::class),
-                )->execute();
+                return new ApproveCorporateApplicationAction($lead, $app instanceof Apps ? $app : app(Apps::class))->execute();
             },
             company: $lead->company,
         );

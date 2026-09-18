@@ -12,10 +12,10 @@ use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationSettingEnum as Setting;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Companies\DataTransferObject\Company as CompanyData;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
@@ -58,8 +58,6 @@ class EnableCorporateModeAction
             $this->setCompanyFields($company);
             $this->setUserFields();
             $this->associateUserAsAdmin($company, $appsModel);
-            // Same onboarding the registration/lead-accept path runs — provisions the
-            // company's default inventory (region + warehouse) via OnBoardingJob.
             new SetupService()->onBoarding($this->user, $appsModel, $company);
 
             return $company;
@@ -80,7 +78,7 @@ class EnableCorporateModeAction
             'companies_branches_id' => $receiver->companies_branches_id,
             'leads_receivers_id' => $receiver->getId(),
             'leads_owner_id' => $receiver->users_id,
-            'title' => trim((string) ($this->fields['commercial_name'] ?: $this->fields['legal_name'])),
+            'title' => trim((string) (($this->fields['commercial_name'] ?? null) ?: ($this->fields['legal_name'] ?? ''))),
             'firstname' => (string) ($this->fields['contact_name'] ?? $this->user->firstname),
             'lastname' => (string) $this->user->lastname,
             'email' => trim((string) ($this->fields['contact_email'] ?? $this->user->email)),
@@ -88,17 +86,7 @@ class EnableCorporateModeAction
         ]);
         $lead->saveOrFail();
 
-        foreach (Field::COMPANY_FIELDS as $key) {
-            if (! empty($this->fields[$key])) {
-                $lead->set($key, $this->fields[$key]);
-            }
-        }
-
-        foreach (Field::USER_FIELDS as $key) {
-            if ($key !== 'is_corporate' && ! empty($this->fields[$key])) {
-                $lead->set($key, $this->fields[$key]);
-            }
-        }
+        Field::copy([...Field::COMPANY_FIELDS, ...Field::USER_PROFILE_FIELDS], $this->field(...), $lead);
 
         Field::STATUS->writeTo($lead, CorporateApplicationStatusEnum::PENDING->value);
         Field::COMPANY_ID->writeTo($lead, (string) $company->getId());
@@ -109,6 +97,7 @@ class EnableCorporateModeAction
     private function hasPendingRequest(): bool
     {
         return Lead::query()
+            ->fromApp($this->app)
             ->whereIn('id', function ($q) {
                 $q->select('entity_id')
                     ->from(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields')
@@ -131,7 +120,7 @@ class EnableCorporateModeAction
 
     private function corporateReceiver(Apps $app): LeadReceiver
     {
-        $receiverId = $app->get(ConfigurationEnum::CORPORATE_RECEIVER_ID->value);
+        $receiverId = Setting::RECEIVER_ID->readFrom($app);
 
         if (empty($receiverId)) {
             throw new ValidationException(
@@ -139,15 +128,13 @@ class EnableCorporateModeAction
             );
         }
 
-        return LeadReceiver::where('id', (int) $receiverId)
-            ->where('apps_id', $app->getId())
-            ->firstOrFail();
+        return LeadReceiver::getById((int) $receiverId, $app);
     }
 
     private function createCorporateCompany(): Companies
     {
-        $name = trim((string) ($this->fields['commercial_name']
-            ?: $this->fields['legal_name']
+        $name = trim((string) (($this->fields['commercial_name'] ?? null)
+            ?: ($this->fields['legal_name'] ?? null)
             ?: $this->user->displayname . ' Corporate'));
 
         return new CreateCompaniesAction(
@@ -162,20 +149,10 @@ class EnableCorporateModeAction
 
     private function setCompanyFields(Companies $company): void
     {
-        foreach (Field::COMPANY_FIELDS as $key) {
-            $value = $this->fields[$key] ?? null;
-            if ($value === null || $value === '') {
-                continue;
-            }
-            $company->set($key, $value);
-        }
+        Field::copy(Field::COMPANY_FIELDS, $this->field(...), $company);
 
         if (! empty($this->fields['region_id'])) {
-            $region = Regions::getByIdFromCompanyAppOrGlobal(
-                (int) $this->fields['region_id'],
-                $this->user->getCurrentCompany(),
-                $this->app,
-            );
+            $region = Regions::getByIdFromCompanyAppOrGlobal((int) $this->fields['region_id'], $this->user->getCurrentCompany(), $this->app);
             new SetCompanyRegionAction($company, $region->getId())->execute();
         } elseif (app()->bound(Regions::class)) {
             new SetCompanyRegionAction($company, app(Regions::class)->getId())->execute();
@@ -184,16 +161,12 @@ class EnableCorporateModeAction
 
     private function setUserFields(): void
     {
-        foreach (Field::USER_FIELDS as $key) {
-            if ($key === 'is_corporate') {
-                continue;
-            }
-            $value = $this->fields[$key] ?? null;
-            if ($value === null || $value === '') {
-                continue;
-            }
-            $this->user->set($key, $value);
-        }
+        Field::copy(Field::USER_PROFILE_FIELDS, $this->field(...), $this->user);
+    }
+
+    private function field(string $key): mixed
+    {
+        return $this->fields[$key] ?? null;
     }
 
     private function associateUserAsAdmin(Companies $company, Apps $app): void

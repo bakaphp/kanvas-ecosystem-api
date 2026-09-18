@@ -33,7 +33,6 @@ class PropagateCorporateFieldsToUserActivity extends KanvasActivity implements W
                 /** @var Users $user */
                 $appsModel = $app instanceof Apps ? $app : app(Apps::class);
 
-                // The invite was soft-deleted by ProcessInviteAction; the row still exists.
                 $invite = UsersInvite::where('email', $user->email)
                     ->where('apps_id', $appsModel->getId())
                     ->orderByDesc('created_at')
@@ -43,15 +42,7 @@ class PropagateCorporateFieldsToUserActivity extends KanvasActivity implements W
                     return $this->skip($user, $invite ? 'invite is not corporate' : 'no invite found');
                 }
 
-                $copied = [];
-                foreach (Field::USER_FIELDS as $key) {
-                    $value = $invite->get($key);
-                    if ($value === null || $value === '') {
-                        continue;
-                    }
-                    $user->set($key, $value);
-                    $copied[] = $key;
-                }
+                $copied = Field::copy(Field::USER_FIELDS, $invite->get(...), $user);
 
                 return [
                     'user' => $user->getId(),

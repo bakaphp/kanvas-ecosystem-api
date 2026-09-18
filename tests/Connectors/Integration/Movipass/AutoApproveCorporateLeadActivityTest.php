@@ -184,7 +184,6 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
         $this->assertEquals($lead->get('legal_name'), $company->get('legal_name'));
         $this->assertEquals($lead->get('commercial_name'), $company->get('commercial_name'));
         $this->assertEquals($lead->get('rnc'), $company->get('rnc'));
-        // PropagateCorporateFieldsToUserActivity on invite acceptance.
         $this->assertNull($company->get('contact_email'));
         $this->assertNull($company->get('contact_phone'));
 

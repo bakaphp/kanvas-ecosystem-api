@@ -16,9 +16,7 @@ enum CorporateApplicationFieldEnum: string
     case REVIEWED_BY = 'corporate_application_reviewed_by';
     case REVIEWED_AT = 'corporate_application_reviewed_at';
     case OVERDUE_AT = 'corporate_application_overdue_at';
-
     case UPGRADE_USER_ID = 'corporate_application_upgrade_users_id';
-
     case UPGRADE_SOURCE_COMPANY_ID = 'corporate_application_upgrade_source_company_id';
 
     public const COMPANY_FIELDS = [
@@ -29,6 +27,10 @@ enum CorporateApplicationFieldEnum: string
 
     public const USER_FIELDS = [
         'is_corporate',
+        ...self::USER_PROFILE_FIELDS,
+    ];
+
+    public const USER_PROFILE_FIELDS = [
         'contact_name',
         'contact_role',
         'contact_email',
@@ -48,5 +50,23 @@ enum CorporateApplicationFieldEnum: string
     public function writeTo(Model $entity, mixed $value): void
     {
         $entity->set($this->value, $value);
+    }
+
+    public static function copy(array $keys, callable $read, Model $target): array
+    {
+        $copied = [];
+
+        foreach ($keys as $key) {
+            $value = $read($key);
+
+            if ($value === null || $value === '') {
+                continue;
+            }
+
+            $target->set($key, $value);
+            $copied[] = $key;
+        }
+
+        return $copied;
     }
 }
