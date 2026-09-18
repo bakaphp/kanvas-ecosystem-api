@@ -208,6 +208,8 @@ class PushLeadNotesActivity extends KanvasActivity
         try {
             $result = new AddNoteToLeadAction($lead, $note)->execute();
         } catch (Throwable $e) {
+            report($e);
+
             return ['verb' => $verb, 'error' => 'Reynolds USL Note failed: ' . $e->getMessage()];
         }
 
