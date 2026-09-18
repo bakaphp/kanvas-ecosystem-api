@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationApprovalModeEnum as ApprovalMode;
 use Kanvas\Connectors\Movipass\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationFieldEnum;
 use Kanvas\Connectors\Movipass\Workflows\Activities\AutoApproveCorporateLeadActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\PublishApprovedParkingActivity;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SetupApprovedCorporateCompanyActivity;
@@ -114,6 +115,12 @@ class SetupParkingApplicationRulesCommand extends Command
 
         if (empty($receiver->get(ApprovalMode::RECEIVER_KEY))) {
             $receiver->set(ApprovalMode::RECEIVER_KEY, ApprovalMode::MANUAL->value);
+        }
+
+        foreach (ParkingApplicationFieldEnum::receiverLists() as $key => $fields) {
+            if (empty($receiver->get($key))) {
+                $receiver->set($key, $fields);
+            }
         }
 
         $app->set(ConfigurationEnum::PARKING_RECEIVER_ID->value, $receiver->getId());

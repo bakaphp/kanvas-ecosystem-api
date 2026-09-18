@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Movipass\Enums;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Crypt;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as CorporateField;
 
 enum ParkingApplicationFieldEnum: string
 {
@@ -80,6 +81,20 @@ enum ParkingApplicationFieldEnum: string
     case CONTRACT_VERSION = 'parking_application_contract_version';
 
     case CONTRACT_ACCEPTED = 'parking_application_contract_accepted';
+
+    public static function receiverLists(): array
+    {
+        return [
+            CorporateField::RECEIVER_REQUIRED_KEY => self::values(self::RECEIVER_REQUIRED_FIELDS),
+            CorporateField::RECEIVER_COMPANY_KEY => self::values(self::RECEIVER_COMPANY_FIELDS),
+            CorporateField::RECEIVER_USER_KEY => self::values(self::RECEIVER_USER_FIELDS),
+        ];
+    }
+
+    private static function values(array $fields): array
+    {
+        return array_map(fn (self $field): string => $field->value, $fields);
+    }
 
     public function step(): ?ParkingApplicationStepEnum
     {
@@ -230,6 +245,26 @@ enum ParkingApplicationFieldEnum: string
     private const array CONTRACT_FIELDS = [
         self::CONTRACT_VERSION,
         self::CONTRACT_ACCEPTED,
+    ];
+
+    private const array RECEIVER_REQUIRED_FIELDS = [
+        self::APPLICANT_TYPE,
+        self::PARKING_NAME,
+        self::EMAIL,
+        self::PHONE,
+    ];
+
+    private const array RECEIVER_COMPANY_FIELDS = [
+        self::LEGAL_NAME,
+        self::COMMERCIAL_NAME,
+        self::RNC,
+        self::PARKING_NAME,
+    ];
+
+    private const array RECEIVER_USER_FIELDS = [
+        self::FULL_NAME,
+        self::EMAIL,
+        self::PHONE,
     ];
 
     private const array INTEGER_TYPE_FIELDS = [
