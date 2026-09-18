@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Scribe;
 
+use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Actions\UploadFileAction;
@@ -261,7 +261,7 @@ class TestPdfIngestCommand extends Command
 
     private function createFilesystemRowFromUrl(string $url, Apps $app, Companies $company, Users $user): Filesystem
     {
-        $filename = basename(parse_url($url, PHP_URL_PATH) ?: 'invoice.pdf');
+        $filename = Str::fileNameFromUrl($url, 'invoice.pdf');
         if (! str_ends_with(strtolower($filename), '.pdf')) {
             $filename .= '.pdf';
         }

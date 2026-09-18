@@ -7,6 +7,7 @@ namespace Kanvas\NervousSystem\Scheduling\Jobs;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -129,6 +130,7 @@ class RunScheduledAgentActionJob implements ShouldQueue
                 sessionUuid: $session->uuid,
                 canalId: $session->canal_id,
                 verb: 'scheduled-agent-reply',
+                fromAgentTurn: true,
             )->execute();
         }
 
@@ -145,7 +147,14 @@ class RunScheduledAgentActionJob implements ShouldQueue
         }
 
         /** @var Session|null $session */
-        $session = Session::query()->where('uuid', $this->action->session_uuid)->first();
+        $session = Session::query()
+            ->where('uuid', $this->action->session_uuid)
+            ->when(
+                $this->action->agent,
+                fn (Builder $query, Agent $agent): Builder => $query->fromAgent($agent),
+                fn (Builder $query): Builder => $query->latest('id')
+            )
+            ->first();
 
         return $session;
     }
@@ -154,7 +163,10 @@ class RunScheduledAgentActionJob implements ShouldQueue
     {
         if ($this->action->session_uuid !== null) {
             /** @var Session|null $existing */
-            $existing = Session::query()->where('uuid', $this->action->session_uuid)->first();
+            $existing = Session::query()
+                ->fromAgent($agent)
+                ->where('uuid', $this->action->session_uuid)
+                ->first();
             if ($existing !== null) {
                 return $existing;
             }

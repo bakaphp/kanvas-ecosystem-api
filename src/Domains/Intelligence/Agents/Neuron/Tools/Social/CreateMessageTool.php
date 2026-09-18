@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Social;
 
 use Baka\Http\Exceptions\SsrfException;
 use Baka\Http\SafeUrl;
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
@@ -168,7 +169,7 @@ class CreateMessageTool extends Tool
         // the model would create the whole message a second time.
         try {
             $message->addMultipleFilesFromUrl(array_map(
-                fn (string $url): array => ['url' => $url, 'name' => $this->fileNameFromUrl($url)],
+                fn (string $url): array => ['url' => $url, 'name' => Str::fileNameFromUrl($url, 'attachment')],
                 $fileUrls,
             ));
 
@@ -239,13 +240,6 @@ class CreateMessageTool extends Tool
         }
 
         return true;
-    }
-
-    private function fileNameFromUrl(string $url): string
-    {
-        $name = basename((string) parse_url($url, PHP_URL_PATH));
-
-        return $name === '' ? 'attachment' : $name;
     }
 
     private function findMessage(int $messageId): ?Message

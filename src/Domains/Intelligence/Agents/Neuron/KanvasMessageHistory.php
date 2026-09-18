@@ -8,9 +8,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\ChatHistory\RebuildsTrimmedHistory;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
+use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Enums\MessageRole;
 use NeuronAI\Chat\History\AbstractChatHistory;
@@ -25,9 +28,19 @@ use Override;
 
 class KanvasMessageHistory extends AbstractChatHistory
 {
+    use RebuildsTrimmedHistory;
+
     private const string CONNECTION = 'intelligence';
     private const string TABLE_CONVERSATIONS = 'agent_conversations';
     private const string TABLE_MESSAGES = 'agent_conversation_messages';
+
+    /**
+     * A memory backstop, not a context limit: applyLoadedHistory() cuts to the token window, and this
+     * only bounds how many longtext rows are hydrated to get there. Deliberately far above what any
+     * window can hold, so the token trim is always what decides — a row cap that bound first would
+     * silently shorten memory on a wide model.
+     */
+    private const int MAX_LOADED_ROWS = 1_000;
 
     /**
      * @param list<string> $turnMedia Current turn's attachment URLs (image/audio/PDF), captured on
@@ -42,7 +55,7 @@ class KanvasMessageHistory extends AbstractChatHistory
         private readonly Users $user,
         private readonly string $agentClass,
         private readonly ?string $sessionId = null,
-        int $contextWindow = 50000,
+        int $contextWindow = ModelContextWindowService::MIN_HISTORY_TOKENS,
         private readonly ?Agent $agent = null,
         private readonly array $turnMedia = [],
         private readonly ?string $model = null,
@@ -54,7 +67,13 @@ class KanvasMessageHistory extends AbstractChatHistory
         // which can glom onto an unrelated conversation. Falls back to latest only when there's no
         // session id at all (ad-hoc invocations).
         $this->conversationId = $this->sessionId !== null
-            ? $this->findOrCreateConversationBySession($this->sessionId)
+            ? new KanvasConversationStore()->conversationForSession(
+                $this->user->getId(),
+                $this->sessionId,
+                $this->agent?->getId(),
+                $this->app->getId(),
+                $this->company->getId(),
+            )
             : $this->findLatestConversation();
 
         if ($this->conversationId !== null) {
@@ -65,22 +84,6 @@ class KanvasMessageHistory extends AbstractChatHistory
     public function getConversationId(): ?string
     {
         return $this->conversationId;
-    }
-
-    private function findOrCreateConversationBySession(string $sessionId): string
-    {
-        $agentId = $this->agent?->getId();
-
-        $query = DB::connection(self::CONNECTION)
-            ->table(self::TABLE_CONVERSATIONS)
-            ->where('user_id', $this->user->getId())
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('title', $sessionId);
-
-        $query = $agentId !== null ? $query->where('agent_id', $agentId) : $query->whereNull('agent_id');
-
-        return $query->first()?->id ?? $this->createConversation($sessionId);
     }
 
     private function findLatestConversation(): ?string
@@ -99,9 +102,13 @@ class KanvasMessageHistory extends AbstractChatHistory
         $messages = DB::connection(self::CONNECTION)
             ->table(self::TABLE_MESSAGES)
             ->where('conversation_id', $this->conversationId)
-            ->orderBy('created_at', 'asc')
-            ->orderBy('id', 'asc')
-            ->get()
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->limit(self::MAX_LOADED_ROWS)
+            // The rebuild is text-only; tool_calls/tool_results/meta/usage are longtext on every row
+            // and were being hydrated and decoded for nothing.
+            ->get(['role', 'content', 'attachments'])
+            ->reverse()
             ->map(function ($row): ?Message {
                 $content = (string) ($row->content ?? '');
                 $attachmentMarker = $this->buildAttachmentMarker($row->attachments ?? null);
@@ -121,40 +128,13 @@ class KanvasMessageHistory extends AbstractChatHistory
             ->values()
             ->all();
 
-        $coalesced = [];
-        foreach ($messages as $m) {
-            $last = end($coalesced) ?: null;
-            if ($last !== null && $last->getRole() === $m->getRole()) {
-                $last->setContents($last->getContent() . "\n\n" . $m->getContent());
-
-                continue;
-            }
-            $coalesced[] = $m;
-        }
-
-        while (! empty($coalesced) && $coalesced[0]->getRole() !== MessageRole::USER->value) {
-            array_shift($coalesced);
-        }
-
-        if (! empty($coalesced)) {
-            $this->history = array_values($coalesced);
-        }
+        $this->applyLoadedHistory($messages);
     }
 
     #[Override]
     public function addMessage(Message $message): ChatHistoryInterface
     {
-        $last = end($this->history) ?: null;
-        if ($last !== null && $last->getRole() === $message->getRole()) {
-            $last->setContents($last->getContent() . "\n\n" . $message->getContent());
-            $this->trimHistory();
-            $this->onNewMessage($message);
-            $this->setMessages($this->history);
-
-            return $this;
-        }
-
-        return parent::addMessage($message);
+        return $this->mergeOrAppend($message);
     }
 
     #[Override]
@@ -175,7 +155,13 @@ class KanvasMessageHistory extends AbstractChatHistory
         }
 
         if ($this->conversationId === null) {
-            $this->conversationId = $this->createConversation($content !== '' ? $content : '[tool call]');
+            $this->conversationId = new KanvasConversationStore()->insertConversation(
+                $this->user->getId(),
+                $this->agent?->getId(),
+                $this->app->getId(),
+                $this->company->getId(),
+                Str::limit($content !== '' ? $content : '[tool call]', 100, ''),
+            );
         } else {
             DB::connection(self::CONNECTION)
                 ->table(self::TABLE_CONVERSATIONS)
@@ -272,25 +258,5 @@ class KanvasMessageHistory extends AbstractChatHistory
         }
 
         return implode(' ', $markers);
-    }
-
-    private function createConversation(string $firstMessage): string
-    {
-        $conversationId = (string) Str::uuid7();
-
-        DB::connection(self::CONNECTION)->table(self::TABLE_CONVERSATIONS)->insert([
-            'id' => $conversationId,
-            'user_id' => $this->user->getId(),
-            // Without agent_id the usage rollup + agentConversations list skip the row
-            // (both filter whereNotNull('agent_id')).
-            'agent_id' => $this->agent?->getId(),
-            'apps_id' => $this->app->getId(),
-            'companies_id' => $this->company->getId(),
-            'title' => Str::limit($firstMessage, 100, ''),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        return $conversationId;
     }
 }

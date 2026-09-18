@@ -315,6 +315,77 @@ $outbound = Message::query()
 $this->assertStringContainsString('Hola Mundo', (string) $outbound->message['content']);
 ```
 
+## The provider's input ceiling has two halves — guard both
+
+Gemini rejects a request over 1,048,576 input tokens with a 400, and 400 is deliberately **not** in
+`LlmHttpRetryService::RETRYABLE_STATUS_CODES` (replaying a deterministic overflow just burns the
+retry). The turn falls into `humanizedFallback()`, so the person gets "I ran into a hiccup" and the
+work silently never ran. Two independent things can push a turn over, and they need separate guards:
+
+| Half | Grows via | Guard |
+|---|---|---|
+| **Stored history** replayed at the start of a turn | every past turn of the thread | `RebuildsTrimmedHistory::applyLoadedHistory()` |
+| **Tool output** added *inside* the turn in progress | a tool loop pulling diffs / whole files | `BoundToolResultsMiddleware` |
+
+**A chat-history loader must never assign `$this->history` directly.** `AbstractChatHistory` enforces
+`contextWindow` only inside `addMessage()`, and `InferenceNode::pendingConversation()` sends
+`getMessages() + inbound` to the provider *before* that first add runs — so the trim that follows the
+call is too late to matter and is thrown away with the request. A thread past the ceiling then failed
+on **every** further turn with no way back (KANVAS-ECOSYSTEM-6F1, a PR-review agent).
+
+Run rows through [`RebuildsTrimmedHistory`](../ChatHistory/RebuildsTrimmedHistory.php) instead — it
+coalesces same-role turns, drops leading assistant turns (providers require a user-first history), and
+**then** trims.
+
+| History | Load path | Live-add path |
+|---|---|---|
+| `KanvasMessageHistory` | `applyLoadedHistory()` | `mergeOrAppend()` |
+| `SalesAssistKanvasMessageHistory` | `applyLoadedHistory()` | `mergeOrAppend()` |
+| `RedisAgentChatHistory` | `applyLoadedHistory()` | appends + trims; `sanitizeAlternation()` is what keeps it alternating |
+| `ChannelMessageHistory` | adds each row through `addMessage()`, so it was never exposed | its own merge, which also re-attaches media blocks |
+
+`MAX_LOADED_ROWS` on `KanvasMessageHistory` caps hydration on top of that — a memory guard, not a
+context guard, because `content` is a longtext, and it sits far above what any window holds so the
+token trim is always what decides. Coverage: `tests/Intelligence/Agents/LoadedHistoryTrimTest.php`.
+
+The window itself is **sized to the model that will answer**, by
+[`ModelContextWindowService`](../Services/ModelContextWindowService.php), passed in at every
+`chatHistory()` site via `resolvedContextWindow()`. It reads `model_pricing.max_input_tokens` — filled
+by the nightly `nervous-system:sync-model-pricing`, so a freshly migrated environment reads NULL and
+every agent silently falls back to the 50K floor until that runs.
+
+**Two traps in that number:**
+
+- **The catalogue reports the model's largest possible window, not the one our requests may spend.**
+  LiteLLM lists `claude-sonnet-4-5` at 1,000,000 because that window exists — behind
+  `anthropic-beta: context-1m-2025-08-07`, which nothing here sends. Budgeting it would put the request
+  straight back over the limit. `PROVIDER_CEILING_CAP` caps Anthropic for that reason; check for an
+  opt-in header before trusting any suspiciously large ceiling. Gemini's 1,048,576 needs none — the
+  provider named that exact number back to us in the 400.
+- **Raising the flat default is not the fix.** The budget is derived —
+  `(ceiling − tool-output reserve − prompt reserve) / 1.35` — and the 1.35 is load-bearing: NeuronAI's
+  TokenCounter assumes 4 chars/token while code and JSON run nearer 3, so an undiscounted budget
+  under-counts a diff-heavy history by about a third and can still cross the ceiling.
+
+Trimming still *forgets* the dropped turns. Replacing that with a rolling summary is planned, not built:
+`docs/intelligence/agent-history-compaction-plan.md`.
+
+### When the tool-output budget runs out: refuse, then continue
+
+Once a turn has spent `MAX_CHARS_PER_TURN`, `BoundToolResultsMiddleware::before()` **refuses** every further
+call (`NOT_EXECUTED`) instead of running it and hiding the output. A hidden result leaves the model unable
+to tell whether a write happened, so it reports the item as pending and the next turn creates it twice.
+A call already in the batch that spent the budget did run, so it reads "ran, output withheld" — the two
+must never be confused, because the next turn works only from the model's report.
+
+That report is the whole hand-off: history reload replays text, never `tool_results`, so a new turn
+starts small with a fresh budget. `ContinueAgentTurnJob::dispatchIfCutShort()` queues that turn itself — capped at `MAX_CONTINUATIONS`, stopped early when a turn repeats only calls
+already made, and stopped when a person writes in the channel after the reply. Internal agents only
+(`conversesWithUser()`): on a customer surface a stranger could turn one message into several paid turns.
+
+Wired on Slack and the async in-app chat. Another surface opts in by calling `ContinueAgentTurnJob::dispatchIfCutShort()` —
+**after** its reply is delivered, never before, or the follow-up lands above it.
+
 ## Writing agent tools (Neuron `#[AgentTool]`)
 
 Every capability an agent can invoke is a tool class under `Neuron/Tools/{Area}/`, one per file. Follow
@@ -600,6 +671,12 @@ plus the per-domain equivalents in [`AccountsReceivableAgentToolsTest`](../../..
 - **Don't instantiate agent handlers manually.** Pre-refactor, every connector did `new $this->agent->type->handler()` + `setConfiguration()` by hand. This bypassed the kernel and the four backends got out of sync. Always go through `new AgentChatKernel(...)->execute()`.
 - **`SalesAssistKanvasMessageHistory` rolls up cross-channel by design.** If you find yourself wanting to scope it to a specific channel, re-read its class docblock first — the rollup is the design intent for sales agents.
 - **The email outreach anchors the thread subject on the lead.** `AgentReachOutOnChannelAction` persists the agent's email subject to the lead's `title_email_follow_up` custom field (first touch wins). The inbound Mailgun responder and the cron follow-up engine both **read** that field as the outbound subject so every email stays in one thread. Don't repurpose, overwrite, or stop writing `title_email_follow_up` from the outreach without updating both readers — see [FollowUp/CLAUDE.md → "Email follow-ups thread under the original outreach"](../FollowUp/CLAUDE.md).
+- **Never assign `$this->history` in a chat-history loader.** The context window is enforced in
+  `addMessage()`, which runs after the provider call — a direct assignment ships the whole stored
+  conversation. Use `RebuildsTrimmedHistory::applyLoadedHistory()`; see the section above.
+- **A `privateUserTurn` is not broadcast by the kernel.** Nobody typed it, so whatever drove the turn
+  delivers the reply (see `ContinueAgentTurnJob`, `RunScheduledAgentActionJob`). A new private-turn caller
+  that expects the kernel to push the reply to the live chat will show nothing.
 - **Never let a tool send to an LLM-chosen destination.** A new outbound tool must resolve its recipient from the entity or verify it against a closed set (company membership / on-file contacts) before sending — see "Destination safety" above. A free-text external recipient is an exfiltration hole, not a feature.
 
 ## Pointers to deeper context

@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Google\Service\Gmail as GmailService;
 use Google\Service\Gmail\Message;
 use Kanvas\Connectors\Gmail\Support\GmailMessageParser;
+use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 
 /**
  * Replies inside an existing email thread with an internal-only note — e.g. approval evidence.
@@ -60,7 +61,7 @@ class ReplyToEmailAction extends AbstractGmailAction
         $lines = [
             'To: ' . implode(', ', $this->to),
             'Subject: ' . $subject,
-            'Content-Type: text/plain; charset=UTF-8',
+            'Content-Type: text/html; charset=UTF-8',
         ];
 
         if ($originalMessageId !== null) {
@@ -69,7 +70,7 @@ class ReplyToEmailAction extends AbstractGmailAction
         }
 
         $lines[] = '';
-        $lines[] = $this->body;
+        $lines[] = MarkdownEmailRenderer::toEmailHtml($this->body, allowHtml: false);
 
         return rtrim(strtr(base64_encode(implode("\r\n", $lines)), '+/', '-_'), '=');
     }

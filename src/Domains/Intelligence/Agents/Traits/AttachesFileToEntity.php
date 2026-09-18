@@ -94,7 +94,7 @@ trait AttachesFileToEntity
 
         $default = $content !== null
             ? 'agent-document.md'
-            : basename((string) parse_url($fileUrl, PHP_URL_PATH));
+            : Str::fileNameFromUrl($fileUrl);
 
         $name = $this->safeFileName($fileName ?? $default);
 

@@ -40,6 +40,9 @@ class DeliverScheduledMessageToChannelAction
         // webhook when the session is created; the channel slug can't be used (it's lowercased).
         private readonly ?string $canalId = null,
         private readonly string $verb = 'scheduled-reminder',
+        // The text is the reply of an agent turn, which has usually recorded itself in the chat store
+        // already — so it is mirrored there only if it is not already the latest message.
+        private readonly bool $fromAgentTurn = false,
     ) {
     }
 
@@ -89,6 +92,7 @@ class DeliverScheduledMessageToChannelAction
                 agentClass: $this->agent->type?->handler ?? $this->agent::class,
                 content: $this->text,
                 agentId: $this->agent->getId(),
+                unlessJustRecorded: $this->fromAgentTurn,
             );
         } catch (Throwable $e) {
             report($e);

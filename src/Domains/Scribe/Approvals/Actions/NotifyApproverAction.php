@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Scribe\Approvals\Actions;
 
-use Illuminate\Support\Facades\Http;
+use Baka\Http\SafeUrlFetcher;
+use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Slack\Client as SlackClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -84,7 +85,7 @@ class NotifyApproverAction
                 return;
             }
 
-            $client->postMessage($dmChannel, $this->text);
+            $client->postMarkdownMessage($dmChannel, $this->text);
         } catch (Throwable $e) {
             report($e);
         }
@@ -98,10 +99,12 @@ class NotifyApproverAction
         }
 
         try {
-            $contents = Http::timeout(30)->get($this->attachmentUrl)->throw()->body();
+            // The URL arrives from the caller, so it is fetched through the guard: an internal or cloud-metadata
+            // address is refused, and the body is size-capped.
+            $contents = SafeUrlFetcher::fetch($this->attachmentUrl);
             $filename = $this->attachmentFilename !== null && trim($this->attachmentFilename) !== ''
                 ? $this->attachmentFilename
-                : basename(parse_url($this->attachmentUrl, PHP_URL_PATH) ?: 'invoice.pdf');
+                : Str::fileNameFromUrl($this->attachmentUrl, 'invoice.pdf');
 
             $client->uploadFile($dmChannel, $filename, $contents, $this->text);
 

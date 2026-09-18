@@ -5,11 +5,16 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Services;
 
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\InternalServerErrorException;
+use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Users\Models\Users;
 use Laravel\Ai\Contracts\ConversationStore;
 use Laravel\Ai\Messages\AssistantMessage;
 use Laravel\Ai\Messages\Message;
@@ -23,11 +28,13 @@ use stdClass;
 
 class KanvasConversationStore implements ConversationStore
 {
+    private const int JUST_RECORDED_WINDOW_MINUTES = 5;
+
     // Kanvas conversations are user-scoped: $participantId maps to user_id, $participantType is unused.
     #[Override]
     public function latestConversationId(string $participantType, string|int $participantId): ?string
     {
-        [$appsId, $companiesId] = $this->tenantIds();
+        [$appsId, $companiesId] = $this->tenantFor($participantId, null);
 
         return DB::connection('intelligence')->table('agent_conversations')
             ->where('user_id', $participantId)
@@ -59,8 +66,44 @@ class KanvasConversationStore implements ConversationStore
         ?int $agentId,
         string $title
     ): string {
-        [$appsId, $companiesId] = $this->tenantIds();
+        [$appsId, $companiesId] = $this->tenantFor($userId, $agentId);
 
+        return $this->insertConversation($userId, $agentId, $appsId, $companiesId, $title);
+    }
+
+    /**
+     * The one lookup that binds a session to its conversation — the agent's own history and logTurn both
+     * come through here, so they cannot resolve one chat to two rows. Oldest first, because a session can
+     * own several rows and the oldest is the thread a person is reading.
+     */
+    public function conversationForSession(
+        int $userId,
+        string $sessionId,
+        ?int $agentId,
+        int $appsId,
+        int $companiesId,
+    ): string {
+        $query = DB::connection('intelligence')->table('agent_conversations')
+            ->where('user_id', $userId)
+            ->where('apps_id', $appsId)
+            ->where('companies_id', $companiesId)
+            ->where('title', $sessionId);
+
+        $query = $agentId !== null
+            ? $query->where('agent_id', $agentId)
+            : $query->whereNull('agent_id');
+
+        return $query->orderBy('id')->first()?->id
+            ?? $this->insertConversation($userId, $agentId, $appsId, $companiesId, $sessionId);
+    }
+
+    public function insertConversation(
+        string|int|null $userId,
+        ?int $agentId,
+        int $appsId,
+        int $companiesId,
+        string $title,
+    ): string {
         $conversationId = (string) Str::uuid7();
 
         DB::connection('intelligence')->table('agent_conversations')->insert([
@@ -235,7 +278,7 @@ class KanvasConversationStore implements ConversationStore
     /**
      * A non-empty $sessionId reuses (or creates) the conversation for that session; empty creates a
      * standalone one. The same sessionId under two different agents must not collide —
-     * findOrCreateConversationBySession scopes by agent_id to enforce that.
+     * conversationForSession() scopes by agent_id to enforce that.
      *
      * @param array<int, mixed> $toolCalls
      * @param array<int, mixed> $toolResults
@@ -252,9 +295,11 @@ class KanvasConversationStore implements ConversationStore
         array $toolResults = [],
         array $usage = [],
     ): void {
+        [$appsId, $companiesId] = $this->tenantFor($userId, $agentId);
+
         $conversationId = $sessionId !== ''
-            ? $this->findOrCreateConversationBySession($userId, $sessionId, $agentId)
-            : $this->storeConversationForAgent($userId, $agentId, 'agent-chat-' . now()->timestamp);
+            ? $this->conversationForSession($userId, $sessionId, $agentId, $appsId, $companiesId)
+            : $this->insertConversation($userId, $agentId, $appsId, $companiesId, 'agent-chat-' . now()->timestamp);
 
         $this->insertMessage($conversationId, $userId, $agentClass, 'user', $userMessage);
         $this->insertMessage(
@@ -275,6 +320,12 @@ class KanvasConversationStore implements ConversationStore
      * create a divergent conversation. Explicit tenant ids (the job's app/company), and the message is
      * stamped with the conversation's own `user_id` so it lands in the exact thread the human is viewing.
      * Returns null when there's no conversation for that session yet (the live chat hasn't created one).
+     *
+     * @param bool $unlessJustRecorded Set when $content is the reply of an agent turn: the turn usually
+     *                                 records itself here already, and appending again shows it twice.
+     *                                 Usually, not always — a Laravel agent with memory or a turn run as
+     *                                 another user records elsewhere, so the write is skipped only when
+     *                                 the reply is actually here, never assumed.
      */
     public function appendAssistantMessageForSession(
         int $appsId,
@@ -284,6 +335,7 @@ class KanvasConversationStore implements ConversationStore
         string $content,
         ?int $agentId = null,
         ?int $userId = null,
+        bool $unlessJustRecorded = false,
     ): ?string {
         $query = DB::connection('intelligence')->table('agent_conversations')
             ->where('apps_id', $appsId)
@@ -292,7 +344,7 @@ class KanvasConversationStore implements ConversationStore
             ->when($userId !== null, fn (Builder $builder): Builder => $builder->where('user_id', $userId));
 
         // OLDEST, and it has to stay that way: one session id can own several conversations, and
-        // `findOrCreateConversationBySession` binds to the first by id — so that is where the agent's
+        // `conversationForSession()` binds to the first by id — so that is where the agent's
         // own turns are, and the only thread a person is reading. The ids are uuid7, so ascending is
         // oldest-first; anything else files a message into a stray beside the live conversation.
         $conversation = ($agentId !== null ? $query->where('agent_id', $agentId) : $query)
@@ -300,6 +352,10 @@ class KanvasConversationStore implements ConversationStore
             ->first();
 
         if ($conversation === null) {
+            return null;
+        }
+
+        if ($unlessJustRecorded && $this->endsWithJustRecordedReply((string) $conversation->id, $content)) {
             return null;
         }
 
@@ -312,27 +368,25 @@ class KanvasConversationStore implements ConversationStore
         );
     }
 
-    protected function findOrCreateConversationBySession(int $userId, string $sessionId, ?int $agentId = null): string
+    /**
+     * Bounded in time so it only ever matches the turn that just ran: a daily agent task can legitimately
+     * produce yesterday's exact text, and matching that would drop today's reply. The turn records itself
+     * seconds before its delivery, so minutes is ample.
+     *
+     * Compared on extracted text because the two recorders differ — the agent's own history stores the raw
+     * reply, logTurn stores the extracted one — and the delivery carries extracted text.
+     */
+    private function endsWithJustRecordedReply(string $conversationId, string $content): bool
     {
-        [$appsId, $companiesId] = $this->tenantIds();
+        $latest = DB::connection('intelligence')->table('agent_conversation_messages')
+            ->where('conversation_id', $conversationId)
+            ->orderByDesc('id')
+            ->first(['role', 'content', 'created_at']);
 
-        $query = DB::connection('intelligence')->table('agent_conversations')
-            ->where('user_id', $userId)
-            ->where('apps_id', $appsId)
-            ->where('companies_id', $companiesId)
-            ->where('title', $sessionId);
-
-        $query = $agentId !== null
-            ? $query->where('agent_id', $agentId)
-            : $query->whereNull('agent_id');
-
-        $existing = $query->first();
-
-        if ($existing) {
-            return $existing->id;
-        }
-
-        return $this->storeConversationForAgent($userId, $agentId, $sessionId);
+        return $latest !== null
+            && $latest->role === 'assistant'
+            && ChatHelper::extractTextFromResponse((string) $latest->content) === ChatHelper::extractTextFromResponse($content)
+            && Carbon::parse($latest->created_at)->gte(now()->subMinutes(self::JUST_RECORDED_WINDOW_MINUTES));
     }
 
     /**
@@ -369,6 +423,39 @@ class KanvasConversationStore implements ConversationStore
         ]);
 
         return $messageId;
+    }
+
+    /**
+     * The tenant a conversation belongs to, from the agent and the person rather than from auth(): a queue
+     * worker has no logged-in user, so auth() would file its turns under company 0, where the lookup misses
+     * the real conversation and opens a second one.
+     *
+     * @return array{0: int, 1: int}
+     */
+    protected function tenantFor(string|int|null $userId, ?int $agentId): array
+    {
+        $user = $userId !== null && $userId !== '' ? Users::query()->whereKey((int) $userId)->first() : null;
+        $agent = $agentId !== null ? Agent::query()->whereKey($agentId)->first() : null;
+
+        if ($agent !== null) {
+            $company = $user !== null ? $agent->companyFor($user) : $agent->company;
+
+            return [
+                (int) ($agent->app?->getId() ?? app(Apps::class)->getId()),
+                (int) ($company?->getId() ?? 0),
+            ];
+        }
+
+        if ($user === null) {
+            return $this->tenantIds();
+        }
+
+        try {
+            return [(int) app(Apps::class)->getId(), (int) $user->getCurrentCompany()->getId()];
+        } catch (InternalServerErrorException) {
+            // A person with no default company on this app: the request context is all that is left.
+            return $this->tenantIds();
+        }
     }
 
     /**

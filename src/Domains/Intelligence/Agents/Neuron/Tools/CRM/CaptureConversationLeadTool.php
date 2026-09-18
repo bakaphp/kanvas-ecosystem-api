@@ -168,7 +168,9 @@ class CaptureConversationLeadTool extends Tool
             organizationName: $organization_name,
         );
 
-        if (isset($result['lead_id']) && $this->session !== null) {
+        // An internal agent's session is the staffer's own thread, reachable only by its key; repointing it at
+        // the prospect makes the next turn open a second session under that same key and split the chat.
+        if (isset($result['lead_id']) && $this->session !== null && ! $this->session->agent?->conversesWithUser()) {
             $this->promoteSessionToPeople((int) $result['lead_id']);
             $result['session_promoted'] = true;
             $result['next_step'] = 'You may now call lead-scoped tools '

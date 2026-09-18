@@ -6,6 +6,7 @@ namespace Kanvas\Filesystem\Services;
 
 use Baka\Contracts\CompanyInterface;
 use Baka\Http\SafeUrl;
+use Baka\Support\Str;
 use Baka\Support\TempFile;
 use Exception;
 use finfo;
@@ -307,7 +308,7 @@ class FilesystemServices
         try {
             $originalName = trim((string) $fileName) !== ''
                 ? basename(str_replace('\\', '/', (string) $fileName))
-                : basename(parse_url($fileUrl, PHP_URL_PATH) ?? '');
+                : Str::fileNameFromUrl($fileUrl);
 
             // Neither the caller nor the URL gave a usable name
             $mimeType = self::detectMimeType($tempFilePath);

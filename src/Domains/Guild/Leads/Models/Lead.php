@@ -771,7 +771,7 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function searchQueryBy(): string
     {
-        return 'title,firstname,lastname,email,description,variant_search_text';
+        return 'title,firstname,lastname,email,description';
     }
 
     protected function makeAllSearchableUsing(Builder $query): Builder

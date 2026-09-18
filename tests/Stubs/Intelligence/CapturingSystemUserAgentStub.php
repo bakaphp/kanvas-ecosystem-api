@@ -22,6 +22,7 @@ class CapturingSystemUserAgentStub extends SystemUserAgent
 {
     public static ?Session $lastSession = null;
     public static ?Users $lastConversationHuman = null;
+    public static ?bool $lastRendersArtifacts = null;
 
     #[Override]
     protected function provider(): AIProviderInterface
@@ -46,6 +47,7 @@ class CapturingSystemUserAgentStub extends SystemUserAgent
     {
         self::$lastSession = $this->session;
         self::$lastConversationHuman = $this->conversationHuman;
+        self::$lastRendersArtifacts = $this->rendersArtifacts;
 
         return [];
     }

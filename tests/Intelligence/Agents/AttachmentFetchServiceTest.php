@@ -59,11 +59,26 @@ class AttachmentFetchServiceTest extends TestCase
         $this->assertFalse(AttachmentFetchService::isRejectedSource(new ConnectException('Timeout', $request)));
     }
 
-    public function testUnavailableNoteNamesTheSource(): void
+    /**
+     * Named by filename, never by source: this note is copied into the prompt and then into stored
+     * conversation history, and a storage URL can carry a signature.
+     */
+    public function testUnavailableNoteNamesTheFileNotTheSignedUrl(): void
+    {
+        $note = AttachmentFetchService::unavailableNote(
+            'https://cdn.example.com/uploads/ab12/a.jpg?X-Amz-Signature=deadbeef',
+        );
+
+        $this->assertStringContainsString('a.jpg', $note);
+        $this->assertStringNotContainsString('X-Amz-Signature', $note);
+        $this->assertStringNotContainsString('cdn.example.com', $note);
+    }
+
+    public function testUnavailableNoteStillReadsWhenTheUrlCarriesNoFileName(): void
     {
         $this->assertStringContainsString(
-            'https://example.com/a.jpg',
-            AttachmentFetchService::unavailableNote('https://example.com/a.jpg'),
+            'Could not load an attachment',
+            AttachmentFetchService::unavailableNote('https://example.com/'),
         );
     }
 }

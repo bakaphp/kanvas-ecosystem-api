@@ -8,6 +8,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
 use Kanvas\Notifications\Notification;
+use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Override;
 
 class ScheduledReminderNotification extends Notification
@@ -65,6 +66,6 @@ class ScheduledReminderNotification extends Notification
     #[Override]
     public function getEmailContent(): string
     {
-        return '<p>' . e((string) ($this->data['message'] ?? '')) . '</p>';
+        return MarkdownEmailRenderer::toEmailHtml((string) ($this->data['message'] ?? ''), allowHtml: false);
     }
 }
