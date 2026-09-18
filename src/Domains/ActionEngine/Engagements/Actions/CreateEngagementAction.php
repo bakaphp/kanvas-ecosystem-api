@@ -418,6 +418,14 @@ class CreateEngagementAction
         );
 
         $data = $engagementMessage->toArray();
+
+        // Who or what created this engagement internally (a slug, 'update-lead', ...). Written
+        // straight onto the payload rather than declared on EngagementMessage: Spatie emits every
+        // declared property, so a DTO prop would put "from": null on all 63 action types.
+        if ($this->engagementData->from !== null) {
+            $data['from'] = $this->engagementData->from;
+        }
+
         if ($this->company->get('hide_millage')) {
             $data['data']['hide_price'] = true;
             $data['data']['hide_mileage'] = true;
