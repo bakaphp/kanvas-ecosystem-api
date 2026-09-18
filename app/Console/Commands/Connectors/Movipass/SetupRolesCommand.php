@@ -16,24 +16,15 @@ class SetupRolesCommand extends Command
 {
     use KanvasJobsTrait;
 
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'kanvas:movipass-setup-roles {app_id?}';
 
-    /**
-     * The console command description.
-     *
-     * @var string|null
-     */
     protected $description = 'Setup roles for movipass orders';
 
     public function handle(): void
     {
         $appsId = $this->argument('app_id');
         $app = Apps::getById($appsId);
+        $this->overwriteAppService($app);
         $this->setupRoles($app);
 
         $this->info('Roles setup successfully');

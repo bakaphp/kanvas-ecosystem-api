@@ -80,7 +80,7 @@ class SetupParkingApplicationRulesCommand extends Command
             [
                 'description' => 'Wired by kanvas:movipass-setup-parking-application-rules',
                 'pattern' => 1,
-                'params' => json_encode([]),
+                'params' => [],
                 'is_deleted' => 0,
             ]
         );
@@ -110,7 +110,7 @@ class SetupParkingApplicationRulesCommand extends Command
 
     private function wireReceiver(Apps $app, int $receiverId): void
     {
-        $receiver = LeadReceiver::query()->fromApp($app)->notDeleted()->findOrFail($receiverId);
+        $receiver = LeadReceiver::getById($receiverId, $app);
 
         if (empty($receiver->get(ApprovalMode::RECEIVER_KEY))) {
             $receiver->set(ApprovalMode::RECEIVER_KEY, ApprovalMode::MANUAL->value);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Movipass\Enums;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 
 enum ParkingApplicationContractSettingEnum: string
 {
@@ -13,8 +14,6 @@ enum ParkingApplicationContractSettingEnum: string
 
     public function readFrom(AppInterface $app): ?string
     {
-        $value = $app->get($this->value);
-
-        return $value === null || $value === '' ? null : (string) $value;
+        return Str::trimToNull((string) $app->get($this->value));
     }
 }

@@ -55,17 +55,35 @@ class ValidateParkingApplicationStepAction
 
     private function normalizeValue(ParkingApplicationFieldEnum $field, mixed $value): mixed
     {
-        return match ($field->type()) {
+        $type = $field->type();
+
+        if ($type === ParkingApplicationFieldTypeEnum::SCHEDULE) {
+            return $this->normalizeSchedule($value);
+        }
+
+        if ($type === ParkingApplicationFieldTypeEnum::CLOSURES) {
+            return $this->normalizeClosures($value);
+        }
+
+        if ($type === ParkingApplicationFieldTypeEnum::PAYMENT_METHODS) {
+            return $this->normalizePaymentMethods($field, $value);
+        }
+
+        if ($value === null) {
+            return null;
+        }
+
+        $this->assertScalar($value, $field->value);
+
+        return match ($type) {
             ParkingApplicationFieldTypeEnum::STRING,
-            ParkingApplicationFieldTypeEnum::TEXT => $this->normalizeString($field, $value),
+            ParkingApplicationFieldTypeEnum::TEXT => Str::trimToNull((string) $value),
             ParkingApplicationFieldTypeEnum::INTEGER => $this->normalizeInteger($field, $value),
             ParkingApplicationFieldTypeEnum::DECIMAL => $this->normalizeDecimal($field, $value),
             ParkingApplicationFieldTypeEnum::BOOLEAN => $this->normalizeBoolean($field, $value),
-            ParkingApplicationFieldTypeEnum::ENUM => $this->normalizeEnum($field, $value),
+            ParkingApplicationFieldTypeEnum::ENUM => $this->assertOption($field, $value),
             ParkingApplicationFieldTypeEnum::EMAIL => $this->normalizeEmail($field, $value),
-            ParkingApplicationFieldTypeEnum::SCHEDULE => $this->normalizeSchedule($value),
-            ParkingApplicationFieldTypeEnum::CLOSURES => $this->normalizeClosures($value),
-            ParkingApplicationFieldTypeEnum::PAYMENT_METHODS => $this->normalizePaymentMethods($field, $value),
+            default => throw new ValidationException("{$field->value} has no validator for {$type->value}"),
         };
     }
 
@@ -76,25 +94,8 @@ class ValidateParkingApplicationStepAction
         }
     }
 
-    private function normalizeString(ParkingApplicationFieldEnum $field, mixed $value): ?string
+    private function normalizeInteger(ParkingApplicationFieldEnum $field, mixed $value): int
     {
-        if ($value === null) {
-            return null;
-        }
-
-        $this->assertScalar($value, $field->value);
-
-        return Str::trimToNull((string) $value);
-    }
-
-    private function normalizeInteger(ParkingApplicationFieldEnum $field, mixed $value): ?int
-    {
-        if ($value === null) {
-            return null;
-        }
-
-        $this->assertScalar($value, $field->value);
-
         if (! is_numeric($value) || (int) $value != $value) {
             throw new ValidationException("{$field->value} must be an integer");
         }
@@ -112,14 +113,8 @@ class ValidateParkingApplicationStepAction
         return $integer;
     }
 
-    private function normalizeDecimal(ParkingApplicationFieldEnum $field, mixed $value): ?float
+    private function normalizeDecimal(ParkingApplicationFieldEnum $field, mixed $value): float
     {
-        if ($value === null) {
-            return null;
-        }
-
-        $this->assertScalar($value, $field->value);
-
         if (! is_numeric($value)) {
             throw new ValidationException("{$field->value} must be a decimal number");
         }
@@ -159,14 +154,8 @@ class ValidateParkingApplicationStepAction
         }
     }
 
-    private function normalizeBoolean(ParkingApplicationFieldEnum $field, mixed $value): ?bool
+    private function normalizeBoolean(ParkingApplicationFieldEnum $field, mixed $value): bool
     {
-        if ($value === null) {
-            return null;
-        }
-
-        $this->assertScalar($value, $field->value);
-
         $normalized = filter_var($value, FILTER_VALIDATE_BOOL, FILTER_NULL_ON_FAILURE);
 
         if ($normalized === null) {
@@ -176,14 +165,8 @@ class ValidateParkingApplicationStepAction
         return $normalized;
     }
 
-    private function normalizeEnum(ParkingApplicationFieldEnum $field, mixed $value): ?string
+    private function assertOption(ParkingApplicationFieldEnum $field, mixed $value): string
     {
-        if ($value === null) {
-            return null;
-        }
-
-        $this->assertScalar($value, $field->value);
-
         $options = $field->options() ?? [];
         $normalized = Str::trimToNull((string) $value);
 
@@ -194,14 +177,8 @@ class ValidateParkingApplicationStepAction
         return $normalized;
     }
 
-    private function normalizeEmail(ParkingApplicationFieldEnum $field, mixed $value): ?string
+    private function normalizeEmail(ParkingApplicationFieldEnum $field, mixed $value): string
     {
-        if ($value === null) {
-            return null;
-        }
-
-        $this->assertScalar($value, $field->value);
-
         $email = Str::lowerTrim((string) $value);
 
         if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -256,8 +233,10 @@ class ValidateParkingApplicationStepAction
         $this->assertScalar($band['open'], "parking_application_schedule.{$group} open");
         $this->assertScalar($band['close'], "parking_application_schedule.{$group} close");
 
-        $open = $this->normalizeTime($group, (string) $band['open']);
-        $close = $this->normalizeTime($group, (string) $band['close']);
+        $open = (string) $band['open'];
+        $close = (string) $band['close'];
+        $this->assertTime($group, $open);
+        $this->assertTime($group, $close);
 
         if ($open === $close && $open !== '00:00') {
             throw new ValidationException("parking_application_schedule.{$group} has a zero-length band");
@@ -266,13 +245,11 @@ class ValidateParkingApplicationStepAction
         return ['open' => $open, 'close' => $close];
     }
 
-    private function normalizeTime(string $group, string $time): string
+    private function assertTime(string $group, string $time): void
     {
         if (! preg_match('/^([01]\d|2[0-3]):[0-5]\d$/', $time)) {
             throw new ValidationException("parking_application_schedule.{$group} has an invalid time: {$time}");
         }
-
-        return $time;
     }
 
     private function assertBandsDoNotOverlap(string $group, array $bands): void
@@ -384,18 +361,11 @@ class ValidateParkingApplicationStepAction
             throw new ValidationException("{$field->value} must be a non-empty list");
         }
 
-        $options = $field->options() ?? [];
         $methods = [];
 
         foreach ($value as $method) {
             $this->assertScalar($method, "{$field->value} entry");
-
-            $method = Str::trimToNull((string) $method);
-
-            if ($method === null || ! in_array($method, $options, true)) {
-                throw new ValidationException("{$field->value} must only contain: " . implode(', ', $options));
-            }
-
+            $method = $this->assertOption($field, $method);
             $methods[$method] = $method;
         }
 

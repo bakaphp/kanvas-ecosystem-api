@@ -29,6 +29,7 @@ class PublishParkingApplicationAction
     public const string PRODUCT_TYPE_SLUG = 'parking';
 
     private const array WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+    private const array FULL_DAY = ['open' => '00:00', 'close' => '23:59'];
 
     private const array INFRASTRUCTURE = [
         'lighting' => Field::HAS_LIGHTING,
@@ -57,16 +58,21 @@ class PublishParkingApplicationAction
         }
 
         $fields = $this->validatedFields();
-        $contract = new StampContractAcceptanceAction($this->application)->execute();
         $warehouse = $this->defaultWarehouse($company);
+        $contract = new StampContractAcceptanceAction($this->application)->execute();
 
         $product = DB::connection('inventory')->transaction(function () use ($company, $fields, $warehouse, $contract): Products {
             $product = new CreateProductAction(
-                $this->productDto($company, $fields, $warehouse, $contract),
+                $this->productDto(
+                    $company,
+                    $fields,
+                    $warehouse,
+                    $contract
+                ),
                 $company->user,
             )->setRunWorkflow(false)->execute();
 
-            $variant = $product->variants()->firstOrFail();
+            $variant = $product->variants()->notDeleted()->firstOrFail();
 
             $this->writeSchedule($variant, $company, $fields);
             $this->writeClosures($variant, $company, $fields);
@@ -99,12 +105,12 @@ class PublishParkingApplicationAction
     {
         $raw = [];
 
-        foreach (Field::cases() as $field) {
-            if ($field->step() === null || $field->isSensitive()) {
+        foreach ($this->application->getAll() as $key => $value) {
+            $field = Field::tryFrom((string) $key);
+
+            if ($field === null || $field->step() === null || $field->isSensitive()) {
                 continue;
             }
-
-            $value = $field->readFrom($this->application);
 
             if ($value !== null && $value !== '') {
                 $raw[$field->value] = $value;
@@ -230,13 +236,7 @@ class PublishParkingApplicationAction
 
     private function parkingHours(array $fields): ?array
     {
-        if (! empty($fields[Field::IS_24_7->value])) {
-            return ['open' => '00:00', 'close' => '23:59'];
-        }
-
-        $weekdays = $fields[Field::SCHEDULE->value]['weekdays'][0] ?? null;
-
-        return $weekdays === null ? null : ['open' => $weekdays['open'], 'close' => $weekdays['close']];
+        return $this->bandsFor('monday', $fields)[0] ?? null;
     }
 
     private function warehouseConfig(array $fields): array
@@ -306,7 +306,7 @@ class PublishParkingApplicationAction
     private function bandsFor(string $day, array $fields): array
     {
         if (! empty($fields[Field::IS_24_7->value])) {
-            return [['open' => '00:00', 'close' => '23:59']];
+            return [self::FULL_DAY];
         }
 
         $schedule = $fields[Field::SCHEDULE->value] ?? [];
@@ -318,7 +318,7 @@ class PublishParkingApplicationAction
         };
 
         return array_values(array_map(
-            fn (array $band): array => $band['close'] === '00:00' ? ['open' => $band['open'], 'close' => '23:59'] : $band,
+            fn (array $band): array => $band['close'] === '00:00' ? ['open' => $band['open'], 'close' => self::FULL_DAY['close']] : $band,
             $schedule[$group] ?? [],
         ));
     }

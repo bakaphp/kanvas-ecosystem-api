@@ -14,7 +14,6 @@ use Kanvas\Connectors\Movipass\Workflows\Activities\SetupApprovedCorporateCompan
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver as LeadReceiverData;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Rules\Models\Action;
@@ -78,7 +77,7 @@ final class SetupParkingApplicationRulesCommandTest extends TestCase
 
         $this->assertSame(
             CorporateApplicationApprovalModeEnum::MANUAL->value,
-            LeadReceiver::findOrFail($receiver->getId())->get(CorporateApplicationApprovalModeEnum::RECEIVER_KEY)
+            $receiver->fresh()->get(CorporateApplicationApprovalModeEnum::RECEIVER_KEY)
         );
         $this->assertSame($receiver->getId(), (int) $app->get(ConfigurationEnum::PARKING_RECEIVER_ID->value));
 
