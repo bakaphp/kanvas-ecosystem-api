@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Workflow\Integration;
 
+use App\GraphQL\Ecosystem\Queries\Filesystem\FilesystemQuery;
+use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Workflow\Integrations\Actions\AttachIntegrationLogosAction;
 use Kanvas\Workflow\Models\Integrations;
+use Mockery;
+use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 use Tests\TestCase;
 
 final class AttachIntegrationLogosActionTest extends TestCase
@@ -91,6 +96,50 @@ final class AttachIntegrationLogosActionTest extends TestCase
         $this->assertArrayHasKey($label, $this->attachLogos(overwrite: true)['attached']);
     }
 
+    public function testLogoIsSharedByEveryApp(): void
+    {
+        $slack = $this->createIntegration('slack_notifications', appsId: 0);
+        $this->attachLogos();
+
+        $otherApp = $this->createOtherApp();
+        app()->instance(Apps::class, $otherApp);
+
+        $context = Mockery::mock(GraphQLContext::class);
+        $resolveInfo = Mockery::mock(ResolveInfo::class);
+        $query = new FilesystemQuery();
+
+        $this->assertSame(
+            0,
+            $query->getFileByGraphType(
+                $slack,
+                [],
+                $context,
+                $resolveInfo
+            )->count(),
+            'Sanity check: the per-app resolver cannot see a logo attached under another app'
+        );
+        $this->assertSame(
+            [AttachIntegrationLogosAction::FIELD_NAME],
+            $query->getFileByGraphTypeFromAnyApp(
+                $slack,
+                [],
+                $context,
+                $resolveInfo
+            )->pluck('field_name')->all()
+        );
+        $this->assertNotNull(FilesystemEntitiesRepository::getFileFromEntityByNameFromAnyApp($slack, AttachIntegrationLogosAction::FIELD_NAME));
+    }
+
+    public function testCanLimitTheRunToOneAppsIntegrations(): void
+    {
+        $otherApp = $this->createOtherApp();
+        $foreign = $this->createIntegration('slack_notifications', appsId: $otherApp->getId());
+        $label = 'slack_notifications #' . $foreign->getId();
+
+        $this->assertArrayNotHasKey($label, $this->attachLogos(onlyAppIntegrations: true)['attached']);
+        $this->assertArrayHasKey($label, $this->attachLogos()['attached']);
+    }
+
     public function testIntegrationsQueryExposesTheLogo(): void
     {
         $slack = $this->createIntegration('slack_notifications');
@@ -126,11 +175,15 @@ final class AttachIntegrationLogosActionTest extends TestCase
         );
     }
 
-    private function attachLogos(bool $overwrite = false, array $logoOverrides = []): array
-    {
+    private function attachLogos(
+        bool $onlyAppIntegrations = false,
+        bool $overwrite = false,
+        array $logoOverrides = []
+    ): array {
         return new AttachIntegrationLogosAction(
             app: app(Apps::class),
             user: auth()->user(),
+            onlyAppIntegrations: $onlyAppIntegrations,
             overwrite: $overwrite,
             logoOverrides: $logoOverrides,
             deviconsUrl: self::ICONS_URL,
@@ -138,10 +191,32 @@ final class AttachIntegrationLogosActionTest extends TestCase
         )->execute();
     }
 
-    private function createIntegration(string $name): Integrations
+    /**
+     * CI seeds a single app, so a second one has to be made rather than looked up.
+     */
+    private function createOtherApp(): Apps
+    {
+        $uniqueId = uniqid('logos-');
+
+        $app = new Apps();
+        $app->name = 'Integration Logos Test ' . $uniqueId;
+        $app->url = 'https://' . $uniqueId . '.example.com';
+        $app->domain = $uniqueId . '.example.com';
+        $app->description = 'Integration logos test app';
+        $app->is_actived = 1;
+        $app->ecosystem_auth = 0;
+        $app->payments_active = 0;
+        $app->is_public = 0;
+        $app->domain_based = 0;
+        $app->saveOrFail();
+
+        return $app;
+    }
+
+    private function createIntegration(string $name, ?int $appsId = null): Integrations
     {
         return Integrations::create([
-            'apps_id' => app(Apps::class)->getId(),
+            'apps_id' => $appsId ?? app(Apps::class)->getId(),
             'name' => $name,
             'handler' => 'none',
             'type' => 'key',
