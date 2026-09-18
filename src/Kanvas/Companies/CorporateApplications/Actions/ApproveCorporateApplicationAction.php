@@ -16,6 +16,7 @@ use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationSettingEnum
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Companies\DataTransferObject\Company as CompanyData;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Models\Users;
@@ -35,6 +36,12 @@ class ApproveCorporateApplicationAction
 
     public function execute(): array
     {
+        $missing = Field::missing(Field::requiredFor($this->application->receiver), $this->application->get(...));
+
+        if ($missing !== []) {
+            throw new ValidationException('Cannot approve: missing ' . implode(', ', $missing));
+        }
+
         $result = Field::UPGRADE_USER_ID->readFrom($this->application)
             ? $this->grantUpgrade()
             : $this->provisionNewAccount();
@@ -139,7 +146,7 @@ class ApproveCorporateApplicationAction
     private function copyCompanyFields(Companies $company): void
     {
         $company->set('is_corporate', true);
-        Field::copy(Field::COMPANY_FIELDS, $this->application->get(...), $company);
+        Field::copy(Field::companyFieldsFor($this->application->receiver), $this->application->get(...), $company);
     }
 
     private function findOrCreateInvite(Companies $company, Users $owner): UsersInvite
@@ -173,7 +180,7 @@ class ApproveCorporateApplicationAction
         $invite->saveOrFail();
 
         $invite->set('is_corporate', true);
-        Field::copy(Field::USER_PROFILE_FIELDS, $this->application->get(...), $invite);
+        Field::copy(Field::userFieldsFor($this->application->receiver), $this->application->get(...), $invite);
 
         return $invite;
     }

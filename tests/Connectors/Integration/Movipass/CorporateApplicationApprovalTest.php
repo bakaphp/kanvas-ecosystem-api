@@ -93,6 +93,18 @@ final class CorporateApplicationApprovalTest extends TestCase
         );
     }
 
+    public function testApproveRefusesAnApplicationMissingAReceiverRequiredField(): void
+    {
+        $this->receiver->set(Field::RECEIVER_REQUIRED_KEY, ['legal_name', 'rnc', 'fleet_size']);
+        $lead = $this->makePendingApplication();
+        Notification::fake();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Cannot approve: missing fleet_size');
+
+        new ApproveCorporateApplicationAction($lead, $this->kanvasApp, Auth::user())->execute();
+    }
+
     public function testApproveIsIdempotent(): void
     {
         $lead = $this->makePendingApplication();

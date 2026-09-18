@@ -35,6 +35,14 @@ class EnableCorporateModeAction
 
     public function execute(): Companies
     {
+        $appsModel = $this->app instanceof Apps ? $this->app : app(Apps::class);
+        $receiver = $this->corporateReceiver($appsModel);
+        $missing = Field::missing(Field::requiredFor($receiver), $this->field(...));
+
+        if ($missing !== []) {
+            throw new ValidationException('Missing required fields: ' . implode(', ', $missing));
+        }
+
         $validationError = new ValidateCorporateFieldsAction($this->fields)->execute();
 
         if ($validationError !== null) {
@@ -50,13 +58,11 @@ class EnableCorporateModeAction
         }
 
         $sourceCompanyId = $this->user->getCurrentCompany()->getId();
-        $appsModel = $this->app instanceof Apps ? $this->app : app(Apps::class);
-        $receiver = $this->corporateReceiver($appsModel);
 
-        $company = DB::connection('ecosystem')->transaction(function () use ($appsModel) {
+        $company = DB::connection('ecosystem')->transaction(function () use ($appsModel, $receiver) {
             $company = $this->createCorporateCompany();
-            $this->setCompanyFields($company);
-            $this->setUserFields();
+            $this->setCompanyFields($company, $receiver);
+            $this->setUserFields($receiver);
             $this->associateUserAsAdmin($company, $appsModel);
             new SetupService()->onBoarding($this->user, $appsModel, $company);
 
@@ -86,7 +92,7 @@ class EnableCorporateModeAction
         ]);
         $lead->saveOrFail();
 
-        Field::copy([...Field::COMPANY_FIELDS, ...Field::USER_PROFILE_FIELDS], $this->field(...), $lead);
+        Field::copy([...Field::companyFieldsFor($receiver), ...Field::userFieldsFor($receiver)], $this->field(...), $lead);
 
         Field::STATUS->writeTo($lead, CorporateApplicationStatusEnum::PENDING->value);
         Field::COMPANY_ID->writeTo($lead, (string) $company->getId());
@@ -147,9 +153,9 @@ class EnableCorporateModeAction
         )->execute();
     }
 
-    private function setCompanyFields(Companies $company): void
+    private function setCompanyFields(Companies $company, LeadReceiver $receiver): void
     {
-        Field::copy(Field::COMPANY_FIELDS, $this->field(...), $company);
+        Field::copy(Field::companyFieldsFor($receiver), $this->field(...), $company);
 
         if (! empty($this->fields['region_id'])) {
             $region = Regions::getByIdFromCompanyAppOrGlobal((int) $this->fields['region_id'], $this->user->getCurrentCompany(), $this->app);
@@ -159,9 +165,9 @@ class EnableCorporateModeAction
         }
     }
 
-    private function setUserFields(): void
+    private function setUserFields(LeadReceiver $receiver): void
     {
-        Field::copy(Field::USER_PROFILE_FIELDS, $this->field(...), $this->user);
+        Field::copy(Field::userFieldsFor($receiver), $this->field(...), $this->user);
     }
 
     private function field(string $key): mixed
