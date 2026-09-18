@@ -15,20 +15,22 @@ class AttachIntegrationLogosCommand extends Command
     use KanvasJobsTrait;
 
     protected $signature = 'kanvas:integrations-attach-logos
-        {app_id : App whose integration catalog gets the logos}
+        {app_id? : Limit to the integrations one app can see; omitted, every integration row gets a logo}
         {--overwrite : Replace logos that are already attached}
         {--logo=* : name=url for an integration no icon set covers, e.g. --logo=klaviyo_mcp=https://...}';
 
-    protected $description = 'Attach devicons.io / Simple Icons logos to every integration visible to an app';
+    protected $description = 'Attach devicons.io / Simple Icons logos to integrations, shared by every app';
 
     public function handle(): int
     {
-        $app = Apps::getById((int) $this->argument('app_id'));
+        $appId = $this->argument('app_id');
+        $app = $appId !== null ? Apps::getById((int) $appId) : app(Apps::class);
         $this->overwriteAppService($app);
 
         $result = new AttachIntegrationLogosAction(
             app: $app,
             user: $app->keys()->firstOrFail()->user,
+            onlyAppIntegrations: $appId !== null,
             overwrite: (bool) $this->option('overwrite'),
             logoOverrides: $this->parseLogoOverrides(),
         )->execute();
@@ -42,7 +44,7 @@ class AttachIntegrationLogosCommand extends Command
         }
 
         foreach ($result['missing'] as $integration) {
-            $this->warn("  ✗ {$integration} has no devicons.io icon");
+            $this->warn("  ✗ {$integration} has no icon on devicons.io or Simple Icons; pass --logo");
         }
 
         $this->info(sprintf(

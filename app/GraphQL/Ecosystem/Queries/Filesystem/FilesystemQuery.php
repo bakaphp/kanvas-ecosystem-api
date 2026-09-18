@@ -7,6 +7,7 @@ namespace App\GraphQL\Ecosystem\Queries\Filesystem;
 use Baka\Enums\StateEnums;
 use GraphQL\Type\Definition\ResolveInfo;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Pagination\Paginator;
 use Kanvas\Enums\AppSettingsEnums;
@@ -29,33 +30,29 @@ class FilesystemQuery
         $systemModule = SystemModulesRepository::getByModelName($root::class);
         $app = $systemModule->app;
 
-        /**
-         * @todo use directly from the entity via fileQueryBuilder
-         */
-        $files = Filesystem::select(
-            'filesystem_entities.uuid',
-            'filesystem.uuid as filesystem_uuid',
-            'filesystem_entities.field_name',
-            'filesystem_entities.weight',
-            'filesystem.name',
-            'filesystem.url',
-            'filesystem.size',
-            'filesystem.file_type',
-            'filesystem.file_type as type',
-            'filesystem_entities.id',
-            'filesystem.created_at'
-        )
-            ->join('filesystem_entities', 'filesystem_entities.filesystem_id', '=', 'filesystem.id')
-            ->where('filesystem_entities.entity_id', '=', $root->getKey())
-            ->where('filesystem_entities.system_modules_id', '=', $systemModule->getKey())
-            ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
-            ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue());
+        $files = $this->entityFilesQuery($root, [$systemModule->getKey()]);
 
         $files->when(isset($root->companies_id) && ! $app->get(AppSettingsEnums::GLOBAL_APP_IMAGES->getValue()), function ($query) use ($root) {
             $query->where('filesystem_entities.companies_id', $root->companies_id);
         });
 
         return $files;
+    }
+
+    /**
+     * For rows every app shares (a global catalog like integrations): files attached under any app's
+     * system module for the entity's class, newest first so a re-attached logo wins.
+     */
+    public function getFileByGraphTypeFromAnyApp(
+        mixed $root,
+        array $args,
+        GraphQLContext $context,
+        ResolveInfo $resolveInfo
+    ): Builder {
+        return $this->entityFilesQuery(
+            $root,
+            SystemModulesRepository::getIdsByModelNameFromAnyAppQuery($root::class)
+        )->orderBy('filesystem_entities.id', 'DESC');
     }
 
     /**
@@ -143,5 +140,32 @@ class FilesystemQuery
         });
 
         return $files;
+    }
+
+    /**
+     * @todo use directly from the entity via fileQueryBuilder
+     *
+     * @param list<int>|Builder $systemModuleIds
+     */
+    private function entityFilesQuery(Model $root, array|Builder $systemModuleIds): Builder
+    {
+        return Filesystem::select(
+            'filesystem_entities.uuid',
+            'filesystem.uuid as filesystem_uuid',
+            'filesystem_entities.field_name',
+            'filesystem_entities.weight',
+            'filesystem.name',
+            'filesystem.url',
+            'filesystem.size',
+            'filesystem.file_type',
+            'filesystem.file_type as type',
+            'filesystem_entities.id',
+            'filesystem.created_at'
+        )
+            ->join('filesystem_entities', 'filesystem_entities.filesystem_id', '=', 'filesystem.id')
+            ->where('filesystem_entities.entity_id', '=', $root->getKey())
+            ->whereIn('filesystem_entities.system_modules_id', $systemModuleIds)
+            ->where('filesystem_entities.is_deleted', '=', StateEnums::NO->getValue())
+            ->where('filesystem.is_deleted', '=', StateEnums::NO->getValue());
     }
 }
