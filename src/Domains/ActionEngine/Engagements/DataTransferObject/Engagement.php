@@ -39,6 +39,7 @@ class Engagement extends Data
         public ?EngagementModel $parentEngagement = null,
         public array $files = [],
         public array $filesUrl = [],
+        public ?string $from = null,
     ) {
     }
 
@@ -72,6 +73,7 @@ class Engagement extends Data
             parentEngagement: $parentEngagement,
             files: $request['files'] ?? [],
             filesUrl: $request['files_url'] ?? [],
+            from: isset($request['from']) ? (string) $request['from'] : null,
         );
     }
 }
