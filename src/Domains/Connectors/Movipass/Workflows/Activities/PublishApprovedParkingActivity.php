@@ -10,7 +10,6 @@ use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum a
 use Kanvas\Connectors\Movipass\Actions\PublishParkingApplicationAction;
 use Kanvas\Connectors\Movipass\Enums\ParkingApplicationFieldEnum as Field;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
