@@ -33,13 +33,6 @@ class EnableCorporateModeAction
     ) {
     }
 
-    /**
-     * Files an upgrade request. The Company is provisioned so the user has somewhere to land,
-     * but `is_corporate` stays unset — no corporate privilege is granted until an admin
-     * approves, because the RNC and phone here are self-reported and were being faked.
-     *
-     * @see ApproveCorporateApplicationAction what approval then runs
-     */
     public function execute(): Companies
     {
         $validationError = new ValidateCorporateFieldsAction($this->fields)->execute();
@@ -77,10 +70,6 @@ class EnableCorporateModeAction
         return $company;
     }
 
-    /**
-     * Upgrade requests are filed as Leads on the receiver's company so admins review both
-     * paths in one queue — the panel lists them with the same `leads(hasCustomFields:)` query.
-     */
     private function fileForReview(LeadReceiver $receiver, Companies $company, int $sourceCompanyId): void
     {
         $lead = new Lead();

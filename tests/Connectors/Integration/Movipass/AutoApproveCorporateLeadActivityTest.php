@@ -69,7 +69,6 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
 
     public function testReceiverManualModeQueuesEvenWhenAppAutoApproves(): void
     {
-        // App says auto, the receiver says manual — the receiver wins.
         $this->corporateReceiver->set(ApprovalMode::RECEIVER_KEY, ApprovalMode::MANUAL->value);
 
         $lead = $this->makeCorporateLead();
@@ -97,7 +96,6 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
 
     public function testReceiverWithApprovalModeTakesApplicationsWithoutBeingTheAppCorporateReceiver(): void
     {
-        // A second application receiver (e.g. parking) needs no app-level pointer at all.
         $this->otherReceiver->set(ApprovalMode::RECEIVER_KEY, ApprovalMode::MANUAL->value);
 
         $lead = $this->makeCorporateLead(receiver: $this->otherReceiver);
@@ -112,7 +110,6 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
 
     public function testPendingIsTheDefaultWithoutAnyAppConfig(): void
     {
-        // Auto-approve is opt-in — an app that never sets the flag must still queue.
         $this->kanvasApp->del(ConfigurationEnum::CORPORATE_AUTO_APPROVE->value);
 
         $lead = $this->makeCorporateLead();
@@ -145,7 +142,6 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
     {
         $this->kanvasApp->set(ConfigurationEnum::CORPORATE_AUTO_APPROVE->value, false);
 
-        // A bad RNC is what the reviewer needs to see, not a reason to drop the lead.
         $lead = $this->makeCorporateLead(['rnc' => '1234567']);
         Notification::fake();
 
@@ -188,7 +184,6 @@ final class AutoApproveCorporateLeadActivityTest extends TestCase
         $this->assertEquals($lead->get('legal_name'), $company->get('legal_name'));
         $this->assertEquals($lead->get('commercial_name'), $company->get('commercial_name'));
         $this->assertEquals($lead->get('rnc'), $company->get('rnc'));
-        // contact_* belong to the invite, never the Company — they reach the User through
         // PropagateCorporateFieldsToUserActivity on invite acceptance.
         $this->assertNull($company->get('contact_email'));
         $this->assertNull($company->get('contact_phone'));

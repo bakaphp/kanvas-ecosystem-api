@@ -13,10 +13,6 @@ use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 
-/**
- * Applications are carried on Leads today. That binding lives here rather than in the
- * actions, which stay entity-agnostic.
- */
 class CorporateApplicationMutation
 {
     use ResolvesActingContext;
@@ -50,17 +46,10 @@ class CorporateApplicationMutation
         )->execute();
     }
 
-    /**
-     * Rejection is terminal, approval is not: re-approving is harmless because the action is
-     * idempotent, but reviving a rejected application would need the Company and invite it
-     * never got, and flipping an approved one to rejected would leave both alive while the
-     * application claims otherwise.
-     */
     private function resolveApplication(int $id): Model
     {
         $ctx = $this->actingContext();
 
-        /** @var Lead $application */
         $application = Lead::getByIdFromCompanyApp($id, $ctx->company, $ctx->app);
 
         $status = CorporateApplicationStatusEnum::tryFrom(

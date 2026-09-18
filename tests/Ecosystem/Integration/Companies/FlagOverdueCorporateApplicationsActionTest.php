@@ -37,8 +37,6 @@ final class FlagOverdueCorporateApplicationsActionTest extends TestCase
         $this->receiver = $this->receiver('ops@example.com, lead@example.com');
         $this->now = Carbon::parse('2026-09-17 12:00:00');
 
-        // Applications left open by other suites on a shared database would be flagged here
-        // too; stamp them first (rolled back with the transaction) so each test sees only its own.
         Notification::fake();
         new FlagOverdueCorporateApplicationsAction($this->kanvasApp, $this->now)->execute();
         Notification::fake();

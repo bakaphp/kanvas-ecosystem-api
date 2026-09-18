@@ -21,15 +21,6 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-/**
- * Despite the name, approval is manual by default — self-reported RNCs and phone numbers turned
- * out to be frequently fake, so an internal admin decides via approveCorporateApplication /
- * rejectCorporateApplication. The mode comes from the receiver (`approval_mode` custom field),
- * falling back to the legacy `movipass_corporate_receiver_id` + `movipass_corporate_auto_approve`
- * app settings; see CorporateApplicationApprovalModeEnum::resolveFor(). The name stays because
- * renaming a #[WorkflowAction] orphans its `workflows_actions` rows and every workflow rule
- * pointing at them.
- */
 #[WorkflowAction]
 class AutoApproveCorporateLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -81,10 +72,6 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
         ])->execute();
     }
 
-    /**
-     * Validation runs but does not block: a malformed RNC is exactly what the reviewer needs
-     * to see, not a reason to keep the application out of the queue.
-     */
     private function markPending(Lead $lead, AppInterface $app, ?string $validationHint): array
     {
         Field::STATUS->writeTo($lead, CorporateApplicationStatusEnum::PENDING->value);

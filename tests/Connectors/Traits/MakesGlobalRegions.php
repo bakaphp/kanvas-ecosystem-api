@@ -10,11 +10,6 @@ use Kanvas\Regions\Models\Regions;
 
 trait MakesGlobalRegions
 {
-    /**
-     * An app-global region (companies_id = 0) resolves for any company through
-     * getByIdFromCompanyAppOrGlobal, so tests don't depend on which company the user
-     * currently sits in.
-     */
     protected function makeGlobalRegion(
         Apps $app,
         string $slug,

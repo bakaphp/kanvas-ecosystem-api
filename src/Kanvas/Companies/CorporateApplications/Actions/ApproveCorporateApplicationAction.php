@@ -23,23 +23,6 @@ use Kanvas\Users\Models\UsersInvite;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
-/**
- * Turns an approved corporate application into a usable account. Two shapes, picked by
- * whether the application names an existing user:
- *
- *  - a fresh applicant gets a corporate Company plus an admin invite;
- *  - an existing user upgrading gets `is_corporate` flipped on the Company they already
- *    provisioned, with no invite because the account is already there.
- *
- * `is_corporate` is deliberately the last thing set: it is the switch that grants corporate
- * privilege, so nothing before approval should turn it on.
- *
- * Idempotent — re-running reuses the Company and UsersInvite recorded on the application,
- * which is what makes workflow retries and double-clicks in an admin panel safe.
- *
- * Product-specific side effects hang off the `corporate-application-approved` workflow event
- * rather than living here, so this stays free of any connector knowledge.
- */
 class ApproveCorporateApplicationAction
 {
     use SendsApplicationEmail;
@@ -127,10 +110,6 @@ class ApproveCorporateApplicationAction
         Field::REVIEWED_AT->writeTo($this->application, now()->toIso8601String());
     }
 
-    /**
-     * The account the Company is created under. A webhook application has no user of its own,
-     * so it belongs to whoever owns the intake — the receiver's user.
-     */
     private function applicationOwner(): Users
     {
         return $this->application->receiver->user;
@@ -159,13 +138,6 @@ class ApproveCorporateApplicationAction
         )->execute();
     }
 
-    /**
-     * Same onboarding the upgrade path (EnableCorporateModeAction) and self-registration run:
-     * region + warehouse + integrations for the new company. Without it the company exists but
-     * has nowhere to hold inventory, and anything published on approval (a parking, a fleet)
-     * fails at its last step. OnBoardingJob is idempotent per company, so a retried approval
-     * that finds the company already created is safe to run through here again.
-     */
     private function provisionCompanyDefaults(Users $owner, Companies $company): void
     {
         new SetupService()->onBoarding($owner, $this->app, $company);
@@ -216,8 +188,6 @@ class ApproveCorporateApplicationAction
         ]);
         $invite->saveOrFail();
 
-        // The is_corporate marker on the invite is what the propagation step looks for when
-        // the invite is accepted.
         $invite->set('is_corporate', true);
 
         foreach (Field::USER_FIELDS as $key) {

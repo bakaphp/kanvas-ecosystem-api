@@ -16,11 +16,6 @@ use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 
-/**
- * §12.4: an application nobody decided within the SLA (24h by default, `corporate_application_sla_hours`
- * per app) is stamped overdue once and escalated by email to the team behind its receiver. The
- * stamp is the idempotency key — the hourly command can run as often as it likes.
- */
 class FlagOverdueCorporateApplicationsAction
 {
     use SendsApplicationEmail;
@@ -34,9 +29,6 @@ class FlagOverdueCorporateApplicationsAction
     ) {
     }
 
-    /**
-     * @return list<int> ids of the applications flagged on this run
-     */
     public function execute(): array
     {
         $now = $this->now ?? Carbon::now();
@@ -52,14 +44,6 @@ class FlagOverdueCorporateApplicationsAction
         return $flagged;
     }
 
-    /**
-     * Two queries on purpose: custom fields live on `ecosystem`, leads on `crm`, and a cross-
-     * database subquery runs on the lead connection where the other's uncommitted writes are
-     * invisible (every transactional test would miss its own rows). The open-application set is
-     * small, so the ids travel through PHP.
-     *
-     * @return iterable<Lead>
-     */
     private function overdueApplications(Carbon $filedBefore): iterable
     {
         $open = self::applicationIdsWithStatus([
@@ -82,10 +66,6 @@ class FlagOverdueCorporateApplicationsAction
             ->cursor();
     }
 
-    /**
-     * @param list<string> $statuses
-     * @return list<int>
-     */
     public static function applicationIdsWithStatus(array $statuses): array
     {
         return self::customFieldQuery(Field::STATUS)
@@ -95,7 +75,6 @@ class FlagOverdueCorporateApplicationsAction
             ->all();
     }
 
-    /** @return list<int> */
     private static function applicationIdsWithField(Field $field): array
     {
         return self::customFieldQuery($field)
@@ -131,12 +110,6 @@ class FlagOverdueCorporateApplicationsAction
         );
     }
 
-    /**
-     * The receiver's own notification list, else its rotation's, else whoever owns the receiver —
-     * the same people who get the lead itself.
-     *
-     * @return list<string>
-     */
     private function escalationRecipients(?LeadReceiver $receiver): array
     {
         if ($receiver === null) {

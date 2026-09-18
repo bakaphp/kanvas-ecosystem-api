@@ -16,17 +16,6 @@ use Kanvas\Users\Actions\RemoveCompanyAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
 
-/**
- * A rejection always reaches the applicant with its reason (§13.3). The app can point
- * `corporate_application_rejected_template` at its own wording; otherwise the shipped
- * `corporate-rejected` template (database/data/movipass_corporate_email_templates.json) is used.
- *
- * An approved application cannot be rejected: its Company and invite are live and in use, and
- * unwinding them is an account deletion, not a review decision. The one provisioning that does
- * happen before review — the upgrade path creates the corporate Company up front so the user
- * can be attached to it — is released here, so a rejected upgrade leaves no empty corporate
- * company in the user's switcher.
- */
 class RejectCorporateApplicationAction
 {
     use SendsApplicationEmail;
@@ -65,11 +54,6 @@ class RejectCorporateApplicationAction
         ];
     }
 
-    /**
-     * Only the upgrade path has a Company before approval (EnableCorporateModeAction creates it
-     * when the request is filed). It holds nothing but onboarding defaults, so it is detached
-     * from the user and soft-deleted; a fresh request provisions a fresh one.
-     */
     private function releaseProvisionalCompany(): void
     {
         $companyId = (int) Field::COMPANY_ID->readFrom($this->application);

@@ -38,8 +38,6 @@ type CorporateOnboardingResult {
     status: String!
 }
 
-# Corporate application approval is not Movipass-specific — it lives in
-# graphql/schemas/Ecosystem/corporateApplication.graphql.
 extend type Mutation @guard {
     enableCorporateMode(
         input: CorporateOnboardingInput!

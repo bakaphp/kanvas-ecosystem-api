@@ -52,8 +52,6 @@ final class EnableCorporateModeActionTest extends TestCase
         $this->kanvasUser = Auth::user();
         $this->kanvasApp = app(Apps::class);
 
-        // These tests run without DatabaseTransactions, so the corporate flag and any
-        // filed request outlive the process and would trip the guards on the next run.
         $this->kanvasUser->del('is_corporate');
         $this->discardPreviousRequests();
 
@@ -73,8 +71,6 @@ final class EnableCorporateModeActionTest extends TestCase
         $this->assertEquals('Empresa Pruebas', $company->get('commercial_name'));
         $this->assertEquals('131123456', $company->get('rnc'));
 
-        // is_corporate is the switch that grants PasoRapido corporate limits, tag access and
-        // RNC on invoices. Self-reported data must not buy it without a human.
         $this->assertFalse((bool) $company->get('is_corporate'));
 
         $this->kanvasUser->refresh();
@@ -127,7 +123,6 @@ final class EnableCorporateModeActionTest extends TestCase
 
         $this->assertEquals(CorporateApplicationStatusEnum::APPROVED->value, $result['status']);
         $this->assertEquals($company->getId(), $result['company_id']);
-        // No invite: the applicant already has an account.
         $this->assertNull($result['invite_hash']);
 
         $this->assertTrue((bool) $company->fresh()->get('is_corporate'));
@@ -158,7 +153,6 @@ final class EnableCorporateModeActionTest extends TestCase
         $this->assertTrue((bool) $company->fresh()->is_deleted);
         $this->assertFalse($this->userBelongsTo($company));
 
-        // The company the user came from is untouched and still theirs.
         $this->assertTrue($this->userBelongsTo(Companies::getById((int) Field::UPGRADE_SOURCE_COMPANY_ID->readFrom($lead))));
     }
 
@@ -195,10 +189,6 @@ final class EnableCorporateModeActionTest extends TestCase
             ->exists();
     }
 
-    /**
-     * Moving the vehicles is Movipass' business, not the generic approval's — it hangs off the
-     * corporate-application-approved workflow event, so it is exercised through the activity.
-     */
     public function testApprovedUpgradeMigratesVariantsThroughTheWorkflowActivity(): void
     {
         Bus::fake();
@@ -228,11 +218,6 @@ final class EnableCorporateModeActionTest extends TestCase
         Bus::assertDispatched(MigrateCorporateUserVariantsJob::class);
     }
 
-    /**
-     * Both region keys must land: movipass_region_id for the legacy readers and default_region_id
-     * for RegionResolutionService::forCompany(). The manual-approval branch dropped the second
-     * write while development added it — a merge that no textual conflict flags.
-     */
     public function testRequestWritesBothRegionKeys(): void
     {
         Bus::fake();

@@ -19,13 +19,6 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-/**
- * The only two parts of corporate approval that are actually Movipass: which region the new
- * company operates in, and moving the applicant's vehicles/TAGs into it.
- *
- * Runs on `corporate-application-approved`, which the generic approval fires — the core flow
- * has no knowledge of this connector.
- */
 #[WorkflowAction]
 class SetupApprovedCorporateCompanyActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -40,7 +33,6 @@ class SetupApprovedCorporateCompanyActivity extends KanvasActivity implements Wo
             integration: IntegrationsEnum::MOVIPASS,
             additionalParams: $params,
             integrationOperation: function ($lead, $app, $integrationCompany, $additionalParams) {
-                /** @var Lead $lead */
                 $companyId = (int) Field::COMPANY_ID->readFrom($lead);
 
                 if ($companyId === 0) {
@@ -77,10 +69,6 @@ class SetupApprovedCorporateCompanyActivity extends KanvasActivity implements Wo
         }
     }
 
-    /**
-     * Only the upgrade path has products to move: a brand-new corporate account has none, and
-     * the applicant has no user yet.
-     */
     private function migrateVariants(Lead $lead, Companies $company, AppInterface $app): bool
     {
         $userId = (int) Field::UPGRADE_USER_ID->readFrom($lead);

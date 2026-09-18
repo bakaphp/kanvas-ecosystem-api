@@ -31,7 +31,6 @@ final class CorporateApplicationApprovalModeEnumTest extends TestCase
 
     protected function tearDown(): void
     {
-        // App settings are not covered by the transaction.
         $this->clearSettings();
 
         parent::tearDown();

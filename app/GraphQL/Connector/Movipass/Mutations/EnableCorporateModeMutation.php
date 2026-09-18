@@ -23,7 +23,6 @@ class EnableCorporateModeMutation
 
         return [
             'company' => $company,
-            // The company exists but carries no corporate privilege until an admin approves.
             'status' => CorporateApplicationStatusEnum::PENDING->value,
         ];
     }

@@ -35,12 +35,6 @@ class FlagOverdueCorporateApplicationsCommand extends Command
         }
     }
 
-    /**
-     * Only apps that actually have an open application — the leads already know, no per-app
-     * setting to opt in.
-     *
-     * @return list<int>
-     */
     private function appsWithOpenApplications(): array
     {
         $open = FlagOverdueCorporateApplicationsAction::applicationIdsWithStatus([

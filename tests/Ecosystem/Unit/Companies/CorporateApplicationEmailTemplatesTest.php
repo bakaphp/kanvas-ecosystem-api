@@ -10,11 +10,6 @@ use Kanvas\Companies\CorporateApplications\Actions\RejectCorporateApplicationAct
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
-/**
- * The corporate flow falls back to shipped template names when an app has not configured its
- * own. A name the code sends but the data file does not carry is a silent "applicant never
- * hears back" — exactly the defect this file exists to keep closed.
- */
 final class CorporateApplicationEmailTemplatesTest extends TestCase
 {
     private const string DATA_FILE = 'database/data/movipass_corporate_email_templates.json';
@@ -57,7 +52,6 @@ final class CorporateApplicationEmailTemplatesTest extends TestCase
         }
     }
 
-    /** @return array<string, array<string, mixed>> */
     private function templatesByName(): array
     {
         $export = json_decode((string) file_get_contents(base_path(self::DATA_FILE)), true, flags: JSON_THROW_ON_ERROR);

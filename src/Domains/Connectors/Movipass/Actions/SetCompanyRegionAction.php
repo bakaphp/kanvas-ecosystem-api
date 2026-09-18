@@ -8,10 +8,6 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Regions\Enums\CustomFieldEnum as RegionCustomFieldEnum;
 
-/**
- * movipass_region_id predates the generic default_region_id key; keep writing both until
- * the legacy readers are gone, so RegionResolutionService::forCompany() sees corporate companies.
- */
 class SetCompanyRegionAction
 {
     public function __construct(

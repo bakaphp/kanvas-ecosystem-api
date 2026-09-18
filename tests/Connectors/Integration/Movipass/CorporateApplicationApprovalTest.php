@@ -75,8 +75,6 @@ final class CorporateApplicationApprovalTest extends TestCase
 
     public function testApproveProvisionsTheNewCompanyDefaults(): void
     {
-        // A brand-new account has no region or warehouse until onboarding runs — the upgrade
-        // path gets it from EnableCorporateModeAction; approval must do the same for a new one.
         $lead = $this->makePendingApplication();
         Notification::fake();
         Bus::fake([OnBoardingJob::class]);
@@ -129,8 +127,6 @@ final class CorporateApplicationApprovalTest extends TestCase
         $this->assertEquals('RNC no existe en DGII', $fresh->get(Field::STATUS_REASON->value));
         $this->assertNull($fresh->get(Field::COMPANY_ID->value));
 
-        // The applicant always hears back with the reason, on the shipped template when the app
-        // has not configured its own.
         Notification::assertSentOnDemand(
             Blank::class,
             fn (Blank $notification): bool => $notification->getTemplateName() === RejectCorporateApplicationAction::DEFAULT_TEMPLATE
@@ -198,8 +194,6 @@ final class CorporateApplicationApprovalTest extends TestCase
     {
         $lead = $this->makePendingApplication();
 
-        // Over HTTP, TrimStrings + ConvertEmptyStringsToNull make the schema's String!
-        // reject a blank reason first; this covers the resolver guard for internal callers.
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('A rejection reason is required.');
 
@@ -237,10 +231,6 @@ final class CorporateApplicationApprovalTest extends TestCase
             ->assertGraphQLErrorMessage('This lead is not a corporate application.');
     }
 
-    /**
-     * The admin queue has no dedicated endpoint on purpose — this is the query the panel
-     * runs, so it is covered here rather than left as an assumption.
-     */
     public function testLeadsQueryFiltersTheReviewQueue(): void
     {
         $pending = $this->makePendingApplication();
