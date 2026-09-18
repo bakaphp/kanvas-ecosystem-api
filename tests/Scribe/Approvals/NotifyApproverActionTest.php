@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Scribe\Approvals;
 
 use Baka\Http\Exceptions\SsrfException;
+use Baka\Http\SafeUrlFetcher;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Exceptions;
@@ -55,6 +56,7 @@ class NotifyApproverActionTest extends TestCase
     {
         $this->configureNotifierAgent();
         $this->fakeSlackAndAttachment();
+        SafeUrlFetcher::fake(static fn (string $url): string => '%PDF-1.4 fake bytes');
 
         new NotifyApproverAction(
             app: $this->kanvasApp,
@@ -62,7 +64,6 @@ class NotifyApproverActionTest extends TestCase
             approverEmail: self::APPROVER_EMAIL,
             attachmentUrl: 'https://cdn.example.test/invoice-4521.pdf',
             attachmentFilename: 'invoice-4521.pdf',
-            fetchAttachment: static fn (string $url): string => '%PDF-1.4 fake bytes',
         )->execute();
 
         Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'files.getUploadURLExternal'));
@@ -88,13 +89,13 @@ class NotifyApproverActionTest extends TestCase
     {
         $this->configureNotifierAgent();
         $this->fakeSlackAndAttachment();
+        SafeUrlFetcher::fake(static fn (string $url): string => throw new RuntimeException('404 Not Found'));
 
         new NotifyApproverAction(
             app: $this->kanvasApp,
             text: 'You have an AP bill pending approval',
             approverEmail: self::APPROVER_EMAIL,
             attachmentUrl: 'https://cdn.example.test/invoice-4521.pdf',
-            fetchAttachment: static fn (string $url): string => throw new RuntimeException('404 Not Found'),
         )->execute();
 
         Http::assertSent(
@@ -104,7 +105,7 @@ class NotifyApproverActionTest extends TestCase
     }
 
     /**
-     * The real fetch, not the seam: an attachment URL pointing at an internal address — loopback here, the
+     * The real fetch, not the fake: an attachment URL pointing at an internal address — loopback here, the
      * cloud-metadata endpoint in an attack — is refused by the SSRF guard before any request is made, and
      * the approver still gets the plain message.
      */

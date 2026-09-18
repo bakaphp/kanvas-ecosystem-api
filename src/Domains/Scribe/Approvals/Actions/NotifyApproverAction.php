@@ -6,7 +6,6 @@ namespace Kanvas\Scribe\Approvals\Actions;
 
 use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
-use Closure;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Slack\Client as SlackClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -29,9 +28,6 @@ class NotifyApproverAction
         protected readonly ?string $attachmentUrl = null,
         protected readonly ?string $attachmentFilename = null,
         protected readonly ?string $agentId = null,
-        // A test seam, never set in production: the real fetch is the SSRF-guarded one, and a test takes
-        // that branch too, so this cannot quietly become the only path exercised.
-        protected readonly ?Closure $fetchAttachment = null,
     ) {
     }
 
@@ -105,7 +101,7 @@ class NotifyApproverAction
         try {
             // The URL arrives from the caller, so it is fetched through the guard: an internal or cloud-metadata
             // address is refused, and the body is size-capped.
-            $contents = ($this->fetchAttachment ?? SafeUrlFetcher::fetch(...))($this->attachmentUrl);
+            $contents = SafeUrlFetcher::fetch($this->attachmentUrl);
             $filename = $this->attachmentFilename !== null && trim($this->attachmentFilename) !== ''
                 ? $this->attachmentFilename
                 : Str::fileNameFromUrl($this->attachmentUrl, 'invoice.pdf');

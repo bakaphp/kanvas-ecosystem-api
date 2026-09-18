@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Intelligence;
 
+use Baka\Http\SafeUrlFetcher;
 use Illuminate\Contracts\Debug\ShouldntReport;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
@@ -781,10 +782,15 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, (string) $agent->getId());
 
         try {
+            $fetched = [];
+            SafeUrlFetcher::fake(static function (string $url) use (&$fetched): string {
+                $fetched[] = $url;
+
+                return '%PDF-1.4 fake bytes';
+            });
             Http::fake([
                 'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
                 'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
-                'cdn.example.test/*' => Http::response('%PDF-1.4 fake bytes', 200),
                 'slack.com/api/files.getUploadURLExternal' => Http::response([
                     'ok' => true,
                     'upload_url' => 'https://files.slack.com/upload/v1/abc123',
@@ -800,7 +806,7 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
                 ->__invoke(bill_id: $bill->getId());
 
             $this->assertTrue($result['resent'], 'The legacy custom-field attachment must still be resolvable.');
-            Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'cdn.example.test/legacy.pdf'));
+            $this->assertContains('https://cdn.example.test/legacy.pdf', $fetched);
         } finally {
             $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, $originalNotifierAgentId);
         }
@@ -863,10 +869,10 @@ class AccountsPayableAgentToolsTest extends ScribeTestCase
         $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, (string) $agent->getId());
 
         try {
+            SafeUrlFetcher::fake(static fn (string $url): string => '%PDF-1.4 fake bytes');
             Http::fake([
                 'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
                 'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
-                'cdn.example.test/*' => Http::response('%PDF-1.4 fake bytes', 200),
                 'slack.com/api/files.getUploadURLExternal' => Http::response([
                     'ok' => true,
                     'upload_url' => 'https://files.slack.com/upload/v1/abc123',
