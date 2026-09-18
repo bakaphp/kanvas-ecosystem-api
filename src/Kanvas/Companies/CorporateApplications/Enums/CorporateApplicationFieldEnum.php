@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\CorporateApplications\Enums;
 
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 
 enum CorporateApplicationFieldEnum: string
@@ -48,6 +50,12 @@ enum CorporateApplicationFieldEnum: string
     public const string RECEIVER_COMPANY_KEY = 'application_company_fields';
     public const string RECEIVER_USER_KEY = 'application_user_fields';
 
+    private const LEAD_COLUMN_FALLBACK = [
+        'contact_email' => 'email',
+        'contact_phone' => 'phone',
+        'contact_name' => 'firstname',
+    ];
+
     public function legacyKey(): string
     {
         return 'movipass_corporate_' . str_replace('corporate_application_', '', $this->value);
@@ -78,11 +86,19 @@ enum CorporateApplicationFieldEnum: string
         return self::receiverList($receiver, self::RECEIVER_USER_KEY, self::USER_PROFILE_FIELDS);
     }
 
+    public static function readApplication(Lead $application, string $key): mixed
+    {
+        $value = $application->get($key);
+        $column = self::LEAD_COLUMN_FALLBACK[$key] ?? null;
+
+        return $value ?: ($column === null ? null : $application->{$column});
+    }
+
     public static function missing(array $required, callable $read): array
     {
         return array_values(array_filter(
             $required,
-            fn (string $key): bool => trim((string) $read($key)) === '',
+            fn (string $key): bool => Str::trimToNull((string) $read($key)) === null,
         ));
     }
 

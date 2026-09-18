@@ -36,7 +36,7 @@ class ApproveCorporateApplicationAction
 
     public function execute(): array
     {
-        $missing = Field::missing(Field::requiredFor($this->application->receiver), $this->application->get(...));
+        $missing = Field::missing(Field::requiredFor($this->application->receiver), $this->read(...));
 
         if ($missing !== []) {
             throw new ValidationException('Cannot approve: missing ' . implode(', ', $missing));
@@ -132,8 +132,8 @@ class ApproveCorporateApplicationAction
             new CompanyData(
                 user: $owner,
                 name: $name,
-                email: trim((string) ($this->application->get('contact_email') ?: $this->application->email)),
-                phone: trim((string) ($this->application->get('contact_phone') ?: $this->application->phone ?? '')),
+                email: trim((string) $this->read('contact_email')),
+                phone: trim((string) $this->read('contact_phone')),
             ),
         )->execute();
     }
@@ -146,7 +146,7 @@ class ApproveCorporateApplicationAction
     private function copyCompanyFields(Companies $company): void
     {
         $company->set('is_corporate', true);
-        Field::copy(Field::companyFieldsFor($this->application->receiver), $this->application->get(...), $company);
+        Field::copy(Field::companyFieldsFor($this->application->receiver), $this->read(...), $company);
     }
 
     private function findOrCreateInvite(Companies $company, Users $owner): UsersInvite
@@ -172,17 +172,22 @@ class ApproveCorporateApplicationAction
             'companies_branches_id' => $branch->getId(),
             'role_id' => $adminRole->id,
             'apps_id' => $this->app->getId(),
-            'email' => trim((string) ($this->application->get('contact_email') ?: $this->application->email)),
-            'firstname' => trim((string) ($this->application->get('contact_name') ?: $this->application->firstname ?: '')),
+            'email' => trim((string) $this->read('contact_email')),
+            'firstname' => trim((string) $this->read('contact_name')),
             'lastname' => trim((string) ($this->application->lastname ?: '')),
             'description' => 'Corporate self-signup',
         ]);
         $invite->saveOrFail();
 
         $invite->set('is_corporate', true);
-        Field::copy(Field::userFieldsFor($this->application->receiver), $this->application->get(...), $invite);
+        Field::copy(Field::userFieldsFor($this->application->receiver), $this->read(...), $invite);
 
         return $invite;
+    }
+
+    private function read(string $key): mixed
+    {
+        return Field::readApplication($this->application, $key);
     }
 
     private function sendWelcomeEmail(Companies $company, UsersInvite $invite): void

@@ -105,6 +105,19 @@ final class CorporateApplicationApprovalTest extends TestCase
         new ApproveCorporateApplicationAction($lead, $this->kanvasApp, Auth::user())->execute();
     }
 
+    public function testApproveFallsBackToTheLeadEmailWhenContactEmailIsNotAField(): void
+    {
+        $lead = $this->makePendingApplication();
+        $lead->del('contact_email');
+        Notification::fake();
+
+        $result = new ApproveCorporateApplicationAction($lead->fresh(), $this->kanvasApp, Auth::user())->execute();
+
+        $invite = UsersInvite::where('invite_hash', $result['invite_hash'])->firstOrFail();
+        $this->assertEquals($lead->email, $invite->email);
+        $this->assertEquals($lead->email, $invite->get('contact_email'));
+    }
+
     public function testApproveIsIdempotent(): void
     {
         $lead = $this->makePendingApplication();

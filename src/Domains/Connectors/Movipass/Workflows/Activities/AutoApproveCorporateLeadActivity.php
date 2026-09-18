@@ -61,16 +61,17 @@ class AutoApproveCorporateLeadActivity extends KanvasActivity implements Workflo
 
     private function validate(Lead $lead): ?string
     {
-        $missing = Field::missing(Field::requiredFor($lead->receiver), $lead->get(...));
+        $read = fn (string $key): mixed => Field::readApplication($lead, $key);
+        $missing = Field::missing(Field::requiredFor($lead->receiver), $read);
 
         if ($missing !== []) {
             return 'Missing required fields: ' . implode(', ', $missing);
         }
 
         return new ValidateCorporateFieldsAction([
-            'rnc' => $lead->get('rnc'),
-            'legal_name' => $lead->get('legal_name'),
-            'contact_email' => $lead->get('contact_email') ?: $lead->email,
+            'rnc' => $read('rnc'),
+            'legal_name' => $read('legal_name'),
+            'contact_email' => $read('contact_email'),
         ])->execute();
     }
 
