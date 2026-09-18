@@ -58,7 +58,7 @@ trait AttachesFileToDocumentForTool
 
         $name = Str::trimToNull($fileName)
             ?? Str::trimToNull($filesystem?->name)
-            ?? basename(parse_url($url, PHP_URL_PATH) ?: 'file');
+            ?? Str::fileNameFromUrl($url, 'file');
 
         // One slot per kind of document. Re-attaching the source invoice PDF updates that single
         // row, but a W-9 or a remittance has to land beside it — sharing the slot would silently

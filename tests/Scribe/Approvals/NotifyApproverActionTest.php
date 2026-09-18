@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Approvals;
 
+use Baka\Http\Exceptions\SsrfException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -14,6 +16,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Scribe\Approvals\Actions\NotifyApproverAction;
 use Kanvas\Scribe\Approvals\Enums\ApprovalConfigurationEnum;
 use Kanvas\Users\Models\Users;
+use RuntimeException;
 use Tests\TestCase;
 
 class NotifyApproverActionTest extends TestCase
@@ -59,6 +62,7 @@ class NotifyApproverActionTest extends TestCase
             approverEmail: self::APPROVER_EMAIL,
             attachmentUrl: 'https://cdn.example.test/invoice-4521.pdf',
             attachmentFilename: 'invoice-4521.pdf',
+            fetchAttachment: static fn (string $url): string => '%PDF-1.4 fake bytes',
         )->execute();
 
         Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'files.getUploadURLExternal'));
@@ -75,7 +79,7 @@ class NotifyApproverActionTest extends TestCase
 
         Http::assertSent(
             fn (Request $request): bool => str_contains($request->url(), 'chat.postMessage')
-                && $request['text'] === 'You have an AP bill pending approval'
+                && $request['markdown_text'] === 'You have an AP bill pending approval'
         );
         Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'files.getUploadURLExternal'));
     }
@@ -83,23 +87,45 @@ class NotifyApproverActionTest extends TestCase
     public function test_it_falls_back_to_a_plain_message_when_the_upload_fails(): void
     {
         $this->configureNotifierAgent();
-        Http::fake([
-            'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
-            'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
-            'cdn.example.test/*' => Http::response('', 404),
-            'slack.com/api/chat.postMessage' => Http::response(['ok' => true, 'ts' => '1700000000.000100']),
-        ]);
+        $this->fakeSlackAndAttachment();
 
         new NotifyApproverAction(
             app: $this->kanvasApp,
             text: 'You have an AP bill pending approval',
             approverEmail: self::APPROVER_EMAIL,
             attachmentUrl: 'https://cdn.example.test/invoice-4521.pdf',
+            fetchAttachment: static fn (string $url): string => throw new RuntimeException('404 Not Found'),
         )->execute();
 
         Http::assertSent(
             fn (Request $request): bool => str_contains($request->url(), 'chat.postMessage')
-                && $request['text'] === 'You have an AP bill pending approval'
+                && $request['markdown_text'] === 'You have an AP bill pending approval'
+        );
+    }
+
+    /**
+     * The real fetch, not the seam: an attachment URL pointing at an internal address — loopback here, the
+     * cloud-metadata endpoint in an attack — is refused by the SSRF guard before any request is made, and
+     * the approver still gets the plain message.
+     */
+    public function test_an_internal_attachment_url_is_refused_and_the_message_still_goes_out(): void
+    {
+        Exceptions::fake();
+        $this->configureNotifierAgent();
+        $this->fakeSlackAndAttachment();
+
+        new NotifyApproverAction(
+            app: $this->kanvasApp,
+            text: 'You have an AP bill pending approval',
+            approverEmail: self::APPROVER_EMAIL,
+            attachmentUrl: 'http://127.0.0.1/invoice-4521.pdf',
+        )->execute();
+
+        Exceptions::assertReported(SsrfException::class);
+        Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'files.getUploadURLExternal'));
+        Http::assertSent(
+            fn (Request $request): bool => str_contains($request->url(), 'chat.postMessage')
+                && $request['markdown_text'] === 'You have an AP bill pending approval'
         );
     }
 
@@ -178,7 +204,6 @@ class NotifyApproverActionTest extends TestCase
         Http::fake([
             'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
             'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
-            'cdn.example.test/*' => Http::response('%PDF-1.4 fake bytes', 200),
             'slack.com/api/files.getUploadURLExternal' => Http::response([
                 'ok' => true,
                 'upload_url' => 'https://files.slack.com/upload/v1/abc123',

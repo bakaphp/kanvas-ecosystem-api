@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\FileTextExtractor;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
@@ -107,7 +108,7 @@ class AttachmentNativeKindTest extends TestCase
             'columns' => [['name' => 'sku', 'type' => 'varchar']],
         ]);
 
-        $this->assertSame('application/json', AttachmentDescriptionService::detectMimeType($json));
+        $this->assertSame('application/json', FilesystemServices::detectMimeTypeFromBytes($json));
 
         $block = AttachmentDescriptionService::contentBlockFor($json);
 

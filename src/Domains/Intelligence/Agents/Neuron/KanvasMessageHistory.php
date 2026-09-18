@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
+use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\Enums\MessageRole;
 use NeuronAI\Chat\History\AbstractChatHistory;
@@ -66,7 +67,13 @@ class KanvasMessageHistory extends AbstractChatHistory
         // which can glom onto an unrelated conversation. Falls back to latest only when there's no
         // session id at all (ad-hoc invocations).
         $this->conversationId = $this->sessionId !== null
-            ? $this->findOrCreateConversationBySession($this->sessionId)
+            ? new KanvasConversationStore()->conversationForSession(
+                $this->user->getId(),
+                $this->sessionId,
+                $this->agent?->getId(),
+                $this->app->getId(),
+                $this->company->getId(),
+            )
             : $this->findLatestConversation();
 
         if ($this->conversationId !== null) {
@@ -77,22 +84,6 @@ class KanvasMessageHistory extends AbstractChatHistory
     public function getConversationId(): ?string
     {
         return $this->conversationId;
-    }
-
-    private function findOrCreateConversationBySession(string $sessionId): string
-    {
-        $agentId = $this->agent?->getId();
-
-        $query = DB::connection(self::CONNECTION)
-            ->table(self::TABLE_CONVERSATIONS)
-            ->where('user_id', $this->user->getId())
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('title', $sessionId);
-
-        $query = $agentId !== null ? $query->where('agent_id', $agentId) : $query->whereNull('agent_id');
-
-        return $query->first()?->id ?? $this->createConversation($sessionId);
     }
 
     private function findLatestConversation(): ?string
@@ -164,7 +155,13 @@ class KanvasMessageHistory extends AbstractChatHistory
         }
 
         if ($this->conversationId === null) {
-            $this->conversationId = $this->createConversation($content !== '' ? $content : '[tool call]');
+            $this->conversationId = new KanvasConversationStore()->insertConversation(
+                $this->user->getId(),
+                $this->agent?->getId(),
+                $this->app->getId(),
+                $this->company->getId(),
+                Str::limit($content !== '' ? $content : '[tool call]', 100, ''),
+            );
         } else {
             DB::connection(self::CONNECTION)
                 ->table(self::TABLE_CONVERSATIONS)
@@ -261,25 +258,5 @@ class KanvasMessageHistory extends AbstractChatHistory
         }
 
         return implode(' ', $markers);
-    }
-
-    private function createConversation(string $firstMessage): string
-    {
-        $conversationId = (string) Str::uuid7();
-
-        DB::connection(self::CONNECTION)->table(self::TABLE_CONVERSATIONS)->insert([
-            'id' => $conversationId,
-            'user_id' => $this->user->getId(),
-            // Without agent_id the usage rollup + agentConversations list skip the row
-            // (both filter whereNotNull('agent_id')).
-            'agent_id' => $this->agent?->getId(),
-            'apps_id' => $this->app->getId(),
-            'companies_id' => $this->company->getId(),
-            'title' => Str::limit($firstMessage, 100, ''),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        return $conversationId;
     }
 }

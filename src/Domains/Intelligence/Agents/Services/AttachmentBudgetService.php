@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Services;
 
 use Baka\Support\Str;
+use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 
 /**
  * Bounds what one turn's attachments may add to the prompt.
@@ -62,7 +63,10 @@ final class AttachmentBudgetService
         }
 
         $names = array_map(
-            static fn (string $source): string => Str::fileNameFromUrl($source, 'attachment'),
+            static fn (string $source): string => AttachmentPromptBuilder::safeFileName(
+                Str::fileNameFromUrl($source),
+                'attachment',
+            ),
             $this->skipped,
         );
 

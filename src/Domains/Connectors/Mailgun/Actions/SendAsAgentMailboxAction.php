@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Mailgun\Actions;
 
 use Baka\Http\SafeUrlFetcher;
+use Baka\Support\Str;
 use Kanvas\Connectors\Mailgun\Client;
 use Kanvas\Connectors\Mailgun\Services\AgentMailboxService;
 use Kanvas\Exceptions\ValidationException;
@@ -80,10 +81,10 @@ class SendAsAgentMailboxAction
         $attachments = [];
 
         foreach ($this->attachmentUrls as $url) {
-            $filename = basename((string) parse_url($url, PHP_URL_PATH));
+            $filename = Str::fileNameFromUrl($url, 'attachment');
 
             $attachments[] = [
-                'filename' => $filename === '' ? 'attachment' : $filename,
+                'filename' => $filename,
                 'contents' => SafeUrlFetcher::fetch($url),
             ];
         }

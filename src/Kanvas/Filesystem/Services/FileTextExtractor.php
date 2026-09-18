@@ -6,6 +6,7 @@ namespace Kanvas\Filesystem\Services;
 
 use Baka\Http\SafeUrlFetcher;
 use Kanvas\Filesystem\Models\Filesystem;
+use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
@@ -87,6 +88,13 @@ final class FileTextExtractor
     private const int MAX_SPREADSHEET_ROWS = 2000;
 
     /**
+     * Load cost is per cell, so columns need a bound as much as rows do: measured at 2000 rows, 100
+     * columns peaks near 160MB and 200 near 310MB, so an unbounded wide export exhausts the worker.
+     * Past ~50 columns the text already overruns what an agent turn can take in, so little is lost.
+     */
+    private const int MAX_SPREADSHEET_COLUMNS = 100;
+
+    /**
      * Read at most this much of any one member of an uploaded archive. A DOCX/XLSX is a zip, and a
      * zip's members decompress to an unbounded size — a small upload can expand by three orders of
      * magnitude, and the text pipeline then copies whatever came out several times over.
@@ -160,20 +168,39 @@ final class FileTextExtractor
             : null;
     }
 
+    /**
+     * Whether a file is worth downloading to read. Decided from the name because the bytes are not in hand
+     * yet — which is safe, as refusing to try cannot steer anything. A name with no extension says nothing
+     * either way, so it is tried.
+     */
     public function supports(Filesystem $file): bool
     {
-        return in_array($this->extension($file), self::supportedExtensions(), true);
+        $extension = $this->extension($file);
+
+        return $extension === '' || in_array($extension, self::supportedExtensions(), true);
     }
 
     public function extract(Filesystem $file): string
     {
-        $extension = $this->extension($file);
-
-        if (! in_array($extension, self::supportedExtensions(), true)) {
+        if (! $this->supports($file)) {
             return '';
         }
 
-        return $this->extractFrom($this->readBytes($file), $extension);
+        return $this->extractFromBytes($this->readBytes($file));
+    }
+
+    /**
+     * Reads bytes with the parser their contents call for; no name is taken, so none can choose it. A name
+     * is the uploader's to pick, and letting it pick the parser lets whoever uploads route crafted bytes
+     * into whichever decoder they like — the reason uploaded images are typed by magic bytes too. It is
+     * also plainly wrong often enough: a CSV saved as .xlsx, an export with no extension at all.
+     */
+    public function extractFromBytes(string $bytes): string
+    {
+        $format = self::extensionForMimeType(FilesystemServices::detectMimeTypeFromBytes($bytes))
+            ?? $this->containerFormat($bytes);
+
+        return $format === null ? '' : $this->extractFrom($bytes, $format);
     }
 
     /**
@@ -208,6 +235,43 @@ final class FileTextExtractor
             in_array($extension, self::JSON_EXTENSIONS, true) => $this->extractJson($bytes),
             default => $this->normalize($bytes),
         };
+    }
+
+    /**
+     * libmagic names an OOXML or ODF file only when the archive is laid out as it expects, and calls the rest
+     * application/zip — an ODS written by PhpSpreadsheet among them. Refusing those would refuse real
+     * spreadsheets, so a container it cannot name is identified by what is inside it.
+     */
+    private function containerFormat(string $bytes): ?string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'probe');
+
+        if ($path === false) {
+            return null;
+        }
+
+        try {
+            file_put_contents($path, $bytes);
+
+            try {
+                return strtolower(IOFactory::identify($path, ['Xlsx', 'Ods', 'Xls']));
+            } catch (Throwable) {
+                // Not a spreadsheet; a Word document is the one other container read here.
+            }
+
+            $zip = new ZipArchive();
+
+            if ($zip->open($path) !== true) {
+                return null;
+            }
+
+            $isWordDocument = $zip->locateName('word/document.xml') !== false;
+            $zip->close();
+
+            return $isWordDocument ? 'docx' : null;
+        } finally {
+            @unlink($path);
+        }
     }
 
     private function extractPdf(string $bytes): string
@@ -288,31 +352,38 @@ final class FileTextExtractor
 
             // NOT setReadDataOnly: that drops the number formats, and without them a date cell is
             // read as its raw serial (46265, not 2026-08-31) whatever toArray is asked to format.
-            // The row cap below is what bounds the cost of parsing styles.
+            // The row and column caps below are what bound the cost of parsing styles.
             $reader = IOFactory::createReader(match ($extension) {
                 'xls' => 'Xls',
                 'ods' => 'Ods',
                 default => 'Xlsx',
             });
 
-            // renderSpreadsheet() caps the OUTPUT, which is only reached once load() has already
-            // built every row (and, since read-data-only is off, every style) in memory. Bounding
-            // the read itself is what keeps a large workbook from costing that before the cap runs.
-            $reader->setReadFilter(new class (self::MAX_SPREADSHEET_ROWS) implements IReadFilter {
+            $sheets = $this->sheetBudgets($reader->listWorksheetInfo($path));
+
+            // Bounds the read itself, not the output: load() builds every cell it is handed — and every
+            // style — before anything else runs. Pure on purpose: the reader also calls this as a probe
+            // for column widths and row heights, which a stateful filter would miscount as cells.
+            $reader->setReadFilter(new class ($sheets, self::MAX_SPREADSHEET_COLUMNS) implements IReadFilter {
+                /**
+                 * @param array<string, array{rows: int, read: int, columns: int, lastColumn: string}> $sheets
+                 */
                 public function __construct(
-                    private readonly int $maxRows,
+                    private readonly array $sheets,
+                    private readonly int $maxColumns,
                 ) {
                 }
 
                 public function readCell(string $columnAddress, int $row, string $worksheetName = ''): bool
                 {
-                    return $row <= $this->maxRows;
+                    return $row <= ($this->sheets[$worksheetName]['read'] ?? 0)
+                        && Coordinate::columnIndexFromString($columnAddress) <= $this->maxColumns;
                 }
             });
 
             $book = $reader->load($path);
 
-            return $this->normalize($this->renderSpreadsheet($book));
+            return $this->normalize($this->renderSpreadsheet($book, $sheets));
         } catch (Throwable) {
             return '';
         } finally {
@@ -320,27 +391,82 @@ final class FileTextExtractor
         }
     }
 
-    private function renderSpreadsheet(Spreadsheet $book): string
+    /**
+     * Splits the workbook's row budget across its sheets in order, before anything is loaded. The render
+     * shows at most MAX_SPREADSHEET_ROWS rows in total, so a row loaded past that across all sheets is
+     * memory spent on nothing — capping per sheet let a workbook of many large sheets multiply the cost.
+     *
+     * Sized from listWorksheetInfo() rather than from what the filter refuses: the filter is also consulted
+     * for formatting, and never sees a cell's value, so it cannot tell a data row from a formatted empty one.
+     *
+     * @param array<int, array<string, mixed>> $info
+     * @return array<string, array{rows: int, read: int, columns: int, lastColumn: string}>
+     */
+    private function sheetBudgets(array $info): array
+    {
+        $remaining = self::MAX_SPREADSHEET_ROWS;
+        $sheets = [];
+
+        foreach ($info as $sheet) {
+            $rows = (int) ($sheet['totalRows'] ?? 0);
+            $read = min($rows, $remaining);
+            $remaining -= $read;
+
+            $sheets[(string) ($sheet['worksheetName'] ?? '')] = [
+                'rows' => $rows,
+                'read' => $read,
+                'columns' => (int) ($sheet['totalColumns'] ?? 0),
+                'lastColumn' => (string) ($sheet['lastColumnLetter'] ?? ''),
+            ];
+        }
+
+        return $sheets;
+    }
+
+    /**
+     * Each note states the sheet's range and what was read, never that data was lost: a sheet's range can
+     * reach past its data through formatting alone, and nothing here can see which it is.
+     *
+     * @param array<string, array{rows: int, read: int, columns: int, lastColumn: string}> $sheets
+     */
+    private function renderSpreadsheet(Spreadsheet $book, array $sheets): string
     {
         $out = [];
-        $rows = 0;
 
         foreach ($book->getAllSheets() as $sheet) {
-            $out[] = '# Sheet: ' . $sheet->getTitle();
+            $title = $sheet->getTitle();
+            $bounds = $sheets[$title] ?? ['rows' => 0, 'read' => 0, 'columns' => 0, 'lastColumn' => ''];
+            $out[] = '# Sheet: ' . $title;
+
+            if ($bounds['rows'] > 0 && $bounds['read'] === 0) {
+                $out[] = sprintf(
+                    '[not read: the %d-row budget for this file was spent on the sheets above — anything here is not visible to you]',
+                    self::MAX_SPREADSHEET_ROWS,
+                );
+
+                continue;
+            }
+
+            if ($bounds['columns'] > self::MAX_SPREADSHEET_COLUMNS) {
+                $out[] = sprintf(
+                    "[this sheet's range reaches column %s; only the first %d columns were read — anything past them is not visible to you]",
+                    $bounds['lastColumn'],
+                    self::MAX_SPREADSHEET_COLUMNS,
+                );
+            }
 
             // formatData renders dates and currency as the sheet displays them; without it a date
             // column arrives as its Excel serial (46265, not 2026-08-31) and the model reads noise.
             foreach ($sheet->toArray(formatData: true) as $row) {
-                if ($rows++ >= self::MAX_SPREADSHEET_ROWS) {
-                    $out[] = sprintf(
-                        '[truncated at %d rows — read the file directly if you need the rest]',
-                        self::MAX_SPREADSHEET_ROWS,
-                    );
-
-                    return implode("\n", $out);
-                }
-
                 $out[] = implode("\t", array_map(static fn ($cell): string => trim((string) $cell), $row));
+            }
+
+            if ($bounds['rows'] > $bounds['read']) {
+                $out[] = sprintf(
+                    "[this sheet's range reaches row %d; only the first %d rows were read — anything past them is not visible to you]",
+                    $bounds['rows'],
+                    $bounds['read'],
+                );
             }
         }
 

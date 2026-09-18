@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
-use finfo;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\FileTextExtractor;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
+use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Users\Models\Users;
@@ -114,16 +115,6 @@ class AttachmentDescriptionService
     }
 
     /**
-     * Shared by every chat runner so all three backends agree on what a set of bytes is.
-     */
-    public static function detectMimeType(string $binary): string
-    {
-        $detected = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
-
-        return is_string($detected) && $detected !== '' ? $detected : 'application/octet-stream';
-    }
-
-    /**
      * Wrap raw attachment bytes in the matching Neuron content block, sniffing the MIME type when
      * the caller doesn't already know it. Null means the model can't take this type as a block —
      * its URL is already folded into the prompt text by AttachmentPromptBuilder upstream.
@@ -139,7 +130,7 @@ class AttachmentDescriptionService
 
         // Normalized here rather than only inside nativeKind(): a stored file_type can carry a charset
         // and arbitrary casing, and it is handed straight to the provider as the block's media type.
-        $mimeType = self::normalizeMimeType($mimeType ?? self::detectMimeType($binary));
+        $mimeType = self::normalizeMimeType($mimeType ?? FilesystemServices::detectMimeTypeFromBytes($binary));
         $base64 = base64_encode($binary);
 
         return match (self::nativeKind($mimeType, $allowStructuredText)) {
@@ -225,7 +216,7 @@ class AttachmentDescriptionService
         }
 
         try {
-            $mimeType = self::detectMimeType($binary);
+            $mimeType = FilesystemServices::detectMimeTypeFromBytes($binary);
             $block = self::contentBlockFor($binary, $mimeType, allowStructuredText: $this->allowStructuredText);
 
             if ($block === null) {
@@ -262,7 +253,7 @@ class AttachmentDescriptionService
             default => 'File',
         };
 
-        $name = $filename !== null ? trim($filename) : '';
+        $name = $filename !== null ? AttachmentPromptBuilder::safeFileName($filename, '') : '';
 
         return $name !== '' ? "{$kind} \"{$name}\"" : $kind;
     }

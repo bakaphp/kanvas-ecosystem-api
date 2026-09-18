@@ -9,6 +9,7 @@ use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
 use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Throwable;
 
 /**
@@ -56,7 +57,7 @@ final class AttachmentFetchService
      */
     public static function unavailableNote(string $source): string
     {
-        $name = Str::fileNameFromUrl($source, 'an attachment');
+        $name = AttachmentPromptBuilder::safeFileName(Str::fileNameFromUrl($source), 'an attachment');
 
         return "[Could not load {$name} — it is not visible to you. "
             . 'If the person refers to it, tell them you could not open it.]';

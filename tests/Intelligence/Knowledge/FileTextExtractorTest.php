@@ -6,7 +6,9 @@ namespace Tests\Intelligence\Knowledge;
 
 use DateTimeImmutable;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\FileTextExtractor;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Shared\Date;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
@@ -45,7 +47,8 @@ class FileTextExtractorTest extends TestCase
             'ods' => ['libreoffice.ods', true],
             'image not supported' => ['logo.png', false],
             'zip not supported' => ['bundle.zip', false],
-            'no extension' => ['noext', false],
+            // Says nothing either way, so the bytes are read to find out — they, not the name, pick the parser.
+            'no extension' => ['noext', true],
         ];
     }
 
@@ -121,6 +124,126 @@ class FileTextExtractorTest extends TestCase
         $this->assertStringContainsString('row1', $text);
         $this->assertStringContainsString('row2000', $text);
         $this->assertStringNotContainsString('row2600', $text);
+        // The loader stops at the cap, so the rows past it never reach the render; without the note the model
+        // reads a cut sheet as a complete one.
+        $this->assertStringContainsString('range reaches row 2600; only the first 2000 rows were read', $text);
+    }
+
+    public function testASheetWiderThanTheColumnCapIsBoundedAndSaysSo(): void
+    {
+        $text = $this->extractWorkbook(['Wide' => $this->grid(rows: 3, columns: 150)]);
+
+        $this->assertStringContainsString('r1c100', $text);
+        $this->assertStringNotContainsString('r1c101', $text);
+        $this->assertStringContainsString('range reaches column ET; only the first 100 columns were read', $text);
+    }
+
+    /** The note belongs to the sheet that was cut, not to the whole workbook. */
+    public function testOnlyTheCutSheetCarriesTheNote(): void
+    {
+        $text = $this->extractWorkbook([
+            'Narrow' => $this->grid(rows: 2, columns: 3),
+            'Wide' => $this->grid(rows: 2, columns: 150),
+        ]);
+
+        [$narrow, $wide] = explode('# Sheet: Wide', $text);
+
+        $this->assertStringNotContainsString('only the first', $narrow);
+        $this->assertStringContainsString('only the first 100 columns were read', $wide);
+    }
+
+    public function testASheetInsideTheCapsCarriesNoNote(): void
+    {
+        $this->assertStringNotContainsString(
+            'only the first',
+            $this->extractWorkbook(['Small' => $this->grid(rows: 5, columns: 5)]),
+        );
+    }
+
+    /**
+     * The reader also asks the filter about column widths and row heights, never showing it a cell's
+     * value — so a width set far past the data must not read as columns the model is missing.
+     */
+    public function testFormattingPastTheDataIsNotReportedAsMissingColumns(): void
+    {
+        $book = new Spreadsheet();
+        $sheet = $book->getActiveSheet()->setTitle('Narrow');
+        $sheet->fromArray([['a', 'b', 'c'], ['1', '2', '3']]);
+        $sheet->getColumnDimension('EZ')->setWidth(20);
+
+        $text = $this->extractBook($book);
+
+        $this->assertStringContainsString("a\tb\tc", $text);
+        $this->assertStringNotContainsString('columns were read', $text);
+    }
+
+    /**
+     * The render shows the workbook's first 2000 rows across all sheets, so loading more than that is memory
+     * spent on nothing; capping each sheet on its own let many large sheets multiply the cost.
+     */
+    public function testTheRowBudgetIsSharedAcrossSheetsInOrder(): void
+    {
+        $text = $this->extractWorkbook([
+            'One' => $this->grid(rows: 1500, columns: 2),
+            'Two' => $this->grid(rows: 1500, columns: 2),
+            'Three' => $this->grid(rows: 1500, columns: 2),
+        ]);
+
+        [, $one, $two, $three] = preg_split('/# Sheet: \w+/', $text);
+
+        $this->assertStringContainsString('r1500c1', $one);
+        $this->assertStringNotContainsString('only the first', $one);
+        $this->assertStringContainsString('r500c1', $two);
+        $this->assertStringNotContainsString('r501c1', $two);
+        $this->assertStringContainsString('only the first 500 rows were read', $two);
+        $this->assertStringNotContainsString('r1c1', $three);
+        $this->assertStringContainsString('not read: the 2000-row budget', $three);
+    }
+
+    /**
+     * @param array<string, list<list<string>>> $sheets
+     */
+    private function extractWorkbook(array $sheets): string
+    {
+        $book = new Spreadsheet();
+        $book->removeSheetByIndex(0);
+
+        foreach ($sheets as $title => $rows) {
+            $book->createSheet()->setTitle($title)->fromArray($rows);
+        }
+
+        return $this->extractBook($book);
+    }
+
+    private function extractBook(Spreadsheet $book): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'sheet') . '.xlsx';
+        new Xlsx($book)->save($path);
+
+        $text = new FileTextExtractor()->extractFrom((string) file_get_contents($path), 'xlsx');
+        @unlink($path);
+
+        return $text;
+    }
+
+    /**
+     * @return list<list<string>>
+     */
+    private function grid(int $rows, int $columns): array
+    {
+        $grid = [];
+
+        for ($row = 1; $row <= $rows; $row++) {
+            $line = [];
+
+            for ($column = 1; $column <= $columns; $column++) {
+                $line[] = "r{$row}c{$column}";
+            }
+
+            $grid[] = $line;
+        }
+
+        return $grid;
     }
 
     public function testAnUnsupportedFileIsASkipNotAFailure(): void
@@ -224,6 +347,68 @@ class FileTextExtractorTest extends TestCase
     }
 
     /** A corrupt upload is a skip, never an exception into the agent turn. */
+    /**
+     * The parser comes from the bytes, never a name: the uploader chooses the name, and letting it choose
+     * the parser lets crafted bytes be routed into whichever decoder they target.
+     */
+    public function testEachFormatIsReadByItsOwnParserFromItsBytesAlone(): void
+    {
+        $extractor = new FileTextExtractor();
+
+        $this->assertStringContainsString("sku\tqty", $extractor->extractFromBytes($this->spreadsheetBytes('Xlsx')));
+        $this->assertStringContainsString("sku\tqty", $extractor->extractFromBytes($this->spreadsheetBytes('Xls')));
+        $this->assertStringContainsString('"a": 1', $extractor->extractFromBytes('{"a":1}'));
+        $this->assertSame("name,dept\nAda,Engineering", $extractor->extractFromBytes("name,dept\nAda,Engineering"));
+    }
+
+    /**
+     * libmagic calls this file plain application/zip, so trusting it alone would refuse every such ODS; the
+     * archive's contents are what identify it.
+     */
+    public function testAnOdsLibmagicCannotNameIsStillRead(): void
+    {
+        $bytes = $this->spreadsheetBytes('Ods');
+
+        $this->assertSame('application/zip', FilesystemServices::detectMimeTypeFromBytes($bytes));
+        $this->assertStringContainsString("sku\tqty", new FileTextExtractor()->extractFromBytes($bytes));
+    }
+
+    public function testAWordDocumentIsReadFromItsBytes(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'doc') . '.docx';
+
+        $zip = new ZipArchive();
+        $zip->open($path, ZipArchive::CREATE);
+        $zip->addFromString('word/document.xml', '<w:p>quarterly revenue</w:p>');
+        $zip->addFromString('[Content_Types].xml', '<Types/>');
+        $zip->close();
+
+        $bytes = (string) file_get_contents($path);
+        @unlink($path);
+
+        $this->assertSame('quarterly revenue', new FileTextExtractor()->extractFromBytes($bytes));
+    }
+
+    /** Bytes no parser here recognises are refused, not dumped into a prompt as garbage text. */
+    public function testUnrecognisedBinaryIsRefused(): void
+    {
+        $this->assertSame('', new FileTextExtractor()->extractFromBytes(random_bytes(512) . "\x00\x01\x02"));
+    }
+
+    private function spreadsheetBytes(string $writer): string
+    {
+        $book = new Spreadsheet();
+        $book->getActiveSheet()->fromArray([['sku', 'qty'], ['PIM-001', '42']]);
+
+        $path = tempnam(sys_get_temp_dir(), 'book');
+        IOFactory::createWriter($book, $writer)->save($path);
+
+        $bytes = (string) file_get_contents($path);
+        @unlink($path);
+
+        return $bytes;
+    }
+
     public function testCorruptBinaryIsASkipNotAThrow(): void
     {
         $extractor = new FileTextExtractor();
