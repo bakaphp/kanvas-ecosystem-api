@@ -23,6 +23,7 @@ use Tests\TestCase;
 final class PublishApprovedParkingActivityTest extends TestCase
 {
     use DatabaseTransactions;
+    use LoadsParkingApplicationFixture;
     use HasIntegrationCompany;
 
     protected array $connectionsToTransact = ['mysql', 'ecosystem', 'crm', 'inventory', 'event'];
@@ -111,14 +112,5 @@ final class PublishApprovedParkingActivityTest extends TestCase
         CorporateField::COMPANY_ID->writeTo($lead, (string) $this->company->getId());
 
         return $lead->fresh();
-    }
-
-    private function fixtureFields(): array
-    {
-        return json_decode(
-            (string) file_get_contents(__DIR__ . '/Fixtures/parking_application_custom_fields.json'),
-            true,
-            flags: JSON_THROW_ON_ERROR,
-        );
     }
 }

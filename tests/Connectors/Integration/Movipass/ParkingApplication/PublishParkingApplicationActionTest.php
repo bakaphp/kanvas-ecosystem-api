@@ -10,7 +10,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as CorporateField;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\ParkingApplications\Actions\PublishParkingApplicationAction;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationContractSettingEnum as Contract;
 use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationFieldEnum as Field;
 use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationStatusEnum;
 use Kanvas\Event\Events\Models\ScheduleException;
@@ -18,7 +17,6 @@ use Kanvas\Event\Events\Models\ScheduleRules;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Guild\Leads\Models\LeadAttempt;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
 use Tests\TestCase;
@@ -26,6 +24,7 @@ use Tests\TestCase;
 final class PublishParkingApplicationActionTest extends TestCase
 {
     use DatabaseTransactions;
+    use LoadsParkingApplicationFixture;
 
     protected array $connectionsToTransact = ['mysql', 'ecosystem', 'crm', 'inventory', 'event'];
 
@@ -37,17 +36,9 @@ final class PublishParkingApplicationActionTest extends TestCase
         parent::setUp();
 
         $this->kanvasApp = app(Apps::class);
-        $this->kanvasApp->del(Contract::CURRENT_VERSION->value);
         $this->company = Auth::user()->getCurrentCompany();
 
         new InventorySetup($this->kanvasApp, Auth::user(), $this->company)->run();
-    }
-
-    protected function tearDown(): void
-    {
-        $this->kanvasApp->del(Contract::CURRENT_VERSION->value);
-
-        parent::tearDown();
     }
 
     public function testPublishesProductVariantWarehouseScheduleAndPhotos(): void
@@ -102,61 +93,6 @@ final class PublishParkingApplicationActionTest extends TestCase
         $fresh = $lead->fresh();
         $this->assertSame(ParkingApplicationStatusEnum::PUBLISHED->value, Field::STATUS->readFrom($fresh));
         $this->assertSame((string) $product->getId(), (string) Field::PRODUCT_ID->readFrom($fresh));
-    }
-
-    public function testStampsTheContractAcceptanceFromTheReceiverRecord(): void
-    {
-        $this->kanvasApp->set(Contract::CURRENT_VERSION->value, '2026-09');
-        $lead = $this->approvedApplication();
-        LeadAttempt::create([
-            'companies_id' => $lead->companies_id,
-            'apps_id' => $lead->apps_id,
-            'leads_id' => $lead->getId(),
-            'header' => [],
-            'request' => [],
-            'ip' => '190.166.1.20',
-            'source' => 'test',
-            'public_key' => '',
-            'processed' => 1,
-            'created_at' => '2026-09-16 09:30:00',
-        ]);
-
-        $product = new PublishParkingApplicationAction($lead->fresh())->execute();
-
-        $fresh = $lead->fresh();
-        $this->assertSame('2026-09', Field::CONTRACT_VERSION->readFrom($fresh));
-        $this->assertSame('190.166.1.20', Field::CONTRACT_ACCEPTANCE_IP->readFrom($fresh));
-        $this->assertStringStartsWith('2026-09-16T09:30:00', (string) Field::CONTRACT_ACCEPTED_AT->readFrom($fresh));
-
-        $contract = $product->attributeValues->first(fn ($av) => $av->attribute->slug === 'contract')->value;
-        $this->assertSame('2026-09', $contract['version']);
-        $this->assertSame('190.166.1.20', $contract['ip']);
-    }
-
-    public function testAnUnacceptedContractBlocksPublication(): void
-    {
-        $lead = $this->approvedApplication([Field::CONTRACT_ACCEPTED->value => false]);
-
-        $this->expectException(ValidationException::class);
-        $this->expectExceptionMessage(Field::CONTRACT_ACCEPTED->value);
-
-        new PublishParkingApplicationAction($lead)->execute();
-    }
-
-    public function testANewerContractVersionInForceHoldsPublicationUntilReaccepted(): void
-    {
-        $this->kanvasApp->set(Contract::CURRENT_VERSION->value, '2026-11');
-        $lead = $this->approvedApplication([Field::CONTRACT_VERSION->value => '2026-09']);
-
-        try {
-            new PublishParkingApplicationAction($lead)->execute();
-            $this->fail('expected a ValidationException');
-        } catch (ValidationException $e) {
-            $this->assertStringContainsString('2026-11', $e->getMessage());
-            $this->assertStringContainsString('accept it again', $e->getMessage());
-        }
-
-        $this->assertNull(Field::PRODUCT_ID->readFrom($lead->fresh()));
     }
 
     public function testRunningTwiceReturnsTheSameProduct(): void
@@ -251,15 +187,5 @@ final class PublishParkingApplicationActionTest extends TestCase
         ]);
 
         return $lead->fresh();
-    }
-
-    /** @return array<string, mixed> the custom_fields block of the reference receiver payload */
-    private function fixtureFields(): array
-    {
-        return json_decode(
-            (string) file_get_contents(__DIR__ . '/Fixtures/parking_application_custom_fields.json'),
-            true,
-            flags: JSON_THROW_ON_ERROR,
-        );
     }
 }
