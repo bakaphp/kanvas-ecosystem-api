@@ -14,6 +14,7 @@ use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Neuron\History\ChannelMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
@@ -344,6 +345,10 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
 
         if ($user !== null && ! $this instanceof ConversesWithCustomer) {
             $tools[] = new ReadFileTool()->withContext($app, $company, $user);
+        }
+
+        if ($this->rendersArtifacts) {
+            $tools[] = new RenderArtifactTool();
         }
 
         return $tools;

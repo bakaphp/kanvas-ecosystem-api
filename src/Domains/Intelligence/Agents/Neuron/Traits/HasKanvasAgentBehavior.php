@@ -50,8 +50,8 @@ trait HasKanvasAgentBehavior
 
     /** @var list<string> Attachment URLs/paths (image/audio/PDF) on the current turn's user prompt. */
     protected array $turnMedia = [];
-
     protected bool $privateUserTurn = false;
+    protected bool $rendersArtifacts = false;
 
     public function setConfiguration(
         Agent $agent,
@@ -135,6 +135,11 @@ trait HasKanvasAgentBehavior
     public function setPrivateUserTurn(bool $private): void
     {
         $this->privateUserTurn = $private;
+    }
+
+    public function setRendersArtifacts(bool $renders): void
+    {
+        $this->rendersArtifacts = $renders;
     }
 
     /**

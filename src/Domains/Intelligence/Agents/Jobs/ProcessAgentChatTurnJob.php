@@ -72,6 +72,8 @@ class ProcessAgentChatTurnJob implements ShouldQueue
                 attachments: $this->resolveAttachments(),
                 currentLead: $this->resolveCurrentLead(),
                 documents: $this->documents,
+                // Only userChat queues this job, and its reply lands in the admin chat.
+                rendersArtifacts: true,
             );
             $reply = $kernel->execute();
         } catch (Throwable $e) {

@@ -202,6 +202,7 @@ class AgentChatMutation
             attachments: $attachments,
             currentLead: $currentLead,
             documents: $mergedFiles,
+            rendersArtifacts: true,
         );
 
         $response = $processor->execute();
