@@ -25,6 +25,8 @@ use Kanvas\Filesystem\Models\Filesystem;
  */
 class AttachmentPromptBuilder
 {
+    private const int MAX_FILE_NAME_LENGTH = 120;
+
     /**
      * @param list<string> $fileUrls
      */
@@ -51,7 +53,11 @@ class AttachmentPromptBuilder
         $markers = [];
 
         foreach ($files as $file) {
-            $markers[] = "[Attached file on this message — filesystem_id: {$file->getId()}, filename: \"{$file->name}\"]";
+            $markers[] = sprintf(
+                '[Attached file on this message — filesystem_id: %d, filename: "%s"]',
+                $file->getId(),
+                self::safeFileName((string) $file->name),
+            );
         }
 
         if ($markers === []) {
@@ -59,6 +65,24 @@ class AttachmentPromptBuilder
         }
 
         return self::append($message, implode("\n", $markers));
+    }
+
+    /**
+     * Whoever uploads a file chooses its name, and the name lands verbatim inside a bracketed note the model
+     * reads as system text. Quotes, brackets and line breaks are what let a name close that note and open
+     * one of its own, so they go — control and invisible formatting characters too — and so does anything
+     * past a sane length.
+     */
+    public static function safeFileName(string $name, string $fallback = 'file'): string
+    {
+        $clean = (string) preg_replace('/[\p{C}\p{Zl}\p{Zp}"\[\]<>`]+/u', ' ', $name);
+        $clean = trim((string) preg_replace('/\s+/u', ' ', $clean));
+
+        if ($clean === '') {
+            return $fallback;
+        }
+
+        return mb_strimwidth($clean, 0, self::MAX_FILE_NAME_LENGTH, '…');
     }
 
     private static function append(string $message, string $block): string

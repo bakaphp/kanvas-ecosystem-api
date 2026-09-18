@@ -9,6 +9,7 @@ use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
+use Kanvas\Intelligence\Agents\Jobs\ContinueAgentTurnJob;
 use Override;
 use Throwable;
 
@@ -51,7 +52,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         );
 
         try {
-            $response = new AgentChatKernel(
+            $kernel = new AgentChatKernel(
                 agent: $this->agent,
                 session: $this->session,
                 message: $inboundText,
@@ -63,7 +64,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
                 sourceMessage: $this->message,
                 documents: $documentUrls,
                 persistConversation: false,
-            )->execute();
+            );
+            $response = $kernel->execute();
         } catch (Throwable $e) {
             $client->updateMessage($slackChannelId, $placeholderTs, self::FAILED);
 
@@ -78,6 +80,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             $this->channel
         );
 
+        $delivered = false;
+
         if (! $reply->is_locked) {
             try {
                 $client->replacePlaceholderWithReply(
@@ -86,6 +90,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
                     $responseText,
                     $threadTs !== '' ? $threadTs : null,
                 );
+                $delivered = true;
             } catch (Throwable $e) {
                 report($e);
 
@@ -98,6 +103,12 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
                 } catch (Throwable) {
                 }
             }
+        }
+
+        // Only once the reply is in the thread, so the follow-up lands after it — and never for a locked
+        // reply, since the follow-up is pushed straight to Slack and would get around the lock.
+        if ($delivered) {
+            ContinueAgentTurnJob::dispatchIfCutShort($kernel, $responseText);
         }
 
         return [

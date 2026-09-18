@@ -38,11 +38,19 @@ return [
         'archive_path_prefix' => env('NERVOUS_SYSTEM_ARCHIVE_PATH_PREFIX', 'nervous-system'),
 
         /*
-        | Batch size for the archive sweeper. Events are read from MySQL
-        | in chunks of this size, written to the archive blob, then
-        | deleted from MySQL. Larger = faster but more memory pressure.
+        | Rows hydrated per read by the archive sweeper. Keep it small: one
+        | ledger row can carry a multi-MB payload, and 5000 of those in a
+        | single fetch exhausted the 1GB CLI memory limit.
         */
-        'archive_chunk_size' => (int) env('NERVOUS_SYSTEM_ARCHIVE_CHUNK_SIZE', 5000),
+        'archive_chunk_size' => (int) env('NERVOUS_SYSTEM_ARCHIVE_CHUNK_SIZE', 500),
+
+        /*
+        | Events per archive blob. Each segment is uploaded, recorded and
+        | deleted from MySQL before the next one starts, so a run that dies
+        | midway keeps its progress. Also bounds what the restore action
+        | loads per blob.
+        */
+        'archive_segment_size' => (int) env('NERVOUS_SYSTEM_ARCHIVE_SEGMENT_SIZE', 50000),
 
         /*
         | Event types the sweeper must NEVER archive-and-delete, regardless

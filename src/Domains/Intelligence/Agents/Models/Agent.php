@@ -405,6 +405,16 @@ class Agent extends BaseModel
     }
 
     /**
+     * The company an agent's turn belongs to: its own, or — for a global agent, which has none — the company
+     * of the person it is talking to. The handler and every conversation record resolve it here, so a turn
+     * can never be filed under a different company than the chat it belongs to.
+     */
+    public function companyFor(Users $user): CompanyInterface
+    {
+        return $this->company ?? $user->getCurrentCompany();
+    }
+
+    /**
      * Whether this agent talks to a user privately — its handler implements
      * ConversesWithUser. An internal system agent whose conversation stays on the
      * user↔agent channel and never posts into a customer-facing lead timeline.

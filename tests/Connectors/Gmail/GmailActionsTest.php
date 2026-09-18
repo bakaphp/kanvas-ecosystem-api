@@ -190,7 +190,9 @@ class GmailActionsTest extends TestCase
                     && str_contains($decoded, 'To: approver@kanvas.test')
                     && str_contains($decoded, 'Subject: Re: Invoice #4521')
                     && str_contains($decoded, 'In-Reply-To: <original@vendor.com>')
-                    && str_contains($decoded, 'Approved by Jane Doe on 2026-08-19');
+                    && str_contains($decoded, 'Content-Type: text/html; charset=UTF-8')
+                    && str_contains($decoded, '<strong>Approved</strong> by Jane Doe on 2026-08-19')
+                    && ! str_contains($decoded, '**');
             }))
             ->andReturn(new Message(['id' => 'SENT_1', 'threadId' => 'THREAD_1']));
 
@@ -201,7 +203,7 @@ class GmailActionsTest extends TestCase
             app(Apps::class),
             'MSG_1',
             ['approver@kanvas.test'],
-            'Approved by Jane Doe on 2026-08-19',
+            '**Approved** by Jane Doe on 2026-08-19',
             $service,
         )->execute();
 

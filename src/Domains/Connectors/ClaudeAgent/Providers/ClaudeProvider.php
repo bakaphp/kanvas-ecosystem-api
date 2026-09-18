@@ -61,6 +61,7 @@ class ClaudeProvider extends AbstractAgentRuntimeProvider
         }
 
         return Session::query()
+            ->fromAgent($agent)
             ->where('uuid', $sessionKey)
             ->where('apps_id', $agent->apps_id)
             ->first();

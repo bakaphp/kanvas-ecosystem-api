@@ -70,10 +70,8 @@ trait HasKanvasAgentBehavior
 
         $this->agent = $agent;
         $this->entity = $entity;
-        // Global agents (apps_id=0/companies_id=0) have no FK relation; fall back
-        // to the user's current company.
         $this->app = $agent->app;
-        $this->company = $agent->company ?? $user->getCurrentCompany();
+        $this->company = $agent->companyFor($user);
         $this->externalReferenceId = $externalReferenceId;
         $this->user = $user;
     }

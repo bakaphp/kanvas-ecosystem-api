@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Intelligence;
 
+use Baka\Http\SafeUrlFetcher;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
@@ -556,8 +557,8 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
             $this->assertTrue($result['created']);
             Http::assertSent(
                 fn (Request $request): bool => str_contains($request->url(), 'chat.postMessage')
-                    && str_contains((string) $request['text'], 'Notification Test Customer')
-                    && str_contains((string) $request['text'], (string) $result['credit_memo_id'])
+                    && str_contains((string) $request['markdown_text'], 'Notification Test Customer')
+                    && str_contains((string) $request['markdown_text'], (string) $result['credit_memo_id'])
             );
         } finally {
             $this->kanvasApp->set(InvoicesConfigurationEnum::CREDIT_MEMO_NOTIFICATION_EMAIL->value, $originalNotificationEmail);
@@ -589,10 +590,10 @@ class AccountsReceivableAgentToolsTest extends ScribeTestCase
         $this->kanvasApp->set(ApprovalConfigurationEnum::SLACK_NOTIFIER_AGENT_ID->value, (string) $agent->getId());
 
         try {
+            SafeUrlFetcher::fake(static fn (string $url): string => '%PDF-1.4 fake bytes');
             Http::fake([
                 'slack.com/api/users.lookupByEmail' => Http::response(['ok' => true, 'user' => ['id' => 'U123']]),
                 'slack.com/api/conversations.open' => Http::response(['ok' => true, 'channel' => ['id' => 'D123']]),
-                'cdn.example.test/*' => Http::response('%PDF-1.4 fake bytes', 200),
                 'slack.com/api/files.getUploadURLExternal' => Http::response([
                     'ok' => true,
                     'upload_url' => 'https://files.slack.com/upload/v1/abc123',

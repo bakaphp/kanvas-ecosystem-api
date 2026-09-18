@@ -8,6 +8,7 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\Notifications\Notification;
+use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Override;
 
 /**
@@ -91,7 +92,7 @@ class PlanProgressNotification extends Notification
 
         return [
             'agent' => $plan?->createdByAgent ?? $plan?->agent,
-            'text' => $title !== '' ? '*' . $title . '*\n' . $message : $message,
+            'text' => $title !== '' ? '**' . $title . "**\n\n" . $message : $message,
         ];
     }
 
@@ -101,6 +102,6 @@ class PlanProgressNotification extends Notification
         $title = (string) ($this->data['title'] ?? 'Plan update');
         $message = (string) ($this->data['message'] ?? '');
 
-        return '<h2>' . e($title) . '</h2><p>' . e($message) . '</p>';
+        return '<h2>' . e($title) . '</h2>' . MarkdownEmailRenderer::toEmailHtml($message, allowHtml: false);
     }
 }

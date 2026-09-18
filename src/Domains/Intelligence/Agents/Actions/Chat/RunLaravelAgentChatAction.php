@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
@@ -168,7 +169,7 @@ class RunLaravelAgentChatAction
                 continue;
             }
 
-            $mimeType = AttachmentDescriptionService::detectMimeType($binary);
+            $mimeType = FilesystemServices::detectMimeTypeFromBytes($binary);
             $kind = AttachmentDescriptionService::nativeKind($mimeType, $allowStructuredText);
             $file = $this->wrapAttachment($binary, $mimeType, $kind);
 

@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Services\AttachmentBudgetService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Agents\Services\AttachmentFetchService;
@@ -35,6 +36,11 @@ use Throwable;
 
 class RunNeuronChatAction
 {
+    private bool $endedOnToolBudget = false;
+
+    /** @var list<string> */
+    private array $executedToolCalls = [];
+
     /**
      * @param list<string> $media Attachment URLs (image/audio/PDF/text/CSV) sent natively as content blocks.
      */
@@ -110,6 +116,8 @@ class RunNeuronChatAction
                 $state = $responseContent->run();
                 $responseMessage = $state->getMessage();
                 [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
+                $this->endedOnToolBudget = BoundToolResultsMiddleware::exhausted($state);
+                $this->executedToolCalls = BoundToolResultsMiddleware::executedCalls($state);
             } else {
                 $responseMessage = $responseContent;
                 if ($responseMessage instanceof Message && ($u = $responseMessage->getUsage())) {
@@ -187,6 +195,22 @@ class RunNeuronChatAction
         $this->backfillChannelMessagesToLead();
 
         return $content;
+    }
+
+    /**
+     * True when the turn stopped because it spent its tool-output budget, not because the agent was done.
+     */
+    public function endedOnToolBudget(): bool
+    {
+        return $this->endedOnToolBudget;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function executedToolCalls(): array
+    {
+        return $this->executedToolCalls;
     }
 
     private function humanizedFallback(Throwable $e): string

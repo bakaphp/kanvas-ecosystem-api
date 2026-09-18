@@ -68,6 +68,22 @@ class SlackNotificationChannelTest extends TestCase
         $this->assertTrue(true, 'A missing Slack token is a no-op, not a failure.');
     }
 
+    public function test_a_plan_notification_renders_the_agents_markdown_for_slack_and_email(): void
+    {
+        $plan = $this->makePlan(['status' => PlanStatusEnum::DONE->value]);
+        $notification = new PlanProgressNotification($plan, 'Finished', "- **Audit** done\n- Report sent");
+
+        $this->assertSame(
+            "**Finished**\n\n- **Audit** done\n- Report sent",
+            $notification->toSlack(static::$cachedUser)['text'],
+        );
+
+        $html = $notification->getEmailContent();
+        $this->assertStringContainsString('<h2>Finished</h2>', $html);
+        $this->assertStringContainsString('<li><strong>Audit</strong> done</li>', $html);
+        $this->assertStringNotContainsString('**', $html);
+    }
+
     /** Nothing to say means nothing sent — an empty body must not post a blank DM. */
     public function test_an_empty_message_sends_nothing(): void
     {

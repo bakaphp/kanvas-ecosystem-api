@@ -202,13 +202,19 @@ class AgentConversationsQueryTest extends TestCase
             'User B must not see User A conversations',
         );
 
+        // A turn is recorded under its agent's company, so B talks to an agent of B's own company.
+        $agentB = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($userB->getCurrentCompany()->getId())
+            ->create(['user_id' => $userB->getId()]);
+
         $store->logTurn(
             userId: $userB->getId(),
             sessionId: (string) Str::uuid(),
             agentClass: 'Test\\Stub\\Handler',
             userMessage: 'message from B',
             assistantResponse: 'reply to B',
-            agentId: $agent->getId(),
+            agentId: $agentB->getId(),
         );
 
         $userBResponse = $this->graphQL('

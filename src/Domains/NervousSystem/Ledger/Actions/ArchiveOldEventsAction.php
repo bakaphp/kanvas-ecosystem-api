@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Ledger\Actions;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -16,10 +16,32 @@ use RuntimeException;
 
 /**
  * Config keys (all under `config('nervous-system.ledger.*')`):
- *   retention_days, archive_disk, archive_path_prefix, archive_chunk_size
+ *   retention_days, archive_disk, archive_path_prefix, archive_chunk_size, archive_segment_size
+ *
+ * The sweep is split into segments: every `archive_segment_size` events become their own blob and
+ * `EventArchive` row, and are deleted from MySQL as soon as that blob is uploaded. A run that dies
+ * midway (OOM, deploy, timeout) keeps every finished segment instead of re-archiving the whole
+ * backlog tomorrow — a single end-of-run delete let one failure snowball the table day over day.
  */
 class ArchiveOldEventsAction
 {
+    private readonly string $disk;
+    private readonly string $pathPrefix;
+    private readonly int $chunkSize;
+    private readonly int $segmentSize;
+
+    /** @var resource|null */
+    private $gz = null;
+    private ?string $tempFile = null;
+
+    /** @var list<int> */
+    private array $segmentIds = [];
+    private ?Carbon $segmentStart = null;
+    private ?Carbon $segmentEnd = null;
+
+    /** @var list<array{archive_id: int, s3_path: string, event_count: int, size_bytes: int}> */
+    private array $archives = [];
+
     /**
      * @param list<string>|null $preserveEventTypesOverride
      */
@@ -27,111 +49,155 @@ class ArchiveOldEventsAction
         public readonly ?int $retentionDaysOverride = null,
         public readonly ?string $diskOverride = null,
         public readonly ?array $preserveEventTypesOverride = null,
+        public readonly ?int $segmentSizeOverride = null,
     ) {
+        $this->disk = $this->diskOverride
+            ?? (string) config('nervous-system.ledger.archive_disk', 's3');
+        $this->pathPrefix = (string) config('nervous-system.ledger.archive_path_prefix', 'nervous-system');
+        $this->chunkSize = max(1, (int) config('nervous-system.ledger.archive_chunk_size', 500));
+        $this->segmentSize = max(1, $this->segmentSizeOverride ?? (int) config('nervous-system.ledger.archive_segment_size', 50000));
     }
 
     /**
-     * @return array{archive_id: int, event_count: int, s3_path: string, size_bytes: int}|array{event_count: 0}
+     * @return array{event_count: int, size_bytes: int, archives: list<array{archive_id: int, s3_path: string, event_count: int, size_bytes: int}>}
      */
     public function execute(): array
     {
         $retentionDays = $this->retentionDaysOverride
             ?? (int) config('nervous-system.ledger.retention_days', 7);
-        $disk = $this->diskOverride
-            ?? (string) config('nervous-system.ledger.archive_disk', 's3');
-        $pathPrefix = (string) config('nervous-system.ledger.archive_path_prefix', 'nervous-system');
-        $chunkSize = (int) config('nervous-system.ledger.archive_chunk_size', 5000);
         $preserveEventTypes = $this->preserveEventTypesOverride
             ?? (array) config('nervous-system.ledger.preserve_event_types', []);
 
         $cutoff = now()->subDays($retentionDays);
 
-        $window = Event::query()
-            ->where('occurred_at', '<', $cutoff)
-            ->when($preserveEventTypes !== [], fn (Builder $q): Builder => $q->whereNotIn('event_type', $preserveEventTypes))
-            ->selectRaw('count(*) as event_count, min(occurred_at) as window_start, max(occurred_at) as window_end')
-            ->first();
+        try {
+            Event::query()
+                ->where('occurred_at', '<', $cutoff)
+                ->when($preserveEventTypes !== [], fn (Builder $q): Builder => $q->whereNotIn('event_type', $preserveEventTypes))
+                ->chunkById($this->chunkSize, function (Collection $events): void {
+                    foreach ($events as $event) {
+                        $this->write($event);
 
-        if ($window === null || (int) $window->event_count === 0) {
-            return ['event_count' => 0];
+                        if (count($this->segmentIds) >= $this->segmentSize) {
+                            $this->flushSegment();
+                        }
+                    }
+                });
+
+            $this->flushSegment();
+        } finally {
+            $this->discardOpenSegment();
         }
 
-        $startCarbon = Carbon::parse($window->window_start);
-        $endCarbon = Carbon::parse($window->window_end);
+        return [
+            'event_count' => array_sum(array_column($this->archives, 'event_count')),
+            'size_bytes' => array_sum(array_column($this->archives, 'size_bytes')),
+            'archives' => $this->archives,
+        ];
+    }
+
+    private function write(Event $event): void
+    {
+        if ($this->gz === null) {
+            $tempFile = tempnam(sys_get_temp_dir(), 'ns-archive-');
+            $gz = $tempFile !== false ? gzopen($tempFile, 'wb9') : false;
+
+            if ($gz === false) {
+                throw new RuntimeException('Could not open temp file for gzip writing');
+            }
+
+            $this->tempFile = $tempFile;
+            $this->gz = $gz;
+        }
+
+        gzwrite($this->gz, json_encode($event->toArray()) . "\n");
+
+        $this->segmentIds[] = $event->id;
+
+        if ($this->segmentStart === null || $event->occurred_at->lt($this->segmentStart)) {
+            $this->segmentStart = $event->occurred_at->copy();
+        }
+
+        if ($this->segmentEnd === null || $event->occurred_at->gt($this->segmentEnd)) {
+            $this->segmentEnd = $event->occurred_at->copy();
+        }
+    }
+
+    private function flushSegment(): void
+    {
+        if ($this->gz === null || $this->segmentIds === []) {
+            return;
+        }
+
+        gzclose($this->gz);
+        $this->gz = null;
 
         $relativePath = sprintf(
             '%s/%s/%s/events-%s-to-%s-%s.jsonl.gz',
-            $pathPrefix,
-            $startCarbon->format('Y'),
-            $startCarbon->format('m-d'),
-            $startCarbon->format('Ymd-His'),
-            $endCarbon->format('Ymd-His'),
+            $this->pathPrefix,
+            $this->segmentStart->format('Y'),
+            $this->segmentStart->format('m-d'),
+            $this->segmentStart->format('Ymd-His'),
+            $this->segmentEnd->format('Ymd-His'),
             substr((string) Str::uuid(), 0, 8),
         );
 
-        $tempFile = tempnam(sys_get_temp_dir(), 'ns-archive-') . '.jsonl.gz';
-        $gz = gzopen($tempFile, 'wb9');
-
-        if ($gz === false) {
-            throw new RuntimeException('Could not open temp file for gzip writing');
-        }
-
-        $written = 0;
-
-        Event::query()
-            ->where('occurred_at', '<', $cutoff)
-            ->when($preserveEventTypes !== [], fn (Builder $q): Builder => $q->whereNotIn('event_type', $preserveEventTypes))
-            ->orderBy('id')
-            ->chunkById($chunkSize, function ($events) use ($gz, &$written): void {
-                foreach ($events as $event) {
-                    $line = json_encode($event->toArray()) . "\n";
-                    gzwrite($gz, $line);
-                    $written++;
-                }
-            });
-
-        gzclose($gz);
-
-        $sizeBytes = filesize($tempFile);
-
-        $stream = fopen($tempFile, 'rb');
+        $sizeBytes = (int) filesize($this->tempFile);
+        $stream = fopen($this->tempFile, 'rb');
 
         if ($stream === false) {
-            @unlink($tempFile);
-
             throw new RuntimeException('Could not reopen temp archive for streaming upload');
         }
 
         try {
-            Storage::disk($disk)->writeStream($relativePath, $stream);
+            Storage::disk($this->disk)->writeStream($relativePath, $stream);
         } finally {
             fclose($stream);
-            @unlink($tempFile);
         }
 
         $archive = new EventArchive();
         $archive->apps_id = null;
         $archive->companies_id = null;
-        $archive->window_starts_at = $startCarbon->toDateString();
-        $archive->window_ends_at = $endCarbon->toDateString();
-        $archive->s3_disk = $disk;
+        $archive->window_starts_at = $this->segmentStart->toDateString();
+        $archive->window_ends_at = $this->segmentEnd->toDateString();
+        $archive->s3_disk = $this->disk;
         $archive->s3_path = $relativePath;
-        $archive->event_count = $written;
-        $archive->size_bytes = $sizeBytes !== false ? (int) $sizeBytes : null;
+        $archive->event_count = count($this->segmentIds);
+        $archive->size_bytes = $sizeBytes;
         $archive->archived_at = now();
         $archive->saveOrFail();
 
-        DB::connection('intelligence')
-            ->table('nervous_system_events')
-            ->where('occurred_at', '<', $cutoff)
-            ->when($preserveEventTypes !== [], fn (QueryBuilder $q): QueryBuilder => $q->whereNotIn('event_type', $preserveEventTypes))
-            ->delete();
+        foreach (array_chunk($this->segmentIds, $this->chunkSize) as $ids) {
+            DB::connection('intelligence')
+                ->table('nervous_system_events')
+                ->whereIn('id', $ids)
+                ->delete();
+        }
 
-        return [
+        $this->archives[] = [
             'archive_id' => $archive->id,
-            'event_count' => $written,
             's3_path' => $relativePath,
-            'size_bytes' => $sizeBytes !== false ? (int) $sizeBytes : 0,
+            'event_count' => count($this->segmentIds),
+            'size_bytes' => $sizeBytes,
         ];
+
+        $this->discardOpenSegment();
+    }
+
+    private function discardOpenSegment(): void
+    {
+        if ($this->gz !== null) {
+            gzclose($this->gz);
+            $this->gz = null;
+        }
+
+        if ($this->tempFile !== null) {
+            @unlink($this->tempFile);
+            $this->tempFile = null;
+        }
+
+        $this->segmentIds = [];
+        $this->segmentStart = null;
+        $this->segmentEnd = null;
     }
 }

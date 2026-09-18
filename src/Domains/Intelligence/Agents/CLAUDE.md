@@ -370,6 +370,22 @@ every agent silently falls back to the 50K floor until that runs.
 Trimming still *forgets* the dropped turns. Replacing that with a rolling summary is planned, not built:
 `docs/intelligence/agent-history-compaction-plan.md`.
 
+### When the tool-output budget runs out: refuse, then continue
+
+Once a turn has spent `MAX_CHARS_PER_TURN`, `BoundToolResultsMiddleware::before()` **refuses** every further
+call (`NOT_EXECUTED`) instead of running it and hiding the output. A hidden result leaves the model unable
+to tell whether a write happened, so it reports the item as pending and the next turn creates it twice.
+A call already in the batch that spent the budget did run, so it reads "ran, output withheld" — the two
+must never be confused, because the next turn works only from the model's report.
+
+That report is the whole hand-off: history reload replays text, never `tool_results`, so a new turn
+starts small with a fresh budget. `ContinueAgentTurnJob::dispatchIfCutShort()` queues that turn itself — capped at `MAX_CONTINUATIONS`, stopped early when a turn repeats only calls
+already made, and stopped when a person writes in the channel after the reply. Internal agents only
+(`conversesWithUser()`): on a customer surface a stranger could turn one message into several paid turns.
+
+Wired on Slack and the async in-app chat. Another surface opts in by calling `ContinueAgentTurnJob::dispatchIfCutShort()` —
+**after** its reply is delivered, never before, or the follow-up lands above it.
+
 ## Writing agent tools (Neuron `#[AgentTool]`)
 
 Every capability an agent can invoke is a tool class under `Neuron/Tools/{Area}/`, one per file. Follow
@@ -658,6 +674,9 @@ plus the per-domain equivalents in [`AccountsReceivableAgentToolsTest`](../../..
 - **Never assign `$this->history` in a chat-history loader.** The context window is enforced in
   `addMessage()`, which runs after the provider call — a direct assignment ships the whole stored
   conversation. Use `RebuildsTrimmedHistory::applyLoadedHistory()`; see the section above.
+- **A `privateUserTurn` is not broadcast by the kernel.** Nobody typed it, so whatever drove the turn
+  delivers the reply (see `ContinueAgentTurnJob`, `RunScheduledAgentActionJob`). A new private-turn caller
+  that expects the kernel to push the reply to the live chat will show nothing.
 - **Never let a tool send to an LLM-chosen destination.** A new outbound tool must resolve its recipient from the entity or verify it against a closed set (company membership / on-file contacts) before sending — see "Destination safety" above. A free-text external recipient is an exfiltration hole, not a feature.
 
 ## Pointers to deeper context

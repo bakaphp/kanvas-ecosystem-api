@@ -216,6 +216,7 @@ final class RespondToMentionJob implements ShouldQueue
     ): ?Session {
         try {
             $existing = Session::query()
+                ->fromAgent($this->agent)
                 ->where('uuid', SessionChannelService::buildChannelSessionUuid($channel, $app, $company))
                 ->first();
 

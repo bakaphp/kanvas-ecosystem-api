@@ -23,6 +23,9 @@ class StrFileNameFromUrlTest extends TestCase
             'no extension' => ['https://example.com/files/invoice', 'invoice'],
             'encoded space' => ['https://example.com/my%20file.docx', 'my%20file.docx'],
             'bare path' => ['/var/tmp/local.txt', 'local.txt'],
+            // `basename(...) ?: $fallback` threw this away — "0" is falsy — and a copy doing exactly that
+            // lived in the Zoho sync before it was repointed here.
+            'a file named 0' => ['https://example.com/files/0', '0'],
         ];
     }
 

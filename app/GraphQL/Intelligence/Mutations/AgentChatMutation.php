@@ -49,7 +49,11 @@ class AgentChatMutation
         );
 
         $sessionId = (string) $input['session_id'];
-        $session = Session::fromApp($app)->fromCompany($company)->where('uuid', $sessionId)->first();
+        $session = Session::fromApp($app)
+            ->fromCompany($company)
+            ->fromAgent($agent)
+            ->where('uuid', $sessionId)
+            ->first();
 
         [$mergedImages, $mergedFiles, $attachments] = $this->mergeUploadsWithUrls(
             $input,
@@ -248,6 +252,7 @@ class AgentChatMutation
         if (! empty($input['session_id'])) {
             $session = Session::fromApp($app)
                 ->fromCompany($company)
+                ->fromAgent($agent)
                 ->where('uuid', (string) $input['session_id'])
                 ->first();
 
@@ -421,7 +426,14 @@ class AgentChatMutation
      */
     private function resolveOwnedFilesystems(array $urls, Apps $app, Users $user): array
     {
-        $urls = array_values(array_unique(array_filter($urls, static fn (mixed $url): bool => is_string($url) && $url !== '')));
+        $urls = array_values(
+            array_unique(
+                array_filter(
+                    $urls,
+                    static fn (mixed $url): bool => is_string($url) && $url !== ''
+                )
+            )
+        );
 
         if ($urls === []) {
             return [];
