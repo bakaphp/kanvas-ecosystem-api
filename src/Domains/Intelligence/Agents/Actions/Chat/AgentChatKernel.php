@@ -61,6 +61,7 @@ class AgentChatKernel
         protected readonly ?string $adkAppName = null,
         protected readonly ?string $adkBaseUrl = null,
         protected readonly bool $fallbackOnFailure = true,
+        protected readonly bool $rendersArtifacts = false,
     ) {
     }
 
@@ -247,6 +248,7 @@ class AgentChatKernel
             // for describing — the handler itself only ever sees the base64 content blocks.
             $handler->setTurnMedia($this->nativeMedia());
             $handler->setPrivateUserTurn($this->privateUserTurn);
+            $handler->setRendersArtifacts($this->rendersArtifacts);
         }
 
         if ($this->additionalTools !== [] && $handler instanceof BehavesAsKanvasAgent) {
