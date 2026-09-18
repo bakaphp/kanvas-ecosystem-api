@@ -7,11 +7,10 @@ namespace Tests\Connectors\Integration\Movipass;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as CorporateField;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Enums\ParkingApplicationFieldEnum as Field;
 use Kanvas\Connectors\Movipass\Enums\ParkingApplicationStatusEnum;
+use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Workflows\Activities\PublishApprovedParkingActivity;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
@@ -101,16 +100,6 @@ final class PublishApprovedParkingActivityTest extends TestCase
 
     private function lead(array $fields): Lead
     {
-        $lead = Lead::factory()
-            ->withAppAndCompany($this->kanvasApp->getId(), $this->company->getId())
-            ->create(['title' => 'Parqueo Plaza Central']);
-
-        foreach ($fields as $key => $value) {
-            $lead->set($key, $value);
-        }
-
-        CorporateField::COMPANY_ID->writeTo($lead, (string) $this->company->getId());
-
-        return $lead->fresh();
+        return $this->parkingApplication($this->kanvasApp, $this->company, $fields)->fresh();
     }
 }

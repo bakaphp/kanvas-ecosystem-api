@@ -113,13 +113,11 @@ class SetupParkingApplicationRulesCommand extends Command
     {
         $receiver = LeadReceiver::getById($receiverId, $app);
 
-        if (empty($receiver->get(ApprovalMode::RECEIVER_KEY))) {
-            $receiver->set(ApprovalMode::RECEIVER_KEY, ApprovalMode::MANUAL->value);
-        }
+        $defaults = [ApprovalMode::RECEIVER_KEY => ApprovalMode::MANUAL->value] + ParkingApplicationFieldEnum::receiverLists();
 
-        foreach (ParkingApplicationFieldEnum::receiverLists() as $key => $fields) {
+        foreach ($defaults as $key => $value) {
             if (empty($receiver->get($key))) {
-                $receiver->set($key, $fields);
+                $receiver->set($key, $value);
             }
         }
 

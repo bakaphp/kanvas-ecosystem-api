@@ -219,28 +219,17 @@ final class PublishParkingApplicationActionTest extends TestCase
 
     public function testApplicationWithoutCompanyCannotPublish(): void
     {
-        $lead = $this->approvedApplication(companyId: 0);
+        $lead = $this->approvedApplication();
+        CorporateField::COMPANY_ID->writeTo($lead, '0');
 
         $this->expectException(ModelNotFoundException::class);
 
         new PublishParkingApplicationAction($lead)->execute();
     }
 
-    private function approvedApplication(array $overrides = [], ?int $companyId = null): Lead
+    private function approvedApplication(array $overrides = []): Lead
     {
-        $lead = Lead::factory()
-            ->withAppAndCompany($this->kanvasApp->getId(), $this->company->getId())
-            ->create(['title' => 'Parqueo Plaza Central']);
-
-        $fields = array_merge($this->fixtureFields(), $overrides);
-
-        foreach ($fields as $key => $value) {
-            if ($value !== null) {
-                $lead->set($key, $value);
-            }
-        }
-
-        CorporateField::COMPANY_ID->writeTo($lead, (string) ($companyId ?? $this->company->getId()));
+        $lead = $this->parkingApplication($this->kanvasApp, $this->company, array_merge($this->fixtureFields(), $overrides));
 
         $lead->addMultipleFilesFromUrl([
             ['url' => 'https://picsum.photos/seed/parqueo-entrada/1200/800.jpg', 'name' => 'entrada.jpg'],
