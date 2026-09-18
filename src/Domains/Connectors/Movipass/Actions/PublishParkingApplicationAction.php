@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Movipass\ParkingApplications\Actions;
+namespace Kanvas\Connectors\Movipass\Actions;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as CorporateField;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationFieldEnum as Field;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationStatusEnum;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationFieldEnum as Field;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationStatusEnum;
 use Kanvas\Event\Events\Actions\SetResourceScheduleAction;
 use Kanvas\Event\Events\Enums\ScheduleTypeEnum;
 use Kanvas\Event\Events\Models\ScheduleException;

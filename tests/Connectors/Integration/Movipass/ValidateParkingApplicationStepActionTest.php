@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Movipass\ParkingApplication;
+namespace Tests\Connectors\Integration\Movipass;
 
-use Kanvas\Connectors\Movipass\ParkingApplications\Actions\ValidateParkingApplicationStepAction;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationFieldEnum as Field;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationStepEnum as Step;
+use Kanvas\Connectors\Movipass\Actions\ValidateParkingApplicationStepAction;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationFieldEnum as Field;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationStepEnum as Step;
 use Kanvas\Exceptions\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;

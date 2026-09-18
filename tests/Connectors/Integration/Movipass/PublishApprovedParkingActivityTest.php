@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Movipass\ParkingApplication;
+namespace Tests\Connectors\Integration\Movipass;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Auth;
@@ -10,8 +10,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as CorporateField;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationFieldEnum as Field;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationStatusEnum;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationFieldEnum as Field;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationStatusEnum;
 use Kanvas\Connectors\Movipass\Workflows\Activities\PublishApprovedParkingActivity;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Support\Setup as InventorySetup;

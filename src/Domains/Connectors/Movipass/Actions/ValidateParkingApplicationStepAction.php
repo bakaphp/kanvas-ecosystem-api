@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Movipass\ParkingApplications\Actions;
+namespace Kanvas\Connectors\Movipass\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationFieldEnum;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationFieldTypeEnum;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationStepEnum;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationFieldEnum;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationFieldTypeEnum;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationStepEnum;
 use Kanvas\Exceptions\ValidationException;
 use Throwable;
 

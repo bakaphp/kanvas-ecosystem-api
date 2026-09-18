@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Movipass\ParkingApplication;
+namespace Tests\Connectors\Integration\Movipass;
 
 trait LoadsParkingApplicationFixture
 {

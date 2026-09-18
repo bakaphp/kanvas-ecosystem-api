@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Movipass\ParkingApplication;
+namespace Tests\Connectors\Integration\Movipass;
 
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationStatusEnum;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationStatusEnum;
 use Tests\TestCase;
 
 final class ParkingApplicationStatusEnumTest extends TestCase

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Tests\Connectors\Integration\Movipass\ParkingApplication;
+namespace Tests\Connectors\Integration\Movipass;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationFieldEnum;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationStepEnum;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationFieldEnum;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationStepEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Tests\TestCase;
 

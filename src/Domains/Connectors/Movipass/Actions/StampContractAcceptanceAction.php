@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\Movipass\ParkingApplications\Actions;
+namespace Kanvas\Connectors\Movipass\Actions;
 
 use Illuminate\Support\Carbon;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationContractSettingEnum as Contract;
-use Kanvas\Connectors\Movipass\ParkingApplications\Enums\ParkingApplicationFieldEnum as Field;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationContractSettingEnum as Contract;
+use Kanvas\Connectors\Movipass\Enums\ParkingApplicationFieldEnum as Field;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 
