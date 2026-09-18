@@ -7,6 +7,7 @@ namespace Kanvas\Filesystem\Services;
 use Baka\Http\SafeUrlFetcher;
 use Kanvas\Filesystem\Models\Filesystem;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Reader\IReadFilter;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use Smalot\PdfParser\Parser;
 use Throwable;
@@ -25,6 +26,53 @@ final class FileTextExtractor
 {
     private const array TEXT_EXTENSIONS = ['txt', 'md', 'markdown', 'log'];
 
+    /**
+     * Plain text wearing a format's name. They need no parser — `extractFrom()` returns them as-is —
+     * but `extract()` and `supports()` gate on the extension, so one left off this list is refused as
+     * "not a readable document type" even though it is readable.
+     */
+    private const array CODE_EXTENSIONS = [
+        'graphql',
+        'ini',
+        'js',
+        'jsx',
+        'ndjson',
+        'php',
+        'py',
+        'rb',
+        'sh',
+        'sql',
+        'toml',
+        'ts',
+        'tsx',
+        'xml',
+        'yaml',
+        'yml',
+    ];
+
+    /**
+     * `application/*` labels finfo hands back for what is really plain text — a well-formed `.json`
+     * is reported as `application/json`, a shell script as `application/x-sh`.
+     */
+    private const array TEXTUAL_MIME_TYPES = [
+        'application/ecmascript',
+        'application/graphql',
+        'application/javascript',
+        'application/sql',
+        'application/toml',
+        'application/x-httpd-php',
+        'application/x-javascript',
+        'application/x-perl',
+        'application/x-python',
+        'application/x-ruby',
+        'application/x-sh',
+        'application/x-shellscript',
+        'application/x-sql',
+        'application/x-yaml',
+        'application/xml',
+        'application/yaml',
+    ];
+
     private const array CSV_EXTENSIONS = ['csv', 'tsv'];
 
     private const array JSON_EXTENSIONS = ['json'];
@@ -39,18 +87,77 @@ final class FileTextExtractor
     private const int MAX_SPREADSHEET_ROWS = 2000;
 
     /**
+     * Read at most this much of any one member of an uploaded archive. A DOCX/XLSX is a zip, and a
+     * zip's members decompress to an unbounded size — a small upload can expand by three orders of
+     * magnitude, and the text pipeline then copies whatever came out several times over.
+     * ZipArchive::getFromName() streams when given a length, so this bounds the read itself rather
+     * than trimming afterwards, which would be too late to matter.
+     */
+    public const int MAX_ARCHIVE_MEMBER_BYTES = 16 * 1024 * 1024;
+
+    public function __construct(
+        private readonly int $maxArchiveMemberBytes = self::MAX_ARCHIVE_MEMBER_BYTES,
+    ) {
+    }
+
+    /**
      * @return list<string>
      */
     public static function supportedExtensions(): array
     {
         return [
             ...self::TEXT_EXTENSIONS,
+            ...self::CODE_EXTENSIONS,
             ...self::CSV_EXTENSIONS,
             ...self::JSON_EXTENSIONS,
             ...self::PDF_EXTENSIONS,
             ...self::WORD_EXTENSIONS,
             ...self::SPREADSHEET_EXTENSIONS,
         ];
+    }
+
+    /**
+     * The parser a sniffed MIME type routes to, expressed as the extension `extractFrom()` keys on,
+     * or null when nothing here can read it. It is what lets a caller holding only bytes — an agent
+     * attachment has a URL but no filename — reach the same parsers as a caller holding a filename.
+     *
+     * Not to be confused with MediaTypeEnum::extensionForMime(), which answers what extension an
+     * upload should be STORED under and only covers binary media.
+     */
+    public static function extensionForMimeType(string $mimeType): ?string
+    {
+        $mimeType = strtolower(trim(explode(';', $mimeType)[0]));
+
+        $exact = [
+            'application/pdf' => 'pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' => 'xlsx',
+            'application/vnd.ms-excel' => 'xls',
+            'application/vnd.oasis.opendocument.spreadsheet' => 'ods',
+            'application/json' => 'json',
+            'application/x-ndjson' => 'ndjson',
+            'application/csv' => 'csv',
+            'application/x-csv' => 'csv',
+        ];
+
+        if (isset($exact[$mimeType])) {
+            return $exact[$mimeType];
+        }
+
+        // A structured-syntax suffix (RFC 6839) is the parser of its base type: application/ld+json
+        // is JSON, application/atom+xml is XML.
+        if (str_ends_with($mimeType, '+json')) {
+            return 'json';
+        }
+
+        if (str_ends_with($mimeType, '+xml')) {
+            return 'xml';
+        }
+
+        // Everything else textual needs no parser, so any listed text extension routes it.
+        return str_starts_with($mimeType, 'text/') || in_array($mimeType, self::TEXTUAL_MIME_TYPES, true)
+            ? 'txt'
+            : null;
     }
 
     public function supports(Filesystem $file): bool
@@ -134,11 +241,18 @@ final class FileTextExtractor
                 return '';
             }
 
-            $xml = $zip->getFromName('word/document.xml');
+            // One over the ceiling, so a member that reached it is known to have more behind it.
+            $xml = $zip->getFromName('word/document.xml', $this->maxArchiveMemberBytes + 1);
             $zip->close();
 
             if (! is_string($xml) || $xml === '') {
                 return '';
+            }
+
+            $truncated = strlen($xml) > $this->maxArchiveMemberBytes;
+
+            if ($truncated) {
+                $xml = substr($xml, 0, $this->maxArchiveMemberBytes);
             }
 
             $spaced = preg_replace(
@@ -147,7 +261,9 @@ final class FileTextExtractor
                 $xml,
             );
 
-            return $this->normalize(html_entity_decode(strip_tags((string) $spaced), ENT_QUOTES | ENT_XML1));
+            $text = $this->normalize(html_entity_decode(strip_tags((string) $spaced), ENT_QUOTES | ENT_XML1));
+
+            return $truncated ? $text . "\n… [truncated]" : $text;
         } catch (Throwable) {
             return '';
         } finally {
@@ -178,6 +294,22 @@ final class FileTextExtractor
                 'ods' => 'Ods',
                 default => 'Xlsx',
             });
+
+            // renderSpreadsheet() caps the OUTPUT, which is only reached once load() has already
+            // built every row (and, since read-data-only is off, every style) in memory. Bounding
+            // the read itself is what keeps a large workbook from costing that before the cap runs.
+            $reader->setReadFilter(new class (self::MAX_SPREADSHEET_ROWS) implements IReadFilter {
+                public function __construct(
+                    private readonly int $maxRows,
+                ) {
+                }
+
+                public function readCell(string $columnAddress, int $row, string $worksheetName = ''): bool
+                {
+                    return $row <= $this->maxRows;
+                }
+            });
+
             $book = $reader->load($path);
 
             return $this->normalize($this->renderSpreadsheet($book));

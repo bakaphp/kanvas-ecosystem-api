@@ -13,7 +13,6 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\CapabilityLookupTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ListActiveIntegrationsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Capability\ReportCapabilityGapTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\GetFileLinkTool;
-use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadMessageContentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\AddNervousSystemTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ApproveNervousSystemPlanTool;
@@ -448,7 +447,6 @@ class ProjectManagerAgent extends SystemUserAgent
             new ReadNervousSystemPlanActivityTool()->withContext($app, $company, $user),
             new GetNervousSystemTaskTool()->withContext($app, $company, $user),
             new CommentOnNervousSystemPlanTool()->withContext($app, $company, $user),
-            new ReadFileTool()->withContext($app, $company, $user),
             new AttachFileToNervousSystemPlanTool()->withContext($app, $company, $user),
             new AttachFileToNervousSystemTaskTool()->withContext($app, $company, $user),
             new ListNervousSystemPlanFilesTool()->withContext($app, $company, $user),
@@ -538,7 +536,7 @@ class ProjectManagerAgent extends SystemUserAgent
             ->forRequestingUser($requestingHuman);
 
         // identityTools() (from SystemUserAgent) gives the PM who_is_user — correctly pointed at the
-        // human it's talking to — plus its own ledger memory, without re-listing them here.
+        // human it's talking to — plus its own ledger memory and read_file, without re-listing them here.
         return $this->mergeRegisteredTools(
             [...$this->identityTools(), ...$core],
             $agent,

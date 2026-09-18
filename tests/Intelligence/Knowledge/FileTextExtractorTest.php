@@ -53,9 +53,74 @@ class FileTextExtractorTest extends TestCase
     public function testTheSupportedListIsTheOneTheToolAdvertises(): void
     {
         $this->assertSame(
-            ['csv', 'docx', 'json', 'log', 'markdown', 'md', 'ods', 'pdf', 'tsv', 'txt', 'xls', 'xlsx'],
+            [
+                'csv', 'docx', 'graphql', 'ini', 'js', 'json', 'jsx', 'log', 'markdown', 'md', 'ndjson',
+                'ods', 'pdf', 'php', 'py', 'rb', 'sh', 'sql', 'toml', 'ts', 'tsv', 'tsx', 'txt', 'xls',
+                'xlsx', 'xml', 'yaml', 'yml',
+            ],
             collect(FileTextExtractor::supportedExtensions())->sort()->values()->all(),
         );
+    }
+
+    /**
+     * A DOCX is a zip, and a zip member decompresses to an unbounded size — a small upload expands by
+     * orders of magnitude and the text pipeline then copies whatever came out several times over.
+     * The read itself is bounded, so what lands in memory is the cap, not the member.
+     */
+    public function testAnOversizeArchiveMemberIsBoundedAtTheRead(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'bomb') . '.docx';
+
+        $zip = new ZipArchive();
+        $zip->open($path, ZipArchive::CREATE);
+        $zip->addFromString('word/document.xml', '<w:p>' . str_repeat('A', 200_000) . '</w:p>');
+        $zip->close();
+
+        $text = new FileTextExtractor(1000)->extractFrom((string) file_get_contents($path), 'docx');
+        @unlink($path);
+
+        $this->assertStringContainsString('[truncated]', $text);
+        $this->assertLessThan(5000, strlen($text), 'the cap must bound the read, not just the output');
+    }
+
+    /** A document under the cap keeps every character and gains no marker. */
+    public function testASmallDocumentIsNotTruncated(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'doc') . '.docx';
+
+        $zip = new ZipArchive();
+        $zip->open($path, ZipArchive::CREATE);
+        $zip->addFromString('word/document.xml', '<w:p>hello world</w:p>');
+        $zip->close();
+
+        $text = new FileTextExtractor()->extractFrom((string) file_get_contents($path), 'docx');
+        @unlink($path);
+
+        $this->assertSame('hello world', $text);
+    }
+
+    /**
+     * The cap has to bite during load(), not while rendering: by render time every row is already
+     * built in memory, which is the cost the cap exists to avoid.
+     */
+    public function testASpreadsheetBeyondTheRowCapIsBoundedAtParse(): void
+    {
+        $book = new Spreadsheet();
+        $sheet = $book->getActiveSheet();
+
+        for ($row = 1; $row <= 2600; $row++) {
+            $sheet->setCellValue('A' . $row, 'row' . $row);
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'sheet') . '.xlsx';
+        new Xlsx($book)->save($path);
+
+        $text = new FileTextExtractor()->extractFrom((string) file_get_contents($path), 'xlsx');
+        @unlink($path);
+
+        $this->assertStringContainsString('row1', $text);
+        $this->assertStringContainsString('row2000', $text);
+        $this->assertStringNotContainsString('row2600', $text);
     }
 
     public function testAnUnsupportedFileIsASkipNotAFailure(): void
