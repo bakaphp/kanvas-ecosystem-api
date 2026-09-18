@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Services;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\FileTextExtractor;
-use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Users\Models\Users;
@@ -66,7 +65,7 @@ class AttachmentDescriptionService
 
         $handler->setConfiguration(agent: $agent, user: $user);
 
-        return new self($handler->captionProvider(), ! $handler instanceof ConversesWithCustomer);
+        return new self($handler->captionProvider(), ! $agent->conversesWithCustomer());
     }
 
     /**

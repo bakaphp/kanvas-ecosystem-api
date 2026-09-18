@@ -7,7 +7,6 @@ namespace Kanvas\Intelligence\Agents\Actions\Chat;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Services\FilesystemServices;
-use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\TransformsStructuredOutput;
@@ -149,7 +148,7 @@ class RunLaravelAgentChatAction
     {
         $attachments = [];
         $promptBlocks = [];
-        $allowStructuredText = ! $this->handler instanceof ConversesWithCustomer;
+        $allowStructuredText = ! $this->agent->conversesWithCustomer();
         $budget = new AttachmentBudgetService();
 
         foreach ($this->media as $url) {

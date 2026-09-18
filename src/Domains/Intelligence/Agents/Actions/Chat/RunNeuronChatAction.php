@@ -11,7 +11,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
-use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -65,7 +64,7 @@ class RunNeuronChatAction
         $selfRecords = $this->handler instanceof BehavesAsKanvasAgent
             && $this->handler->persistsTurnsToConversationStore();
 
-        $allowStructuredText = ! $this->handler instanceof ConversesWithCustomer;
+        $allowStructuredText = ! $this->agent->conversesWithCustomer();
         $budget = new AttachmentBudgetService();
 
         $userMessage = new UserMessage($this->message);
