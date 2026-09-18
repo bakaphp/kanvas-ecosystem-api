@@ -4,25 +4,27 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Connector\Movipass\Mutations;
 
-use Kanvas\Apps\Models\Apps;
+use App\GraphQL\Concerns\ResolvesActingContext;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Connectors\Movipass\Actions\EnableCorporateModeAction;
 
 class EnableCorporateModeMutation
 {
+    use ResolvesActingContext;
+
     public function enable(mixed $rootValue, array $request): array
     {
-        $user = auth()->user();
-        $app = app(Apps::class);
+        $ctx = $this->actingContext();
 
         $company = new EnableCorporateModeAction(
-            user: $user,
-            app: $app,
+            user: $ctx->user,
+            app: $ctx->app,
             fields: $request['input'],
         )->execute();
 
         return [
             'company' => $company,
-            'status' => 'migration_dispatched',
+            'status' => CorporateApplicationStatusEnum::PENDING->value,
         ];
     }
 }
