@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Inventory\Products\Actions;
 
-use Baka\Validations\Date;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Services\CsvReaderService;
+use Kanvas\Filesystem\Services\FilesystemMapperWalker;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Products\Models\Products;
@@ -22,20 +22,13 @@ use Throwable;
 
 class ImportProductFromFilesystemAction
 {
-    /**
-     * Mapper keys that live on a CSV row but mean something different once the
-     * row becomes a variant — `variant_name` is the variant's `name`, and
-     * `variant_tags` its `tags` (product-level tags come from `product_tags`).
-     */
-    private const array VARIANT_KEY_ALIASES = [
-        'variant_name' => 'name',
-        'variant_tags' => 'tags',
-    ];
+    protected FilesystemMapperWalker $walker;
 
     public function __construct(
         public FilesystemImports $filesystemImports,
         protected ?FilesystemServices $filesystemService = null,
     ) {
+        $this->walker = new FilesystemMapperWalker();
     }
 
     public function execute(): void
@@ -299,42 +292,7 @@ class ImportProductFromFilesystemAction
 
     public function mapper(array $template, array $data): array
     {
-        $result = [];
-
-        foreach ($template as $key => $value) {
-            $targetKey = self::VARIANT_KEY_ALIASES[$key] ?? $key;
-
-            if ($key === 'attributes' && is_array($value)) {
-                $result[$targetKey] = $this->mapAttributes($value, $data);
-
-                continue;
-            }
-
-            if (is_array($value)) {
-                $result[$targetKey] = $this->mapper($value, $data);
-
-                continue;
-            }
-
-            $result[$targetKey] = match (true) {
-                is_string($value) && str_starts_with($value, '_') => substr($value, 1),
-                is_string($value) && str_starts_with($value, 'date_') => Date::createFromFormat($data[substr($value, 5)] ?? ''),
-                is_string($value) => $data[$value] ?? null,
-                default => $value,
-            };
-
-            if ($targetKey === 'categories' && is_string($result[$targetKey]) && $result[$targetKey] !== '') {
-                $result[$targetKey] = $this->mapCategories($result[$targetKey]);
-            } elseif ($targetKey === 'tags' || $targetKey === 'product_tags') {
-                $result[$targetKey] = Tag::normalizeNames($result[$targetKey]);
-            } elseif ($targetKey === 'files' && is_string($result[$targetKey]) && $result[$targetKey] !== '') {
-                $result[$targetKey] = Date::explodeFileStringBasedOnDelimiter($result[$targetKey]);
-            } elseif (is_string($result[$targetKey]) && Date::isValidDate($result[$targetKey])) {
-                $result[$targetKey] = Date::createFromFormat($result[$targetKey]);
-            }
-        }
-
-        return $result;
+        return $this->walker->walk($template, $data);
     }
 
     private function getFilePath(Filesystem $filesystem): string
@@ -342,43 +300,5 @@ class ImportProductFromFilesystemAction
         $service = $this->filesystemService ?? new FilesystemServices($this->filesystemImports->app);
 
         return $service->getFileLocalPath($filesystem);
-    }
-
-    private function mapAttributes(array $attributeTemplate, array $data): array
-    {
-        $mappedAttributes = $this->mapper($attributeTemplate, $data);
-        $result = [];
-
-        foreach ($mappedAttributes as $attributeData) {
-            if (! is_array($attributeData)) {
-                continue;
-            }
-
-            $fromProduct = $attributeData['fromProduct'] ?? false;
-
-            foreach ($attributeData as $key => $value) {
-                if ($key !== 'fromProduct') {
-                    $result[] = [
-                        'fromProduct' => $fromProduct,
-                        'name' => $key,
-                        'value' => $value,
-                    ];
-                }
-            }
-        }
-
-        return $result;
-    }
-
-    private function mapCategories(string $categoriesString): array
-    {
-        $categories = array_map('trim', explode(',', $categoriesString));
-
-        return array_map(function ($categoryName) {
-            return [
-                'name' => $categoryName,
-                'slug' => Str::slug($categoryName),
-            ];
-        }, array_filter($categories));
     }
 }
