@@ -11,7 +11,7 @@
   Hardened ImageMagick policy for Kanvas.
 
   Goal: keep the image coders the app legitimately decodes/converts (JPEG, PNG, WEBP, GIF,
-  HEIC, HEIF, AVIF, TIFF, BMP) while removing the coders/delegates that are pure RCE / SSRF /
+  TIFF, BMP) while removing the coders/delegates that are pure RCE / SSRF /
   arbitrary-file-read vectors and have no use here, plus resource caps against decompression
   and dimension bombs. See ImageOptimizerService / ImageConversionService for the formats in use.
 -->
@@ -60,6 +60,11 @@
   <!-- SVG is stored/served as a static asset, never rasterized; its coder enables XXE/SSRF. -->
   <policy domain="coder" rights="none" pattern="SVG"/>
   <policy domain="coder" rights="none" pattern="MSVG"/>
+
+  <!-- libheif-backed coders, disabled until the image ships a pinned libheif build. -->
+  <policy domain="coder" rights="none" pattern="HEIC"/>
+  <policy domain="coder" rights="none" pattern="HEIF"/>
+  <policy domain="coder" rights="none" pattern="AVIF"/>
 
   <!-- Block indirect reads via @filename / list-file indirection. -->
   <policy domain="path" rights="none" pattern="@*"/>
