@@ -101,7 +101,7 @@ final class AttachIntegrationLogosActionTest extends TestCase
         $slack = $this->createIntegration('slack_notifications', appsId: 0);
         $this->attachLogos();
 
-        $otherApp = Apps::query()->where('id', '!=', app(Apps::class)->getId())->firstOrFail();
+        $otherApp = $this->createOtherApp();
         app()->instance(Apps::class, $otherApp);
 
         $context = Mockery::mock(GraphQLContext::class);
@@ -132,7 +132,7 @@ final class AttachIntegrationLogosActionTest extends TestCase
 
     public function testCanLimitTheRunToOneAppsIntegrations(): void
     {
-        $otherApp = Apps::query()->where('id', '!=', app(Apps::class)->getId())->firstOrFail();
+        $otherApp = $this->createOtherApp();
         $foreign = $this->createIntegration('slack_notifications', appsId: $otherApp->getId());
         $label = 'slack_notifications #' . $foreign->getId();
 
@@ -189,6 +189,28 @@ final class AttachIntegrationLogosActionTest extends TestCase
             deviconsUrl: self::ICONS_URL,
             simpleIconsUrl: self::SIMPLE_ICONS_URL,
         )->execute();
+    }
+
+    /**
+     * CI seeds a single app, so a second one has to be made rather than looked up.
+     */
+    private function createOtherApp(): Apps
+    {
+        $uniqueId = uniqid('logos-');
+
+        $app = new Apps();
+        $app->name = 'Integration Logos Test ' . $uniqueId;
+        $app->url = 'https://' . $uniqueId . '.example.com';
+        $app->domain = $uniqueId . '.example.com';
+        $app->description = 'Integration logos test app';
+        $app->is_actived = 1;
+        $app->ecosystem_auth = 0;
+        $app->payments_active = 0;
+        $app->is_public = 0;
+        $app->domain_based = 0;
+        $app->saveOrFail();
+
+        return $app;
     }
 
     private function createIntegration(string $name, ?int $appsId = null): Integrations
