@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
-use finfo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\TransformsStructuredOutput;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
+use Kanvas\Intelligence\Agents\Services\AttachmentBudgetService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Agents\Services\AttachmentFetchService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
@@ -54,8 +55,8 @@ class RunLaravelAgentChatAction
                 : $this->handler->forUser($this->user);
         }
 
-        [$attachments, $unavailableNotes] = $this->buildAttachments();
-        $prompt = implode("\n\n", [$this->message, ...$unavailableNotes]);
+        [$attachments, $promptBlocks] = $this->buildAttachments();
+        $prompt = implode("\n\n", [$this->message, ...$promptBlocks]);
 
         $response = $this->handler->promptWithConfig($prompt, $attachments);
         // Structured-output agents (HasStructuredOutput) return their payload in
@@ -137,21 +138,24 @@ class RunLaravelAgentChatAction
 
     /**
      * Wrap each attachment as the matching base64 laravel-ai file (image / audio / document) so the
-     * model sees it on this turn. A non-native type is skipped; an unreadable one becomes a note on
-     * the prompt instead.
+     * model sees it on this turn. laravel-ai has no file type for text, so anything the extractor can
+     * read (CSV, JSON, YAML, source, DOCX, XLSX) is inlined into the prompt instead; a type that is
+     * neither is skipped, and an unreadable or over-budget one becomes a note on the prompt.
      *
-     * @return array{0: list<File>, 1: list<string>} `[$attachments, $unavailableNotes]`
+     * @return array{0: list<File>, 1: list<string>} `[$attachments, $promptBlocks]`
      */
     private function buildAttachments(): array
     {
         $attachments = [];
-        $unavailableNotes = [];
+        $promptBlocks = [];
+        $allowStructuredText = ! $this->handler instanceof ConversesWithCustomer;
+        $budget = new AttachmentBudgetService();
 
         foreach ($this->media as $url) {
             $binary = AttachmentFetchService::fetch($url);
 
             if ($binary === null) {
-                $unavailableNotes[] = AttachmentFetchService::unavailableNote($url);
+                $promptBlocks[] = AttachmentFetchService::unavailableNote($url);
 
                 continue;
             }
@@ -160,22 +164,39 @@ class RunLaravelAgentChatAction
                 continue;
             }
 
-            $file = $this->wrapAttachment($binary);
+            if (! $budget->admits($url, strlen($binary))) {
+                continue;
+            }
+
+            $mimeType = AttachmentDescriptionService::detectMimeType($binary);
+            $kind = AttachmentDescriptionService::nativeKind($mimeType, $allowStructuredText);
+            $file = $this->wrapAttachment($binary, $mimeType, $kind);
+
             if ($file !== null) {
                 $attachments[] = $file;
+
+                continue;
+            }
+
+            if ($kind === 'text') {
+                $promptBlocks[] = AttachmentDescriptionService::wrapTextForBlock($binary, $mimeType);
             }
         }
 
-        return [$attachments, $unavailableNotes];
+        $overBudget = $budget->skippedNote();
+        if ($overBudget !== null) {
+            $promptBlocks[] = $overBudget;
+        }
+
+        return [$attachments, $promptBlocks];
     }
 
-    private function wrapAttachment(string $binary): ?File
+    /** Takes the resolved $kind rather than re-deriving it, so the customer-facing gate can't be bypassed here. */
+    private function wrapAttachment(string $binary, string $mimeType, ?string $kind): ?File
     {
-        $mimeType = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
-        $mimeType = is_string($mimeType) && $mimeType !== '' ? $mimeType : 'application/octet-stream';
         $base64 = base64_encode($binary);
 
-        return match (AttachmentDescriptionService::nativeKind($mimeType)) {
+        return match ($kind) {
             'image' => Image::fromBase64($base64, $mimeType),
             'audio' => Audio::fromBase64($base64, $mimeType),
             'pdf' => Document::fromBase64($base64, $mimeType),

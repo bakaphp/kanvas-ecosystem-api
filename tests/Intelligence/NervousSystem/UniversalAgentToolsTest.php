@@ -22,8 +22,14 @@ use Tests\TestCase;
  * The file tools are GRANTED, never handed to every agent.
  *
  * read_file reaches any file the company owns, so making it universal put company-wide file access
- * on customer-facing agents and changed the toolset of every handler that had a curated one. Only
- * the PM carries them intrinsically; everyone else gets them through the catalog, per agent.
+ * on customer-facing agents and changed the toolset of every handler that had a curated one.
+ *
+ * `read_file` alone is now baseline on SystemUserAgent — that class is internal by construction
+ * (ConversesWithUser) and its own baseline refuses a ConversesWithCustomer subclass, so neither
+ * failure mode above can reach it. That is the ONLY widening: the write-side file tools stay
+ * granted even there, and every handler outside the SystemUserAgent tree — the pure-registry
+ * generic agent, the customer-facing SalesAgent — still gets nothing without a catalog grant.
+ * The internal-baseline half is covered by {@see \Tests\Intelligence\Agents\SystemAgentReadFileBaselineTest}.
  */
 class UniversalAgentToolsTest extends TestCase
 {
@@ -41,18 +47,34 @@ class UniversalAgentToolsTest extends TestCase
     }
 
     /**
-     * Every other handler stays exactly as curated. A baseline addition here is invisible until it
-     * changes an agent's answer — it broke NeuronDynamicSubAgentTest by turning a deliberately
-     * single-tool agent into a three-tool one.
+     * Every handler outside the SystemUserAgent tree stays exactly as curated. A baseline addition
+     * here is invisible until it changes an agent's answer — it broke NeuronDynamicSubAgentTest by
+     * turning a deliberately single-tool agent into a three-tool one.
      */
     public function testNoOtherHandlerGetsFileToolsWithoutAGrant(): void
     {
-        foreach ([KanvasGenericNeuronAgent::make(), SystemUserAgent::make(), SalesAgent::make()] as $handler) {
+        foreach ([KanvasGenericNeuronAgent::make(), SalesAgent::make()] as $handler) {
             $names = $this->toolNames($handler);
 
             foreach (['read_file', 'attach_file_to_task', 'list_task_files'] as $tool) {
                 $this->assertNotContains($tool, $names, $handler::class . ' got ' . $tool . ' without a grant');
             }
+        }
+    }
+
+    /**
+     * The widening is read-only and deliberate. An internal system agent may OPEN a file it is
+     * pointed at; attaching and listing still cost a grant, so a teammate agent cannot quietly
+     * acquire the PM's file-management surface by inheriting a baseline.
+     */
+    public function testSystemUserAgentGetsOnlyTheReadSideOfTheFileTools(): void
+    {
+        $names = $this->toolNames(SystemUserAgent::make());
+
+        $this->assertContains('read_file', $names);
+
+        foreach (['attach_file_to_task', 'attach_file_to_plan', 'list_task_files', 'list_plan_files'] as $tool) {
+            $this->assertNotContains($tool, $names, 'SystemUserAgent got ' . $tool . ' without a grant');
         }
     }
 

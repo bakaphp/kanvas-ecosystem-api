@@ -10,6 +10,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\ChatHistory\RedisAgentChatHistory;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
+use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\SystemPrompt;
@@ -155,7 +156,7 @@ class BaseAgent extends RAG
             agent: $this->agent,
             entity: $this->entity,
             externalReferenceId: $this->externalReferenceId,
-            contextWindow: 50000
+            contextWindow: ModelContextWindowService::forAgent($this->agent)
         );
     }
 

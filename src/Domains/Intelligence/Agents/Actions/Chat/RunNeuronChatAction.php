@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
-use finfo;
 use GuzzleHttp\Exception\RequestException;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Log;
@@ -12,10 +11,12 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
+use Kanvas\Intelligence\Agents\Services\AttachmentBudgetService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Agents\Services\AttachmentFetchService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
@@ -23,11 +24,6 @@ use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\AgentHandler;
 use NeuronAI\Agent\AgentState;
-use NeuronAI\Chat\Enums\SourceType;
-use NeuronAI\Chat\Messages\ContentBlocks\AudioContent;
-use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
-use NeuronAI\Chat\Messages\ContentBlocks\FileContent;
-use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
 use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\ToolCallMessage;
@@ -69,6 +65,9 @@ class RunNeuronChatAction
         $selfRecords = $this->handler instanceof BehavesAsKanvasAgent
             && $this->handler->persistsTurnsToConversationStore();
 
+        $allowStructuredText = ! $this->handler instanceof ConversesWithCustomer;
+        $budget = new AttachmentBudgetService();
+
         $userMessage = new UserMessage($this->message);
         foreach ($this->media as $attachment) {
             $binary = AttachmentFetchService::fetch($attachment);
@@ -81,10 +80,19 @@ class RunNeuronChatAction
                 continue;
             }
 
-            $block = $this->buildContentBlock($binary);
+            if (! $budget->admits($attachment, strlen($binary))) {
+                continue;
+            }
+
+            $block = AttachmentDescriptionService::contentBlockFor($binary, allowStructuredText: $allowStructuredText);
             if ($block !== null) {
                 $userMessage->addContent($block);
             }
+        }
+
+        $overBudget = $budget->skippedNote();
+        if ($overBudget !== null) {
+            $userMessage->addContent(new TextContent($overBudget));
         }
 
         $toolCalls = [];
@@ -291,31 +299,6 @@ class RunNeuronChatAction
                 );
             }
         }
-    }
-
-    /**
-     * Wrap a fetched attachment in the matching Neuron content block by sniffing its bytes —
-     * image / audio / PDF ride as binary blocks the model reads natively; text/CSV rides inline as a
-     * TextContent block (it's just text). Anything else returns null (skipped; its URL is already
-     * folded into the prompt text by AttachmentPromptBuilder upstream).
-     */
-    private function buildContentBlock(string $binary): ?ContentBlockInterface
-    {
-        if ($binary === '') {
-            return null;
-        }
-
-        $mimeType = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
-        $mimeType = is_string($mimeType) && $mimeType !== '' ? $mimeType : 'application/octet-stream';
-        $base64 = base64_encode($binary);
-
-        return match (AttachmentDescriptionService::nativeKind($mimeType)) {
-            'image' => new ImageContent($base64, SourceType::BASE64, $mimeType),
-            'audio' => new AudioContent($base64, SourceType::BASE64, $mimeType),
-            'pdf' => new FileContent($base64, SourceType::BASE64, $mimeType),
-            'text' => new TextContent(AttachmentDescriptionService::wrapTextForBlock($binary, $mimeType)),
-            default => null,
-        };
     }
 
     /**

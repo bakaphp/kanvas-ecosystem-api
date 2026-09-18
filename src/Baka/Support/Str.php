@@ -173,6 +173,21 @@ class Str extends IlluminateStr
     }
 
     /**
+     * The filename a URL or path ends in, with any query string dropped.
+     *
+     * For naming a file in text a person or a model will read: a storage URL can carry a signature,
+     * so echoing the whole thing spills credential material wherever that text is stored. Returns
+     * `$fallback` when the URL carries no usable name.
+     */
+    public static function fileNameFromUrl(?string $url, string $fallback = ''): string
+    {
+        $path = parse_url((string) $url, PHP_URL_PATH);
+        $name = is_string($path) ? trim(basename($path)) : '';
+
+        return $name !== '' ? $name : $fallback;
+    }
+
+    /**
      * Split a full name string into firstname and lastname.
      * If firstname or lastname are already provided, returns them as-is.
      *

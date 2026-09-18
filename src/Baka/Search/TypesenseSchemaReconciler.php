@@ -21,8 +21,13 @@ use Typesense\Client as TypesenseClient;
  * keeps it required, and then rejects every document that sends null for it — "Field `barcode` must
  * be a string" on every variant without a barcode, same issue.
  *
- * Typesense can re-type a field in place (drop + re-add, re-indexed from the stored documents),
- * which is what this reconciles.
+ * A field the model declares and the collection never got is the same story with a louder failure:
+ * unless the collection carries a `.*` auto field, Typesense never learns it — indexing drops the
+ * value, and any `query_by` naming it answers "Could not find a field named `x` in the schema", so
+ * *every* search on that collection 404s for the life of it (Sentry: leads/`variant_search_text`).
+ *
+ * Typesense can re-type a field in place (drop + re-add, re-indexed from the stored documents) and
+ * can add a missing optional one, which is what this reconciles.
  */
 class TypesenseSchemaReconciler
 {
@@ -65,7 +70,7 @@ class TypesenseSchemaReconciler
     }
 
     /**
-     * @return list<array{name: string, from: string, to: string, widening: bool}>
+     * @return list<array{name: string, from: string, to: string, widening: bool, missing: bool}>
      */
     public function drift(Model $model, bool $wideningOnly = false): array
     {
@@ -82,7 +87,9 @@ class TypesenseSchemaReconciler
         // under two types — collapsing to one would hide exactly the breakage worth repairing.
         $liveTypes = [];
         $liveRequired = [];
+        $hasAutoField = false;
         foreach ($liveFields as $liveField) {
+            $hasAutoField = $hasAutoField || $liveField['name'] === '.*';
             $liveTypes[$liveField['name']][] = $liveField['type'];
             // Absent means the server didn't say, not that the field is required — a drop + reindex
             // on that guess would cost a field rebuild for nothing.
@@ -103,9 +110,30 @@ class TypesenseSchemaReconciler
 
             $current = $liveTypes[$name] ?? null;
 
-            // A field the collection doesn't have yet is auto-typed on the next document that
-            // carries it, so there is nothing to re-type — adding it is a separate concern.
             if ($current === null) {
+                // With a `.*` auto field the collection types the new field off the next document
+                // that carries it. Without one it never learns the field at all, and a query_by
+                // naming it 404s every search on the collection — so it has to be added here.
+                if ($hasAutoField) {
+                    continue;
+                }
+
+                // Typesense only accepts a new field on a non-empty collection when it is optional;
+                // a required one needs the collection rebuilt, so it stays behind --all.
+                $optional = (bool) ($field['optional'] ?? false);
+
+                if ($wideningOnly && ! $optional) {
+                    continue;
+                }
+
+                $drift[] = [
+                    'name' => $name,
+                    'from' => 'missing',
+                    'to' => $declared . ($optional ? ' (optional)' : ' (required)'),
+                    'widening' => $optional,
+                    'missing' => true,
+                ];
+
                 continue;
             }
 
@@ -130,6 +158,7 @@ class TypesenseSchemaReconciler
                 'from' => implode(' + ', $current) . ($requiredDrift ? ' (required)' : ''),
                 'to' => $declared . ($requiredDrift ? ' (optional)' : ''),
                 'widening' => $widening,
+                'missing' => false,
             ];
         }
 
@@ -155,10 +184,12 @@ class TypesenseSchemaReconciler
             // twice, under both the old and the new type.
             try {
                 $this->client->getCollections()[$collection]->update([
-                    'fields' => [
-                        ['name' => $field['name'], 'drop' => true],
-                        $declaredFields[$field['name']],
-                    ],
+                    'fields' => $field['missing']
+                        ? [$declaredFields[$field['name']]]
+                        : [
+                            ['name' => $field['name'], 'drop' => true],
+                            $declaredFields[$field['name']],
+                        ],
                 ]);
 
                 $altered[] = $field;

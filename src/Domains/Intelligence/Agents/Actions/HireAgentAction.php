@@ -9,9 +9,10 @@ use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\Role;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Auth\Actions\RegisterUsersAction;
+use Kanvas\Auth\Actions\CreateUserAction;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\DataTransferObject\Agent as AgentData;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -117,6 +118,10 @@ class HireAgentAction
      * A dedicated user per agent, addressed per company so two tenants can both hire a "Newsroom"
      * without colliding on an email that has to stay globally unique.
      *
+     * The branch is resolved before the user, not after: registration with no branch in hand mints a
+     * company named after whoever is registering ("<agent>CP") and makes it their default, so a hire
+     * that attaches to the company afterwards still belongs to a throwaway tenant of its own.
+     *
      * An existing address is REUSED rather than treated as an error. The name is derived, so the only
      * way to meet one is a previous attempt that created the user and then failed — and the agent it
      * was for does not exist, because a duplicate name is refused earlier. Failing here would make
@@ -124,6 +129,8 @@ class HireAgentAction
      */
     private function provisionUser(string $name, Role $role): Users
     {
+        $branch = $this->companyBranch();
+
         $email = sprintf(
             'agent-%s-%d@%s',
             Str::slug($name),
@@ -135,12 +142,24 @@ class HireAgentAction
 
         if ($user === null) {
             try {
-                $user = new RegisterUsersAction(RegisterInput::from([
-                    'email' => $email,
-                    'password' => bin2hex(random_bytes(16)),
-                    'firstname' => $name,
-                    'lastname' => 'Agent',
-                ]))->execute();
+                $register = new CreateUserAction(
+                    RegisterInput::fromArray(
+                        [
+                            'email' => $email,
+                            'password' => bin2hex(random_bytes(16)),
+                            'firstname' => $name,
+                            'lastname' => 'Agent',
+                        ],
+                        $branch,
+                        $this->app
+                    ),
+                    $this->app
+                );
+                // A synthetic mailbox nobody reads: the REGISTERED workflow would fire tenant
+                // onboarding for a teammate that never signs in.
+                $register->disableWorkflow();
+
+                $user = $register->execute();
             } catch (Throwable $e) {
                 throw new ValidationException(
                     'Could not create the agent\'s own user account: ' . $e->getMessage()
@@ -148,7 +167,12 @@ class HireAgentAction
             }
         }
 
-        $this->attachToCompany($user, $role);
+        new AssignCompanyAction(
+            $user,
+            $branch,
+            $role,
+            $this->app
+        )->execute();
 
         return $user;
     }
@@ -162,7 +186,7 @@ class HireAgentAction
         }
     }
 
-    private function attachToCompany(Users $user, Role $role): void
+    private function companyBranch(): CompaniesBranches
     {
         $branch = $this->company->branch ?? $this->company->branches()->first();
 
@@ -172,7 +196,7 @@ class HireAgentAction
             );
         }
 
-        new AssignCompanyAction($user, $branch, $role, $this->app)->execute();
+        return $branch;
     }
 
     /**

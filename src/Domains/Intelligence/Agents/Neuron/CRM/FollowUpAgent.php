@@ -70,6 +70,7 @@ class FollowUpAgent extends BaseRagAgent
             entity: $this->entity,
             threadId: $this->threadId,
             currentLead: $this->currentLead,
+            contextWindow: $this->resolvedContextWindow(),
         );
     }
 

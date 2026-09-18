@@ -14,6 +14,7 @@ use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\CurrentTimeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\DynamicSubAgentTool;
 use Kanvas\Intelligence\Agents\Services\AgentProviderService;
+use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
 use Kanvas\Intelligence\Agents\Traits\HasTemporalContext;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Models\Tool;
@@ -324,6 +325,15 @@ trait HasKanvasAgentBehavior
     public function resolvedModelName(): string
     {
         return AgentProviderService::resolveModel($this->requireAgent());
+    }
+
+    /**
+     * Pass this to every chat history this agent builds. Sized to the model that will answer, so an
+     * agent on a 1M-token model is not held to the budget of the smallest context we run.
+     */
+    protected function resolvedContextWindow(): int
+    {
+        return ModelContextWindowService::forAgent($this->agent);
     }
 
     #[Override]

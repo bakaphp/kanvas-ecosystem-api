@@ -10,8 +10,10 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\HumanResources\Employees\Services\EmployeeBriefService;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Neuron\History\ChannelMessageHistory;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
@@ -94,6 +96,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
                 entity: $this->entity,
                 includeInternal: true,
                 currentLead: $this->currentLead,
+                contextWindow: $this->resolvedContextWindow(),
             );
         }
 
@@ -107,6 +110,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
             turnMedia: $this->turnMedia,
             model: $this->resolvedModelName(),
             privateUserTurn: $this->privateUserTurn,
+            contextWindow: $this->resolvedContextWindow(),
         );
     }
 
@@ -306,9 +310,14 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
     }
 
     /**
-     * Identity/memory tools for an internal-teammate agent: who it's talking to + its own ledger
-     * memory. Exposed so subclasses (e.g. the PM, whose entity is a Project not a person) reuse it.
+     * The baseline every internal-teammate agent gets: who it's talking to, its own ledger memory,
+     * and the ability to open a file the company owns. Exposed so subclasses (e.g. the PM, whose
+     * entity is a Project not a person) reuse it rather than re-listing it.
      * who_is_user targets the session entity when that's a Users, else the authenticated human.
+     *
+     * read_file resolves any filesystem_id in the tenant, so it is baseline HERE and nowhere wider:
+     * this class is internal by construction (ConversesWithUser), while a customer surface holding it
+     * would hand a prospect the whole company drive one coaxed id away.
      *
      * @return list<object>
      */
@@ -322,7 +331,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
             return [];
         }
 
-        return [
+        $tools = [
             new ReadMyLedgerTool($app, $company, $agent),
             new WhoIsUserTool(
                 $app,
@@ -330,6 +339,14 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
                 $this->entity instanceof Users ? $this->entity : $this->user
             ),
         ];
+
+        $user = $this->actingUser();
+
+        if ($user !== null && ! $this instanceof ConversesWithCustomer) {
+            $tools[] = new ReadFileTool()->withContext($app, $company, $user);
+        }
+
+        return $tools;
     }
 
     /**

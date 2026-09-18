@@ -183,6 +183,34 @@ final class HireAgentToolTest extends TestCase
         );
     }
 
+    /**
+     * Registration with no branch in hand mints a company named after whoever is registering, so every
+     * hire used to land its user in a throwaway tenant ("<agent>CP") instead of the one that hired it.
+     */
+    public function testTheHiresUserBelongsToTheHiringCompanyAndNoNewCompanyIsCreated(): void
+    {
+        $hirer = $this->hiringAgent(['Read Channel Window']);
+
+        $result = $this->tool($hirer, $this->currentUser())->__invoke(
+            name: 'Tenanted ' . fake()->unique()->lexify('?????'),
+            role: 'Worker',
+            instructions: 'Do the thing, or nothing.',
+        );
+
+        $this->assertTrue($result['hired'], $result['message'] ?? '');
+
+        $hired = Agent::query()->whereKey($result['agent_id'])->first();
+
+        // Its own companies, not a global count — paratest shares one database, so a concurrent
+        // test's rows would move any tally taken across the table.
+        $this->assertSame(
+            [$this->company()->getId()],
+            $hired->user->companies()->pluck('companies.id')->map(intval(...))->all(),
+            'A hire belongs to the company that hired it and to nothing else.'
+        );
+        $this->assertSame($this->company()->getId(), (int) $hired->user->default_company);
+    }
+
     public function testANonAdminCannotHire(): void
     {
         $hirer = $this->hiringAgent(['Read Channel Window']);
