@@ -47,7 +47,6 @@ final class SetupRolesCommandTest extends TestCase
 
     public function testRerunRevokesAGrantThatLeftTheMatrix(): void
     {
-        // Bouncer::allow is additive; the command must also disallow so the matrix is the truth.
         Bouncer::allow(MovipassRolesEnum::PARKING_OPERATOR->value)->to('wallet-configure');
         $this->assertContains('wallet-configure', $this->abilitiesOf(MovipassRolesEnum::PARKING_OPERATOR));
 
@@ -57,7 +56,6 @@ final class SetupRolesCommandTest extends TestCase
         $this->assertNotContains('wallet-configure', $this->abilitiesOf(MovipassRolesEnum::PARKING_OPERATOR));
     }
 
-    /** @return list<string> */
     private function abilitiesOf(MovipassRolesEnum $role): array
     {
         return Role::where('name', $role->value)

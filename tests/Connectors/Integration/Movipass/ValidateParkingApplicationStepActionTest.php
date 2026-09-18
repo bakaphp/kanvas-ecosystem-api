@@ -182,8 +182,6 @@ final class ValidateParkingApplicationStepActionTest extends TestCase
 
     public static function integerEdgeCaseProvider(): array
     {
-        // null is deliberately not an edge case here: it clears the key rather than throwing,
-        // covered by testNullClearsAnOptionalIntegerField.
         return [
             'zero as string' => ['0', 0],
             'padded numeric string' => [' 12 ', 12],
@@ -742,13 +740,6 @@ final class ValidateParkingApplicationStepActionTest extends TestCase
         $this->assertSame('juan@example.com', $result[Field::EMAIL->value]);
     }
 
-    /**
-     * Guards the type dispatch `match` in normalizeValue(), which has no default arm on purpose —
-     * an unhandled ParkingApplicationFieldTypeEnum case (e.g. a future field typed DATE_TIME with
-     * a non-null step()) must surface as an UnhandledMatchError, not be silently swallowed. This
-     * test is what would fail first: every catalog field with a step gets exercised with a null
-     * value, and only ValidationException is an acceptable outcome.
-     */
     public function testEveryStepFieldAcceptsOrRejectsANullValueWithoutCrashing(): void
     {
         foreach (Field::cases() as $field) {

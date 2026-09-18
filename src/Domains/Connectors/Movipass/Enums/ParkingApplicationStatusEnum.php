@@ -6,15 +6,6 @@ namespace Kanvas\Connectors\Movipass\Enums;
 
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 
-/**
- * Extends what CorporateApplicationStatusEnum already gives (pending / needs_review / approved /
- * rejected) with the two states the parking flow adds on top of it.
- *
- * APPROVED and PUBLISHED are deliberately separate states, not one. Approval is a review decision;
- * publication is the Phase 29 orchestration that creates the product/variants/warehouses and can
- * fail partway and need a retry. Collapsing them into one status would make a failed publish look
- * like an undecided application, sending it back into the review queue instead of the retry path.
- */
 enum ParkingApplicationStatusEnum: string
 {
     case PENDING = 'pending';
@@ -34,10 +25,6 @@ enum ParkingApplicationStatusEnum: string
         };
     }
 
-    /**
-     * Still awaiting an action from either side — the applicant (correction) or a reviewer
-     * (pending / needs_review).
-     */
     public function isOpen(): bool
     {
         return match ($this) {
@@ -46,10 +33,6 @@ enum ParkingApplicationStatusEnum: string
         };
     }
 
-    /**
-     * No further processing happens on the application. APPROVED is intentionally excluded —
-     * it still owes the Phase 29 publish orchestration before the parking is live.
-     */
     public function isFinal(): bool
     {
         return match ($this) {

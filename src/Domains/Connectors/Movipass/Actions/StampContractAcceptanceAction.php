@@ -10,14 +10,6 @@ use Kanvas\Connectors\Movipass\Enums\ParkingApplicationFieldEnum as Field;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 
-/**
- * The acceptance record, in the shape Azul's StampTermsAcceptanceActivity writes for orders:
- * version + server-stamped moment + IP. Nothing runs at receipt by design, so the moment is the
- * receiver's own record of the request (the LeadAttempt), not "now" — the applicant accepted
- * when they submitted, not when a reviewer got to it days later.
- *
- * @return array{version: string, accepted_at: string, ip: string|null}
- */
 class StampContractAcceptanceAction
 {
     public function __construct(

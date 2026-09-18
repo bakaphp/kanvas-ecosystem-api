@@ -6,7 +6,6 @@ namespace Tests\Connectors\Integration\Movipass;
 
 trait LoadsParkingApplicationFixture
 {
-    /** @return array<string, mixed> the custom_fields block of the reference receiver payload */
     protected function fixtureFields(): array
     {
         return json_decode(

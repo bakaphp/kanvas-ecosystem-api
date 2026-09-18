@@ -22,12 +22,6 @@ use Kanvas\Workflow\Rules\Models\RuleAction;
 use Kanvas\Workflow\Rules\Models\RuleType;
 use Kanvas\Workflow\Rules\Models\RuleWorkflowAction;
 
-/**
- * Everything the parking-application flow needs as data on an app, in one idempotent run:
- * the two workflow rules on Lead (created → triage, approved → company setup + publication)
- * and, when `--receiver` is given, the receiver stamped as a manual-approval one and pointed
- * at by `movipass_parking_receiver_id`.
- */
 class SetupParkingApplicationRulesCommand extends Command
 {
     use KanvasJobsTrait;
@@ -66,9 +60,6 @@ class SetupParkingApplicationRulesCommand extends Command
         return self::SUCCESS;
     }
 
-    /**
-     * @param list<class-string> $activities
-     */
     private function wireRule(
         Apps $app,
         int $systemModuleId,
@@ -88,7 +79,6 @@ class SetupParkingApplicationRulesCommand extends Command
             ],
             [
                 'description' => 'Wired by kanvas:movipass-setup-parking-application-rules',
-                // pattern '1' with no conditions always matches — every activity self-guards.
                 'pattern' => 1,
                 'params' => json_encode([]),
                 'is_deleted' => 0,

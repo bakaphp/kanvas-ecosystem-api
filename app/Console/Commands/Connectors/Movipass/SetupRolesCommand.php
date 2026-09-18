@@ -41,9 +41,6 @@ class SetupRolesCommand extends Command
 
     protected function setupRoles(AppInterface $app): void
     {
-        // parking_manager runs a parking owner's operation end to end; parking_operator is the
-        // booth: sessions, plate/vehicle fixes and payments on tickets, nothing that changes
-        // money totals, reports or the company itself.
         $abilities = [
             'list-orders' => [
                 RolesEnums::OWNER,
@@ -211,8 +208,6 @@ class SetupRolesCommand extends Command
         $scope = RolesEnums::getScope($app);
         Bouncer::scope()->to($scope);
 
-        // disallow() below throws on a role that does not exist yet, which is every new enum
-        // case on a fresh app — make them all exist before touching a single grant.
         foreach (MovipassRolesEnum::cases() as $movipassRole) {
             Bouncer::role()->firstOrCreate(
                 ['name' => $movipassRole->value, 'scope' => $scope],

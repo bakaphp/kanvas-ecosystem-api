@@ -98,9 +98,6 @@ final class SetupParkingApplicationRulesCommandTest extends TestCase
             ->firstOrFail();
     }
 
-    /**
-     * @return list<class-string>
-     */
     private function activitiesOf(Rule $rule): array
     {
         return $rule->workflowActivities()

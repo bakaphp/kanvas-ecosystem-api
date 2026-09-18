@@ -24,16 +24,6 @@ use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
-/**
- * Turns an approved parking application (a Lead carrying the catalog custom fields) into the
- * owner company's published parking: product + variant + warehouse row, opening hours as
- * schedule rules, closures as blackout exceptions, photos carried over in order.
- *
- * The wizard never persisted anything as domain — every value was stored verbatim by the
- * receiver (no validation at intake by design), so this is the one place the catalog validator
- * runs, and a value that survived nine steps malformed fails here with the key that broke,
- * before anything is written.
- */
 class PublishParkingApplicationAction
 {
     public const string PRODUCT_TYPE_SLUG = 'parking';
@@ -76,7 +66,6 @@ class PublishParkingApplicationAction
                 $company->user,
             )->setRunWorkflow(false)->execute();
 
-            /** @var Variants $variant */
             $variant = $product->variants()->firstOrFail();
 
             $this->writeSchedule($variant, $company, $fields);
@@ -106,9 +95,6 @@ class PublishParkingApplicationAction
             ->find($productId);
     }
 
-    /**
-     * @return array<string, mixed> catalog key => normalized value
-     */
     private function validatedFields(): array
     {
         $raw = [];
@@ -215,11 +201,6 @@ class PublishParkingApplicationAction
         )->execute();
     }
 
-    /**
-     * The attribute names Parkeando's storefront already reads off a parking product
-     * (`coordinates`, `parking-hours`, `type`, `capacity`) — the ones SyncProductCapacityActivity
-     * keeps refreshing afterwards.
-     */
     private function productAttributes(array $fields, int $capacity): array
     {
         $attributes = [
@@ -287,9 +268,6 @@ class PublishParkingApplicationAction
         return $config;
     }
 
-    /**
-     * @return list<array{url: string, name: string}>
-     */
     private function photos(): array
     {
         return $this->application->getFiles()
@@ -298,11 +276,6 @@ class PublishParkingApplicationAction
             ->all();
     }
 
-    /**
-     * Opening hours become weekly schedule rules on the variant, without time slots — a parking
-     * is capacity-based (GetSlotAvailabilityAction counts active orders against max_capacity),
-     * the rules only say when it is open.
-     */
     private function writeSchedule(Variants $variant, Companies $company, array $fields): void
     {
         $closedWeekdays = collect($fields[Field::CLOSURES->value] ?? [])

@@ -17,12 +17,6 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-/**
- * Runs on `corporate-application-approved` next to SetupApprovedCorporateCompanyActivity. A
- * corporate application that is not a parking one (no catalog fields on the Lead) is skipped;
- * a parking one whose data cannot be published is flagged FAILED with the offending key for
- * the reviewer, not thrown — the applicant has already been told they were approved.
- */
 #[WorkflowAction]
 class PublishApprovedParkingActivity extends KanvasActivity implements WorkflowActivityInterface
 {
@@ -37,7 +31,6 @@ class PublishApprovedParkingActivity extends KanvasActivity implements WorkflowA
             integration: IntegrationsEnum::MOVIPASS,
             additionalParams: $params,
             integrationOperation: function ($lead) {
-                /** @var Lead $lead */
                 if (empty(Field::PARKING_NAME->readFrom($lead))) {
                     return ['lead' => $lead->getId(), 'status' => 'skipped', 'reason' => 'not a parking application'];
                 }

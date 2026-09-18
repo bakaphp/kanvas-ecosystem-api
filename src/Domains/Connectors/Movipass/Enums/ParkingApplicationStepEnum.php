@@ -31,9 +31,6 @@ enum ParkingApplicationStepEnum: string
         };
     }
 
-    /**
-     * @return array<ParkingApplicationFieldEnum>
-     */
     public function fields(): array
     {
         return array_values(array_filter(

@@ -194,8 +194,6 @@ final class PublishParkingApplicationActionTest extends TestCase
 
     public function testAValueTheWizardLetThroughFailsBeforeAnythingIsWritten(): void
     {
-        // The receiver stores whatever the FE sends; a label where the catalog wants an enum
-        // must surface here, with the key, and leave no half-published product behind.
         $lead = $this->approvedApplication([Field::PARKING_TYPE->value => 'Parqueo techado']);
 
         try {

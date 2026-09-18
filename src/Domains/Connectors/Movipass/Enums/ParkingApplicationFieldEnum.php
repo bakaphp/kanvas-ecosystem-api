@@ -8,11 +8,6 @@ use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Crypt;
 
-/**
- * Catalog of every custom-field key the 9-step parking-provider wizard writes onto the Lead
- * carrying the application. `ValidateParkingApplicationStepAction` rejects any key outside this
- * catalog — `custom_fields` otherwise accepts any string key, so a typo would silently not save.
- */
 enum ParkingApplicationFieldEnum: string
 {
     case STATUS = 'parking_application_status';
@@ -23,11 +18,6 @@ enum ParkingApplicationFieldEnum: string
     case NUMBER = 'parking_application_number';
     case PRODUCT_ID = 'parking_application_product_id';
 
-    /**
-     * Server-stamped by the Phase 16 acceptance flow (mirrors StampTermsAcceptanceActivity), not
-     * applicant-writable. Kept out of CONTRACT_FIELDS on purpose so step() returns null for both
-     * and ValidateParkingApplicationStepAction rejects them like any other bookkeeping key.
-     */
     case CONTRACT_ACCEPTED_AT = 'parking_application_contract_accepted_at';
     case CONTRACT_ACCEPTANCE_IP = 'parking_application_contract_acceptance_ip';
 
@@ -69,10 +59,6 @@ enum ParkingApplicationFieldEnum: string
     case NUMBERED_SPACES = 'parking_application_numbered_spaces';
     case CAPACITY_NOTES = 'parking_application_capacity_notes';
 
-    /**
-     * Photos themselves are Lead files (attachFilesToLead), not custom fields. This is the one
-     * key the photos step still needs in the catalog: which uploaded file is the cover.
-     */
     case COVER_PHOTO_UUID = 'parking_application_cover_photo_uuid';
 
     case IS_24_7 = 'parking_application_is_24_7';
@@ -93,10 +79,6 @@ enum ParkingApplicationFieldEnum: string
 
     case CONTRACT_VERSION = 'parking_application_contract_version';
 
-    /**
-     * The step-10 checkbox. Distinct from CONTRACT_ACCEPTED_AT — this is the applicant's
-     * acceptance intent; the timestamp and IP are stamped server-side once this is true.
-     */
     case CONTRACT_ACCEPTED = 'parking_application_contract_accepted';
 
     public function step(): ?ParkingApplicationStepEnum
@@ -132,10 +114,6 @@ enum ParkingApplicationFieldEnum: string
         };
     }
 
-    /**
-     * The fixed vocabulary for enum-like keys. Also covers PAYMENT_METHODS, whose type is its
-     * own PAYMENT_METHODS case (an array of these, not a single value).
-     */
     public function options(): ?array
     {
         return match ($this) {

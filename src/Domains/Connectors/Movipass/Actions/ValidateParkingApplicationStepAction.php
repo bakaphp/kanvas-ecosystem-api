@@ -12,17 +12,6 @@ use Kanvas\Connectors\Movipass\Enums\ParkingApplicationStepEnum;
 use Kanvas\Exceptions\ValidationException;
 use Throwable;
 
-/**
- * Validates and normalizes one wizard step's `custom_fields` payload against the
- * ParkingApplicationFieldEnum catalog, rejecting unknown/bookkeeping keys and keys outside
- * `$step` when one is given.
- *
- * Contradiction rules always run, once every field they depend on is present. Required-ness
- * rules only run when `$step` is given — i.e. the caller asserts "this is a complete submission
- * of this step" — so a partial `updateLead` patch (e.g. applicant_type in one call, the identity
- * fields in the next) is never rejected mid-sequence. An explicit `null` clears any non-required
- * key.
- */
 class ValidateParkingApplicationStepAction
 {
     public function __construct(
@@ -222,11 +211,6 @@ class ValidateParkingApplicationStepAction
         return $email;
     }
 
-    /**
-     * `{ weekdays: [...], saturday: [...], sunday_holidays: [...] }`, each a list of
-     * `{ open: "HH:MM", close: "HH:MM" }` bands. A band whose close <= open crosses midnight and
-     * is valid; bands within one group may not overlap, including across the midnight wrap.
-     */
     private function normalizeSchedule(mixed $value): array
     {
         if (! is_array($value)) {
@@ -275,8 +259,6 @@ class ValidateParkingApplicationStepAction
         $open = $this->normalizeTime($group, (string) $band['open']);
         $close = $this->normalizeTime($group, (string) $band['close']);
 
-        // "00:00" -> "00:00" is the wizard's convention for "open 24h for this group" (e.g.
-        // weekdays 24h, Saturday 08-14). Any other open === close pair is a zero-length band.
         if ($open === $close && $open !== '00:00') {
             throw new ValidationException("parking_application_schedule.{$group} has a zero-length band");
         }
@@ -327,10 +309,6 @@ class ValidateParkingApplicationStepAction
         return $hours * 60 + $minutes;
     }
 
-    /**
-     * List of `{ type: "recurring", weekday: 0-6 }` or `{ type: "one_off", date: "YYYY-MM-DD",
-     * reason?: string }`.
-     */
     private function normalizeClosures(mixed $value): array
     {
         if (! is_array($value)) {
@@ -428,11 +406,6 @@ class ValidateParkingApplicationStepAction
         return array_values($methods);
     }
 
-    /**
-     * Only CAPACITY_TOTAL needs to be present to fire — every breakdown key not given is treated
-     * as 0. Since each breakdown key is validated >= 0 individually, a partial sum that already
-     * exceeds the total is a genuine contradiction regardless of which keys are missing.
-     */
     private function assertCapacityBreakdownWithinTotal(array $normalized): void
     {
         if (! array_key_exists(ParkingApplicationFieldEnum::CAPACITY_TOTAL->value, $normalized)) {
