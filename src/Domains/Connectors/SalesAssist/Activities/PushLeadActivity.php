@@ -65,6 +65,8 @@ class PushLeadActivity extends KanvasActivity
                     try {
                         $result = new ReynoldsPushLeadAction($lead)->execute();
                     } catch (Throwable $e) {
+                        report($e);
+
                         return $this->failWorkflow([
                             'error' => 'Reynolds push failed: ' . $e->getMessage(),
                             'crm' => $connectedCRM,

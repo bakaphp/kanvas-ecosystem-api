@@ -61,6 +61,8 @@ class AddLeadCommentFromAgentMessageActivity extends BaseAddLeadCommentFromAgent
         try {
             return new AddNoteToLeadAction($lead, $note)->execute();
         } catch (Throwable $e) {
+            report($e);
+
             return $this->failWorkflow([
                 'error' => 'Reynolds USL Note failed: ' . $e->getMessage(),
             ]);
