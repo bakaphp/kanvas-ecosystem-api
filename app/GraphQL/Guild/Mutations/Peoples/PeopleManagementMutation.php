@@ -123,8 +123,18 @@ class PeopleManagementMutation
         $app = app(Apps::class);
 
         $people = $this->getPeopleById((int) $req['id'], $user, $app, $user->getCurrentCompany());
+        $deleted = (bool) $people->delete();
 
-        return (bool) $people->delete();
+        $people->fireWorkflow(
+            WorkflowEnum::DELETED->value,
+            true,
+            [
+                'app' => $people->app,
+                'company' => $people->company,
+            ]
+        );
+
+        return $deleted;
     }
 
     public function attachFile(mixed $root, array $req): ModelsPeople

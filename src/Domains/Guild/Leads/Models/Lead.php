@@ -385,7 +385,7 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         $statusName = strtolower($this->status()->firstOrFail()->name);
 
-        return $statusName !== 'inactive' && (Str::contains($statusName, 'active') || Str::contains($statusName, 'created') || Str::contains($statusName, 'hot'));
+        return $statusName !== 'inactive' && Str::contains($statusName, ['active', 'created', 'hot']);
     }
 
     public function isAiFollowUpEnabled(): bool

@@ -38,6 +38,7 @@ type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
         @method(name: "visibleAttributes")
         @cacheRedis
     companies: Company! @belongsTo(relation: "company")
+    leadReceivers: [LeadReceiver!]! @hasMany(relation: "leadReceivers")
     channels(currencyCode: String): [VariantChannelRelationship!]!
         @belongsToMany(relation: "channels")
     channel(currencyCode: String): VariantPricingInfo

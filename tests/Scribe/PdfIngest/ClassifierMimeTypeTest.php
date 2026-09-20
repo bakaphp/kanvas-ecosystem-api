@@ -4,52 +4,67 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\PdfIngest;
 
+use Illuminate\Support\Facades\Http;
+use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Scribe\PdfIngest\Exceptions\UnsupportedDocumentTypeException;
 use Kanvas\Scribe\PdfIngest\Services\GeminiPdfClassifierService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Scribe\ScribeTestCase;
 
 /**
- * A receipt photographed on a phone is the ordinary case for an employee expense. Labelling those
- * bytes `application/pdf` is what made Gemini refuse a file it can read perfectly well.
+ * The type Gemini is told comes from the bytes, never `file_type` — an email attachment takes that from
+ * its URL, and a mislabelled document comes back as a bare 400 INVALID_ARGUMENT (KANVAS-ECOSYSTEM-6CH).
  */
 final class ClassifierMimeTypeTest extends ScribeTestCase
 {
-    public static function imageTypeProvider(): array
+    public static function readableProvider(): array
     {
         return [
-            'phone photo' => ['jpg', 'image/jpeg'],
-            'jpeg long form' => ['jpeg', 'image/jpeg'],
-            'screenshot' => ['png', 'image/png'],
-            'ios photo' => ['heic', 'image/heic'],
-            'heif' => ['heif', 'image/heif'],
-            'webp' => ['webp', 'image/webp'],
+            'pdf' => ["%PDF-1.4\n%\xe2\xe3\xcf\xd3\n1 0 obj\n<<>>\nendobj\n", 'application/pdf'],
+            'phone photo' => ["\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00", 'image/jpeg'],
+            'screenshot' => ["\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x02\x00\x00\x00", 'image/png'],
+            'webp' => ["RIFF\x24\x00\x00\x00WEBPVP8 \x18\x00\x00\x00", 'image/webp'],
+            'ios photo' => ["\x00\x00\x00\x18ftypheic\x00\x00\x00\x00mif1heic", 'image/heic'],
+            'heif' => ["\x00\x00\x00\x18ftypmif1\x00\x00\x00\x00mif1heic", 'image/heif'],
         ];
     }
 
-    #[DataProvider('imageTypeProvider')]
-    public function test_an_image_receipt_is_sent_as_its_own_image_type(string $extension, string $expected): void
+    public static function unreadableProvider(): array
     {
-        $file = $this->createFilesystemRow(extension: $extension, fileType: $extension);
-
-        $this->assertSame($expected, $this->resolveMimeFor($file));
+        return [
+            'word document' => ["PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00"],
+            'gif' => ["GIF89a\x01\x00\x01\x00\x80\x00\x00"],
+            'plain text' => ['Thanks for your order, see you soon.'],
+        ];
     }
 
-    public function test_a_pdf_is_unchanged(): void
+    #[DataProvider('readableProvider')]
+    public function test_a_readable_document_is_sent_as_the_type_its_bytes_say(string $bytes, string $expected): void
     {
-        $file = $this->createFilesystemRow(extension: 'pdf', fileType: 'pdf');
-
-        $this->assertSame('application/pdf', $this->resolveMimeFor($file));
+        $this->assertSame($expected, $this->classifierReturning($bytes)->mimeFor($bytes));
     }
 
-    /**
-     * The accounting inbox is PDF in practice, so an unknown type keeps the historical label rather
-     * than failing the ingest outright — a wrong guess there is no worse than before this existed.
-     */
-    public function test_an_unrecognised_type_falls_back_to_pdf(): void
+    #[DataProvider('unreadableProvider')]
+    public function test_a_type_the_model_cannot_read_is_refused(string $bytes): void
     {
-        $file = $this->createFilesystemRow(extension: 'xyz', fileType: 'xyz');
+        $this->expectException(UnsupportedDocumentTypeException::class);
 
-        $this->assertSame('application/pdf', $this->resolveMimeFor($file));
+        $this->classifierReturning($bytes)->mimeFor($bytes);
+    }
+
+    public function test_an_unreadable_file_never_reaches_the_model_whatever_its_file_type_claims(): void
+    {
+        Http::fake();
+        $bytes = "GIF89a\x01\x00\x01\x00\x80\x00\x00";
+
+        try {
+            $this->classifierReturning($bytes)->classify($this->createFilesystemRow(extension: 'pdf', fileType: 'pdf'));
+            $this->fail('Expected the GIF to be refused.');
+        } catch (UnsupportedDocumentTypeException $e) {
+            $this->assertSame('image/gif', $e->mimeType);
+        }
+
+        Http::assertNothingSent();
     }
 
     public function test_the_prompt_tells_the_model_a_photo_is_expected(): void
@@ -60,15 +75,23 @@ final class ClassifierMimeTypeTest extends ScribeTestCase
         $this->assertStringNotContainsString('Analyze the attached PDF', $prompt);
     }
 
-    private function resolveMimeFor(object $file): string
+    private function classifierReturning(string $bytes): GeminiPdfClassifierService
     {
-        $service = new class () extends GeminiPdfClassifierService {
-            public function mimeFor(object $file): string
+        return new class ($bytes) extends GeminiPdfClassifierService {
+            public function __construct(private readonly string $bytes)
             {
-                return $this->resolveMimeType($file);
+                parent::__construct();
+            }
+
+            public function mimeFor(string $bytes): string
+            {
+                return $this->resolveMimeType($bytes);
+            }
+
+            protected function fetchPdfBytes(Filesystem $pdf): string
+            {
+                return $this->bytes;
             }
         };
-
-        return $service->mimeFor($file);
     }
 }

@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Mcp\Transports;
 
 use Baka\Http\SafeUrl;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Psr7\Request;
 use Illuminate\Support\Facades\Log;
@@ -43,6 +44,10 @@ class GuardedHttpMcpTransport implements McpTransportInterface
 
     private const int READ_CHUNK_BYTES = 8192;
 
+    private const int CONNECT_ATTEMPTS = 3;
+
+    private const int CONNECT_RETRY_DELAY_MS = 200;
+
     private ?Client $httpClient = null;
 
     private ?string $token = null;
@@ -63,13 +68,14 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         private int $integrationsId,
         private int $timeoutMs = 20000,
         private ?string $authQueryParam = null,
+        private ?string $authHeader = null,
     ) {
     }
 
     /**
      * Only ids and scalars cross the wire. The Guzzle client holds handlers that cannot serialize, and
      * the token must never be written into a serialized payload — both are rebuilt lazily on the far
-     * side. The query parameter is a field name, not a secret; the key it carries is added at send time.
+     * side. The query parameter and header are field names, not secrets; the key is added at send time.
      */
     public function __serialize(): array
     {
@@ -79,6 +85,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             'integrationsId' => $this->integrationsId,
             'timeoutMs' => $this->timeoutMs,
             'authQueryParam' => $this->authQueryParam,
+            'authHeader' => $this->authHeader,
         ];
     }
 
@@ -89,6 +96,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         $this->integrationsId = $data['integrationsId'];
         $this->timeoutMs = $data['timeoutMs'];
         $this->authQueryParam = $data['authQueryParam'] ?? null;
+        $this->authHeader = $data['authHeader'] ?? null;
         $this->httpClient = null;
         $this->token = null;
         $this->tokenResolved = false;
@@ -112,15 +120,8 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             'Content-Type' => 'application/json',
             'Accept' => 'application/json, text/event-stream',
             'User-Agent' => 'kanvas-mcp/1.0',
+            ...$this->authHeaders(),
         ];
-
-        $token = $this->resolveToken();
-
-        // A vendor that reads its key from the query string gets it there and nowhere else — sending the
-        // same secret in a header it never reads would only widen where it can leak.
-        if ($token !== null && $this->authQueryParam === null) {
-            $headers['Authorization'] = 'Bearer ' . $token;
-        }
 
         if ($this->sessionId !== null) {
             $headers['Mcp-Session-Id'] = $this->sessionId;
@@ -132,17 +133,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             throw new McpFetchException('Failed to encode MCP request: ' . $e->getMessage(), 0, $e);
         }
 
-        try {
-            $response = $this->client()->send(new Request(
-                'POST',
-                $this->resolveUrl(),
-                $headers,
-                $body
-            ));
-        } catch (GuzzleException $e) {
-            // Guzzle puts the whole URL in its message, and on this path the URL carries the key.
-            throw new McpFetchException('MCP request failed: ' . $this->redact($e->getMessage()), $e->getCode(), $e);
-        }
+        $response = $this->sendWithConnectRetry(new Request('POST', $this->resolveUrl(), $headers, $body));
 
         if ($response->getStatusCode() >= 400) {
             $this->throwForErrorStatus($response);
@@ -187,6 +178,37 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         $this->sessionId = null;
         $this->discardBody();
         $this->lastResponse = null;
+    }
+
+    /**
+     * A connection that never opened is the one failure that is always safe to repeat: `ConnectException`
+     * means the request did not reach the server, so nothing ran twice. Worth doing because a tool error
+     * kills the whole agent turn — one blip from a vendor's edge cost a run mid-flow, and the endpoint was
+     * healthy a second later.
+     *
+     * Anything the server answered — a 4xx, a 5xx, a timeout mid-body — is left alone: those may have
+     * executed, and repeating a browser action or a payment is worse than failing.
+     */
+    private function sendWithConnectRetry(Request $request): ResponseInterface
+    {
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                return $this->client()->send($request);
+            } catch (ConnectException $e) {
+                if ($attempt >= self::CONNECT_ATTEMPTS) {
+                    throw new McpFetchException(
+                        'MCP request failed after ' . self::CONNECT_ATTEMPTS . ' attempts: ' . $this->redact($e->getMessage()),
+                        $e->getCode(),
+                        $e
+                    );
+                }
+
+                usleep(self::CONNECT_RETRY_DELAY_MS * 1000 * $attempt);
+            } catch (GuzzleException $e) {
+                // Guzzle puts the whole URL in its message, and on this path the URL carries the key.
+                throw new McpFetchException('MCP request failed: ' . $this->redact($e->getMessage()), $e->getCode(), $e);
+            }
+        }
     }
 
     /**
@@ -290,6 +312,25 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         return $content;
     }
 
+    /**
+     * The key travels in exactly one place. A vendor that reads it from the query string gets no header
+     * at all — sending the same secret somewhere it never reads would only widen where it can leak.
+     *
+     * @return array<string, string>
+     */
+    private function authHeaders(): array
+    {
+        $token = $this->resolveToken();
+
+        if ($token === null || $this->authQueryParam !== null) {
+            return [];
+        }
+
+        return $this->authHeader === null
+            ? ['Authorization' => 'Bearer ' . $token]
+            : [$this->authHeader => $token];
+    }
+
     private function resolveToken(): ?string
     {
         if (! $this->tokenResolved) {
@@ -361,7 +402,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         return $this->credentials;
     }
 
-    private function client(): Client
+    protected function client(): Client
     {
         return $this->httpClient ??= new Client([
             'timeout' => max(1, (int) ceil($this->timeoutMs / 1000)),

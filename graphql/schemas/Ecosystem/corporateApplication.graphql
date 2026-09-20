@@ -1,0 +1,23 @@
+type CorporateApplicationDecision {
+    application: ID!
+    status: String!
+    company_id: ID
+    invite_hash: String
+    reason: String
+    applicant_notified: Boolean
+}
+
+extend type Mutation @guardByAdmin {
+    approveCorporateApplication(id: ID!): CorporateApplicationDecision!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CorporateApplicationMutation@approve"
+        )
+
+    rejectCorporateApplication(
+        id: ID!
+        reason: String!
+    ): CorporateApplicationDecision!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Companies\\CorporateApplicationMutation@reject"
+        )
+}

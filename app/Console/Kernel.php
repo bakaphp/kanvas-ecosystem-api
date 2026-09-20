@@ -11,6 +11,7 @@ use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\CustomerSuccess\Schedules\CustomerSuccessSchedule;
+use App\Console\Commands\Ecosystem\Companies\FlagOverdueCorporateApplicationsCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\Ecosystem\Users\DetectSignupAnomalyCommand;
 use App\Console\Commands\Event\GenerateUpcomingTimeSlotsCommand;
@@ -52,6 +53,7 @@ class Kernel extends ConsoleKernel
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
         $schedule->command(DetectSignupAnomalyCommand::class)->hourly()->withoutOverlapping()->onOneServer();
         $schedule->command(ExpireApprovalRequestsCommand::class)->hourly()->withoutOverlapping()->onOneServer();
+        $schedule->command(FlagOverdueCorporateApplicationsCommand::class)->hourly()->withoutOverlapping()->onOneServer();
         // Hourly matches the descriptor cache's soft TTL, so a company's first turn of the day is warm
         // rather than paying three round trips per connected MCP server.
         $schedule->command(RefreshMcpToolCacheCommand::class)->hourly()->withoutOverlapping()->onOneServer();

@@ -10,6 +10,7 @@ use Kanvas\Intelligence\Agents\Services\NativeChannelDeliveryService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\PostChannelMessageAction;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Throwable;
 
@@ -51,7 +52,7 @@ class DeliverScheduledMessageToChannelAction
      */
     public function execute(): bool
     {
-        new PostChannelMessageAction(
+        $posted = new PostChannelMessageAction(
             channel: $this->channel,
             author: $this->author,
             verb: $this->verb,
@@ -61,7 +62,7 @@ class DeliverScheduledMessageToChannelAction
         )->execute();
 
         $this->writeToConversation();
-        $this->broadcastToChat();
+        $this->broadcastToChat($posted);
 
         try {
             return $this->pushNative();
@@ -103,8 +104,13 @@ class DeliverScheduledMessageToChannelAction
      * Push the message into the live in-app chat the same way a normal agent turn does, so it
      * appears without a refresh. Best-effort — a broadcast outage must never fail the delivery.
      * No-op without an agent/session, where nothing is listening.
+     *
+     * The posted message rides along: `limitBroadcastPayloadSet` NULLS `response` rather than truncating
+     * it once the payload passes Pusher's ceiling, and a client then falls back to fetching by
+     * `message_id` — which a delivery that broadcast none left null, so a long reply arrived as an
+     * event carrying nothing.
      */
-    private function broadcastToChat(): void
+    private function broadcastToChat(Message $posted): void
     {
         if ($this->agent === null || $this->sessionUuid === null || $this->sessionUuid === '') {
             return;
@@ -115,7 +121,8 @@ class DeliverScheduledMessageToChannelAction
                 $this->agent,
                 $this->sessionUuid,
                 '',
-                $this->text
+                $this->text,
+                $posted,
             );
 
             // Disabled with the rest of the `agentChatResponse` subscription — see AgentChatKernel.

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Hermes\Actions;
 
 use Baka\Http\SafeUrlFetcher;
-use finfo;
 use Kanvas\Connectors\Hermes\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Hermes\Traits\OpensHermesSshClient;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Throwable;
@@ -148,8 +148,7 @@ class ChatWithAgentAction
         }
 
         $binary = $this->fetchImageBinary($imageUrl);
-        $detected = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
-        $mimeType = is_string($detected) && $detected !== '' ? $detected : 'image/png';
+        $mimeType = FilesystemServices::detectMimeTypeFromBytes($binary, 'image/png');
 
         return 'data:' . $mimeType . ';base64,' . base64_encode($binary);
     }

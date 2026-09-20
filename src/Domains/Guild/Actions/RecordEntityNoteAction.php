@@ -26,13 +26,15 @@ abstract class RecordEntityNoteAction
      * @param  bool  $fromIa  AI-authored. Pair null actingUser + true for AI, or a human + false for manager records.
      * @param  bool  $isPublic  Visibility. Pass false for a note the end user must never see — an internal
      *                          failure, a sync error, anything only the team should read.
+     * @param  string  $messageTypeVerb  Give a note kind its own verb when readers must filter it out of (or find it in) the activity.
      */
     public function execute(
         string $body,
         string $tag = 'note',
         ?Users $actingUser = null,
         bool $fromIa = true,
-        bool $isPublic = true
+        bool $isPublic = true,
+        string $messageTypeVerb = 'system'
     ): ?Message {
         try {
             $entity = $this->entity();
@@ -47,7 +49,7 @@ abstract class RecordEntityNoteAction
                 return null;
             }
 
-            $messageType = MessageTypeService::getOrCreate($entity->app, 'system');
+            $messageType = MessageTypeService::getOrCreate($entity->app, $messageTypeVerb);
 
             $messagePayload = new AiChatMessagePayload(
                 content: $body,

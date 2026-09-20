@@ -6,6 +6,7 @@ namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\Event\Events\Enums\ConfigurationEnum;
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventVersion;
@@ -28,6 +29,10 @@ class SendEventEmailsAction
 
     public function execute(?Participant $participant = null): void
     {
+        if (! ConfigurationEnum::emailsEnabled($this->eventVersion->app)) {
+            return;
+        }
+
         // Load necessary relations to ensure they're available in email templates
         $this->eventVersion->load([
             'event.eventStatus',

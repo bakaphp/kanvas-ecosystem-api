@@ -65,7 +65,12 @@ final class FindLeadCandidatesActionTest extends TestCase
         $this->assertArrayHasKey('custom_fields', $results[0]);
     }
 
-    public function testClientIdAnchorRanksOneAndSortsAheadOfAContactOnlyMatch(): void
+    /**
+     * Holding the searched CRM id used to hard-set rank to 1.0 without scoring the
+     * lead at all, so a record sharing nothing with the search drew "100% Match" in
+     * the picker. The id now buys a place in the candidate pool and nothing else.
+     */
+    public function testClientIdAnchorGetsNoRankBoost(): void
     {
         $anchored = $this->createLead();
         $anchored->set(CustomFieldEnum::CLIENT_ID->value, '4369283');
@@ -74,10 +79,38 @@ final class FindLeadCandidatesActionTest extends TestCase
         $email = $contactOnly->people->getEmails()->first()->value;
 
         $results = $this->action()->execute(clientId: '4369283', email: $email);
+        $ranks = array_column($results, 'rank', 'id');
 
-        $this->assertSame($anchored->getId(), $results[0]['id']);
-        $this->assertSame(1.0, $results[0]['rank']);
-        $this->assertContains($contactOnly->getId(), array_column($results, 'id'));
+        $this->assertSame(1.0, $ranks[$contactOnly->getId()]);
+        $this->assertSame(0.0, $ranks[$anchored->getId()]);
+        $this->assertSame($contactOnly->getId(), $results[0]['id']);
+    }
+
+    /**
+     * The Griffin CDJR shape (lead 767044): several leads share the searched phone,
+     * one of them also holds the searched CRM id, and none of them match the name or
+     * the email. Every one of them is one signal out of four.
+     */
+    public function testAnchoredLeadScoresLikeAnyOtherCandidateSharingTheSameContact(): void
+    {
+        $people = $this->createPeople();
+        $phone = Str::sanitizePhoneNumber($people->getCellPhones()->first()->value);
+
+        $anchored = $this->createLead(people: $people);
+        $anchored->set(CustomFieldEnum::CLIENT_ID->value, '4369283');
+        $plain = $this->createLead(people: $people);
+
+        $results = $this->action()->execute(
+            clientId: '4369283',
+            email: 'no-match-zzz@example.invalid',
+            phone: $phone,
+            firstname: 'Zzzyxwvuts',
+            lastname: 'Qqqponmlkj',
+        );
+        $ranks = array_column($results, 'rank', 'id');
+
+        $this->assertSame(0.25, $ranks[$anchored->getId()]);
+        $this->assertSame(0.25, $ranks[$plain->getId()]);
     }
 
     public function testExcludesLeadsInATerminalStatus(): void

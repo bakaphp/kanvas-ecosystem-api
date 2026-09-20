@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Intelligence;
 
+use Illuminate\Support\Facades\Exceptions;
 use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Accounting\CancelMyExpenseTool;
@@ -18,6 +19,7 @@ use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\PdfIngest\Contracts\PdfClassifierServiceInterface;
 use Kanvas\Scribe\PdfIngest\DataTransferObject\PdfClassificationResult;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestDocumentTypeEnum;
+use Kanvas\Scribe\PdfIngest\Exceptions\UnsupportedDocumentTypeException;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\HasRunKey;
 use Tests\Scribe\PdfIngest\Stubs\FakePdfClassifier;
@@ -308,6 +310,24 @@ final class SubmitMyExpenseToolTest extends ScribeTestCase
 
         $this->assertFalse($result['success']);
         $this->assertSame('no_total_found', $result['reason']);
+    }
+
+    public function test_extract_expense_receipt_answers_an_unreadable_file_without_reporting_it(): void
+    {
+        Exceptions::fake();
+        $this->app->instance(
+            PdfClassifierServiceInterface::class,
+            new FakePdfClassifier()->queueException(new UnsupportedDocumentTypeException('application/zip')),
+        );
+
+        $result = new ExtractExpenseReceiptTool()
+            ->withContext($this->kanvasApp, $this->company, static::$cachedUser)
+            ->__invoke(filesystem_id: (int) $this->createFilesystemRow()->getKey());
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('unsupported_file_type', $result['reason']);
+        $this->assertSame('application/zip', $result['mime_type']);
+        Exceptions::assertNothingReported();
     }
 
     /**

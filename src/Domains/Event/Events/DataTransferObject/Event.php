@@ -7,7 +7,9 @@ namespace Kanvas\Event\Events\DataTransferObject;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventClass;
 use Kanvas\Event\Events\Models\EventStatus;
@@ -43,6 +45,8 @@ class Event extends Data
         public readonly ?string $meeting_link = null,
         public readonly ?int $timeSlotId = null,
         public readonly ?array $config = null,
+        public readonly ?CarbonInterface $startAt = null,
+        public readonly ?CarbonInterface $endAt = null,
     ) {
     }
 
@@ -63,6 +67,16 @@ class Event extends Data
             ? EventType::fromApp($app)->fromCompany($company)->where('id', $data['type_id'])->firstOrFail()
             : EventType::fromApp($app)->fromCompany($company)->where('id', $category->event_type_id)->firstOrFail();
 
+        $resource = $data['resource'] ?? null;
+        if ($resource === null && isset($data['resources_id'])) {
+            $resource = self::getEntityByIdOrDefault(
+                Variants::class,
+                $app,
+                $company,
+                $data['resources_id']
+            );
+        }
+
         return new self(
             app: $app,
             user: $user,
@@ -73,7 +87,7 @@ class Event extends Data
             status: self::getEntityByIdOrDefault(EventStatus::class, $app, $company, $data['status_id'] ?? null),
             type: $type,
             category: $category,
-            resource: isset($data['resources_id']) ? self::getEntityByIdOrDefault(Variants::class, $app, $company, $data['resources_id'] ?? null) : null,
+            resource: $resource,
             class: self::getEntityByIdOrDefault(EventClass::class, $app, $company, $data['class_id'] ?? null),
             dates: EventDate::collect($data['dates'] ?? [], DataCollection::class),
             description: $data['description'] ?? null,
@@ -83,7 +97,9 @@ class Event extends Data
             orderItems: $data['order_items'] ?? [],
             meeting_link: $data['meeting_link'] ?? null,
             timeSlotId: $data['time_slot_id'] ?? null,
-            config: $data['config'] ?? null
+            config: $data['config'] ?? null,
+            startAt: isset($data['start_at']) ? Carbon::parse($data['start_at'])->utc() : null,
+            endAt: isset($data['end_at']) ? Carbon::parse($data['end_at'])->utc() : null,
         );
     }
 

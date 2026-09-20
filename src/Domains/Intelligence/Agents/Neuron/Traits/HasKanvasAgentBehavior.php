@@ -22,11 +22,13 @@ use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\Nodes\ToolNode;
 use NeuronAI\Agent\SystemPrompt;
+use NeuronAI\Exceptions\MissingCallbackParameter;
 use NeuronAI\Providers\AIProviderInterface;
 use NeuronAI\Tools\ToolInterface;
 use NeuronAI\Workflow\Middleware\WorkflowMiddleware;
 use NeuronAI\Workflow\NodeInterface;
 use Override;
+use Throwable;
 
 trait HasKanvasAgentBehavior
 {
@@ -367,6 +369,26 @@ trait HasKanvasAgentBehavior
         return [
             ToolNode::class => new BoundToolResultsMiddleware(),
         ];
+    }
+
+    /**
+     * A tool call missing a required argument is the model's mistake, not a platform fault — Neuron
+     * rejects it before the tool runs, and unhandled it kills the whole turn (KANVAS-ECOSYSTEM-65P, a
+     * task-only call to a tool that needs `plan_id`). Handing it back as the tool result lets the model
+     * correct the call. Anything else still throws.
+     */
+    #[Override]
+    protected function resolveToolErrorHandler(): ?callable
+    {
+        return $this->toolErrorHandler ?? function (Throwable $e, ToolInterface $tool): string {
+            if (! $e instanceof MissingCallbackParameter) {
+                throw $e;
+            }
+
+            return json_encode([
+                'error' => $e->getMessage() . '. Call ' . $tool->getName() . ' again with every required argument.',
+            ]);
+        };
     }
 
     private function requireAgent(): Agent

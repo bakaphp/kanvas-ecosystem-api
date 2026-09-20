@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Connectors\Mcp;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\Exceptions\AuthenticationException;
@@ -17,8 +18,10 @@ use Kanvas\Connectors\Mcp\Services\McpCredentialService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\NervousSystem\Capability\Actions\SetAgentToolAction;
+use Kanvas\NervousSystem\Capability\Enums\McpAsyncJobStatusEnum;
 use Kanvas\NervousSystem\Capability\Enums\ToolTypeEnum;
 use Kanvas\NervousSystem\Capability\Models\AgentTool;
+use Kanvas\NervousSystem\Capability\Models\McpAsyncJob;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationTypeEnum;
@@ -233,6 +236,32 @@ abstract class McpTestCase extends TestCase
     protected function connectionState(Agent $agent, Tool $tool): array
     {
         return McpConnectionService::stateOf($this->grantFor($agent, $tool));
+    }
+
+    /**
+     * A background job in flight, as StartMcpAsyncJobAction would have written it.
+     */
+    protected function makeAsyncJob(
+        Agent $agent,
+        Integrations $integration,
+        string $startTool = 'run_session',
+        string $externalId = 'session-1',
+        ?string $sessionUuid = null,
+    ): McpAsyncJob {
+        $job = new McpAsyncJob();
+        $job->apps_id = $agent->apps_id;
+        $job->companies_id = $agent->companies_id;
+        $job->agents_id = $agent->getId();
+        $job->integrations_id = $integration->getId();
+        $job->users_id = $this->mcpUser->getId();
+        $job->session_uuid = $sessionUuid ?? Str::uuid()->toString();
+        $job->start_tool = $startTool;
+        $job->external_id = $externalId;
+        $job->status = McpAsyncJobStatusEnum::RUNNING->value;
+        $job->expires_at = Carbon::now()->addHour();
+        $job->saveOrFail();
+
+        return $job;
     }
 
     protected function credentials(Agent $agent, Integrations $integration): McpCredentialService

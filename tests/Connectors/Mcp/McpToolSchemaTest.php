@@ -80,6 +80,32 @@ final class McpToolSchemaTest extends TestCase
         );
     }
 
+    public function testAnEmptyObjectStaysAnObjectOnTheWire(): void
+    {
+        $transport = FakeMcpServer::handshakeThenCalls(['content' => [['type' => 'text', 'text' => 'ok']]]);
+        $connector = new CachedMcpConnector(['transport' => $transport]);
+        $connector->toolsFromDescriptors([$this->browserlessAgent()], 'browserless');
+
+        $connector->invokeTool(
+            [...$this->browserlessAgent(), 'name' => 'browserless__browserless_agent'],
+            ['commands' => [
+                ['method' => 'goto', 'params' => ['url' => 'https://example.test']],
+                ['method' => 'snapshot', 'params' => []],
+                ['method' => 'close', 'params' => '{}'],
+            ]],
+        );
+
+        $call = array_values(array_filter($transport->getSent(), fn (array $m): bool => ($m['method'] ?? '') === 'tools/call'));
+        $sent = json_decode((string) json_encode($call[0]['params']['arguments']), true, 64, JSON_THROW_ON_ERROR);
+
+        // PHP has one array type, so `{}` came back out as `[]` and Browserless refused the whole call:
+        // "commands.1.params: Invalid input: expected record, received array".
+        $this->assertStringContainsString('"params":{}', (string) json_encode($call[0]['params']['arguments']));
+        $this->assertSame(['url' => 'https://example.test'], $sent['commands'][0]['params']);
+        $this->assertSame([], $sent['commands'][1]['params']);
+        $this->assertSame([], $sent['commands'][2]['params']);
+    }
+
     public function testAReferencedItemKeepsTheShapeItPointsAt(): void
     {
         $attendees = $this->declarations()['calendar__create_event']['parameters']['properties']['attendees'];
@@ -244,6 +270,35 @@ final class McpToolSchemaTest extends TestCase
      *
      * @return array<string, mixed>
      */
+    /**
+     * Browserless's `commands`: a list of {method, params} where `params` is a free-form map.
+     *
+     * @return array<string, mixed>
+     */
+    private function browserlessAgent(): array
+    {
+        return [
+            'name' => 'browserless_agent',
+            'description' => 'Execute browser commands in a persistent agent session.',
+            'inputSchema' => [
+                'type' => 'object',
+                'properties' => [
+                    'commands' => [
+                        'type' => 'array',
+                        'items' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'method' => ['type' => 'string'],
+                                'params' => ['type' => 'object', 'description' => 'Arguments for the method.'],
+                            ],
+                            'required' => ['method'],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    }
+
     private function analyticsRunReport(): array
     {
         return [

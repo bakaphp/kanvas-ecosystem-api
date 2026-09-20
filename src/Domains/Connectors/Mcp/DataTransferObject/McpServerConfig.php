@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Mcp\DataTransferObject;
 use Baka\Http\Exceptions\SsrfException;
 use Baka\Http\SafeUrl;
 use Baka\Support\Str;
+use Kanvas\Connectors\Mcp\Contracts\CollectsMcpJobArtifacts;
 use Kanvas\Connectors\Mcp\Enums\McpAuthEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Workflow\Enums\IntegrationTypeEnum;
@@ -32,6 +33,11 @@ final readonly class McpServerConfig
      *                                    Authorization header (Browserbase: `browserbaseApiKey`). The
      *                                    admin still pastes only the key; the transport appends it at
      *                                    send time, so the secret never reaches a stored URL.
+     * @param string|null $authHeader the header this vendor wants its bare key in instead of
+     *                                `Authorization: Bearer` (Browser Use: `x-browser-use-api-key`)
+     * @param array<string, McpAsyncJobConfig> $asyncJobs remote tool name => how to follow the job it starts
+     * @param class-string<CollectsMcpJobArtifacts>|null $artifactsHandler collects the files a finished job left
+     * @param array<string, array<string, mixed>> $toolArguments remote tool name => arguments Kanvas fills in
      */
     public function __construct(
         public ?string $url,
@@ -43,6 +49,10 @@ final readonly class McpServerConfig
         public array $oauth = [],
         public bool $urlPerConnection = false,
         public ?string $authQueryParam = null,
+        public ?string $authHeader = null,
+        public array $asyncJobs = [],
+        public ?string $artifactsHandler = null,
+        public array $toolArguments = [],
     ) {
     }
 
@@ -72,7 +82,29 @@ final readonly class McpServerConfig
             oauth: is_array($metadata['oauth'] ?? null) ? $metadata['oauth'] : [],
             urlPerConnection: $urlPerConnection,
             authQueryParam: Str::trimmedStringOrNull($metadata['auth_query_param'] ?? null),
+            authHeader: Str::trimmedStringOrNull($metadata['auth_header'] ?? null),
+            asyncJobs: self::asyncJobsFrom($metadata['async_jobs'] ?? null),
+            artifactsHandler: Str::trimmedStringOrNull($metadata['artifacts_handler'] ?? null),
+            toolArguments: self::toolArgumentsFrom($metadata['tool_arguments'] ?? null),
         );
+    }
+
+    public function asyncJob(string $remoteToolName): ?McpAsyncJobConfig
+    {
+        return $this->asyncJobs[$remoteToolName] ?? null;
+    }
+
+    /**
+     * Checked before constructing: a row naming a class that is gone, or one whose constructor takes
+     * arguments because it is not a collector at all, would otherwise fatal the job it belongs to.
+     */
+    public function artifactCollector(): ?CollectsMcpJobArtifacts
+    {
+        if ($this->artifactsHandler === null || ! is_subclass_of($this->artifactsHandler, CollectsMcpJobArtifacts::class)) {
+            return null;
+        }
+
+        return new $this->artifactsHandler();
     }
 
     /**
@@ -108,6 +140,44 @@ final readonly class McpServerConfig
     public function isExcluded(string $remoteToolName): bool
     {
         return in_array($remoteToolName, $this->exclude, true);
+    }
+
+    /**
+     * Settings a vendor needs but the model has no reason to know — Chrome's download policy on a Kernel
+     * browser, a model tier the account cannot use. Config rather than prompt: an instruction is advice,
+     * and the cost of the model ignoring it lands on the person waiting for the run.
+     *
+     * @return array<string, array<string, mixed>>
+     */
+    private static function toolArgumentsFrom(mixed $blocks): array
+    {
+        $tools = [];
+
+        foreach (is_array($blocks) ? $blocks : [] as $remoteToolName => $arguments) {
+            if (is_array($arguments) && $arguments !== []) {
+                $tools[(string) $remoteToolName] = $arguments;
+            }
+        }
+
+        return $tools;
+    }
+
+    /**
+     * @return array<string, McpAsyncJobConfig>
+     */
+    private static function asyncJobsFrom(mixed $blocks): array
+    {
+        $jobs = [];
+
+        foreach (is_array($blocks) ? $blocks : [] as $remoteToolName => $block) {
+            $config = is_array($block) ? McpAsyncJobConfig::fromArray($block) : null;
+
+            if ($config !== null) {
+                $jobs[(string) $remoteToolName] = $config;
+            }
+        }
+
+        return $jobs;
     }
 
     /**

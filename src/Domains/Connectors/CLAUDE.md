@@ -39,6 +39,20 @@ a third CRM connector lands and makes it three copies.
 
 ## Hard rules specific to this tree
 
+### A connector must not own a model or a table the platform reads
+
+A connector is an adapter to someone else's service: client, DTOs, handler, activities, webhook jobs. The
+moment it owns a **table** — and a model other domains read — the domain has leaked into the connector, and
+every consumer now depends on a connector for its own data.
+
+Put the model (and its status enum, the thing the table stores) in the domain that owns the concept, and
+keep the behaviour in the connector if that is where it belongs. Precedents: `McpToolSnapshot` and
+`McpAsyncJob` are `NervousSystem\Capability\Models\*` on `nervous_system_*` tables, while the jobs and
+actions that drive them live in `Connectors/Mcp`; `CachedMcpConnector` sits in `Intelligence\Agents`.
+
+Connector-local rows that are genuinely about the external service (credentials, cursors, per-tenant
+settings) belong in `integrations`/`integrations_company` config or a custom field — not a new table.
+
 ### AgentRuntime is a primary domain, NOT a connector
 
 OpenClaw, Hermes (and future Nano) live under `src/Domains/Connectors/`, but **`AgentRuntime` itself is a primary domain** at `src/Domains/Intelligence/AgentRuntime/`. The connector folders only hold per-runtime implementations of the shared `AgentRuntimeProvider` contract. If you see `app/GraphQL/Connector/AgentRuntime/`, `graphql/schemas/Connector/agentruntime.graphql`, `hermesLaunchAgent`, `openclawTerminateAgent`, or any per-runtime mutation, that's the wrong shape — delete it. The whole graph is `agentRuntime*` and routes by `agent_deployments.provider`.

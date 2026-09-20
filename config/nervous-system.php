@@ -33,7 +33,7 @@ return [
 
         /*
         | Path prefix inside the disk. The full archive path becomes:
-        |   {prefix}/{year}/{week}/events-{from}-to-{to}.jsonl.gz
+        |   {prefix}/{year}/{m-d}/events-{from}-to-{to}-{uuid8}.jsonl.gz
         */
         'archive_path_prefix' => env('NERVOUS_SYSTEM_ARCHIVE_PATH_PREFIX', 'nervous-system'),
 

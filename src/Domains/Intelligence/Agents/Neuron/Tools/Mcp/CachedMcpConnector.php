@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Mcp;
 
+use Kanvas\Connectors\Mcp\Actions\StartMcpAsyncJobAction;
+use Kanvas\Connectors\Mcp\DataTransferObject\McpServerConfig;
 use Kanvas\Connectors\Mcp\Support\McpToolName;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Models\Tool as CapabilityTool;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\Workflow\Models\Integrations;
 use NeuronAI\MCP\CallableMcpTool;
 use NeuronAI\MCP\McpConnector;
 use NeuronAI\Tools\ToolInterface;
@@ -44,6 +47,22 @@ class CachedMcpConnector extends McpConnector
 
     protected ?int $agentId = null;
 
+    protected ?int $integrationId = null;
+
+    /** @var list<string> remote tools that start a background job */
+    protected array $asyncTools = [];
+
+    /** @var array<string, array<string, mixed>> remote tool name => arguments Kanvas fills in */
+    protected array $toolArguments = [];
+
+    protected ?string $sessionUuid = null;
+
+    protected ?int $conversationUserId = null;
+
+    private ?Agent $agent = null;
+
+    private ?Integrations $integration = null;
+
     #[Override]
     public function __serialize(): array
     {
@@ -56,6 +75,11 @@ class CachedMcpConnector extends McpConnector
             'maxMs' => $this->maxMs,
             'toolId' => $this->toolId,
             'agentId' => $this->agentId,
+            'integrationId' => $this->integrationId,
+            'asyncTools' => $this->asyncTools,
+            'toolArguments' => $this->toolArguments,
+            'sessionUuid' => $this->sessionUuid,
+            'conversationUserId' => $this->conversationUserId,
         ];
     }
 
@@ -70,6 +94,11 @@ class CachedMcpConnector extends McpConnector
         $this->maxMs = $data['maxMs'] ?? self::DEFAULT_MAX_MS_PER_TURN;
         $this->toolId = $data['toolId'] ?? null;
         $this->agentId = $data['agentId'] ?? null;
+        $this->integrationId = $data['integrationId'] ?? null;
+        $this->asyncTools = $data['asyncTools'] ?? [];
+        $this->toolArguments = $data['toolArguments'] ?? [];
+        $this->sessionUuid = $data['sessionUuid'] ?? null;
+        $this->conversationUserId = $data['conversationUserId'] ?? null;
     }
 
     public function withBudget(int $maxCalls, int $maxMs): self
@@ -90,6 +119,42 @@ class CachedMcpConnector extends McpConnector
         $this->agentId = $agentId;
 
         return $this;
+    }
+
+    /**
+     * @param list<string> $asyncTools
+     * @param array<string, array<string, mixed>> $toolArguments
+     */
+    public function forIntegration(int $integrationId, array $asyncTools = [], array $toolArguments = []): self
+    {
+        $this->integrationId = $integrationId;
+        $this->asyncTools = $asyncTools;
+        $this->toolArguments = $toolArguments;
+
+        return $this;
+    }
+
+    /**
+     * Where a job this turn starts reports back to. Without a conversation there is nowhere to resume,
+     * so a job-starting tool answers the model with the vendor's own result instead.
+     */
+    public function withConversation(?string $sessionUuid, ?int $conversationUserId): self
+    {
+        $this->sessionUuid = $sessionUuid;
+        $this->conversationUserId = $conversationUserId;
+
+        return $this;
+    }
+
+    /**
+     * A call Kanvas makes on the agent's behalf — a background job's status check — so it spends no turn
+     * budget and writes no `mcp.tool.invoked`: a poll every few seconds would bury the agent's own calls.
+     *
+     * @param array<string, mixed> $arguments
+     */
+    public function callRemoteTool(string $remoteName, array $arguments): mixed
+    {
+        return parent::invokeTool(['name' => $remoteName], $arguments);
     }
 
     public function callCount(): int
@@ -169,16 +234,118 @@ class CachedMcpConnector extends McpConnector
         $publicName = (string) ($item['name'] ?? '');
         $item['name'] = $this->nameMap[$publicName] ?? $publicName;
         $arguments = new McpToolSchema()->decodeArguments((array) ($item['inputSchema'] ?? []), $arguments);
+        $arguments = $this->withVendorDefaults($item['name'], $arguments);
 
         $startedAt = microtime(true);
 
         try {
-            return parent::invokeTool($item, $arguments);
+            return $this->handOffIfAsync($item['name'], parent::invokeTool($item, $arguments));
         } finally {
             $this->calls++;
             $this->elapsedMs += (microtime(true) - $startedAt) * 1000;
             $this->emitLedger($item['name'], $publicName);
         }
+    }
+
+    /**
+     * A tool that starts a job and returns before it finishes (Browser Use's `run_session` runs for
+     * minutes) would otherwise have the model poll its status tool until the per-turn run cap kills the
+     * turn. Once the job is recorded the model is told to stop; the poll resumes it with the result.
+     */
+    protected function handOffIfAsync(string $remoteName, mixed $result): mixed
+    {
+        if ($this->integrationId === null || $this->agentId === null || ! in_array($remoteName, $this->asyncTools, true)) {
+            return $result;
+        }
+
+        try {
+            $agent = $this->agent();
+            $integration = $this->integration();
+
+            $job = $agent instanceof Agent && $integration instanceof Integrations
+                ? new StartMcpAsyncJobAction(
+                    agent: $agent,
+                    integration: $integration,
+                    remoteToolName: $remoteName,
+                    content: $result,
+                    sessionUuid: $this->sessionUuid,
+                    usersId: $this->conversationUserId,
+                )->execute()
+                : null;
+        } catch (Throwable $e) {
+            // The job did start on the vendor's side — hand the model what the vendor said rather than
+            // losing it to a bookkeeping failure.
+            report($e);
+
+            return $result;
+        }
+
+        if ($job === null) {
+            return $result;
+        }
+
+        return (string) json_encode([
+            'status' => 'running_in_background',
+            'job_id' => $job->external_id,
+            'live_url' => $job->live_url,
+            'message' => 'This job runs in the background and can take several minutes. Kanvas posts the live '
+                . 'browser link into this conversation as soon as there is one, and will wake you here with '
+                . 'the result when the job ends. Do not call the status tool to check on it. Tell the user '
+                . 'it has started and end your turn.',
+        ], JSON_UNESCAPED_SLASHES);
+    }
+
+    /**
+     * What the vendor needs and the model has no reason to know: the workspace a Browser Use job must
+     * write to for its files to outlive the sandbox, the Chrome policy that stops a Kernel browser
+     * prompting "Needs permission to download". Only keys the model left out are filled, so an explicit
+     * choice still wins, and a server that declares neither is untouched.
+     *
+     * @param array<string, mixed> $arguments
+     * @return array<string, mixed>
+     */
+    protected function withVendorDefaults(string $remoteName, array $arguments): array
+    {
+        $pinned = $this->toolArguments[$remoteName] ?? [];
+        $startsJob = in_array($remoteName, $this->asyncTools, true);
+
+        if ($this->integrationId === null || ($pinned === [] && ! $startsJob)) {
+            return $arguments;
+        }
+
+        try {
+            $agent = $this->agent();
+            $integration = $this->integration();
+
+            $collected = $startsJob && $agent instanceof Agent && $integration instanceof Integrations
+                ? McpServerConfig::fromIntegration($integration)
+                    ->artifactCollector()
+                    ?->defaultArguments($agent, $integration, $remoteName) ?? []
+                : [];
+
+            foreach ([...$pinned, ...$collected] as $key => $value) {
+                $arguments[$key] ??= $value;
+            }
+        } catch (Throwable $e) {
+            // A vendor call that cannot be prepared still runs — it just loses its files.
+            report($e);
+        }
+
+        return $arguments;
+    }
+
+    /**
+     * Resolved once per turn: the ledger, the pinned arguments and the async hand-off all need these on
+     * the same call, and a browser-creating turn makes several.
+     */
+    protected function agent(): ?Agent
+    {
+        return $this->agent ??= Agent::query()->where('id', $this->agentId)->first();
+    }
+
+    protected function integration(): ?Integrations
+    {
+        return $this->integration ??= Integrations::query()->where('id', $this->integrationId)->first();
     }
 
     protected function budgetSpent(): bool
@@ -197,7 +364,7 @@ class CachedMcpConnector extends McpConnector
         }
 
         try {
-            $agent = Agent::query()->where('id', $this->agentId)->first();
+            $agent = $this->agent();
 
             if (! $agent instanceof Agent) {
                 return;

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Event\Events\Actions;
 
 use Baka\Support\Str;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Event\Events\DataTransferObject\EventDate;
 use Kanvas\Event\Events\Enums\EmailTemplateEnum;
+use Kanvas\Event\Events\Enums\EventReminderStatusEnum;
 use Kanvas\Event\Events\Models\Event as ModelsEvent;
 use Kanvas\Event\Events\Models\EventResource;
 use Kanvas\Event\Events\Models\EventVersion as ModelsEventVersion;
@@ -20,6 +22,7 @@ use Spatie\LaravelData\DataCollection;
 class UpdateEventAction
 {
     protected bool $runWorkflow = true;
+    protected bool $sendNotifications = true;
 
     public function __construct(
         protected ModelsEventVersion $eventVersion,
@@ -30,6 +33,13 @@ class UpdateEventAction
     public function disableWorkflow(): self
     {
         $this->runWorkflow = false;
+
+        return $this;
+    }
+
+    public function withoutNotifications(): self
+    {
+        $this->sendNotifications = false;
 
         return $this;
     }
@@ -108,6 +118,21 @@ class UpdateEventAction
             if (isset($this->updateData['end_at'])) {
                 $this->eventVersion->end_at = $this->updateData['end_at'];
             }
+
+            // start_at/end_at drive the reminder; left untouched when only the date rows move, the
+            // reminder would keep firing at the old time.
+            if (! empty($this->updateData['dates'])) {
+                $firstDate = reset($this->updateData['dates']);
+                $lastDate = end($this->updateData['dates']);
+
+                if (! isset($this->updateData['start_at'])) {
+                    $this->eventVersion->start_at = Carbon::parse($firstDate['date'])->setTimeFromTimeString($firstDate['start_time']);
+                }
+                if (! isset($this->updateData['end_at'])) {
+                    $this->eventVersion->end_at = Carbon::parse($lastDate['date'])->setTimeFromTimeString($lastDate['end_time']);
+                }
+            }
+
             if (isset($this->updateData['metadata'])) {
                 $existingMetadata = $this->eventVersion->metadata ?? [];
                 $this->eventVersion->metadata = array_merge($existingMetadata, $this->updateData['metadata']);
@@ -158,13 +183,20 @@ class UpdateEventAction
             return $this->eventVersion->fresh();
         });
 
-        // Send notification to participants after successful update
-        new SendEventEmailsAction(
-            $eventVersion,
-            EmailTemplateEnum::BOOKING_UPDATED->value
-        )->execute();
+        if ($this->sendNotifications) {
+            new SendEventEmailsAction(
+                $eventVersion,
+                EmailTemplateEnum::BOOKING_UPDATED->value
+            )->execute();
+        }
 
-        new ScheduleEventReminderAction($eventVersion)->execute();
+        // A silent sync must not create a reminder, but one that already exists has to follow the
+        // new date or it fires at the old time.
+        if ($this->sendNotifications
+            || $eventVersion->reminders()->where('status', EventReminderStatusEnum::PENDING->value)->exists()
+        ) {
+            new ScheduleEventReminderAction($eventVersion)->execute();
+        }
 
         if ($this->runWorkflow) {
             $event = $eventVersion->event;
