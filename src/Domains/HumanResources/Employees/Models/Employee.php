@@ -26,7 +26,7 @@ use Kanvas\HumanResources\Models\BaseModel;
 use Kanvas\HumanResources\Positions\Models\Position;
 use Kanvas\HumanResources\Seats\Models\SeatAssignment;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
-use Kanvas\Social\Messages\Traits\HasMessagesTrait;
+use Kanvas\Social\Messages\Concerns\HasMessages;
 use Nevadskiy\Tree\AsTree;
 use Override;
 
@@ -59,7 +59,7 @@ class Employee extends BaseModel
     }
     use EmitsLedgerEventsForEntity;
     use HasLightHouseCache;
-    use HasMessagesTrait;
+    use HasMessages;
     use UuidTrait;
 
     protected $table = 'hr_employees';

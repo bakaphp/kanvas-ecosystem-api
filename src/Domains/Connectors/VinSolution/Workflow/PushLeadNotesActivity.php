@@ -45,9 +45,10 @@ class PushLeadNotesActivity extends KanvasActivity
 
         $lead = $message->entity();
 
-        if (! $lead) {
+        if (! $lead instanceof Lead) {
             return $this->failWorkflow([
-                'error' => 'Lead not found',
+                'message_id' => $message->getId(),
+                'error' => 'Message is not associated with a Lead',
             ]);
         }
 

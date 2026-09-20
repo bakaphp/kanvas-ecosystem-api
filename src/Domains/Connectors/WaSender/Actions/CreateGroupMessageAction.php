@@ -115,7 +115,7 @@ class CreateGroupMessageAction extends BaseInboundMessageAction
             return $message;
         }
 
-        $this->fileIntoBurst($message, $messageType);
+        $this->fileIntoBurstWithMedia($message, $messageType);
 
         return $message;
     }

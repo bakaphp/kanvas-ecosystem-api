@@ -2,23 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Connectors\WaSender\Jobs;
+namespace Kanvas\Connectors\WaSender\Actions;
 
-use Baka\Traits\KanvasJobsTrait;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
-use Illuminate\Queue\InteractsWithQueue;
-use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\WaSender\Actions\AgentBurstResponderAction;
 use Kanvas\Connectors\WaSender\Enums\ConversationTypeEnum;
 use Kanvas\Connectors\WaSender\Enums\DirectConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupReplyModeEnum;
-use Kanvas\Connectors\WaSender\Services\GroupBurstService;
 use Kanvas\Connectors\WaSender\Services\GroupMentionService;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -26,87 +15,48 @@ use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionDto;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Models\Channel;
-use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Support\BurstHandler;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
+use Override;
 use Throwable;
 
 /**
- * One finished group burst: compose it, run the agent once over the whole thing, reply if the
+ * One finished WhatsApp burst: compose it, run the agent once over the whole thing, reply if the
  * agent is allowed to speak, then announce it so rules can move the result elsewhere.
  *
  * Connector-owned on purpose. The webhook is already a queued job, so putting the agent pass in a
  * workflow activity would only buy an activity-replies-then-another-activity-acts chain. Activities
  * consume what this produces; they never answer WhatsApp.
  *
- * Debounced rather than scheduled: every message in the burst re-arms the token and dispatches a
- * fresh delayed copy, so only the last one survives to do the work.
+ * The debounce that decides *when* this runs is the shared one in `Social\Messages`; everything here
+ * is the part that is genuinely WhatsApp.
  */
-class ProcessGroupBurstJob implements ShouldQueue
+class WaSenderBurstHandler extends BurstHandler
 {
-    use Dispatchable;
-    use InteractsWithQueue;
-    use KanvasJobsTrait;
-    use Queueable;
-    use SerializesModels;
-
-    public int $tries = 2;
-
-    public function __construct(
-        public readonly Apps $app,
-        public readonly ReceiverWebhook $receiver,
-        public readonly Channel $channel,
-        public readonly int $burstHeadId,
-        public readonly string $token,
-    ) {
-    }
-
-    /**
-     * The token every message in a burst overwrites. Whoever still matches when the delay expires
-     * is the one that closes it.
-     */
-    public static function cacheKey(int $burstHeadId): string
+    #[Override]
+    public function execute(array $params = []): array
     {
-        return 'wasender:burst:' . $burstHeadId;
-    }
+        // An id, not a model: `SerializesModels` only converts a top-level QueueableEntity, so a
+        // model nested in the flush job's `$params` is raw-serialized and comes back with stale
+        // configuration.
+        $receiver = ReceiverWebhook::getById($params['receiver_id'], $this->app);
 
-    public function handle(): void
-    {
-        // The worker is long-lived and Bouncer auto-scopes Role/Ability queries to whatever the
-        // previous job left bound.
-        $this->overwriteAppService($this->app);
-
-        if (Cache::get(self::cacheKey($this->burstHeadId)) !== $this->token) {
-            return;
-        }
-
-        // Spent here, not on the way out. With `$tries = 2` a throw after the agent has answered
-        // re-entered with the token still valid and filed a second reply — a second published post.
-        // Deleting only on a match still leaves the burst armed for the winner when a part loses.
-        Cache::forget(self::cacheKey($this->burstHeadId));
-
-        $messages = GroupBurstService::messagesFor($this->burstHeadId);
-
-        if ($messages->isEmpty()) {
-            return;
-        }
-
-        $conversationJid = $this->conversationJid($messages);
-        $prompt = GroupBurstService::promptFor($messages);
-        $isDirect = ($messages->first()->message['conversation_type'] ?? null) === ConversationTypeEnum::DIRECT->value;
+        $conversationJid = $this->conversationJid();
+        $prompt = $this->prompt();
+        $isDirect = ($this->head()->message['conversation_type'] ?? null) === ConversationTypeEnum::DIRECT->value;
 
         // A 1:1 is addressed by definition; only a room needs mention detection.
         $isMentioned = $isDirect
-            || new GroupMentionService($this->receiver, $this->channel)->isAddressed($messages);
+            || new GroupMentionService($receiver, $this->channel)->isAddressed($this->messages);
 
-        $agent = $this->resolveAgent($isDirect);
-        $shouldReply = $this->shouldReply($isDirect, $isMentioned);
+        $agent = $this->resolveAgent($receiver, $isDirect);
+        $shouldReply = $this->shouldReply($receiver, $isDirect, $isMentioned);
         $result = null;
 
         if ($agent !== null) {
             $result = $this->runAgent(
                 $agent,
-                $messages,
                 $prompt,
                 $conversationJid,
                 $isDirect,
@@ -126,8 +76,8 @@ class ProcessGroupBurstJob implements ShouldQueue
                 'conversation_type' => $isDirect ? ConversationTypeEnum::DIRECT->value : ConversationTypeEnum::GROUP->value,
                 'group_jid' => $conversationJid,
                 'group_name' => $this->channel->name,
-                'message' => $messages->first(),
-                'burst_message_ids' => $messages->pluck('id')->all(),
+                'message' => $this->head(),
+                'burst_message_ids' => $this->messageIds(),
                 'burst_text' => $prompt,
                 'agent_id' => $agent?->getId(),
                 'agent_result' => $result,
@@ -135,15 +85,21 @@ class ProcessGroupBurstJob implements ShouldQueue
                 'replied' => (bool) ($result['replied'] ?? false),
             ]
         );
+
+        return [
+            'message' => $prompt,
+            'agent_result' => $result,
+            'burst_message_ids' => $this->messageIds(),
+        ];
     }
 
-    private function resolveAgent(bool $isDirect): ?Agent
+    private function resolveAgent(ReceiverWebhook $receiver, bool $isDirect): ?Agent
     {
         // An assistant conversation belongs to the agent that owns the connection; the group
         // agent is a deliberate, separate assignment.
         $agentId = $isDirect
-            ? ($this->receiver->configuration['agent_id'] ?? GroupConfigEnum::GROUP_AGENT_ID->get($this->receiver))
-            : GroupConfigEnum::GROUP_AGENT_ID->get($this->receiver);
+            ? ($receiver->configuration['agent_id'] ?? GroupConfigEnum::GROUP_AGENT_ID->get($receiver))
+            : GroupConfigEnum::GROUP_AGENT_ID->get($receiver);
 
         if ($agentId === null) {
             return null;
@@ -161,11 +117,11 @@ class ProcessGroupBurstJob implements ShouldQueue
         }
     }
 
-    private function shouldReply(bool $isDirect, bool $isMentioned): bool
+    private function shouldReply(ReceiverWebhook $receiver, bool $isDirect, bool $isMentioned): bool
     {
         $mode = $isDirect
-            ? DirectConfigEnum::DIRECT_REPLY_MODE->get($this->receiver)
-            : GroupConfigEnum::GROUP_REPLY_MODE->get($this->receiver);
+            ? DirectConfigEnum::DIRECT_REPLY_MODE->get($receiver)
+            : GroupConfigEnum::GROUP_REPLY_MODE->get($receiver);
 
         return match (GroupReplyModeEnum::tryFromValue($mode)) {
             GroupReplyModeEnum::NEVER => false,
@@ -174,27 +130,23 @@ class ProcessGroupBurstJob implements ShouldQueue
         };
     }
 
-    /**
-     * @param Collection<int, Message> $messages
-     */
-    private function conversationJid(Collection $messages): string
+    private function conversationJid(): string
     {
-        return (string) ($messages->first()->message['group_jid'] ?? $messages->first()->message['chat_jid'] ?? '');
+        $head = $this->head();
+
+        return (string) ($head->message['group_jid'] ?? $head->message['chat_jid'] ?? '');
     }
 
     /**
-     * @param Collection<int, Message> $messages
+     * @return array<string, mixed>|null
      */
     private function runAgent(
         Agent $agent,
-        Collection $messages,
         string $prompt,
         string $conversationJid,
         bool $isDirect,
         bool $shouldReply
     ): ?array {
-        $head = $messages->first();
-
         try {
             $session = new CreateSessionAction(
                 SessionDto::from([
@@ -219,14 +171,14 @@ class ProcessGroupBurstJob implements ShouldQueue
 
             return new AgentBurstResponderAction(
                 $this->channel,
-                $head,
+                $this->head(),
                 $agent,
                 $session
             )->execute([
                 'prompt' => $prompt,
                 'group_jid' => $conversationJid,
                 'should_reply' => $shouldReply,
-                'burst_message_ids' => $messages->pluck('id')->all(),
+                'burst_message_ids' => $this->messageIds(),
             ]);
         } catch (AgentReplySkippedException $e) {
             // An expected refusal — already answered, empty reply, agent muted. Not a fault, so it

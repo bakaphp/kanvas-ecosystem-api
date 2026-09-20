@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\WaSender\Actions\WaSenderBurstHandler;
 use Kanvas\Connectors\WaSender\Enums\BurstConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\ConnectionFieldEnum;
 use Kanvas\Connectors\WaSender\Enums\DirectConfigEnum;
@@ -17,16 +18,16 @@ use Kanvas\Connectors\WaSender\Enums\DirectConversationModeEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupReplyModeEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
-use Kanvas\Connectors\WaSender\Jobs\ProcessGroupBurstJob;
 use Kanvas\Connectors\WaSender\Services\ContactService;
-use Kanvas\Connectors\WaSender\Services\GroupBurstService;
 use Kanvas\Connectors\WaSender\Services\GroupMentionService;
 use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Jobs\FlushMessageBurstJob;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Services\MessageBurstService;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -40,7 +41,7 @@ use Tests\TestCase;
 /**
  * PR3: a burst closes once, on a debounce, and the reply is gated separately from the processing.
  */
-final class ProcessGroupBurstJobTest extends TestCase
+final class WaSenderBurstTest extends TestCase
 {
     use DatabaseTransactions;
 
@@ -90,8 +91,8 @@ final class ProcessGroupBurstJobTest extends TestCase
 
         $dispatched = [];
         Queue::assertPushed(
-            ProcessGroupBurstJob::class,
-            function (ProcessGroupBurstJob $job) use ($headId, &$dispatched): bool {
+            FlushMessageBurstJob::class,
+            function (FlushMessageBurstJob $job) use ($headId, &$dispatched): bool {
                 $dispatched[] = $job;
 
                 return $job->burstHeadId === $headId;
@@ -101,7 +102,7 @@ final class ProcessGroupBurstJobTest extends TestCase
         $this->assertCount(2, $dispatched, 'Each part re-arms the close');
         $this->assertNotSame($dispatched[0]->token, $dispatched[1]->token);
         $this->assertSame(
-            Cache::get(ProcessGroupBurstJob::cacheKey($headId)),
+            Cache::get(FlushMessageBurstJob::cacheKey($headId)),
             $dispatched[1]->token,
             'Only the newest token is current'
         );
@@ -116,16 +117,17 @@ final class ProcessGroupBurstJobTest extends TestCase
         $headId = $result['result']['messages'][0]['message_id'];
         $channel = Channel::findOrFail($result['result']['messages'][0]['channel_id']);
 
-        new ProcessGroupBurstJob(
+        new FlushMessageBurstJob(
             app(Apps::class),
-            $this->receiver(),
             $channel,
             $headId,
-            'a-token-from-an-earlier-part'
+            'a-token-from-an-earlier-part',
+            WaSenderBurstHandler::class,
+            ['receiver_id' => $this->receiver()->getId()]
         )->handle();
 
         $this->assertNotNull(
-            Cache::get(ProcessGroupBurstJob::cacheKey($headId)),
+            Cache::get(FlushMessageBurstJob::cacheKey($headId)),
             'A superseded job must leave the burst armed for the winner'
         );
     }
@@ -138,17 +140,18 @@ final class ProcessGroupBurstJobTest extends TestCase
         $result = $this->ingestAt(0, $this->groupText('Alex Rivera'));
         $headId = $result['result']['messages'][0]['message_id'];
         $channel = Channel::findOrFail($result['result']['messages'][0]['channel_id']);
-        $token = Cache::get(ProcessGroupBurstJob::cacheKey($headId));
+        $token = Cache::get(FlushMessageBurstJob::cacheKey($headId));
 
-        new ProcessGroupBurstJob(
+        new FlushMessageBurstJob(
             app(Apps::class),
-            $this->receiver(),
             $channel,
             $headId,
-            (string) $token
+            (string) $token,
+            WaSenderBurstHandler::class,
+            ['receiver_id' => $this->receiver()->getId()]
         )->handle();
 
-        $this->assertNull(Cache::get(ProcessGroupBurstJob::cacheKey($headId)));
+        $this->assertNull(Cache::get(FlushMessageBurstJob::cacheKey($headId)));
     }
 
     /**
@@ -166,14 +169,15 @@ final class ProcessGroupBurstJobTest extends TestCase
         $result = $this->ingestAt(0, $this->groupText('Alex Rivera'));
         $headId = $result['result']['messages'][0]['message_id'];
         $channel = Channel::findOrFail($result['result']['messages'][0]['channel_id']);
-        $token = (string) Cache::get(ProcessGroupBurstJob::cacheKey($headId));
+        $token = (string) Cache::get(FlushMessageBurstJob::cacheKey($headId));
 
-        $job = new ProcessGroupBurstJob(
+        $job = new FlushMessageBurstJob(
             app(Apps::class),
-            $this->receiver(),
             $this->explodingChannel($channel),
             $headId,
-            $token
+            $token,
+            WaSenderBurstHandler::class,
+            ['receiver_id' => $this->receiver()->getId()]
         );
 
         try {
@@ -259,7 +263,7 @@ final class ProcessGroupBurstJobTest extends TestCase
         $this->ingestAt(10, $this->groupText('Alex Rivera', 'Y la foto va aparte'));
 
         $headId = $first['result']['messages'][0]['message_id'];
-        $prompt = GroupBurstService::promptFor(GroupBurstService::messagesFor($headId));
+        $prompt = MessageBurstService::promptFor(MessageBurstService::messagesFor($headId));
 
         $this->assertSame(
             "Alex Rivera: Press release body\n\nAlex Rivera: Y la foto va aparte",
@@ -286,7 +290,7 @@ final class ProcessGroupBurstJobTest extends TestCase
             $this->ingestAt($i * 120, $this->groupText('Alex Rivera', 'nota ' . $i));
 
             $pushed = [];
-            Queue::assertPushed(ProcessGroupBurstJob::class, function (ProcessGroupBurstJob $job) use (&$pushed): bool {
+            Queue::assertPushed(FlushMessageBurstJob::class, function (FlushMessageBurstJob $job) use (&$pushed): bool {
                 $pushed[] = $job;
 
                 return true;
@@ -317,7 +321,7 @@ final class ProcessGroupBurstJobTest extends TestCase
         $this->ingestAt(0, $this->groupText('Alex Rivera'));
 
         $pushed = [];
-        Queue::assertPushed(ProcessGroupBurstJob::class, function (ProcessGroupBurstJob $job) use (&$pushed): bool {
+        Queue::assertPushed(FlushMessageBurstJob::class, function (FlushMessageBurstJob $job) use (&$pushed): bool {
             $pushed[] = $job;
 
             return true;
@@ -348,7 +352,7 @@ final class ProcessGroupBurstJobTest extends TestCase
         $this->ingestAt(5, $this->groupTextMentioning('Alex Rivera'));
 
         $delays = [];
-        Queue::assertPushed(ProcessGroupBurstJob::class, function (ProcessGroupBurstJob $job) use (&$delays): bool {
+        Queue::assertPushed(FlushMessageBurstJob::class, function (FlushMessageBurstJob $job) use (&$delays): bool {
             $delays[] = $job->delay;
 
             return true;
@@ -369,7 +373,7 @@ final class ProcessGroupBurstJobTest extends TestCase
 
         $result = $this->ingestAt(0, $this->groupTextMentioning('Alex Rivera'));
         $channel = Channel::findOrFail($result['result']['messages'][0]['channel_id']);
-        $messages = GroupBurstService::messagesFor($result['result']['messages'][0]['message_id']);
+        $messages = MessageBurstService::messagesFor($result['result']['messages'][0]['message_id']);
 
         $this->assertTrue(
             new GroupMentionService($this->receiver(), $channel)->isAddressed($messages)
@@ -383,7 +387,7 @@ final class ProcessGroupBurstJobTest extends TestCase
 
         $result = $this->ingestAt(0, $this->groupText('Alex Rivera'));
         $channel = Channel::findOrFail($result['result']['messages'][0]['channel_id']);
-        $messages = GroupBurstService::messagesFor($result['result']['messages'][0]['message_id']);
+        $messages = MessageBurstService::messagesFor($result['result']['messages'][0]['message_id']);
 
         $this->assertFalse(
             new GroupMentionService($this->receiver(), $channel)->isAddressed($messages)
@@ -408,7 +412,7 @@ final class ProcessGroupBurstJobTest extends TestCase
         ]);
 
         $quoting = $this->ingestAt(10, $this->groupTextQuoting('Sam Okafor', 'AGENT-REPLY-1'));
-        $messages = GroupBurstService::messagesFor($quoting['result']['messages'][0]['message_id']);
+        $messages = MessageBurstService::messagesFor($quoting['result']['messages'][0]['message_id']);
 
         $this->assertTrue(
             new GroupMentionService($this->receiver(), $channel)->isAddressed($messages)
@@ -436,7 +440,7 @@ final class ProcessGroupBurstJobTest extends TestCase
             $result['result']['messages'][0]['message_id'],
             'Our own message is still filed'
         );
-        Queue::assertNotPushed(ProcessGroupBurstJob::class);
+        Queue::assertNotPushed(FlushMessageBurstJob::class);
     }
 
     /**
@@ -463,7 +467,7 @@ final class ProcessGroupBurstJobTest extends TestCase
 
         $result = $this->ingestAt(0, $this->groupTextMentioning('Alex Rivera'));
         $channel = Channel::findOrFail($result['result']['messages'][0]['channel_id']);
-        $messages = GroupBurstService::messagesFor($result['result']['messages'][0]['message_id']);
+        $messages = MessageBurstService::messagesFor($result['result']['messages'][0]['message_id']);
         $this->assertTrue(
             new GroupMentionService($this->receiver(), $channel, $contacts)->isAddressed($messages),
             'A mention must be visible before the agent has ever spoken'
@@ -502,7 +506,7 @@ final class ProcessGroupBurstJobTest extends TestCase
 
         $result = $this->ingestAt(0, $this->groupTextMentioning('Alex Rivera'));
         $channel = Channel::findOrFail($result['result']['messages'][0]['channel_id']);
-        $messages = GroupBurstService::messagesFor($result['result']['messages'][0]['message_id']);
+        $messages = MessageBurstService::messagesFor($result['result']['messages'][0]['message_id']);
 
         new GroupMentionService($this->receiver(), $channel, $contacts)->isAddressed($messages);
         new GroupMentionService($this->receiver(), $channel, $contacts)->isAddressed($messages);
@@ -543,15 +547,16 @@ final class ProcessGroupBurstJobTest extends TestCase
 
         // No agent configured, so the burst closes without an agent turn — the point here is that
         // it closes cleanly rather than throwing on a mention it must not answer.
-        new ProcessGroupBurstJob(
+        new FlushMessageBurstJob(
             app(Apps::class),
-            $this->receiver(),
             $channel,
             $headId,
-            (string) Cache::get(ProcessGroupBurstJob::cacheKey($headId))
+            (string) Cache::get(FlushMessageBurstJob::cacheKey($headId)),
+            WaSenderBurstHandler::class,
+            ['receiver_id' => $this->receiver()->getId()]
         )->handle();
 
-        $this->assertNull(Cache::get(ProcessGroupBurstJob::cacheKey($headId)));
+        $this->assertNull(Cache::get(FlushMessageBurstJob::cacheKey($headId)));
         $this->assertSame(0, Message::query()->where('parent_id', $headId)->where('is_deleted', 0)->count());
     }
 
@@ -573,7 +578,7 @@ final class ProcessGroupBurstJobTest extends TestCase
 
         $result = $this->ingestAt(0, $payload);
         $channel = Channel::findOrFail($result['result']['messages'][0]['channel_id']);
-        $messages = GroupBurstService::messagesFor($result['result']['messages'][0]['message_id']);
+        $messages = MessageBurstService::messagesFor($result['result']['messages'][0]['message_id']);
 
         $this->assertTrue(
             new GroupMentionService($this->receiver(), $channel)->isAddressed($messages)
@@ -602,15 +607,16 @@ final class ProcessGroupBurstJobTest extends TestCase
 
         $this->assertSame('assistant', $filed['mode']);
 
-        new ProcessGroupBurstJob(
+        new FlushMessageBurstJob(
             app(Apps::class),
-            $this->receiver(),
             $channel,
             $headId,
-            (string) Cache::get(ProcessGroupBurstJob::cacheKey($headId))
+            (string) Cache::get(FlushMessageBurstJob::cacheKey($headId)),
+            WaSenderBurstHandler::class,
+            ['receiver_id' => $this->receiver()->getId()]
         )->handle();
 
-        $this->assertNull(Cache::get(ProcessGroupBurstJob::cacheKey($headId)), 'The direct burst closes cleanly');
+        $this->assertNull(Cache::get(FlushMessageBurstJob::cacheKey($headId)), 'The direct burst closes cleanly');
     }
 
     /**
@@ -635,15 +641,16 @@ final class ProcessGroupBurstJobTest extends TestCase
 
         $this->assertArrayNotHasKey('agent_id', $receiver->configuration, 'No dedicated DM agent is configured');
 
-        new ProcessGroupBurstJob(
+        new FlushMessageBurstJob(
             app(Apps::class),
-            $this->receiver(),
             $channel,
             $headId,
-            (string) Cache::get(ProcessGroupBurstJob::cacheKey($headId))
+            (string) Cache::get(FlushMessageBurstJob::cacheKey($headId)),
+            WaSenderBurstHandler::class,
+            ['receiver_id' => $this->receiver()->getId()]
         )->handle();
 
-        $this->assertNull(Cache::get(ProcessGroupBurstJob::cacheKey($headId)));
+        $this->assertNull(Cache::get(FlushMessageBurstJob::cacheKey($headId)));
     }
 
     public function testDirectNeverModePostsNoReply(): void
@@ -662,15 +669,16 @@ final class ProcessGroupBurstJobTest extends TestCase
         $headId = $result['result']['messages'][0]['message_id'];
         $channel = Channel::findOrFail($result['result']['messages'][0]['channel_id']);
 
-        new ProcessGroupBurstJob(
+        new FlushMessageBurstJob(
             app(Apps::class),
-            $this->receiver(),
             $channel,
             $headId,
-            (string) Cache::get(ProcessGroupBurstJob::cacheKey($headId))
+            (string) Cache::get(FlushMessageBurstJob::cacheKey($headId)),
+            WaSenderBurstHandler::class,
+            ['receiver_id' => $this->receiver()->getId()]
         )->handle();
 
-        $this->assertNull(Cache::get(ProcessGroupBurstJob::cacheKey($headId)));
+        $this->assertNull(Cache::get(FlushMessageBurstJob::cacheKey($headId)));
         $this->assertSame(0, Message::query()->where('parent_id', $headId)->where('is_deleted', 0)->count());
     }
 
