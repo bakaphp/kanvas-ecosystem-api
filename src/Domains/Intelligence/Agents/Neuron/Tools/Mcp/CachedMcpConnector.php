@@ -61,6 +61,8 @@ class CachedMcpConnector extends McpConnector
 
     private ?Agent $agent = null;
 
+    private ?Integrations $integration = null;
+
     #[Override]
     public function __serialize(): array
     {
@@ -258,7 +260,7 @@ class CachedMcpConnector extends McpConnector
 
         try {
             $agent = $this->agent();
-            $integration = Integrations::query()->where('id', $this->integrationId)->first();
+            $integration = $this->integration();
 
             $job = $agent instanceof Agent && $integration instanceof Integrations
                 ? new StartMcpAsyncJobAction(
@@ -313,7 +315,7 @@ class CachedMcpConnector extends McpConnector
 
         try {
             $agent = $this->agent();
-            $integration = Integrations::query()->where('id', $this->integrationId)->first();
+            $integration = $this->integration();
 
             $collected = $startsJob && $agent instanceof Agent && $integration instanceof Integrations
                 ? McpServerConfig::fromIntegration($integration)
@@ -333,11 +335,17 @@ class CachedMcpConnector extends McpConnector
     }
 
     /**
-     * Resolved once per turn: the ledger and the async hand-off both need it on the same call.
+     * Resolved once per turn: the ledger, the pinned arguments and the async hand-off all need these on
+     * the same call, and a browser-creating turn makes several.
      */
     protected function agent(): ?Agent
     {
         return $this->agent ??= Agent::query()->where('id', $this->agentId)->first();
+    }
+
+    protected function integration(): ?Integrations
+    {
+        return $this->integration ??= Integrations::query()->where('id', $this->integrationId)->first();
     }
 
     protected function budgetSpent(): bool

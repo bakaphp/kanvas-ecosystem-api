@@ -9,9 +9,7 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Capability\Models\McpAsyncJob;
-use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
-use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
-use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Actions\AttachAgentFilesToPlanAction;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\Users\Models\Users;
 use Throwable;
@@ -25,7 +23,7 @@ use Throwable;
  */
 class AttachMcpJobArtifactsToPlanAction
 {
-    public const string PLAN_TYPE = 'mcp_job';
+    public const string PLAN_TYPE = AttachAgentFilesToPlanAction::PLAN_TYPE;
 
     /**
      * @param list<array{url: string, name: string}> $artifacts
@@ -51,26 +49,15 @@ class AttachMcpJobArtifactsToPlanAction
             return null;
         }
 
-        $plan = new CreatePlanAction(
-            new PlanData(
-                app: $agent->app,
-                company: $agent->company,
-                title: $this->title(),
-                planType: self::PLAN_TYPE,
-                agent: $agent,
-                user: $user,
-                entityNamespace: McpAsyncJob::class,
-                entityId: $this->job->getId(),
-                description: $this->description(array_keys($stored)),
-                status: PlanStatusEnum::DONE,
-            ),
+        return new AttachAgentFilesToPlanAction(
+            agent: $agent,
+            user: $user,
+            files: $stored,
+            title: $this->title(),
+            description: $this->description(array_keys($stored)),
+            entityNamespace: McpAsyncJob::class,
+            entityId: $this->job->getId(),
         )->execute();
-
-        foreach ($stored as $name => $file) {
-            $plan->addFile($file, $name);
-        }
-
-        return $plan;
     }
 
     /**

@@ -6,8 +6,10 @@ namespace Kanvas\Intelligence\Agents\Traits;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Mcp\Services\McpConnectionService;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
+use Kanvas\Intelligence\Agents\Contracts\RequiresMcpConnection;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Mcp\RemoteMcpToolkit;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
@@ -20,6 +22,7 @@ use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
 use Kanvas\NervousSystem\Plan\Support\VerifierToolPolicy;
 use Kanvas\NervousSystem\Plan\Support\WorkerToolPolicy;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Models\Integrations;
 use NeuronAI\Tools\Toolkits\ToolkitInterface;
 use ReflectionClass;
 use ReflectionNamedType;
@@ -232,7 +235,7 @@ trait MergesRegisteredTools
 
         $ctor = new ReflectionClass($tool->handler)->getConstructor();
         if ($ctor === null || $ctor->getNumberOfParameters() === 0) {
-            return $this->fillKanvasContext(new $tool->handler());
+            return $this->keepIfConnected($this->fillKanvasContext(new $tool->handler()));
         }
 
         $candidates = $this->dependencyCandidates();
@@ -253,7 +256,40 @@ trait MergesRegisteredTools
             }
         }
 
-        return $this->fillKanvasContext(new $tool->handler(...$args));
+        return $this->keepIfConnected($this->fillKanvasContext(new $tool->handler(...$args)));
+    }
+
+    /**
+     * A tool that works THROUGH an MCP server is only real while that server is connected — Kernel's file
+     * tools read a browser session over its `exec_command`. Offering one without the connection spends a
+     * round trip on an answer the model cannot act on.
+     */
+    private function keepIfConnected(object $tool): ?object
+    {
+        if (! $tool instanceof RequiresMcpConnection) {
+            return $tool;
+        }
+
+        // A native tool that works through a third-party server reaches the same vendor a toolkit does,
+        // so it is refused on a customer surface for the same reason — resolveRegisteredMcpTool covers
+        // only the toolkit, and this path bypasses it.
+        if ($this instanceof ConversesWithCustomer) {
+            return null;
+        }
+
+        $agent = $this->firstCandidateOfType($this->dependencyCandidates(), Agent::class);
+
+        if (! $agent instanceof Agent) {
+            return null;
+        }
+
+        /** @var Integrations|null $integration */
+        $integration = Integrations::query()
+            ->where('name', $tool->requiredMcpServer())
+            ->where('apps_id', 0)
+            ->first();
+
+        return $integration !== null && new McpConnectionService($agent, $integration)->isEnabled() ? $tool : null;
     }
 
     /**

@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Mcp\Transports;
 
 use Baka\Http\SafeUrl;
 use GuzzleHttp\Client;
+use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Psr7\Request;
 use Illuminate\Support\Facades\Log;
@@ -42,6 +43,10 @@ class GuardedHttpMcpTransport implements McpTransportInterface
     private const int MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
 
     private const int READ_CHUNK_BYTES = 8192;
+
+    private const int CONNECT_ATTEMPTS = 3;
+
+    private const int CONNECT_RETRY_DELAY_MS = 200;
 
     private ?Client $httpClient = null;
 
@@ -128,17 +133,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             throw new McpFetchException('Failed to encode MCP request: ' . $e->getMessage(), 0, $e);
         }
 
-        try {
-            $response = $this->client()->send(new Request(
-                'POST',
-                $this->resolveUrl(),
-                $headers,
-                $body
-            ));
-        } catch (GuzzleException $e) {
-            // Guzzle puts the whole URL in its message, and on this path the URL carries the key.
-            throw new McpFetchException('MCP request failed: ' . $this->redact($e->getMessage()), $e->getCode(), $e);
-        }
+        $response = $this->sendWithConnectRetry(new Request('POST', $this->resolveUrl(), $headers, $body));
 
         if ($response->getStatusCode() >= 400) {
             $this->throwForErrorStatus($response);
@@ -183,6 +178,37 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         $this->sessionId = null;
         $this->discardBody();
         $this->lastResponse = null;
+    }
+
+    /**
+     * A connection that never opened is the one failure that is always safe to repeat: `ConnectException`
+     * means the request did not reach the server, so nothing ran twice. Worth doing because a tool error
+     * kills the whole agent turn — one blip from a vendor's edge cost a run mid-flow, and the endpoint was
+     * healthy a second later.
+     *
+     * Anything the server answered — a 4xx, a 5xx, a timeout mid-body — is left alone: those may have
+     * executed, and repeating a browser action or a payment is worse than failing.
+     */
+    private function sendWithConnectRetry(Request $request): ResponseInterface
+    {
+        for ($attempt = 1; ; $attempt++) {
+            try {
+                return $this->client()->send($request);
+            } catch (ConnectException $e) {
+                if ($attempt >= self::CONNECT_ATTEMPTS) {
+                    throw new McpFetchException(
+                        'MCP request failed after ' . self::CONNECT_ATTEMPTS . ' attempts: ' . $this->redact($e->getMessage()),
+                        $e->getCode(),
+                        $e
+                    );
+                }
+
+                usleep(self::CONNECT_RETRY_DELAY_MS * 1000 * $attempt);
+            } catch (GuzzleException $e) {
+                // Guzzle puts the whole URL in its message, and on this path the URL carries the key.
+                throw new McpFetchException('MCP request failed: ' . $this->redact($e->getMessage()), $e->getCode(), $e);
+            }
+        }
     }
 
     /**
@@ -376,7 +402,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         return $this->credentials;
     }
 
-    private function client(): Client
+    protected function client(): Client
     {
         return $this->httpClient ??= new Client([
             'timeout' => max(1, (int) ceil($this->timeoutMs / 1000)),
