@@ -162,8 +162,9 @@ class McpConnectionService
                 integrationsId: $this->integration->getId(),
                 timeoutMs: $this->config()->timeoutMs,
                 authQueryParam: $this->config()->authQueryParam,
+                authHeader: $this->config()->authHeader,
             ),
-        ]);
+        ])->forIntegration($this->integration->getId(), array_keys($this->config()->asyncJobs));
     }
 
     /**

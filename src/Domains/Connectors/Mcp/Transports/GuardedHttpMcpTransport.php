@@ -63,13 +63,14 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         private int $integrationsId,
         private int $timeoutMs = 20000,
         private ?string $authQueryParam = null,
+        private ?string $authHeader = null,
     ) {
     }
 
     /**
      * Only ids and scalars cross the wire. The Guzzle client holds handlers that cannot serialize, and
      * the token must never be written into a serialized payload — both are rebuilt lazily on the far
-     * side. The query parameter is a field name, not a secret; the key it carries is added at send time.
+     * side. The query parameter and header are field names, not secrets; the key is added at send time.
      */
     public function __serialize(): array
     {
@@ -79,6 +80,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             'integrationsId' => $this->integrationsId,
             'timeoutMs' => $this->timeoutMs,
             'authQueryParam' => $this->authQueryParam,
+            'authHeader' => $this->authHeader,
         ];
     }
 
@@ -89,6 +91,7 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         $this->integrationsId = $data['integrationsId'];
         $this->timeoutMs = $data['timeoutMs'];
         $this->authQueryParam = $data['authQueryParam'] ?? null;
+        $this->authHeader = $data['authHeader'] ?? null;
         $this->httpClient = null;
         $this->token = null;
         $this->tokenResolved = false;
@@ -112,15 +115,8 @@ class GuardedHttpMcpTransport implements McpTransportInterface
             'Content-Type' => 'application/json',
             'Accept' => 'application/json, text/event-stream',
             'User-Agent' => 'kanvas-mcp/1.0',
+            ...$this->authHeaders(),
         ];
-
-        $token = $this->resolveToken();
-
-        // A vendor that reads its key from the query string gets it there and nowhere else — sending the
-        // same secret in a header it never reads would only widen where it can leak.
-        if ($token !== null && $this->authQueryParam === null) {
-            $headers['Authorization'] = 'Bearer ' . $token;
-        }
 
         if ($this->sessionId !== null) {
             $headers['Mcp-Session-Id'] = $this->sessionId;
@@ -288,6 +284,25 @@ class GuardedHttpMcpTransport implements McpTransportInterface
         }
 
         return $content;
+    }
+
+    /**
+     * The key travels in exactly one place. A vendor that reads it from the query string gets no header
+     * at all — sending the same secret somewhere it never reads would only widen where it can leak.
+     *
+     * @return array<string, string>
+     */
+    private function authHeaders(): array
+    {
+        $token = $this->resolveToken();
+
+        if ($token === null || $this->authQueryParam !== null) {
+            return [];
+        }
+
+        return $this->authHeader === null
+            ? ['Authorization' => 'Bearer ' . $token]
+            : [$this->authHeader => $token];
     }
 
     private function resolveToken(): ?string

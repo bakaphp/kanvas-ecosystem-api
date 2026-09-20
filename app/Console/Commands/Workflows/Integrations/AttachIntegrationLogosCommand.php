@@ -19,7 +19,7 @@ class AttachIntegrationLogosCommand extends Command
         {--overwrite : Replace logos that are already attached}
         {--logo=* : name=url for an integration no icon set covers, e.g. --logo=klaviyo_mcp=https://...}';
 
-    protected $description = 'Attach devicons.io / Simple Icons logos to integrations, shared by every app';
+    protected $description = 'Attach open icon-set or favicon logos to integrations, shared by every app';
 
     public function handle(): int
     {
@@ -44,7 +44,11 @@ class AttachIntegrationLogosCommand extends Command
         }
 
         foreach ($result['missing'] as $integration) {
-            $this->warn("  ✗ {$integration} has no icon on devicons.io or Simple Icons; pass --logo");
+            $this->warn("  ✗ {$integration} has no icon in any source; pass --logo");
+        }
+
+        foreach ($result['source_errors'] as $url => $error) {
+            $this->error("  ! {$url} — {$error}");
         }
 
         $this->info(sprintf(

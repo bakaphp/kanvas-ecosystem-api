@@ -16,7 +16,7 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Actions\Chat\WakeAgentInSessionAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
@@ -104,35 +104,12 @@ class RunScheduledAgentActionJob implements ShouldQueue
             throw new ValidationException('A scheduled agent task has no agent to run.');
         }
 
-        $session = $this->resolveSession($agent);
-        $instruction = (string) ($this->action->payload['instruction'] ?? '');
-
-        // sourceChannel MUST be passed when the session has one — otherwise the kernel activates
-        // setThreadId and the agent loses its cross-session history on this cron-spawned wake.
-        // privateUserTurn: the wake instruction is a USER turn only to drive the agent — no one typed it.
-        $response = new AgentChatKernel(
+        $response = new WakeAgentInSessionAction(
             agent: $agent,
-            session: $session,
-            message: $instruction,
+            session: $this->resolveSession($agent),
+            instruction: (string) ($this->action->payload['instruction'] ?? ''),
             user: $this->action->recipient ?? $agent->user,
-            sourceChannel: $session->channel,
-            persistConversation: false,
-            privateUserTurn: true,
         )->execute();
-
-        // Post what the agent did back into the conversation so the user sees the outcome.
-        if ($session->channel !== null && trim($response) !== '') {
-            new DeliverScheduledMessageToChannelAction(
-                channel: $session->channel,
-                text: $response,
-                author: $agent->user,
-                agent: $agent,
-                sessionUuid: $session->uuid,
-                canalId: $session->canal_id,
-                verb: 'scheduled-agent-reply',
-                fromAgentTurn: true,
-            )->execute();
-        }
 
         $this->action->emitLedgerEvent('scheduled_action.fired', payload: [
             'action_type' => $this->action->action_type,

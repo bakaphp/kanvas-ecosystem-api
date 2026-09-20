@@ -17,7 +17,7 @@ through `GuardedHttpMcpTransport`.
 
 | What | Where | Key / shape |
 |---|---|---|
-| Server definition | `integrations` (workflow DB) | `name` is the stable slug (`google_sheets_mcp`); `metadata` = `url`, `auth_methods`, `prefix`, `exclude`, `timeout_ms`, `oauth`, `url_per_connection`, `auth_query_param` |
+| Server definition | `integrations` (workflow DB) | `name` is the stable slug (`google_sheets_mcp`); `metadata` = `url`, `auth_methods`, `prefix`, `exclude`, `timeout_ms`, `oauth`, `url_per_connection`, `auth_query_param`, `auth_header`, `async_jobs`, `artifacts_handler` |
 | Catalog / grantable row | `nervous_system_tools` (intelligence) | human title (`Google Sheets`); `is_active = 0` hides it |
 | Agent's grant + status | `nervous_system_agent_tools.config.mcp` | `{auth, status: active\|failed, last_error, connected_at}` |
 | Agent's credential | agent custom field (ecosystem) | `mcp_credentials_{integrations_id}` = `{access_token, refresh_token, expires_at, server_url}` |
@@ -27,6 +27,7 @@ through `GuardedHttpMcpTransport`.
 | Tool list, durable | `nervous_system_mcp_tool_snapshots` | per `agents_id` + `integrations_id`, `payload` JSON |
 | OAuth endpoints | cache, **24 h** | `McpOAuthDiscoveryService` — call `->forget()` after changing a row's `oauth` block |
 | Tool calls | ledger | `mcp.tool.invoked` (`tool`, `remote_tool`), actor = the agent |
+| Background jobs | `nervous_system_mcp_async_jobs` (intelligence) | one row per job a tool started; `status` running/completed/failed/timed_out, `live_url`, `result`; ledger `mcp.async_job.*`. **The model is `NervousSystem\Capability\Models\McpAsyncJob`, not a connector class** — see the TODO below |
 
 Never print a credential while debugging — check presence (`rawToken() !== null`), not the value.
 
@@ -74,6 +75,7 @@ Never print a credential while debugging — check presence (`rawToken() !== nul
 | Pipeboard (Meta, Google Ads) | A third party holds the advertiser's platform tokens. Google Ads is granted `mcp:read` only on purpose. |
 | GitHub, DocuSign, HubSpot | No dynamic registration → hand-made client via `client_key`. DocuSign's metadata points at **production** `account.docusign.com`, so a demo-only key will not authorise. HubSpot's path is `/anthropic`; `/mcp` 404s. |
 | Browserbase | Key goes in the query string (`auth_query_param: browserbaseApiKey`), appended at send time and redacted from errors. Reports "connected" even with a wrong key — the key is only checked when a browser opens. |
+| Browser Use | Key goes bare in its own header (`auth_header: x-browser-use-api-key`), not `Authorization: Bearer`. The 401 advertises OAuth metadata with a registration endpoint, but `/oauth/register` and `/oauth/authorize` 404 (checked 2026-09-19) — key only. `tools/list` answers without a key, so a wrong one first fails on `run_session`. `run_session`/`send_task` are `async_jobs`; `live_url` reads `null` once the session idles, so it is caught during the poll. |
 | TikTok Ads | Points at the progressive `tt-ads-mcp-layer` endpoint — the flat one's ~400 tools overwhelm a prompt. Issuer is `{server}/oauth`, resolved through the OIDC-suffixed well-known. **Writes with no paused-by-default.** |
 | Higgsfield | Must be `mcp.higgsfield.ai/mcp`; `higgsfield.ai/mcp` 307-redirects and the transport refuses redirects by design. Clerk registers the client. |
 | Vercel | **Hidden.** Registration is allow-listed **by redirect URI**, which is how "only clients Vercel has approved" is enforced: `claude.ai/api/mcp/auth_callback` and `localhost` register, `{app.url}/v1/oauth/callback` gets `invalid_redirect_uri`. No bearer fallback either — a token in the header returns `401 "No authorization provided"`, so the server never reads it as a credential. Needs a hand-made client (`client_key: vercel`) whose redirect Vercel accepts; discovery itself is clean, so don't pin an authorization server. `offline_access` is added to the advertised `openid` or there is no refresh token. |
@@ -82,6 +84,60 @@ Never print a credential while debugging — check presence (`rawToken() !== nul
 | n8n | `server_url` must be the resource its metadata names (e.g. `…/mcp-server/http`), not the instance root, or you get `invalid_target`. |
 | Deel | Granted read-only scopes out of ~90 published; widening to payroll/payment writes is deliberate, not a fix. |
 | Slack | No dynamic registration → hand-made Slack app (MCP enabled, redirect `{app.url}/v1/oauth/callback`) as `client_key: slack`; token endpoint wants `client_secret_post`. Issues a **user** token, so the agent posts as whoever signed in. Catalog title is `Slack (MCP)` — unrelated to the agent's bot channel. |
+
+## Tools that start background jobs (`async_jobs`)
+
+**Getting this wrong is not cosmetic.** Without the declaration the model polls the status tool itself,
+and Neuron's per-turn run cap (10 identical calls) kills the turn with "I kept retrying the same lookup…"
+while the vendor's job finishes unseen and unpaid-for work is thrown away.
+
+Some tools start a job and return before it finishes — Browser Use's `run_session` ran ~10 minutes. Left to
+the model, it polls the status tool until Neuron's per-turn run cap (10 identical calls) kills the turn with
+"I kept retrying the same lookup…". A server row declares those tools under `metadata.async_jobs.{remote
+tool}` (`status_tool`, `id_field`, `status_field`, `done_statuses`, `live_url_field`, `poll_seconds`,
+`timeout_seconds`); an incomplete block is ignored.
+
+The model lives in the Nervous System (`Capability\Models\McpAsyncJob`, beside `McpToolSnapshot`); only the
+behaviour — `Start`/`FollowMcpAsyncJobAction`, `PollMcpAsyncJob`, `ResumeAgentFromMcpAsyncJob` — sits in this
+connector, and `McpAsyncJobConfig` is metadata parsing like `McpServerConfig`.
+
+`CachedMcpConnector::invokeTool` hands such a call to `StartMcpAsyncJobAction`, which records the job and
+tells the model to stop and end its turn. `PollMcpAsyncJob` (`agent-chat` queue) re-dispatches itself every
+`poll_seconds`; `FollowMcpAsyncJobAction` posts the **live URL into the conversation as soon as the vendor
+reports one** (the person may need to log in there), and on a done status, timeout or 5 failed checks in a
+row dispatches `ResumeAgentFromMcpAsyncJob`, which wakes the agent in the same session with
+`resumeInstruction()` via `WakeAgentInSessionAction` (shared with scheduled agent tasks).
+
+Nothing is handed off without a conversation to resume in (no session in the turn) or when the job already
+finished — the model gets the vendor's own answer. Status checks go through `callRemoteTool`, which skips
+the turn budget and the `mcp.tool.invoked` ledger.
+
+### The files a job leaves behind (`artifacts_handler`)
+
+A job's output must never travel through the conversation — a day's export would bury the turn, and
+`MAX_RESULT_CHARS` would silently cut it. A server row can name a class implementing
+`CollectsMcpJobArtifacts`, which does two things: it adds arguments Kanvas insists on when a job starts
+(only filling keys the model left out), and it lists the files the finished job produced.
+
+`FollowMcpAsyncJobAction` pulls those files into Kanvas the moment the job ends and attaches them to a
+**plan** (`plan_type: mcp_job`, pointing back at the job row) — addressable, so the agent can hand it to
+another agent or a later run. The agent is told the plan id and the file names, never the contents.
+Download links are short-lived (Browser Use: 60s for workspace files, 15 min for browser downloads) AND
+signed with the vendor's own credentials, so each file is **downloaded into Kanvas storage**
+(`FilesystemServices::uploadFileFromUrl`, which is SSRF-guarded) before it is attached. Do not reach for
+`addFileFromUrl()` / `addMultipleFilesFromUrl()` here: they only record the url, so the plan ends up
+holding a presigned link that is dead a minute later and needs the vendor's account to open.
+
+Browser Use is the reference: a session writes to a sandbox that dies with it, so
+`BrowserUseArtifactCollector` attaches the company's workspace (created once, kept in company config as
+`browser_use_workspace_id`) to every `run_session` — `send_task` inherits the session's — and collects
+both what the agent wrote (workspace files) and what the browser downloaded (an Export button, which
+hangs off the BROWSER session, a different id reached via `agentSessionId`). **The workspace is per
+company and permanent**, so what it returns is filtered to files modified since the job started —
+without that bound, every run re-attaches every file the company ever produced.
+
+Related but separate: PiDev's `PollPiDevJobJob` also follows a remote job, but mirrors it onto a Plan task
+rather than resuming a conversation — different target, not a duplicate to merge.
 
 ## Timeouts
 
@@ -105,6 +161,31 @@ either, **probe the live endpoint**. Vendor docs were wrong or silent more often
 5. Check the catalog title against existing tool names: grants resolve by label, so a collision makes them
    ambiguous. That is why the calendar row is `Google Calendar (MCP)`.
 6. After changing a row's `oauth` block in place, forget its discovery cache.
+7. **Decide whether any of its tools start a background job** — see the section below. The tells, in the
+   `tools/list` you just probed: a tool whose description says it returns before the work finishes ("poll
+   for completion", "check status", "long-running"), a **second tool that reports on the first** by id
+   (`get_*`, `*_status`), or a result carrying an id plus a `status` that is not terminal. Anything driving
+   a browser, a render, a crawl or an export is a candidate. Confirm by calling it once with a real key and
+   reading the result — Browser Use's `run_session` answers in a second and the work takes ten minutes.
+   Declare those under `metadata.async_jobs` in the same migration; a server whose tools all answer with
+   the finished work needs nothing.
+
+## TODO — move this connector into the Nervous System
+
+**A connector must not own a table or a model the rest of the platform reads.** That is why
+`McpAsyncJob` and `McpAsyncJobStatusEnum` live under `NervousSystem\Capability` even though the jobs and
+actions driving them are here, and why `CachedMcpConnector` already sits in `Intelligence\Agents`. MCP is
+not really an external service like Shopify — it is how agents hold capabilities, so the tree belongs in
+the Nervous System (`NervousSystem\Mcp` or `Capability\Mcp`), leaving `Connectors/Mcp` at most a thin
+handler.
+
+Not done yet because it is a wide rename across a tree that is in production (grants, credentials, the
+OAuth receiver, every `integrations.handler` string pointing at `McpHandler`, and the per-agent credential
+keys). Revisit when the next change touches this tree broadly; until then **do not add new models or
+migrations under `Connectors/Mcp`** — put them in `NervousSystem\Capability` as the async-job ones are.
+
+The async-job table itself is deliberate rather than permanent: reusing `ScheduledAction` with a handler
+per action type is the agreed direction once the feature matures.
 
 ## Known limits — not bugs, don't "fix" in passing
 

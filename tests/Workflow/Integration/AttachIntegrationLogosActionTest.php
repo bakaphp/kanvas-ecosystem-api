@@ -6,7 +6,9 @@ namespace Tests\Workflow\Integration;
 
 use App\GraphQL\Ecosystem\Queries\Filesystem\FilesystemQuery;
 use GraphQL\Type\Definition\ResolveInfo;
+use GuzzleHttp\Promise\PromiseInterface;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
@@ -25,8 +27,11 @@ final class AttachIntegrationLogosActionTest extends TestCase
     /**
      * An IP-literal public host skips SafeUrl's DNS lookup, so the faked responses are all the test needs.
      */
-    private const string ICONS_URL = 'https://93.184.216.34/icons';
-    private const string SIMPLE_ICONS_URL = 'https://93.184.216.34/simple-icons';
+    private const string HOST = 'https://93.184.216.34';
+    private const string ICONS_URL = self::HOST . '/icons';
+    private const string DASHBOARD_ICONS_URL = self::HOST . '/dashboard-icons';
+    private const string SIMPLE_ICONS_URL = self::HOST . '/simple-icons';
+    private const string FAVICONS_URL = self::HOST . '/favicons';
 
     private const string SVG = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"><rect width="1" height="1"/></svg>';
 
@@ -34,11 +39,17 @@ final class AttachIntegrationLogosActionTest extends TestCase
     {
         parent::setUp();
 
+        $svg = Http::response(self::SVG, 200, ['Content-Type' => 'image/svg+xml']);
+
         Http::fake([
-            self::ICONS_URL . '/slack-icon.svg' => Http::response(self::SVG, 200, ['Content-Type' => 'image/svg+xml']),
-            self::ICONS_URL . '/stripe.svg' => Http::response(self::SVG, 200, ['Content-Type' => 'image/svg+xml']),
-            self::SIMPLE_ICONS_URL . '/googlesheets' => Http::response(self::SVG, 200, ['Content-Type' => 'image/svg+xml']),
-            'https://93.184.216.34/custom/*' => Http::response(self::SVG, 200, ['Content-Type' => 'image/svg+xml']),
+            self::ICONS_URL . '/slack-icon.svg' => $svg,
+            self::ICONS_URL . '/stripe.svg' => $svg,
+            self::DASHBOARD_ICONS_URL . '/netsuite.svg' => $svg,
+            self::DASHBOARD_ICONS_URL . '/deel.svg' => Http::response('', 403),
+            self::SIMPLE_ICONS_URL . '/googlesheets.svg' => $svg,
+            self::FAVICONS_URL . '?domain=klaviyo.com*' => $this->png(256),
+            self::FAVICONS_URL . '?domain=mindee.com*' => $this->png(16),
+            self::HOST . '/custom/*' => $svg,
             '*' => Http::response('', 404),
         ]);
     }
@@ -66,8 +77,42 @@ final class AttachIntegrationLogosActionTest extends TestCase
 
         $result = $this->attachLogos();
 
-        $this->assertSame(self::SIMPLE_ICONS_URL . '/googlesheets', $result['attached']['google_sheets_mcp #' . $sheets->getId()]);
+        $this->assertSame(self::SIMPLE_ICONS_URL . '/googlesheets.svg', $result['attached']['google_sheets_mcp #' . $sheets->getId()]);
         $this->assertNotNull($sheets->getFileByName(AttachIntegrationLogosAction::FIELD_NAME));
+    }
+
+    public function testFallsBackToDashboardIconsBeforeSimpleIcons(): void
+    {
+        $netsuite = $this->createIntegration('netsuite');
+
+        $result = $this->attachLogos();
+
+        $this->assertSame(self::DASHBOARD_ICONS_URL . '/netsuite.svg', $result['attached']['netsuite #' . $netsuite->getId()]);
+    }
+
+    public function testFallsBackToASharpFaviconForKnownVendors(): void
+    {
+        $klaviyo = $this->createIntegration('klaviyo_mcp');
+        $mindee = $this->createIntegration('mindee');
+
+        $result = $this->attachLogos();
+
+        $this->assertSame(
+            self::FAVICONS_URL . '?domain=klaviyo.com&sz=256',
+            $result['attached']['klaviyo_mcp #' . $klaviyo->getId()]
+        );
+        $this->assertContains('mindee #' . $mindee->getId(), $result['missing'], 'A 16px favicon must not become a logo');
+        $this->assertSame('favicon is only 16px', $result['source_errors'][self::FAVICONS_URL . '?domain=mindee.com&sz=256']);
+    }
+
+    public function testReportsASourceThatFailsInsteadOfTreatingItAsMissing(): void
+    {
+        $this->createIntegration('deel_mcp');
+
+        $result = $this->attachLogos();
+
+        $this->assertSame('HTTP 403', $result['source_errors'][self::DASHBOARD_ICONS_URL . '/deel.svg']);
+        $this->assertArrayNotHasKey(self::DASHBOARD_ICONS_URL . '/netsuite-icon.svg', $result['source_errors'], 'A plain 404 is "no such icon", not an error');
     }
 
     public function testManualLogoCoversIntegrationsNoIconSetHas(): void
@@ -186,9 +231,22 @@ final class AttachIntegrationLogosActionTest extends TestCase
             onlyAppIntegrations: $onlyAppIntegrations,
             overwrite: $overwrite,
             logoOverrides: $logoOverrides,
-            deviconsUrl: self::ICONS_URL,
-            simpleIconsUrl: self::SIMPLE_ICONS_URL,
+            sourceUrls: [
+                'devicons' => self::ICONS_URL,
+                'dashboard_icons' => self::DASHBOARD_ICONS_URL,
+                'simple_icons' => self::SIMPLE_ICONS_URL,
+                'favicons' => self::FAVICONS_URL,
+            ],
         )->execute();
+    }
+
+    private function png(int $size): PromiseInterface
+    {
+        return Http::response(
+            UploadedFile::fake()->image('favicon.png', $size, $size)->getContent(),
+            200,
+            ['Content-Type' => 'image/png']
+        );
     }
 
     /**

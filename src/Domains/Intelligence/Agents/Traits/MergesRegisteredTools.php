@@ -13,6 +13,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Mcp\RemoteMcpToolkit;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
@@ -212,7 +213,15 @@ trait MergesRegisteredTools
             return null;
         }
 
-        return new RemoteMcpToolkit($agent, $tool);
+        $session = $this->firstCandidateOfType($candidates, Session::class);
+        $human = method_exists($this, 'requestingHuman') ? $this->requestingHuman() : null;
+
+        return new RemoteMcpToolkit(
+            agent: $agent,
+            tool: $tool,
+            session: $session instanceof Session ? $session : null,
+            human: $human instanceof Users ? $human : null,
+        );
     }
 
     protected function defaultRegisteredToolResolver(Tool $tool): ?object
