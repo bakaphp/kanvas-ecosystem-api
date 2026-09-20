@@ -28,4 +28,11 @@ enum ConfigurationEnum: string
     case AGENT_REACH_OUT_DEFAULT_AGENT_ID = 'agent_reach_out_default_agent_id';
     case MANLY_HONDA = 'manly_honda';
     case IGNORE_SUB_SOURCE = 'ignore_sub_source';
+
+    /**
+     * How long support mode waits for a human before the agent answers. Two sites read it — the
+     * dispatch delay and the CRM note that tells the salesperson how long we waited — and a note
+     * quoting a different number than the wait it describes is worse than no note.
+     */
+    public const int UN_RESPONDED_SALESPERSON_MESSAGES_DEFAULT = 60;
 }

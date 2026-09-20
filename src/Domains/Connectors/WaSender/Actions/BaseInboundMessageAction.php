@@ -4,17 +4,14 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\WaSender\Actions;
 
-use Illuminate\Contracts\Cache\LockTimeoutException;
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Str;
 use Kanvas\Connectors\WaSender\DataTransferObject\InboundMessage;
 use Kanvas\Connectors\WaSender\Enums\BurstConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\MessageTypeEnum;
 use Kanvas\Connectors\WaSender\Exceptions\WaSenderRefusedException;
-use Kanvas\Connectors\WaSender\Jobs\ProcessGroupBurstJob;
-use Kanvas\Connectors\WaSender\Services\GroupBurstService;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Concerns\ChainsInboundBursts;
+use Kanvas\Social\Messages\DataTransferObject\BurstPolicy;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Throwable;
@@ -24,10 +21,16 @@ use Throwable;
  * messages onto a burst, re-arm the debounce that closes it, and attach media under the same
  * policy; only the timing windows and the payload shape differ.
  *
+ * The debounce itself is `Social\Messages\Concerns\ChainsInboundBursts` — the same one SMS uses.
+ * What stays here is the WhatsApp half: the album/speaker correlation keys, the mention-shortened
+ * close window, and the media policy.
+ *
  * The lead path deliberately does not extend this — it has no burst at all.
  */
 abstract class BaseInboundMessageAction
 {
+    use ChainsInboundBursts;
+
     public function __construct(
         protected readonly ReceiverWebhook $receiver,
         protected readonly Channel $channel,
@@ -48,82 +51,45 @@ abstract class BaseInboundMessageAction
      */
     abstract protected function closeIdleSeconds(): int;
 
-    /**
-     * Re-arms the debounce on every part, so only the last message in a burst survives to close it.
-     */
-    protected function armBurstClose(Message $head): void
+    protected function burstPolicy(): BurstPolicy
     {
-        $token = Str::uuid()->toString();
-        $delaySeconds = $this->closeIdleSeconds() + $this->jitterSeconds();
+        // Most specific first. The speaker key binds an album to the caption it illustrates — they
+        // share a sender but not an album id — while the album key lets a straggling part rejoin
+        // its siblings after the idle window would have closed them.
+        $correlationKeys = array_values(array_filter([
+            $this->inbound->albumId !== null ? 'album:' . $this->inbound->albumId : null,
+            $this->inbound->senderIdentity() !== null ? 'speaker:' . $this->inbound->senderIdentity() : null,
+        ]));
 
-        Cache::put(
-            ProcessGroupBurstJob::cacheKey($head->getId()),
-            $token,
-            BurstConfigEnum::BURST_MAX_SECONDS->getInt($this->receiver) + $delaySeconds
+        return new BurstPolicy(
+            correlationKeys: $correlationKeys,
+            chainIdleSeconds: $this->chainIdleSeconds(),
+            closeIdleSeconds: $this->closeIdleSeconds(),
+            maxSeconds: BurstConfigEnum::BURST_MAX_SECONDS->getInt($this->receiver),
+            jitterSeconds: BurstConfigEnum::BURST_JITTER_SECONDS->getInt($this->receiver),
         );
-
-        ProcessGroupBurstJob::dispatch(
-            $this->receiver->app,
-            $this->receiver,
-            $this->channel,
-            $head->getId(),
-            $token
-        )->delay(now()->addSeconds($delaySeconds));
-    }
-
-    private function jitterSeconds(): int
-    {
-        $jitter = BurstConfigEnum::BURST_JITTER_SECONDS->getInt($this->receiver);
-
-        return $jitter > 0 ? random_int(0, $jitter) : 0;
-    }
-
-    /**
-     * Serialised per channel: chaining is a read-then-write and deliveries arrive as parallel
-     * jobs, so unserialised each part of an album looks for a sibling before the others land and
-     * every one of them opens its own burst.
-     */
-    protected function attachToBurst(Message $message): ?Message
-    {
-        try {
-            return Cache::lock('wasender:burst-chain:' . $this->channel->getId(), 10)
-                ->block(5, fn (): ?Message => $this->chainOntoHead($message));
-        } catch (LockTimeoutException) {
-            // Degrade to an unchained message rather than failing the delivery. A split burst is
-            // worse output; a dropped webhook is lost data.
-            return null;
-        }
-    }
-
-    private function chainOntoHead(Message $message): ?Message
-    {
-        $head = new GroupBurstService(
-            $this->channel,
-            $this->chainIdleSeconds(),
-            BurstConfigEnum::BURST_MAX_SECONDS->getInt($this->receiver),
-        )->resolveHead($message, $this->inbound);
-
-        if ($head === null) {
-            return null;
-        }
-
-        $message->parent_id = $head->getId();
-        $message->parent_unique_id = $head->uuid;
-        $message->saveOrFail();
-
-        return $head;
     }
 
     /**
      * Chaining runs before the media download: the download takes seconds, and a message left
-     * unparented that long is adopted as head by the next part of the burst.
+     * unparented that long is adopted as head by the next part of the burst. That ordering is why
+     * this calls the two halves itself instead of the trait's `fileIntoBurst()`.
      */
-    protected function fileIntoBurst(Message $message, MessageTypeEnum $messageType): void
+    protected function fileIntoBurstWithMedia(Message $message, MessageTypeEnum $messageType): void
     {
-        $head = $this->attachToBurst($message);
+        $policy = $this->burstPolicy();
+        $head = $this->attachToBurst($this->channel, $message, $policy);
 
         $this->attachMedia($message, $messageType);
-        $this->armBurstClose($head ?? $message);
+
+        $this->armBurstClose(
+            $this->receiver->app,
+            $this->channel,
+            $head ?? $message,
+            $policy,
+            WaSenderBurstHandler::class,
+            ['receiver_id' => $this->receiver->getId()]
+        );
     }
 
     protected function attachMedia(Message $message, MessageTypeEnum $messageType): void

@@ -10,7 +10,7 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
  * The trigger a WhatsApp group burst fires on.
  *
  * Without this row the event is a silent no-op: ProcessWorkflowEventAction resolves the trigger via
- * RuleType::getByName() and returns null on ModelNotFoundException, so ProcessGroupBurstJob would
+ * RuleType::getByName() and returns null on ModelNotFoundException, so the burst flush would
  * announce a finished burst that no rule could ever be attached to.
  *
  * Deliberately separate from `after-adding-message-to-channel`: the DM responder wired to that

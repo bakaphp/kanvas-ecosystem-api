@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Traits;
 
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -45,9 +47,11 @@ trait HandlesSupportModeDelayedResponseTrait
             return null;
         }
 
-        $delayMinutes = (int) $channel->company->get(
+        // The cast stays inside the coalesce: `(int) $x ?? 60` binds the cast first, which makes
+        // the fallback unreachable and gives an unconfigured company a 0 minute delay.
+        $delayMinutes = (int) ($channel->company->get(
             CompanyConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES->value
-        ) ?? 60;
+        ) ?? CompanyConfigurationEnum::UN_RESPONDED_SALESPERSON_MESSAGES_DEFAULT);
 
         $agentIdForDispatch = $defaultAgentId;
         if (isset($channelAgentMapping[$chatJid]) && isset($channelAgentMapping[$chatJid]['agent_id'])) {
@@ -63,6 +67,20 @@ trait HandlesSupportModeDelayedResponseTrait
 
         $agentModel = Agent::getById($agentIdForDispatch, $app);
 
+        // Re-armed per dispatch, same as the inbound burst: a later message on this channel
+        // overwrites the token and the earlier job finds itself stale. The job's `is_un_response`
+        // guard cannot do this on its own — it only closes once the winning turn's model call has
+        // returned, so two turns queued seconds apart both pass it and both reply.
+        $token = Str::uuid()->toString();
+
+        // Floored: the token has to outlive the delay it guards, and a company configured to 0
+        // would otherwise disarm it before the job it was armed for ever ran.
+        Cache::put(
+            SendUnrespondedAgentMessageJob::cacheKey($channel->getId()),
+            $token,
+            now()->addMinutes(max($delayMinutes, 1) * 2 + 5)
+        );
+
         SendUnrespondedAgentMessageJob::dispatch(
             $channel,
             $message,
@@ -70,7 +88,8 @@ trait HandlesSupportModeDelayedResponseTrait
             $app,
             $params,
             $actionClass,
-            $session
+            $session,
+            $token
         )->delay(now()->addMinutes($delayMinutes));
 
         return [

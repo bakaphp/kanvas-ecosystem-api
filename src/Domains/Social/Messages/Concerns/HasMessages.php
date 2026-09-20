@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Social\Messages\Traits;
+namespace Kanvas\Social\Messages\Concerns;
 
 use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
 use Kanvas\Social\Messages\Models\Message;
 
-trait HasMessagesTrait
+trait HasMessages
 {
     public function getIntegrationMessage(): HasManyThrough
     {

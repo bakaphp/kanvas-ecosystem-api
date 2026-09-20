@@ -12,11 +12,11 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Enums\DirectConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\DirectConversationModeEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
-use Kanvas\Connectors\WaSender\Jobs\ProcessGroupBurstJob;
 use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Jobs\FlushMessageBurstJob;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhook;
@@ -48,7 +48,7 @@ final class CreateDirectAgentMessageActionTest extends TestCase
 
         config(['cache.default' => 'array']);
 
-        // Ingest arms the burst close; the debounce itself is ProcessGroupBurstJobTest's subject.
+        // Ingest arms the burst close; the debounce itself is WaSenderBurstTest's subject.
         Queue::fake();
     }
 
@@ -163,7 +163,7 @@ final class CreateDirectAgentMessageActionTest extends TestCase
 
         $this->assertTrue($filed['is_from_me']);
         $this->assertNull($filed['people_id'], 'Our own message resolves no counterparty People');
-        Queue::assertNotPushed(ProcessGroupBurstJob::class);
+        Queue::assertNotPushed(FlushMessageBurstJob::class);
     }
 
     private function configureReceiver(array $configuration): void
