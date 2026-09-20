@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Twilio;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\RecordMessageAttemptAction;
@@ -23,6 +24,10 @@ use Tests\TestCase;
 
 final class ProcessTwilioMessageStatusWebhookJobTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = [null, 'social', 'crm', 'workflow'];
+
     public function testCreatesIdempotentStatusChildForMessageSid(): void
     {
         $app = app(Apps::class);

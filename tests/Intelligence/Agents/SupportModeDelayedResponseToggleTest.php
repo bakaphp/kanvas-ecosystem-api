@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Agents;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
@@ -17,6 +18,8 @@ use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Jobs\SendUnrespondedAgentMessageJob;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
+use ReflectionProperty;
+use Tests\Stubs\Intelligence\RecordingChannelReplyAction;
 use Tests\TestCase;
 
 class SupportModeDelayedResponseToggleTest extends TestCase
@@ -51,6 +54,99 @@ class SupportModeDelayedResponseToggleTest extends TestCase
         Queue::assertNotPushed(SendUnrespondedAgentMessageJob::class);
 
         $app->set(ConfigurationEnum::SUPPORT_MODE_DELAYED_RESPONSE->value, true);
+    }
+
+    /**
+     * Two inbound messages used to queue two delayed turns that fired seconds apart, and the
+     * customer got two replies — `is_un_response` only closes after the first turn's model call has
+     * returned, which is long after the second one started. The later dispatch now supersedes the
+     * earlier token.
+     */
+    public function testALaterDispatchSupersedesTheEarlierDelayedTurn(): void
+    {
+        Queue::fake();
+        RecordingChannelReplyAction::reset();
+
+        [$app, , $lead, $channel, $message, $agent] = $this->setUpSupportModeScenario();
+        $message->addEntity($lead);
+
+        $this->handler()->handle($lead, $channel, $message, $app, (int) $agent->getId());
+        $this->handler()->handle($lead, $channel, $message, $app, (int) $agent->getId());
+
+        $tokens = [];
+        Queue::assertPushed(
+            SendUnrespondedAgentMessageJob::class,
+            function (SendUnrespondedAgentMessageJob $job) use (&$tokens): bool {
+                $tokens[] = $this->tokenOf($job);
+
+                return true;
+            }
+        );
+
+        $this->assertCount(2, $tokens);
+        $this->assertNotSame($tokens[0], $tokens[1]);
+        $this->assertSame(
+            $tokens[1],
+            Cache::get(SendUnrespondedAgentMessageJob::cacheKey($channel->getId())),
+            'Only the newest delayed turn is current'
+        );
+
+        $this->runDelayedJob(
+            $channel,
+            $message,
+            $agent,
+            $app,
+            $tokens[0]
+        );
+        $this->assertSame(0, RecordingChannelReplyAction::$runs, 'The superseded turn must not reply');
+        $this->assertSame(
+            $tokens[1],
+            Cache::get(SendUnrespondedAgentMessageJob::cacheKey($channel->getId())),
+            'A superseded turn must leave the channel armed for the winner'
+        );
+
+        $this->runDelayedJob(
+            $channel,
+            $message,
+            $agent,
+            $app,
+            $tokens[1]
+        );
+        $this->assertSame(1, RecordingChannelReplyAction::$runs, 'The winning turn replies exactly once');
+
+        // `$tries` is not 1 on this job, so a throw after the reply has shipped re-enters it.
+        $this->runDelayedJob(
+            $channel,
+            $message,
+            $agent,
+            $app,
+            $tokens[1]
+        );
+        $this->assertSame(1, RecordingChannelReplyAction::$runs, 'A replayed turn must not reply again');
+    }
+
+    private function runDelayedJob(
+        Channel $channel,
+        Message $message,
+        Agent $agent,
+        Apps $app,
+        string $token
+    ): void {
+        new SendUnrespondedAgentMessageJob(
+            $channel,
+            $message,
+            $agent,
+            $app,
+            [],
+            RecordingChannelReplyAction::class,
+            null,
+            $token
+        )->handle();
+    }
+
+    private function tokenOf(SendUnrespondedAgentMessageJob $job): string
+    {
+        return (string) new ReflectionProperty($job, 'token')->getValue($job);
     }
 
     private function handler(): object

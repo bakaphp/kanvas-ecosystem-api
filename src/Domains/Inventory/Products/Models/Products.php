@@ -57,7 +57,7 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
-use Kanvas\Social\Messages\Traits\HasMessagesTrait;
+use Kanvas\Social\Messages\Concerns\HasMessages;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Souk\Enums\ConfigurationEnum as EnumsConfigurationEnum;
@@ -99,7 +99,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     use HasShopifyCustomField;
     use HasTagsTrait;
     use IntegrationEntityTrait;
-    use HasMessagesTrait;
+    use HasMessages;
     use HasLightHouseCache;
     use DynamicSearchableTrait {
         search as public traitSearch;

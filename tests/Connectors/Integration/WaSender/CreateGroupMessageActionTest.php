@@ -17,13 +17,14 @@ use Kanvas\Connectors\WaSender\Enums\BurstConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\GroupConfigEnum;
 use Kanvas\Connectors\WaSender\Enums\WebhookEventEnum;
 use Kanvas\Connectors\WaSender\Exceptions\WaSenderRefusedException;
-use Kanvas\Connectors\WaSender\Services\GroupBurstService;
 use Kanvas\Connectors\WaSender\Webhooks\ProcessWaSenderWebhookJob;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\DataTransferObject\BurstPolicy;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Services\MessageBurstService;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
@@ -62,7 +63,7 @@ final class CreateGroupMessageActionTest extends TestCase
 
         config(['cache.default' => 'array']);
 
-        // Ingest arms the burst close; the debounce itself is ProcessGroupBurstJobTest's subject.
+        // Ingest arms the burst close; the debounce itself is WaSenderBurstTest's subject.
         Queue::fake();
     }
 
@@ -188,7 +189,7 @@ final class CreateGroupMessageActionTest extends TestCase
         $this->assertSame($headId, $third['result']['messages'][0]['parent_id']);
 
         // What the agent is handed: one turn holding the caption and all three photos.
-        $burst = GroupBurstService::messagesFor($headId);
+        $burst = MessageBurstService::messagesFor($headId);
         $this->assertCount(4, $burst);
     }
 
@@ -289,7 +290,7 @@ final class CreateGroupMessageActionTest extends TestCase
         $first = $this->ingest($this->groupText(Str::uuid()->toString(), 'Alex Rivera'));
         $channelId = $first['result']['messages'][0]['channel_id'];
 
-        $lock = Cache::lock('wasender:burst-chain:' . $channelId, 10);
+        $lock = Cache::lock('message-burst-chain:' . $channelId, 10);
         $this->assertTrue($lock->get(), 'precondition: the test holds the channel lock');
 
         try {
@@ -345,11 +346,14 @@ final class CreateGroupMessageActionTest extends TestCase
         $inbound = InboundMessage::fromWebhookMessage($headPayload);
         $this->assertNotNull($inbound);
 
-        $resolved = new GroupBurstService(
-            $channel,
-            BurstConfigEnum::BURST_IDLE_SECONDS->getInt($this->receiver()),
-            BurstConfigEnum::BURST_MAX_SECONDS->getInt($this->receiver()),
-        )->resolveHead($headMessage, $inbound);
+        $policy = new BurstPolicy(
+            correlationKeys: ['speaker:' . $inbound->senderIdentity()],
+            chainIdleSeconds: BurstConfigEnum::BURST_IDLE_SECONDS->getInt($this->receiver()),
+            closeIdleSeconds: BurstConfigEnum::BURST_IDLE_SECONDS->getInt($this->receiver()),
+            maxSeconds: BurstConfigEnum::BURST_MAX_SECONDS->getInt($this->receiver()),
+        );
+
+        $resolved = new MessageBurstService($channel, $policy)->resolveHead($headMessage);
 
         $this->assertNull($resolved, 'A message can never be its own burst head');
     }

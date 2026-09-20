@@ -26,7 +26,8 @@ actions; everything else here is about telling them apart and configuring them.
 **A lead DM does not answer by itself.** It files the message, opens a Lead, and fires
 `after-adding-message-to-channel` expecting a rule with an agent-responder activity to speak. A fresh
 receiver with no such rule files messages and stays silent — that is configuration, not a bug. Assistant
-and group conversations reply from `ProcessGroupBurstJob` and need no rule at all.
+and group conversations reply from the burst flush (`FlushMessageBurstJob` → `WaSenderBurstHandler`)
+and need no rule at all.
 
 ## Receiver configuration
 
@@ -67,15 +68,20 @@ publishes the article, answers only when addressed" means.
 Group and assistant messages arrive in clumps (text + several photos). The agent runs **once per
 burst**, not once per message.
 
-- Parts chain onto a head via `parent_id`; `GroupBurstService::messagesFor()` reads the head plus its
+- The debounce is **shared**, not WhatsApp-specific: `Social\Messages\Concerns\ChainsInboundBursts` +
+  `MessageBurstService` + `FlushMessageBurstJob`, the same machinery Twilio SMS uses. What stays in
+  this connector is `BaseInboundMessageAction::burstPolicy()` (album/speaker correlation keys, the
+  mention-shortened close window) and `WaSenderBurstHandler` (what happens once the burst closes).
+- Parts chain onto a head via `parent_id`; `MessageBurstService::messagesFor()` reads the head plus its
   children.
 - Two signals, in precedence: `messageContextInfo.messageAssociation` (an album — deterministic,
   ignores time) then same-speaker-inside-the-idle-window. A different speaker closes the previous
   burst.
-- **Chain before downloading media** (`fileIntoBurst()` keeps the order chain → media → arm). The
+- **Chain before downloading media** (`fileIntoBurstWithMedia()` keeps the order chain → media → arm,
+  which is why it calls the trait's two halves itself rather than its `fileIntoBurst()`). The
   first part to reach the head registry wins it, so a message that spends the download unregistered
   loses the head to a part that arrived after it.
-- `ProcessGroupBurstJob` is **debounce-superseded**: every part re-arms a cache token and dispatches a
+- `FlushMessageBurstJob` is **debounce-superseded**: every part re-arms a cache token and dispatches a
   fresh delayed copy; only the last one still matches the token when it fires.
 - The winner **spends the token immediately**, before doing any work. The job has `$tries = 2`, so a
   throw after the agent has answered — the workflow fire is the obvious one — sends it back to the
@@ -83,6 +89,9 @@ burst**, not once per message.
   reply, and since each reply publishes its own post that is two articles from one burst (prod
   736602 / 736603). Deleting only on a token match keeps supersede semantics: an early part still
   finds a mismatch and leaves the burst armed for the winner.
+- **The receiver reaches the handler as an id, never as a model.** `SerializesModels` only converts a
+  top-level QueueableEntity, so a model nested in the flush job's `$params` array is raw-serialized
+  and comes back with stale configuration. `WaSenderBurstHandler` re-resolves it from `receiver_id`.
 - It runs on the **default queue**. If nothing drains that queue the message files and the agent never
   runs — the single most common cause of "it filed but never answered".
 

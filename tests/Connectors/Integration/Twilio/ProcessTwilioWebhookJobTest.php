@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Twilio;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -14,7 +15,9 @@ use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioWebhookJob;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Social\Messages\Jobs\FlushMessageBurstJob;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Services\MessageBurstService;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
@@ -22,6 +25,10 @@ use Tests\TestCase;
 
 class ProcessTwilioWebhookJobTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = [null, 'social', 'crm', 'workflow'];
+
     private ReceiverWebhook $receiver;
 
     protected function setUp(): void
@@ -110,9 +117,7 @@ class ProcessTwilioWebhookJobTest extends TestCase
         );
         $this->assertSame('STOP', $result[0]['consent_type']);
         $this->assertTrue($result[0]['automated_response_suppressed']);
-        $this->assertTrue(Cache::has(
-            "workflow_job:message_batch:{$this->receiver->getId()}:{$phone}:cancelled"
-        ));
+        Queue::assertNotPushed(FlushMessageBurstJob::class);
     }
 
     public function testProcessStartOptsInOnlyTheInboundPhoneAndSuppressesAutomatedResponse(): void
@@ -165,9 +170,7 @@ class ProcessTwilioWebhookJobTest extends TestCase
         // second message the customer did not ask for.
         $this->assertSame('HELP', $result[0]['consent_type']);
         $this->assertTrue($result[0]['automated_response_suppressed']);
-        $this->assertTrue(Cache::has(
-            "workflow_job:message_batch:{$this->receiver->getId()}:{$phone}:cancelled"
-        ));
+        Queue::assertNotPushed(FlushMessageBurstJob::class);
     }
 
     public function testProcessAffirmativeYesIsNotTreatedAsAConsentEvent(): void
@@ -183,9 +186,7 @@ class ProcessTwilioWebhookJobTest extends TestCase
         // affirmative — "yes, book me in". The agent must still answer.
         $this->assertNull($result[0]['consent_type']);
         $this->assertFalse($result[0]['automated_response_suppressed']);
-        $this->assertFalse(Cache::has(
-            "workflow_job:message_batch:{$this->receiver->getId()}:{$phone}:cancelled"
-        ));
+        Queue::assertPushed(FlushMessageBurstJob::class);
     }
 
     public function testProcessIncomingSmsWithMediaAttachesToLead(): void
@@ -218,6 +219,57 @@ class ProcessTwilioWebhookJobTest extends TestCase
 
         $leadFiles = $lead->getFiles();
         $this->assertNotEmpty($leadFiles, 'Lead should have files attached for the digital jacket');
+    }
+
+    /**
+     * A customer whose auto-responder fires two texts back to back must get one answer, not one per
+     * text. The window has to outlast the gap between them or each announces its own turn.
+     */
+    public function testTwoTextsBackToBackCollapseIntoOneTurn(): void
+    {
+        $phone = '+1' . fake()->numerify('##########');
+
+        $first = $this->dispatchWebhookJob($this->buildTwilioPayload([
+            'From' => $phone,
+            'Body' => 'I am observing the Sabbath and will reply after sundown.',
+        ]));
+
+        $second = $this->dispatchWebhookJob($this->buildTwilioPayload([
+            'From' => $phone,
+            'Body' => '(I am not receiving notifications right now.)',
+        ]));
+
+        $headId = $first[0]['message_id'];
+        $tail = Message::query()->findOrFail($second[0]['message_id']);
+
+        $this->assertSame($headId, $tail->parent_id, 'The second text must join the first turn');
+        $this->assertNotNull(
+            Cache::get(FlushMessageBurstJob::cacheKey($headId)),
+            'The burst stays armed on the head until it goes quiet'
+        );
+        $this->assertSame(
+            "I am observing the Sabbath and will reply after sundown.\n\n(I am not receiving notifications right now.)",
+            MessageBurstService::promptFor(MessageBurstService::messagesFor($headId)),
+            'The agent sees the whole flurry, not just its first line'
+        );
+    }
+
+    /**
+     * Outbound has no flurry to collapse, and rules listening for the company's own messages expect
+     * them without a burst window's delay in front.
+     */
+    public function testOurOwnOutboundSmsIsAnnouncedImmediatelyAndNeverArmsABurst(): void
+    {
+        $ownNumber = '+1' . fake()->numerify('##########');
+
+        $result = $this->dispatchWebhookJob($this->buildTwilioPayload([
+            'From' => $ownNumber,
+            'To' => $ownNumber,
+            'Body' => 'Following up from the dealership',
+        ]));
+
+        $this->assertTrue($result[0]['is_from_me']);
+        Queue::assertNotPushed(FlushMessageBurstJob::class);
     }
 
     private function buildTwilioPayload(array $overrides = []): array

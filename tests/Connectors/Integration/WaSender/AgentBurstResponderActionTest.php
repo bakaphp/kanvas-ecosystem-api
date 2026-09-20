@@ -149,7 +149,7 @@ final class AgentBurstResponderActionTest extends TestCase
             $this->runBurst(shouldReply: false, handler: PartlessNeuronAgentStub::class);
             $this->fail('The failed turn must reach the caller');
         } catch (ErrorException) {
-            // ProcessGroupBurstJob::runAgent is what reports it.
+            // FlushMessageBurstJob::runAgent is what reports it.
         }
 
         $this->assertNull($this->latestAgentMessage(), 'A failed silent turn must publish nothing');

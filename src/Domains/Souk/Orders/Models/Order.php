@@ -27,7 +27,7 @@ use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Regions\Models\Regions;
-use Kanvas\Social\Messages\Traits\HasMessagesTrait;
+use Kanvas\Social\Messages\Concerns\HasMessages;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Souk\Affiliates\Models\AffiliateConversion;
 use Kanvas\Souk\Discounts\Models\Discount;
@@ -115,7 +115,7 @@ class Order extends BaseModel implements PayableInterface
     use CanUseWorkflow;
     use HasShopifyCustomField;
     use HasTagsTrait;
-    use HasMessagesTrait;
+    use HasMessages;
     use AsTree;
     use PayableTrait;
 
