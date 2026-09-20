@@ -64,10 +64,7 @@ final class McpErrorReason
      */
     private static function resultText(array $result): ?string
     {
-        $texts = array_filter(array_map(
-            fn (mixed $content): ?string => is_array($content) && is_string($content['text'] ?? null) ? $content['text'] : null,
-            (array) ($result['content'] ?? [])
-        ), 'is_string');
+        $texts = McpToolResult::texts($result['content'] ?? []);
 
         return $texts === [] ? null : implode(' ', $texts);
     }

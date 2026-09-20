@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Mcp\Services\McpConnectionService;
 use Kanvas\Connectors\Mcp\Services\McpToolCacheService;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Models\Tool as CapabilityTool;
+use Kanvas\Users\Models\Users;
 use NeuronAI\MCP\McpTransportInterface;
 use NeuronAI\Tools\ToolInterface;
 use NeuronAI\Tools\Toolkits\ToolkitInterface;
@@ -32,12 +34,15 @@ class RemoteMcpToolkit implements ToolkitInterface
     private ?McpToolCacheService $cache = null;
 
     /**
-     * $transport is a test seam; production always uses the guarded transport.
+     * $transport is a test seam; production always uses the guarded transport. $session and $human are
+     * the conversation a background job started this turn resumes in.
      */
     public function __construct(
         private readonly Agent $agent,
         private readonly CapabilityTool $tool,
         private readonly ?McpTransportInterface $transport = null,
+        private readonly ?Session $session = null,
+        private readonly ?Users $human = null,
     ) {
     }
 
@@ -132,7 +137,8 @@ class RemoteMcpToolkit implements ToolkitInterface
         return $this->connector ??= $this->cache()
             ->connection()
             ->connector()
-            ->withLedgerContext($this->tool->getId(), $this->agent->getId());
+            ->withLedgerContext($this->tool->getId(), $this->agent->getId())
+            ->withConversation($this->session?->uuid, $this->human?->getId());
     }
 
     private function cache(): McpToolCacheService
