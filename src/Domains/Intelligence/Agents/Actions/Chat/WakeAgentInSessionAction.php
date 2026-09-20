@@ -10,8 +10,8 @@ use Kanvas\NervousSystem\Scheduling\Actions\DeliverScheduledMessageToChannelActi
 use Kanvas\Users\Models\Users;
 
 /**
- * Runs an agent turn nobody typed — a scheduled task firing, a background job finishing — and posts
- * the reply into the conversation so the person sees what the agent did.
+ * Runs an agent turn nobody typed — a scheduled task firing, a background job finishing — and posts the
+ * reply into the conversation.
  */
 class WakeAgentInSessionAction
 {
@@ -39,8 +39,7 @@ class WakeAgentInSessionAction
             privateUserTurn: true,
         )->execute();
 
-        // An agent with no user of its own has no author to post as — the turn still ran, it just
-        // cannot be mirrored into the channel.
+        // An agent with no user of its own has no author to post as; the turn still ran.
         if ($this->session->channel !== null && $this->agent->user !== null && trim($response) !== '') {
             new DeliverScheduledMessageToChannelAction(
                 channel: $this->session->channel,

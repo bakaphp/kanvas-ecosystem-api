@@ -15,10 +15,8 @@ use Override;
 use Throwable;
 
 /**
- * A Browser Use session writes its files to the sandbox's own disk, which is destroyed when the session
- * stops — a run that "saved the report to outbound_orders.csv" leaves nothing behind. Attaching a
- * workspace is what makes those files outlive the run; the browser's own downloads (an Export button)
- * are kept per session either way.
+ * A session's own disk dies with it, so a workspace is what makes the files it writes outlive the run.
+ * Downloads are kept per session either way.
  */
 class BrowserUseArtifactCollector implements CollectsMcpJobArtifacts
 {
@@ -61,8 +59,6 @@ class BrowserUseArtifactCollector implements CollectsMcpJobArtifacts
 
         $workspaceId = $this->storedWorkspace($agent);
 
-        // The workspace outlives every run in the company, so only what this job wrote belongs to it;
-        // a download hangs off the session itself and is already this job's.
         $written = $workspaceId === null
             ? []
             : $this->writtenBy($job, $client->workspaceFiles($workspaceId));

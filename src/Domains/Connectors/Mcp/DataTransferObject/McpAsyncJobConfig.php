@@ -8,14 +8,12 @@ use Baka\Support\Str;
 use Kanvas\Workflow\Models\Integrations;
 
 /**
- * How to follow one MCP tool that starts a job and returns before it finishes, read from
- * `integrations.metadata.async_jobs.{remote tool}`:
+ * How to follow one MCP tool that starts a job, read from `integrations.metadata.async_jobs.{remote tool}`:
  *
  *     "run_session": {"status_tool": "get_session", "id_field": "session_id", "status_field": "status",
  *                     "done_statuses": ["idle", "stopped", "timed_out", "error"], "live_url_field": "live_url"}
  *
- * `id_field` names the job id in the start tool's result AND the status tool's argument — the one shape
- * every vendor seen so far uses. A plain value object for the same reason as McpServerConfig.
+ * `id_field` names the job id in the start tool's result AND the status tool's argument.
  */
 final readonly class McpAsyncJobConfig
 {

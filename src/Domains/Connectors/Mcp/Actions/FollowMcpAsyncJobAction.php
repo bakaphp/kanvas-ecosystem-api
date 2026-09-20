@@ -17,10 +17,7 @@ use NeuronAI\MCP\McpTransportInterface;
 use Throwable;
 
 /**
- * One check on a running job: ask the vendor for its status, show the person the live browser as soon
- * as there is one, and hand the agent the result once the job ends.
- *
- * $transport is a test seam; production always uses the guarded transport.
+ * One check on a running job. $transport is a test seam; production always uses the guarded transport.
  */
 class FollowMcpAsyncJobAction
 {
@@ -71,8 +68,8 @@ class FollowMcpAsyncJobAction
             return $this->end(McpAsyncJobStatusEnum::TIMED_OUT);
         }
 
-        // Only while it is still running: a short task is already over on the first check, and "open it to
-        // watch" on a dead session is worse than no link at all.
+        // A short task is already over on the first check, and a live link to a dead session is worse
+        // than none.
         $this->postLiveUrl();
 
         return $this->job;
@@ -107,9 +104,8 @@ class FollowMcpAsyncJobAction
     }
 
     /**
-     * The person sees the live browser whether or not the task needs them — a login the vendor's agent
-     * is stuck on is only visible there. Posted once per distinct URL; a session with no channel has
-     * nowhere to post, so the URL is marked seen rather than retried on every check.
+     * Posted once per distinct URL. A session with no channel has nowhere to post, so the URL is marked
+     * seen rather than retried on every check.
      */
     private function postLiveUrl(): void
     {
@@ -142,10 +138,7 @@ class FollowMcpAsyncJobAction
         $this->job->saveOrFail();
     }
 
-    /**
-     * Download links from these vendors last a minute, so the files are pulled into Kanvas here rather
-     * than handed to the agent as URLs it would fetch too late.
-     */
+    /** These download links last a minute, so the files are pulled in here, not handed to the agent. */
     private function storeArtifacts(): void
     {
         $artifacts = AttachMcpJobArtifactsToPlanAction::collectFor($this->job);
@@ -166,8 +159,8 @@ class FollowMcpAsyncJobAction
             return;
         }
 
-        // The plan's own files, not what the vendor offered: one that failed to download is not there,
-        // and announcing it would have the agent promise a file nobody can open.
+        // The plan's own files, not what the vendor offered: a failed download would otherwise be
+        // announced as saved.
         $this->job->artifacts = [
             'plan_id' => $plan->getId(),
             'files' => $plan->getFiles()->pluck('name')->all(),

@@ -18,8 +18,8 @@ use Kanvas\NervousSystem\Capability\Models\McpAsyncJob;
 use Throwable;
 
 /**
- * Checks a running MCP job once, then queues itself again after the job's poll interval until the job
- * ends. A fresh dispatch per check rather than `release()`, so a long job never exhausts the tries.
+ * Checks a running MCP job, then queues itself again until it ends. A fresh dispatch per check rather
+ * than `release()`, so a long job never exhausts the tries.
  */
 class PollMcpAsyncJob implements ShouldQueue
 {
@@ -54,9 +54,7 @@ class PollMcpAsyncJob implements ShouldQueue
         self::dispatch($this->app, $job)->delay(now()->addSeconds($pollSeconds));
     }
 
-    /**
-     * Without this a crash mid-check leaves the row running forever and the agent never hears back.
-     */
+    /** Without this a crash mid-check leaves the row running forever and the agent never hears back. */
     public function failed(Throwable $exception): void
     {
         $job = $this->asyncJob->fresh();

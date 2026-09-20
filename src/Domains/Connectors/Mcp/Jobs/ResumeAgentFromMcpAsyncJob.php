@@ -15,9 +15,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Actions\Chat\WakeAgentInSessionAction;
 use Kanvas\NervousSystem\Capability\Models\McpAsyncJob;
 
-/**
- * Wakes the agent in the conversation it started the job from, handing it the outcome.
- */
 class ResumeAgentFromMcpAsyncJob implements ShouldQueue
 {
     use Dispatchable;

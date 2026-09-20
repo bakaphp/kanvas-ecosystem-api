@@ -14,12 +14,9 @@ use Kanvas\NervousSystem\Capability\Models\McpAsyncJob;
 use Kanvas\Workflow\Models\Integrations;
 
 /**
- * Takes over a tool call that started a job on the vendor's side and returned before it finished. The
- * agent's turn ends here; PollMcpAsyncJob follows the job and resumes the agent when it is done.
- *
- * Returns null — and the caller hands the model the vendor's own answer — whenever the call is not a
- * job to follow: the tool is not declared async, the job already finished, or there is no conversation
- * to come back to.
+ * Takes over a tool call that started a job and returned before it finished; PollMcpAsyncJob follows it
+ * from here. Returns null when there is nothing to follow — not declared async, already finished, or no
+ * conversation to come back to — and the caller then hands the model the vendor's own answer.
  */
 class StartMcpAsyncJobAction
 {

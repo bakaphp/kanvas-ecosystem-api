@@ -13,10 +13,7 @@ use Kanvas\Users\Models\Users;
 
 /**
  * Files an agent produced go onto a plan, never into the conversation: a day's export would bury the
- * turn, and a plan is addressable — the agent can hand it to another agent or a later run.
- *
- * Shared by everything that produces files for an agent: a finished MCP background job, a browser
- * session about to be closed.
+ * turn, and a plan is addressable. Shared by the MCP background jobs and the browser file tools.
  */
 class AttachAgentFilesToPlanAction
 {

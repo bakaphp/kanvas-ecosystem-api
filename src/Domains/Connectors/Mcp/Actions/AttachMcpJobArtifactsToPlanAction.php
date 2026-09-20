@@ -15,11 +15,8 @@ use Kanvas\Users\Models\Users;
 use Throwable;
 
 /**
- * Files a finished job produced land on a plan rather than in the conversation: a plan is addressable,
- * so the agent can hand it to another agent or a later run ("extract the rows from the file on plan 12")
- * instead of carrying a spreadsheet through its context.
- *
- * Returns null when the job produced nothing, which is the common case.
+ * Files a finished job produced land on a plan, which is addressable — the agent can hand it on instead
+ * of carrying a spreadsheet through its context. Null when the job produced nothing.
  */
 class AttachMcpJobArtifactsToPlanAction
 {
@@ -61,8 +58,8 @@ class AttachMcpJobArtifactsToPlanAction
     }
 
     /**
-     * Downloaded into Kanvas, never linked: the vendor's urls are presigned and dead within the minute,
-     * and they need its credentials, so a stored link is a file nobody can open.
+     * Downloaded, never linked: these urls are presigned, dead within the minute and need the vendor's
+     * credentials.
      *
      * @return array<string, Filesystem> file name => the stored file
      */
@@ -103,8 +100,7 @@ class AttachMcpJobArtifactsToPlanAction
     }
 
     /**
-     * The whole collection is best-effort: a vendor that fails to hand its files over must not turn a
-     * finished job into a failed one, and the agent still gets the job's own output.
+     * Best-effort: a vendor failing to hand its files over must not turn a finished job into a failed one.
      *
      * @return list<array{url: string, name: string}>
      */

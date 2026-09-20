@@ -16,18 +16,31 @@ use Throwable;
  */
 trait SavesKernelBrowserFiles
 {
+    public function requiredMcpServer(): string
+    {
+        return BrowserFiles::SERVER;
+    }
+
+    /**
+     * @return array<string, mixed>|null the refusal to return, or null when there is an agent to work with
+     */
+    protected function withoutAgent(?Agent $agent): ?array
+    {
+        return $agent instanceof Agent
+            ? null
+            : ['status' => 'error', 'message' => 'No agent is in scope, so nothing can be saved.'];
+    }
+
     protected function browserFiles(Agent $agent): BrowserFiles
     {
-        // property_exists, not `$this->files ??`: a host that does not declare the seam would otherwise
-        // read an undefined property on every call.
+        // property_exists, not `??`: a host that does not declare the seam reads an undefined property.
         return property_exists($this, 'files') && $this->files instanceof BrowserFiles
             ? $this->files
             : new BrowserFiles($agent);
     }
 
     /**
-     * @param list<array{path: string, size?: int|null}> $candidates a sweep already knows each size; a
-     *                                                              named path does not, and is measured here
+     * @param list<array{path: string, size?: int|null}> $candidates a sweep knows each size; a named path is measured here
      * @return array<string, mixed>
      */
     protected function saveToPlan(
@@ -60,8 +73,7 @@ trait SavesKernelBrowserFiles
                 continue;
             }
 
-            // A portal writes the same export again under a new timestamped name, and the tool may be
-            // called twice for one session — without this, a plan collects the same file many times over.
+            // The tool may be called twice for one session; without this the plan collects it twice.
             if (in_array($name . ':' . $size, $alreadyThere, true)) {
                 $skipped[$path] = 'already saved';
 
@@ -104,8 +116,7 @@ trait SavesKernelBrowserFiles
             plan: $plan,
         )->execute();
 
-        // Read back from the plan rather than from what we meant to attach: an agent has already told
-        // someone about a file that was never saved, and the payload is what it narrates from.
+        // Read back from the plan, not from what we meant to attach: the agent narrates from this payload.
         $attached = $plan?->getFiles()
             ->whereIn('name', array_keys($stored))
             ->map(static fn ($file): array => ['name' => $file->name, 'id' => $file->getId(), 'size' => (int) $file->size])

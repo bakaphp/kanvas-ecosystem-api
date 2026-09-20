@@ -50,7 +50,6 @@ class McpAsyncJob extends Model
     use KanvasModelTrait;
     use UuidTrait;
 
-    /** What the resumed turn is handed — a whole scraped report fits, a runaway transcript does not. */
     public const int MAX_RESULT_CHARS = 30000;
 
     /** Str::limit's default "..." reads as the vendor's own ellipsis; the agent has to know it was cut. */
@@ -91,10 +90,7 @@ class McpAsyncJob extends Model
         return $this->belongsTo(Integrations::class, 'integrations_id');
     }
 
-    /**
-     * A channel session uuid is shared by every agent on the channel — resolve through the agent, newest
-     * first, or the result lands in another agent's conversation.
-     */
+    /** A channel session uuid is shared by every agent on it, so resolve through the agent, newest first. */
     public function resolveSession(): ?Session
     {
         if ($this->agent === null) {
@@ -136,10 +132,7 @@ class McpAsyncJob extends Model
         $this->saveOrFail();
     }
 
-    /**
-     * The message the agent wakes up to. Written as an instruction because the resumed turn has no user
-     * message of its own — without "do not start it again" a model re-runs the task it was waiting on.
-     */
+    /** Without "do not start the job again" a model re-runs the task it was waiting on. */
     public function resumeInstruction(): string
     {
         $header = sprintf(
@@ -165,10 +158,7 @@ class McpAsyncJob extends Model
         };
     }
 
-    /**
-     * Files never travel through the conversation — a day's export would bury the turn. The agent is told
-     * where they landed so it can hand the plan to whatever reads them next.
-     */
+    /** A day's export would bury the turn, so the agent gets the plan, never the contents. */
     private function artifactsNote(): string
     {
         $planId = $this->artifacts['plan_id'] ?? null;

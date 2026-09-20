@@ -23,9 +23,7 @@ class SaveBrowserFileTool extends Tool implements HasRunKey, RequiresMcpConnecti
     use SavesKernelBrowserFiles;
     use TrackByInputs;
 
-    /**
-     * $files is a test seam; an agent's toolset is built with the agent alone.
-     */
+    /** $files is a test seam; an agent's toolset is built with the agent alone. */
     public function __construct(
         private readonly ?Agent $agent = null,
         private readonly ?BrowserFiles $files = null,
@@ -69,19 +67,15 @@ class SaveBrowserFileTool extends Tool implements HasRunKey, RequiresMcpConnecti
         ];
     }
 
-    #[Override]
-    public function requiredMcpServer(): string
-    {
-        return BrowserFiles::SERVER;
-    }
-
     /**
      * @return array<string, mixed>
      */
     public function __invoke(string $session_id, string $path, ?int $plan_id = null): array
     {
-        if ($this->agent === null) {
-            return ['status' => 'error', 'message' => 'No agent is in scope, so the file cannot be saved.'];
+        $refusal = $this->withoutAgent($this->agent);
+
+        if ($refusal !== null) {
+            return $refusal;
         }
 
         return $this->saveToPlan(

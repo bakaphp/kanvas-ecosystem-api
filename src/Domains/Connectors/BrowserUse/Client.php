@@ -14,12 +14,8 @@ use Kanvas\Workflow\Models\Integrations;
 use Throwable;
 
 /**
- * Browser Use's REST API, for the things its MCP server does not expose: workspaces, the files a job
- * wrote, and the files the browser downloaded. Same API key as the MCP connection — read from the
- * agent's own credential, never a shared one.
- *
- * Not cached in a static: under Octane a worker outlives the request, and a rotated key would keep
- * being used by whichever workers cached it.
+ * Browser Use's REST API, for what its MCP server does not expose: workspaces, the files a job wrote,
+ * and the files the browser downloaded. Uses the agent's own MCP credential.
  */
 class Client
 {
@@ -36,10 +32,6 @@ class Client
         return $key === null ? null : new self($key);
     }
 
-    /**
-     * The workspace id for this company, creating one the first time. Stored on the company so every
-     * agent in it writes to the same place.
-     */
     public function ensureWorkspace(string $name): ?string
     {
         $response = $this->request()->post(self::BASE_URL . '/workspaces', ['name' => $name]);
@@ -48,8 +40,7 @@ class Client
     }
 
     /**
-     * Everything the workspace holds — it is per company and permanent, so the caller has to bound this
-     * to the run it is collecting for.
+     * The workspace is per company and permanent, so the caller must bound this to the run it collects for.
      *
      * @return list<array{url: string, name: string, modified_at: CarbonImmutable|null}>
      */
@@ -62,8 +53,7 @@ class Client
     }
 
     /**
-     * Files the browser itself downloaded — an Export button, not something the agent wrote. They hang
-     * off the BROWSER session, which is a different id, reachable from the agent session it ran for.
+     * What the browser downloaded, which hangs off the BROWSER session — a different id from the agent's.
      *
      * @return list<array{url: string, name: string, modified_at: CarbonImmutable|null}>
      */

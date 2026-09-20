@@ -23,8 +23,7 @@ final class McpToolResult
     }
 
     /**
-     * Vendors that return structured data put it in a text item as a JSON object (Browser Use's
-     * `get_session`); the first item that decodes to one is the payload.
+     * Structured data arrives as JSON inside a text item; the first that decodes to an object is the payload.
      *
      * @return array<string, mixed>|null
      */
