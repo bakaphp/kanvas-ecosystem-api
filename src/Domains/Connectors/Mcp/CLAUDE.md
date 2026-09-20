@@ -75,6 +75,7 @@ Never print a credential while debugging — check presence (`rawToken() !== nul
 | Pipeboard (Meta, Google Ads) | A third party holds the advertiser's platform tokens. Google Ads is granted `mcp:read` only on purpose. |
 | GitHub, DocuSign, HubSpot | No dynamic registration → hand-made client via `client_key`. DocuSign's metadata points at **production** `account.docusign.com`, so a demo-only key will not authorise. HubSpot's path is `/anthropic`; `/mcp` 404s. |
 | Browserbase | Key goes in the query string (`auth_query_param: browserbaseApiKey`), appended at send time and redacted from errors. Reports "connected" even with a wrong key — the key is only checked when a browser opens. |
+| Browserless | Token in the query string (`auth_query_param: token`), like Browserbase — and like it, a wrong token still completes `initialize` and lists all 14 tools; it is only checked when a browser runs. **`tools/list` needs the `Mcp-Session-Id` from the handshake** or the server answers with an empty list rather than an error (checked 2026-09-20, server 1.30.0). No `async_jobs`: `browserless_agent` is a loop OUR model drives, so a long flow is bounded by the per-turn MCP call budget, not by a background job. Saved logins live in its own profiles (`browserless_profiles` → pass the name as `profile`). |
 | Browser Use | Key goes bare in its own header (`auth_header: x-browser-use-api-key`), not `Authorization: Bearer`. The 401 advertises OAuth metadata with a registration endpoint, but `/oauth/register` and `/oauth/authorize` 404 (checked 2026-09-19) — key only. `tools/list` answers without a key, so a wrong one first fails on `run_session`. `run_session`/`send_task` are `async_jobs`; `live_url` reads `null` once the session idles, so it is caught during the poll. |
 | TikTok Ads | Points at the progressive `tt-ads-mcp-layer` endpoint — the flat one's ~400 tools overwhelm a prompt. Issuer is `{server}/oauth`, resolved through the OIDC-suffixed well-known. **Writes with no paused-by-default.** |
 | Higgsfield | Must be `mcp.higgsfield.ai/mcp`; `higgsfield.ai/mcp` 307-redirects and the transport refuses redirects by design. Clerk registers the client. |
@@ -145,7 +146,9 @@ rather than resuming a conversation — different target, not a duplicate to mer
 servers (Tavily, Analytics, ads, n8n, SQL Server, SAP, Vercel — docs search, runtime logs and Agent Run
 traces) use 30 s. Anything that renders or searches heavily uses
 60 s: Browserbase, Playwright, Higgsfield, and **Sentry**, whose `search_events` translates natural language
-server-side and overran 20 s.
+server-side and overran 20 s. **Browserless sits at 130 s**, deliberately above its own 120 s session
+timeout: `browserless_agent` holds a session open across calls, and giving up first abandoned a result the
+account had already been billed for.
 
 ## Adding or changing a server
 

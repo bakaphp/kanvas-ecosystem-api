@@ -357,20 +357,13 @@ final class McpAsyncJobTest extends McpTestCase
 
     private function runningJob(Agent $agent, Integrations $integration, ?string $sessionUuid = null): McpAsyncJob
     {
-        $job = new McpAsyncJob();
-        $job->apps_id = $agent->apps_id;
-        $job->companies_id = $agent->companies_id;
-        $job->agents_id = $agent->getId();
-        $job->integrations_id = $integration->getId();
-        $job->users_id = $this->mcpUser->getId();
-        $job->session_uuid = $sessionUuid ?? Str::uuid()->toString();
-        $job->start_tool = 'createJiraIssue';
-        $job->external_id = 's-1';
-        $job->status = McpAsyncJobStatusEnum::RUNNING->value;
-        $job->expires_at = Carbon::now()->addHour();
-        $job->saveOrFail();
-
-        return $job;
+        return $this->makeAsyncJob(
+            agent: $agent,
+            integration: $integration,
+            startTool: 'createJiraIssue',
+            externalId: 's-1',
+            sessionUuid: $sessionUuid,
+        );
     }
 
     private function onlyJobFor(Agent $agent): McpAsyncJob

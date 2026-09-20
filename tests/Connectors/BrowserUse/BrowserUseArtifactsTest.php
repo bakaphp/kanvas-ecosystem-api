@@ -7,7 +7,6 @@ namespace Tests\Connectors\BrowserUse;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
-use Illuminate\Support\Str;
 use Kanvas\Connectors\BrowserUse\Client;
 use Kanvas\Connectors\BrowserUse\Enums\ConfigurationEnum;
 use Kanvas\Connectors\BrowserUse\Services\BrowserUseArtifactCollector;
@@ -78,7 +77,7 @@ final class BrowserUseArtifactsTest extends McpTestCase
     {
         [$agent, $integration] = $this->browserUseServer();
         $agent->company->set(ConfigurationEnum::WORKSPACE_ID->value, self::WORKSPACE_ID);
-        $job = $this->job($agent, $integration);
+        $job = $this->makeAsyncJob($agent, $integration);
 
         Http::fake([
             Client::BASE_URL . '/workspaces/*/files*' => Http::response([
@@ -107,7 +106,7 @@ final class BrowserUseArtifactsTest extends McpTestCase
     {
         [$agent, $integration] = $this->browserUseServer();
         $agent->company->set(ConfigurationEnum::WORKSPACE_ID->value, self::WORKSPACE_ID);
-        $job = $this->job($agent, $integration);
+        $job = $this->makeAsyncJob($agent, $integration);
 
         Http::fake([
             Client::BASE_URL . '/workspaces/*/files*' => Http::response([
@@ -138,7 +137,7 @@ final class BrowserUseArtifactsTest extends McpTestCase
     {
         [$agent, $integration] = $this->browserUseServer();
         $agent->company->set(ConfigurationEnum::WORKSPACE_ID->value, self::WORKSPACE_ID);
-        $job = $this->job($agent, $integration);
+        $job = $this->makeAsyncJob($agent, $integration);
 
         Http::fake([
             Client::BASE_URL . '/workspaces/*/files*' => Http::response([
@@ -149,13 +148,13 @@ final class BrowserUseArtifactsTest extends McpTestCase
 
         // The generic job layer knows no vendor: it reaches the collector through the row's metadata.
         $this->assertSame(['output.json'], array_column(AttachMcpJobArtifactsToPlanAction::collectFor($job), 'name'));
-        $this->assertSame([], AttachMcpJobArtifactsToPlanAction::collectFor($this->job($agent, $this->makeIntegration())));
+        $this->assertSame([], AttachMcpJobArtifactsToPlanAction::collectFor($this->makeAsyncJob($agent, $this->makeIntegration())));
     }
 
     public function testAJobWithNoWorkspaceStillCollectsTheBrowserDownloads(): void
     {
         [$agent, $integration] = $this->browserUseServer();
-        $job = $this->job($agent, $integration);
+        $job = $this->makeAsyncJob($agent, $integration);
 
         Http::fake([
             Client::BASE_URL . '/browsers?*' => Http::response(['items' => [['id' => 'browser-1']]]),
@@ -188,7 +187,7 @@ final class BrowserUseArtifactsTest extends McpTestCase
     public function testTheResumeInstructionPointsAtThePlanInsteadOfCarryingTheFile(): void
     {
         [$agent, $integration] = $this->browserUseServer();
-        $job = $this->job($agent, $integration);
+        $job = $this->makeAsyncJob($agent, $integration);
         $job->artifacts = ['plan_id' => 77, 'files' => ['outbound_orders_2026-09-14.csv']];
         $job->finish(McpAsyncJobStatusEnum::COMPLETED, result: '{"output": "done"}');
 
@@ -204,12 +203,12 @@ final class BrowserUseArtifactsTest extends McpTestCase
     {
         [$agent, $integration] = $this->browserUseServer();
 
-        $this->assertNull(new AttachMcpJobArtifactsToPlanAction($this->job($agent, $integration), [])->execute());
+        $this->assertNull(new AttachMcpJobArtifactsToPlanAction($this->makeAsyncJob($agent, $integration), [])->execute());
 
         // Nor when every file is unreachable: a plan with no files is noise on the board.
         Http::fake([self::PRESIGNED_URL => Http::response('', 403)]);
 
-        $this->assertNull(new AttachMcpJobArtifactsToPlanAction($this->job($agent, $integration), [
+        $this->assertNull(new AttachMcpJobArtifactsToPlanAction($this->makeAsyncJob($agent, $integration), [
             ['url' => self::PRESIGNED_URL, 'name' => 'expired.csv'],
         ])->execute());
     }
@@ -217,7 +216,7 @@ final class BrowserUseArtifactsTest extends McpTestCase
     public function testTheFileIsDownloadedIntoKanvasRatherThanLinkedAtTheVendor(): void
     {
         [$agent, $integration] = $this->browserUseServer();
-        $job = $this->job($agent, $integration);
+        $job = $this->makeAsyncJob($agent, $integration);
         Http::fake([self::PRESIGNED_URL => Http::response("order,qty\nDN-1,2\n")]);
 
         $plan = new AttachMcpJobArtifactsToPlanAction($job, [
@@ -237,7 +236,7 @@ final class BrowserUseArtifactsTest extends McpTestCase
     public function testAFileThatCannotBeDownloadedCostsOnlyItself(): void
     {
         [$agent, $integration] = $this->browserUseServer();
-        $job = $this->job($agent, $integration);
+        $job = $this->makeAsyncJob($agent, $integration);
         Http::fake([
             self::PRESIGNED_URL => Http::response('', 403),
             self::SECOND_URL => Http::response('{"rows": []}'),
@@ -254,7 +253,7 @@ final class BrowserUseArtifactsTest extends McpTestCase
     public function testTheFilesLandOnAPlanTheAgentCanHandOn(): void
     {
         [$agent, $integration] = $this->browserUseServer();
-        $job = $this->job($agent, $integration);
+        $job = $this->makeAsyncJob($agent, $integration);
         Http::fake([self::PRESIGNED_URL => Http::response("order,qty\nDN-1,2\n")]);
 
         $plan = new AttachMcpJobArtifactsToPlanAction($job, [
@@ -274,7 +273,7 @@ final class BrowserUseArtifactsTest extends McpTestCase
         Queue::fake();
         [$agent, $integration] = $this->browserUseServer();
         $agent->company->set(ConfigurationEnum::WORKSPACE_ID->value, self::WORKSPACE_ID);
-        $job = $this->job($agent, $integration);
+        $job = $this->makeAsyncJob($agent, $integration);
 
         Http::fake([
             Client::BASE_URL . '/workspaces/*/files*' => Http::response([
@@ -317,23 +316,5 @@ final class BrowserUseArtifactsTest extends McpTestCase
         $this->credentials($agent, $integration)->store('bu-test-key');
 
         return [$agent, $integration];
-    }
-
-    private function job(Agent $agent, Integrations $integration): McpAsyncJob
-    {
-        $job = new McpAsyncJob();
-        $job->apps_id = $agent->apps_id;
-        $job->companies_id = $agent->companies_id;
-        $job->agents_id = $agent->getId();
-        $job->integrations_id = $integration->getId();
-        $job->users_id = $this->mcpUser->getId();
-        $job->session_uuid = Str::uuid()->toString();
-        $job->start_tool = 'run_session';
-        $job->external_id = 'session-1';
-        $job->status = McpAsyncJobStatusEnum::RUNNING->value;
-        $job->expires_at = Carbon::now()->addHour();
-        $job->saveOrFail();
-
-        return $job;
     }
 }

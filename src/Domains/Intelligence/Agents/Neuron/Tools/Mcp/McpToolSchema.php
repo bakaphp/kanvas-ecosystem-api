@@ -10,6 +10,7 @@ use NeuronAI\Tools\ObjectProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\ToolPropertyInterface;
+use stdClass;
 use Throwable;
 
 /**
@@ -214,10 +215,21 @@ final class McpToolSchema
         }
 
         if ($this->declared($schema) !== []) {
-            return is_array($value) ? $this->decodeObject($schema, $value) : $value;
+            return is_array($value) ? $this->asJsonObject($this->decodeObject($schema, $value)) : $value;
         }
 
-        return is_string($value) ? $this->decodeJsonObjectParam($value) : $value;
+        return $this->asJsonObject(is_string($value) ? $this->decodeJsonObjectParam($value) : $value);
+    }
+
+    /**
+     * PHP has one array type, so an object with no keys — `{}` the model sent, or a free-form map it left
+     * empty — encodes back as `[]` and the server rejects it ("expected record, received array", Browserless
+     * on every `commands[].params`). Only the empty case is ambiguous; anything with keys encodes as an
+     * object already, and a list stays a list so a genuine shape error still reaches the model as one.
+     */
+    private function asJsonObject(mixed $value): mixed
+    {
+        return $value === [] ? new stdClass() : $value;
     }
 
     /**
