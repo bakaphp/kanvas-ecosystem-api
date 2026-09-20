@@ -246,6 +246,31 @@ The same applies to duplicated *resolvers*, *observers* and *model relations* �
 the same three methods, that is a trait (`HasNotesChannelTrait`) or a Concern
 (`App\GraphQL\Concerns\RecordsEntityNotes`), not copy-paste.
 
+### Trait Naming — `Traits/` is a Baka-only word
+
+**A new trait goes in a `Concerns/` folder next to the classes that use it, with a bare name and no
+`Trait` suffix.** That is what Laravel does (`Illuminate\...\Concerns\HasUuids`, `SoftDeletes`,
+`InteractsWithQueue` — zero `*Trait` in the framework), it is what 62% of this repo already does, and
+`Concerns/` is 15-for-15 consistent. The suffix is Hungarian notation: the `use` line already says it
+is a trait.
+
+| Trait contributes | Name it | Examples |
+|---|---|---|
+| State or accessors | `Has*` / `Is*` | `HasLegacyCorporateKey`, `HasFollowUpState`, `HasLightHouseCache` |
+| An action | third-person verb | `SendsApplicationEmail`, `ResolvesActingContext`, `UpsertsByExternalId` |
+| — | never a bare noun | `AddressTraitRelationship` is the outlier, don't copy it |
+
+Do **not** split `Traits/` vs `Concerns/` by "is this state or behaviour" — that is a judgment call
+people get wrong in both directions, and Laravel keeps model mixins in `Concerns/` too. One folder,
+one rule.
+
+**`src/Baka/Traits/` is frozen and stays suffixed.** `KanvasJobsTrait` alone is referenced by 346
+files and the 80 suffixed traits by 813; renaming them is a merge-conflict generator for zero
+functional gain, and a framework layer naming a capability slot (`KanvasModelTrait`, `UuidTrait`)
+reads fine. Existing suffixed traits under `src/Domains/` and `app/` migrate opportunistically — only
+when you are already editing that file and it has few call sites, never as a rename-only PR. Backlog
+and burn-down: `docs/PENDING_TODO.md` item 7.
+
 ### Don't Pass a Model AND Its Own Relationships
 
 When an action/service already receives an entity, **do not also pass references that entity can

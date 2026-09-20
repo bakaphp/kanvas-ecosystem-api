@@ -6,11 +6,14 @@ namespace Kanvas\Companies\CorporateApplications\Enums;
 
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Companies\CorporateApplications\Concerns\HasLegacyCorporateKey;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 
 enum CorporateApplicationFieldEnum: string
 {
+    use HasLegacyCorporateKey;
+
     case STATUS = 'corporate_application_status';
     case STATUS_REASON = 'corporate_application_status_reason';
     case COMPANY_ID = 'corporate_application_company_id';
@@ -22,25 +25,25 @@ enum CorporateApplicationFieldEnum: string
     case UPGRADE_USER_ID = 'corporate_application_upgrade_users_id';
     case UPGRADE_SOURCE_COMPANY_ID = 'corporate_application_upgrade_source_company_id';
 
-    public const COMPANY_FIELDS = [
+    public const array COMPANY_FIELDS = [
         'legal_name',
         'commercial_name',
         'rnc',
     ];
 
-    public const USER_FIELDS = [
+    public const array USER_FIELDS = [
         'is_corporate',
         ...self::USER_PROFILE_FIELDS,
     ];
 
-    public const USER_PROFILE_FIELDS = [
+    public const array USER_PROFILE_FIELDS = [
         'contact_name',
         'contact_role',
         'contact_email',
         'contact_phone',
     ];
 
-    public const REQUIRED_FIELDS = [
+    public const array REQUIRED_FIELDS = [
         'legal_name',
         'rnc',
         'contact_email',
@@ -50,20 +53,15 @@ enum CorporateApplicationFieldEnum: string
     public const string RECEIVER_COMPANY_KEY = 'application_company_fields';
     public const string RECEIVER_USER_KEY = 'application_user_fields';
 
-    private const LEAD_COLUMN_FALLBACK = [
+    private const array LEAD_COLUMN_FALLBACK = [
         'contact_email' => 'email',
         'contact_phone' => 'phone',
         'contact_name' => 'firstname',
     ];
 
-    public function legacyKey(): string
-    {
-        return 'movipass_corporate_' . str_replace('corporate_application_', '', $this->value);
-    }
-
     public function readFrom(Model $entity): mixed
     {
-        return $entity->get($this->value) ?? $entity->get($this->legacyKey());
+        return $this->readKeyFrom($entity);
     }
 
     public function writeTo(Model $entity, mixed $value): void
@@ -89,9 +87,20 @@ enum CorporateApplicationFieldEnum: string
     public static function readApplication(Lead $application, string $key): mixed
     {
         $value = $application->get($key);
+
+        if ($value !== null && $value !== '') {
+            return $value;
+        }
+
         $column = self::LEAD_COLUMN_FALLBACK[$key] ?? null;
 
-        return $value ?: ($column === null ? null : $application->{$column});
+        return $column === null ? null : $application->{$column};
+    }
+
+    public static function contactName(Model $application): string
+    {
+        return (string) ($application->get('contact_name')
+            ?? trim($application->firstname . ' ' . $application->lastname));
     }
 
     public static function missing(array $required, callable $read): array

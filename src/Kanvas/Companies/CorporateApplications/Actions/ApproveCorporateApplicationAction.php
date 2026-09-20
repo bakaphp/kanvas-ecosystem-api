@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\CorporateApplications\Actions;
 
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Str;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Actions\CreateCompaniesAction;
+use Kanvas\Companies\CorporateApplications\Concerns\ResolvesUpgradeTarget;
+use Kanvas\Companies\CorporateApplications\Concerns\ReviewsApplication;
 use Kanvas\Companies\CorporateApplications\Concerns\SendsApplicationEmail;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationSettingEnum as Setting;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
-use Kanvas\Companies\DataTransferObject\Company as CompanyData;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Services\SetupService;
@@ -25,7 +25,11 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class ApproveCorporateApplicationAction
 {
+    use ResolvesUpgradeTarget;
+    use ReviewsApplication;
     use SendsApplicationEmail;
+
+    public const string DEFAULT_TEMPLATE = 'corporate-welcome';
 
     public function __construct(
         protected readonly Model $application,
@@ -36,6 +40,8 @@ class ApproveCorporateApplicationAction
 
     public function execute(): array
     {
+        $this->assertNotDecided($this->application, CorporateApplicationStatusEnum::APPROVED);
+
         $missing = Field::missing(Field::requiredFor($this->application->receiver), $this->read(...));
 
         if ($missing !== []) {
@@ -56,17 +62,19 @@ class ApproveCorporateApplicationAction
 
     private function provisionNewAccount(): array
     {
-        $owner = $this->applicationOwner();
+        $owner = $this->application->receiver->user;
         $company = $this->findOrCreateCompany($owner);
 
-        $this->copyCompanyFields($company);
-        $this->provisionCompanyDefaults($owner, $company);
+        $company->set('is_corporate', true);
+        Field::copy(Field::companyFieldsFor($this->application->receiver), $this->read(...), $company);
+
+        new SetupService()->onBoarding($owner, $this->app, $company);
 
         $invite = $this->findOrCreateInvite($company, $owner);
 
         Field::COMPANY_ID->writeTo($this->application, (string) $company->getId());
         Field::INVITE_HASH->writeTo($this->application, $invite->invite_hash);
-        $this->markApproved();
+        $this->stampReview($this->application, CorporateApplicationStatusEnum::APPROVED, $this->reviewedBy);
 
         $this->sendWelcomeEmail($company, $invite);
 
@@ -80,39 +88,25 @@ class ApproveCorporateApplicationAction
 
     private function grantUpgrade(): array
     {
-        $company = Companies::getById((int) Field::COMPANY_ID->readFrom($this->application));
-        $user = Users::getById((int) Field::UPGRADE_USER_ID->readFrom($this->application));
+        $target = $this->upgradeTarget($this->application, $this->app);
 
-        $company->set('is_corporate', true);
-        $user->set('is_corporate', true);
+        if ($target === null) {
+            throw new ValidationException('Cannot approve: the upgrade target does not belong to this app.');
+        }
 
-        new SwitchCompanyBranchAction($user, $company->branch()->firstOrFail()->getId())->execute();
+        $target->company->set('is_corporate', true);
+        $target->user->set('is_corporate', true);
 
-        $this->markApproved();
+        new SwitchCompanyBranchAction($target->user, $target->company->branch()->firstOrFail()->getId())->execute();
+
+        $this->stampReview($this->application, CorporateApplicationStatusEnum::APPROVED, $this->reviewedBy);
 
         return [
             'application' => $this->application->getId(),
             'status' => CorporateApplicationStatusEnum::APPROVED->value,
-            'company_id' => $company->getId(),
+            'company_id' => $target->company->getId(),
             'invite_hash' => null,
         ];
-    }
-
-    private function markApproved(): void
-    {
-        Field::STATUS->writeTo($this->application, CorporateApplicationStatusEnum::APPROVED->value);
-
-        if (! $this->reviewedBy) {
-            return;
-        }
-
-        Field::REVIEWED_BY->writeTo($this->application, (string) $this->reviewedBy->getId());
-        Field::REVIEWED_AT->writeTo($this->application, now()->toIso8601String());
-    }
-
-    private function applicationOwner(): Users
-    {
-        return $this->application->receiver->user;
     }
 
     private function findOrCreateCompany(Users $owner): Companies
@@ -123,30 +117,9 @@ class ApproveCorporateApplicationAction
             return Companies::getById((int) $existingCompanyId);
         }
 
-        $name = trim((string) ($this->application->get('commercial_name')
-            ?: $this->application->get('legal_name')
-            ?: $this->application->title
-            ?: 'Corporate Account'));
+        $fallbackName = Str::trimToNull((string) $this->application->title) ?? 'Corporate Account';
 
-        return new CreateCompaniesAction(
-            new CompanyData(
-                user: $owner,
-                name: $name,
-                email: trim((string) $this->read('contact_email')),
-                phone: trim((string) $this->read('contact_phone')),
-            ),
-        )->execute();
-    }
-
-    private function provisionCompanyDefaults(Users $owner, Companies $company): void
-    {
-        new SetupService()->onBoarding($owner, $this->app, $company);
-    }
-
-    private function copyCompanyFields(Companies $company): void
-    {
-        $company->set('is_corporate', true);
-        Field::copy(Field::companyFieldsFor($this->application->receiver), $this->read(...), $company);
+        return new CreateApplicationCompanyAction($owner, $this->read(...), $fallbackName)->execute();
     }
 
     private function findOrCreateInvite(Companies $company, Users $owner): UsersInvite
@@ -192,11 +165,11 @@ class ApproveCorporateApplicationAction
 
     private function sendWelcomeEmail(Companies $company, UsersInvite $invite): void
     {
-        $inviteBaseUrl = rtrim((string) (Setting::INVITE_LINK_BASE->readFrom($this->app) ?? ''), '/');
+        $inviteBaseUrl = rtrim((string) Setting::INVITE_LINK_BASE->readFrom($this->app, ''), '/');
 
         $this->sendApplicationEmail(
             $this->app,
-            (string) (Setting::WELCOME_TEMPLATE->readFrom($this->app) ?: 'corporate-welcome'),
+            (string) Setting::WELCOME_TEMPLATE->readFrom($this->app, self::DEFAULT_TEMPLATE),
             'Bienvenido al portal corporativo',
             [
                 'lead' => $this->application,
@@ -205,7 +178,7 @@ class ApproveCorporateApplicationAction
                 'inviteHash' => $invite->invite_hash,
                 'inviteUrl' => $inviteBaseUrl !== '' ? $inviteBaseUrl . '/' . $invite->invite_hash : null,
                 'corporateLegalName' => $this->application->get('legal_name'),
-                'contactName' => $this->application->get('contact_name') ?? $this->application->firstname,
+                'contactName' => Field::contactName($this->application),
             ],
             (string) $this->application->email,
             $this->application,

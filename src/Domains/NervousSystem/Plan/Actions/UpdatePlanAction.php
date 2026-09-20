@@ -83,6 +83,10 @@ class UpdatePlanAction
                 $this->plan->addMultipleFilesFromUrl($this->data->files);
             }
 
+            if ($oldStatus !== $newStatus && $newStatus === PlanStatusEnum::DONE->value) {
+                new CompletePlanTasksAction($this->plan, fromSync: $this->fromSync)->execute();
+            }
+
             $this->plan->announceUpdate($oldStatus, fromSync: $this->fromSync);
 
             // Org-level milestone — only on the actual transition into a
