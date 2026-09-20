@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Companies\CorporateApplications\Enums;
 
 use Baka\Contracts\AppInterface;
+use Kanvas\Companies\CorporateApplications\Concerns\HasLegacyCorporateKey;
 
 enum CorporateApplicationSettingEnum: string
 {
+    use HasLegacyCorporateKey;
+
     case WELCOME_TEMPLATE = 'corporate_application_welcome_template';
     case REJECTED_TEMPLATE = 'corporate_application_rejected_template';
     case INVITE_LINK_BASE = 'corporate_application_invite_link_base';
@@ -16,13 +19,10 @@ enum CorporateApplicationSettingEnum: string
     case SLA_HOURS = 'corporate_application_sla_hours';
     case OVERDUE_TEMPLATE = 'corporate_application_overdue_template';
 
-    public function legacyKey(): string
+    public function readFrom(AppInterface $app, mixed $default = null): mixed
     {
-        return 'movipass_corporate_' . str_replace('corporate_application_', '', $this->value);
-    }
+        $value = $this->readKeyFrom($app);
 
-    public function readFrom(AppInterface $app): mixed
-    {
-        return $app->get($this->value) ?? $app->get($this->legacyKey());
+        return $value === null || $value === '' ? $default : $value;
     }
 }

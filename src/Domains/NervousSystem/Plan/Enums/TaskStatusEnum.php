@@ -22,6 +22,16 @@ enum TaskStatusEnum: string
     }
 
     /**
+     * The completed statuses as raw string values — for `whereIn('status', ...)` filters.
+     *
+     * @return array<int, string>
+     */
+    public static function completedStatusValues(): array
+    {
+        return array_map(fn (self $status): string => $status->value, self::completedStatuses());
+    }
+
+    /**
      * Statuses that count as "in flight" — task is actively being worked.
      * @return array<int, self>
      */
