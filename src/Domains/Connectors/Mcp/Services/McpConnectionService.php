@@ -164,7 +164,11 @@ class McpConnectionService
                 authQueryParam: $this->config()->authQueryParam,
                 authHeader: $this->config()->authHeader,
             ),
-        ])->forIntegration($this->integration->getId(), array_keys($this->config()->asyncJobs));
+        ])->forIntegration(
+            $this->integration->getId(),
+            array_keys($this->config()->asyncJobs),
+            $this->config()->toolArguments,
+        );
     }
 
     /**

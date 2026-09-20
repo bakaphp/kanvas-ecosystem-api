@@ -17,7 +17,7 @@ through `GuardedHttpMcpTransport`.
 
 | What | Where | Key / shape |
 |---|---|---|
-| Server definition | `integrations` (workflow DB) | `name` is the stable slug (`google_sheets_mcp`); `metadata` = `url`, `auth_methods`, `prefix`, `exclude`, `timeout_ms`, `oauth`, `url_per_connection`, `auth_query_param`, `auth_header`, `async_jobs`, `artifacts_handler` |
+| Server definition | `integrations` (workflow DB) | `name` is the stable slug (`google_sheets_mcp`); `metadata` = `url`, `auth_methods`, `prefix`, `exclude`, `timeout_ms`, `oauth`, `url_per_connection`, `auth_query_param`, `auth_header`, `async_jobs`, `artifacts_handler`, `tool_arguments` |
 | Catalog / grantable row | `nervous_system_tools` (intelligence) | human title (`Google Sheets`); `is_active = 0` hides it |
 | Agent's grant + status | `nervous_system_agent_tools.config.mcp` | `{auth, status: active\|failed, last_error, connected_at}` |
 | Agent's credential | agent custom field (ecosystem) | `mcp_credentials_{integrations_id}` = `{access_token, refresh_token, expires_at, server_url}` |
@@ -75,6 +75,7 @@ Never print a credential while debugging — check presence (`rawToken() !== nul
 | Pipeboard (Meta, Google Ads) | A third party holds the advertiser's platform tokens. Google Ads is granted `mcp:read` only on purpose. |
 | GitHub, DocuSign, HubSpot | No dynamic registration → hand-made client via `client_key`. DocuSign's metadata points at **production** `account.docusign.com`, so a demo-only key will not authorise. HubSpot's path is `/anthropic`; `/mcp` 404s. |
 | Browserbase | Key goes in the query string (`auth_query_param: browserbaseApiKey`), appended at send time and redacted from errors. Reports "connected" even with a wrong key — the key is only checked when a browser opens. |
+| Kernel | The one that behaves: 401 → `oauth-protected-resource/mcp` → `auth.onkernel.com` (Clerk-backed), whose registration endpoint accepted `{app.url}/v1/oauth/callback` first try — one click, no hand-made client, no pinned authorization server. **Do not add `offline_access`**: the resource advertises `openid` alone and anything else is `invalid_scope: Requested scope is not registered` (the opposite of Vercel). No scope parameter at all is accepted, so the row needs no `oauth` block. Authorizing goes through an org picker, so the token belongs to whichever Kernel org the person chooses. |
 | Browserless | Token in the query string (`auth_query_param: token`), like Browserbase — and like it, a wrong token still completes `initialize` and lists all 14 tools; it is only checked when a browser runs. **`tools/list` needs the `Mcp-Session-Id` from the handshake** or the server answers with an empty list rather than an error (checked 2026-09-20, server 1.30.0). No `async_jobs`: `browserless_agent` is a loop OUR model drives, so a long flow is bounded by the per-turn MCP call budget, not by a background job. Saved logins live in its own profiles (`browserless_profiles` → pass the name as `profile`). |
 | Browser Use | Key goes bare in its own header (`auth_header: x-browser-use-api-key`), not `Authorization: Bearer`. The 401 advertises OAuth metadata with a registration endpoint, but `/oauth/register` and `/oauth/authorize` 404 (checked 2026-09-19) — key only. `tools/list` answers without a key, so a wrong one first fails on `run_session`. `run_session`/`send_task` are `async_jobs`; `live_url` reads `null` once the session idles, so it is caught during the poll. |
 | TikTok Ads | Points at the progressive `tt-ads-mcp-layer` endpoint — the flat one's ~400 tools overwhelm a prompt. Issuer is `{server}/oauth`, resolved through the OIDC-suffixed well-known. **Writes with no paused-by-default.** |
@@ -112,6 +113,19 @@ row dispatches `ResumeAgentFromMcpAsyncJob`, which wakes the agent in the same s
 Nothing is handed off without a conversation to resume in (no session in the turn) or when the job already
 finished — the model gets the vendor's own answer. Status checks go through `callRemoteTool`, which skips
 the turn budget and the `mcp.tool.invoked` ledger.
+
+### Arguments Kanvas pins (`tool_arguments`)
+
+Some settings a vendor needs are not the model's business, and telling it in a prompt is advice it can
+ignore at the person's expense. `metadata.tool_arguments.{remote tool}` is a map merged into every call
+of that tool — **only keys the model left out**, so an explicit choice still wins.
+
+What it is for: Kernel browsers prompt "Needs permission to download" until `chrome_policy`
+(`DownloadRestrictions: 0`, `DefaultPopupsSetting: 1`) is set at creation; a Browser Use `model` the
+account cannot use fails the whole turn. Both are config, not conversation.
+
+Vendor-specific values that must be *computed* (a workspace id, a credential) belong in the artifacts
+collector's `defaultArguments()` instead — it runs on the same hook and takes precedence.
 
 ### The files a job leaves behind (`artifacts_handler`)
 

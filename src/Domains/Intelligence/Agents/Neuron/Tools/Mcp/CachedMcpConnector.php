@@ -52,6 +52,9 @@ class CachedMcpConnector extends McpConnector
     /** @var list<string> remote tools that start a background job */
     protected array $asyncTools = [];
 
+    /** @var array<string, array<string, mixed>> remote tool name => arguments Kanvas fills in */
+    protected array $toolArguments = [];
+
     protected ?string $sessionUuid = null;
 
     protected ?int $conversationUserId = null;
@@ -72,6 +75,7 @@ class CachedMcpConnector extends McpConnector
             'agentId' => $this->agentId,
             'integrationId' => $this->integrationId,
             'asyncTools' => $this->asyncTools,
+            'toolArguments' => $this->toolArguments,
             'sessionUuid' => $this->sessionUuid,
             'conversationUserId' => $this->conversationUserId,
         ];
@@ -90,6 +94,7 @@ class CachedMcpConnector extends McpConnector
         $this->agentId = $data['agentId'] ?? null;
         $this->integrationId = $data['integrationId'] ?? null;
         $this->asyncTools = $data['asyncTools'] ?? [];
+        $this->toolArguments = $data['toolArguments'] ?? [];
         $this->sessionUuid = $data['sessionUuid'] ?? null;
         $this->conversationUserId = $data['conversationUserId'] ?? null;
     }
@@ -116,11 +121,13 @@ class CachedMcpConnector extends McpConnector
 
     /**
      * @param list<string> $asyncTools
+     * @param array<string, array<string, mixed>> $toolArguments
      */
-    public function forIntegration(int $integrationId, array $asyncTools = []): self
+    public function forIntegration(int $integrationId, array $asyncTools = [], array $toolArguments = []): self
     {
         $this->integrationId = $integrationId;
         $this->asyncTools = $asyncTools;
+        $this->toolArguments = $toolArguments;
 
         return $this;
     }
@@ -287,16 +294,20 @@ class CachedMcpConnector extends McpConnector
     }
 
     /**
-     * Arguments the vendor's collector insists on — the workspace a Browser Use job must write to for
-     * its files to outlive the sandbox. Only keys the model left out are filled, so an explicit choice
-     * still wins, and a vendor without a collector is untouched.
+     * What the vendor needs and the model has no reason to know: the workspace a Browser Use job must
+     * write to for its files to outlive the sandbox, the Chrome policy that stops a Kernel browser
+     * prompting "Needs permission to download". Only keys the model left out are filled, so an explicit
+     * choice still wins, and a server that declares neither is untouched.
      *
      * @param array<string, mixed> $arguments
      * @return array<string, mixed>
      */
     protected function withVendorDefaults(string $remoteName, array $arguments): array
     {
-        if ($this->integrationId === null || ! in_array($remoteName, $this->asyncTools, true)) {
+        $pinned = $this->toolArguments[$remoteName] ?? [];
+        $startsJob = in_array($remoteName, $this->asyncTools, true);
+
+        if ($this->integrationId === null || ($pinned === [] && ! $startsJob)) {
             return $arguments;
         }
 
@@ -304,15 +315,13 @@ class CachedMcpConnector extends McpConnector
             $agent = $this->agent();
             $integration = Integrations::query()->where('id', $this->integrationId)->first();
 
-            if (! $agent instanceof Agent || ! $integration instanceof Integrations) {
-                return $arguments;
-            }
+            $collected = $startsJob && $agent instanceof Agent && $integration instanceof Integrations
+                ? McpServerConfig::fromIntegration($integration)
+                    ->artifactCollector()
+                    ?->defaultArguments($agent, $integration, $remoteName) ?? []
+                : [];
 
-            $defaults = McpServerConfig::fromIntegration($integration)
-                ->artifactCollector()
-                ?->defaultArguments($agent, $integration, $remoteName) ?? [];
-
-            foreach ($defaults as $key => $value) {
+            foreach ([...$pinned, ...$collected] as $key => $value) {
                 $arguments[$key] ??= $value;
             }
         } catch (Throwable $e) {

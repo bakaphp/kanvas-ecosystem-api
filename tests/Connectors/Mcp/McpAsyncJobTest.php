@@ -95,6 +95,46 @@ final class McpAsyncJobTest extends McpTestCase
         $this->assertSame(0, McpAsyncJob::query()->where('agents_id', $agent->getId())->count());
     }
 
+    public function testTheServerRowCanPinArgumentsTheModelHasNoReasonToKnow(): void
+    {
+        $integration = $this->makeIntegration([
+            'tool_arguments' => ['createJiraIssue' => [
+                'chrome_policy' => ['DownloadRestrictions' => 0, 'DefaultPopupsSetting' => 1],
+                'timeout_seconds' => 600,
+            ]],
+        ]);
+        $agent = $this->makeAgent();
+        $transport = FakeMcpServer::handshakeThenCalls(['content' => [['type' => 'text', 'text' => 'ok']]]);
+        $connector = new McpConnectionService($agent, $integration, $transport)->connector();
+        $connector->toolsFromDescriptors(FakeMcpServer::twoTools(), 'fake');
+
+        $connector->invokeTool(['name' => 'fake__createJiraIssue'], ['timeout_seconds' => 60]);
+
+        $sent = array_values(array_filter($transport->getSent(), fn (array $m): bool => ($m['method'] ?? '') === 'tools/call'));
+        $arguments = $sent[0]['params']['arguments'];
+
+        // Kanvas fills what the vendor needs (Chrome's download policy on a Kernel browser), the model's
+        // own choice still wins where it made one.
+        $this->assertSame(['DownloadRestrictions' => 0, 'DefaultPopupsSetting' => 1], $arguments['chrome_policy']);
+        $this->assertSame(60, $arguments['timeout_seconds']);
+    }
+
+    public function testAToolWithNothingPinnedIsSentExactlyAsTheModelWroteIt(): void
+    {
+        $integration = $this->makeIntegration([
+            'tool_arguments' => ['createJiraIssue' => ['chrome_policy' => ['DownloadRestrictions' => 0]]],
+        ]);
+        $transport = FakeMcpServer::handshakeThenCalls(['content' => [['type' => 'text', 'text' => 'ok']]]);
+        $connector = new McpConnectionService($this->makeAgent(), $integration, $transport)->connector();
+        $connector->toolsFromDescriptors(FakeMcpServer::twoTools(), 'fake');
+
+        $connector->invokeTool(['name' => 'fake__searchJiraIssuesUsingJql'], ['jql' => 'project = A']);
+
+        $sent = array_values(array_filter($transport->getSent(), fn (array $m): bool => ($m['method'] ?? '') === 'tools/call'));
+
+        $this->assertSame(['jql' => 'project = A'], $sent[0]['params']['arguments']);
+    }
+
     public function testAToolNotDeclaredAsAJobIsUntouched(): void
     {
         [$agent, $integration] = $this->asyncServer();
