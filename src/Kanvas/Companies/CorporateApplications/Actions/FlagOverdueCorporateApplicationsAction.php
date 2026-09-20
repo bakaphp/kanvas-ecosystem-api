@@ -32,7 +32,7 @@ class FlagOverdueCorporateApplicationsAction
     public function execute(): array
     {
         $now = $this->now ?? Carbon::now();
-        $slaHours = (int) (Setting::SLA_HOURS->readFrom($this->app) ?: self::DEFAULT_SLA_HOURS);
+        $slaHours = max(1, (int) Setting::SLA_HOURS->readFrom($this->app, self::DEFAULT_SLA_HOURS));
         $flagged = [];
 
         foreach ($this->overdueApplications($now->copy()->subHours($slaHours)) as $application) {
@@ -84,12 +84,12 @@ class FlagOverdueCorporateApplicationsAction
     {
         $this->sendApplicationEmail(
             $this->app,
-            (string) (Setting::OVERDUE_TEMPLATE->readFrom($this->app) ?: self::DEFAULT_TEMPLATE),
+            (string) Setting::OVERDUE_TEMPLATE->readFrom($this->app, self::DEFAULT_TEMPLATE),
             'Solicitud atrasada: ' . $application->title,
             [
                 'lead' => $application,
                 'applicationTitle' => $application->title,
-                'applicantName' => $application->get('contact_name') ?? trim($application->firstname . ' ' . $application->lastname),
+                'applicantName' => Field::contactName($application),
                 'hoursOpen' => (int) $application->created_at->diffInHours($now),
                 'slaHours' => $slaHours,
                 'status' => Field::STATUS->readFrom($application),
@@ -101,14 +101,10 @@ class FlagOverdueCorporateApplicationsAction
 
     private function escalationRecipients(?LeadReceiver $receiver): array
     {
-        if ($receiver === null) {
-            return [];
-        }
+        $list = Str::trimToNull($receiver?->notification_email)
+            ?? Str::trimToNull($receiver?->rotation?->leads_rotations_email)
+            ?? Str::trimToNull($receiver?->user?->email);
 
-        $list = Str::trimToNull($receiver->notification_email)
-            ?? Str::trimToNull($receiver->rotation?->leads_rotations_email)
-            ?? Str::trimToNull($receiver->user?->email);
-
-        return explode(',', (string) $list);
+        return $list === null ? [] : explode(',', $list);
     }
 }

@@ -12,6 +12,9 @@ use Kanvas\Connectors\PiDev\Jobs\PollPiDevJobJob;
 use Kanvas\Connectors\PiDev\Jobs\RetryPiDevJobJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\NervousSystem\Plan\Actions\AddTaskAction;
+use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Override;
@@ -116,6 +119,39 @@ final class PollPiDevJobJobTest extends TestCase
 
         $this->assertSame(TaskStatusEnum::BLOCKED->value, $task->fresh()->status);
         Queue::assertNotPushed(RetryPiDevJobJob::class);
+    }
+
+    /**
+     * finalizePlan() settles the plan with saveQuietly(), so nothing downstream of the observer runs —
+     * a sibling task the coding job never touched would otherwise stay open under a done plan.
+     */
+    public function testACompletedCodingJobClosesTheRestOfThePlan(): void
+    {
+        Queue::fake();
+
+        $task = $this->makeCodingTaskForAgent($this->makeAgent(), TaskStatusEnum::IN_PROGRESS);
+        $plan = $task->plan;
+
+        new AddTaskAction(
+            $plan,
+            new TaskData(plan: $plan, title: 'Sibling nobody moved'),
+        )->execute();
+
+        $this->pollWithPiDevReturning($task, [
+            'jobId' => 'job-1',
+            'status' => 'completed',
+            'result' => 'done',
+            'pullRequestUrl' => 'https://github.com/acme/widgets/pull/1',
+        ]);
+
+        $plan->refresh();
+
+        $this->assertSame(PlanStatusEnum::DONE->value, $plan->status);
+        $this->assertSame(
+            'done',
+            $plan->tasks()->where('title', 'Sibling nobody moved')->firstOrFail()->status,
+        );
+        $this->assertSame(100, $plan->completion_pct);
     }
 
     public function testTheAutoRetryBudgetIsFiniteAndThenTheJobIsAllowedToFail(): void

@@ -17,6 +17,7 @@ use Kanvas\Connectors\PiDev\DataTransferObject\PiDevJob;
 use Kanvas\Connectors\PiDev\Enums\JobStatusEnum;
 use Kanvas\Connectors\PiDev\Enums\TaskCustomFieldEnum;
 use Kanvas\Connectors\PiDev\Exceptions\PiDevApiException;
+use Kanvas\NervousSystem\Plan\Actions\CompletePlanTasksAction;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
@@ -239,6 +240,10 @@ class PollPiDevJobJob implements ShouldQueue
             $plan->completed_at = Carbon::now();
         }
         $plan->saveQuietly();
+
+        if ($status === PlanStatusEnum::DONE) {
+            new CompletePlanTasksAction($plan)->execute();
+        }
 
         // saveQuietly skips model events, so broadcast the plan's own status flip explicitly (as
         // UpdatePlanAction does) — the board updates the plan header live the instant the job ends,
