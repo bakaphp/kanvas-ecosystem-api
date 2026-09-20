@@ -33,9 +33,9 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Kanvas\Workflow\Models\WorkflowAction;
-use Kanvas\Workflow\SyncWorkflowStub;
 use RuntimeException;
 use Tests\Stubs\Intelligence\StructuredNeuronAgentStub;
+use Tests\Stubs\Social\InterceptingChannel;
 use Tests\TestCase;
 
 /**
@@ -200,29 +200,19 @@ final class WaSenderBurstTest extends TestCase
      */
     private function explodingChannel(Channel $channel): Channel
     {
-        $exploding = new class () extends Channel {
-            public bool $armed = true;
+        $exploding = InterceptingChannel::wrapping($channel);
+        $armed = true;
 
-            public function fireWorkflow(
-                string $event,
-                bool $async = true,
-                array $params = []
-            ): ?SyncWorkflowStub {
-                // Only the burst's own announcement, which is the one call that happens after the
-                // agent has already answered. Blowing up on any channel event would land inside the
-                // responder's own catch and never reach the retry.
-                if ($this->armed && $event === WorkflowEnum::AFTER_ADDING_MESSAGE_TO_GROUP_CHANNEL->value) {
-                    $this->armed = false;
+        // Only the burst's own announcement, which is the one call that happens after the agent has
+        // already answered. Blowing up on any channel event would land inside the responder's own
+        // catch and never reach the retry.
+        $exploding->onFire = function (string $event) use (&$armed): void {
+            if ($armed && $event === WorkflowEnum::AFTER_ADDING_MESSAGE_TO_GROUP_CHANNEL->value) {
+                $armed = false;
 
-                    throw new RuntimeException('workflow fire failed');
-                }
-
-                return null;
+                throw new RuntimeException('workflow fire failed');
             }
         };
-
-        $exploding->setRawAttributes($channel->getAttributes(), true);
-        $exploding->exists = true;
 
         return $exploding;
     }

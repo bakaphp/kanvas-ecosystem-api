@@ -258,6 +258,48 @@ final class MessageBurstTest extends TestCase
         $this->assertSame(0, RecordingBurstHandler::$runs);
     }
 
+    /**
+     * A policy with nothing to key on cannot group anything, so every message is its own head and
+     * every one gets its own turn. Reachable on WhatsApp: `senderIdentity()` is null when the
+     * payload discloses no phone, lid or jid, and an album id is absent on a plain text message.
+     * The degradation is silent — one reply per message, the very thing the burst exists to stop —
+     * so it is worth knowing the guard returns cleanly rather than chaining to the wrong head.
+     */
+    public function testAPolicyWithNoCorrelationKeysNeverChains(): void
+    {
+        Queue::fake();
+
+        $first = $this->ingestAt(0, 'first', correlation: '');
+        $second = $this->ingestAt(2, 'second', correlation: '');
+
+        $this->assertNull($first->refresh()->parent_id);
+        $this->assertNull($second->refresh()->parent_id, 'With no key to group on, each message stands alone');
+        $this->assertNotNull(Cache::get(FlushMessageBurstJob::cacheKey($second->getId())));
+    }
+
+    /**
+     * The token has to outlive the delay it guards. If it expired first the flush job would wake to
+     * a missing key, read it as "superseded", and drop the burst without answering anybody.
+     */
+    public function testTheTokenAlwaysOutlivesTheDelayItGuards(): void
+    {
+        foreach ([0, 5, 12] as $jitter) {
+            $policy = new BurstPolicy(
+                correlationKeys: ['speaker:someone'],
+                chainIdleSeconds: 30,
+                closeIdleSeconds: 30,
+                maxSeconds: 180,
+                jitterSeconds: $jitter,
+            );
+
+            $this->assertGreaterThanOrEqual(
+                $policy->closeDelaySeconds(),
+                $policy->tokenTtlSeconds(),
+                "token TTL must cover the close delay at jitter {$jitter}"
+            );
+        }
+    }
+
     private function ingestAt(
         int $offsetSeconds,
         string $body,
