@@ -63,7 +63,7 @@ class ProcessAgentChatTurnJob implements ShouldQueue
         $this->overwriteAppService($this->app);
 
         try {
-            new AgentChatKernel(
+            $kernel = new AgentChatKernel(
                 agent: $this->agent,
                 session: $this->session,
                 message: $this->message,
@@ -72,7 +72,10 @@ class ProcessAgentChatTurnJob implements ShouldQueue
                 attachments: $this->resolveAttachments(),
                 currentLead: $this->resolveCurrentLead(),
                 documents: $this->documents,
-            )->execute();
+                // Only userChat queues this job, and its reply lands in the admin chat.
+                rendersArtifacts: true,
+            );
+            $reply = $kernel->execute();
         } catch (Throwable $e) {
             report($e);
 
@@ -80,7 +83,13 @@ class ProcessAgentChatTurnJob implements ShouldQueue
                 $this->agent,
                 $this->session->uuid
             );
+
+            return;
         }
+
+        // Outside the try: the turn has already been saved and shown, so a failure to queue the follow-up
+        // must not tell the chat that this turn failed.
+        ContinueAgentTurnJob::dispatchIfCutShort($kernel, $reply);
     }
 
     /**

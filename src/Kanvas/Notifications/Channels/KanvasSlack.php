@@ -45,7 +45,7 @@ class KanvasSlack
                 return;
             }
 
-            $client->postMessage($client->openDirectMessageChannel($slackUserId), $text);
+            $client->postMarkdownMessage($client->openDirectMessageChannel($slackUserId), $text);
         } catch (Throwable $e) {
             // Best-effort, like every other channel here: the notification's other routes still land.
             report($e);

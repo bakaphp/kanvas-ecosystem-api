@@ -65,3 +65,11 @@ Two very different creation paths; don't conflate them:
 - **The `lead-company-email` default is opt-in, per app/company**, applied only by the manual/deploy command `kanvas:sa-setup-receivers` ([`SetupReceiversCommand`](../../../../app/Console/Commands/Connectors/SalesAssist/SetupReceiversCommand.php)). It creates/updates a **`LeadRotation`** with `config = { email_template: 'lead-company-email', notification_mode: NOTIFY_AGENTS, notification_user_mode: NOTIFY_ROTATION_USERS }` and wires the SalesAssist receivers to that rotation. The base template name lives in [`EmailTemplatesEnum::LEAD_COMPANY_EMAIL`](../../Connectors/SalesAssist/Enums/EmailTemplatesEnum.php).
 
 So: **template config lives on the rotation, is set by a command, and is not part of company onboarding.** If a receiver "isn't emailing", check that its rotation exists and its `config.email_template` is populated — not the job or the receiver row.
+
+## Receiver uuid is the form's POST target
+
+`POST /api/receiver/{uuid}` takes a **`ReceiverWebhook`** uuid. [`LeadReceiverObserver::created()`](Observers/LeadReceiverObserver.php) creates that webhook **under the receiver's own uuid**, so storefronts post to `leadReceivers { uuid }` directly — there is no separate webhook field, don't add one. The link back is `receiver_webhooks.configuration->receiver_id` (JSON, unindexed, int *or* string), so it can't be an Eloquent relation either.
+
+TODO: receivers created before the observer existed (2025-03-26; ~1.4k rows in dev) have no webhook, so their uuid 404s. No backfill command yet — decided against one for now.
+
+Storefronts reach receivers through `Product.leadReceivers` / `Variant.leadReceivers` (`HasLeadReceiversTrait`, a Compoships `(companies_id, apps_id)` hasMany — which is why `LeadReceiver` uses `Compoships`).

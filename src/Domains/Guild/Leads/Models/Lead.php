@@ -385,7 +385,7 @@ class Lead extends BaseModel implements EventResourceInterface
     {
         $statusName = strtolower($this->status()->firstOrFail()->name);
 
-        return $statusName !== 'inactive' && (Str::contains($statusName, 'active') || Str::contains($statusName, 'created') || Str::contains($statusName, 'hot'));
+        return $statusName !== 'inactive' && Str::contains($statusName, ['active', 'created', 'hot']);
     }
 
     public function isAiFollowUpEnabled(): bool
@@ -771,7 +771,7 @@ class Lead extends BaseModel implements EventResourceInterface
 
     public function searchQueryBy(): string
     {
-        return 'title,firstname,lastname,email,description,variant_search_text';
+        return 'title,firstname,lastname,email,description';
     }
 
     protected function makeAllSearchableUsing(Builder $query): Builder

@@ -330,7 +330,7 @@ class PromptImageFilterActivity extends KanvasActivity implements WorkflowActivi
     {
         // Download the image file
         $imageContents = SafeUrlFetcher::fetch($imageUrl);
-        $filename = basename(parse_url($imageUrl, PHP_URL_PATH));
+        $filename = Str::fileNameFromUrl($imageUrl);
 
         // Create a temporary file
         $tempFile = tempnam(sys_get_temp_dir(), 'openai_img_');

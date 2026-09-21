@@ -49,6 +49,7 @@ use Kanvas\Inventory\Recommendations\Enums\AudienceEnum;
 use Kanvas\Inventory\Recommendations\Enums\ConfigurationEnum as RecommendationConfigurationEnum;
 use Kanvas\Inventory\Recommendations\Enums\SearchFieldEnum;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Traits\HasLeadReceiversTrait;
 use Kanvas\Inventory\Traits\ResolvesAttributesTrait;
 use Kanvas\Inventory\Variants\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
@@ -56,7 +57,7 @@ use Kanvas\Inventory\Variants\Services\VariantService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
-use Kanvas\Social\Messages\Traits\HasMessagesTrait;
+use Kanvas\Social\Messages\Concerns\HasMessages;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Souk\Enums\ConfigurationEnum as EnumsConfigurationEnum;
@@ -98,7 +99,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     use HasShopifyCustomField;
     use HasTagsTrait;
     use IntegrationEntityTrait;
-    use HasMessagesTrait;
+    use HasMessages;
     use HasLightHouseCache;
     use DynamicSearchableTrait {
         search as public traitSearch;
@@ -110,6 +111,7 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
     use HasRating;
     use HasTranslationsDefaultFallback;
     use LogsActivity;
+    use HasLeadReceiversTrait;
     use ResolvesAttributesTrait;
 
     protected $table = 'products';

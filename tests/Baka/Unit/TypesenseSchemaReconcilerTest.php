@@ -44,11 +44,85 @@ final class TypesenseSchemaReconcilerTest extends TestCase
         $this->assertSame([], $reconciler->drift($this->model()));
     }
 
-    public function testAFieldTheCollectionDoesNotHaveYetIsNotDrift(): void
+    /**
+     * Without a `.*` auto field the collection never learns a field the model added later, so a
+     * query_by naming it answers "Could not find a field named `x` in the schema" — every search on
+     * that collection 404s until the field is added (Sentry: leads/`variant_search_text`).
+     */
+    public function testAFieldTheCollectionDoesNotHaveYetIsDrift(): void
     {
         $reconciler = $this->reconciler($this->liveFields(['items' => 'object[]']));
 
-        $this->assertSame([], $reconciler->drift($this->model()));
+        $drift = $reconciler->drift($this->model());
+
+        $this->assertCount(2, $drift);
+        $this->assertSame('items.unit_price_net_amount', $drift[0]['name']);
+        $this->assertSame('missing', $drift[0]['from']);
+        $this->assertSame('float[] (optional)', $drift[0]['to']);
+        $this->assertTrue($drift[0]['missing']);
+        $this->assertTrue($drift[0]['widening'], 'adding an optional field invalidates nothing already indexed');
+    }
+
+    public function testAMissingFieldIsAddedWithoutDroppingAnything(): void
+    {
+        $collection = Mockery::mock(TypesenseCollection::class);
+        $collection->shouldReceive('retrieve')->andReturn([
+            'fields' => [
+                ['name' => 'items', 'type' => 'object[]'],
+                ['name' => 'items.quantity', 'type' => 'float[]', 'optional' => true],
+            ],
+        ]);
+
+        $collection->shouldReceive('update')
+            ->once()
+            ->with([
+                'fields' => [
+                    ['name' => 'items.unit_price_net_amount', 'type' => 'float[]', 'optional' => true],
+                ],
+            ])
+            ->andReturn([]);
+
+        $result = $this->reconciler($collection)->reconcile($this->model(), wideningOnly: true);
+
+        $this->assertSame([], $result['failed']);
+        $this->assertCount(1, $result['altered']);
+        $this->assertSame('items.unit_price_net_amount', $result['altered'][0]['name']);
+    }
+
+    /**
+     * A `.*` field types anything new off the next document that carries it, so the model declaring
+     * a field the collection hasn't seen yet costs nothing to leave alone.
+     */
+    public function testAMissingFieldIsLeftToACollectionThatAutoTypes(): void
+    {
+        $collection = $this->liveFieldList([
+            ['name' => '.*', 'type' => 'auto', 'optional' => true],
+            ['name' => 'items', 'type' => 'object[]'],
+        ]);
+        $collection->shouldNotReceive('update');
+
+        $this->assertSame([], $this->reconciler($collection)->drift($this->model()));
+    }
+
+    /**
+     * Typesense rejects a required field on a non-empty collection, so it needs a rebuild rather
+     * than an alter.
+     */
+    public function testAMissingRequiredFieldIsSkippedUnlessExplicitlyRequested(): void
+    {
+        $collection = $this->liveFieldList([['name' => 'items', 'type' => 'object[]']]);
+        $collection->shouldNotReceive('update');
+
+        $model = $this->model([
+            ['name' => 'items', 'type' => 'object[]'],
+            ['name' => 'barcode', 'type' => 'string'],
+        ]);
+
+        $reconciler = $this->reconciler($collection);
+
+        $this->assertFalse($reconciler->drift($model)[0]['widening']);
+        $this->assertSame('string (required)', $reconciler->drift($model)[0]['to']);
+        $this->assertSame([], $reconciler->drift($model, wideningOnly: true));
     }
 
     public function testTheDocumentIdAndDefaultSortingFieldAreNeverTouched(): void
@@ -192,6 +266,7 @@ final class TypesenseSchemaReconcilerTest extends TestCase
                 ['name' => 'items', 'type' => 'object[]'],
                 // string -> float[] throws away data, so it is not a widening.
                 ['name' => 'items.unit_price_net_amount', 'type' => 'string'],
+                ['name' => 'items.quantity', 'type' => 'float[]', 'optional' => true],
             ],
         ]);
         $collection->shouldNotReceive('update');

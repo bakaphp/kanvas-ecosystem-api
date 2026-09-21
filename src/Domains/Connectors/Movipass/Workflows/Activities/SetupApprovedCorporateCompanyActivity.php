@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Actions\SetCompanyRegionAction;
@@ -79,7 +78,7 @@ class SetupApprovedCorporateCompanyActivity extends KanvasActivity implements Wo
         }
 
         dispatch(new MigrateCorporateUserVariantsJob(
-            app: $app instanceof Apps ? $app : app(Apps::class),
+            app: $this->appModel($app),
             userId: $userId,
             sourceCompanyId: $sourceCompanyId,
             targetCompanyId: $company->getId(),

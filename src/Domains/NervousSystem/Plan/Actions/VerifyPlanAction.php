@@ -186,6 +186,9 @@ class VerifyPlanAction
             return;
         }
 
+        // Settling never touches a task, so whatever the worker left open would outlive the plan.
+        new CompletePlanTasksAction($this->plan)->execute();
+
         // Dispatched by hand because `saveQuietly()` skips the observer that normally does it — this is
         // the path that finishes most plans, so without it only a plan closed through
         // update_nervous_system_plan would tell the person who asked.

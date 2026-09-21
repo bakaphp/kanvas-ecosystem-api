@@ -502,7 +502,7 @@ class SeedDemoDataCommand extends Command
                         'contacts' => [['contacts_types_id' => 1, 'value' => $email]],
                     ]],
                 ]),
-            )->disableWorkflow()->execute();
+            )->disableWorkflow()->withoutNotifications()->execute();
 
             EventResource::create([
                 'apps_id' => $event->apps_id,
@@ -776,6 +776,7 @@ class SeedDemoDataCommand extends Command
 
         for ($i = 0; $i < $count; $i++) {
             $date = $this->randomDate();
+
             try {
                 $event = new CreateEventAction(
                     EventDTO::fromMultiple($this->app, $this->user, $this->company, [
@@ -785,7 +786,7 @@ class SeedDemoDataCommand extends Command
                         'type_id' => $typeId,
                         'dates' => [],
                     ]),
-                )->disableWorkflow()->execute();
+                )->disableWorkflow()->withoutNotifications()->execute();
 
                 $event->forceFill(['created_at' => $date, 'updated_at' => $date])->saveQuietly();
                 $this->bump('events');

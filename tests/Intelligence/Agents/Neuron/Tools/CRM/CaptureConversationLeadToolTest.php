@@ -8,10 +8,13 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\CRM\SalesAgent;
+use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CaptureConversationLeadTool;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
@@ -105,6 +108,41 @@ class CaptureConversationLeadToolTest extends TestCase
             $leadChannel->messages()->where('messages.id', $ownMessage->getId())->exists(),
             'An isolated session must still backfill its own conversation onto the new lead',
         );
+    }
+
+    /**
+     * An internal agent's session is the staffer's own thread, found again only by its key. Repointing it
+     * at the prospect made the next turn open a second session under the same key and split the chat.
+     */
+    public function testAnInternalAgentKeepsItsSessionOnTheStafferThread(): void
+    {
+        $this->agent->type->update(['handler' => SystemUserAgent::class]);
+        $session = $this->createSession($this->createSlackStyleChannel(), Str::uuid()->toString());
+
+        $result = new CaptureConversationLeadTool($this->appModel, $this->company, $this->user, $session)->__invoke(
+            title: 'Prospect found by staff',
+            firstname: 'Stella',
+            email: 'lead-' . Str::uuid()->toString() . '@example.com',
+        );
+
+        $this->assertArrayHasKey('lead_id', $result, 'The lead is still created: ' . json_encode($result));
+        $this->assertArrayNotHasKey('session_promoted', $result);
+        $this->assertSame(Users::class, $session->refresh()->entity_namespace);
+    }
+
+    public function testACustomerFacingAgentStillFocusesTheSessionOnTheProspect(): void
+    {
+        $this->agent->type->update(['handler' => SalesAgent::class]);
+        $session = $this->createSession($this->createSlackStyleChannel(), Str::uuid()->toString());
+
+        $result = new CaptureConversationLeadTool($this->appModel, $this->company, $this->user, $session)->__invoke(
+            title: 'Inbound prospect',
+            firstname: 'Paula',
+            email: 'lead-' . Str::uuid()->toString() . '@example.com',
+        );
+
+        $this->assertTrue($result['session_promoted'] ?? false, json_encode($result));
+        $this->assertSame(People::class, $session->refresh()->entity_namespace);
     }
 
     private function createSlackStyleChannel(): Channel

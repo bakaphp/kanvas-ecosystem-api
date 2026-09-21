@@ -91,7 +91,8 @@ final class NervousSystemSchedule
         // batch and dispatches a fire-job per row. Pure dispatcher; ±1 min fire precision.
         $schedule->command(SweepScheduledActionsCommand::class)
             ->everyMinute()
-            ->withoutOverlapping();
+            ->withoutOverlapping()
+            ->runInBackground();
 
         // Inactive-plan nudge — once a day, ping owners of open plans that have gone silent past the
         // 24h threshold. Daily (not the 5-min heartbeat cadence) because the signal is day-scale and the

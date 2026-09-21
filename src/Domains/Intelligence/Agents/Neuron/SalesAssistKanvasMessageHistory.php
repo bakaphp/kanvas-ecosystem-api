@@ -10,9 +10,12 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
+use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Intelligence\Agents\ChatHistory\RebuildsTrimmedHistory;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
+use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\AppModuleMessage;
@@ -45,11 +48,18 @@ use Override;
  */
 class SalesAssistKanvasMessageHistory extends AbstractChatHistory
 {
+    use RebuildsTrimmedHistory;
+
     private const string AGENT_VERB = 'agent';
     private const string USER_VERB = 'user';
 
     // Verbs never expose to the lead
-    private const array INTERNAL_VERBS = ['notes', 'ai_assist', 'internal'];
+    private const array INTERNAL_VERBS = [
+        LeadMessageTypeEnum::NOTES->value,
+        LeadMessageTypeEnum::AI_ASSIST->value,
+        LeadMessageTypeEnum::INTERNAL->value,
+        LeadMessageTypeEnum::CONVERSATION_SUMMARY->value,
+    ];
 
     public function __construct(
         private readonly Apps $app,
@@ -59,7 +69,7 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
         private readonly ?string $threadId = null,
         private readonly bool $includeInternal = false,
         private readonly ?Lead $currentLead = null,
-        int $contextWindow = 50000,
+        int $contextWindow = ModelContextWindowService::MIN_HISTORY_TOKENS,
     ) {
         parent::__construct($contextWindow);
         $this->load();
@@ -152,78 +162,13 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
             ->values()
             ->toArray();
 
-        $coalesced = [];
-        foreach ($messages as $m) {
-            $last = end($coalesced) ?: null;
-            if ($last !== null && $last->getRole() === $m->getRole()) {
-                $last->setContents(
-                    self::coalesceContent(
-                        (string) $last->getContent(),
-                        (string) $m->getContent()
-                    )
-                );
-
-                continue;
-            }
-            $coalesced[] = $m;
-        }
-
-        while (! empty($coalesced) && $coalesced[0]->getRole() !== MessageRole::USER->value) {
-            array_shift($coalesced);
-        }
-
-        if (! empty($coalesced)) {
-            $this->history = array_values($coalesced);
-        }
+        $this->applyLoadedHistory($messages);
     }
 
     #[Override]
     public function addMessage(Message $message): ChatHistoryInterface
     {
-        $last = end($this->history) ?: null;
-        if ($last !== null && $last->getRole() === $message->getRole()) {
-            $last->setContents(
-                self::coalesceContent(
-                    (string) $last->getContent(),
-                    (string) $message->getContent()
-                )
-            );
-            $this->trimHistory();
-            $this->onNewMessage($message);
-            $this->setMessages($this->history);
-
-            return $this;
-        }
-
-        return parent::addMessage($message);
-    }
-
-    /**
-     * Merge two consecutive same-role messages while refusing to duplicate.
-     *
-     * Providers (Anthropic) require strict user/assistant alternation, so consecutive
-     * same-role turns must collapse into one. But each turn is persisted twice against
-     * the entity — once by this history's onNewMessage(), once by the connector's
-     * official outbound — so the two rows are identical. Concatenating them produced
-     * `"reply\n\nreply"` in the model's context, which the model then imitated by
-     * emitting its own replies twice (the duplicate-email feedback loop). Keep the
-     * longer copy when one already contains the other; only genuinely different turns
-     * concatenate.
-     */
-    private static function coalesceContent(string $existing, string $incoming): string
-    {
-        $a = trim($existing);
-        $b = trim($incoming);
-
-        if ($b === '' || $a === $b || ($a !== '' && str_contains($a, $b))) {
-            return $existing;
-        }
-
-        if ($a === '' || str_contains($b, $a)) {
-            return $incoming;
-        }
-
-        return $existing . "\n\n" . $incoming;
+        return $this->mergeOrAppend($message);
     }
 
     private function entityIdentityLabel(): string

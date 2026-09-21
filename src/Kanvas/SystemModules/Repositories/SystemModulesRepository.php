@@ -7,6 +7,7 @@ namespace Kanvas\SystemModules\Repositories;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Traits\SearchableTrait;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -47,6 +48,18 @@ class SystemModulesRepository
                 'slug' => Str::simpleSlug($modelName),
             ]
         );
+    }
+
+    /**
+     * Every app registers its own system module per model, so files attached to a row shared by all
+     * apps (a global catalog) are spread across these ids. A subquery, not a list, so a page of rows
+     * doesn't re-read system_modules once per row.
+     */
+    public static function getIdsByModelNameFromAnyAppQuery(string $modelName): Builder
+    {
+        return SystemModules::query()
+            ->select('id')
+            ->where('model_name', $modelName);
     }
 
     /**

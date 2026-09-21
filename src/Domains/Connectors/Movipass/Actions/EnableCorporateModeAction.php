@@ -4,17 +4,15 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Movipass\Actions;
 
-use Baka\Contracts\AppInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Actions\CreateCompaniesAction;
+use Kanvas\Companies\CorporateApplications\Actions\CreateApplicationCompanyAction;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationSettingEnum as Setting;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
-use Kanvas\Companies\DataTransferObject\Company as CompanyData;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -28,15 +26,14 @@ class EnableCorporateModeAction
 {
     public function __construct(
         protected readonly Users $user,
-        protected readonly AppInterface $app,
+        protected readonly Apps $app,
         protected readonly array $fields,
     ) {
     }
 
     public function execute(): Companies
     {
-        $appsModel = $this->app instanceof Apps ? $this->app : app(Apps::class);
-        $receiver = $this->corporateReceiver($appsModel);
+        $receiver = $this->corporateReceiver($this->app);
         $missing = Field::missing(Field::requiredFor($receiver), $this->field(...));
 
         if ($missing !== []) {
@@ -59,12 +56,12 @@ class EnableCorporateModeAction
 
         $sourceCompanyId = $this->user->getCurrentCompany()->getId();
 
-        $company = DB::connection('ecosystem')->transaction(function () use ($appsModel, $receiver) {
+        $company = DB::connection('ecosystem')->transaction(function () use ($receiver) {
             $company = $this->createCorporateCompany();
             $this->setCompanyFields($company, $receiver);
-            $this->setUserFields($receiver);
-            $this->associateUserAsAdmin($company, $appsModel);
-            new SetupService()->onBoarding($this->user, $appsModel, $company);
+            Field::copy(Field::userFieldsFor($receiver), $this->field(...), $this->user);
+            $this->associateUserAsAdmin($company);
+            new SetupService()->onBoarding($this->user, $this->app, $company);
 
             return $company;
         });
@@ -92,7 +89,14 @@ class EnableCorporateModeAction
         ]);
         $lead->saveOrFail();
 
-        Field::copy([...Field::companyFieldsFor($receiver), ...Field::userFieldsFor($receiver)], $this->field(...), $lead);
+        Field::copy(
+            [
+            ...Field::companyFieldsFor($receiver),
+            ...Field::userFieldsFor($receiver),
+            ],
+            $this->field(...),
+            $lead
+        );
 
         Field::STATUS->writeTo($lead, CorporateApplicationStatusEnum::PENDING->value);
         Field::COMPANY_ID->writeTo($lead, (string) $company->getId());
@@ -139,18 +143,9 @@ class EnableCorporateModeAction
 
     private function createCorporateCompany(): Companies
     {
-        $name = trim((string) (($this->fields['commercial_name'] ?? null)
-            ?: ($this->fields['legal_name'] ?? null)
-            ?: $this->user->displayname . ' Corporate'));
+        $fallbackName = $this->user->displayname . ' Corporate';
 
-        return new CreateCompaniesAction(
-            new CompanyData(
-                user: $this->user,
-                name: $name,
-                email: trim((string) ($this->fields['contact_email'] ?? $this->user->email)),
-                phone: trim((string) ($this->fields['contact_phone'] ?? '')),
-            ),
-        )->execute();
+        return new CreateApplicationCompanyAction($this->user, $this->field(...), $fallbackName)->execute();
     }
 
     private function setCompanyFields(Companies $company, LeadReceiver $receiver): void
@@ -165,26 +160,21 @@ class EnableCorporateModeAction
         }
     }
 
-    private function setUserFields(LeadReceiver $receiver): void
-    {
-        Field::copy(Field::userFieldsFor($receiver), $this->field(...), $this->user);
-    }
-
     private function field(string $key): mixed
     {
         return $this->fields[$key] ?? null;
     }
 
-    private function associateUserAsAdmin(Companies $company, Apps $app): void
+    private function associateUserAsAdmin(Companies $company): void
     {
         $branch = $company->branch()->firstOrFail();
-        $adminRole = RolesRepository::getByNameFromApp(RolesEnums::ADMIN->value, $app);
+        $adminRole = RolesRepository::getByNameFromApp(RolesEnums::ADMIN->value, $this->app);
 
         new AssignCompanyAction(
             user: $this->user,
             branch: $branch,
             role: $adminRole,
-            app: $app,
+            app: $this->app,
         )->execute();
 
         new AssignRoleAction($this->user, $adminRole)->execute();

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
-use finfo;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Filesystem\Services\FileTextExtractor;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
+use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Users\Models\Users;
@@ -40,6 +43,7 @@ class AttachmentDescriptionService
 
     public function __construct(
         private readonly AIProviderInterface $provider,
+        private readonly bool $allowStructuredText = true,
     ) {
     }
 
@@ -63,24 +67,96 @@ class AttachmentDescriptionService
 
         $handler->setConfiguration(agent: $agent, user: $user);
 
-        return new self($handler->captionProvider());
+        return new self($handler->captionProvider(), ! $handler instanceof ConversesWithCustomer);
     }
 
     /**
-     * The native multimodal kind a MIME type maps to, or null when the model can't take it as a
-     * content block (docx/xlsx, video, etc. — those stay URL-in-prompt). Images, audio and PDF ride
-     * as binary blocks the model reads natively; text/CSV rides as a TextContent block (finfo reports
-     * CSV/TSV as text/plain, so we key on the whole text/* family plus the odd application/csv label).
+     * The kind a MIME type rides as, or null when nothing here can carry it (video, archives) and its
+     * URL stays in the prompt. Images, audio and PDF ride as binary blocks the model reads natively;
+     * everything readable rides as text, DOCX and XLSX included — no content block carries those, so
+     * FileTextExtractor turns them into text first.
+     *
+     * Which formats those are is FileTextExtractor's answer, not a second list here, so this path and
+     * the read_file tool cover the same set.
+     *
+     * `$allowStructuredText` is false on a customer-facing surface: inlining puts bytes a stranger
+     * chose straight into the prompt, so a prospect reaches only plain text and CSV. Their
+     * JSON/XML/YAML/DOCX rides as a URL instead.
      */
-    public static function nativeKind(string $mimeType): ?string
+    public static function nativeKind(string $mimeType, bool $allowStructuredText = true): ?string
     {
+        $mimeType = self::normalizeMimeType($mimeType);
+
         return match (true) {
             str_starts_with($mimeType, 'image/') => 'image',
             str_starts_with($mimeType, 'audio/') => 'audio',
+            // Ahead of the extractor on purpose: the model reads a PDF natively, better than our text.
             $mimeType === 'application/pdf' => 'pdf',
-            str_starts_with($mimeType, 'text/'), $mimeType === 'application/csv' => 'text',
+            self::isPlainText($mimeType) => 'text',
+            $allowStructuredText && FileTextExtractor::extensionForMimeType($mimeType) !== null => 'text',
             default => null,
         };
+    }
+
+    /** finfo reports CSV/TSV as text/plain, so the text/* family plus the odd CSV label covers it. */
+    private static function isPlainText(string $mimeType): bool
+    {
+        return str_starts_with($mimeType, 'text/')
+            || in_array($mimeType, ['application/csv', 'application/x-csv'], true);
+    }
+
+    /**
+     * A stored `file_type` can carry the charset finfo omits (`text/plain; charset=utf-8`), and
+     * casing is not guaranteed either — both reach `nativeKind()`, so normalize before matching.
+     */
+    private static function normalizeMimeType(string $mimeType): string
+    {
+        return strtolower(trim(explode(';', $mimeType)[0]));
+    }
+
+    /**
+     * Wrap raw attachment bytes in the matching Neuron content block, sniffing the MIME type when
+     * the caller doesn't already know it. Null means the model can't take this type as a block —
+     * its URL is already folded into the prompt text by AttachmentPromptBuilder upstream.
+     */
+    public static function contentBlockFor(
+        string $binary,
+        ?string $mimeType = null,
+        bool $allowStructuredText = true,
+    ): ?ContentBlockInterface {
+        if ($binary === '') {
+            return null;
+        }
+
+        // Normalized here rather than only inside nativeKind(): a stored file_type can carry a charset
+        // and arbitrary casing, and it is handed straight to the provider as the block's media type.
+        $mimeType = self::normalizeMimeType($mimeType ?? FilesystemServices::detectMimeTypeFromBytes($binary));
+        $base64 = base64_encode($binary);
+
+        return match (self::nativeKind($mimeType, $allowStructuredText)) {
+            'image' => new ImageContent($base64, SourceType::BASE64, $mimeType),
+            'audio' => new AudioContent($base64, SourceType::BASE64, $mimeType),
+            'pdf' => new FileContent($base64, SourceType::BASE64, $mimeType),
+            'text' => self::textBlock($binary, $mimeType),
+            default => null,
+        };
+    }
+
+    /**
+     * Plain text goes in as-is; everything else is run through the extractor first, which is what
+     * turns a DOCX or XLSX into something a model can read. Null when extraction yields nothing —
+     * a scan, an empty export — so the caller leaves the URL in the prompt rather than an empty block.
+     */
+    private static function textBlock(string $binary, string $mimeType): ?TextContent
+    {
+        $text = $binary;
+
+        if (! self::isPlainText($mimeType)) {
+            $extension = FileTextExtractor::extensionForMimeType($mimeType);
+            $text = $extension === null ? '' : new FileTextExtractor()->extractFrom($binary, $extension);
+        }
+
+        return $text === '' ? null : new TextContent(self::wrapTextForBlock($text, $mimeType));
     }
 
     /**
@@ -140,8 +216,8 @@ class AttachmentDescriptionService
         }
 
         try {
-            $mimeType = $this->detectMimeType($binary);
-            $block = $this->buildContentBlock($binary, $mimeType);
+            $mimeType = FilesystemServices::detectMimeTypeFromBytes($binary);
+            $block = self::contentBlockFor($binary, $mimeType, allowStructuredText: $this->allowStructuredText);
 
             if ($block === null) {
                 return '';
@@ -177,22 +253,9 @@ class AttachmentDescriptionService
             default => 'File',
         };
 
-        $name = $filename !== null ? trim($filename) : '';
+        $name = $filename !== null ? AttachmentPromptBuilder::safeFileName($filename, '') : '';
 
         return $name !== '' ? "{$kind} \"{$name}\"" : $kind;
-    }
-
-    private function buildContentBlock(string $binary, string $mimeType): ?ContentBlockInterface
-    {
-        $base64 = base64_encode($binary);
-
-        return match (self::nativeKind($mimeType)) {
-            'image' => new ImageContent($base64, SourceType::BASE64, $mimeType),
-            'audio' => new AudioContent($base64, SourceType::BASE64, $mimeType),
-            'pdf' => new FileContent($base64, SourceType::BASE64, $mimeType),
-            'text' => new TextContent(self::wrapTextForBlock($binary, $mimeType)),
-            default => null,
-        };
     }
 
     private function promptFor(string $mimeType): string
@@ -210,13 +273,6 @@ class AttachmentDescriptionService
                 . 'can recall the image later when the user refers back to it. Capture the key subject '
                 . 'and any text, numbers, or food/product details visible. Output only the description.',
         };
-    }
-
-    private function detectMimeType(string $binary): string
-    {
-        $detected = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
-
-        return is_string($detected) && $detected !== '' ? $detected : 'application/octet-stream';
     }
 
     private function normalize(string $description): string

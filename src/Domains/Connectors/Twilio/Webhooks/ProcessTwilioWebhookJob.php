@@ -8,9 +8,10 @@ use Baka\Support\Str;
 use Exception;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Twilio\Actions\DownloadMessageFileAction;
+use Kanvas\Connectors\Twilio\Actions\FlushSmsBurstAction;
+use Kanvas\Connectors\Twilio\Enums\BurstConfigEnum;
 use Kanvas\Connectors\Twilio\Services\WebhookSignatureValidator;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
 use Kanvas\Guild\Customers\Actions\ProcessInboundConsentAction;
@@ -40,7 +41,9 @@ use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Concerns\ChainsInboundBursts;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
+use Kanvas\Social\Messages\DataTransferObject\BurstPolicy;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
@@ -62,8 +65,9 @@ use Spatie\LaravelData\DataCollection;
 )]
 class ProcessTwilioWebhookJob extends ProcessWebhookJob
 {
+    use ChainsInboundBursts;
+
     protected bool $hijackSession = false;
-    protected int $batchDelaySeconds = 3; // Configurable delay
 
     #[Override]
     public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
@@ -80,8 +84,6 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
     {
         $request = $this->webhookRequest->payload;
 
-        $this->batchDelaySeconds = $this->receiver->company->get('twilio_batch_delay_seconds', 3) ?? 3;
-
         if ($this->receiver->company->get('allow_session_hijack', false)
             && $this->receiver->company->get('overwrite_phone_number') !== null
         ) {
@@ -95,16 +97,11 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             }
         }
         $phoneNumber = $request['From'];
-        $batchKey = "message_batch:{$this->receiver->getId()}:{$phoneNumber}";
 
         $isFromMe = $request['From'] === $request['To'];
         $consentType = $this->consentType($request);
         $consentOutcome = null;
-        $batch = Cache::get($batchKey, [
-                        'messages' => [],
-                        'first_message_time' => now(),
-                        'phone_number' => $phoneNumber,
-                    ]);
+        $lead = null;
 
         if (! $isFromMe) {
             $people = $this->processContactFromMessage($request);
@@ -132,7 +129,6 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             ->where('companies_id', $this->receiver->company->getId())
             ->where('apps_id', $this->receiver->app->getId())
             ->first();
-        $lastMessage = $channel->getLastMessage();
 
         if ($existingMessage) {
             $message = $existingMessage;
@@ -167,26 +163,9 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
             $createMessageAction = new CreateMessageAction($messageInput);
             $message = $createMessageAction->execute();
-
-            if (! $isFromMe && $consentType === null) {
-                $this->cancelPendingWorkflow($batchKey);
-                // Add current message to batch
-                $batch['messages'][] = [
-                    'body' => $request['Body'] ?? '', //photos or media may not have body
-                    'message_sid' => $request['SmsMessageSid'],
-                    'timestamp' => now(),
-                    'raw_data' => $request,
-                    'message_id' => $message->getId(),
-                ];
-
-                $batch['last_message_time'] = now();
-                $batch['last_message_id'] = $message->getId();
-
-                Cache::put($batchKey, $batch, now()->addMinutes(10));
-            }
         }
 
-        if (isset($lead) && $lead instanceof Lead) {
+        if ($lead instanceof Lead) {
             $message->addEntity($lead);
             // Polymorphic People attach so People-keyed history loaders (Neuron's
             // SalesAssistKanvasMessageHistory) find this turn. Harmless for ADK.
@@ -212,9 +191,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         $carrierAnswersItself = $consentOutcome?->signal === ConsentSignalEnum::HELP;
 
         if ($consentOutcome?->shouldHaltAgentTurn() === true || $carrierAnswersItself) {
-            $this->cancelPendingWorkflow($batchKey);
-
-            if (isset($lead) && $consentOutcome->applied) {
+            if ($lead !== null && $consentOutcome->applied) {
                 new SendOptOutConfirmationAction($lead, LeadCommunicationChannelEnum::SMS->value)->execute();
             }
 
@@ -247,7 +224,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                     $filesystem['media']->name
                 );
 
-                if (isset($lead)) {
+                if ($lead !== null) {
                     $lead->addFile(
                         $filesystem['media'],
                         $filesystem['media']->name
@@ -257,43 +234,21 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 report($e);
             }
         }
-        $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
+
+        if ($lead !== null) {
+            $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
+        }
 
         if (! $isFromMe) {
             new NotifyLeadStakeholdersService($lead)->onCustomerEngagement($message);
         }
 
-        $workflowJobKey = "workflow_job:{$batchKey}";
-
-        // Clear any cancellation flag
-        Cache::forget($workflowJobKey . ':cancelled');
-
-        dispatch(function () use ($message, $channel, $request, $batchKey, $workflowJobKey) {
-            // Check if this job was cancelled
-            if (Cache::has($workflowJobKey . ':cancelled')) {
-                return; // Job was cancelled by newer message
-            }
-
-            // Verify this is still the last message in the batch
-            $currentBatch = Cache::get($batchKey);
-            if (! $currentBatch || $currentBatch['last_message_id'] !== $message->getId()) {
-                return; // Not the last message anymore
-            }
-
-            $channel->fireWorkflow(
-                WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
-                true,
-                [
-                    'message' => $message,
-                    'user' => $message->user,
-                    'app' => $message->app,
-                    'company' => $message->company,
-                    'text' => $request['Body'],
-                    'communication_channel' => 'sms',
-                    'batchKey' => $batchKey,
-                ]
-            );
-        })->delay(now()->addSeconds($this->batchDelaySeconds));
+        $this->announceMessage(
+            $channel,
+            $message,
+            $isFromMe,
+            $phoneNumber
+        );
 
         return [
             array_merge([
@@ -303,7 +258,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 'chat_jid' => $request['From'],
                 'text' => $request['Body'],
                 'is_from_me' => $request['From'] === $request['To'],
-                'type' => $messageTypeModel->name,
+                'type' => $message->messageType->name,
                 // A recognised keyword that did not stop the conversation — START, HELP, or a "YES"
                 // from someone who was never opted out. Reported, but the agent still answers.
                 'consent_type' => $consentOutcome?->signal !== null
@@ -314,13 +269,60 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         ];
     }
 
-    protected function cancelPendingWorkflow(string $batchKey): void
-    {
-        $workflowJobKey = "workflow_job:{$batchKey}";
+    /**
+     * Inbound texts are collected into a burst and announced once when the sender goes quiet, so
+     * someone who sends three lines in a row gets one answer rather than three. Outbound is
+     * announced immediately: it has no flurry to collapse, and rules listening for the company's
+     * own messages expect them without a delay.
+     */
+    protected function announceMessage(
+        Channel $channel,
+        Message $message,
+        bool $isFromMe,
+        string $phoneNumber
+    ): void {
+        if ($isFromMe) {
+            $channel->fireWorkflow(
+                WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
+                true,
+                [
+                    'message' => $message,
+                    'user' => $message->user,
+                    'app' => $message->app,
+                    'company' => $message->company,
+                    'text' => $message->message['content'] ?? '',
+                    'communication_channel' => 'sms',
+                ]
+            );
 
-        // If you're using a queue that supports job cancellation, cancel here
-        // For now, we'll use a flag approach
-        Cache::put($workflowJobKey . ':cancelled', true, now()->addMinutes(15));
+            return;
+        }
+
+        $this->fileIntoBurst(
+            $this->receiver->app,
+            $channel,
+            $message,
+            $this->burstPolicy($phoneNumber),
+            FlushSmsBurstAction::class
+        );
+    }
+
+    /**
+     * One burst per sender per channel. SMS has no album id or thread id to key on, so the number
+     * that sent it is the whole correlation.
+     */
+    protected function burstPolicy(string $phoneNumber): BurstPolicy
+    {
+        $company = $this->receiver->company;
+        $idle = BurstConfigEnum::BURST_IDLE_SECONDS->getInt($company);
+
+        return new BurstPolicy(
+            correlationKeys: ['sms:' . Str::normalizePhoneNumber($phoneNumber)],
+            chainIdleSeconds: $idle,
+            closeIdleSeconds: $idle,
+            maxSeconds: BurstConfigEnum::BURST_MAX_SECONDS->getInt($company),
+            jitterSeconds: BurstConfigEnum::BURST_JITTER_SECONDS->getInt($company),
+        );
     }
 
     /**

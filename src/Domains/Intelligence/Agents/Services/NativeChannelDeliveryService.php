@@ -74,7 +74,7 @@ class NativeChannelDeliveryService
         }
 
         SlackClient::getInstanceByAgent($agent)
-            ->postMessage($slackChannelId, $text, $threadTs !== '' ? $threadTs : null);
+            ->postMarkdownMessage($slackChannelId, $text, $threadTs !== '' ? $threadTs : null);
 
         return true;
     }

@@ -37,9 +37,11 @@ class CreateEngagementPageTool extends Tool
     {
         parent::__construct(
             name: 'create_engagement_page',
-            description: 'Create one tracked Action Engine page for a lead and return its action URL. '
-                . 'Use an action slug such as view-vehicle, get-docs, credit-app or add-trade. '
-                . 'This tool does not contact the customer; pass the returned action_link to send_sms or send_email.',
+            description: 'Create one tracked Sales App (Action Page) for a lead and return its action URL. '
+                . 'Use a slug returned by list_sales_apps, such as view-vehicle, get-docs, credit-app or add-trade; '
+                . 'inactive Sales Apps are rejected. This tool does not contact the customer: when you are chatting '
+                . 'with the customer, include the returned action_link in your reply; otherwise pass it to '
+                . 'send_sms or send_email.',
         );
     }
 
@@ -59,7 +61,7 @@ class CreateEngagementPageTool extends Tool
             new ToolProperty(
                 name: 'action',
                 type: PropertyType::STRING,
-                description: 'Action slug for the page, for example view-vehicle, get-docs, credit-app or add-trade.',
+                description: 'Sales App slug from list_sales_apps, for example view-vehicle, get-docs, credit-app or add-trade.',
                 required: true,
             ),
             new ToolProperty(
@@ -164,7 +166,7 @@ class CreateEngagementPageTool extends Tool
 
     protected function createEngagement(EngagementData $data): Engagement
     {
-        return new CreateEngagementAction($data)->execute();
+        return new CreateEngagementAction($data, requireActiveAction: true)->execute();
     }
 
     /**

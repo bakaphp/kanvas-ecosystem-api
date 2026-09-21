@@ -24,13 +24,13 @@ enum CorporateApplicationApprovalModeEnum: string
             return $receiverOverride;
         }
 
-        $corporateReceiverId = (int) (CorporateApplicationSettingEnum::RECEIVER_ID->readFrom($app) ?? 0);
+        $corporateReceiverId = (int) CorporateApplicationSettingEnum::RECEIVER_ID->readFrom($app, 0);
 
         if ($corporateReceiverId === 0 || (int) $lead->leads_receivers_id !== $corporateReceiverId) {
             return null;
         }
 
-        return (bool) (CorporateApplicationSettingEnum::AUTO_APPROVE->readFrom($app) ?? false)
+        return (bool) CorporateApplicationSettingEnum::AUTO_APPROVE->readFrom($app, false)
             ? self::AUTO
             : self::MANUAL;
     }

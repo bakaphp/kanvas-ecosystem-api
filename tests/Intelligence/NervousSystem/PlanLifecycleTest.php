@@ -19,6 +19,7 @@ use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
@@ -311,6 +312,111 @@ class PlanLifecycleTest extends TestCase
 
         $this->assertSame('active', $updated->status);
         $this->assertNotNull($updated->started_at);
+    }
+
+    public function testUpdatePlanToDoneClosesEveryOpenTask(): void
+    {
+        [$app, $company, $user] = $this->context();
+
+        $plan = new CreatePlanAction(
+            new PlanData(
+                app: $app,
+                company: $company,
+                title: 'Closing plan',
+                planType: 'qualification',
+                user: $user,
+                status: PlanStatusEnum::ACTIVE,
+            ),
+            tasks: [
+                new TaskData(plan: null, title: 'Still pending', sequence: 1),
+                new TaskData(
+                    plan: null,
+                    title: 'Mid flight',
+                    sequence: 2,
+                    status: TaskStatusEnum::IN_PROGRESS,
+                ),
+                new TaskData(
+                    plan: null,
+                    title: 'Stuck',
+                    sequence: 3,
+                    status: TaskStatusEnum::BLOCKED,
+                ),
+                new TaskData(
+                    plan: null,
+                    title: 'Not needed',
+                    sequence: 4,
+                    status: TaskStatusEnum::SKIPPED,
+                ),
+            ],
+        )->execute();
+
+        $updated = new UpdatePlanAction(
+            $plan,
+            new PlanData(
+                app: $app,
+                company: $company,
+                title: $plan->title,
+                planType: $plan->plan_type,
+                user: $user,
+                status: PlanStatusEnum::DONE,
+            ),
+        )->execute();
+
+        $this->assertSame('done', $updated->status);
+        $this->assertSame(100, $updated->completion_pct);
+        $this->assertSame(0, $updated->tasks()->whereNotIn('status', ['done', 'skipped'])->count());
+
+        // Skipped stays skipped — it is already terminal and deliberately not done.
+        $this->assertSame(3, $updated->tasks()->where('status', 'done')->count());
+        $this->assertSame(1, $updated->tasks()->where('status', 'skipped')->count());
+
+        $closed = $updated->tasks()->where('title', 'Still pending')->firstOrFail();
+        $this->assertNotNull($closed->completed_at);
+
+        $this->assertDatabaseHas(
+            'nervous_system_events',
+            [
+                'source_entity_type' => Task::class,
+                'source_entity_id' => $closed->id,
+                'event_type' => 'plan.task.completed',
+            ],
+            'intelligence',
+        );
+    }
+
+    public function testUpdatePlanAlreadyDoneDoesNotReopenTheCascade(): void
+    {
+        [$app, $company, $user] = $this->context();
+
+        $plan = new CreatePlanAction(
+            new PlanData(
+                app: $app,
+                company: $company,
+                title: 'Already closed',
+                planType: 'qualification',
+                user: $user,
+                status: PlanStatusEnum::DONE,
+            ),
+        )->execute();
+
+        new AddTaskAction(
+            $plan,
+            new TaskData(plan: $plan, title: 'Added after the fact'),
+        )->execute();
+
+        $updated = new UpdatePlanAction(
+            $plan->refresh(),
+            new PlanData(
+                app: $app,
+                company: $company,
+                title: 'Already closed, retitled',
+                planType: $plan->plan_type,
+                user: $user,
+                status: PlanStatusEnum::DONE,
+            ),
+        )->execute();
+
+        $this->assertSame('pending', $updated->tasks()->firstOrFail()->status);
     }
 
     public function testAddTaskActionAppendsAndRecomputes(): void

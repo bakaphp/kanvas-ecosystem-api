@@ -72,6 +72,9 @@ class SyncModelPricingAction
             }
 
             if ($this->rateMatches($current, $row)) {
+                // A provider can widen a model's window without touching its price. That is not a rate
+                // change, so it must not open a new priced period — correct the live row in place.
+                $this->refreshContextWindow($current, $row['max_input_tokens']);
                 $unchanged++;
 
                 continue;
@@ -129,6 +132,7 @@ class SyncModelPricingAction
      *   model: string,
      *   input_per_million: float,
      *   output_per_million: float,
+     *   max_input_tokens: ?int,
      *   cache_read_per_million: ?float,
      *   cache_write_per_million: ?float,
      * }>
@@ -157,6 +161,11 @@ class SyncModelPricingAction
                 'model' => $model,
                 'input_per_million' => (float) $entry['input_cost_per_token'] * 1_000_000,
                 'output_per_million' => (float) $entry['output_cost_per_token'] * 1_000_000,
+                // `max_input_tokens` is the input ceiling; `max_tokens` is the older, combined field
+                // still used by entries that never split the two.
+                'max_input_tokens' => isset($entry['max_input_tokens'])
+                    ? (int) $entry['max_input_tokens']
+                    : (isset($entry['max_tokens']) ? (int) $entry['max_tokens'] : null),
                 'cache_read_per_million' => isset($entry['cache_read_input_token_cost'])
                     ? (float) $entry['cache_read_input_token_cost'] * 1_000_000
                     : null,
@@ -195,6 +204,7 @@ class SyncModelPricingAction
                 'litellm_provider' => $provider,
                 'input_cost_per_token' => (float) ($entry['pricing']['prompt'] ?? 0),
                 'output_cost_per_token' => (float) ($entry['pricing']['completion'] ?? 0),
+                'max_input_tokens' => isset($entry['context_length']) ? (int) $entry['context_length'] : null,
             ];
         }
 
@@ -217,6 +227,7 @@ class SyncModelPricingAction
      *   model: string,
      *   input_per_million: float,
      *   output_per_million: float,
+     *   max_input_tokens: ?int,
      *   cache_read_per_million: ?float,
      *   cache_write_per_million: ?float,
      * } $row
@@ -228,6 +239,7 @@ class SyncModelPricingAction
             'model' => $row['model'],
             'input_per_million' => $row['input_per_million'],
             'output_per_million' => $row['output_per_million'],
+            'max_input_tokens' => $row['max_input_tokens'],
             'cache_read_per_million' => $row['cache_read_per_million'],
             'cache_write_per_million' => $row['cache_write_per_million'],
             'effective_from' => $effectiveFrom,
@@ -237,6 +249,17 @@ class SyncModelPricingAction
             'created_at' => Carbon::now(),
             'updated_at' => Carbon::now(),
         ]);
+    }
+
+    private function refreshContextWindow(object $current, ?int $maxInputTokens): void
+    {
+        if ($maxInputTokens === null || (int) ($current->max_input_tokens ?? 0) === $maxInputTokens) {
+            return;
+        }
+
+        DB::connection('intelligence')->table('model_pricing')
+            ->where('id', $current->id)
+            ->update(['max_input_tokens' => $maxInputTokens, 'updated_at' => Carbon::now()]);
     }
 
     /**

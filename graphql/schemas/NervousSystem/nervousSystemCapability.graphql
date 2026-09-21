@@ -30,6 +30,7 @@ type NervousSystemTool {
     is_active: Boolean!
     agent: AgentAi @belongsTo(relation: "agent")
     agentTypes: [agentType!]! @belongsToMany(relation: "agentTypes")
+    integration: Integrations @belongsTo(relation: "integration")
     mcp(agent_id: ID): NervousSystemMcpServerState
         @field(
             resolver: "App\\GraphQL\\NervousSystem\\Queries\\McpQuery@serverState"

@@ -8,6 +8,9 @@ use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\ServerException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
@@ -317,7 +320,12 @@ class PullLeadAction
                 ]);
             }
         } catch (Throwable $e) {
-            report($e);
+            $this->reportUnlessVinSolutionIsDown(
+                $e,
+                $lead,
+                '/vehicles/interest',
+                $currentLead
+            );
         }
     }
 
@@ -347,9 +355,57 @@ class PullLeadAction
                 && str_contains($message, '`404 Not Found` response');
 
             if (! $isIgnoredTradeInNotFound) {
-                report($e);
+                $this->reportUnlessVinSolutionIsDown(
+                    $e,
+                    $lead,
+                    '/vehicles/trade',
+                    $currentLead
+                );
             }
         }
+    }
+
+    /**
+     * VinSolutions' vehicle endpoints answer 500 for hours at a time whenever their cache
+     * tier drops ("No connection is available to service this operation: EVAL" is a Redis
+     * connection error from their side, not a response about this lead). This pull hits
+     * both endpoints once per lead across thousands of leads, so reporting each failure
+     * cost ~4k Sentry events per outage (KANVAS-ECOSYSTEM-6FF/6FG/6FH/4QE) for something
+     * we cannot fix from here.
+     *
+     * So: local log only, once per lead per day — the repeat attempts for a lead we already
+     * know about add nothing. Kept below the sentry_logs threshold (warning) so an outage
+     * costs no Sentry quota.
+     *
+     * Temporary, pending a VinSolutions fix. While it stands, a genuinely new fault on these
+     * two endpoints is invisible in Sentry — check laravel.log for this message before
+     * concluding the endpoints are healthy.
+     */
+    private function reportUnlessVinSolutionIsDown(
+        Throwable $e,
+        ModelsLead $lead,
+        string $endpoint,
+        array $currentLead
+    ): void {
+        if (! $e instanceof ServerException && ! $e instanceof ConnectException) {
+            report($e);
+
+            return;
+        }
+
+        $vinLeadId = isset($currentLead['LeadId']) ? (int) $currentLead['LeadId'] : null;
+
+        if (! Cache::add('vinsolution:vehicle-unavailable:' . ($vinLeadId ?? 'lead-' . $lead->getId()), true, 86400)) {
+            return;
+        }
+
+        Log::info('VinSolutions vehicle endpoint unavailable, skipped', [
+            'endpoint' => $endpoint,
+            'lead_id' => $lead->getId(),
+            'vin_lead_id' => $vinLeadId,
+            'status' => $e instanceof ServerException ? $e->getResponse()?->getStatusCode() : null,
+            'error' => $e->getMessage(),
+        ]);
     }
 
     private function findLatestNonEmptyTradeIn(array $items): ?array

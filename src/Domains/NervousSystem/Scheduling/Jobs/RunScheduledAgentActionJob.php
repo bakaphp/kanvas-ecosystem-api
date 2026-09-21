@@ -7,6 +7,7 @@ namespace Kanvas\NervousSystem\Scheduling\Jobs;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
@@ -15,7 +16,7 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Actions\Chat\WakeAgentInSessionAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
@@ -103,34 +104,12 @@ class RunScheduledAgentActionJob implements ShouldQueue
             throw new ValidationException('A scheduled agent task has no agent to run.');
         }
 
-        $session = $this->resolveSession($agent);
-        $instruction = (string) ($this->action->payload['instruction'] ?? '');
-
-        // sourceChannel MUST be passed when the session has one — otherwise the kernel activates
-        // setThreadId and the agent loses its cross-session history on this cron-spawned wake.
-        // privateUserTurn: the wake instruction is a USER turn only to drive the agent — no one typed it.
-        $response = new AgentChatKernel(
+        $response = new WakeAgentInSessionAction(
             agent: $agent,
-            session: $session,
-            message: $instruction,
+            session: $this->resolveSession($agent),
+            instruction: (string) ($this->action->payload['instruction'] ?? ''),
             user: $this->action->recipient ?? $agent->user,
-            sourceChannel: $session->channel,
-            persistConversation: false,
-            privateUserTurn: true,
         )->execute();
-
-        // Post what the agent did back into the conversation so the user sees the outcome.
-        if ($session->channel !== null && trim($response) !== '') {
-            new DeliverScheduledMessageToChannelAction(
-                channel: $session->channel,
-                text: $response,
-                author: $agent->user,
-                agent: $agent,
-                sessionUuid: $session->uuid,
-                canalId: $session->canal_id,
-                verb: 'scheduled-agent-reply',
-            )->execute();
-        }
 
         $this->action->emitLedgerEvent('scheduled_action.fired', payload: [
             'action_type' => $this->action->action_type,
@@ -145,7 +124,14 @@ class RunScheduledAgentActionJob implements ShouldQueue
         }
 
         /** @var Session|null $session */
-        $session = Session::query()->where('uuid', $this->action->session_uuid)->first();
+        $session = Session::query()
+            ->where('uuid', $this->action->session_uuid)
+            ->when(
+                $this->action->agent,
+                fn (Builder $query, Agent $agent): Builder => $query->fromAgent($agent),
+                fn (Builder $query): Builder => $query->latest('id')
+            )
+            ->first();
 
         return $session;
     }
@@ -154,7 +140,10 @@ class RunScheduledAgentActionJob implements ShouldQueue
     {
         if ($this->action->session_uuid !== null) {
             /** @var Session|null $existing */
-            $existing = Session::query()->where('uuid', $this->action->session_uuid)->first();
+            $existing = Session::query()
+                ->fromAgent($agent)
+                ->where('uuid', $this->action->session_uuid)
+                ->first();
             if ($existing !== null) {
                 return $existing;
             }

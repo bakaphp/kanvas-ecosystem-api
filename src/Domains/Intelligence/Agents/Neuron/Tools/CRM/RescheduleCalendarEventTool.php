@@ -4,12 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
+use Baka\Support\Str;
 use Carbon\Carbon;
-use Kanvas\Event\Events\Actions\UpdateEventVersionAction;
+use Kanvas\Event\Events\Actions\UpdateEventAction;
+use Kanvas\Event\Events\Enums\EventStatusEnum;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Exceptions\ModelNotFoundException;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsOwnerCalendarForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -20,6 +25,7 @@ use Throwable;
 #[AgentTool(name: 'Reschedule Calendar Event', category: 'crm')]
 class RescheduleCalendarEventTool extends Tool
 {
+    use GuardsOwnerCalendarForTool;
     use ResolvesLeadForTool;
 
     public function __construct()
@@ -30,7 +36,8 @@ class RescheduleCalendarEventTool extends Tool
                 . 'whenever the prospect wants to change a meeting that is already on the calendar. '
                 . 'Pass the event_uuid from get_lead_ref appointments.upcoming[].uuid. The previous slot is '
                 . 'freed automatically (the appointment is moved in place, not duplicated). '
-                . 'Check get_user_availability first so the new time is real.',
+                . 'Check get_user_availability first so the new time is real. '
+                . 'When the result has lead_notified: true the lead was already emailed the new time — do not send your own.',
         );
     }
 
@@ -128,6 +135,14 @@ class RescheduleCalendarEventTool extends Tool
             ];
         }
 
+        if ($event->eventStatus?->name === EventStatusEnum::CANCELLED->value) {
+            return $this->withOutcome(ToolOutcomeEnum::DENIED, [
+                'status' => 'error',
+                'message' => "Appointment {$event_uuid} is cancelled, so it was not moved. "
+                    . 'Book a new one with create_calendar_event instead.',
+            ]);
+        }
+
         // get_lead_ref treats the latest version as the live appointment; move that one.
         $version = $event->versions()->where('is_deleted', 0)->orderByDesc('id')->first();
         if ($version === null) {
@@ -137,50 +152,77 @@ class RescheduleCalendarEventTool extends Tool
             ];
         }
 
-        // Clear stale dates left on older versions (e.g. by an earlier create-as-reschedule)
-        // so availability frees the previous slot and the event holds exactly one date.
-        $event->versions()
-            ->where('id', '!=', $version->getId())
-            ->get()
-            ->each(fn ($staleVersion) => $staleVersion->dates()->delete());
+        return $this->writeIfOwnerIsFree(
+            lead: $lead,
+            // The version's user, not the lead's current owner: addDates() writes the moved slot there.
+            owner: $version->user,
+            start: $start,
+            end: $end,
+            write: function () use ($lead, $event, $version, $start, $end, $tz, $title, $description): array {
+                $title = Str::trimToNull($title);
+                $description = Str::trimToNull($description);
 
-        $updateData = [
-            'dates' => [
-                [
-                    'date' => $start->format('Y-m-d'),
-                    'start_time' => $start->format('H:i'),
-                    'end_time' => $end->format('H:i'),
-                ],
-            ],
-        ];
-        if ($title !== null && trim($title) !== '') {
-            $updateData['name'] = $title;
-        }
-        if ($description !== null && trim($description) !== '') {
-            $updateData['description'] = $description;
-        }
+                try {
+                    // Clear stale dates left on older versions (e.g. by an earlier create-as-reschedule)
+                    // so availability frees the previous slot and the event holds exactly one date.
+                    $event->versions()
+                        ->where('id', '!=', $version->getId())
+                        ->get()
+                        ->each(fn ($staleVersion) => $staleVersion->dates()->delete());
 
-        try {
-            new UpdateEventVersionAction($version, $updateData)->execute();
-        } catch (Throwable $e) {
-            return [
-                'status' => 'error',
-                'message' => 'Failed to reschedule the appointment: ' . $e->getMessage(),
-            ];
-        }
+                    // Renamed here rather than through UpdateEventAction: that action regenerates the
+                    // event slug from the name alone, which collides with any other event that has
+                    // the same title.
+                    if ($title !== null) {
+                        $event->update(['name' => $title]);
+                        $version->update(['name' => $title]);
+                    }
 
-        return [
-            'status' => 'success',
-            'lead_id' => $lead_id,
-            'event' => [
-                'id' => $event->getId(),
-                'uuid' => $event->uuid,
-                'name' => $title !== null && trim($title) !== '' ? $title : $event->name,
-                'start_local' => $start->toIso8601String(),
-                'end_local' => $end->toIso8601String(),
-                'company_timezone' => $tz,
-                'moved' => true,
-            ],
-        ];
+                    $updateData = [
+                        'start_at' => $start->copy()->utc(),
+                        'end_at' => $end->copy()->utc(),
+                        'dates' => [
+                            [
+                                'date' => $start->format('Y-m-d'),
+                                'start_time' => $start->format('H:i'),
+                                'end_time' => $end->format('H:i'),
+                            ],
+                        ],
+                    ];
+                    if ($description !== null) {
+                        $updateData['description'] = $description;
+                    }
+
+                    new UpdateEventAction($version, $updateData)->execute();
+                } catch (ValidationException $e) {
+                    return $this->withOutcome(ToolOutcomeEnum::INVALID_ARGS, [
+                        'status' => 'error',
+                        'message' => 'The appointment was not moved: ' . $e->getMessage(),
+                    ]);
+                } catch (Throwable $e) {
+                    report($e);
+
+                    return $this->withOutcome(ToolOutcomeEnum::PROVIDER_ERROR, [
+                        'status' => 'error',
+                        'message' => 'Failed to reschedule the appointment: ' . $e->getMessage(),
+                    ]);
+                }
+
+                return $this->appointmentSaved([
+                    'status' => 'success',
+                    'lead_id' => $lead->getId(),
+                    'event' => [
+                        'id' => $event->getId(),
+                        'uuid' => $event->uuid,
+                        'name' => $title ?? $event->name,
+                        'start_local' => $start->toIso8601String(),
+                        'end_local' => $end->toIso8601String(),
+                        'company_timezone' => $tz,
+                        'moved' => true,
+                    ],
+                ], $version);
+            },
+            excludeEventId: $event->getId(),
+        );
     }
 }

@@ -32,9 +32,12 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Models\Deal;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
+use Kanvas\Social\Messages\Enums\MessageSenderTypeEnum;
 use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\Messages\Observers\MessageObserver;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
@@ -314,6 +317,58 @@ class Message extends BaseModel
             'companies_id' => $this->companies_id,
             'system_modules' => get_class($entity),
         ]);
+
+        $this->attachPersonFromEntity($entity);
+    }
+
+    /**
+     * Only real SMS/email/WhatsApp/voice conversations carry a person. The in-app assistant
+     * (ai-chat / ai-control) also writes from_me, so the sender type alone is not enough.
+     */
+    public static function isCustomerCommunication(mixed $payload, ?string $verb): bool
+    {
+        return is_array($payload)
+            && MessageSenderTypeEnum::fromPayload($payload) !== null
+            && ChannelCategoryEnum::isCommunicationVerb($verb);
+    }
+
+    public static function peopleIdForEntity(string $entityClass, int $entityId): ?int
+    {
+        $peopleId = match ($entityClass) {
+            People::class => $entityId,
+            Lead::class => Lead::query()->where('id', $entityId)->value('people_id'),
+            Deal::class => Deal::query()->where('id', $entityId)->value('people_id'),
+            default => null,
+        };
+
+        return $peopleId !== null ? (int) $peopleId : null;
+    }
+
+    /**
+     * Most connectors create the message first and attach the lead afterwards, so this is where
+     * their people_id lands. Same precedence as the backfill: a People link is the precise answer
+     * and overwrites, a Lead/Deal only fills a gap.
+     *
+     * Saved quietly: a regular save would fire the UPDATED workflow on every inbound message.
+     */
+    private function attachPersonFromEntity(Model $entity): void
+    {
+        if ($entity::class !== People::class && $this->people_id !== null) {
+            return;
+        }
+
+        if ($this->sender_type === null || ! $this->isCommunicationMessage()) {
+            return;
+        }
+
+        $peopleId = self::peopleIdForEntity($entity::class, (int) $entity->getId());
+
+        if ($peopleId === null || $peopleId === $this->people_id) {
+            return;
+        }
+
+        $this->people_id = $peopleId;
+        $this->saveQuietly();
     }
 
     public function entity(): ?Model

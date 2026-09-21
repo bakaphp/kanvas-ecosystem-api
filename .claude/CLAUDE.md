@@ -246,6 +246,31 @@ The same applies to duplicated *resolvers*, *observers* and *model relations* �
 the same three methods, that is a trait (`HasNotesChannelTrait`) or a Concern
 (`App\GraphQL\Concerns\RecordsEntityNotes`), not copy-paste.
 
+### Trait Naming — `Traits/` is a Baka-only word
+
+**A new trait goes in a `Concerns/` folder next to the classes that use it, with a bare name and no
+`Trait` suffix.** That is what Laravel does (`Illuminate\...\Concerns\HasUuids`, `SoftDeletes`,
+`InteractsWithQueue` — zero `*Trait` in the framework), it is what 62% of this repo already does, and
+`Concerns/` is 15-for-15 consistent. The suffix is Hungarian notation: the `use` line already says it
+is a trait.
+
+| Trait contributes | Name it | Examples |
+|---|---|---|
+| State or accessors | `Has*` / `Is*` | `HasLegacyCorporateKey`, `HasFollowUpState`, `HasLightHouseCache` |
+| An action | third-person verb | `SendsApplicationEmail`, `ResolvesActingContext`, `UpsertsByExternalId` |
+| — | never a bare noun | `AddressTraitRelationship` is the outlier, don't copy it |
+
+Do **not** split `Traits/` vs `Concerns/` by "is this state or behaviour" — that is a judgment call
+people get wrong in both directions, and Laravel keeps model mixins in `Concerns/` too. One folder,
+one rule.
+
+**`src/Baka/Traits/` is frozen and stays suffixed.** `KanvasJobsTrait` alone is referenced by 346
+files and the 80 suffixed traits by 813; renaming them is a merge-conflict generator for zero
+functional gain, and a framework layer naming a capability slot (`KanvasModelTrait`, `UuidTrait`)
+reads fine. Existing suffixed traits under `src/Domains/` and `app/` migrate opportunistically — only
+when you are already editing that file and it has few call sites, never as a rename-only PR. Backlog
+and burn-down: `docs/PENDING_TODO.md` item 7.
+
 ### Don't Pass a Model AND Its Own Relationships
 
 When an action/service already receives an entity, **do not also pass references that entity can
@@ -972,7 +997,7 @@ Two coupled rules for anything that accepts or decodes uploaded images:
 
 1. **Derive an image's stored `file_type` from magic bytes, never the client filename.** `CreateFilesystemAction::resolveFileType()` runs `finfo` on the real upload and, for `image/*`, stores the content-derived extension. This is what stops a file named `evil.heic` but carrying crafted TIFF/MVG bytes from steering the decoder (e.g. `ConvertHeicToJpgActivity` branches on `file_type`). When you validate an **image-only** upload, gate on `$file->extension()` (Symfony's magic-byte guess), not `getClientOriginalExtension()`. Do NOT apply magic-byte validation to the `WORK_FILES` allow-list — `.docx`/`.xlsx` are ZIP containers that finfo reports as `application/zip`, so client-extension validation stays for those.
 
-2. **ImageMagick is hardened by [`docker/imagemagick-policy.xml`](../docker/imagemagick-policy.xml)** (installed into `/etc/ImageMagick-{7,6}/policy.xml` by both Dockerfiles). It disables the RCE/SSRF coders+delegates the app never uses (MSL, MVG, URL/HTTP(S)/FTP, PS/PDF/EPS, the Ghostscript delegate, SVG) and caps resources against decompression bombs. The image coders the app *does* convert (JPEG, PNG, WEBP, GIF, HEIC, HEIF, AVIF, TIFF, BMP) stay enabled. **If you add support for a new image format, whitelist its coder here or conversions will fail with "not authorized by the security policy".** Verify a policy change against the live `imagick` extension (`new Imagick(...)`), not the `convert` CLI — the CLI isn't installed in the image.
+2. **ImageMagick is hardened by [`docker/imagemagick-policy.xml`](../docker/imagemagick-policy.xml)** (installed into `/etc/ImageMagick-{7,6}/policy.xml` by both Dockerfiles). It disables the RCE/SSRF coders+delegates the app never uses (MSL, MVG, URL/HTTP(S)/FTP, PS/PDF/EPS, the Ghostscript delegate, SVG) and caps resources against decompression bombs. The image coders the app *does* convert (JPEG, PNG, WEBP, GIF, TIFF, BMP) stay enabled. **HEIC, HEIF and AVIF are disabled until the image ships a pinned libheif build** — until then those uploads cannot be converted (`ConvertHeicToJpgActivity`, `ImageConversionService`) and fail with "not authorized by the security policy"; re-enable them in the same change that pins libheif. **If you add support for a new image format, whitelist its coder here or conversions will fail with that same error.** Verify a policy change against the live `imagick` extension (`new Imagick(...)`), not the `convert` CLI — the CLI isn't installed in the image.
 
 ## Queue Workers
 

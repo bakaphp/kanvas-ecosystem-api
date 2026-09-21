@@ -465,10 +465,7 @@ class Plan extends BaseModel implements HandlesAgentMention
 
         $done = (int) $this->tasks()
             ->where('is_deleted', 0)
-            ->whereIn(
-                'status',
-                array_map(fn ($s) => $s->value, TaskStatusEnum::completedStatuses()),
-            )
+            ->whereIn('status', TaskStatusEnum::completedStatusValues())
             ->count();
 
         $pct = intdiv($done * 100, $total);

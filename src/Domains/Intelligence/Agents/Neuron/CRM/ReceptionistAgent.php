@@ -26,6 +26,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\FaqLookupTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadIntentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\PastOpportunitiesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\RescheduleCalendarEventTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\StopContactTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\TakeMessageTool;
@@ -87,6 +88,7 @@ class ReceptionistAgent extends BaseRagAgent implements ConversesWithCustomer
             entity: $this->entity,
             threadId: $this->threadId,
             currentLead: $this->currentLead,
+            contextWindow: $this->resolvedContextWindow(),
         );
     }
 
@@ -191,6 +193,7 @@ class ReceptionistAgent extends BaseRagAgent implements ConversesWithCustomer
             new HandOffTool(),
             new LeadIntentTool(),
             new LeadRefTool(),
+            new PastOpportunitiesTool(),
             new UpdateLeadTool(),
             new StopContactTool(),
         ];

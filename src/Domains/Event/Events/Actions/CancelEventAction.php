@@ -12,9 +12,18 @@ use Kanvas\Exceptions\ValidationException;
 
 class CancelEventAction
 {
+    private bool $sendNotifications = true;
+
     public function __construct(
         private EventVersion $eventVersion
     ) {
+    }
+
+    public function withoutNotifications(): self
+    {
+        $this->sendNotifications = false;
+
+        return $this;
     }
 
     public function execute(): EventVersion
@@ -36,13 +45,16 @@ class CancelEventAction
         $this->eventVersion->event->update(['event_status_id' => $cancelledStatus->id]);
         $this->eventVersion->update(['metadata' => [
             ...$currentMetadata,
-            "cancelled_at" => $cancelledAt,
-            "status" => EventStatusEnum::CANCELLED->value
+            'cancelled_at' => $cancelledAt,
+            'status' => EventStatusEnum::CANCELLED->value,
         ]]);
 
         $this->eventVersion->refresh();
         new ScheduleEventReminderAction($this->eventVersion)->execute();
-        new SendEventEmailsAction($this->eventVersion, EmailTemplateEnum::BOOKING_CANCELLED->value)->execute();
+
+        if ($this->sendNotifications) {
+            new SendEventEmailsAction($this->eventVersion, EmailTemplateEnum::BOOKING_CANCELLED->value)->execute();
+        }
 
         return $this->eventVersion;
     }

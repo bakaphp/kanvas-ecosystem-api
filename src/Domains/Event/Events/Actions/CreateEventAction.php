@@ -35,6 +35,7 @@ use Spatie\LaravelData\DataCollection;
 class CreateEventAction
 {
     protected bool $runWorkflow = true;
+    protected bool $sendNotifications = true;
 
     public function __construct(
         protected Event $event,
@@ -98,6 +99,8 @@ class CreateEventAction
                     dates: $this->event->dates,
                     timeSlotId: $this->event->timeSlotId,
                     slug: $eventVersionSlug,
+                    startAt: $this->event->startAt,
+                    endAt: $this->event->endAt,
                     metadata: $this->metadata
                 )
             );
@@ -140,16 +143,20 @@ class CreateEventAction
                     $eventVersion
                 )->forAllParticipants();
 
-                new SendEventEmailsAction(
-                    $eventVersion,
-                    EmailTemplateEnum::BOOKING_CREATED->value,
-                    [
-                        'codes' => $codes,
-                    ]
-                )->execute();
+                if ($this->sendNotifications) {
+                    new SendEventEmailsAction(
+                        $eventVersion,
+                        EmailTemplateEnum::BOOKING_CREATED->value,
+                        [
+                            'codes' => $codes,
+                        ]
+                    )->execute();
+                }
             }
 
-            new ScheduleEventReminderAction($eventVersion)->execute();
+            if ($this->sendNotifications) {
+                new ScheduleEventReminderAction($eventVersion)->execute();
+            }
 
             return $event;
         });
@@ -171,6 +178,17 @@ class CreateEventAction
     public function disableWorkflow(): self
     {
         $this->runWorkflow = false;
+
+        return $this;
+    }
+
+    /**
+     * For syncs and imports: the event is mirrored from somewhere else, so the participants
+     * must not get a booking email or a reminder because of it.
+     */
+    public function withoutNotifications(): self
+    {
+        $this->sendNotifications = false;
 
         return $this;
     }

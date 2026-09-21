@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Movipass\Workflows\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersInvite;
@@ -31,10 +30,8 @@ class PropagateCorporateFieldsToUserActivity extends KanvasActivity implements W
             additionalParams: $params,
             integrationOperation: function ($user, $app, $integrationCompany, $additionalParams) {
                 /** @var Users $user */
-                $appsModel = $app instanceof Apps ? $app : app(Apps::class);
-
                 $invite = UsersInvite::where('email', $user->email)
-                    ->where('apps_id', $appsModel->getId())
+                    ->where('apps_id', $this->appModel($app)->getId())
                     ->orderByDesc('created_at')
                     ->first();
 
