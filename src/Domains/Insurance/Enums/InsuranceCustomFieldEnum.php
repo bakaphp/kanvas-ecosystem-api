@@ -31,4 +31,9 @@ enum InsuranceCustomFieldEnum: string
     case RATE_PER_KM = 'insurance_rate_per_km';
     case TAX = 'insurance_tax';
     case TOTAL = 'insurance_total';
+    /** What the intermediary earns on this policy, known at quote time. */
+    case COMMISSION = 'insurance_commission';
+    /** The insurer says this quote is ready to become a policy. */
+    case CAN_EMIT = 'insurance_can_emit';
+    case INSPECTION_STATUS = 'insurance_inspection_status';
 }

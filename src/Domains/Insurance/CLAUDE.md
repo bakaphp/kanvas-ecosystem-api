@@ -24,9 +24,15 @@ implementations is a **primary domain**; the connector folders hold only the
 per-provider implementations. Burying the contract inside one provider's folder leaves
 the second provider with nothing to hang off.
 
-So: contract, DTOs, enums, factory, actions and activities live here. The adapter lives
-in its connector — `Connectors/UniversalSeguros/Providers/UniversalSegurosProvider.php`,
-mirroring `Connectors/OpenClaw/Providers/OpenClawProvider.php`.
+So: contract, DTOs, enums, factory, actions and activities live here. Each adapter lives
+in its own connector — `Connectors/UniversalSeguros/Providers/UniversalSegurosProvider.php`
+and `Connectors/Humano/Providers/HumanoProvider.php` — mirroring
+`Connectors/OpenClaw/Providers/OpenClawProvider.php`.
+
+The two are deliberately unequal in surface: Universal implements every contract,
+Humano only quote + catalogs + products, because that is all their API exposes for auto
+(see `Connectors/Humano/CLAUDE.md`). An insurer declaring less is the layer working as
+intended, not an unfinished adapter.
 
 Note this differs from **payments**, where `AzulProcessor` sits in
 `Souk/Payments/Infrastructure/Processors/`. Payments is the older shape; AgentRuntime is
@@ -89,8 +95,15 @@ the client's quote payload, so a tampered payload can't set its own premium.
 
 Everything else is opt-in and checked with `instanceof` at the call site:
 `InspectionProviderInterface`, `PaymentLinkProviderInterface`,
-`PolicyProviderInterface`, `CatalogProviderInterface`,
-`ProductCatalogProviderInterface`.
+`PolicyEmissionProviderInterface`, `PolicySyncProviderInterface`,
+`CatalogProviderInterface`, `ProductCatalogProviderInterface`.
+
+**Issuing a policy and reading one back are separate contracts.** They were one
+`PolicyProviderInterface` while Universal was the only insurer, because Universal does
+both. Humano's intermediary API quotes auto and serves the resulting policy but issues
+only its travel line, so a combined contract would have forced an `emit()` that throws
+— a promise that only breaks at runtime, after the customer has paid. Any capability
+one insurer can have without the other belongs in its own interface.
 
 ## Persist what we author, cache what they own
 
@@ -114,7 +127,9 @@ after a quote, so they are per-customer and cached at TTL 0.
 
 **There is no plan level to model.** Universal's `codPlan`/`revPlan` come back *in the
 quote response* (§3.2 of their doc) — a plan can't be listed or chosen up front. The
-product is the unit the customer picks.
+product is the unit the customer picks. Humano arrives at the same place from the other
+direction: it *does* name plans up front, but its quote takes exactly one and its
+vehicle catalogs are filtered by it, so the plan simply **is** the product there.
 
 ## Custom fields — hybrid on purpose
 
