@@ -28,6 +28,31 @@ class CreateAIAssistChannelAction
     ) {
     }
 
+    /**
+     * Returns null when AI Assist is off for the company (and app), so callers can `?->execute()`.
+     * Agent precedence: explicit workflow param, then the company's configured agent, then the fallback.
+     */
+    public static function ifEnabled(
+        Lead $lead,
+        Apps $app,
+        array $params,
+        int $fallbackAgentId
+    ): ?self {
+        $enabled = (bool) ($lead->company->get(ConfigurationEnum::AI_ASSIST_ENABLED->value)
+            ?? $app->get(ConfigurationEnum::AI_ASSIST_ENABLED->value)
+            ?? false);
+
+        if (! $enabled) {
+            return null;
+        }
+
+        $agentId = $params['ai_assist_agent_id']
+            ?? $lead->company->get(ConfigurationEnum::AI_ASSIST_AGENT_ID->value)
+            ?? $fallbackAgentId;
+
+        return new self($lead, $app, (int) $agentId);
+    }
+
     public function execute(): array
     {
         $slug = 'ai-assist-' . $this->lead->getId();
