@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Social\Messages\Models\Message;
+use ReflectionProperty;
 use Tests\TestCase;
 
 class CreateAIAssistChannelActionTest extends TestCase
@@ -84,6 +85,56 @@ class CreateAIAssistChannelActionTest extends TestCase
             ->whereHas('channels', fn ($q) => $q->where('channels.id', $second['channel']->getId()))
             ->count();
         $this->assertSame(1, $count);
+    }
+
+    public function testIfEnabledReturnsNullWhenAiAssistIsOff(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+
+        $company->del(ConfigurationEnum::AI_ASSIST_ENABLED->value);
+        $app->del(ConfigurationEnum::AI_ASSIST_ENABLED->value);
+
+        $this->assertNull(CreateAIAssistChannelAction::ifEnabled($lead, $app, [], 1));
+    }
+
+    public function testIfEnabledResolvesAgentByPrecedence(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+        $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+        $paramAgent = $this->createAgent($app, $company);
+        $companyAgent = $this->createAgent($app, $company);
+        $fallbackAgent = $this->createAgent($app, $company);
+
+        $company->set(ConfigurationEnum::AI_ASSIST_ENABLED->value, true);
+        $company->set(ConfigurationEnum::AI_ASSIST_AGENT_ID->value, (string) $companyAgent->getId());
+
+        $fromParams = CreateAIAssistChannelAction::ifEnabled(
+            $lead,
+            $app,
+            ['ai_assist_agent_id' => $paramAgent->getId()],
+            (int) $fallbackAgent->getId()
+        );
+        $this->assertSame((int) $paramAgent->getId(), $this->agentIdOf($fromParams));
+
+        $fromCompany = CreateAIAssistChannelAction::ifEnabled($lead, $app, [], (int) $fallbackAgent->getId());
+        $this->assertSame((int) $companyAgent->getId(), $this->agentIdOf($fromCompany));
+
+        $company->del(ConfigurationEnum::AI_ASSIST_AGENT_ID->value);
+
+        $fromFallback = CreateAIAssistChannelAction::ifEnabled($lead, $app, [], (int) $fallbackAgent->getId());
+        $this->assertSame((int) $fallbackAgent->getId(), $this->agentIdOf($fromFallback));
+
+        $company->del(ConfigurationEnum::AI_ASSIST_ENABLED->value);
+    }
+
+    private function agentIdOf(?CreateAIAssistChannelAction $action): ?int
+    {
+        $this->assertNotNull($action);
+
+        return new ReflectionProperty($action, 'agentId')->getValue($action);
     }
 
     private function runAction(Lead $lead, Apps $app, Agent $agent): array
