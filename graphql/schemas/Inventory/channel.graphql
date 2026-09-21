@@ -74,7 +74,7 @@ extend type Query @guard {
     ): [Channel!]
         @paginate(
             model: "Kanvas\\Inventory\\Channels\\Models\\Channels"
-            scopes: ["fromApp", "fromCompanyOrGlobal"]
+            scopes: ["fromApp", "fromCompanyOrGlobal", "defaultOrder"]
             defaultCount: 25
         )
     channelsByRegion(region_id: ID!): [Channel!]!

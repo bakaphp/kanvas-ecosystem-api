@@ -24,6 +24,7 @@ use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Override;
 
 /**
  * Class Channels.
@@ -213,6 +214,7 @@ class Channels extends BaseModel
      * cross-company cart/product/region visibility platform-wide, far broader than "show the one
      * shared channel" — an app-wide channel (e.g. "popular") should be visible unconditionally.
      */
+    #[Override]
     public function scopeFromCompanyOrGlobal(Builder $query, mixed $company = null): Builder
     {
         $table = $this->getTable() . '.';
@@ -228,5 +230,18 @@ class Channels extends BaseModel
             fn ($q) => $q->where($table . 'companies_id', 0)
                 ->orWhere($table . 'companies_id', $companyId)
         );
+    }
+
+    /**
+     * Lighthouse applies @orderBy before scopes and passes the query args, so this only kicks in
+     * when the client sent no orderBy of its own.
+     */
+    public function scopeDefaultOrder(Builder $query, array $args = []): Builder
+    {
+        if (! empty($args['orderBy'])) {
+            return $query;
+        }
+
+        return $query->orderBy($this->getTable() . '.id', 'asc');
     }
 }
