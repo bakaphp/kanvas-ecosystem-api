@@ -13,6 +13,7 @@ enum ConfigurationEnum: string
     case GRACE_PERIOD_DAYS = 'movipass_order_grace_period_days';
     case QR_CODE_HOST = 'movipass_qr_code_host';
     case CORPORATE_RECEIVER_ID = 'movipass_corporate_receiver_id';
+    case PARKING_RECEIVER_ID = 'movipass_parking_receiver_id';
     case CORPORATE_AUTO_APPROVE = 'movipass_corporate_auto_approve';
     case CORPORATE_WELCOME_TEMPLATE = 'movipass_corporate_welcome_template';
     case CORPORATE_NEEDS_REVIEW_TEMPLATE = 'movipass_corporate_needs_review_template';
