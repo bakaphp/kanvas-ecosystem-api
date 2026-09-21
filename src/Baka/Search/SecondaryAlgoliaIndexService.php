@@ -40,9 +40,6 @@ class SecondaryAlgoliaIndexService implements SecondaryIndexServiceInterface
 
     private function buildClient(): SearchClient
     {
-        $searchSettings = $this->app->get('algolia_search_settings') ?? [];
-        $credentials = SearchEngineResolver::algoliaCredentialsFromSettings($searchSettings);
-
-        return SearchClient::create($credentials['app_id'], $credentials['api_key']);
+        return SearchEngineResolver::getAlgoliaClient($this->app->get('algolia_search_settings') ?? []);
     }
 }

@@ -40,7 +40,19 @@ command) reports every prerequisite with a fix. Faster than checking by hand.
 
 | command | notes |
 |---|---|
-| `kanvas-inventory:scout-product-index-process {app} [--company_id=] [--action=delete\|reindex\|unpublished\|delete-all] [--engine=]` | The tenant-aware indexer. `--engine` overrides the engine for THIS run only and restores after; the live agent reads the persisted setting, so production needs `$app->set('products_search_engine', …)`. |
+| `kanvas-inventory:scout-product-index-process {app} [--company_id=] [--action=delete\|reindex\|unpublished\|delete-all] [--engine=]` | The tenant-aware indexer. `--engine` overrides the engine for THIS run only and restores after; the live agent reads the persisted setting, so production needs `$app->set('products_search_engine', …)`. On Algolia, `reindex` first fills in any index setting the live product index is missing (see below). |
+| `kanvas:search:algolia-sync-settings {model} [--app=] [--dry-run] [--force]` | Pushes `algoliaIndexSettings()` (`searchableAttributes`, `attributesForFaceting`, `disableTypoToleranceOnAttributes`) to every tenant index on Algolia. Lives in `Commands/Search/`. |
+| `kanvas:search:typesense-sync-schema {model} [--app=] [--dry-run] [--all]` | Typesense counterpart: re-types / adds fields the live collection drifted from `typesenseCollectionSchema()`. Lives in `Commands/Search/`. |
+
+**Algolia never receives index settings on its own.** Typesense needs a schema to create a collection,
+so Scout sends `typesenseCollectionSchema()` on first index; Algolia creates the index on the first
+`saveObjects` with every setting at its default, and neither Scout nor Scout-Extended ever calls
+`setSettings`. A fresh tenant index therefore searches every attribute with equal weight until someone
+opens the dashboard. `AlgoliaSettingsReconciler` closes that gap: `reindex` and the sync command apply
+only the keys the live index has **empty** — relevance tuned in the dashboard per tenant is never
+overwritten by a reindex. `--force` on the sync command is the explicit way to overwrite. Declare
+settings per model in `algoliaIndexSettings()` (default `[]` in `DynamicSearchableTrait`; `Products`
+and `Variants` override it).
 | `kanvas-inventory:scout-clean-legacy-inventory {app} {company_ids*}` | Removes stale index entries for products that should no longer be searchable. |
 | `kanvas-inventory:backfill-variant-rating-from-category {app}` | Recomputes `Variant.rating` from product category weights. Rating feeds ranking, so run it before judging search quality. |
 

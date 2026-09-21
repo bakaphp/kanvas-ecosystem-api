@@ -51,7 +51,7 @@ class TypesenseSyncSchemaCommand extends Command
             // relation; without it Products fatals on `->get()` on null.
             $model->setRelation('app', $app);
 
-            if (! $this->indexesIntoTypesense($app, $model)) {
+            if (! $model->isTypesense()) {
                 continue;
             }
 
@@ -111,14 +111,5 @@ class TypesenseSyncSchemaCommand extends Command
             $field['from'],
             $field['to'],
         );
-    }
-
-    private function indexesIntoTypesense(Apps $app, Model $model): bool
-    {
-        $engine = $app->get($model->getTable() . '_search_engine')
-            ?? $app->get('search_engine')
-            ?? config('scout.driver');
-
-        return $engine === 'typesense';
     }
 }

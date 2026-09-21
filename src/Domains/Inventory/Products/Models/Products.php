@@ -1158,6 +1158,38 @@ class Products extends BaseModel implements EntityIntegrationInterface, EntityIm
             : null;
     }
 
+    public function algoliaIndexSettings(): array
+    {
+        return [
+            'searchableAttributes' => [
+                'name',
+                'translations.name',
+                'variants.sku',
+                'variants.name',
+                'categories.name',
+                'short_description',
+                'description',
+                'translations.description',
+                'search_blurb',
+                'slug',
+                'uuid',
+                'objectID',
+            ],
+            'disableTypoToleranceOnAttributes' => ['slug', 'variants.sku'],
+            'attributesForFaceting' => [
+                'status.name',
+                'categories.name',
+                'product_type_slug',
+                'audience',
+                'filterOnly(apps_id)',
+                'filterOnly(companies_id)',
+                'filterOnly(company.id)',
+                'filterOnly(is_published)',
+                'filterOnly(in_stock)',
+            ],
+        ];
+    }
+
     public function typesenseCollectionSchema(): array
     {
         $schema = [

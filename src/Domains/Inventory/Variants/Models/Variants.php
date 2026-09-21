@@ -805,6 +805,31 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             ->firstOrFail();
     }
 
+    public function algoliaIndexSettings(): array
+    {
+        return [
+            'searchableAttributes' => [
+                'name',
+                'sku',
+                'ean',
+                'barcode',
+                'tags',
+                'slug',
+                'uuid',
+                'objectID',
+            ],
+            'disableTypoToleranceOnAttributes' => ['slug', 'sku', 'ean', 'barcode'],
+            'attributesForFaceting' => [
+                'status.name',
+                'warehouses.name',
+                'channels.name',
+                'filterOnly(apps_id)',
+                'filterOnly(company.id)',
+                'filterOnly(products_id)',
+            ],
+        ];
+    }
+
     /**
      * The Typesense schema to be created for the Variants model.
      */

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Search;
 
+use Baka\Search\AlgoliaSettingsReconciler;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
@@ -139,6 +140,8 @@ class ScoutProductIndexProcessCommand extends Command
         $companyInfo = $companyId ? " for Company ID: {$companyId}" : '';
         $this->info('Reindex scout index for products App ' . $app->name . $companyInfo);
 
+        $this->applyMissingAlgoliaSettings($app);
+
         $query = Products::fromApp($app)
                     ->where('is_published', 1)
                     ->where('is_deleted', 0);
@@ -164,6 +167,28 @@ class ScoutProductIndexProcessCommand extends Command
         }
         $this->info('Total products to reindexed: ' . $i);
         $this->info('Total products to unindexed: ' . $j);
+    }
+
+    protected function applyMissingAlgoliaSettings(Apps $app): void
+    {
+        $product = new Products();
+        $product->setRelation('app', $app);
+
+        if (! $product->isAlgolia()) {
+            return;
+        }
+
+        ['applied' => $applied, 'error' => $error] = AlgoliaSettingsReconciler::forApp($app)->reconcile($product);
+
+        if ($error !== null) {
+            $this->error('Algolia settings not applied to ' . $product->searchableAs() . ': ' . $error);
+
+            return;
+        }
+
+        if ($applied !== []) {
+            $this->info('Applied Algolia settings to ' . $product->searchableAs() . ': ' . implode(', ', array_keys($applied)));
+        }
     }
 
     public function delete(Apps $app, ?string $companyId = null): void

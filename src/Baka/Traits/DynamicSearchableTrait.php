@@ -139,6 +139,11 @@ trait DynamicSearchableTrait
         ];
     }
 
+    public function algoliaIndexSettings(): array
+    {
+        return [];
+    }
+
     public function getRelations(?string $modelClass = null): array
     {
         return func_num_args() > 0 ? [] : $this->relations;

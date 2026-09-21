@@ -66,9 +66,14 @@ class SearchEngineResolver
 
     protected function createAlgoliaEngine(array $searchSettings): AlgoliaEngine
     {
+        return new KanvasAlgoliaEngine(self::getAlgoliaClient($searchSettings));
+    }
+
+    public static function getAlgoliaClient(array $searchSettings): SearchClient
+    {
         $credentials = self::algoliaCredentialsFromSettings($searchSettings);
 
-        return new KanvasAlgoliaEngine(SearchClient::create($credentials['app_id'], $credentials['api_key']));
+        return SearchClient::create($credentials['app_id'], $credentials['api_key']);
     }
 
     /**
