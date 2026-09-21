@@ -29,6 +29,7 @@ class PublishParkingApplicationAction
 {
     public const string PRODUCT_TYPE_SLUG = 'parking';
 
+    private const array DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     private const array WEEKDAYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
     private const array FULL_DAY = ['open' => '00:00', 'close' => '23:59'];
 
@@ -179,7 +180,10 @@ class PublishParkingApplicationAction
             description: $this->description($fields),
             productsType: $this->parkingType($company),
             is_published: true,
-            attributes: [...$this->productAttributes($fields, $capacity), ['name' => 'contract', 'value' => $contract]],
+            attributes: [
+                ...$this->productAttributes($fields, $capacity),
+                ['name' => 'contract', 'value' => ['version' => $contract['version'], 'accepted_at' => $contract['accepted_at']]],
+            ],
             files: $this->photos(),
             variants: [[
                 'name' => $name,
@@ -297,14 +301,16 @@ class PublishParkingApplicationAction
             ->pluck('weekday')
             ->all();
 
-        $dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        $bandsByDay = [];
+
+        foreach (self::DAY_NAMES as $weekday => $day) {
+            $bandsByDay[$day] = in_array($weekday, $closedWeekdays, true) ? [] : $this->bandsFor($day, $fields);
+        }
+
         $days = [];
 
-        foreach ($dayNames as $weekday => $day) {
-            $bands = $this->bandsFor($day, $fields);
-            $days[$day] = $bands === [] || in_array($weekday, $closedWeekdays, true)
-                ? ['active' => false]
-                : ['active' => true, 'periods' => $bands];
+        foreach ($this->spillMidnightBands($bandsByDay) as $day => $bands) {
+            $days[$day] = $bands === [] ? ['active' => false] : ['active' => true, 'periods' => $bands];
         }
 
         new SetResourceScheduleAction(
@@ -315,6 +321,22 @@ class PublishParkingApplicationAction
             scheduleType: ScheduleTypeEnum::WEEKLY,
             generateSlots: false,
         )->execute();
+    }
+
+    private function spillMidnightBands(array $bandsByDay): array
+    {
+        foreach (self::DAY_NAMES as $weekday => $day) {
+            foreach ($bandsByDay[$day] as $index => $band) {
+                if ($band['close'] > $band['open']) {
+                    continue;
+                }
+
+                $bandsByDay[$day][$index] = ['open' => $band['open'], 'close' => self::FULL_DAY['close']];
+                array_unshift($bandsByDay[self::DAY_NAMES[($weekday + 1) % 7]], ['open' => '00:00', 'close' => $band['close']]);
+            }
+        }
+
+        return $bandsByDay;
     }
 
     private function bandsFor(string $day, array $fields): array
