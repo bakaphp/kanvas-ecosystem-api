@@ -82,6 +82,32 @@ class RulesTest extends TestCase
             ->assertJsonStructure(['data' => ['rules' => ['data' => [['id', 'name', 'created_at', 'updated_at']]]]]);
     }
 
+    public function testGetRulesWithNullUpdatedAt(): void
+    {
+        $rule = Rule::factory()->create();
+        Rule::query()->whereKey($rule->getId())->toBase()->update(['updated_at' => null]);
+
+        $this->graphQL('
+            query ($where: QueryRulesWhereWhereConditions) {
+                rules(where: $where) {
+                    data {
+                        id
+                        updated_at
+                    }
+                }
+            }', [
+            'where' => [
+                'column' => 'ID',
+                'operator' => 'EQ',
+                'value' => $rule->getId(),
+            ],
+        ])
+            ->assertSuccessful()
+            ->assertJsonMissingPath('errors')
+            ->assertJsonPath('data.rules.data.0.id', (string) $rule->getId())
+            ->assertJsonPath('data.rules.data.0.updated_at', null);
+    }
+
     public function testGetRuleTypes(): void
     {
         $this->graphQL('
