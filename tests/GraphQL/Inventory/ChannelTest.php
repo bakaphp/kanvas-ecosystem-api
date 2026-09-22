@@ -382,6 +382,81 @@ class ChannelTest extends TestCase
         ]);
     }
 
+    public function testChannelsQueryDefaultsToAscendingIdOrder(): void
+    {
+        $ids = $this->createCompanyChannelIds(3);
+
+        $response = $this->graphQL('
+            query($ids: Mixed!) {
+                channels(where: {column: ID, operator: IN, value: $ids}) {
+                    data { id }
+                }
+            }
+        ', ['ids' => $ids])->assertSuccessful();
+
+        $this->assertSame(
+            array_map('strval', $ids),
+            collect($response->json('data.channels.data'))->pluck('id')->all()
+        );
+    }
+
+    /**
+     * MySQL usually hands rows back in PK order anyway, so the GraphQL assertion above can pass
+     * without the scope — this pins the ORDER BY clause itself.
+     */
+    public function testDefaultOrderScopeOnlyOrdersWhenNoOrderByArgument(): void
+    {
+        $this->assertSame(
+            [['column' => 'channels.id', 'direction' => 'asc']],
+            Channels::query()->defaultOrder([])->getQuery()->orders
+        );
+
+        $this->assertEmpty(
+            Channels::query()->defaultOrder(['orderBy' => [['column' => 'name', 'order' => 'DESC']]])->getQuery()->orders
+        );
+    }
+
+    public function testChannelsQueryExplicitOrderByOverridesDefaultOrder(): void
+    {
+        $ids = $this->createCompanyChannelIds(3);
+
+        $response = $this->graphQL('
+            query($ids: Mixed!) {
+                channels(
+                    where: {column: ID, operator: IN, value: $ids}
+                    orderBy: [{column: ID, order: DESC}]
+                ) {
+                    data { id }
+                }
+            }
+        ', ['ids' => $ids])->assertSuccessful();
+
+        $this->assertSame(
+            array_map('strval', array_reverse($ids)),
+            collect($response->json('data.channels.data'))->pluck('id')->all()
+        );
+    }
+
+    /**
+     * @return int[] ascending
+     */
+    private function createCompanyChannelIds(int $count): array
+    {
+        $user = auth()->user();
+
+        return collect(range(1, $count))
+            ->map(fn () => Channels::create([
+                'users_id' => $user->getId(),
+                'companies_id' => $user->getCurrentCompany()->getId(),
+                'apps_id' => app(Apps::class)->getId(),
+                'name' => 'Ordered Channel ' . fake()->unique()->word(),
+                'is_default' => 0,
+                'is_published' => 1,
+                'is_deleted' => 0,
+            ])->getId())
+            ->all();
+    }
+
     public function testChannelRegionsResolvesFromVariantChannels(): void
     {
         $user = auth()->user();
