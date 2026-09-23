@@ -100,6 +100,11 @@ class ImportTemplate extends Data
         return $this->key . '@' . $this->version . ($resolvedOptions === [] ? '' : '?' . http_build_query($resolvedOptions));
     }
 
+    /**
+     * The version is part of the name because CreateFilesystemMapperAction dedupes with a
+     * firstOrCreate keyed on it: without it a bumped template returns the previous version's mapper,
+     * mapping and all, and reports it as reused. v1 keeps the bare name so existing rows don't churn.
+     */
     public function mapperName(array $resolvedOptions): string
     {
         $changed = [];
@@ -109,7 +114,9 @@ class ImportTemplate extends Data
             }
         }
 
-        return $changed === [] ? $this->name : $this->name . ' · ' . implode(', ', $changed);
+        $name = $this->version > 1 ? $this->name . ' v' . $this->version : $this->name;
+
+        return $changed === [] ? $name : $name . ' · ' . implode(', ', $changed);
     }
 
     /**

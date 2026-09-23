@@ -7,6 +7,7 @@ namespace Tests\GraphQL\Ecosystem\Filesystem;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\FilesystemMapper;
+use Kanvas\Imports\Enums\ImportTemplateEnum;
 use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
@@ -51,7 +52,11 @@ final class ImportTemplateTest extends TestCase
 
         $created = $response->json('data.createFilesystemMapperFromTemplate');
         $this->assertNotNull($created, (string) $response->getContent());
-        $this->assertSame('Dealer inventory (vehicle CSV) · price_source=price_first', $created['name']);
+        $template = ImportTemplateEnum::DEALER_VEHICLE_CSV->template();
+        $this->assertSame(
+            $template->mapperName($template->resolveOptions(['price_source' => 'price_first'])),
+            $created['name']
+        );
 
         /** @var Users $user */
         $user = auth()->user();

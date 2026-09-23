@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Imports\Enums\ImportRunStatusEnum;
+use Kanvas\Imports\Enums\ImportTemplateEnum;
 use Kanvas\Imports\Jobs\RunImportSourceJob;
 use Kanvas\Imports\Models\ImportSource;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -150,7 +151,11 @@ final class ImportSourceTest extends TestCase
         $this->assertTrue($source['unpublish_missing'], 'Default from the template');
         $this->assertSame('0 1 * * *', $source['effective_schedule'], 'Inherited from the connection');
         $this->assertSame('America/New_York', $source['effective_timezone']);
-        $this->assertSame('Dealer inventory (vehicle CSV) · price_source=price_first', $source['mapper']['name']);
+        $template = ImportTemplateEnum::DEALER_VEHICLE_CSV->template();
+        $this->assertSame(
+            $template->mapperName($template->resolveOptions(['price_source' => 'price_first'])),
+            $source['mapper']['name']
+        );
         $this->assertTrue($source['connection']['is_app_wide']);
         $this->assertSame((string) $company->user->getId(), (string) $source['user']['id'], 'Runs as the company owner');
         $this->assertSame(['column' => 'New/Used', 'in' => ['Used', 'U']], $source['files'][1]['filter']);

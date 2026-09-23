@@ -7,6 +7,7 @@ namespace Tests\Ecosystem\Integration\Imports;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\FilesystemMapper;
+use Kanvas\Imports\Enums\ImportTemplateEnum;
 use Kanvas\Imports\Models\ImportSource;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Users\Models\Users;
@@ -42,10 +43,11 @@ final class SetupImportFromTemplateCommandTest extends TestCase
             ->expectsOutputToContain('Reused mapper')
             ->assertSuccessful();
 
+        $template = ImportTemplateEnum::DEALER_VEHICLE_CSV->template();
         $mappers = FilesystemMapper::query()
             ->fromApp($app)
             ->fromCompany($company)
-            ->where('name', 'Dealer inventory (vehicle CSV) · price_source=price_first')
+            ->where('name', $template->mapperName($template->resolveOptions(['price_source' => 'price_first'])))
             ->get();
         $this->assertCount(1, $mappers);
     }
