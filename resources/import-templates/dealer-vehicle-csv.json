@@ -1,6 +1,6 @@
 {
     "key": "dealer_vehicle_csv",
-    "version": 1,
+    "version": 2,
     "name": "Dealer inventory (vehicle CSV)",
     "description": "One row per vehicle, VIN as SKU. The column set the DealerAppCenter dealer feeds export.",
     "system_module": "Kanvas\\Inventory\\Products\\Models\\Products",
@@ -51,6 +51,7 @@
         "is_published": "_1",
         "categories": "Make",
         "files": "Photo Url List",
+        "product_files": "Photo Url List",
         "warehouses": [
             {
                 "id": "extra.warehouse_id",
