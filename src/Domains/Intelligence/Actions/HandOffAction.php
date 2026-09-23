@@ -24,6 +24,7 @@ class HandOffAction
 {
     private const string DEFAULT_MANAGER_ROLE = 'Manager';
     private const string SERVICE_MANAGER_ROLE = 'ServiceManager';
+    private const string HANDOFF_NOTIFICATIONS_ROLE = 'HandoffNotifications';
     private const string DEFAULT_TEMPLATE_NAME = 'lead_handoff';
     private const string SERVICE_LEAD_TYPE_NAME = 'Service';
 
@@ -149,7 +150,7 @@ class HandOffAction
     {
         return $handOffType === HandOffTypeEnum::SERVICE
             ? self::SERVICE_MANAGER_ROLE
-            : ($this->lead->company->get('ai_agent_handoff_user_role') ?? self::DEFAULT_MANAGER_ROLE);
+            : ($this->lead->company->get('ai_agent_handoff_user_role') ?? self::HANDOFF_NOTIFICATIONS_ROLE ?? self::DEFAULT_MANAGER_ROLE);
     }
 
     protected function createHandOffNotification(
