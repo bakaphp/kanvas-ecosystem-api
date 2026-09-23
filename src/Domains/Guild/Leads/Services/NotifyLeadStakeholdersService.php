@@ -23,6 +23,7 @@ class NotifyLeadStakeholdersService
     public const string NOTIFY_ON_HUMAN_REPLY = 'ai_manager_notify_on_human_reply';
     public const string NOTIFY_ON_INBOUND = 'ai_manager_notifications';
     public const string MANAGER_ROLE = 'BDCManager';
+    public const string ACTIONS_MANAGER_ROLE = 'ActionsNotifications';
 
     public const string LAST_AGENT_REPLY_NOTIFICATION_AT = 'last_agent_reply_notification_at';
     public const string AGENT_REPLY_DEDUPE_SECONDS_KEY = 'agent_reply_notification_dedupe_seconds';
@@ -45,6 +46,13 @@ class NotifyLeadStakeholdersService
         $this->followers();
     }
 
+    public function allActionManagers(): void
+    {
+        $this->owner();
+        $this->managers(self::ACTIONS_MANAGER_ROLE);
+        $this->followers();
+    }
+
     public function owner(): void
     {
         if ($this->notification === null) {
@@ -56,7 +64,7 @@ class NotifyLeadStakeholdersService
         }
     }
 
-    public function managers(): void
+    public function managers(?string $role = null): void
     {
         if ($this->notification === null) {
             return;
@@ -66,7 +74,10 @@ class NotifyLeadStakeholdersService
             return;
         }
 
-        $managers = new CompanyManagerService($this->lead->company, $this->lead->app)->getManagers();
+        $managers = new CompanyManagerService(
+            $this->lead->company,
+            $this->lead->app
+        )->getManagers($role);
 
         if ($managers->isEmpty()) {
             return;
