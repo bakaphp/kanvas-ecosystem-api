@@ -6,9 +6,9 @@ namespace Tests\Connectors\Integration\Movipass;
 
 use Bouncer;
 use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Enums\MovipassRolesEnum;
-use Silber\Bouncer\Database\Role;
 use Tests\TestCase;
 
 final class SetupRolesCommandTest extends TestCase
@@ -56,9 +56,27 @@ final class SetupRolesCommandTest extends TestCase
         $this->assertNotContains('wallet-configure', $this->abilitiesOf(MovipassRolesEnum::PARKING_OPERATOR));
     }
 
+    public function testGrantsStayReadableAfterSomethingSwapsTheRoleModel(): void
+    {
+        $registeredRoleModel = get_class(Bouncer::role());
+        Bouncer::useRoleModel(Role::class);
+
+        try {
+            $this->assertContains('list-orders', $this->abilitiesOf(MovipassRolesEnum::PARKING_MANAGER));
+        } finally {
+            Bouncer::useRoleModel($registeredRoleModel);
+        }
+    }
+
+    /**
+     * Read through `Bouncer::role()`, never `Silber\Bouncer\Database\Role` directly. Anything that
+     * calls `Bouncer::useRoleModel()` — `CreateRoleAction` does — rewrites Eloquent's morph map
+     * process-wide, so Silber's own class stops resolving to the `roles` alias the grants were
+     * written under and every ability read comes back empty.
+     */
     private function abilitiesOf(MovipassRolesEnum $role): array
     {
-        return Role::where('name', $role->value)
+        return Bouncer::role()->where('name', $role->value)
             ->where('scope', RolesEnums::getScope($this->kanvasApp))
             ->firstOrFail()
             ->getAbilities()
