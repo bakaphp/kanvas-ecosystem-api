@@ -186,6 +186,56 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
         $this->assertSame(['summer', 'sale'], $products[0]['tags']);
     }
 
+    public function testStreamCsvUnionsProductFilesAcrossVariantRowsWithoutDuplicating(): void
+    {
+        // The photo column repeats on every variant row of a product, so a union that didn't key by
+        // url would download the same image once per row.
+        $csvPath = $this->writeCsv([
+            ['Slug', 'Name', 'SKU', 'Photos'],
+            ['prod-a', 'Product A', 'A-1', 'https://cdn.test/a.jpg|https://cdn.test/b.jpg'],
+            ['prod-a', 'Product A', 'A-2', 'https://cdn.test/a.jpg|https://cdn.test/c.jpg'],
+        ]);
+        $jsonlPath = $this->makeJsonlPath();
+
+        $action = $this->makeAction([
+            'product_name' => 'Name',
+            'sku' => 'SKU',
+            'handler' => 'Slug',
+            'product_slug' => 'Slug',
+            'files' => 'Photos',
+            'product_files' => 'Photos',
+        ]);
+        $action->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
+
+        $products = $this->readProducts($jsonlPath);
+        $this->assertSame(
+            ['https://cdn.test/a.jpg', 'https://cdn.test/b.jpg', 'https://cdn.test/c.jpg'],
+            array_column($products[0]['files'], 'url')
+        );
+    }
+
+    public function testStreamCsvEmitsNoProductFilesWhenTheMappingOmitsThem(): void
+    {
+        $csvPath = $this->writeCsv([
+            ['Slug', 'Name', 'SKU', 'Photos'],
+            ['prod-a', 'Product A', 'A-1', 'https://cdn.test/a.jpg'],
+        ]);
+        $jsonlPath = $this->makeJsonlPath();
+
+        $action = $this->makeAction([
+            'product_name' => 'Name',
+            'sku' => 'SKU',
+            'handler' => 'Slug',
+            'product_slug' => 'Slug',
+            'files' => 'Photos',
+        ]);
+        $action->streamCsvFileToJsonlFile($csvPath, $jsonlPath, $this->stubProductType());
+
+        $products = $this->readProducts($jsonlPath);
+        $this->assertSame([], $products[0]['files']);
+        $this->assertCount(1, $products[0]['variants'][0]['files']);
+    }
+
     public function testStreamCsvEmitsEmptyTagsWhenColumnsAreBlank(): void
     {
         // syncTags is detach-then-add, so a blank cell must arrive as [] and be
@@ -411,6 +461,12 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
         $this->assertSame('Loaded', $new['description']);
         $this->assertSame([['name' => 'Cadillac', 'slug' => 'cadillac']], $new['categories']);
 
+        $this->assertSame(
+            ['https://cdn.test/a.jpg', 'https://cdn.test/b.jpg'],
+            array_column($new['files'], 'url'),
+            'The photos land on the product as well as the variant'
+        );
+
         $variant = $new['variants'][0];
         $this->assertSame('62000', $variant['price']);
         $this->assertCount(2, $variant['files']);
@@ -427,6 +483,7 @@ class ImportProductFromFilesystemActionTest extends TestCaseUnit
         $this->assertSame('Backup camera', $used['description']);
         $this->assertSame('18500', $used['variants'][0]['price']);
         $this->assertEmpty($used['variants'][0]['files']);
+        $this->assertSame([], $used['files']);
         $this->assertFalse($used['variants'][0]['warehouses'][0]['is_new']);
         $this->assertEquals(0.0, $used['variants'][0]['channels'][0]['discounted_price']);
     }
