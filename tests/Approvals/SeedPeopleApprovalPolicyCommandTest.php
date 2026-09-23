@@ -8,6 +8,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Salesforce\Enums\PeopleApprovalTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Tests\TestCase;
@@ -20,7 +21,7 @@ final class SeedPeopleApprovalPolicyCommandTest extends TestCase
 
     private const string COMMAND = 'kanvas:approvals:seed-people-policy';
 
-    public function testCreatesTheApprovePeoplePolicy(): void
+    public function testCreatesAllThreePeoplePolicies(): void
     {
         $app = app(Apps::class);
         $company = static::$cachedUser->getCurrentCompany();
@@ -30,21 +31,23 @@ final class SeedPeopleApprovalPolicyCommandTest extends TestCase
             'company_id' => $company->getId(),
         ])->assertSuccessful();
 
-        $policy = $this->policy($app, $company);
+        foreach (PeopleApprovalTypeEnum::cases() as $approvalType) {
+            $policy = $this->policy($app, $company, $approvalType);
 
-        $this->assertSame('approve_people', $policy->approval_type);
-        $this->assertSame(ApprovalTriggerEnum::MANUAL, $policy->trigger);
-        $this->assertNull($policy->handler);
+            $this->assertSame($approvalType->value, $policy->approval_type);
+            $this->assertSame(ApprovalTriggerEnum::MANUAL, $policy->trigger);
+            $this->assertNull($policy->handler);
+        }
     }
 
-    public function testRunningItTwiceLeavesTheExistingPolicyUntouched(): void
+    public function testRunningItTwiceLeavesExistingPoliciesUntouched(): void
     {
         $app = app(Apps::class);
         $company = static::$cachedUser->getCurrentCompany();
 
         $this->artisan(self::COMMAND, ['apps_id' => $app->getId(), 'company_id' => $company->getId()])->assertSuccessful();
 
-        $policy = $this->policy($app, $company);
+        $policy = $this->policy($app, $company, PeopleApprovalTypeEnum::SALESFORCE_CREATE);
         $policy->notify = 'none';
         $policy->saveOrFail();
 
@@ -53,12 +56,13 @@ final class SeedPeopleApprovalPolicyCommandTest extends TestCase
         $this->assertSame('none', $policy->refresh()->notify);
     }
 
-    private function policy(Apps $app, $company): ApprovalPolicy
+    private function policy(Apps $app, $company, PeopleApprovalTypeEnum $approvalType): ApprovalPolicy
     {
         return ApprovalPolicy::query()
             ->where('apps_id', $app->getId())
             ->where('companies_id', $company->getId())
             ->where('system_modules_id', SystemModulesRepository::getByModelName(People::class, $app)->getId())
+            ->where('approval_type', $approvalType->value)
             ->firstOrFail();
     }
 }
