@@ -26,7 +26,7 @@ final class CreateMapperFromTemplateActionTest extends TestCase
         $template = ImportTemplateEnum::DEALER_VEHICLE_CSV->template();
 
         $this->assertTrue($mapper->wasRecentlyCreated);
-        $this->assertSame('Dealer inventory (vehicle CSV)', $mapper->name);
+        $this->assertSame($template->mapperName($template->resolveOptions([])), $mapper->name);
         $this->assertSame($template->mapping, $mapper->mapping);
         $this->assertSame(
             'dealer_vehicle_csv@' . $template->version . '?price_source=msrp_first',
@@ -51,9 +51,13 @@ final class CreateMapperFromTemplateActionTest extends TestCase
     {
         $default = $this->apply();
         $priceFirst = $this->apply(['price_source' => 'price_first']);
+        $template = ImportTemplateEnum::DEALER_VEHICLE_CSV->template();
 
         $this->assertNotSame($default->getId(), $priceFirst->getId());
-        $this->assertSame('Dealer inventory (vehicle CSV) · price_source=price_first', $priceFirst->name);
+        $this->assertSame(
+            $template->mapperName($template->resolveOptions(['price_source' => 'price_first'])),
+            $priceFirst->name
+        );
         $this->assertSame(['$coalesce' => ['Price', 'MSRP']], $priceFirst->mapping['price']);
         $this->assertSame($default->configuration['product_type_id'], $priceFirst->configuration['product_type_id']);
     }

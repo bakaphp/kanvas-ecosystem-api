@@ -21,6 +21,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadAttempt;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Tests\TestCase;
 
 final class PublishParkingApplicationActionTest extends TestCase
@@ -131,7 +132,33 @@ final class PublishParkingApplicationActionTest extends TestCase
 
         $contract = $product->attributeValues->first(fn ($av) => $av->attribute->slug === 'contract')->value;
         $this->assertSame('2026-09', $contract['version']);
-        $this->assertSame('190.166.1.20', $contract['ip']);
+        $this->assertStringStartsWith('2026-09-16T09:30:00', $contract['accepted_at']);
+        $this->assertArrayNotHasKey('ip', $contract, 'Product attributes are public and indexed; the IP stays on the Lead');
+    }
+
+    public function testABandClosingAfterMidnightSpillsIntoTheNextDay(): void
+    {
+        $lead = $this->approvedApplication([
+            Field::SCHEDULE->value => [
+                'weekdays' => [['open' => '07:00', 'close' => '22:00']],
+                'saturday' => [['open' => '20:00', 'close' => '02:00']],
+                'sunday_holidays' => [],
+            ],
+            Field::CLOSURES->value => [],
+        ]);
+
+        $product = new PublishParkingApplicationAction($lead)->execute();
+        $variant = $product->variants()->firstOrFail();
+
+        $periods = ScheduleRules::query()
+            ->where('resources_type', $variant->getMorphClass())
+            ->where('resources_id', $variant->getId())
+            ->get()
+            ->mapWithKeys(fn (ScheduleRules $rule) => [$rule->metadata['operation_day'] => $rule->metadata['periods']]);
+
+        $this->assertSame([['open' => '20:00', 'close' => '23:59']], $periods['saturday']);
+        $this->assertSame([['open' => '00:00', 'close' => '02:00']], $periods['sunday']);
+        $this->assertSame([['open' => '07:00', 'close' => '22:00']], $periods['monday']);
     }
 
     public function testAnUnacceptedContractBlocksPublication(): void
@@ -225,6 +252,29 @@ final class PublishParkingApplicationActionTest extends TestCase
         $this->expectException(ModelNotFoundException::class);
 
         new PublishParkingApplicationAction($lead)->execute();
+    }
+
+    public function testProvisionsTheWarehouseWhenOnboardingHasNotLandedYet(): void
+    {
+        $lead = $this->approvedApplication();
+
+        Warehouses::query()
+            ->fromApp($this->kanvasApp)
+            ->fromCompany($this->company)
+            ->update(['is_deleted' => 1]);
+
+        $this->assertNull(
+            Warehouses::query()->fromApp($this->kanvasApp)->fromCompany($this->company)->notDeleted()->first()
+        );
+
+        $product = new PublishParkingApplicationAction($lead)->execute();
+
+        $warehouseRow = $product->variants()->firstOrFail()->variantWarehouses()->firstOrFail();
+        $this->assertSame($this->company->getId(), (int) $warehouseRow->warehouse->companies_id);
+        $this->assertSame(
+            ParkingApplicationStatusEnum::PUBLISHED->value,
+            Field::STATUS->readFrom($lead->fresh())
+        );
     }
 
     private function approvedApplication(array $overrides = []): Lead
