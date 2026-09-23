@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Approvals\Traits;
 
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Approvals\Actions\ApproveAction;
@@ -90,15 +91,31 @@ trait HasApprovals
         )->getId();
     }
 
-    public function pendingApproval(): ?ApprovalRequest
+    public function pendingApproval(?string $approvalType = null): ?ApprovalRequest
     {
         /** @var ApprovalRequest|null $request */
         $request = $this->approvalRequests()
             ->where('status', ApprovalStatusEnum::PENDING)
+            ->when($approvalType, fn ($query) => $query->where('approval_type', $approvalType))
             ->latest('id')
             ->first();
 
         return $request;
+    }
+
+    /**
+     * Plural counterpart of pendingApproval() — every pending request, not just the latest one.
+     * An entity can carry more than one pending approval_type at a time (a People, for example,
+     * may have both an approve_people and an approve_people_salesforce_create/update request open
+     * together), so callers that need to see all of them use this instead of picking just one.
+     */
+    public function pendingApprovals(?string $approvalType = null): Collection
+    {
+        return $this->approvalRequests()
+            ->where('status', ApprovalStatusEnum::PENDING)
+            ->when($approvalType, fn ($query) => $query->where('approval_type', $approvalType))
+            ->latest('id')
+            ->get();
     }
 
     public function isApproved(): bool
@@ -156,19 +173,19 @@ trait HasApprovals
      * Conveniences over ApproveAction/RejectAction so command and tinker code reads well. They add no
      * privilege: the approver-row check inside the action still runs.
      */
-    public function approve(UserInterface $approver, ?string $comment = null): ApprovalResult
+    public function approve(UserInterface $approver, ?string $comment = null, ?string $approvalType = null): ApprovalResult
     {
-        return new ApproveAction($this->pendingApprovalOrFail(), $approver, $comment)->execute();
+        return new ApproveAction($this->pendingApprovalOrFail($approvalType), $approver, $comment)->execute();
     }
 
-    public function reject(UserInterface $approver, string $reason): ApprovalResult
+    public function reject(UserInterface $approver, string $reason, ?string $approvalType = null): ApprovalResult
     {
-        return new RejectAction($this->pendingApprovalOrFail(), $approver, $reason)->execute();
+        return new RejectAction($this->pendingApprovalOrFail($approvalType), $approver, $reason)->execute();
     }
 
-    private function pendingApprovalOrFail(): ApprovalRequest
+    private function pendingApprovalOrFail(?string $approvalType = null): ApprovalRequest
     {
-        return $this->pendingApproval() ?? throw new ValidationException(
+        return $this->pendingApproval($approvalType) ?? throw new ValidationException(
             static::class . ' ' . $this->getKey() . ' has no pending approval.'
         );
     }
@@ -178,9 +195,9 @@ trait HasApprovals
      * is that the side effect lives in the policy's handler and has no other caller — this catches the
      * call site added later that forgot.
      */
-    public function assertApproved(): void
+    public function assertApproved(?string $approvalType = null): void
     {
-        if ($this->pendingApproval() !== null) {
+        if ($this->pendingApproval($approvalType) !== null) {
             throw new ApprovalRequiredException(
                 static::class . ' ' . $this->getKey() . ' is awaiting approval and cannot be processed yet.'
             );
