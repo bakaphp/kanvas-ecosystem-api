@@ -28,7 +28,10 @@ final class CreateMapperFromTemplateActionTest extends TestCase
         $this->assertTrue($mapper->wasRecentlyCreated);
         $this->assertSame('Dealer inventory (vehicle CSV)', $mapper->name);
         $this->assertSame($template->mapping, $mapper->mapping);
-        $this->assertSame('dealer_vehicle_csv@1?price_source=msrp_first', $mapper->configuration['template']['signature']);
+        $this->assertSame(
+            'dealer_vehicle_csv@' . $template->version . '?price_source=msrp_first',
+            $mapper->configuration['template']['signature']
+        );
 
         $productType = ProductsTypes::find($mapper->configuration['product_type_id']);
         $this->assertSame('Vehicle', $productType->name);

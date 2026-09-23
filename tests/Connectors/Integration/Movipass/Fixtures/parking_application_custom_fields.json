@@ -1,0 +1,68 @@
+{
+  "parking_application_applicant_type": "natural",
+  "parking_application_national_id": "00112345678",
+  "parking_application_full_name": "Juan Pérez",
+  "parking_application_phone": "8095551234",
+  "parking_application_email": "juan.perez@example.com",
+  "parking_application_parking_name": "Parqueo Plaza Central",
+  "parking_application_parking_type": "commercial",
+  "parking_application_structure": "multilevel",
+  "parking_application_has_lighting": true,
+  "parking_application_has_cameras": true,
+  "parking_application_camera_count": 8,
+  "parking_application_has_guard": true,
+  "parking_application_has_roof": true,
+  "parking_application_has_access_control": true,
+  "parking_application_has_restrooms": false,
+  "parking_application_is_24_7_security": true,
+  "parking_application_address": "Av. Winston Churchill 1020",
+  "parking_application_city": "Santo Domingo",
+  "parking_application_province": "Distrito Nacional",
+  "parking_application_references": "Frente a Plaza Central, entrada por la calle lateral",
+  "parking_application_latitude": 18.4718,
+  "parking_application_longitude": -69.9394,
+  "parking_application_capacity_total": 120,
+  "parking_application_capacity_light_vehicles": 100,
+  "parking_application_capacity_motorcycles": 15,
+  "parking_application_capacity_disability": 5,
+  "parking_application_numbered_spaces": true,
+  "parking_application_capacity_notes": "Nivel 1 reservado para clientes de la plaza",
+  "parking_application_is_24_7": false,
+  "parking_application_schedule": {
+    "weekdays": [
+      {
+        "open": "07:00",
+        "close": "22:00"
+      }
+    ],
+    "saturday": [
+      {
+        "open": "08:00",
+        "close": "20:00"
+      }
+    ],
+    "sunday_holidays": [
+      {
+        "open": "09:00",
+        "close": "18:00"
+      }
+    ]
+  },
+  "parking_application_closures": [
+    {
+      "type": "one_off",
+      "date": "2026-12-25",
+      "reason": "Navidad"
+    }
+  ],
+  "parking_application_payment_methods": [
+    "movipass",
+    "cash"
+  ],
+  "parking_application_rate_hourly": 100,
+  "parking_application_rate_minimum_entry": 150,
+  "parking_application_rate_overnight": 500,
+  "parking_application_rate_monthly": 6000,
+  "parking_application_contract_version": "2026-09",
+  "parking_application_contract_accepted": true
+}

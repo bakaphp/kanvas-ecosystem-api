@@ -210,12 +210,19 @@ class ImportProductFromFilesystemAction
     {
         $productAttributes = [];
         $productTags = [];
+        $productFiles = [];
         foreach ($variants as $variant) {
             // Union rather than reading row 0 only: a tag set is order-free, so
             // this also covers CSVs that repeat the product columns on every
             // variant row, and collapses to row 0 when they don't.
             foreach (Tag::normalizeNames($variant['product_tags'] ?? []) as $tag) {
                 $productTags[(string) $tag] = $tag;
+            }
+
+            // Keyed by url so a CSV that repeats the photo column on every variant row
+            // doesn't download the same image once per row.
+            foreach ($this->fileList($variant['product_files'] ?? null) as $file) {
+                $productFiles[$file['url']] = $file;
             }
 
             if (! isset($variant['attributes']) || ! is_array($variant['attributes'])) {
@@ -238,6 +245,7 @@ class ImportProductFromFilesystemAction
             'customFields' => [],
             'categories' => $variants[0]['categories'] ?? [],
             'tags' => array_values($productTags),
+            'files' => array_values($productFiles),
             'variants' => $variants,
             'attributes' => $productAttributes,
             'price' => 0.0,
@@ -247,6 +255,27 @@ class ImportProductFromFilesystemAction
                 'weight' => $productType->weight,
             ],
         ];
+    }
+
+    /**
+     * A mapped file column is already `[{url, name}, ...]`; anything without a url is dropped.
+     *
+     * @return list<array{url: string, name: string}>
+     */
+    private function fileList(mixed $files): array
+    {
+        if (! is_array($files)) {
+            return [];
+        }
+
+        $valid = [];
+        foreach ($files as $file) {
+            if (is_array($file) && ! empty($file['url'])) {
+                $valid[] = ['url' => (string) $file['url'], 'name' => (string) ($file['name'] ?? '')];
+            }
+        }
+
+        return $valid;
     }
 
     /**
@@ -333,7 +362,7 @@ class ImportProductFromFilesystemAction
                 $result[$targetKey] = $this->mapCategories($result[$targetKey]);
             } elseif ($targetKey === 'tags' || $targetKey === 'product_tags') {
                 $result[$targetKey] = Tag::normalizeNames($result[$targetKey]);
-            } elseif ($targetKey === 'files' && is_string($result[$targetKey]) && $result[$targetKey] !== '') {
+            } elseif (($targetKey === 'files' || $targetKey === 'product_files') && is_string($result[$targetKey]) && $result[$targetKey] !== '') {
                 $result[$targetKey] = Date::explodeFileStringBasedOnDelimiter($result[$targetKey]);
             } elseif (is_string($result[$targetKey]) && Date::isValidDate($result[$targetKey])) {
                 $result[$targetKey] = Date::createFromFormat($result[$targetKey]);
