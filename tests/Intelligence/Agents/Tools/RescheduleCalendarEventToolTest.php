@@ -6,6 +6,7 @@ namespace Tests\Intelligence\Agents\Tools;
 
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Repositories\EventScheduleRepository;
 use Kanvas\Event\Support\Setup;
@@ -54,6 +55,30 @@ class RescheduleCalendarEventToolTest extends TestCase
             ['max@kanvas.dev', 'prospect@example.com'],
             collect($created['event']['attendees'])->sort()->values()->all(),
         );
+    }
+
+    public function testCreateCalendarEventWithoutHttpAuthenticatedUser(): void
+    {
+        [, , $lead] = $this->bootstrap();
+        $contextUser = Auth::user();
+        $tool = (new CalendarEventTool())->withContext(
+            app(Apps::class),
+            $contextUser->getCurrentCompany(),
+            $contextUser,
+        );
+
+        Auth::forgetGuards();
+
+        $created = $tool->__invoke(
+            lead_id: $lead->getId(),
+            title: 'Agent Meeting ' . uniqid(),
+            attendee_emails: ['prospect@example.com'],
+            start_datetime: '2026-06-20 11:00',
+            end_datetime: '2026-06-20 11:30',
+        );
+
+        $this->assertSame('success', $created['status'], json_encode($created));
+        $this->assertNull(Auth::user(), 'The tool must restore the unauthenticated agent context.');
     }
 
     public function testRescheduleMovesAppointmentAndFreesOldSlot(): void

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Auth;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventData;
 use Kanvas\Event\Events\Models\EventCategory;
@@ -250,6 +251,14 @@ class CalendarEventTool extends Tool
         $attendeeBlock = $attendee_emails === [] ? '' : "\nAttendees: " . implode(', ', $attendee_emails);
         $fullDescription = trim(($description ?? '') . $attendeeBlock);
 
+        $previousAuthUser = Auth::user();
+        if ($previousAuthUser === null && $this->contextUser() !== null) {
+            // Event creation still contains legacy model paths that resolve tenant scope through
+            // auth()->user(). Agent tools run outside an HTTP-authenticated request, so provide the
+            // already tenant-scoped tool user only for the duration of this operation.
+            Auth::setUser($this->contextUser());
+        }
+
         try {
             $eventData = EventData::from(
                 $lead->app,
@@ -300,6 +309,12 @@ class CalendarEventTool extends Tool
                 'message' => 'Failed to create event: ' . $e->getMessage(),
                 'hint' => 'The Event domain may need default Theme/ThemeArea/EventStatus/EventType/EventCategory/EventClass rows configured for this company.',
             ];
+        } finally {
+            if ($previousAuthUser !== null) {
+                Auth::setUser($previousAuthUser);
+            } else {
+                Auth::forgetGuards();
+            }
         }
 
         return [
