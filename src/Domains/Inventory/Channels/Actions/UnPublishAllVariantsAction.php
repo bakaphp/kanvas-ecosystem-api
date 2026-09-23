@@ -12,8 +12,12 @@ use Kanvas\Inventory\Variants\Models\VariantsChannels;
 
 class UnPublishAllVariantsAction
 {
+    /**
+     * @param list<string>|null $keepSkus variants with these SKUs stay published; null unpublishes everything
+     */
     public function __construct(
         protected Channels $channel,
+        protected ?array $keepSkus = null,
     ) {
     }
 
@@ -30,6 +34,17 @@ class UnPublishAllVariantsAction
 
         // Get variant and product IDs in a single query
         $channelVariants = $query->select('products_variants_id')->distinct()->pluck('products_variants_id');
+
+        if ($this->keepSkus !== null && $channelVariants->isNotEmpty()) {
+            $keepVariantIds = $channelVariants->chunk(1000)->flatMap(
+                fn (Collection $ids) => Variants::whereIn('id', $ids)->whereIn('sku', $this->keepSkus)->pluck('id')
+            );
+
+            if ($keepVariantIds->isNotEmpty()) {
+                $query->whereNotIn('products_variants_id', $keepVariantIds);
+                $channelVariants = $channelVariants->diff($keepVariantIds)->values();
+            }
+        }
 
         if ($channelVariants->isEmpty()) {
             return;

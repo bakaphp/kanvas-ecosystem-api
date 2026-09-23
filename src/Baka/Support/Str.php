@@ -116,6 +116,15 @@ class Str extends IlluminateStr
     }
 
     /**
+     * Drops a leading UTF-8 byte-order mark, which Excel writes into CSV exports and which otherwise
+     * sticks to the first header name ("\xEF\xBB\xBFVIN" never matches "VIN").
+     */
+    public static function stripBom(string $value): string
+    {
+        return str_starts_with($value, "\xEF\xBB\xBF") ? substr($value, 3) : $value;
+    }
+
+    /**
      * Normalizes a value for case-insensitive comparison. Multibyte-safe on purpose: plain `strtolower`
      * leaves accented capitals untouched, so "ÚNICO" and "único" would never match.
      */

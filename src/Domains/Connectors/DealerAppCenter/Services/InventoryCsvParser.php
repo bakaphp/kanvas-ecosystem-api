@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\DealerAppCenter\Services;
 
+use Baka\Support\Str;
 use Kanvas\Connectors\DealerAppCenter\DataTransferObject\InventoryCsvPayload;
 use League\Csv\Reader;
 use Throwable;
@@ -42,7 +43,7 @@ class InventoryCsvParser
         foreach ($rawHeaders as $i => $h) {
             $clean = trim($h);
             if ($i === 0) {
-                $clean = $this->stripBom($clean);
+                $clean = Str::stripBom($clean);
             }
             $headers[] = $clean;
         }
@@ -70,14 +71,5 @@ class InventoryCsvParser
             fileFirstRow: $fileValues[0],
             fileValues: $fileValues,
         );
-    }
-
-    private function stripBom(string $value): string
-    {
-        if (str_starts_with($value, "\xEF\xBB\xBF")) {
-            return substr($value, 3);
-        }
-
-        return $value;
     }
 }

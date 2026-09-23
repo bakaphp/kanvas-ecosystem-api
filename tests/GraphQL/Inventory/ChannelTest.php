@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Inventory\Channels\Actions\UnPublishAllVariantsAction;
 use Kanvas\Inventory\Channels\Models\Channels;
+use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Souk\Enums\ConfigurationEnum as SoukConfigurationEnum;
@@ -19,9 +20,9 @@ use Tests\TestCase;
 class ChannelTest extends TestCase
 {
     use InventoryCases;
+
     /**
      * testCreateChannel.
-     *
      */
     public function testCreateChannel(): void
     {
@@ -38,13 +39,12 @@ class ChannelTest extends TestCase
                     is_default
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createChannel' => $data]
+            'data' => ['createChannel' => $data],
         ]);
     }
 
     /**
      * testGetChannels.
-     *
      */
     public function testGetChannels(): void
     {
@@ -64,7 +64,6 @@ class ChannelTest extends TestCase
 
     /**
      * testUpdateChannel.
-     *
      */
     public function testUpdateChannel(): void
     {
@@ -81,7 +80,7 @@ class ChannelTest extends TestCase
                     is_default
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createChannel' => $data]
+            'data' => ['createChannel' => $data],
         ]);
         $channelId = $newChannel['data']['createChannel']['id'];
 
@@ -95,7 +94,7 @@ class ChannelTest extends TestCase
                 }
             }
         }', ['id' => $channelId])->assertJson([
-            'data' => ['channels' => ['data' => [$data]]]
+            'data' => ['channels' => ['data' => [$data]]],
         ]);
 
         $data = [
@@ -108,13 +107,12 @@ class ChannelTest extends TestCase
                     name
                 }
             }', ['channelId' => $channelId, 'data' => $data])->assertJson([
-            'data' => ['updateChannel' => $data]
+            'data' => ['updateChannel' => $data],
         ]);
     }
 
     /**
      * testDeleteChannel.
-     *
      */
     public function testDeleteChannel(): void
     {
@@ -131,7 +129,7 @@ class ChannelTest extends TestCase
                     is_default
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createChannel' => $data]
+            'data' => ['createChannel' => $data],
         ]);
 
         $channelId = $newChannel['data']['createChannel']['id'];
@@ -146,20 +144,19 @@ class ChannelTest extends TestCase
                 }
             }
         }', ['id' => $channelId])->assertJson([
-            'data' => ['channels' => ['data' => [$data]]]
+            'data' => ['channels' => ['data' => [$data]]],
         ]);
 
         $this->graphQL('
             mutation($id: ID!) {
                 deleteChannel(id: $id)
             }', ['id' => $channelId])->assertJson([
-            'data' => ['deleteChannel' => true]
+            'data' => ['deleteChannel' => true],
         ]);
     }
 
     /**
      * testUnpublishProducts.
-     *
      */
     public function testUnpublishProductsFromChannel(): void
     {
@@ -176,7 +173,7 @@ class ChannelTest extends TestCase
                     is_default
                 }
             }', ['data' => $data])->assertJson([
-            'data' => ['createChannel' => $data]
+            'data' => ['createChannel' => $data],
         ]);
         $channelId = $newChannel['data']['createChannel']['id'];
         $this->graphQL('
@@ -189,14 +186,14 @@ class ChannelTest extends TestCase
                 }
             }
         }', ['id' => $channelId])->assertJson([
-            'data' => ['channels' => ['data' => [$data]]]
+            'data' => ['channels' => ['data' => [$data]]],
         ]);
 
         $this->graphQL('
             mutation($id: ID!) {
                 unPublishAllVariantsFromChannel(id: $id)
             }', ['id' => $channelId])->assertJson([
-            'data' => ['unPublishAllVariantsFromChannel' => true] // job dispatched to queue
+            'data' => ['unPublishAllVariantsFromChannel' => true], // job dispatched to queue
         ]);
     }
 
@@ -249,6 +246,40 @@ class ChannelTest extends TestCase
             ->first();
         $this->assertNotNull($updatedRecord);
         $this->assertEquals(0, (int) $updatedRecord->is_published);
+    }
+
+    public function testUnPublishAllVariantsActionKeepsTheSkusStillInTheFeed(): void
+    {
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+        $app = app(Apps::class);
+
+        $this->setupInventory($app, $company, $user);
+
+        $warehouse = Warehouses::fromApp($app)->fromCompany($company)->first();
+        $channel = Channels::fromApp($app)->fromCompany($company)->first();
+
+        $variantIds = [];
+        foreach ([1, 2] as $ignored) {
+            $productId = $this->createProduct()->json('data.createProduct.id');
+            $variantId = $this->createVariant(
+                (string) $productId,
+                ['id' => $warehouse->getId(), 'price' => 10.00, 'quantity' => 1, 'position' => 1]
+            )->json('data.createVariant.id');
+            $this->addVariantToChannel((string) $variantId, (string) $channel->getId(), ['id' => $warehouse->getId()]);
+            $variantIds[] = (int) $variantId;
+        }
+
+        [$stillInFeed, $sold] = $variantIds;
+
+        new UnPublishAllVariantsAction($channel, [Variants::getById($stillInFeed)->sku])->execute();
+
+        $published = fn (int $variantId) => (int) VariantsChannels::where('channels_id', $channel->getId())
+            ->where('products_variants_id', $variantId)
+            ->value('is_published');
+
+        $this->assertSame(1, $published($stillInFeed));
+        $this->assertSame(0, $published($sold));
     }
 
     public function testTypesenseSchemaIdIsString(): void

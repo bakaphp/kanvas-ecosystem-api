@@ -19,6 +19,7 @@ enum RolesEnums: string
     case MANAGER = 'Managers';
     case INVENTORY_MANAGER = 'InventoryManager';
     case INSURANCE_CLIENT = 'InsuranceClient';
+    case NOTIFICATION_MANAGER = 'NotificationAllEngagement';
 
     case KEY_MAP = 'roles:abilities';
 

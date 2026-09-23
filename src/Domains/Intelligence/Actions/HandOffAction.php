@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Actions;
 
 use Baka\Contracts\AppInterface;
 use Exception;
+use Kanvas\Companies\Services\CompanyManagerService;
 use Kanvas\Guild\Leads\Actions\CreateLeadTypeAction;
 use Kanvas\Guild\Leads\DataTransferObject\LeadType as LeadTypeDto;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -17,7 +18,6 @@ use Kanvas\Intelligence\Notifications\HandOffNotification;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Notifications\Channels\TwilioSmsChannel;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class HandOffAction
@@ -215,15 +215,8 @@ class HandOffAction
         HandOffNotification $notification,
         string $handOffUserRole,
     ): int {
-        try {
-            $managers = UsersRepository::getCompanyAppUserByRole(
-                $this->lead->company,
-                $this->lead->app,
-                $handOffUserRole,
-            )->get();
-        } catch (Exception) {
-            return 0;
-        }
+        $managers = new CompanyManagerService($this->lead->company, $this->lead->app)
+            ->getManagersByRole($handOffUserRole);
 
         $notifiedCount = 0;
         foreach ($managers as $manager) {
