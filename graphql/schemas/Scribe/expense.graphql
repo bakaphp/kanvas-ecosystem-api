@@ -68,6 +68,7 @@ type ScribeExpense {
     user: User @belongsTo(relation: "user")
     lines: [ScribeExpenseLine!]! @hasMany(relation: "lines")
     receipts: [ScribeExpenseReceipt!]! @hasMany(relation: "receipts")
+    approvalRequests: [ApprovalRequest!]! @hasMany(relation: "approvalRequests")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
