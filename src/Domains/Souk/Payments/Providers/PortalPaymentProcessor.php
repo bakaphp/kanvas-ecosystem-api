@@ -52,7 +52,7 @@ class PortalPaymentProcessor
         protected array $params = []
     ) {
         $this->client = new EchoPayService($this->app, $this->company);
-        $this->refId = 'ref' . time();        // Set the transaction's refId
+        $this->refId = 'ref' . time();
     }
 
     public function setImmediateCapture(bool $immediateCapture): void
@@ -252,7 +252,7 @@ class PortalPaymentProcessor
     public function validatePayerAuthResult(Payments $payment, Order $order, string $transactionId): array
     {
         $merchantAuthentication = $this->setupMerchantAuthentication($payment, $order);
-        $consumerData = [];
+        $validatedData = [];
 
         try {
             $validatedData = $this->client->validatePayerAuthResult(
@@ -294,7 +294,7 @@ class PortalPaymentProcessor
                 $payment,
                 'validate_auth_result',
                 [
-                    'enrollment_data' => $consumerData,
+                    'enrollment_data' => $validatedData,
                     'error' => $errorMessage,
                     'echopay_error' => $e->getErrorBody(),
                     'echopay_error_timestamp' => now()->toIso8601String(),
@@ -317,7 +317,7 @@ class PortalPaymentProcessor
                 $payment,
                 'validate_auth_result',
                 [
-                    'enrollment_data' => $consumerData,
+                    'enrollment_data' => $validatedData,
                     'error' => $errorMessage,
                 ],
                 $errorMessage
@@ -357,7 +357,6 @@ class PortalPaymentProcessor
         return $hasValidEci;
     }
 
-    //  If the enrollment status is not AUTHENTICATION_SUCCESSFUL it means that the front needs to authenticate the payer
     private function requestUserValidation(Payments $payment, array $enrollmentData): array
     {
         $statusMap = [
@@ -394,7 +393,12 @@ class PortalPaymentProcessor
         $this->rememberAuthTransactionId($payment->order, $consumerAuthentication);
 
         if ($isFailure) {
-            $this->logAuthenticationFailure($payment, $enrollmentData, $consumerAuthentication, $errors);
+            $this->logAuthenticationFailure(
+                $payment,
+                $enrollmentData,
+                $consumerAuthentication,
+                $errors
+            );
         }
 
         return [
@@ -408,7 +412,6 @@ class PortalPaymentProcessor
     {
         $paymentResponse = $this->processPaymentCall($payment, $consumerData, $order);
 
-        //  If the payment is successful and the status is PAYED
         if ($paymentResponse['status'] === 'success' && $paymentResponse['data']['status'] === 'AUTHORIZED') {
             $transactionId = (string) $paymentResponse['data']['processorInformation']['transactionId'];
             $intentId = (string) $paymentResponse['data']['id'];
@@ -767,7 +770,6 @@ class PortalPaymentProcessor
         }
     }
 
-    //  process the request with the device data
     public function completeDeviceData(Payments $payment): array
     {
         $order = $payment->order;
@@ -885,10 +887,7 @@ class PortalPaymentProcessor
             return;
         }
 
-        $order->set(
-            CustomFieldEnum::ECHO_PAY_AUTH_TRANSACTION_ID->value,
-            $consumerAuthentication->authenticationTransactionId
-        );
+        $order->set(CustomFieldEnum::ECHO_PAY_AUTH_TRANSACTION_ID->value, $consumerAuthentication->authenticationTransactionId);
     }
 
     private function failAuthentication(
@@ -917,7 +916,9 @@ class PortalPaymentProcessor
     private function resolveErrorMessage(Throwable $e): string
     {
         if ($e instanceof RequestException && $e->hasResponse()) {
-            return json_decode((string) $e->getResponse()->getBody())->message ?? $e->getMessage();
+            $message = json_decode((string) $e->getResponse()->getBody())->message ?? null;
+
+            return is_string($message) ? $message : $e->getMessage();
         }
 
         return $e->getMessage();
