@@ -34,6 +34,10 @@ class TypeSafeClientTest extends TestCase
     {
         parent::setUp();
 
+        if (getenv('GITHUB_ACTIONS')) {
+            $this->markTestSkipped('TypeSafe integration tests are skipped in CI');
+        }
+
         foreach (ConfigurationEnum::cases() as $setting) {
             $this->originalSettings[$setting->value] = app(Apps::class)->get($setting->value);
         }
