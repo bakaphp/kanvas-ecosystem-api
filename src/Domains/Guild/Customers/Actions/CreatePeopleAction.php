@@ -34,7 +34,7 @@ class CreatePeopleAction
     public function execute(): People
     {
         $company = $this->peopleData->branch->company()->firstOrFail();
-        $allowDuplicateContacts = (bool) ($company->get(Defaults::ALLOW_DUPLICATE_CONTACTS->getValue()) ?? false);
+        $allowDuplicateContacts = (bool) Defaults::ALLOW_DUPLICATE_CONTACTS->getFromAppOrCompany($this->peopleData->app, $company);
 
         // Third-party syncs (Salesforce, DriveCentric, etc.) already matched-or-created by their
         // own external id via SyncPeopleByThirdPartyCustomFieldAction — a phone/email collision

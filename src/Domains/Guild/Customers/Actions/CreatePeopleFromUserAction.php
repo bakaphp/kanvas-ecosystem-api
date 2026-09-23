@@ -52,7 +52,7 @@ class CreatePeopleFromUserAction
 
         $people = $createPeople->execute();
 
-        $allowDuplicateContacts = (bool) ($this->branch->company->get(Defaults::ALLOW_DUPLICATE_CONTACTS->getValue()) ?? false);
+        $allowDuplicateContacts = (bool) Defaults::ALLOW_DUPLICATE_CONTACTS->getFromAppOrCompany($this->app, $this->branch->company);
 
         /**
          *  If duplicate contacts are not allowed, associate the newly created people with the user.

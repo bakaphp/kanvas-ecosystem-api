@@ -120,6 +120,7 @@ class ImporterEventJob extends ProductImporterJob
         );
     }
 
+    #[Override]
     protected function notificationStatus(
         int $totalItems,
         int $totalProcessSuccessfully,
