@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      extensions: mbstring, intl, json, redis, swoole, igbinary
+      extensions: mbstring, intl, json, redis, swoole, igbinary, ftp
       APP_ENV: testing
       DB_HOST: 127.0.0.1
       DB_HOST_READ: 127.0.0.1

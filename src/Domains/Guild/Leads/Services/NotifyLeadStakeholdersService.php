@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Services;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\Companies\Services\CompanyManagerService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
@@ -14,8 +15,6 @@ use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Notifications\Templates\EngagementNotification;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UsersRepository;
 
 class NotifyLeadStakeholdersService
 {
@@ -63,19 +62,19 @@ class NotifyLeadStakeholdersService
             return;
         }
 
-        $companyManagers = $this->lead->company->get('company_manager');
-
         if ($this->lead->get('sent_email_notification_to_manager')) {
             return;
         }
 
-        if ($companyManagers && is_array($companyManagers)) {
-            $this->lead->set('sent_email_notification_to_manager', 1);
+        $managers = new CompanyManagerService($this->lead->company, $this->lead->app)->getManagers();
 
-            $users = Users::whereIn('id', $companyManagers)->get();
-
-            Notification::send($users, $this->notification);
+        if ($managers->isEmpty()) {
+            return;
         }
+
+        $this->lead->set('sent_email_notification_to_manager', 1);
+
+        Notification::send($managers, $this->notification);
     }
 
     public function followers(): void
@@ -352,11 +351,8 @@ class NotifyLeadStakeholdersService
      */
     protected function collectManagerRecipients(Message $message, bool $includeOwner): Collection
     {
-        $managers = UsersRepository::getCompanyAppUserByRole(
-            $message->company,
-            $message->app,
-            self::MANAGER_ROLE
-        )->get();
+        $managers = new CompanyManagerService($message->company, $message->app)
+            ->getManagersByRole(self::MANAGER_ROLE);
 
         if ($includeOwner) {
             $owner = $this->lead->owner;

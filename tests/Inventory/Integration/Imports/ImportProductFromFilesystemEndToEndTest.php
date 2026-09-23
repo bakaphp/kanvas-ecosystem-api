@@ -698,31 +698,7 @@ final class ImportProductFromFilesystemEndToEndTest extends TestCase
         $filesystemImport->is_deleted = 0;
         $filesystemImport->saveOrFail();
 
-        $capturedJsonlContent = null;
-        $stubService = $this->createStub(FilesystemServices::class);
-        $stubService->method('getFileLocalPath')->willReturn($csvPath);
-        $stubService
-            ->method('upload')
-            ->willReturnCallback(function ($uploadedFile) use (&$capturedJsonlContent, $jsonlFilesystem) {
-                $capturedJsonlContent = file_get_contents($uploadedFile->getRealPath());
-
-                return $jsonlFilesystem;
-            });
-
-        new ImportProductFromFilesystemAction($filesystemImport, $stubService)->execute();
-
-        $this->assertNotNull($capturedJsonlContent, 'Action must produce a JSONL payload');
-
-        $rows = [];
-        foreach (explode("\n", (string) $capturedJsonlContent) as $line) {
-            if ($line === '') {
-                continue;
-            }
-
-            $rows[] = json_decode($line, true);
-        }
-
-        return $rows;
+        return $this->transformToImporterRows($filesystemImport, $csvPath, $jsonlFilesystem);
     }
 
     public function testActionFailsFastWhenProductTypeIdIsMissingFromMapperConfiguration(): void

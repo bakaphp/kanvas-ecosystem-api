@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Services;
 
 use Baka\Http\SafeUrlFetcher;
+use Baka\Support\Str;
 use Kanvas\Filesystem\Models\Filesystem;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -485,7 +486,7 @@ final class FileTextExtractor
 
     private function normalize(string $bytes): string
     {
-        return trim((string) preg_replace('/^\xEF\xBB\xBF/', '', $bytes));
+        return trim(Str::stripBom($bytes));
     }
 
     private function extension(Filesystem $file): string

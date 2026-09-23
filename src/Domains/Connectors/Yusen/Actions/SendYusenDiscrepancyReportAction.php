@@ -8,10 +8,9 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Services\CompanyManagerService;
 use Kanvas\Connectors\Yusen\Notifications\YusenDiscrepancyReportNotification;
-use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UsersRepository;
 
 /**
  * Mails the discrepancy report to the company's managers.
@@ -65,27 +64,21 @@ class SendYusenDiscrepancyReportAction
      */
     private function managers(): array
     {
-        try {
-            return UsersRepository::getCompanyAppUserByRole(
-                $this->company,
-                $this->app,
-                RolesEnums::MANAGER->value,
-            )
-                ->notDeleted()
-                ->whereNotNull('users.email')
-                ->where('users.email', '!=', '')
-                ->get()
-                ->all();
-        } catch (ModelNotFoundException) {
-            // The role isn't bootstrapped for this app. Not a fault worth reporting — the company
-            // simply has nobody to tell yet, and the report still lands on the webhook call.
-            Log::info('Yusen.DiscrepancyReport — Managers role not set up for this app, nobody notified', [
+        $managers = new CompanyManagerService($this->company, $this->app)
+            ->getManagersByRole(RolesEnums::MANAGER->value)
+            ->filter(fn (Users $manager) => filled($manager->email))
+            ->all();
+
+        if ($managers === []) {
+            // Usually the role simply isn't bootstrapped for this app. Not a fault worth reporting —
+            // the company has nobody to tell yet, and the report still lands on the webhook call.
+            Log::info('Yusen.DiscrepancyReport — no managers with an email for this company, nobody notified', [
                 'apps_id' => $this->app->getId(),
                 'companies_id' => $this->company->getId(),
             ]);
-
-            return [];
         }
+
+        return $managers;
     }
 
     /**

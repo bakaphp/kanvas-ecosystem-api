@@ -1,0 +1,118 @@
+{
+    "key": "dealer_vehicle_csv",
+    "version": 1,
+    "name": "Dealer inventory (vehicle CSV)",
+    "description": "One row per vehicle, VIN as SKU. The column set the DealerAppCenter dealer feeds export.",
+    "system_module": "Kanvas\\Inventory\\Products\\Models\\Products",
+    "product_type": "Vehicle",
+    "required_columns": ["VIN", "Make", "Model", "Year", "New/Used", "MSRP", "Price"],
+    "file_header": [
+        "VIN",
+        "Stock #",
+        "New/Used",
+        "Year",
+        "Make",
+        "Model",
+        "Series",
+        "Model Number",
+        "Body",
+        "Body Door Ct",
+        "Transmission",
+        "Odometer",
+        "Engine",
+        "Engine Cylinder Ct",
+        "Engine Displacement",
+        "Drivetrain Desc",
+        "Fuel",
+        "Colour",
+        "Interior Color",
+        "City MPG",
+        "Highway MPG",
+        "MSRP",
+        "Price",
+        "Inventory Date",
+        "Description",
+        "Features",
+        "Photo Url List",
+        "Dealer Name"
+    ],
+    "mapping": {
+        "handler": "VIN",
+        "product_name": { "$concat": ["Make", "Model", "Year", "Series"] },
+        "product_description": { "$coalesce": ["Description", "Features"] },
+        "product_slug": "VIN",
+        "variant_name": { "$concat": ["Make", "Model", "Year", "Series"] },
+        "description": { "$coalesce": ["Description", "Features"] },
+        "sku": "VIN",
+        "slug": "VIN",
+        "price": { "$coalesce": ["MSRP", "Price"] },
+        "discounted_price": "MSRP",
+        "quantity": "_1",
+        "is_published": "_1",
+        "categories": "Make",
+        "files": "Photo Url List",
+        "warehouses": [
+            {
+                "id": "extra.warehouse_id",
+                "price": { "$coalesce": ["MSRP", "Price"] },
+                "quantity": "_1",
+                "sku": "VIN",
+                "is_new": { "$map": "New/Used", "values": { "New": true, "N": true, "Used": false, "U": false } }
+            }
+        ],
+        "attributes": [
+            {
+                "fromProduct": true,
+                "year": "Year",
+                "make": "Make",
+                "model": "Model",
+                "new": { "$map": "New/Used", "values": { "New": 1, "N": 1, "Used": 0, "U": 0 } }
+            },
+            {
+                "new": { "$map": "New/Used", "values": { "New": 1, "N": 1, "Used": 0, "U": 0 } },
+                "year": "Year",
+                "make": "Make",
+                "model": "Model",
+                "series": "Series",
+                "stock_number": "Stock #",
+                "model_number": "Model Number",
+                "body": "Body",
+                "body_door_ct": "Body Door Ct",
+                "transmission": "Transmission",
+                "odometer": "Odometer",
+                "engine": "Engine",
+                "engine_cylinder_ct": "Engine Cylinder Ct",
+                "engine_displacement": "Engine Displacement",
+                "drivetrain": "Drivetrain Desc",
+                "fuel_type": "Fuel",
+                "color": "Colour",
+                "interior_color": "Interior Color",
+                "inventory_date": "Inventory Date",
+                "city_mpg": "City MPG",
+                "highway_mpg": "Highway MPG"
+            }
+        ]
+    },
+    "options": {
+        "price_source": {
+            "label": "Price column",
+            "default": "msrp_first",
+            "choices": {
+                "msrp_first": {
+                    "mapping.price": { "$coalesce": ["MSRP", "Price"] },
+                    "mapping.warehouses.0.price": { "$coalesce": ["MSRP", "Price"] }
+                },
+                "price_first": {
+                    "mapping.price": { "$coalesce": ["Price", "MSRP"] },
+                    "mapping.warehouses.0.price": { "$coalesce": ["Price", "MSRP"] }
+                }
+            }
+        }
+    },
+    "source_defaults": {
+        "unpublish_missing": true,
+        "file_filters": {
+            "Used only": { "column": "New/Used", "in": ["Used", "U"] }
+        }
+    }
+}

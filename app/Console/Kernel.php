@@ -12,6 +12,7 @@ use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\CustomerSuccess\Schedules\CustomerSuccessSchedule;
 use App\Console\Commands\Ecosystem\Companies\FlagOverdueCorporateApplicationsCommand;
+use App\Console\Commands\Ecosystem\Imports\RunImportSourcesCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\Ecosystem\Users\DetectSignupAnomalyCommand;
 use App\Console\Commands\Event\GenerateUpcomingTimeSlotsCommand;
@@ -66,6 +67,10 @@ class Kernel extends ConsoleKernel
         // Event — roll the booking window forward daily so active schedule rules always
         // have slots up to their app's horizon, and refresh price snapshots on unsold ones.
         $schedule->command(GenerateUpcomingTimeSlotsCommand::class, ['--prune'])->dailyAt('01:30')->withoutOverlapping();
+
+        // Scheduled imports (FTP/SFTP → mapper → importer). Each source has its own cron + timezone;
+        // this tick only queues the ones that are due.
+        $schedule->command(RunImportSourcesCommand::class)->everyFifteenMinutes()->withoutOverlapping()->onOneServer();
 
         // Acumatica — incremental delta sync for every opted-in company (gated per company).
         //$schedule->command(ScheduledAcumaticaSyncCommand::class)->hourly()->withoutOverlapping()->onOneServer();

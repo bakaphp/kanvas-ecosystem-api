@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Intellicheck\Actions;
 
 use Baka\Support\Str;
-use Illuminate\Database\Eloquent\ModelNotFoundException as EloquentModelNotFoundException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Notification;
@@ -14,6 +13,7 @@ use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as DataTransfe
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\Companies\Services\CompanyManagerService;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Services\DriverLicenseCombinedPdfService;
@@ -229,17 +229,7 @@ class VerifyPeopleIdAction
 
     protected function reportRecipients(): Collection
     {
-        $company = $this->lead->company;
-
-        $recipients = UsersRepository::findUsersByArray((array) $company->get('company_manager'), $this->lead->app);
-
-        // A company that never created the Manager role has no managers; that must not sink the report.
-        try {
-            $recipients = $recipients->merge(
-                UsersRepository::getCompanyAppUserByRole($company, $this->lead->app, 'Manager')->get()
-            );
-        } catch (EloquentModelNotFoundException) {
-        }
+        $recipients = new CompanyManagerService($this->lead->company, $this->lead->app)->getManagers();
 
         return $this->lead->owner !== null ? $recipients->merge([$this->lead->owner]) : $recipients;
     }

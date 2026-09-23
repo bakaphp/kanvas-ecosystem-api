@@ -275,9 +275,10 @@ per-company list of user ids goes stale the moment somebody joins or leaves and 
 update it; role membership is already maintained.
 
 **Use `RolesEnums::MANAGER->value` (`Managers`, plural), never the literal `'Manager'`.** The roles
-table has 97 `Managers` rows across apps and exactly one `Manager` — code hardcoding the singular
-(`Intellicheck/Actions/VerifyPeopleIdAction`, `Elead/Actions/AddOutBoundPhoneCallActivityToLeadAction`)
-silently resolves to nobody for almost every app.
+table has ~128 `Managers` rows across apps and two `Manager` — code hardcoding the singular silently
+resolves to nobody for almost every app. `Kanvas\Companies\Services\CompanyManagerService` defaults to
+the plural, so resolve managers through it; `Intelligence/Actions/HandOffAction::DEFAULT_MANAGER_ROLE`
+is still the singular and is the last known offender.
 
 If the role isn't bootstrapped for the app, the send logs and returns — no Sentry noise, and the
 report still lands on the webhook call.

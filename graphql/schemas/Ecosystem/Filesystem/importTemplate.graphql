@@ -1,0 +1,44 @@
+enum ImportTemplateKey {
+    DEALER_VEHICLE_CSV @enum(value: "dealer_vehicle_csv")
+}
+
+type ImportTemplate {
+    key: ImportTemplateKey!
+    name: String!
+    description: String
+    file_header: [String!]!
+    required_columns: [String!]!
+    options: Mixed
+    source_defaults: Mixed
+}
+
+type ImportTemplateHeaderCheck {
+    compatible: Boolean!
+    missing_required: [String!]!
+    missing_optional: [String!]!
+    extra: [String!]!
+}
+
+extend type Query @guardByAdmin {
+    importTemplates: [ImportTemplate!]!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\ImportTemplateQuery@all"
+        )
+    checkImportTemplateHeader(
+        template: ImportTemplateKey!
+        filesystem_id: ID!
+    ): ImportTemplateHeaderCheck!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\ImportTemplateQuery@checkHeader"
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    createFilesystemMapperFromTemplate(
+        template: ImportTemplateKey!
+        options: Mixed
+    ): FilesystemMapper!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\ImportTemplateMutation@createMapper"
+        )
+}
