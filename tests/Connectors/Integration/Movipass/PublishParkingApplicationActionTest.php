@@ -21,6 +21,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadAttempt;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
+use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Tests\TestCase;
 
 final class PublishParkingApplicationActionTest extends TestCase
@@ -225,6 +226,29 @@ final class PublishParkingApplicationActionTest extends TestCase
         $this->expectException(ModelNotFoundException::class);
 
         new PublishParkingApplicationAction($lead)->execute();
+    }
+
+    public function testProvisionsTheWarehouseWhenOnboardingHasNotLandedYet(): void
+    {
+        $lead = $this->approvedApplication();
+
+        Warehouses::query()
+            ->fromApp($this->kanvasApp)
+            ->fromCompany($this->company)
+            ->update(['is_deleted' => 1]);
+
+        $this->assertNull(
+            Warehouses::query()->fromApp($this->kanvasApp)->fromCompany($this->company)->notDeleted()->first()
+        );
+
+        $product = new PublishParkingApplicationAction($lead)->execute();
+
+        $warehouseRow = $product->variants()->firstOrFail()->variantWarehouses()->firstOrFail();
+        $this->assertSame($this->company->getId(), (int) $warehouseRow->warehouse->companies_id);
+        $this->assertSame(
+            ParkingApplicationStatusEnum::PUBLISHED->value,
+            Field::STATUS->readFrom($lead->fresh())
+        );
     }
 
     private function approvedApplication(array $overrides = []): Lead

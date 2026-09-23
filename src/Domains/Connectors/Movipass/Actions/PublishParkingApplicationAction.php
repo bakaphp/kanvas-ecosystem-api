@@ -21,6 +21,7 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Actions\CreateProductTypeAction;
 use Kanvas\Inventory\ProductsTypes\DataTransferObject\ProductsTypes as ProductTypeDto;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
+use Kanvas\Inventory\Support\Setup as InventorySetup;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 
@@ -134,18 +135,31 @@ class PublishParkingApplicationAction
 
     private function defaultWarehouse(Companies $company): Warehouses
     {
-        $warehouse = Warehouses::query()
+        $warehouse = $this->findWarehouse($company);
+
+        if ($warehouse !== null) {
+            return $warehouse;
+        }
+
+        new InventorySetup($this->application->app, $company->user, $company)->run();
+
+        $warehouse = $this->findWarehouse($company);
+
+        if ($warehouse === null) {
+            throw new ValidationException("company {$company->getId()} has no warehouse and onboarding could not provision one");
+        }
+
+        return $warehouse;
+    }
+
+    private function findWarehouse(Companies $company): ?Warehouses
+    {
+        return Warehouses::query()
             ->fromApp($this->application->app)
             ->fromCompany($company)
             ->notDeleted()
             ->orderByDesc('is_default')
             ->first();
-
-        if ($warehouse === null) {
-            throw new ValidationException("company {$company->getId()} has no warehouse; onboarding did not run");
-        }
-
-        return $warehouse;
     }
 
     private function productDto(
