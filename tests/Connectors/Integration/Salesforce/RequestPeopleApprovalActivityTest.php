@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Salesforce;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Approvals\Models\ApprovalPolicy;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Salesforce\Activities\RequestPeopleApprovalActivity;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;

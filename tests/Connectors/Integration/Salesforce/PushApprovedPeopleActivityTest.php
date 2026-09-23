@@ -6,9 +6,9 @@ namespace Tests\Connectors\Integration\Salesforce;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Http;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
+use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Salesforce\Activities\PushApprovedPeopleActivity;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
