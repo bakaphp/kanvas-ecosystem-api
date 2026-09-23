@@ -67,6 +67,23 @@ class ImportTemplateTest extends TestCaseUnit
         $this->assertSame('Test template · price_source=price_first', $template->mapperName($priceFirst));
     }
 
+    public function testANewVersionGetsItsOwnMapperName(): void
+    {
+        // CreateFilesystemMapperAction's firstOrCreate keys on the name, so two versions sharing one
+        // name means a bumped template silently hands back the old version's mapper and mapping.
+        $v2 = ImportTemplate::fromDefinition([...$this->definition(), 'version' => 2]);
+
+        $this->assertSame('Test template v2', $v2->mapperName($v2->resolveOptions([])));
+        $this->assertSame(
+            'Test template v2 · price_source=price_first',
+            $v2->mapperName($v2->resolveOptions(['price_source' => 'price_first']))
+        );
+        $this->assertNotSame(
+            $this->template()->mapperName($this->template()->resolveOptions([])),
+            $v2->mapperName($v2->resolveOptions([]))
+        );
+    }
+
     public function testCompareHeaderSplitsMissingRequiredOptionalAndExtraIgnoringCase(): void
     {
         $result = $this->template()->compareHeader([' vin ', 'Price', 'Series', 'Mileage']);
@@ -95,7 +112,15 @@ class ImportTemplateTest extends TestCaseUnit
 
     private function template(): ImportTemplate
     {
-        return ImportTemplate::fromDefinition([
+        return ImportTemplate::fromDefinition($this->definition());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function definition(): array
+    {
+        return [
             'key' => 'test_template',
             'version' => 1,
             'name' => 'Test template',
@@ -119,6 +144,6 @@ class ImportTemplateTest extends TestCaseUnit
                     ],
                 ],
             ],
-        ]);
+        ];
     }
 }

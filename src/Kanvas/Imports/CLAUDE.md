@@ -42,6 +42,25 @@ the old mapping forever, silently — the setup command reports "Reused mapper" 
 mapper; existing sources keep pointing at the old one until they are re-pointed, which is the
 intended migration story.
 
+The bump works only because `mapperName()` puts the version in the name from v2 on.
+`CreateFilesystemMapperAction` ends in a `firstOrCreate` keyed on
+`(apps_id, companies_branches_id, companies_id, users_id, system_modules_id, name)` — **not** on the
+template signature. So when two versions share a name, the signature lookup correctly misses, the
+firstOrCreate then matches the old row by name and returns it untouched, and the command cheerfully
+reports `Reused mapper #21` with the previous version's mapping still in it. Don't make the name
+version-independent again.
+
+Re-pointing an existing source is two steps, and the second is not optional:
+
+```bash
+php artisan kanvas:imports:setup-from-template <template> <app> <company>   # no --connection: mapper only
+# then set filesystem_mapper_id on the source to the new mapper
+```
+
+Re-running the full setup *with* `--connection` does not re-point anything: `existingSource()` filters
+by the new mapper's id, so it won't match the source still on the old one and you get a second source
+for the same company — two feeds into one channel, each unpublishing the other's rows every night.
+
 ## A mapped value must satisfy the target model's PHP types, not just look right
 
 `VariantsWarehouses::$is_new` is typed `bool`. The template originally mapped it to `1`/`0`, which
