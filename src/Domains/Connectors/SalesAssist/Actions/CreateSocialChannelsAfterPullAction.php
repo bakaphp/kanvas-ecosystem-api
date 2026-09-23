@@ -8,7 +8,6 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Enums\ConfigurationEnum as CompanyConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Enums\ConfigurationEnum;
 
 class CreateSocialChannelsAfterPullAction
 {
@@ -47,17 +46,12 @@ class CreateSocialChannelsAfterPullAction
             )->execute();
         }
 
-        $aiAssistEnabled = (bool) ($this->lead->company->get(ConfigurationEnum::AI_ASSIST_ENABLED->value)
-            ?? $this->app->get(ConfigurationEnum::AI_ASSIST_ENABLED->value)
-            ?? false);
-
-        if ($aiAssistEnabled) {
-            new CreateAIAssistChannelAction(
-                $this->lead,
-                $this->app,
-                $params['ai_assist_agent_id'] ?? $this->agentId,
-            )->execute();
-        }
+        CreateAIAssistChannelAction::ifEnabled(
+            $this->lead,
+            $this->app,
+            $this->params,
+            $this->agentId
+        )?->execute();
 
         if (! $this->lead->get(LeadsConfigurationEnum::GUILD_PREFERRED_CHANNEL_UUID->value)) {
             $defaultChannel = $this->lead->company->get(CompanyConfigurationEnum::DEFAULT_SELECTED_CHANNEL->value)

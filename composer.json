@@ -47,6 +47,7 @@
         "lcobucci/jwt": "^5.2",
         "league/csv": "^9.0",
         "league/flysystem-aws-s3-v3": "^3.12",
+        "league/flysystem-ftp": "^3.0",
         "league/oauth2-client": "2.7.0",
         "maatwebsite/excel": "4.x-dev",
         "meilisearch/meilisearch-php": "^1.4",

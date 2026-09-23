@@ -142,6 +142,6 @@ Downstream consumers (CRM push, frontend, checklist) read these:
 
 ## Report dedup is time-boxed on purpose
 
-The email goes to `company_manager` users + the company's Managers + the lead owner, each once, and is skipped entirely when the company sets `disable_id_verification_email` — the PDF and engagement are still filed. `id_verification` is always written on the verified person, and on the lead only for the main buyer.
+The email goes to whoever `Kanvas\Companies\Services\CompanyManagerService` resolves — the company's `Managers` role holders plus anyone still listed in the legacy `company_manager` setting — plus the lead owner, each once, and is skipped entirely when the company sets `disable_id_verification_email` — the PDF and engagement are still filed. `id_verification` is always written on the verified person, and on the lead only for the main buyer.
 
 `VerifyPeopleIdAction::sendNotification()` guards on a 3-minute cache keyed by **lead id + verified person id**. Not a persisted flag: a queue retry must not send a second report, but a customer re-scanning after a failed check must get one — a permanent flag silently killed the report, the PDF and the engagement for every later verification of that person. And not keyed by display name: a participant whose document is unreadable resolves the name back to the main buyer's, so a name-keyed guard makes the two skip each other.

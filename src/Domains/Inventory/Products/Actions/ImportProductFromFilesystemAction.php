@@ -11,6 +11,7 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
 use Kanvas\Filesystem\Services\CsvReaderService;
+use Kanvas\Filesystem\Services\FilesystemRowMapper;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Products\Models\Products;
@@ -116,7 +117,9 @@ class ImportProductFromFilesystemAction
         $configuration = is_array($this->filesystemImports->filesystemMapper->configuration)
             ? $this->filesystemImports->filesystemMapper->configuration
             : [];
-        $channelsId = $configuration['channels_id'] ?? null;
+        $extra = is_array($this->filesystemImports->extra) ? $this->filesystemImports->extra : [];
+        // A scheduled import passes its own channel per run, so one mapper can serve many rooftops.
+        $channelsId = $extra['channels_id'] ?? $configuration['channels_id'] ?? null;
         $productType ??= $this->resolveProductType($configuration);
 
         try {
@@ -129,12 +132,20 @@ class ImportProductFromFilesystemAction
                 $variant = $this->mapper($mapping, $record);
 
                 if ($channelsId !== null) {
+                    // Without warehouses_id the channel lands on the company's default warehouse, and
+                    // without is_published a re-import unpublishes the row. Both are only sent when the
+                    // mapping sets them, so older mappings keep producing the same row.
                     $variant['channels'] = [
-                        [
-                            'channels_id' => $channelsId,
-                            'price' => $this->cleanPrice($variant['price'] ?? 0.0),
-                            'discounted_price' => $this->cleanPrice($variant['discounted_price'] ?? 0.0),
-                        ],
+                        array_filter(
+                            [
+                                'channels_id' => $channelsId,
+                                'warehouses_id' => $variant['warehouses'][0]['id'] ?? null,
+                                'price' => $this->cleanPrice($variant['price'] ?? 0.0),
+                                'discounted_price' => $this->cleanPrice($variant['discounted_price'] ?? 0.0),
+                                'is_published' => $variant['is_published'] ?? null,
+                            ],
+                            fn ($value) => $value !== null
+                        ),
                     ];
                 }
 
@@ -310,18 +321,13 @@ class ImportProductFromFilesystemAction
                 continue;
             }
 
-            if (is_array($value)) {
+            if (is_array($value) && ! FilesystemRowMapper::isExpression($value)) {
                 $result[$targetKey] = $this->mapper($value, $data);
 
                 continue;
             }
 
-            $result[$targetKey] = match (true) {
-                is_string($value) && str_starts_with($value, '_') => substr($value, 1),
-                is_string($value) && str_starts_with($value, 'date_') => Date::createFromFormat($data[substr($value, 5)] ?? ''),
-                is_string($value) => $data[$value] ?? null,
-                default => $value,
-            };
+            $result[$targetKey] = FilesystemRowMapper::resolve($value, $data);
 
             if ($targetKey === 'categories' && is_string($result[$targetKey]) && $result[$targetKey] !== '') {
                 $result[$targetKey] = $this->mapCategories($result[$targetKey]);

@@ -24,6 +24,7 @@ class IntegrationTest extends TestCase
         $integrationCompany = $this->createShopifyIntegrationCompany();
 
         $this->assertArrayHasKey('id', $integrationCompany);
+        $this->assertTrue($integrationCompany['is_active']);
     }
 
     public function testRemoveIntegrationCompany(): void
@@ -167,6 +168,7 @@ class IntegrationTest extends TestCase
             integrationCompany(input: $data)
             {
                 id
+                is_active
             }
         }', ['data' => $data])->assertSuccessful();
 

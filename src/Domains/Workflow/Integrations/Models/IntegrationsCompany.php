@@ -21,11 +21,18 @@ class IntegrationsCompany extends BaseModel
         'integrations_id',
         'status_id',
         'region_id',
+        'is_active',
+    ];
+
+    protected $attributes = [
+        'is_deleted' => 0,
+        'is_active' => 1,
     ];
 
     protected $casts = [
         'config' => Json::class,
         'is_deleted' => 'boolean',
+        'is_active' => 'boolean',
     ];
 
     public function integration(): BelongsTo

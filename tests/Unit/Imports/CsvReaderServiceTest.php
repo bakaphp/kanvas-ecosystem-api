@@ -73,6 +73,35 @@ class CsvReaderServiceTest extends TestCaseUnit
         $this->assertSame('a;b;c', $reader->nth(0)['Tags']);
     }
 
+    public function testCommaWinsWhenACellHoldsMorePipesThanTheRowHasCommas(): void
+    {
+        // `Photo Url List` is pipe-separated in every dealer feed, so scoring data rows picks `|`,
+        // every column parses into one and the whole import maps to null. The header row is the
+        // only line that is all column names.
+        $path = $this->writeRaw(
+            "VIN,Make,Photo Url List\n"
+            . "1GYK,Cadillac,\"https://a/1.jpg|https://a/2.jpg|https://a/3.jpg|https://a/4.jpg|https://a/5.jpg\"\n"
+            . "2HGF,Honda,\"https://b/1.jpg|https://b/2.jpg|https://b/3.jpg|https://b/4.jpg|https://b/5.jpg\"\n"
+        );
+
+        $reader = CsvReaderService::fromPath($path);
+        $reader->setHeaderOffset(0);
+
+        $this->assertSame(['VIN', 'Make', 'Photo Url List'], $reader->getHeader());
+        $this->assertSame('1GYK', $reader->nth(0)['VIN']);
+        $this->assertStringContainsString('|', $reader->nth(0)['Photo Url List']);
+    }
+
+    public function testAQuotedHeaderNameMayContainTheDelimiter(): void
+    {
+        $path = $this->writeRaw("VIN,\"Dealer, Inc\",Make\n1GYK,Acme,Cadillac\n");
+
+        $reader = CsvReaderService::fromPath($path);
+        $reader->setHeaderOffset(0);
+
+        $this->assertSame(['VIN', 'Dealer, Inc', 'Make'], $reader->getHeader());
+    }
+
     public function testSingleColumnFileFallsBackToTheDefaultDelimiter(): void
     {
         $path = $this->writeRaw("Slug\nprod-a\nprod-b\n");
