@@ -926,7 +926,7 @@ final class ProcessPaymentTest extends TestCase
         $enrollmentDataWithError = [
             'errorInformation' => [
                 'message' => 'Payment declined',
-                'code' => 'DECLINED',
+                'reason' => 'DECLINED',
             ],
         ];
 
@@ -935,7 +935,8 @@ final class ProcessPaymentTest extends TestCase
         $this->assertIsArray($result);
         $this->assertArrayHasKey('message', $result);
         $this->assertArrayHasKey('code', $result);
-        $this->assertEquals(' - Payment declined', $result['message']);
+        $this->assertEquals('Payment declined', $result['message']);
+        $this->assertEquals('DECLINED', $result['code']);
 
         // Test without error information
         $enrollmentDataWithoutError = [
