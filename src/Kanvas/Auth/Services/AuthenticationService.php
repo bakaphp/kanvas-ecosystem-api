@@ -80,40 +80,45 @@ class AuthenticationService
             $authentically = $userRegisterInApp->execute($user->password);
         }
         $this->loginAttemptsValidation($authentically);
+        self::ensureCanAuthenticate($authentically, $app);
 
-        if ($authentically->isBanned()) {
-            throw new AuthenticationException('User has been banned, please contact support.');
-        }
-
-        //password verification
-        if (Hash::check($loginInput->getPassword(), $authentically->password) && $authentically->isActive()) {
-            Password::rehash($loginInput->getPassword(), $authentically);
-            $this->resetLoginTries($authentically);
-
-            $this->verifiedEmailValidation($authentically);
-
-            $company = $user->getCurrentCompany();
-            if (! $company->isActive()) {
-                $authMessage = $this->app->get(AppSettingsEnums::INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE->getValue()) ?? 'Company is not active, please contact support.';
-
-                throw new AuthenticationException($authMessage);
-            }
-
-            $user->fireWorkflow(
-                WorkflowEnum::USER_LOGIN->value,
-                true,
-                ['company' => $company]
-            );
-
-            return $user;
-        } elseif (! $authentically->isActive()) {
-            $authMessage = $this->app->get(AppSettingsEnums::INACTIVE_ACCOUNT_ERROR_MESSAGE->getValue()) ?? 'User is not active, please contact support.';
-
-            throw new AuthenticationException($authMessage);
-        } else {
+        if (! Hash::check($loginInput->getPassword(), $authentically->password)) {
             $this->updateLoginTries($authentically);
 
             throw new AuthenticationException('Invalid email or password.');
+        }
+
+        Password::rehash($loginInput->getPassword(), $authentically);
+        $this->resetLoginTries($authentically);
+
+        $this->verifiedEmailValidation($authentically);
+
+        $company = $user->getCurrentCompany();
+        if (! $company->isActive()) {
+            $authMessage = $this->app->get(AppSettingsEnums::INACTIVE_COMPANY_ACCOUNT_ERROR_MESSAGE->getValue()) ?? 'Company is not active, please contact support.';
+
+            throw new AuthenticationException($authMessage);
+        }
+
+        $user->fireWorkflow(
+            WorkflowEnum::USER_LOGIN->value,
+            true,
+            ['company' => $company]
+        );
+
+        return $user;
+    }
+
+    public static function ensureCanAuthenticate(UsersAssociatedApps $profile, AppInterface $app): void
+    {
+        if ($profile->isBanned()) {
+            throw new AuthenticationException('User has been banned, please contact support.');
+        }
+
+        if (! $profile->isActive()) {
+            throw new AuthenticationException(
+                $app->get(AppSettingsEnums::INACTIVE_ACCOUNT_ERROR_MESSAGE->getValue()) ?? 'User is not active, please contact support.'
+            );
         }
     }
 

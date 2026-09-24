@@ -30,7 +30,6 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Enums\UserConfigEnum;
-use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
@@ -163,10 +162,23 @@ class AuthManagementMutation
     public function refreshToken(mixed $rootValue, array $req): array
     {
         $token = $this->decodeToken($req['refresh_token']);
+
+        if (! $this->validateJwtToken($token)) {
+            throw new AuthorizationException('Invalid Token');
+        }
+
         if ($token->isExpired(now())) {
             throw new AuthorizationException('Token Expired');
         }
-        $user = UsersRepository::getByEmail($token->claims()->get('email'));
+
+        $app = app(Apps::class);
+        $user = Sessions::getById($token->claims()->get('sessionId'), $app)->user;
+
+        if (! $user) {
+            throw new AuthorizationException('Invalid Token');
+        }
+
+        AuthenticationService::ensureCanAuthenticate($user->getAppProfile($app), $app);
 
         return $user->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
     }
