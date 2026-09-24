@@ -72,6 +72,13 @@ class ProcessSlackWebhookJob extends SlackWebhookJob
         /** @var Channel $channel */
         $channel = $message->channels()->firstOrFail();
 
+        // AgentChatKernel is the authoritative gate; this early return exists only because the
+        // responder posts a "working..." placeholder into the thread before it ever reaches the
+        // kernel, so letting the skip happen there would leave a visible failed post per message.
+        if (! $agent->is_active) {
+            return ['message' => 'Agent is deactivated, message stored without a reply'];
+        }
+
         return new AgentChannelResponderAction(
             $channel,
             $message,

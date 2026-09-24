@@ -55,7 +55,7 @@ class CompletionStatusTool implements ContextToolInterface
         )->prompt(
             Blade::render($steps, $data),
             provider: Lab::Gemini,
-            model: 'gemini-2.5-pro',
+            model: 'gemini-3.1-flash-lite',
             timeout: 220,
         );
 

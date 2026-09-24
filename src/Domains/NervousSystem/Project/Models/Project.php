@@ -11,8 +11,10 @@ use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Contracts\HandlesAgentMention;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
@@ -55,20 +57,24 @@ use Override;
  * @property string|null $description
  * @property string $status
  * @property int $priority
- * @property \Illuminate\Support\Carbon|null $deadline_at
- * @property \Illuminate\Support\Carbon|null $started_at
- * @property \Illuminate\Support\Carbon|null $completed_at
+ * @property Carbon|null $deadline_at
+ * @property Carbon|null $started_at
+ * @property Carbon|null $completed_at
  * @property int $completion_pct
  * @property int $heartbeat_interval_minutes
- * @property \Illuminate\Support\Carbon|null $last_heartbeat_at
- * @property \Illuminate\Support\Carbon|null $next_heartbeat_at
+ * @property Carbon|null $last_heartbeat_at
+ * @property Carbon|null $next_heartbeat_at
+ * @property int $heartbeat_max_backoff_minutes
+ * @property int $heartbeat_backoff_level
+ * @property string|null $heartbeat_attention_hash
+ * @property Carbon|null $heartbeat_backoff_until
  * @property int|null $default_channel_id
  * @property int|null $receiver_webhook_id
  * @property array|null $config
  * @property array|null $metadata
  * @property bool $is_deleted
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property Carbon $created_at
+ * @property Carbon|null $updated_at
  */
 #[ObservedBy([ProjectObserver::class])]
 class Project extends BaseModel implements HandlesAgentMention
@@ -83,6 +89,15 @@ class Project extends BaseModel implements HandlesAgentMention
 
     /** Heartbeat cadences a project may pick (minutes); the scheduler ticks it when its interval elapses. */
     public const array ALLOWED_HEARTBEAT_INTERVALS = [5, 10, 15, 20, 30];
+
+    /**
+     * How long the heartbeat waits before re-waking the PM on the same unchanged stuck state, one step
+     * per retry. Each retry is a full-context LLM turn, so a project nobody unblocks settles at one a day.
+     */
+    public const array HEARTBEAT_BACKOFF_STEPS = [60, 240, 1440];
+
+    /** The ceiling a project may pick for that backoff; 0 turns it off (re-wake on every heartbeat). */
+    public const array ALLOWED_HEARTBEAT_MAX_BACKOFF = [0, 60, 240, 1440];
 
     protected $table = 'nervous_system_projects';
 
@@ -118,6 +133,8 @@ class Project extends BaseModel implements HandlesAgentMention
             'priority' => 'integer',
             'completion_pct' => 'integer',
             'heartbeat_interval_minutes' => 'integer',
+            'heartbeat_max_backoff_minutes' => 'integer',
+            'heartbeat_backoff_level' => 'integer',
             'default_channel_id' => 'integer',
             'receiver_webhook_id' => 'integer',
             'config' => Json::class,
@@ -128,7 +145,36 @@ class Project extends BaseModel implements HandlesAgentMention
             'completed_at' => 'datetime',
             'last_heartbeat_at' => 'datetime',
             'next_heartbeat_at' => 'datetime',
+            'heartbeat_backoff_until' => 'datetime',
         ];
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function heartbeatBackoffSteps(): array
+    {
+        return array_values(array_filter(
+            self::HEARTBEAT_BACKOFF_STEPS,
+            fn (int $minutes): bool => $minutes <= $this->heartbeat_max_backoff_minutes,
+        ));
+    }
+
+    public static function assertValidHeartbeatSettings(int $intervalMinutes, int $maxBackoffMinutes): void
+    {
+        if (! in_array($intervalMinutes, self::ALLOWED_HEARTBEAT_INTERVALS, true)) {
+            throw new ValidationException(sprintf(
+                'heartbeat_interval_minutes must be one of %s.',
+                implode(', ', self::ALLOWED_HEARTBEAT_INTERVALS),
+            ));
+        }
+
+        if (! in_array($maxBackoffMinutes, self::ALLOWED_HEARTBEAT_MAX_BACKOFF, true)) {
+            throw new ValidationException(sprintf(
+                'heartbeat_max_backoff_minutes must be one of %s.',
+                implode(', ', self::ALLOWED_HEARTBEAT_MAX_BACKOFF),
+            ));
+        }
     }
 
     public function workspace(): BelongsTo

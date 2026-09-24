@@ -19,6 +19,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\AgentFollowUpResult;
@@ -163,6 +164,11 @@ final class FollowUpLeadAction
                 persistConversation: false,
             )->execute();
             $result = AgentFollowUpResult::fromKernelResponse($raw);
+        } catch (AgentReplySkippedException $e) {
+            // Caught ahead of Throwable: the wrap below reports a fresh RuntimeException, so the
+            // skip's ShouldntReport marker would be lost and every tick of a deactivated agent
+            // would post a 3000-char prompt dump to Sentry.
+            return $this->skip('agent_skipped: ' . $e->getMessage());
         } catch (Throwable $e) {
             // Wrap with lead/tenant/prompt context so Sentry has everything
             // needed to debug a bad LLM response without manual SQL.

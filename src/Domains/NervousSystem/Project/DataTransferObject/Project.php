@@ -33,6 +33,7 @@ class Project extends Data
         public readonly int $priority = 0,
         public readonly ?Carbon $deadlineAt = null,
         public readonly int $heartbeatIntervalMinutes = 15,
+        public readonly int $heartbeatMaxBackoffMinutes = 1440,
         /** @var array<int, array<string, mixed>> */
         public readonly array $files = [],
     ) {
@@ -84,6 +85,9 @@ class Project extends Data
             heartbeatIntervalMinutes: isset($data['heartbeat_interval_minutes'])
                 ? (int) $data['heartbeat_interval_minutes']
                 : 15,
+            heartbeatMaxBackoffMinutes: isset($data['heartbeat_max_backoff_minutes'])
+                ? (int) $data['heartbeat_max_backoff_minutes']
+                : 1440,
             files: (array) ($data['files'] ?? []),
         );
     }
@@ -142,6 +146,9 @@ class Project extends Data
             heartbeatIntervalMinutes: isset($data['heartbeat_interval_minutes'])
                 ? (int) $data['heartbeat_interval_minutes']
                 : $project->heartbeat_interval_minutes,
+            heartbeatMaxBackoffMinutes: isset($data['heartbeat_max_backoff_minutes'])
+                ? (int) $data['heartbeat_max_backoff_minutes']
+                : $project->heartbeat_max_backoff_minutes,
             files: (array) ($data['files'] ?? []),
         );
     }

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Project\Actions;
 
 use Illuminate\Support\Facades\DB;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Models\Project;
 
@@ -19,7 +18,10 @@ class UpdateProjectAction
 
     public function execute(): Project
     {
-        $this->assertValidHeartbeatInterval();
+        Project::assertValidHeartbeatSettings(
+            $this->data->heartbeatIntervalMinutes,
+            $this->data->heartbeatMaxBackoffMinutes,
+        );
 
         return DB::connection('intelligence')->transaction(function (): Project {
             $this->project->agent_id = $this->data->pmAgent->getId();
@@ -32,6 +34,7 @@ class UpdateProjectAction
             $this->project->priority = $this->data->priority;
             $this->project->deadline_at = $this->data->deadlineAt;
             $this->project->heartbeat_interval_minutes = $this->data->heartbeatIntervalMinutes;
+            $this->project->heartbeat_max_backoff_minutes = $this->data->heartbeatMaxBackoffMinutes;
             $this->project->saveOrFail();
 
             if ($this->data->files !== []) {
@@ -45,15 +48,5 @@ class UpdateProjectAction
 
             return $this->project;
         });
-    }
-
-    private function assertValidHeartbeatInterval(): void
-    {
-        if (! in_array($this->data->heartbeatIntervalMinutes, Project::ALLOWED_HEARTBEAT_INTERVALS, true)) {
-            throw new ValidationException(sprintf(
-                'heartbeat_interval_minutes must be one of %s.',
-                implode(', ', Project::ALLOWED_HEARTBEAT_INTERVALS),
-            ));
-        }
     }
 }

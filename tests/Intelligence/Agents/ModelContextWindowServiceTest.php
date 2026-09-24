@@ -46,8 +46,9 @@ class ModelContextWindowServiceTest extends TestCase
         ]);
     }
 
-    public function testAWideModelGetsMostOfItsCeilingNotTheLegacyFloor(): void
+    public function testAWideModelGetsMostOfItsCeilingWhenTheCostCapAllowsIt(): void
     {
+        config(['kanvas.agents.max_history_tokens' => 2_000_000]);
         $this->catalogue('gemini', 'gemini-2.5-pro-ctxtest', 1_048_576);
 
         $window = ModelContextWindowService::forModel('gemini', 'gemini-2.5-pro-ctxtest');
@@ -109,13 +110,36 @@ class ModelContextWindowServiceTest extends TestCase
      */
     public function testTheSameCeilingIsNotCappedOnGemini(): void
     {
+        config(['kanvas.agents.max_history_tokens' => 2_000_000]);
         $this->catalogue('gemini', 'gemini-uncapped-ctxtest', 1_000_000);
 
         $this->assertGreaterThan(500_000, ModelContextWindowService::forModel('gemini', 'gemini-uncapped-ctxtest'));
     }
 
+    /**
+     * A 1M-token Gemini ceiling sized the history to ~655K, and every tool-loop step re-sent it — the
+     * September spend went from ~$600/day to ~$1,500/day the day that shipped.
+     */
+    public function testTheCostCapBoundsAWideModelByDefault(): void
+    {
+        $this->catalogue('gemini', 'gemini-default-cap-ctxtest', 1_048_576);
+
+        $this->assertSame(
+            ModelContextWindowService::MIN_HISTORY_TOKENS,
+            ModelContextWindowService::forModel('gemini', 'gemini-default-cap-ctxtest'),
+        );
+    }
+
+    public function testTheCostCapCanGoBelowTheLegacyFloor(): void
+    {
+        config(['kanvas.agents.max_history_tokens' => 20_000]);
+
+        $this->assertSame(20_000, ModelContextWindowService::forModel('openai', 'below-floor-ctxtest'));
+    }
+
     public function testTheBudgetLeavesRoomForAFullTurnOfToolOutput(): void
     {
+        config(['kanvas.agents.max_history_tokens' => 2_000_000]);
         $this->catalogue('gemini', 'gemini-budget-ctxtest', 1_048_576);
 
         $window = ModelContextWindowService::forModel('gemini', 'gemini-budget-ctxtest');

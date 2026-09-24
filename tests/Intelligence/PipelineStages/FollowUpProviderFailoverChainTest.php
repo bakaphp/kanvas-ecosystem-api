@@ -21,7 +21,7 @@ final class FollowUpProviderFailoverChainTest extends TestCase
         $chain = $this->chain();
 
         $this->assertSame(Lab::Gemini->value, array_key_first($chain));
-        $this->assertSame('gemini-2.5-pro', $chain[Lab::Gemini->value]);
+        $this->assertSame('gemini-3.8-flash', $chain[Lab::Gemini->value]);
     }
 
     public function testAppendsAFallbackLegOnlyWhenItsKeyIsConfigured(): void

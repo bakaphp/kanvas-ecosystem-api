@@ -15,6 +15,7 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Events\AgentChatFailedEvent;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
@@ -76,6 +77,10 @@ class ProcessAgentChatTurnJob implements ShouldQueue
                 rendersArtifacts: true,
             );
             $reply = $kernel->execute();
+        } catch (AgentReplySkippedException) {
+            // A deactivated agent is not a failed turn, so the chat gets no error banner — it simply
+            // never answers. report() would be a no-op here anyway, but the event would not.
+            return;
         } catch (Throwable $e) {
             report($e);
 

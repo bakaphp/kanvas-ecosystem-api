@@ -38,7 +38,7 @@ class SummarizeAgentDailyLearningCommand extends Command
         {--app= : Restrict to a single apps_id}
         {--company= : Restrict to a single companies_id}
         {--date= : ISO date (Y-m-d) for the cycle to summarize. Defaults to yesterday.}
-        {--model=gemini-2.5-pro : LLM model id passed to Laravel AI}
+        {--model=gemini-3.8-flash : LLM model id passed to Laravel AI}
         {--dry-run : Run LLM but skip DB write, runtime push, ledger emit}
         {--skip-push : Persist + emit ledger but skip runtime memory push}
         {--sync : Run inline instead of dispatching to queue}';

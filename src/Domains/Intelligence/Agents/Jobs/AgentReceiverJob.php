@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Jobs;
 
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
@@ -37,12 +38,20 @@ class AgentReceiverJob extends ProcessWebhookJob
             ? (string) $payload[$messageField]
             : (string) json_encode($payload);
 
-        $response = new AgentChatKernel(
-            agent: $agent,
-            session: null,
-            message: $message,
-            user: $this->receiver->user,
-        )->execute();
+        try {
+            $response = new AgentChatKernel(
+                agent: $agent,
+                session: null,
+                message: $message,
+                user: $this->receiver->user,
+            )->execute();
+        } catch (AgentReplySkippedException $e) {
+            return [
+                'message' => $e->getMessage(),
+                'agent_id' => $agent->getId(),
+                'response' => null,
+            ];
+        }
 
         // LLM agents that complete work entirely via tool calls may return an empty
         // text turn as their closing message. Surface a default so callers can

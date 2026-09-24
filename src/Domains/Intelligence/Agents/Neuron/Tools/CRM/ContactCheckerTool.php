@@ -65,7 +65,7 @@ class ContactCheckerTool extends Tool
         )->prompt(
             Blade::render($this->agent->roleSection('steps', "\n"), $data),
             provider: Lab::Gemini,
-            model: 'gemini-2.5-pro',
+            model: 'gemini-3.1-flash-lite',
         );
 
         return $response->structured;

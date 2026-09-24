@@ -222,8 +222,10 @@ class ContinueAgentTurnJobTest extends TestCase
      */
     private function silentKernel(bool $privateUserTurn): AgentChatKernel
     {
+        // is_active is NOT NULL DEFAULT 1 in the table, so a persisted agent always carries a real
+        // 0/1; an unhydrated model does not, and the kernel's deactivation guard reads it as off.
         return new class (
-            agent: new Agent(),
+            agent: new Agent(['is_active' => true]),
             session: null,
             message: 'continue',
             user: new Users(),

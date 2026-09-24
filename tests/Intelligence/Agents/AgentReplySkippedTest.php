@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
+use Illuminate\Contracts\Debug\ExceptionHandler;
+use Illuminate\Contracts\Debug\ShouldntReport;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\WaSender\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
@@ -20,10 +23,13 @@ use Kanvas\Workflow\Contracts\SilentWorkflowException;
 use ReflectionClass;
 use ReflectionMethod;
 use Tests\TestCase;
+use Throwable;
 
 final class AgentReplySkippedTest extends TestCase
 {
     use DatabaseTransactions;
+
+    protected $connectionsToTransact = [null, 'intelligence', 'crm'];
 
     /**
      * The marker is what makes executeIntegration skip report() — if this ever stops being a
@@ -56,6 +62,90 @@ final class AgentReplySkippedTest extends TestCase
             new Message(),
             new Channel()
         );
+    }
+
+    /**
+     * SilentWorkflowException is only honoured by KanvasActivity::executeIntegration, so it does
+     * nothing for a skip raised from a queued job or a GraphQL mutation. ShouldntReport is what
+     * keeps those lanes out of Sentry — assert against the handler itself, not just the interface,
+     * because $dontReport and the reportable() callback both live there.
+     */
+    public function testSkipExceptionIsNeverReportedToSentry(): void
+    {
+        $exception = new AgentReplySkippedException('Agent 1 is deactivated');
+
+        $this->assertInstanceOf(ShouldntReport::class, $exception);
+
+        $handler = app(ExceptionHandler::class);
+        $shouldntReport = new ReflectionMethod($handler, 'shouldntReport');
+
+        $this->assertTrue(
+            $shouldntReport->invoke($handler, $exception),
+            'A deactivated-agent skip must not reach the reporter.'
+        );
+    }
+
+    /**
+     * The whole point of deactivating: inbound still arrives, but no backend is ever reached, so no
+     * tokens are spent. The guard also has to sit outside execute()'s own try/catch — if it drifts
+     * inside, AgentProviderException::fromThrowable rewraps it and this expectation fails.
+     */
+    public function testDeactivatedAgentSkipsBeforeReachingAnyBackend(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agentType = AgentType::factory()->withAppId($app->getId())->create(['provider' => 'neuron']);
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create([
+                'agent_type_id' => $agentType->getId(),
+                'is_active' => 0,
+            ]);
+
+        $this->expectException(AgentReplySkippedException::class);
+        $this->expectExceptionMessage(sprintf('Agent %d is deactivated', $agent->getId()));
+
+        new AgentChatKernel(
+            agent: $agent,
+            session: null,
+            message: 'this must never reach a model',
+            user: $user,
+        )->execute();
+    }
+
+    public function testActiveAgentPassesTheDeactivationGuard(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $agentType = AgentType::factory()->withAppId($app->getId())->create(['provider' => 'neuron']);
+        $agent = Agent::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create([
+                'agent_type_id' => $agentType->getId(),
+                'is_active' => 1,
+            ]);
+
+        try {
+            new AgentChatKernel(
+                agent: $agent,
+                session: null,
+                message: 'hello',
+                user: $user,
+            )->execute();
+        } catch (AgentReplySkippedException $e) {
+            $this->fail('An active agent must not be skipped: ' . $e->getMessage());
+        } catch (Throwable) {
+            // Anything else means the guard let the turn through and a backend took over, which is
+            // all this asserts — actually running a model is not this test's job.
+        }
+
+        $this->assertTrue($agent->is_active);
     }
 
     public function testConstructorThrowsSkipWhenLeadAiModeIsOff(): void
