@@ -17,6 +17,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\Chat\WakeAgentInSessionAction;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
@@ -56,10 +57,16 @@ class RunScheduledAgentActionJob implements ShouldQueue
     {
         $this->overwriteAppService($this->app);
 
-        match (ScheduledActionTypeEnum::from($this->action->action_type)) {
-            ScheduledActionTypeEnum::REMINDER => $this->deliverReminder(),
-            ScheduledActionTypeEnum::AGENT_TASK => $this->wakeAgent(),
-        };
+        try {
+            match (ScheduledActionTypeEnum::from($this->action->action_type)) {
+                ScheduledActionTypeEnum::REMINDER => $this->deliverReminder(),
+                ScheduledActionTypeEnum::AGENT_TASK => $this->wakeAgent(),
+            };
+        } catch (AgentReplySkippedException) {
+            // Deliberately falls through to re-arm: a deactivated agent should leave its schedule
+            // ticking harmlessly, so reactivating it resumes the cadence instead of stranding the
+            // row on a missed slot.
+        }
 
         $this->reArmOrComplete();
     }

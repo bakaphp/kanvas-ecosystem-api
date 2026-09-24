@@ -54,4 +54,9 @@ return [
         // multi-key/tenant-scoped deployments.
         'cross_app' => env('VOICE_RUNTIME_CROSS_APP', false),
     ],
+    'agents' => [
+        // Cost ceiling on replayed chat history, applied after the model-ceiling sizing. The history is
+        // re-sent on every tool-loop step, so a wide window multiplies input spend per turn.
+        'max_history_tokens' => (int) env('AGENT_MAX_HISTORY_TOKENS', 50_000),
+    ],
 ];

@@ -82,7 +82,7 @@ class CompletionStatusTool extends Tool
         )->prompt(
             Blade::render($neuronAgent->roleSection('steps', "\n"), $data),
             provider: Lab::Gemini,
-            model: 'gemini-2.5-pro',
+            model: 'gemini-3.1-flash-lite',
         );
 
         return $response->structured;

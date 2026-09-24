@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
@@ -17,6 +18,7 @@ use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\NervousSystem\Project\Actions\CreateProjectAction;
+use Kanvas\NervousSystem\Project\Actions\UpdateProjectAction;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Models\Project;
@@ -208,5 +210,138 @@ class ProjectHeartbeatTest extends TestCase
                 $job->project->id === $project->id
                 && $job->reason === WakeAgentForProjectJob::REASON_HEARTBEAT,
         );
+    }
+
+    /**
+     * A stuck project used to re-wake its PM on every heartbeat — a full-context LLM turn every 15
+     * minutes, forever. The same unchanged state now re-wakes at 1h, then 4h, then daily.
+     */
+    public function testUnchangedStuckStateBacksOff(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $this->planWithPendingTask($project, $app, $company, $user);
+        $service = new ProjectHeartbeatService();
+
+        Bus::fake([WakeAgentForProjectJob::class]);
+
+        $this->assertTrue($service->tick($project), 'A new stuck state wakes the PM.');
+        $this->assertSame(0, $project->heartbeat_backoff_level);
+
+        $this->travel(15)->minutes();
+        $this->assertFalse($service->tick($project), 'The same state inside its backoff window does not.');
+
+        $this->travel(46)->minutes();
+        $this->assertTrue($service->tick($project), 'After 1h the PM gets another look.');
+        $this->assertSame(1, $project->heartbeat_backoff_level);
+        $this->assertEqualsWithDelta(240, now()->diffInMinutes($project->heartbeat_backoff_until), 1);
+
+        $this->travel(241)->minutes();
+        $this->assertTrue($service->tick($project));
+        $this->assertSame(2, $project->heartbeat_backoff_level);
+
+        $this->travel(1441)->minutes();
+        $this->assertTrue($service->tick($project));
+        $this->assertSame(2, $project->heartbeat_backoff_level, 'Settles at one wake a day.');
+    }
+
+    public function testAChangedStuckStateWakesAtOnceAndResetsTheBackoff(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $this->planWithPendingTask($project, $app, $company, $user);
+        $service = new ProjectHeartbeatService();
+
+        Bus::fake([WakeAgentForProjectJob::class]);
+
+        $service->tick($project);
+        $this->travel(61)->minutes();
+        $service->tick($project);
+        $this->assertSame(1, $project->heartbeat_backoff_level);
+
+        $this->travel(15)->minutes();
+        $this->planWithPendingTask($project, $app, $company, $user);
+
+        $this->assertTrue($service->tick($project), 'New stuck work is not held behind the old backoff.');
+        $this->assertSame(0, $project->heartbeat_backoff_level);
+    }
+
+    public function testClearedAttentionResetsTheBackoff(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $plan = $this->planWithPendingTask($project, $app, $company, $user);
+        $service = new ProjectHeartbeatService();
+
+        Bus::fake([WakeAgentForProjectJob::class]);
+
+        $service->tick($project);
+        $this->assertNotNull($project->heartbeat_attention_hash);
+
+        /** @var Task $task */
+        $task = $plan->tasks()->firstOrFail();
+        $task->status = TaskStatusEnum::IN_PROGRESS->value;
+        $task->started_at = now();
+        $task->saveQuietly();
+
+        $this->assertFalse($service->tick($project));
+        $this->assertNull($project->heartbeat_attention_hash);
+        $this->assertNull($project->heartbeat_backoff_until);
+        $this->assertSame(0, $project->heartbeat_backoff_level);
+    }
+
+    public function testBackoffOffWakesOnEveryHeartbeat(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $this->planWithPendingTask($project, $app, $company, $user);
+        $project->heartbeat_max_backoff_minutes = 0;
+        $project->saveQuietly();
+        $service = new ProjectHeartbeatService();
+
+        Bus::fake([WakeAgentForProjectJob::class]);
+
+        $this->assertTrue($service->tick($project));
+        $this->travel(15)->minutes();
+        $this->assertTrue($service->tick($project));
+    }
+
+    public function testMaxBackoffCapsTheLongestWait(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+        $this->planWithPendingTask($project, $app, $company, $user);
+        $project->heartbeat_max_backoff_minutes = 240;
+        $project->saveQuietly();
+        $service = new ProjectHeartbeatService();
+
+        Bus::fake([WakeAgentForProjectJob::class]);
+
+        $service->tick($project);
+        foreach ([61, 241, 241] as $minutes) {
+            $this->travel($minutes)->minutes();
+            $this->assertTrue($service->tick($project));
+        }
+
+        $this->assertEqualsWithDelta(240, now()->diffInMinutes($project->heartbeat_backoff_until), 1);
+    }
+
+    public function testUpdateRejectsAnUnsupportedMaxBackoff(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $project = $this->makeProject($app, $company, $user);
+
+        $this->expectException(ValidationException::class);
+
+        new UpdateProjectAction(
+            $project,
+            ProjectData::forUpdate(
+                $project,
+                $app,
+                $company,
+                $user,
+                ['heartbeat_max_backoff_minutes' => 90]
+            ),
+        )->execute();
     }
 }

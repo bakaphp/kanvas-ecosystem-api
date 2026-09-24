@@ -11,6 +11,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\TrackAgentUsageAction;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Exceptions\AgentProviderException;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
@@ -83,6 +84,14 @@ class AgentChatKernel
 
     public function execute(): string
     {
+        // Outside the try below on purpose: that catch rewraps everything as AgentProviderException,
+        // which would strip the ShouldntReport/SilentWorkflowException markers and report the skip.
+        if (! $this->agent->is_active) {
+            throw new AgentReplySkippedException(
+                sprintf('Agent %d is deactivated', $this->agent->getId())
+            );
+        }
+
         $startTime = microtime(true);
         $sessionId = $this->session?->uuid ?? '';
 

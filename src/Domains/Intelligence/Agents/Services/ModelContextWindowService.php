@@ -12,7 +12,8 @@ use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Throwable;
 
 /**
- * How many tokens of conversation history an agent may replay, sized to the model that will answer.
+ * How many tokens of conversation history an agent may replay, sized to the model that will answer
+ * and bounded by the `kanvas.agents.max_history_tokens` cost cap.
  *
  * A single flat window has to be safe for the smallest context we run, so every agent inherited a
  * 200K-model budget — including ones on Gemini 2.5 Pro, five times larger. This reads the model's real
@@ -99,7 +100,17 @@ class ModelContextWindowService
         $reserve = self::toolOutputReserveTokens() + self::PROMPT_RESERVE_TOKENS;
         $budget = (int) (($ceiling - $reserve) / self::ESTIMATE_OPTIMISM);
 
-        return max(self::MIN_HISTORY_TOKENS, $budget);
+        return min(max(self::MIN_HISTORY_TOKENS, $budget), self::costCapTokens());
+    }
+
+    /**
+     * The model ceiling is what a request may hold, not what it should cost. Sizing Gemini to ~655K
+     * took the September Gemini spend from ~$600/day to ~$1,500/day overnight, because the history
+     * rides along on every tool-loop step — so the cap wins over both the ceiling and the floor.
+     */
+    private static function costCapTokens(): int
+    {
+        return max(1, (int) config('kanvas.agents.max_history_tokens', self::MIN_HISTORY_TOKENS));
     }
 
     /**

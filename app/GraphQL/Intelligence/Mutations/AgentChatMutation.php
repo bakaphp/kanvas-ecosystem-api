@@ -18,6 +18,7 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Enums\AgentChatStatusEnum;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Helpers\AgentChatBroadcastChannel;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Jobs\ProcessAgentChatTurnJob;
@@ -62,21 +63,25 @@ class AgentChatMutation
             $session ?? $agent
         );
 
-        return new AgentChatKernel(
-            agent: $agent,
-            session: $session,
-            message: AttachmentPromptBuilder::withFilesystemMarkers(
-                AttachmentPromptBuilder::withAttachments(
-                    (string) $input['message'],
-                    $mergedFiles,
+        try {
+            return new AgentChatKernel(
+                agent: $agent,
+                session: $session,
+                message: AttachmentPromptBuilder::withFilesystemMarkers(
+                    AttachmentPromptBuilder::withAttachments(
+                        (string) $input['message'],
+                        $mergedFiles,
+                    ),
+                    $attachments,
                 ),
-                $attachments,
-            ),
-            user: $user,
-            images: $mergedImages,
-            attachments: $attachments,
-            documents: $mergedFiles,
-        )->execute();
+                user: $user,
+                images: $mergedImages,
+                attachments: $attachments,
+                documents: $mergedFiles,
+            )->execute();
+        } catch (AgentReplySkippedException) {
+            throw $this->deactivatedAgentError();
+        }
     }
 
     public function createSession(mixed $root, array $req): string
@@ -205,7 +210,12 @@ class AgentChatMutation
             rendersArtifacts: true,
         );
 
-        $response = $processor->execute();
+        try {
+            $response = $processor->execute();
+        } catch (AgentReplySkippedException) {
+            throw $this->deactivatedAgentError();
+        }
+
         /** @var Message $reply userChat always supplies a Session, so persistence always runs and sets the reply (or throws). */
         $reply = $processor->persistedReply();
 
@@ -217,6 +227,15 @@ class AgentChatMutation
             'status' => AgentChatStatusEnum::COMPLETED->value,
             'broadcast_channel' => AgentChatBroadcastChannel::nameFor($agent, $session->uuid),
         ];
+    }
+
+    /**
+     * AgentReplySkippedException is not ClientAware, so letting it escape hands the caller a generic
+     * 503 in production.
+     */
+    private function deactivatedAgentError(): ValidationException
+    {
+        return new ValidationException(AgentReplySkippedException::DEACTIVATED_USER_MESSAGE);
     }
 
     /**
@@ -370,7 +389,7 @@ class AgentChatMutation
 
     /**
      * @param array<string, mixed> $input
-     * @return array{0: list<string>, 1: list<string>, 2: list<\Kanvas\Filesystem\Models\Filesystem>} `[$images, $files, $attachments]`
+     * @return array{0: list<string>, 1: list<string>, 2: list<Filesystem>} `[$images, $files, $attachments]`
      */
     protected function mergeUploadsWithUrls(
         array $input,

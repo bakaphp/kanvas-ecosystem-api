@@ -46,7 +46,7 @@ class CreateMessageFollowUpAction
 
     private const int MAX_RETRY_ATTEMPTS = 3;
 
-    private const string PRIMARY_MODEL = 'gemini-2.5-pro';
+    private const string PRIMARY_MODEL = 'gemini-3.8-flash';
 
     /**
      * Fallback legs in preference order. The chain must cross providers: laravel/ai keys the list

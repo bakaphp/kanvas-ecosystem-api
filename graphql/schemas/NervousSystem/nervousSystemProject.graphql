@@ -23,6 +23,11 @@ type NervousSystemProject {
     priority: Int!
     completion_pct: Int!
     heartbeat_interval_minutes: Int!
+    heartbeat_max_backoff_minutes: Int!
+    heartbeat_backoff_level: Int!
+    last_heartbeat_at: DateTime
+    next_heartbeat_at: DateTime
+    heartbeat_backoff_until: DateTime
     webhook_url: String
     deadline_at: DateTime
     started_at: DateTime
@@ -110,6 +115,7 @@ input CreateNervousSystemProjectInput {
     priority: Int
     deadline_at: DateTime
     heartbeat_interval_minutes: Int
+    heartbeat_max_backoff_minutes: Int
     files: [FilesystemInputUrl!]
 }
 
@@ -124,6 +130,7 @@ input UpdateNervousSystemProjectInput {
     priority: Int
     deadline_at: DateTime
     heartbeat_interval_minutes: Int
+    heartbeat_max_backoff_minutes: Int
     files: [FilesystemInputUrl!]
 }
 
