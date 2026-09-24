@@ -6,7 +6,6 @@ namespace Kanvas\NervousSystem\Project\Actions;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
-use Kanvas\Exceptions\ValidationException;
 use Kanvas\NervousSystem\Project\DataTransferObject\Project as ProjectData;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
@@ -20,7 +19,10 @@ class CreateProjectAction
 
     public function execute(): Project
     {
-        $this->assertValidHeartbeatInterval();
+        Project::assertValidHeartbeatSettings(
+            $this->data->heartbeatIntervalMinutes,
+            $this->data->heartbeatMaxBackoffMinutes,
+        );
 
         // Register Project as a SystemModule so the shared tag mutations work (mirrors Plan).
         new CreateInCurrentAppAction($this->data->app)->execute(Project::class);
@@ -52,6 +54,7 @@ class CreateProjectAction
             $project->deadline_at = $this->data->deadlineAt;
             $project->completion_pct = 0;
             $project->heartbeat_interval_minutes = $this->data->heartbeatIntervalMinutes;
+            $project->heartbeat_max_backoff_minutes = $this->data->heartbeatMaxBackoffMinutes;
             $project->saveOrFail();
 
             if ($this->data->files !== []) {
@@ -67,15 +70,5 @@ class CreateProjectAction
 
             return $project;
         });
-    }
-
-    private function assertValidHeartbeatInterval(): void
-    {
-        if (! in_array($this->data->heartbeatIntervalMinutes, Project::ALLOWED_HEARTBEAT_INTERVALS, true)) {
-            throw new ValidationException(sprintf(
-                'heartbeat_interval_minutes must be one of %s.',
-                implode(', ', Project::ALLOWED_HEARTBEAT_INTERVALS),
-            ));
-        }
     }
 }

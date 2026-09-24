@@ -354,6 +354,12 @@ The window itself is **sized to the model that will answer**, by
 by the nightly `nervous-system:sync-model-pricing`, so a freshly migrated environment reads NULL and
 every agent silently falls back to the 50K floor until that runs.
 
+**The model ceiling is an upper bound, not the budget.** `kanvas.agents.max_history_tokens` (env
+`AGENT_MAX_HISTORY_TOKENS`, default 50K) caps the result, and it wins over both the ceiling and the
+floor. The history is re-sent on every tool-loop step, so sizing Gemini to its ~655K ceiling took daily
+Gemini spend from ~$600 to ~$1,500 the day it shipped (2026-09-18). Raise the cap only with the cost in
+view.
+
 **Two traps in that number:**
 
 - **The catalogue reports the model's largest possible window, not the one our requests may spend.**

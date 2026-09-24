@@ -114,7 +114,7 @@ class CreateLeadFirstEngagementMessageAction
         )->prompt(
             $prompt,
             provider: Lab::Gemini,
-            model: 'gemini-2.5-pro',
+            model: 'gemini-3.8-flash',
             timeout: 220,
         );
 

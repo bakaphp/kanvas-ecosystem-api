@@ -48,7 +48,8 @@ type AgentUsageSnapshot {
     raw_output: String!
     parsed_data: JSON
     created_at: DateTime!
-    deployment: AgentDeploymentType @belongsTo
+    agent: AgentAi @belongsTo(relation: "agent")
+    deployment: AgentDeploymentType @belongsTo(relation: "deployment")
 }
 
 type AgentMachineType {
@@ -135,6 +136,7 @@ extend type Query @guard {
             @whereConditions(
                 columns: [
                     "id"
+                    "agent_id"
                     "agent_deployment_id"
                     "snapshot_date"
                     "source"

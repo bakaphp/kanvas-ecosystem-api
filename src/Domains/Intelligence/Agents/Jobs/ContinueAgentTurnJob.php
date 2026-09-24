@@ -12,6 +12,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
@@ -105,9 +106,13 @@ class ContinueAgentTurnJob implements ShouldQueue
             privateUserTurn: true,
         );
 
-        // Extracted like every other surface does before posting — an agent can answer with a JSON
-        // envelope, and the raw envelope would otherwise land in the Slack thread.
-        $reply = ChatHelper::extractTextFromResponse($kernel->execute());
+        try {
+            // Extracted like every other surface does before posting — an agent can answer with a JSON
+            // envelope, and the raw envelope would otherwise land in the Slack thread.
+            $reply = ChatHelper::extractTextFromResponse($kernel->execute());
+        } catch (AgentReplySkippedException) {
+            return;
+        }
 
         if (trim($reply) !== '') {
             new DeliverScheduledMessageToChannelAction(

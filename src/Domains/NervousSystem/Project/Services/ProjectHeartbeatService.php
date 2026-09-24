@@ -19,8 +19,8 @@ use Kanvas\NervousSystem\Project\Models\Project;
  * The proactive pulse. For each open project whose cadence has elapsed it decides "does this need a
  * nudge?" (stalled work, or pending work with nothing in flight) and, if so, wakes the PM — the
  * driver that keeps in-process agents advancing work even when nothing external happened. Container
- * agents self-drive (their own cron), so they're skipped. Stateless: it re-derives attention from
- * live state; the only thing it persists is the anti-thrash cadence.
+ * agents self-drive (their own cron), so they're skipped. It re-derives attention from live state;
+ * what it persists is the cadence and the backoff for a stuck state the PM has already been woken for.
  */
 class ProjectHeartbeatService
 {
@@ -71,20 +71,28 @@ class ProjectHeartbeatService
     /**
      * Evaluate + (maybe) wake, then advance the cadence. Returns whether the PM was woken. $forceWake
      * (the command's --force) wakes the PM even with nothing obviously waiting — a manual trigger —
-     * but still never double-drives a container-runtime PM.
+     * but still never double-drives a container-runtime PM, and leaves the backoff state alone.
      */
     public function tick(Project $project, bool $forceWake = false): bool
     {
-        $needsAttention = $this->needsAttention($project);
+        $fingerprint = $this->attentionFingerprint($project);
+        $needsAttention = $fingerprint !== null;
+        $changed = $fingerprint !== $project->heartbeat_attention_hash;
+        $backoffAllows = $needsAttention && $this->backoffAllowsWake($project, $changed);
         $woke = false;
 
-        if (($needsAttention || $forceWake) && ! $this->pmSelfDrives($project)) {
+        if (($backoffAllows || $forceWake) && ! $this->pmSelfDrives($project)) {
             WakeAgentForProjectJob::dispatch($project, WakeAgentForProjectJob::REASON_HEARTBEAT);
             $woke = true;
         }
 
+        if ($backoffAllows || ! $needsAttention) {
+            $this->advanceBackoff($project, $fingerprint, $changed);
+        }
+
         // Anti-thrash: advance the cadence whether or not we woke, so a busy-but-quiet project isn't
-        // re-evaluated every 5-min scheduler run.
+        // re-evaluated every 5-min scheduler run. Evaluating is a few indexed queries; the backoff is
+        // what spaces out the wakes, so a change is still noticed at the normal cadence.
         $project->last_heartbeat_at = now();
         $project->next_heartbeat_at = now()->addMinutes($project->heartbeat_interval_minutes);
         $project->saveQuietly();
@@ -93,50 +101,113 @@ class ProjectHeartbeatService
             'needs_attention' => $needsAttention,
             'woke' => $woke,
             'forced' => $forceWake,
+            'attention_changed' => $needsAttention && $changed,
+            'backoff_level' => $project->heartbeat_backoff_level,
+            'backoff_until' => $project->heartbeat_backoff_until?->toIso8601String(),
         ]);
 
         return $woke;
     }
 
-    /**
-     * Is there work that's waiting or stuck? A project with no plans yet doesn't get nudged — it waits
-     * for ingest to give it something; the heartbeat is for *existing* work that isn't moving.
-     */
     public function needsAttention(Project $project): bool
+    {
+        return $this->attentionFingerprint($project) !== null;
+    }
+
+    /**
+     * Identifies the work that's waiting or stuck, or null when nothing is. A project with no plans yet
+     * doesn't get nudged — it waits for ingest to give it something; the heartbeat is for *existing*
+     * work that isn't moving.
+     *
+     * Built from ids and statuses only, never timestamps: a PM that touches a stuck task without moving
+     * it must not read as progress, or it would reset its own backoff on every wake.
+     */
+    public function attentionFingerprint(Project $project): ?string
     {
         // A worker that blocked its plan (e.g. "I don't have the tools to do this") is waiting on the
         // PM to reassign/escalate — pick it up even if it left no pending subtasks behind.
-        $hasBlockedPlan = $project->plans()
+        $blockedPlanIds = $project->plans()
             ->where('status', PlanStatusEnum::BLOCKED->value)
-            ->exists();
-        if ($hasBlockedPlan) {
-            return true;
-        }
+            ->orderBy('id')
+            ->pluck('id')
+            ->all();
 
         $planIds = $project->plans()->pluck('id')->all();
         if ($planIds === []) {
-            return false;
+            return null;
         }
 
-        $hasStalled = Task::query()
+        $stalledTaskIds = Task::query()
             ->whereIn('plan_id', $planIds)
             ->stalled(self::STALL_MINUTES)
-            ->exists();
-        if ($hasStalled) {
-            return true;
+            ->orderBy('id')
+            ->pluck('id')
+            ->all();
+
+        $idleTaskIds = $this->pendingTaskIdsWithNothingInFlight($planIds);
+
+        if ($blockedPlanIds === [] && $stalledTaskIds === [] && $idleTaskIds === []) {
+            return null;
         }
 
-        // One grouped query returning at most the two statuses we care about — cheaper than pulling
-        // every task row into memory just to answer "any pending?" / "any in-flight?".
-        $activeStatuses = Task::query()
+        return sha1(implode('|', [
+            'blocked:' . implode(',', $blockedPlanIds),
+            'stalled:' . implode(',', $stalledTaskIds),
+            'idle:' . implode(',', $idleTaskIds),
+        ]));
+    }
+
+    /**
+     * @param list<int> $planIds
+     *
+     * @return list<int>
+     */
+    private function pendingTaskIdsWithNothingInFlight(array $planIds): array
+    {
+        $active = Task::query()
             ->whereIn('plan_id', $planIds)
             ->notDeleted()
             ->whereIn('status', [TaskStatusEnum::PENDING->value, TaskStatusEnum::IN_PROGRESS->value])
-            ->distinct()
-            ->pluck('status');
+            ->orderBy('id')
+            ->get(['id', 'status']);
 
-        return $activeStatuses->contains(TaskStatusEnum::PENDING->value)
-            && ! $activeStatuses->contains(TaskStatusEnum::IN_PROGRESS->value);
+        if ($active->contains('status', TaskStatusEnum::IN_PROGRESS->value)) {
+            return [];
+        }
+
+        return $active->pluck('id')->map(fn ($id): int => (int) $id)->all();
+    }
+
+    /**
+     * A new stuck state always wakes. The same one re-wakes only once its backoff window has passed —
+     * the PM already saw it, and a turn that changed nothing is unlikely to be fixed by an identical one.
+     */
+    private function backoffAllowsWake(Project $project, bool $changed): bool
+    {
+        if ($changed || $project->heartbeatBackoffSteps() === []) {
+            return true;
+        }
+
+        return $project->heartbeat_backoff_until === null || $project->heartbeat_backoff_until->isPast();
+    }
+
+    private function advanceBackoff(Project $project, ?string $fingerprint, bool $changed): void
+    {
+        $steps = $project->heartbeatBackoffSteps();
+
+        if ($fingerprint === null || $steps === []) {
+            $project->heartbeat_attention_hash = $fingerprint;
+            $project->heartbeat_backoff_level = 0;
+            $project->heartbeat_backoff_until = null;
+
+            return;
+        }
+
+        $level = $changed ? 0 : min($project->heartbeat_backoff_level + 1, count($steps) - 1);
+
+        $project->heartbeat_attention_hash = $fingerprint;
+        $project->heartbeat_backoff_level = $level;
+        $project->heartbeat_backoff_until = now()->addMinutes($steps[$level]);
     }
 
     /**
