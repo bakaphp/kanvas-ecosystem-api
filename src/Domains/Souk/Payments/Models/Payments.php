@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Payments\Models\PaymentMethods;
 use Kanvas\Souk\Models\BaseModel;
 use Kanvas\Souk\Payments\Actions\LogPaymentEventAction;
+use Kanvas\Souk\Payments\DataTransferObject\PaymentFailure;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Enums\RefundStatusEnum;
 use Kanvas\Souk\Payments\Observers\PaymentObserver;
@@ -108,18 +109,13 @@ class Payments extends BaseModel
         ];
     }
 
-    public function addLog(
-        string $event,
-        array $context = [],
-        ?string $errorCode = null,
-        ?string $errorMessage = null,
-    ): void {
+    public function addLog(string $event, array $context = [], ?PaymentFailure $failure = null): void
+    {
         app(LogPaymentEventAction::class)->execute(
             $this,
             $event,
             $context,
-            $errorCode,
-            $errorMessage,
+            $failure,
         );
     }
 
