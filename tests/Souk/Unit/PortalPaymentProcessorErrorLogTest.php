@@ -27,9 +27,8 @@ final class PortalPaymentProcessorErrorLogTest extends TestCaseUnit
 
     public function testReasonIsReadFromAnUnwrappedGatewayBody(): void
     {
-        $exception = new EchoPayException('Payment not approved', 400, null, [
-            'errorInformation' => ['reason' => 'INVALID_ACCOUNT'],
-        ]);
+        $errorBody = ['errorInformation' => ['reason' => 'INVALID_ACCOUNT']];
+        $exception = new EchoPayException(message: 'Payment not approved', code: 400, errorBody: $errorBody);
 
         $this->assertSame('INVALID_ACCOUNT', $exception->getReason());
     }
@@ -74,7 +73,7 @@ final class PortalPaymentProcessorErrorLogTest extends TestCaseUnit
 
     private function decline(array $data): EchoPayException
     {
-        return new EchoPayException('Payment not approved', 400, null, ['data' => $data]);
+        return new EchoPayException(message: 'Payment not approved', code: 400, errorBody: ['data' => $data]);
     }
 
     private function assertPaymentErrorLogged(Throwable $exception, PaymentFailure $expected, ?string $resolvedMessage = null): void
