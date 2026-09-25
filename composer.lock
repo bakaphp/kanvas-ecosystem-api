@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5713ca6e9f188b77476e698bd8690897",
+    "content-hash": "2de1f587d74b9cf928df98af7c67af89",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -7663,6 +7663,58 @@
                 }
             ],
             "time": "2026-09-19T12:52:41+00:00"
+        },
+        {
+            "name": "neuron-core/router",
+            "version": "1.2.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/neuron-core/router.git",
+                "reference": "411b55f7783f1dbbacc3cecb2dbf6b95382637af"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/neuron-core/router/zipball/411b55f7783f1dbbacc3cecb2dbf6b95382637af",
+                "reference": "411b55f7783f1dbbacc3cecb2dbf6b95382637af",
+                "shasum": ""
+            },
+            "require": {
+                "neuron-core/neuron-ai": "^3.0",
+                "php": "^8.1"
+            },
+            "require-dev": {
+                "friendsofphp/php-cs-fixer": "^3.75",
+                "neuron-core/llm-classifier": "^0.3",
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^10.0",
+                "rector/rector": "^2.0",
+                "tomasvotruba/type-coverage": "^2.0"
+            },
+            "suggest": {
+                "neuron-core/classifier": "Required to use the DifficultyRule (difficulty-based routing)."
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "NeuronAI\\Router\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Valerio Barbera",
+                    "email": "valerio@inspector.dev"
+                }
+            ],
+            "description": "Route inference calls to different underlying providers based on a routing strategy you define.",
+            "support": {
+                "issues": "https://github.com/neuron-core/router/issues",
+                "source": "https://github.com/neuron-core/router/tree/1.2.2"
+            },
+            "time": "2026-09-01T16:49:34+00:00"
         },
         {
             "name": "nevadskiy/laravel-tree",

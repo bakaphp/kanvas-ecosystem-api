@@ -17,6 +17,7 @@ use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOllama;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAI;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAILike;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
+use Illuminate\Database\Eloquent\Collection;
 use NeuronAI\HttpClient\GuzzleHttpClient;
 use NeuronAI\Providers\AIProviderInterface;
 
@@ -32,8 +33,62 @@ class AgentProviderService
 
     public static function resolve(Agent $agent): AIProviderInterface
     {
-        $app = $agent->app;
         $source = self::resolveSource($agent);
+
+        return self::makeProvider($agent, $source);
+    }
+
+    public static function resolveConfig(Agent $agent, AgentLlmConfig $config): AIProviderInterface
+    {
+        if ((int) $config->apps_id !== (int) $agent->apps_id
+            || ! in_array((int) $config->companies_id, [0, (int) $agent->companies_id], true)
+            || ! $config->is_active
+            || $config->is_deleted) {
+            throw new ValidationException('The LLM config is not active or does not belong to the agent tenant.');
+        }
+
+        return self::makeProvider($agent, self::sourceFromConfig($config));
+    }
+
+    /**
+     * Active alternatives available to this agent. Company configurations win
+     * over app-global ones, then creation order is used as the stable order.
+     *
+     * @return Collection<int, AgentLlmConfig>
+     */
+    public static function fallbackConfigs(Agent $agent): Collection
+    {
+        $selectedId = $agent->agent_llm_config_id;
+
+        /** @var Collection<int, AgentLlmConfig> $configs */
+        $configs = AgentLlmConfig::query()
+            ->where('apps_id', $agent->apps_id)
+            ->whereIn('companies_id', [0, $agent->companies_id])
+            ->when($selectedId !== null, fn ($query) => $query->where('id', '!=', $selectedId))
+            ->where('is_deleted', 0)
+            ->where('is_active', 1)
+            ->get();
+
+        return $configs->sort(function (AgentLlmConfig $left, AgentLlmConfig $right) use ($agent): int {
+            $leftKey = [
+                (int) $left->companies_id === (int) $agent->companies_id ? 0 : 1,
+                $left->getId(),
+            ];
+            $rightKey = [
+                (int) $right->companies_id === (int) $agent->companies_id ? 0 : 1,
+                $right->getId(),
+            ];
+
+            return $leftKey <=> $rightKey;
+        })->values();
+    }
+
+    /**
+     * @param array{provider: ?string, base_uri: ?string, key: ?string, model: ?string, parameters: array} $source
+     */
+    private static function makeProvider(Agent $agent, array $source): AIProviderInterface
+    {
+        $app = $agent->app;
         $provider = self::providerFrom($source);
         $model = self::modelFrom($source, $agent);
         $parameters = is_array($source['parameters'] ?? null) ? $source['parameters'] : [];
@@ -113,13 +168,7 @@ class AgentProviderService
 
         $selected = self::selectedConfig($agent);
         if ($selected !== null) {
-            return [
-                'provider' => $selected->provider,
-                'base_uri' => $selected->base_uri,
-                'key' => $selected->api_key,
-                'model' => $selected->model,
-                'parameters' => is_array($selected->config) ? $selected->config : [],
-            ];
+            return self::sourceFromConfig($selected);
         }
 
         if (isset($config['llm_provider'])) {
@@ -138,6 +187,20 @@ class AgentProviderService
             'key' => null,
             'model' => $config['model'] ?? null,
             'parameters' => [],
+        ];
+    }
+
+    /**
+     * @return array{provider: ?string, base_uri: ?string, key: ?string, model: ?string, parameters: array}
+     */
+    private static function sourceFromConfig(AgentLlmConfig $config): array
+    {
+        return [
+            'provider' => $config->provider,
+            'base_uri' => $config->base_uri,
+            'key' => $config->api_key,
+            'model' => $config->model,
+            'parameters' => is_array($config->config) ? $config->config : [],
         ];
     }
 
