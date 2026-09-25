@@ -17,6 +17,7 @@ class AgentLlmConfigCrudTest extends TestCase
             'api_key' => 'secret-key-value',
             'model' => 'Qwen3.6-35B-A3B-4bit',
             'is_active' => true,
+            'is_routing_enabled' => true,
         ];
     }
 
@@ -34,6 +35,7 @@ class AgentLlmConfigCrudTest extends TestCase
                     model
                     has_api_key
                     is_active
+                    is_routing_enabled
                 }
             }
         ', ['input' => $input])
@@ -45,6 +47,7 @@ class AgentLlmConfigCrudTest extends TestCase
             'model' => 'Qwen3.6-35B-A3B-4bit',
             'has_api_key' => true,
             'is_active' => true,
+            'is_routing_enabled' => true,
         ]]]);
     }
 
@@ -76,6 +79,7 @@ class AgentLlmConfigCrudTest extends TestCase
                     id
                     model
                     has_api_key
+                    is_routing_enabled
                 }
             }
         ', ['id' => $id, 'input' => ['model' => 'Qwen-updated']])
@@ -83,6 +87,7 @@ class AgentLlmConfigCrudTest extends TestCase
         ->assertJson(['data' => ['updateAgentLlmConfig' => [
             'model' => 'Qwen-updated',
             'has_api_key' => true,
+            'is_routing_enabled' => true,
         ]]]);
     }
 
