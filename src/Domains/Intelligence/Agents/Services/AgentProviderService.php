@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Services;
 
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -17,7 +18,6 @@ use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOllama;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAI;
 use Kanvas\Intelligence\Agents\Neuron\Providers\KanvasOpenAILike;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
-use Illuminate\Database\Eloquent\Collection;
 use NeuronAI\HttpClient\GuzzleHttpClient;
 use NeuronAI\Providers\AIProviderInterface;
 
