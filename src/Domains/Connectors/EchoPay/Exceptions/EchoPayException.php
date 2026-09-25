@@ -16,8 +16,12 @@ class EchoPayException extends ValidationException
     // parent drops the constructor's $code (never passes it to Exception), so getCode() is always 0.
     protected int $statusCode;
 
-    public function __construct(string|array $message = '', int $code = 0, ?Throwable $previous = null, array $errorBody = [])
-    {
+    public function __construct(
+        string|array $message = '',
+        int $code = 0,
+        ?Throwable $previous = null,
+        array $errorBody = []
+    ) {
         $message = is_array($message) ? implode(', ', $message) : $message;
         parent::__construct($message, $code, $previous);
         $this->errorBody = $errorBody;
@@ -44,6 +48,11 @@ class EchoPayException extends ValidationException
         return $this->getBodySection('errorInformation')['reason'] ?? null;
     }
 
+    public function getGatewayMessage(): ?string
+    {
+        return $this->getBodySection('errorInformation')['message'] ?? null;
+    }
+
     public function getProcessorResponseCode(): ?string
     {
         return $this->getBodySection('processorInformation')['responseCode'] ?? null;
@@ -58,7 +67,7 @@ class EchoPayException extends ValidationException
     {
         return new PaymentFailure(
             code: $this->getReason() ?? class_basename($this),
-            message: $this->getBodySection('errorInformation')['message'] ?? $this->getMessage(),
+            message: $this->getGatewayMessage() ?? $this->getMessage(),
             processorResponseCode: $this->getProcessorResponseCode(),
             responseInsight: $this->getResponseInsight(),
         );
@@ -67,7 +76,7 @@ class EchoPayException extends ValidationException
     public function getUserMessage(): string
     {
         $reason = $this->getReason();
-        $message = $this->getBodySection('errorInformation')['message'] ?? null;
+        $message = $this->getGatewayMessage();
 
         if ($reason) {
             $translationKey = 'payment_errors.' . $reason;

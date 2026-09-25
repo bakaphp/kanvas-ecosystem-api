@@ -24,7 +24,8 @@ class EnforceCardVelocityLimitAction
 
     public function execute(): void
     {
-        $orderType = $this->payment->order?->orderType;
+        $order = $this->payment->payable;
+        $orderType = $order instanceof Order ? $order->orderType : null;
         $card = $this->cardKey($this->payment->payment_method_brand, $this->payment->payment_method_last_four);
 
         if (! $orderType || $card === null) {
