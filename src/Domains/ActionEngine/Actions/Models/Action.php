@@ -33,7 +33,7 @@ use Nevadskiy\Tree\AsTree;
  * @property string $name
  * @property string $slug
  * @property string $description
- * @property string $icon
+ * @property mixed $icon
  * @property string $form_fields
  * @property string $form_config
  * @property int is_active
@@ -53,6 +53,7 @@ class Action extends BaseModel
     protected function casts(): array
     {
         return [
+            'icon' => Json::class,
             'form_fields' => Json::class,
             'form_config' => Json::class,
         ];

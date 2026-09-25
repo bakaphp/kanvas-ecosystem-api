@@ -127,8 +127,15 @@ class ActionCrudTest extends TestCase
         $this->assertSame($icon, Action::find($response->json('data.createAction.id'))->icon);
     }
 
-    public function testCreateActionRejectsNonStringIcon(): void
+    /**
+     * `icon` is Mixed rather than String so a client can send a structured icon without breaking the
+     * apps still sending raw SVG. Baka's Json cast stores an array encoded and leaves a string alone,
+     * so both shapes round-trip through the same column.
+     */
+    public function testCreateActionWithStructuredIcon(): void
     {
+        $icon = ['name' => 'star', 'type' => 'lucide', 'color' => '#FF0000'];
+
         $response = $this->graphQL('
             mutation($input: ActionInput!) {
                 createAction(input: $input) {
@@ -137,14 +144,12 @@ class ActionCrudTest extends TestCase
                 }
             }
         ', ['input' => [
-            'name' => 'Bad Icon Action ' . fake()->word(),
-            'icon' => ['not', 'a', 'string'],
-        ]]);
+            'name' => 'Structured Icon Action ' . fake()->word(),
+            'icon' => $icon,
+        ]])->assertSuccessful();
 
-        $response->assertGraphQLErrorMessage(
-            'Variable "$input" got invalid value ["not","a","string"] at "input.icon"; String cannot represent a non string value: ["not","a","string"]'
-        );
-        $this->assertNull($response->json('data'));
+        $this->assertSame($icon, $response->json('data.createAction.icon'));
+        $this->assertSame($icon, Action::find($response->json('data.createAction.id'))->icon);
     }
 
     public function testUpdateAction(): void
