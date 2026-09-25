@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Ecosystem\Integration\SystemModules;
 
 use Illuminate\Cache\Events\CacheFlushing;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -83,35 +84,60 @@ final class SystemModulesBatchResolutionTest extends TestCase
     }
 
     /**
-     * The whole point of the batch path: cache invalidation must not scale with the number of rows.
-     * Resolving them one at a time costs one flush per row, which is what made createApp take 8s.
+     * The whole point of the batch path: resolving N models must not cost N round trips.
+     */
+    public function testResolutionDoesNotScaleWithTheNumberOfModels(): void
+    {
+        $app = app(Apps::class);
+
+        $queries = function (array $names) use ($app): int {
+            $count = 0;
+            DB::listen(function () use (&$count) {
+                $count++;
+            });
+            SystemModulesRepository::getByModelNames($names, $app);
+
+            return $count;
+        };
+
+        $many = [];
+        for ($i = 0; $i < 6; $i++) {
+            $many[] = 'Tests\\Batch\\Scale' . $i . uniqid();
+        }
+
+        $this->assertLessThan(count($many), $queries($many), 'six new models must cost fewer than six queries');
+        $this->assertLessThanOrEqual(2, $queries($many), 'resolving models that already exist is a single lookup');
+    }
+
+    /**
+     * The other half of why the batch exists: SystemModules is cached, so a firstOrCreate per model
+     * would flush the tag per model. Invalidation has to be constant, not per row.
      */
     public function testInvalidationDoesNotScaleWithTheNumberOfRowsWritten(): void
     {
         $app = app(Apps::class);
 
-        $count = function (array $names) use ($app): int {
-            $flushes = 0;
-            $listener = function () use (&$flushes) {
-                $flushes++;
+        $flushes = function (array $names) use ($app): int {
+            $count = 0;
+            $listener = function () use (&$count) {
+                $count++;
             };
             Event::listen(CacheFlushing::class, $listener);
             SystemModulesRepository::getByModelNames($names, $app);
             Event::forget(CacheFlushing::class);
 
-            return $flushes;
+            return $count;
         };
 
-        $one = $count(['Tests\\Batch\\Flush' . uniqid()]);
+        $one = $flushes(['Tests\\Batch\\Flush' . uniqid()]);
 
         $many = [];
         for ($i = 0; $i < 6; $i++) {
             $many[] = 'Tests\\Batch\\Flush' . $i . uniqid();
         }
 
-        $this->assertGreaterThan(0, $one);
-        $this->assertSame($one, $count($many), 'six new rows must cost the same invalidation as one');
-        $this->assertSame(0, $count($many), 'resolving rows that already exist must not invalidate at all');
+        $this->assertSame($one, $flushes($many), 'six new rows must cost the same invalidation as one');
+        $this->assertSame(0, $flushes($many), 'rows that already exist must not invalidate at all');
     }
 
     public function testEmptyInputDoesNotTouchTheDatabase(): void

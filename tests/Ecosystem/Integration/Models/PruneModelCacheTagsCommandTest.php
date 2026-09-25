@@ -6,7 +6,6 @@ namespace Tests\Ecosystem\Integration\Models;
 
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\SystemModules\Models\SystemModules;
 use ReflectionMethod;
 use Tests\TestCase;
 
@@ -16,11 +15,11 @@ final class PruneModelCacheTagsCommandTest extends TestCase
     {
         $this->markSkippedUnlessRedisBacked();
 
-        $tags = $this->systemModuleTags();
+        $tags = $this->appTags();
         Cache::store('model')->flush();
 
-        foreach (['Prune\\A', 'Prune\\B', 'Prune\\C'] as $name) {
-            SystemModules::where('model_name', $name)->where('apps_id', app(Apps::class)->getKey())->first();
+        foreach (['prune-a', 'prune-b', 'prune-c'] as $key) {
+            Apps::where('key', $key)->first();
         }
 
         $populated = $this->entryCount($tags);
@@ -40,10 +39,10 @@ final class PruneModelCacheTagsCommandTest extends TestCase
     {
         $this->markSkippedUnlessRedisBacked();
 
-        $tags = $this->systemModuleTags();
+        $tags = $this->appTags();
         Cache::store('model')->flush();
 
-        SystemModules::where('model_name', 'Prune\\Live')->where('apps_id', app(Apps::class)->getKey())->first();
+        Apps::where('key', 'prune-live')->first();
         $live = $this->entryCount($tags);
 
         $this->artisan('kanvas:cache:prune-model-cache-tags')->assertSuccessful();
@@ -55,10 +54,10 @@ final class PruneModelCacheTagsCommandTest extends TestCase
     {
         $this->markSkippedUnlessRedisBacked();
 
-        $tags = $this->systemModuleTags();
+        $tags = $this->appTags();
         Cache::store('model')->flush();
 
-        SystemModules::where('model_name', 'Prune\\Dry')->where('apps_id', app(Apps::class)->getKey())->first();
+        Apps::where('key', 'prune-dry')->first();
         Cache::store('model')->tags($tags)->flush();
         $dangling = $this->entryCount($tags);
 
@@ -70,9 +69,9 @@ final class PruneModelCacheTagsCommandTest extends TestCase
     /**
      * @return array<int, string>
      */
-    private function systemModuleTags(): array
+    private function appTags(): array
     {
-        return new ReflectionMethod(SystemModules::class, 'makeCacheTags')->invoke(new SystemModules());
+        return new ReflectionMethod(Apps::class, 'makeCacheTags')->invoke(new Apps());
     }
 
     private function entryCount(array $tags): int

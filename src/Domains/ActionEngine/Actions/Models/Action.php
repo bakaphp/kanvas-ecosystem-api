@@ -18,6 +18,7 @@ use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Nevadskiy\Tree\AsTree;
+use Override;
 
 /**
  * Class Action.
@@ -50,6 +51,7 @@ class Action extends BaseModel
     protected $table = 'actions';
     protected $guarded = [];
 
+    #[Override]
     protected function casts(): array
     {
         return [
@@ -86,7 +88,8 @@ class Action extends BaseModel
             'description' => $this->description,
         ];
     }
-
+    
+    #[Override]
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();
@@ -94,13 +97,15 @@ class Action extends BaseModel
 
     public static function search($query = '', $callback = null)
     {
-        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        // Mirrors the fromPublicOrCurrentApp/fromCompanyAndGlobal scopes the paginated query uses:
+        // actions ship both as platform globals (apps_id/companies_id 0) and per app/company rows.
+        $query = self::traitSearch($query, $callback)->whereIn('apps_id', [0, app(Apps::class)->getId()]);
         $user = auth()->user();
 
         if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
-        } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
-            $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+            $query->whereIn('companies_id', [0, app(CompaniesBranches::class)->company->getId()]);
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->whereIn('companies_id', [0, $user->getCurrentCompany()->getId()]);
         }
 
         return $query;

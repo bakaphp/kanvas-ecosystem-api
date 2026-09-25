@@ -8,7 +8,6 @@ use Illuminate\Cache\Events\CacheFlushing;
 use Illuminate\Support\Facades\Event;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Models\Concerns\CachesModelQueries;
-use Kanvas\SystemModules\Models\SystemModules;
 use Tests\TestCase;
 
 final class CachesModelQueriesTest extends TestCase
@@ -17,8 +16,8 @@ final class CachesModelQueriesTest extends TestCase
     {
         $this->assertContains(
             CachesModelQueries::class,
-            class_uses_recursive(SystemModules::class),
-            'SystemModules must not go back to the upstream Cachable trait'
+            class_uses_recursive(Apps::class),
+            'Apps must not go back to the upstream Cachable trait'
         );
     }
 
@@ -29,45 +28,58 @@ final class CachesModelQueriesTest extends TestCase
      */
     public function testAnInsertInvalidatesTheCacheOnceNotTwice(): void
     {
-        $flushes = $this->countFlushes(function (): void {
-            SystemModules::create([
-                'model_name' => 'Tests\\Caching\\Insert' . uniqid(),
-                'apps_id' => app(Apps::class)->getKey(),
-                'slug' => 'tests-caching-insert',
-            ]);
+        $app = null;
+        $flushes = $this->countFlushes(function () use (&$app): void {
+            $app = $this->makeApp('Insert');
         });
 
+        $app->forceDelete();
         $this->assertSame(1, $flushes);
     }
 
     public function testAnUpdateStillInvalidatesTheCache(): void
     {
-        $module = SystemModules::create([
-            'model_name' => 'Tests\\Caching\\Update' . uniqid(),
-            'apps_id' => app(Apps::class)->getKey(),
-            'slug' => 'tests-caching-update',
-        ]);
+        $app = $this->makeApp('Update');
 
-        $flushes = $this->countFlushes(function () use ($module): void {
-            $module->update(['name' => 'renamed']);
+        $flushes = $this->countFlushes(function () use ($app): void {
+            $app->update(['name' => 'renamed']);
         });
+
+        $app->forceDelete();
 
         $this->assertGreaterThan(0, $flushes, 'dropping the created hook must not stop updates invalidating');
     }
 
     public function testADeleteStillInvalidatesTheCache(): void
     {
-        $module = SystemModules::create([
-            'model_name' => 'Tests\\Caching\\Delete' . uniqid(),
-            'apps_id' => app(Apps::class)->getKey(),
-            'slug' => 'tests-caching-delete',
-        ]);
+        $app = $this->makeApp('Delete');
 
-        $flushes = $this->countFlushes(function () use ($module): void {
-            $module->delete();
+        $flushes = $this->countFlushes(function () use ($app): void {
+            $app->delete();
         });
 
+        $app->forceDelete();
+
         $this->assertGreaterThan(0, $flushes, 'dropping the created hook must not stop deletes invalidating');
+    }
+
+    private function makeApp(string $tag): Apps
+    {
+        $app = new Apps();
+        $app->fill([
+            'name' => 'Caching ' . $tag . ' ' . uniqid(),
+            'url' => 'https://caching.test',
+            'description' => 'test',
+            'domain' => 'caching.test',
+            'is_actived' => 1,
+            'ecosystem_auth' => 1,
+            'payments_active' => 0,
+            'is_public' => 0,
+            'domain_based' => 0,
+        ]);
+        $app->saveOrFail();
+
+        return $app;
     }
 
     private function countFlushes(callable $operation): int

@@ -52,12 +52,11 @@ class SystemModulesRepository
     /**
      * Resolve many model names in one round trip, keyed by model name.
      *
-     * Every row written to SystemModules costs a full tagged-cache flush (the model is Cachable),
-     * so resolving N models one firstOrCreate at a time costs N flushes — 46 of them, ~5s, on every
-     * app creation. The bulk insert goes through the query builder on purpose: it fires no Eloquent
-     * events, so the whole batch invalidates the cache once instead of once per row (CachedBuilder
-     * still flushes for us on insert). That also means UuidTrait and bootSlugTrait do not run,
-     * hence the explicit uuid/slug/name.
+     * App creation resolves ~46 models at once. A firstOrCreate apiece costs 46 round trips and, since
+     * the model is cached, 46 tag flushes on top. This is two queries and one bulk insert however many
+     * models are asked for, and the insert goes through the query builder deliberately so it fires no
+     * per-row Eloquent events — which also means UuidTrait and bootSlugTrait do not run, hence the
+     * explicit uuid/slug/name.
      */
     public static function getByModelNames(array $modelNames, ?AppInterface $app = null): Collection
     {

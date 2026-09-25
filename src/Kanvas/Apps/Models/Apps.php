@@ -54,8 +54,8 @@ use Override;
  */
 class Apps extends BaseModel implements AppInterface
 {
-    use HashTableTrait;
     use CachesModelQueries;
+    use HashTableTrait;
     use CanUseWorkflow;
     use HasFilesystemTrait;
 
