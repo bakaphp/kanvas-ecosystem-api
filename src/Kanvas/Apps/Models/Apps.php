@@ -9,6 +9,7 @@ use Baka\Enums\StateEnums;
 use Baka\Support\Str;
 use Baka\Traits\HashTableTrait;
 use Baka\Users\Contracts\UserInterface;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -24,7 +25,6 @@ use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
 use Kanvas\Models\BaseModel;
-use Kanvas\Models\Concerns\CachesModelQueries;
 use Kanvas\Roles\Models\Roles;
 use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\Users\Models\UserCompanyApps;
@@ -54,7 +54,7 @@ use Override;
  */
 class Apps extends BaseModel implements AppInterface
 {
-    use CachesModelQueries;
+    use Cachable;
     use HashTableTrait;
     use CanUseWorkflow;
     use HasFilesystemTrait;

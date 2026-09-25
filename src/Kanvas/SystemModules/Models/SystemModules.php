@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Baka\Support\Str;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
+use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -26,7 +27,6 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\KanvasModules\Models\KanvasModule;
 use Kanvas\Models\BaseModel;
-use Kanvas\Models\Concerns\CachesModelQueries;
 use Kanvas\NervousSystem\Plan\Models\Plan as NervousSystemPlan;
 use Kanvas\NervousSystem\Project\Models\Project as NervousSystemProject;
 use Kanvas\Regions\Models\Regions;
@@ -56,7 +56,7 @@ use Silber\Bouncer\Database\Ability;
  */
 class SystemModules extends BaseModel
 {
-    use CachesModelQueries;
+    use Cachable;
     use SlugTrait;
     use UuidTrait;
 
