@@ -15,6 +15,7 @@ use Kanvas\Connectors\Movipass\Actions\ValidatePaymentAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
+use Kanvas\Souk\Payments\Actions\EnforceCardVelocityLimitAction;
 use Kanvas\Souk\Payments\Actions\MakePaymentIntentAction;
 use Kanvas\Souk\Payments\Enums\PaymentMethodTypesEnum;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
@@ -187,6 +188,8 @@ class PaymentMutation
                 'message' => 'Payment is already waiting for device data',
             ];
         }
+
+        new EnforceCardVelocityLimitAction($payment)->execute();
 
         try {
             $paymentProcessor = new PortalPaymentProcessor(
