@@ -24,6 +24,7 @@ class AgentLlmConfig extends Data
         public readonly ?string $model = null,
         public readonly ?array $config = null,
         public readonly bool $is_active = true,
+        public readonly bool $is_routing_enabled = false,
     ) {
     }
 
@@ -44,6 +45,7 @@ class AgentLlmConfig extends Data
             model: $data['model'] ?? null,
             config: $data['config'] ?? null,
             is_active: (bool) ($data['is_active'] ?? true),
+            is_routing_enabled: (bool) ($data['is_routing_enabled'] ?? false),
         );
     }
 
@@ -69,6 +71,7 @@ class AgentLlmConfig extends Data
             model: array_key_exists('model', $data) ? $data['model'] : $config->model,
             config: array_key_exists('config', $data) ? $data['config'] : $config->config,
             is_active: (bool) ($data['is_active'] ?? $config->is_active),
+            is_routing_enabled: (bool) ($data['is_routing_enabled'] ?? $config->is_routing_enabled),
         );
     }
 }

@@ -29,6 +29,7 @@ class AgentLlmConfigFactory extends Factory
             'model' => 'Qwen3.6-35B-A3B-4bit',
             'config' => [],
             'is_active' => true,
+            'is_routing_enabled' => false,
         ];
     }
 

@@ -29,15 +29,25 @@ final class NeuronResponderProviderFallbackTest extends TestCase
         $companyFallback = AgentLlmConfigFactory::new()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
-            ->create(['provider' => AgentLlmProviderEnum::ANTHROPIC->value]);
+            ->create([
+                'provider' => AgentLlmProviderEnum::ANTHROPIC->value,
+                'is_routing_enabled' => true,
+            ]);
         $globalFallback = AgentLlmConfigFactory::new()
             ->withAppId($app->getId())
             ->withCompanyId(0)
-            ->create(['provider' => AgentLlmProviderEnum::MISTRAL->value]);
+            ->create([
+                'provider' => AgentLlmProviderEnum::MISTRAL->value,
+                'is_routing_enabled' => true,
+            ]);
         $inactive = AgentLlmConfigFactory::new()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
-            ->create(['is_active' => false]);
+            ->create(['is_active' => false, 'is_routing_enabled' => true]);
+        $routingDisabled = AgentLlmConfigFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['is_routing_enabled' => false]);
 
         $agent = AgentFactory::new()
             ->withAppId($app->getId())
@@ -53,6 +63,7 @@ final class NeuronResponderProviderFallbackTest extends TestCase
         $this->assertContains('llm_config_' . $globalFallback->getId(), $order);
         $this->assertNotContains('llm_config_' . $selected->getId(), $order);
         $this->assertNotContains('llm_config_' . $inactive->getId(), $order);
+        $this->assertNotContains('llm_config_' . $routingDisabled->getId(), $order);
         $this->assertLessThan(
             array_search('llm_config_' . $globalFallback->getId(), $order, true),
             array_search('llm_config_' . $companyFallback->getId(), $order, true),
@@ -86,6 +97,28 @@ final class NeuronResponderProviderFallbackTest extends TestCase
         }
     }
 
+    public function testItDoesNotRouteThroughAConfigUnlessExplicitlyEnabled(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        AgentLlmConfigFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['is_routing_enabled' => false]);
+
+        $agent = AgentFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['config' => []]);
+        $primary = new FakeNeuronProvider();
+
+        $this->assertSame(
+            $primary,
+            new NeuronResponderProviderFallback()->wrap($primary, $agent),
+        );
+    }
+
     public function testAgentCanDisableProviderFallback(): void
     {
         $app = app(Apps::class);
@@ -93,7 +126,7 @@ final class NeuronResponderProviderFallbackTest extends TestCase
         AgentLlmConfigFactory::new()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
-            ->create();
+            ->create(['is_routing_enabled' => true]);
 
         $agent = AgentFactory::new()
             ->withAppId($app->getId())

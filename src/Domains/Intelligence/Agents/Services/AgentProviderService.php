@@ -67,6 +67,7 @@ class AgentProviderService
             ->when($selectedId !== null, fn ($query) => $query->where('id', '!=', $selectedId))
             ->where('is_deleted', 0)
             ->where('is_active', 1)
+            ->where('is_routing_enabled', 1)
             ->get();
 
         return $configs->sort(function (AgentLlmConfig $left, AgentLlmConfig $right) use ($agent): int {
