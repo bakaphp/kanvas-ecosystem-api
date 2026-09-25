@@ -9,6 +9,7 @@ type AgentLlmConfig {
     config: JSON
     has_api_key: Boolean! @method(name: "hasApiKey")
     is_active: Boolean!
+    is_routing_enabled: Boolean!
     company: Company! @belongsTo(relation: "company")
     user: User @belongsTo(relation: "user")
     created_at: DateTime
@@ -23,6 +24,7 @@ input AgentLlmConfigInput {
     model: String
     config: JSON
     is_active: Boolean
+    is_routing_enabled: Boolean
 }
 
 input UpdateAgentLlmConfigInput {
@@ -33,6 +35,7 @@ input UpdateAgentLlmConfigInput {
     model: String
     config: JSON
     is_active: Boolean
+    is_routing_enabled: Boolean
 }
 
 extend type Mutation @guardByAdmin {
@@ -57,7 +60,7 @@ extend type Query @guard {
     agentLlmConfigs(
         where: _
             @whereConditions(
-                columns: ["id", "name", "slug", "provider", "is_active"]
+                columns: ["id", "name", "slug", "provider", "is_active", "is_routing_enabled"]
             )
         orderBy: _ @orderBy(columns: ["id", "created_at", "updated_at", "name"])
     ): [AgentLlmConfig!]!
