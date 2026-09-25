@@ -20,6 +20,7 @@ use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
 use Kanvas\Intelligence\Agents\Services\AttachmentBudgetService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Agents\Services\AttachmentFetchService;
+use Kanvas\Intelligence\Agents\Services\NeuronResponderProviderFallback;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
@@ -106,6 +107,17 @@ class RunNeuronChatAction
         $usage = [];
 
         try {
+            if (is_object($this->handler)
+                && method_exists($this->handler, 'resolveProvider')
+                && method_exists($this->handler, 'setAiProvider')) {
+                $this->handler->setAiProvider(
+                    new NeuronResponderProviderFallback()->wrap(
+                        $this->handler->resolveProvider(),
+                        $this->agent,
+                    ),
+                );
+            }
+
             // chat() returns immediately with an AgentHandler; the actual LLM
             // round-trip happens inside run() / getMessage(). Both must be
             // inside the try block so provider errors (e.g. Gemini returning
