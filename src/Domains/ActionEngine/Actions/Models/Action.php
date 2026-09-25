@@ -88,7 +88,7 @@ class Action extends BaseModel
             'description' => $this->description,
         ];
     }
-    
+
     #[Override]
     public function shouldBeSearchable(): bool
     {
