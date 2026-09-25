@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Twilio\Webhooks;
 
 use Baka\Support\Str;
 use Exception;
-use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Twilio\Actions\DownloadMessageFileAction;
@@ -21,7 +20,6 @@ use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
 use Kanvas\Guild\Customers\Enums\ConsentSignalEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
-use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\People as PeopleModel;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
 use Kanvas\Guild\Customers\Services\ConsentKeywordService;
@@ -104,9 +102,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         $lead = null;
 
         if (! $isFromMe) {
-            $people = $this->processContactFromMessage($request);
-
-            $lead = $this->createLeadFromPeople($people);
+            [$people, $lead] = $this->resolvePeopleAndLead($request);
             $lead->set(LeadsEnumsConfigurationEnum::IS_ENGAGEMENT->value, true);
 
             // After the lead exists: a stop request is person-wide and every outbound guard reads
@@ -416,37 +412,48 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         return $lead;
     }
 
-    public function processContactFromMessage(array $request): PeopleModel
+    /**
+     * Every People sharing the inbound phone is a candidate. When any of their leads has a
+     * conversation channel, the one spoken in most recently wins and its People comes with it;
+     * without a channel to go by, fall back to whoever holds an active lead, then to the oldest
+     * match, and let createLeadFromPeople() decide the lead. Nobody matching means a new People.
+     *
+     * @return array{0: PeopleModel, 1: Lead}
+     */
+    public function resolvePeopleAndLead(array $request): array
     {
-        //$phoneNumber = preg_replace('/^\+?1/', '', $request['From']);
         $phoneNumber = Str::normalizePhoneNumber($request['From']);
         $phoneNumberWithCountryCode = str_replace('+', '', $request['From']);
-        /* $existingCustomer = People::getByCustomField(
-            'twilio_jid',
-            $phoneNumber,
-            $this->receiver->company
-        ); */
-        /*  $query = People::whereHas('contacts', function (Builder $query) use ($phoneNumber, $phoneNumberWithCountryCode) {
-             $query->whereRaw("REGEXP_REPLACE(value, '[^0-9]', '') IN (?,?)", [$phoneNumber, $phoneNumberWithCountryCode])
-                   ->whereIn('contacts_types_id', [ContactTypeEnum::CELLPHONE->value, ContactTypeEnum::PHONE->value]);
-         })
-         ->fromCompany($this->receiver->company)
-         ->fromApp($this->receiver->app); */
-        $query = PeoplesRepository::getByPhoneNumber(
+
+        $candidates = PeoplesRepository::getByPhoneNumber(
             app: $this->receiver->app,
             company: $this->receiver->company,
             phoneNumbers: [$phoneNumber, $phoneNumberWithCountryCode]
+        )->get();
+
+        $lead = LeadsRepository::getLeadWithMostRecentChannel(
+            $candidates,
+            $this->receiver->app,
+            $this->receiver->company
         );
 
-        $allCustomers = $query->get();
-        $existingCustomer = $allCustomers->first(function (PeopleModel $customer): bool {
-            return LeadsRepository::getPeopleActiveLead($customer) !== null;
-        }) ?? $allCustomers->first();
-
-        if ($existingCustomer && $this->hijackSession) {
-            return $existingCustomer;
+        if ($lead !== null) {
+            $existingCustomer = $candidates->firstWhere('id', $lead->people_id);
+        } else {
+            $existingCustomer = $candidates->first(
+                fn (PeopleModel $customer) => LeadsRepository::getPeopleActiveLead($customer) !== null
+            ) ?? $candidates->first();
         }
 
+        $people = $existingCustomer !== null && $this->hijackSession
+            ? $existingCustomer
+            : $this->upsertPeople($existingCustomer, $phoneNumber);
+
+        return [$people, $lead ?? $this->createLeadFromPeople($people)];
+    }
+
+    protected function upsertPeople(?PeopleModel $existingCustomer, string $phoneNumber): PeopleModel
+    {
         $contactData = [
             [
                 'value' => $phoneNumber,

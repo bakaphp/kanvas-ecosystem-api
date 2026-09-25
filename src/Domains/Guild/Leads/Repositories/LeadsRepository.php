@@ -4,16 +4,20 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Repositories;
 
+use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
 use Baka\Traits\SearchableTrait;
 use Illuminate\Contracts\Database\Query\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Collection;
 use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\SystemModules\Models\SystemModules;
 use Override;
 
 class LeadsRepository
@@ -76,6 +80,45 @@ class LeadsRepository
         return self::leadsForPeople($people)
                     ->orderBy('id', 'desc')
                     ->first();
+    }
+
+    /**
+     * Several People can share one phone and each can own several leads. An inbound reply belongs
+     * to the conversation that was last spoken in, so the lead is picked by its channel's latest
+     * message rather than by "newest lead" or "first People row".
+     *
+     * @param Collection<int, People> $peoples
+     */
+    public static function getLeadWithMostRecentChannel(
+        Collection $peoples,
+        AppInterface $app,
+        CompanyInterface $company
+    ): ?Lead {
+        if ($peoples->isEmpty()) {
+            return null;
+        }
+
+        $leads = Lead::fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->whereIn('people_id', $peoples->pluck('id'))
+            ->get()
+            ->keyBy('id');
+
+        if ($leads->isEmpty()) {
+            return null;
+        }
+
+        $channel = Channel::fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->whereIn('entity_namespace', [Lead::class, SystemModules::getLegacyNamespace(Lead::class)])
+            ->whereIn('entity_id', $leads->keys()->map(fn (int $id) => (string) $id))
+            ->whereNotNull('last_message_id')
+            ->orderByDesc('last_message_id')
+            ->first();
+
+        return $channel !== null ? $leads->get((int) $channel->entity_id) : null;
     }
 
     /**

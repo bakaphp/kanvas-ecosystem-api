@@ -176,7 +176,7 @@ class BuildVoiceAgentLeadContextAction
     /**
      * The number variants to feed getByPhoneNumber — the local (normalized) form
      * and the country-code form. Mirrors the shared pattern used elsewhere for
-     * this exact lookup (see ProcessTwilioWebhookJob::processContactFromMessage).
+     * this exact lookup (see ProcessTwilioWebhookJob::resolvePeopleAndLead).
      *
      * @return array<int, string>
      */
