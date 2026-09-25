@@ -156,9 +156,6 @@ class AuthManagementMutation
         ];
     }
 
-    /**
-     * resolve
-     */
     public function refreshToken(mixed $rootValue, array $req): array
     {
         $token = $this->decodeToken($req['refresh_token']);

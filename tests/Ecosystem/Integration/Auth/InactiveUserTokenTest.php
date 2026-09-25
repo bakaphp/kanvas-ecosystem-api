@@ -10,9 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Auth\Actions\RegisterUsersAction;
 use Kanvas\Auth\Actions\SocialLoginAction;
-use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
 use Kanvas\Auth\Socialite\DataTransferObject\User as SocialiteUser;
 use Kanvas\Auth\TokenGuard;
@@ -38,15 +36,7 @@ final class InactiveUserTokenTest extends TestCase
         parent::setUp();
 
         $this->currentApp = app(Apps::class);
-
-        $this->user = new RegisterUsersAction(
-            RegisterInput::from([
-                'email' => fake()->unique()->safeEmail(),
-                'password' => fake()->password(12),
-                'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
-            ])
-        )->execute();
+        $this->user = $this->createUser();
     }
 
     public function testRefreshIssuesANewTokenForAnActiveUser(): void
@@ -61,17 +51,10 @@ final class InactiveUserTokenTest extends TestCase
 
     public function testRefreshRejectsATokenNotSignedByUs(): void
     {
-        $session = $this->user->createToken('test')->toArray();
-        $victim = new RegisterUsersAction(
-            RegisterInput::from([
-                'email' => fake()->unique()->safeEmail(),
-                'password' => fake()->password(12),
-                'firstname' => fake()->firstName(),
-                'lastname' => fake()->lastName(),
-            ])
-        )->execute();
+        $tokens = $this->user->createToken('test')->toArray();
+        $victim = $this->createUser();
 
-        $forged = $this->forgeRefreshToken($session['sessionId'], $victim->email);
+        $forged = $this->forgeRefreshToken($tokens['sessionId'], $victim->email);
 
         $this->expectException(AuthorizationException::class);
         $this->expectExceptionMessage('Invalid Token');
@@ -142,17 +125,15 @@ final class InactiveUserTokenTest extends TestCase
         $this->expectException(AuthenticationException::class);
         $this->expectExceptionMessage('User has been banned, please contact support.');
 
-        new SocialLoginAction(
-            new SocialiteUser(
-                id: $socialId,
-                name: 'Banned User',
-                email: $this->user->email,
-                nickname: 'banned-user',
-                token: 'token',
-            ),
-            SourceEnum::GOOGLE->value,
-            $this->currentApp
-        )->execute();
+        $socialUser = new SocialiteUser(
+            id: $socialId,
+            name: 'Banned User',
+            email: $this->user->email,
+            nickname: 'banned-user',
+            token: 'token',
+        );
+
+        new SocialLoginAction($socialUser, SourceEnum::GOOGLE->value, $this->currentApp)->execute();
     }
 
     private function refresh(string $refreshToken): array
@@ -170,10 +151,7 @@ final class InactiveUserTokenTest extends TestCase
 
     private function forgeRefreshToken(string $sessionId, string $email): string
     {
-        $config = Configuration::forSymmetricSigner(
-            new Sha512(),
-            InMemory::plainText(str_repeat('attacker-key-', 8))
-        );
+        $config = Configuration::forSymmetricSigner(new Sha512(), InMemory::plainText(str_repeat('attacker-key-', 8)));
         $now = new DateTimeImmutable();
 
         return $config->builder()
