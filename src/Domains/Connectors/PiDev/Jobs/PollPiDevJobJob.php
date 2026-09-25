@@ -20,17 +20,19 @@ use Kanvas\Connectors\PiDev\Exceptions\PiDevApiException;
 use Kanvas\NervousSystem\Plan\Actions\CompletePlanTasksAction;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
+use Kanvas\NervousSystem\Plan\Concerns\ReportsAndContinues;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\Traits\AnnouncesPlanOutcome;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
-use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
-use Throwable;
 
 class PollPiDevJobJob implements ShouldQueue
 {
+    use AnnouncesPlanOutcome;
     use Dispatchable;
+    use ReportsAndContinues;
     use InteractsWithQueue;
     use KanvasJobsTrait;
     use Queueable;
@@ -186,30 +188,19 @@ class PollPiDevJobJob implements ShouldQueue
      */
     private function announce(Task $task, string $title, string $message): void
     {
-        $this->postPlanComment($task, $message);
+        /** @var Plan|null $plan */
+        $plan = $task->plan;
 
-        try {
-            /** @var Plan|null $plan */
-            $plan = $task->plan;
-            $owner = $plan?->user;
-            if ($plan === null || $owner === null) {
-                return;
-            }
-
-            $owner->notify(new PlanProgressNotification(
-                $plan,
-                $title,
-                $message,
-                metadata: [
-                    'task_id' => $task->getId(),
-                    'pull_request_url' => $task->get(TaskCustomFieldEnum::PIDEV_PULL_REQUEST_URL->value),
-                    'repo' => $task->get(TaskCustomFieldEnum::PIDEV_REPO_SLUG->value),
-                ],
-                via: ['mail', 'push'],
-            ));
-        } catch (Throwable $e) {
-            report($e);
+        if ($plan === null) {
+            return;
         }
+
+        // Was `$plan->user`, which for an agent-owned run is the AGENT's user — the person who asked
+        // heard nothing. `notifyTheAsker` resolves `origin_users_id`, and the origin post puts the
+        // result back in the conversation where the job was requested.
+        $this->postToPlanBoard($plan, $message, 'coding_job_result', 'coding-job-alert');
+        $this->alsoPostToOriginConversation($plan, $message, 'coding_job_result');
+        $this->notifyTheAsker($plan, $title, $message);
     }
 
     private function planStatusFor(JobStatusEnum $status): PlanStatusEnum
@@ -290,7 +281,7 @@ class PollPiDevJobJob implements ShouldQueue
      */
     private function postProgressComments(Task $task, Client $client, string $jobId): void
     {
-        try {
+        $this->bestEffort(function () use ($task, $client, $jobId): void {
             $cursor = (int) ($task->get(TaskCustomFieldEnum::PIDEV_EVENTS_CURSOR->value) ?? 0);
             $frames = $client->fetchJobEvents($jobId, $cursor);
             if ($frames === []) {
@@ -312,9 +303,7 @@ class PollPiDevJobJob implements ShouldQueue
             }
 
             $task->set(TaskCustomFieldEnum::PIDEV_EVENTS_CURSOR->value, $maxId);
-        } catch (Throwable $e) {
-            report($e);
-        }
+        });
     }
 
     private function mirrorOntoTask(Task $task, PiDevJob $job): void

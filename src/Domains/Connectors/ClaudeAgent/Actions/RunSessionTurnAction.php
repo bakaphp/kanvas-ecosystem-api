@@ -9,10 +9,10 @@ use Kanvas\Connectors\ClaudeAgent\Enums\DrainOutcomeEnum;
 use Kanvas\Connectors\ClaudeAgent\Exceptions\ClaudeAgentApiException;
 use Kanvas\Connectors\ClaudeAgent\Services\CustomToolBridgeService;
 use Kanvas\Connectors\ClaudeAgent\Services\EventDrainService;
-use Kanvas\Connectors\ClaudeAgent\Traits\ReportsAndContinues;
 use Kanvas\Connectors\ClaudeAgent\Traits\ResolvesClaudeClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\NervousSystem\Plan\Concerns\ReportsAndContinues;
 
 /**
  * One conversational turn against a hosted agent: ensure the remote agent and environment exist,

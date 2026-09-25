@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
@@ -42,6 +43,7 @@ use Override;
 #[ObservedBy([TaskObserver::class])]
 class Task extends BaseModel
 {
+    use HasApprovals;
     use EmitsLedgerEventsForEntity;
     use TruncatesTitleTrait;
     use UuidTrait;
@@ -66,6 +68,19 @@ class Task extends BaseModel
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Explicit gating only. A task is saved on every status change of every plan in the platform, and a
+     * policy lookup on each of those is a cost with no reader — the only approval a task raises is the
+     * one the coding harness asks for before a push.
+     *
+     * No #[Override]: this overrides a CONCRETE trait method, which PHP does not treat as a valid
+     * override target — the attribute fatals at class load.
+     */
+    protected static function approvalUsesLifecycleTriggers(): bool
+    {
+        return false;
     }
 
     public function plan(): BelongsTo

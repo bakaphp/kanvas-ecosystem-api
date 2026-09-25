@@ -12,14 +12,14 @@ use Kanvas\Connectors\ClaudeAgent\Enums\TaskCustomFieldEnum;
 use Kanvas\Connectors\ClaudeAgent\Exceptions\ClaudeAgentApiException;
 use Kanvas\Connectors\ClaudeAgent\Services\CustomToolBridgeService;
 use Kanvas\Connectors\ClaudeAgent\Services\EventDrainService;
-use Kanvas\Connectors\ClaudeAgent\Traits\ReportsAndContinues;
 use Kanvas\Connectors\ClaudeAgent\Traits\ResolvesClaudeClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Actions\UpdateTaskStatusAction;
+use Kanvas\NervousSystem\Plan\Concerns\ReportsAndContinues;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\Traits\AnnouncesPlanOutcome;
 use Kanvas\NervousSystem\Plan\Models\Task;
-use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
 
 /**
  * Advance one async task by a single tick: drain what the session has produced, serve any Kanvas
@@ -31,6 +31,7 @@ use Kanvas\NervousSystem\Plan\Notifications\PlanProgressNotification;
  */
 class AdvanceLongTaskAction
 {
+    use AnnouncesPlanOutcome;
     use ReportsAndContinues;
     use ResolvesClaudeClient;
 
@@ -189,23 +190,22 @@ class AdvanceLongTaskAction
     protected function announce(DrainResult $result, ?string $blockedReason): void
     {
         $plan = $this->task->plan;
-        $owner = $plan?->user;
 
-        if ($plan === null || $owner === null) {
+        if ($plan === null) {
             return;
         }
 
-        $this->bestEffort(fn () => $owner->notify(new PlanProgressNotification(
-            $plan,
-            $blockedReason === null ? 'Task completed' : 'Task blocked',
-            $blockedReason ?? ($result->text !== '' ? $result->text : 'The agent finished this task.'),
-            metadata: [
-                'task_id' => $this->task->getId(),
-                'session_id' => $this->task->get(TaskCustomFieldEnum::CLAUDE_SESSION_ID->value),
-                'pull_request_url' => $this->task->get(TaskCustomFieldEnum::CLAUDE_PULL_REQUEST_URL->value),
-            ],
-            via: ['mail', 'push'],
-        )));
+        $title = $blockedReason === null ? 'Task completed' : 'Task blocked';
+        $body = $blockedReason ?? ($result->text !== '' ? $result->text : 'The agent finished this task.');
+
+        // Was `$plan->user`, which is the AGENT's user on an agent-owned run — so the person who asked
+        // was never told. The shared trait resolves `origin_users_id` and also answers in the
+        // conversation the work was requested from.
+        $this->bestEffort(function () use ($plan, $title, $body): void {
+            $this->postToPlanBoard($plan, $body, 'claude_task_result', 'claude-task-alert');
+            $this->alsoPostToOriginConversation($plan, $body, 'claude_task_result');
+            $this->notifyTheAsker($plan, $title, $body);
+        });
     }
 
     protected function storeCursor(?string $cursor): void
