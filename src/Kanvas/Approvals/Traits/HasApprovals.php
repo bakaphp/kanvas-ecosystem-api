@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Approvals\Actions\ApproveAction;
 use Kanvas\Approvals\Actions\RejectAction;
 use Kanvas\Approvals\Actions\RequestApprovalAction;
+use Kanvas\Approvals\Actions\SystemRejectAction;
 use Kanvas\Approvals\DataTransferObject\ApprovalResult;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Enums\ApprovalStatusEnum;
@@ -138,6 +139,26 @@ trait HasApprovals
             ->first();
 
         return $request?->resolvedByUser;
+    }
+
+    /**
+     * Closes an existing pending request of the given type without a human, because a newer one is
+     * about to replace it — a returning Lead, a re-submitted form, anything where "the old one is
+     * simply obsolete now" is the correct read, not "nobody decided". A no-op when nothing is pending.
+     *
+     * Whether to call this at all stays the caller's decision (a duplicate pending might be exactly
+     * what should block a new request for one entity and be fine to supersede for another) — this only
+     * generalizes the mechanics of closing the stale one via SystemRejectAction, not when to use it.
+     */
+    public function supersedePendingApproval(
+        string $approvalType,
+        string $reason = 'Superseded by a more recent approval request'
+    ): void {
+        $stale = $this->pendingApproval($approvalType);
+
+        if ($stale !== null) {
+            new SystemRejectAction($stale, $reason)->execute();
+        }
     }
 
     /**

@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\Salesforce\Activities;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Approvals\Actions\SystemRejectAction;
 use Kanvas\Approvals\Enums\ApprovalOriginEnum;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Connectors\Salesforce\Enums\CustomFieldEnum;
@@ -46,8 +45,10 @@ use Override;
  * By default, a pending request of a given type blocks a new one of the same type — a later Lead for
  * the same People simply leaves no trace of its own until the earlier one resolves. Set the Rule's own
  * `params: { auto_reject_stale_pending: true }` (Rule.params flows straight into $params, see
- * DynamicRuleWorkflow::execute()) to instead auto-reject the older pending one via SystemRejectAction
- * and open a fresh one — applies uniformly to both approval types this Activity opens.
+ * DynamicRuleWorkflow::execute()) to instead auto-reject the older pending one via
+ * HasApprovals::supersedePendingApproval() and open a fresh one — applies uniformly to both approval
+ * types this Activity opens. The flag stays a People/Salesforce decision; the trait only generalizes
+ * the mechanics of closing a stale request, not when to reach for it.
  */
 #[WorkflowAction(name: 'SalesforceRequestPeopleApprovalActivity')]
 class RequestPeopleApprovalActivity extends KanvasActivity implements WorkflowActivityInterface
@@ -70,7 +71,7 @@ class RequestPeopleApprovalActivity extends KanvasActivity implements WorkflowAc
             integrationOperation: fn ($lead, $app, $integrationCompany, $additionalParams) => $this->requestApproval(
                 $lead,
                 $app,
-                $integrationCompany,
+                $lead->company,
                 $additionalParams,
             ),
             company: $lead->company,
@@ -127,7 +128,7 @@ class RequestPeopleApprovalActivity extends KanvasActivity implements WorkflowAc
                 return ['requested' => false, 'reason' => 'already pending'];
             }
 
-            new SystemRejectAction($pending, 'Superseded by a more recent approval request')->execute();
+            $people->supersedePendingApproval($approvalType->value);
         }
 
         /** @var ApprovalRequest|null $request */

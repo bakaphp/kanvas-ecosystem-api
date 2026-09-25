@@ -100,6 +100,37 @@ final class PendingApprovalsByTypeTest extends TestCase
         $this->assertSame('approve_type_a', $entity->pendingApproval()->approval_type);
     }
 
+    public function test_supersede_pending_approval_rejects_the_stale_one_and_leaves_other_types_alone(): void
+    {
+        $entity = $this->seedEntity('Multi Type Corp F');
+        $this->linkApprover($entity);
+        $this->seedPolicy('approve_type_a', $entity);
+        $this->seedPolicy('approve_type_b', $entity);
+
+        $entity->requestApproval('approve_type_a');
+        $entity->requestApproval('approve_type_b');
+        $stale = $entity->pendingApproval('approve_type_a');
+
+        $entity->supersedePendingApproval('approve_type_a');
+
+        $this->assertSame('rejected', $stale->refresh()->status->value);
+        $this->assertSame('Superseded by a more recent approval request', $stale->reason);
+        $this->assertNull($stale->resolved_by_users_id);
+        $this->assertNull($entity->pendingApproval('approve_type_a'));
+        $this->assertNotNull($entity->pendingApproval('approve_type_b'));
+    }
+
+    public function test_supersede_pending_approval_is_a_no_op_when_nothing_is_pending(): void
+    {
+        $entity = $this->seedEntity('Multi Type Corp G');
+        $this->linkApprover($entity);
+        $this->seedPolicy('approve_type_a', $entity);
+
+        $entity->supersedePendingApproval('approve_type_a');
+
+        $this->assertNull($entity->pendingApproval('approve_type_a'));
+    }
+
     private function seedPolicy(string $approvalType, ApprovableOrganization $entity): ApprovalPolicy
     {
         return ApprovalPolicy::create([
