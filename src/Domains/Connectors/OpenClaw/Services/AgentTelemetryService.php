@@ -77,15 +77,23 @@ class AgentTelemetryService
         try {
             $ssh = SshClient::fromMachine($machine);
         } catch (Throwable $e) {
-            Log::warning("OpenClaw telemetry: SSH connection failed for machine {$machine->id} — {$e->getMessage()}");
+            // Rate-limit noise: only log + alert once per 15 minutes per machine.
+            // Without this, every 2-minute scheduler cycle floods logs and Slack
+            // while a machine stays unreachable.
+            $cooldownKey = 'openclaw:telemetry:ssh-failure:' . $machine->id;
 
-            foreach ($deployments as $deployment) {
-                try {
-                    AgentDeploymentEvent::record($deployment->id, AgentDeploymentEventTypeEnum::AGENT_UNREACHABLE, [
-                        'error' => $e->getMessage(),
-                    ]);
-                    $this->sendSlackAlert($deployment, AgentDeploymentEventTypeEnum::AGENT_UNREACHABLE, $e->getMessage());
-                } catch (Throwable) {
+            if (! Cache::has($cooldownKey)) {
+                Cache::put($cooldownKey, true, 900);
+                Log::warning("OpenClaw telemetry: SSH connection failed for machine {$machine->id} — {$e->getMessage()}");
+
+                foreach ($deployments as $deployment) {
+                    try {
+                        AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::AGENT_UNREACHABLE, [
+                            'error' => $e->getMessage(),
+                        ]);
+                        $this->sendSlackAlert($deployment, AgentDeploymentEvent::AGENT_UNREACHABLE, $e->getMessage());
+                    } catch (Throwable) {
+                    }
                 }
             }
 
@@ -148,14 +156,20 @@ class AgentTelemetryService
                 $payload
             );
         } catch (Throwable $e) {
-            Log::warning("OpenClaw telemetry: failed for deployment {$deployment->id} — {$e->getMessage()}");
+            // Rate-limit noise: only log + alert once per 15 minutes per deployment.
+            $cooldownKey = 'openclaw:telemetry:failure:' . $deployment->id;
 
-            try {
-                AgentDeploymentEvent::record($deployment->id, AgentDeploymentEventTypeEnum::AGENT_UNREACHABLE, [
-                    'error' => $e->getMessage(),
-                ]);
-                $this->sendSlackAlert($deployment, AgentDeploymentEventTypeEnum::AGENT_UNREACHABLE, $e->getMessage());
-            } catch (Throwable) {
+            if (! Cache::has($cooldownKey)) {
+                Cache::put($cooldownKey, true, 900);
+                Log::warning("OpenClaw telemetry: failed for deployment {$deployment->id} — {$e->getMessage()}");
+
+                try {
+                    AgentDeploymentEvent::record($deployment->id, AgentDeploymentEvent::AGENT_UNREACHABLE, [
+                        'error' => $e->getMessage(),
+                    ]);
+                    $this->sendSlackAlert($deployment, AgentDeploymentEvent::AGENT_UNREACHABLE, $e->getMessage());
+                } catch (Throwable) {
+                }
             }
         }
     }

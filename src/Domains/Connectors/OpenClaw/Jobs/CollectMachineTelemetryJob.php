@@ -39,6 +39,14 @@ class CollectMachineTelemetryJob implements ShouldQueue, ShouldBeUnique
 
     public int $uniqueFor = 290;
 
+    /**
+     * Telemetry is collected on a schedule every 2 minutes, so retrying a failed
+     * cycle would just hammer the machine again before the next scheduled run.
+     * One attempt per cycle is sufficient — failures are logged and the next
+     * scheduler tick will try again.
+     */
+    public int $tries = 1;
+
     public function __construct(public readonly int $machineId)
     {
         $this->onQueue('agent-runtime');
