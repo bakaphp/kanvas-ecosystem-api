@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Locations\Models;
 
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Models\BaseModel;
@@ -21,8 +20,6 @@ use Kanvas\Users\Models\Users;
  */
 class Cities extends BaseModel
 {
-    use Cachable;
-
     /**
      * The table associated with the model.
      *

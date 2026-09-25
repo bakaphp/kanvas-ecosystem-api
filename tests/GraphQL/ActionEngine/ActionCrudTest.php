@@ -104,6 +104,49 @@ class ActionCrudTest extends TestCase
         ]);
     }
 
+    public function testCreateActionWithSvgIcon(): void
+    {
+        $icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">'
+            . '<path d="M9.4,39.4c1.5,1.5,3.1,2.8,4.9,3.9z" fill="#E75E18"/></svg>';
+
+        $input = [
+            'name' => 'Svg Icon Action ' . fake()->word(),
+            'icon' => $icon,
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: ActionInput!) {
+                createAction(input: $input) {
+                    id
+                    icon
+                }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        $this->assertSame($icon, $response->json('data.createAction.icon'));
+        $this->assertSame($icon, Action::find($response->json('data.createAction.id'))->icon);
+    }
+
+    public function testCreateActionRejectsNonStringIcon(): void
+    {
+        $response = $this->graphQL('
+            mutation($input: ActionInput!) {
+                createAction(input: $input) {
+                    id
+                    icon
+                }
+            }
+        ', ['input' => [
+            'name' => 'Bad Icon Action ' . fake()->word(),
+            'icon' => ['not', 'a', 'string'],
+        ]]);
+
+        $response->assertGraphQLErrorMessage(
+            'Variable "$input" got invalid value ["not","a","string"] at "input.icon"; String cannot represent a non string value: ["not","a","string"]'
+        );
+        $this->assertNull($response->json('data'));
+    }
+
     public function testUpdateAction(): void
     {
         $createInput = [

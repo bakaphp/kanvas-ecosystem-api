@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Languages\Models;
 
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Kanvas\Languages\Factories\LanguagesFactory;
 use Kanvas\Models\BaseModel;
@@ -19,7 +18,6 @@ use Override;
  */
 class Languages extends BaseModel
 {
-    use Cachable;
     use HasFactory;
     //public $incrementing = false;
 

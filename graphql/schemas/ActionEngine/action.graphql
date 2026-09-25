@@ -5,7 +5,7 @@ type Action {
     slug: String!
     description: String
     companies_id: ID
-    icon: Mixed
+    icon: String
     form_fields: Mixed
     form_config: Mixed
     is_active: Boolean!
@@ -50,7 +50,7 @@ type CompanyAction {
 input ActionInput {
     name: String!
     description: String
-    icon: Mixed
+    icon: String
     form_fields: Mixed
     form_config: Mixed
     is_active: Boolean
@@ -63,7 +63,7 @@ input ActionInput {
 input UpdateActionInput {
     name: String!
     description: String
-    icon: Mixed
+    icon: String
     form_fields: Mixed
     form_config: Mixed
     is_active: Boolean

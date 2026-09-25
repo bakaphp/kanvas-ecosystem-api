@@ -8,7 +8,9 @@ use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Baka\Traits\SearchableTrait;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\InternalServerErrorException;
@@ -34,10 +36,7 @@ class SystemModulesRepository
     {
         $app = $app === null ? app(Apps::class) : $app;
 
-        //this sucks but we need to find the solution
-        if ($modelName === UserFullTableName::class) {
-            $modelName = Users::class;
-        }
+        $modelName = self::normalizeModelName($modelName);
 
         return SystemModules::firstOrCreate(
             [
@@ -48,6 +47,88 @@ class SystemModulesRepository
                 'slug' => Str::simpleSlug($modelName),
             ]
         );
+    }
+
+    /**
+     * Resolve many model names in one round trip, keyed by model name.
+     *
+     * Every row written to SystemModules costs a full tagged-cache flush (the model is Cachable),
+     * so resolving N models one firstOrCreate at a time costs N flushes — 46 of them, ~5s, on every
+     * app creation. The bulk insert goes through the query builder on purpose: it fires no Eloquent
+     * events, so the whole batch invalidates the cache once instead of once per row (CachedBuilder
+     * still flushes for us on insert). That also means UuidTrait and bootSlugTrait do not run,
+     * hence the explicit uuid/slug/name.
+     */
+    public static function getByModelNames(array $modelNames, ?AppInterface $app = null): Collection
+    {
+        $app = $app === null ? app(Apps::class) : $app;
+
+        $requested = array_values(array_unique($modelNames));
+        $modelNames = array_values(array_unique(array_map(
+            static fn (string $modelName): string => self::normalizeModelName($modelName),
+            $requested
+        )));
+
+        if (empty($modelNames)) {
+            return new Collection();
+        }
+
+        $modules = self::queryByModelNames($modelNames, $app);
+        $missing = array_values(array_diff($modelNames, $modules->keys()->all()));
+
+        if (empty($missing)) {
+            return self::aliasRequestedNames($modules, $requested);
+        }
+
+        $now = Carbon::now();
+
+        SystemModules::query()->insert(array_map(
+            static fn (string $modelName): array => [
+                'uuid' => (string) Str::uuid7(),
+                'model_name' => $modelName,
+                'name' => Str::simpleSlug($modelName),
+                'slug' => Str::simpleSlug($modelName),
+                'apps_id' => $app->getKey(),
+                'created_at' => $now,
+            ],
+            $missing
+        ));
+
+        return self::aliasRequestedNames(self::queryByModelNames($modelNames, $app), $requested);
+    }
+
+    /**
+     * The rows come back keyed by their own model_name, so a caller that asked for an aliased name
+     * (UserFullTableName) would not find its entry. Add the alias back alongside the real key.
+     */
+    protected static function aliasRequestedNames(Collection $modules, array $requested): Collection
+    {
+        foreach ($requested as $modelName) {
+            $normalized = self::normalizeModelName($modelName);
+
+            if ($normalized !== $modelName && $modules->has($normalized)) {
+                $modules->put($modelName, $modules->get($normalized));
+            }
+        }
+
+        return $modules;
+    }
+
+    protected static function queryByModelNames(array $modelNames, AppInterface $app): Collection
+    {
+        return SystemModules::whereIn('model_name', $modelNames)
+            ->where('apps_id', $app->getKey())
+            ->get()
+            ->keyBy('model_name');
+    }
+
+    /**
+     * UserFullTableName is a read model over the same table as Users; it has no system module of
+     * its own, so callers asking for it must land on the Users row.
+     */
+    protected static function normalizeModelName(string $modelName): string
+    {
+        return $modelName === UserFullTableName::class ? Users::class : $modelName;
     }
 
     /**
@@ -69,12 +150,7 @@ class SystemModulesRepository
     {
         $app = $app === null ? app(Apps::class) : $app;
 
-        //this sucks but we need to find the solution
-        if ($name === UserFullTableName::class) {
-            $name = Users::class;
-        }
-
-        return SystemModules::where('name', $name)
+        return SystemModules::where('name', self::normalizeModelName($name))
                                     ->where('apps_id', $app->getKey())
                                     ->firstOrFail();
     }
