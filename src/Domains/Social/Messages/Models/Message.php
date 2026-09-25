@@ -382,6 +382,22 @@ class Message extends BaseModel
         return $legacyClassMap::getById($this->appModuleMessage->entity_id);
     }
 
+    /**
+     * A message can be linked to several entities (e.g. a reach-out lands on both the
+     * People and the Lead). entity() only sees the first row, so callers that need a
+     * specific one resolve it by class.
+     */
+    public function entityOfClass(string $className): ?Model
+    {
+        $appModuleMessage = $this->appModuleMessage()
+            ->where('system_modules', $className)
+            ->first();
+
+        return $appModuleMessage !== null
+            ? $className::getById($appModuleMessage->entity_id)
+            : null;
+    }
+
     public function engagement(): HasOne
     {
         return $this->hasOne(
