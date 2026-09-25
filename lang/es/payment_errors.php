@@ -21,6 +21,8 @@ return [
     // Errores del procesador
     'PROCESSOR_ERROR' => 'Error del procesador de pagos. El emisor no está operativo o hay un problema del sistema.',
 
+    'card_velocity_exceeded' => 'No pudimos procesar el pago en este momento. Si el problema persiste, contacta a soporte.',
+
     // Respaldo
     'default' => 'El pago no pudo ser procesado. Por favor, intente de nuevo o utilice otro método de pago.',
 ];

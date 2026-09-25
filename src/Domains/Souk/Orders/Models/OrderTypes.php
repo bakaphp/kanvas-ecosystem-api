@@ -45,6 +45,11 @@ class OrderTypes extends BaseModel
         return (bool) ($this->config['expirable'] ?? false);
     }
 
+    public function cardVelocityLimit(string $key): int
+    {
+        return (int) ($this->config['card_velocity'][$key] ?? 0);
+    }
+
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class, 'order_types_id', 'id');
