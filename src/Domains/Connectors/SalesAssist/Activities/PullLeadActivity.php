@@ -60,7 +60,6 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
     {
         $this->overwriteAppService($app);
 
-        $isSync = $entity->id === 0;
         $company = Companies::getById($entity->companies_id);
         $this->company = $company;
         $this->app = $app;
@@ -76,6 +75,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         $isReynolds = $company->get(ReynoldsConfigurationEnum::REYNOLDS_DEALER_NUMBER->value) !== null;
 
         $pullLead = [];
+        $resolvedLead = null;
 
         if ($isElead) {
             $pullLead = new PullLeadAction(
@@ -83,6 +83,8 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 $company,
                 $user
             )->execute($params, $entity->id > 0 ? $entity : null);
+
+            $resolvedLead = $this->resolveCandidateLead($pullLead, $company, $app);
         } elseif ($isVinSolutions) {
             try {
                 $pullLead = new ActionsPullLeadAction(
@@ -108,6 +110,8 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                     'company_id' => $company->getId(),
                 ]);
             }
+
+            $resolvedLead = $this->resolveCandidateLead($pullLead, $company, $app);
         } elseif ($isDealerSocket) {
             $people = new PullPeopleAction(
                 $app,
@@ -116,11 +120,13 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
             )->execute(
                 email: $email,
                 phoneNumber: $phone,
-                customerId: $entity->id > 0 ? $entity->id : ((int) $leadId ?? null),
+                customerId: $entity->id > 0 ? $entity->id : ($leadId !== null ? (int) $leadId : null),
             );
+
             $pullLead = $people->toArray();
+            $resolvedLead = LeadsRepository::getPeopleActiveLead($people);
         } elseif ($isDriveCentric) {
-            $leadModel = new PullPeopleLeadAction(
+            $resolvedLead = new PullPeopleLeadAction(
                 $app,
                 $company,
                 $user
@@ -129,7 +135,7 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 email: $email,
             );
 
-            $pullLead = $leadModel ? [$leadModel->toArray()] : [];
+            $pullLead = $resolvedLead ? [$resolvedLead->toArray()] : [];
         } elseif ($isReynolds) {
             $pullLead = new FindLeadCandidatesAction($app, $company)->execute(
                 clientId: $leadId !== null ? (string) $leadId : null,
@@ -138,16 +144,9 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 firstname: $params['firstname'] ?? null,
                 lastname: $params['lastname'] ?? null,
             );
-        }
 
-        $resolvedLead = match (true) {
-            $isDriveCentric => $leadModel ?? null,
-            $isDealerSocket => isset($people) ? LeadsRepository::getPeopleActiveLead($people) : null,
-            $isReynolds, $isVinSolutions, $isElead => isset($pullLead[0]['id'])
-                ? Lead::getByIdFromCompanyApp((int) $pullLead[0]['id'], $company, $app)
-                : null,
-            default => null
-        };
+            $resolvedLead = $this->resolveCandidateLead($pullLead, $company, $app);
+        }
 
         // This CLIENT_ID stamp belongs in the client's explicit attach: with several candidates it
         // lands on whichever ranked first. Kept until product signs off on dropping it.
@@ -192,6 +191,27 @@ class PullLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
         }
 
         return $pullLead;
+    }
+
+    /**
+     * The candidate arrays every CRM arm returns are LeadCandidate::toArray(), so the top
+     * ranked one carries the Kanvas lead id. Scoped, not getByIdFromCompanyApp(): that one
+     * throws, and a miss here must leave the pull payload intact rather than fail the pull.
+     */
+    private function resolveCandidateLead(array $pullLead, Companies $company, AppInterface $app): ?Lead
+    {
+        $leadId = (int) ($pullLead[0]['id'] ?? 0);
+
+        if ($leadId === 0) {
+            return null;
+        }
+
+        return Lead::query()
+            ->where('id', $leadId)
+            ->fromCompany($company)
+            ->fromApp($app)
+            ->notDeleted()
+            ->first();
     }
 
     private function extractPhone(mixed $phone): ?string
