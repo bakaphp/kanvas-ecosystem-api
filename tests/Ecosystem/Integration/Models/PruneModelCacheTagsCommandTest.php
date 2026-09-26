@@ -13,7 +13,7 @@ final class PruneModelCacheTagsCommandTest extends TestCase
 {
     public function testItReclaimsTheEntriesATagFlushLeavesBehind(): void
     {
-        $this->markSkippedUnlessRedisBacked();
+        $this->markSkippedUnlessModelCacheIsLive();
 
         $tags = $this->appTags();
         Cache::store('model')->flush();
@@ -37,7 +37,7 @@ final class PruneModelCacheTagsCommandTest extends TestCase
 
     public function testItLeavesLiveEntriesAlone(): void
     {
-        $this->markSkippedUnlessRedisBacked();
+        $this->markSkippedUnlessModelCacheIsLive();
 
         $tags = $this->appTags();
         Cache::store('model')->flush();
@@ -52,7 +52,7 @@ final class PruneModelCacheTagsCommandTest extends TestCase
 
     public function testTheDryRunRemovesNothing(): void
     {
-        $this->markSkippedUnlessRedisBacked();
+        $this->markSkippedUnlessModelCacheIsLive();
 
         $tags = $this->appTags();
         Cache::store('model')->flush();
@@ -79,8 +79,16 @@ final class PruneModelCacheTagsCommandTest extends TestCase
         return Cache::store('model')->tags($tags)->getTags()->entries()->count();
     }
 
-    private function markSkippedUnlessRedisBacked(): void
+    /**
+     * CI runs with MODEL_CACHE_ENABLED=false, so nothing is ever cached and there is no tag index to
+     * prune. Without this the tests do not just skip, they assert against an index that cannot exist.
+     */
+    private function markSkippedUnlessModelCacheIsLive(): void
     {
+        if (! config('laravel-model-caching.enabled')) {
+            $this->markTestSkipped('Model caching is disabled in this environment.');
+        }
+
         if (! method_exists(Cache::store('model')->getStore(), 'connection')) {
             $this->markTestSkipped('The model cache store is not Redis backed.');
         }

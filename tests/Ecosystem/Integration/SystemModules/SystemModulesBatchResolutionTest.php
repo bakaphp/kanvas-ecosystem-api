@@ -115,6 +115,10 @@ final class SystemModulesBatchResolutionTest extends TestCase
      */
     public function testInvalidationDoesNotScaleWithTheNumberOfRowsWritten(): void
     {
+        if (! config('laravel-model-caching.enabled')) {
+            $this->markTestSkipped('Model caching is disabled in this environment, so nothing flushes.');
+        }
+
         $app = app(Apps::class);
 
         $flushes = function (array $names) use ($app): int {
