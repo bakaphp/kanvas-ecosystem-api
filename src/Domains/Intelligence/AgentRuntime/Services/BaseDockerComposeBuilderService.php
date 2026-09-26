@@ -28,6 +28,33 @@ abstract class BaseDockerComposeBuilderService
     private const string RUNTIME_VERSION = '2026.5.20';
     //private const string RUNTIME_VERSION = '2026.3.12';
 
+    /**
+     * Flash, not Pro: container agents run long sessions and OpenClaw re-sends the whole session every
+     * turn, so the per-token price multiplies everything. Must be a model the pinned runtime's catalogue
+     * knows — `gemini-3.8-flash` is newer than 2026.5.20 and would fail with "Unknown model".
+     */
+    public const string DEFAULT_MODEL = 'google/gemini-3-flash-preview';
+
+    public const string CHEAP_MODEL = 'google/gemini-3.1-flash-lite-preview';
+
+    /**
+     * OpenClaw's default heartbeat is a full agent turn every 30m in the main session — ~100K tokens of
+     * history re-read each time, mostly to answer HEARTBEAT_OK, since we write no HEARTBEAT.md. An
+     * isolated, light-context run on the cheap model keeps the check for ~2-5K tokens.
+     */
+    private const array HEARTBEAT = [
+        'every' => '2h',
+        'model' => self::CHEAP_MODEL,
+        'lightContext' => true,
+        'isolatedSession' => true,
+    ];
+
+    /**
+     * Compacts a session well before Gemini's 200K long-context price tier instead of near the 1M
+     * ceiling, and prunes stale tool output from what is re-sent each turn.
+     */
+    private const int CONTEXT_TOKENS = 120_000;
+
     abstract protected function getProviderConfig(): ProviderConfig;
 
     abstract protected static function getTemplatesDir(): string;
@@ -274,6 +301,98 @@ abstract class BaseDockerComposeBuilderService
     }
 
     /**
+     * The `agents.defaults` keys that decide what a container agent costs per day. Shared by launch
+     * and by {@see costPatchFor()}, which pushes them to containers that are already running.
+     *
+     * @return array<string, mixed>
+     */
+    public static function costDefaults(): array
+    {
+        return [
+            'heartbeat' => self::HEARTBEAT,
+            'contextTokens' => self::CONTEXT_TOKENS,
+            'compaction' => [
+                'mode' => 'safeguard',
+                'model' => self::CHEAP_MODEL,
+            ],
+            'contextPruning' => ['mode' => 'cache-ttl'],
+        ];
+    }
+
+    /**
+     * The partial runtime config that moves a *running* container onto the cheap defaults, in this
+     * runtime's own serialization, or '' when it already has them. OpenClaw's config is JSON; Hermes
+     * overrides this because its config is YAML and carries none of the session knobs.
+     */
+    public function costDefaultsPatch(string $currentConfig): string
+    {
+        $current = json_decode($currentConfig, true);
+
+        return (string) json_encode(
+            self::costPatchFor(is_array($current) ? $current : []),
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES,
+        );
+    }
+
+    /**
+     * A partial openclaw.json for a running container: the cost defaults, plus a Flash model
+     * wherever the live config still names a Pro one. A non-Pro model someone chose on purpose is
+     * kept. `agents.list` is a list, which the config merge replaces wholesale, so it is rebuilt
+     * from the live entries rather than from launch-time state.
+     *
+     * @param array<string, mixed> $current the container's live openclaw.json
+     *
+     * @return array<string, mixed>
+     */
+    public static function costPatchFor(array $current): array
+    {
+        $defaults = self::costDefaults();
+
+        // `model` may be the string form ("provider/model") or `{ primary, fallbacks }`; the object is
+        // always written back whole so a string is never merged into a primary-less object.
+        $model = $current['agents']['defaults']['model'] ?? null;
+        $primary = is_array($model) ? ($model['primary'] ?? null) : $model;
+
+        $defaults['model'] = [
+            'primary' => is_string($primary) && ! self::isProModel($primary) ? $primary : self::DEFAULT_MODEL,
+            'fallbacks' => [self::CHEAP_MODEL],
+        ];
+
+        $defaults['models'] = [self::DEFAULT_MODEL => (object) []];
+
+        $patch = ['agents' => ['defaults' => $defaults]];
+
+        $list = $current['agents']['list'] ?? null;
+        if (is_array($list) && $list !== []) {
+            $patch['agents']['list'] = array_map(self::withoutProModel(...), array_values($list));
+        }
+
+        return $patch;
+    }
+
+    private static function withoutProModel(mixed $entry): mixed
+    {
+        if (! is_array($entry)) {
+            return $entry;
+        }
+
+        $model = $entry['model'] ?? null;
+
+        if (is_string($model) && self::isProModel($model)) {
+            $entry['model'] = self::DEFAULT_MODEL;
+        } elseif (is_array($model) && is_string($model['primary'] ?? null) && self::isProModel($model['primary'])) {
+            $entry['model']['primary'] = self::DEFAULT_MODEL;
+        }
+
+        return $entry;
+    }
+
+    protected static function isProModel(string $model): bool
+    {
+        return str_contains($model, '-pro');
+    }
+
+    /**
      * Build the main runtime JSON config file (openclaw.json / hermes.json).
      *
      * @param array<string, mixed> $channelConfig
@@ -287,7 +406,7 @@ abstract class BaseDockerComposeBuilderService
         $config = $this->getProviderConfig();
         $slug = $agent->slug;
         $homeDir = $config->containerHomeDotDir;
-        $model = $app->get($this->getDefaultModelConfigKey()) ?? 'google/gemini-3.1-pro-preview';
+        $model = $app->get($this->getDefaultModelConfigKey()) ?? self::DEFAULT_MODEL;
         $geminiApiKey = (string) ($app->get($this->getGeminiApiKeyConfigKey())
             ?? $app->get($this->getGoogleApiKeyConfigKey())
             ?? '');
@@ -324,16 +443,16 @@ abstract class BaseDockerComposeBuilderService
                 'defaults' => [
                     'model' => [
                         'primary' => $model,
-                        'fallbacks' => [
-                            'google/gemini-3.1-flash-lite-preview',
-                            'google/gemini-3.1-pro-preview',
-                        ],
+                        // No Pro fallback: a rate-limited Flash must not fail over to a 4-8x pricier model.
+                        'fallbacks' => [self::CHEAP_MODEL],
                     ],
                     'models' => [
                         'google/gemini-2.5-pro' => (object) [],
+                        'google/gemini-3-flash-preview' => (object) [],
                         'google/gemini-3.1-flash-lite-preview' => (object) [],
                         'google/gemini-3.1-pro-preview' => (object) [],
                     ],
+                    ...self::costDefaults(),
                     'workspace' => $homeDir . '/workspace',
                 ],
                 'list' => [

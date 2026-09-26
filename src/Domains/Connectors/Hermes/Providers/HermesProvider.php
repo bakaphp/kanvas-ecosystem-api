@@ -35,6 +35,7 @@ use Kanvas\Connectors\Hermes\Kanban\Actions\FetchKanbanBoardAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\FetchKanbanTaskAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\TransitionKanbanTaskAction;
 use Kanvas\Connectors\Hermes\Kanban\Support\HermesProfileResolver;
+use Kanvas\Connectors\Hermes\Services\DockerComposeBuilderService;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTask;
@@ -175,6 +176,12 @@ class HermesProvider extends AbstractAgentRuntimeProvider
     public function updateConfig(AgentDeployment $deployment, string $config): bool
     {
         return new UpdateDeploymentConfigAction($deployment, $config)->execute();
+    }
+
+    #[Override]
+    public function costDefaultsPatch(string $currentConfig): string
+    {
+        return new DockerComposeBuilderService()->costDefaultsPatch($currentConfig);
     }
 
     #[Override]

@@ -10,6 +10,7 @@ use Kanvas\Connectors\Mcp\Services\McpConnectionService;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
 use Kanvas\Intelligence\Agents\Contracts\RequiresMcpConnection;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Mcp\RemoteMcpToolkit;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
@@ -70,6 +71,10 @@ trait MergesRegisteredTools
         // which for a HasKanvasContext tool means an unscoped query. Fill it here so a tool is
         // tenant-bound whether the subclass hardcoded it or the registry resolved it.
         $baseline = array_map(fn (object $tool): object => $this->fillKanvasContext($tool), $baseline);
+        $baseline = array_values(array_filter(
+            $baseline,
+            fn (object $tool): bool => $this->keepIfSystemAgent($tool, $agent) !== null,
+        ));
 
         if ($agent === null) {
             return array_values($baseline);
@@ -235,7 +240,7 @@ trait MergesRegisteredTools
 
         $ctor = new ReflectionClass($tool->handler)->getConstructor();
         if ($ctor === null || $ctor->getNumberOfParameters() === 0) {
-            return $this->keepIfConnected($this->fillKanvasContext(new $tool->handler()));
+            return $this->keepIfSystemAgent($this->keepIfConnected($this->fillKanvasContext(new $tool->handler())));
         }
 
         $candidates = $this->dependencyCandidates();
@@ -256,7 +261,31 @@ trait MergesRegisteredTools
             }
         }
 
-        return $this->keepIfConnected($this->fillKanvasContext(new $tool->handler(...$args)));
+        return $this->keepIfSystemAgent($this->keepIfConnected($this->fillKanvasContext(new $tool->handler(...$args))));
+    }
+
+    /**
+     * A tool marked `RequiresSystemAgent` runs code on our machines with the agent's git token, so it
+     * is withheld from anything that is not an internal system agent.
+     *
+     * Applied to the hardcoded baseline as well as the registry path — `keepIfConnected` covers only
+     * the latter, and the harness tools are hardcoded on `SelfHostedProgrammingAgent`, so a
+     * registry-only filter would never see them.
+     *
+     * **No agent means no tool**, matching `keepIfConnected`. Nothing legitimate reaches here without
+     * one — `SelfHostedProgrammingAgent::tools()` returns an empty set when its agent is null, and the
+     * registry path runs only after the null check above. So "we cannot tell who this is for" is a
+     * state that should withhold a shell, not hand one over.
+     */
+    private function keepIfSystemAgent(?object $tool, ?Agent $agent = null): ?object
+    {
+        if (! $tool instanceof RequiresSystemAgent) {
+            return $tool;
+        }
+
+        $agent ??= $this->firstCandidateOfType($this->dependencyCandidates(), Agent::class);
+
+        return $agent instanceof Agent && $agent->conversesWithUser() ? $tool : null;
     }
 
     /**
