@@ -6,7 +6,7 @@ namespace Kanvas\Insurance\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
-use Kanvas\Insurance\Contracts\PolicyProviderInterface;
+use Kanvas\Insurance\Contracts\PolicySyncProviderInterface;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
 use Kanvas\Insurance\Providers\InsuranceProviderFactory;
 use Kanvas\Souk\Orders\Models\Order;
@@ -44,7 +44,7 @@ class SyncInsurancePolicyActivity extends KanvasActivity implements WorkflowActi
 
         $provider = InsuranceProviderFactory::forOrder($order);
 
-        if (! $provider instanceof PolicyProviderInterface) {
+        if (! $provider instanceof PolicySyncProviderInterface) {
             return [
                 'order' => $order->getId(),
                 'status' => 'skipped',
