@@ -1452,16 +1452,16 @@
         },
         {
             "name": "doctrine/dbal",
-            "version": "4.4.5",
+            "version": "4.5.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/dbal.git",
-                "reference": "205fdf552ffafe33c1d12a41a2d6c7217666c32c"
+                "reference": "c435cd7ea33e17d2a89288caf994cf3d4549b879"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/dbal/zipball/205fdf552ffafe33c1d12a41a2d6c7217666c32c",
-                "reference": "205fdf552ffafe33c1d12a41a2d6c7217666c32c",
+                "url": "https://api.github.com/repos/doctrine/dbal/zipball/c435cd7ea33e17d2a89288caf994cf3d4549b879",
+                "reference": "c435cd7ea33e17d2a89288caf994cf3d4549b879",
                 "shasum": ""
             },
             "require": {
@@ -1538,7 +1538,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/dbal/issues",
-                "source": "https://github.com/doctrine/dbal/tree/4.4.5"
+                "source": "https://github.com/doctrine/dbal/tree/4.5.0"
             },
             "funding": [
                 {
@@ -1554,7 +1554,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-03T13:05:34+00:00"
+            "time": "2026-09-24T16:11:26+00:00"
         },
         {
             "name": "doctrine/deprecations",
@@ -3812,16 +3812,16 @@
         },
         {
             "name": "intervention/image",
-            "version": "4.3.2",
+            "version": "4.3.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Intervention/image.git",
-                "reference": "bc15ed24bb88dc58f921daf78091a019ce42fe2c"
+                "reference": "b25085af6275b94173c4ba43cfc34ae42bd9e8d2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Intervention/image/zipball/bc15ed24bb88dc58f921daf78091a019ce42fe2c",
-                "reference": "bc15ed24bb88dc58f921daf78091a019ce42fe2c",
+                "url": "https://api.github.com/repos/Intervention/image/zipball/b25085af6275b94173c4ba43cfc34ae42bd9e8d2",
+                "reference": "b25085af6275b94173c4ba43cfc34ae42bd9e8d2",
                 "shasum": ""
             },
             "require": {
@@ -3830,11 +3830,10 @@
                 "php": "^8.3"
             },
             "require-dev": {
+                "intervention/coding-standard": "^1",
                 "mockery/mockery": "^1.6",
                 "phpstan/phpstan": "^2.1",
-                "phpunit/phpunit": "^12.0",
-                "slevomat/coding-standard": "~8.0",
-                "squizlabs/php_codesniffer": "^4"
+                "phpunit/phpunit": "^12.0"
             },
             "suggest": {
                 "ext-exif": "Recommended to be able to read EXIF data properly."
@@ -3868,7 +3867,7 @@
             ],
             "support": {
                 "issues": "https://github.com/Intervention/image/issues",
-                "source": "https://github.com/Intervention/image/tree/4.3.2"
+                "source": "https://github.com/Intervention/image/tree/4.3.3"
             },
             "funding": [
                 {
@@ -3884,7 +3883,7 @@
                     "type": "ko_fi"
                 }
             ],
-            "time": "2026-08-29T05:35:03+00:00"
+            "time": "2026-09-26T06:48:23+00:00"
         },
         {
             "name": "jean85/pretty-package-versions",

@@ -28,8 +28,8 @@ use Override;
 
 #[AgentTypeDefinition(
     name: 'Self-Hosted Programming Agent',
-    description: 'An engineering teammate that runs coding work on the runtime Kanvas hosts itself, and '
-        . 'hands back a reviewed diff rather than a merge.',
+    description: 'An engineering teammate that runs coding work on the opencode runtime Kanvas hosts '
+        . 'itself, and hands back a reviewed diff rather than a merge.',
     provider: 'neuron',
     soul: 'You are a software engineer agent inside Kanvas. You delegate coding work to a runtime Kanvas '
         . 'operates: it works on a checked-out repository in an isolated container and pushes a branch '
