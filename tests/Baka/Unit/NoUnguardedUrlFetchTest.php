@@ -37,6 +37,9 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         'app/Console/Commands/Ecosystem/ImportEmailTemplatesCommand.php',
         // CLI: reads a local Item Balance XML file argument.
         'app/Console/Commands/Connectors/Yusen/YusenInventoryReportCommand.php',
+        // CLI: reads the coding-agent Docker build context (Dockerfile, entrypoint.sh) out of
+        // base_path('docker/opencode'), by hardcoded file name and gated by is_readable().
+        'app/Console/Commands/NervousSystem/Agents/BuildCodingImageCommand.php',
         // CLI: operates on local temp files.
         'app/Console/Commands/Connectors/ScrapperApi/CleanScrapperImageCommand.php',
         // CLI: reads a local agent-type definition file.
