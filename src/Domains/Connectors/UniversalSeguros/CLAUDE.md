@@ -100,9 +100,40 @@ layer's business — see the Insurance CLAUDE.md table.
 
 1. **Cotizar** — `quote(InsuranceQuoteRequest)` → returns `numeroCotizacion` + primas. Persists nothing.
 2. **Docs** — `uploadDocuments($order, [InsuranceDocument, …])` → multipart `/documentos`, status `DOCUMENTS_UPLOADED`. (All products except A-PL require inspection — `requiresInspection($order)`.)
-3. **Pago** — `requestPaymentLink($order, byEmail?)` → pay link / email, status `AWAITING_PAYMENT`. (Gateway-token form path `/pagos/generar-formulario` exists on the Service but isn't wired.)
+3. **Pago** — `reportPayment($order, InsurancePaymentReport)` → §4.5, status `PAID`. See below.
 4. **Emitir** — `emit($order)` → emit + read-back, stamps the policy number, status `EMITTED`/`POLICY_ACTIVE`.
-5. **Sync** — `syncPolicy($order)`, driven by the generic `SyncInsurancePolicyActivity`, to follow pay+emit completed out-of-band.
+5. **Facturar** — `invoicePolicy($order, InsurancePaymentReport)` → §4.6. Universal issues the invoice; we only hand them the transaction and the policy number.
+6. **Sync** — `syncPolicy($order)`, driven by the generic `SyncInsurancePolicyActivity`, to follow pay+emit completed out-of-band.
+
+### We collect, then report — we do not use their gateway
+
+Universal issued a MoviPass-specific revision of the spec whose §4.3 opens with it: *"Para
+Movipass, el cobro al cliente se realiza en su plataforma mediante Azul y se reporta a UNIT según
+el apartado 4.5."* So the three gateway options in §4.3 — email link, hosted link, and the
+`/pagos/generar-formulario` token — **are not our path**, and `requestPaymentLink()` survives only
+because the contract is shared with insurers that do collect. `generar-formulario` stays unwired
+on purpose; don't "finish" it.
+
+This needs **no collective policy, no `postpago`, no profile change, and not `/api/v1/emitir`** —
+the individual flow is unchanged except that step 3 reports instead of charges. `asignar-informacion-pago`
+only needs `cotizaciones` + `externos`, both of which the aliado token already carries.
+
+Three things the shape forces:
+
+- **Report off the authorization, not the capture.** Everything with an inspection is a Hold on
+  their side (§4.3), and `AzulProcessor` reproduces it with `authorize()`/`capture()`. The funds
+  stay reserved until the policy exists; a failed emission is voided and never captured. Voiding
+  a *held* Azul transaction has no time limit, but voiding a *captured* one is 20 minutes only —
+  which is why a plain Sale is the wrong call here.
+- **`amount`/`tax` are currency units, not cents.** Their doc never says so; it is inferred from
+  their own example (`amount: 5323, tax: 734` → 16% ITBIS on the 4589 base) and from the fact
+  that a car premium of RD$53.23 is nonsense. `AzulProcessor::toCents()` means **the value we
+  send Azul cannot be forwarded** — read `insurance_total` / `insurance_tax` off the Order.
+  `itbis` is hardcoded `'000'` on the Azul side, so the tax never comes back from the processor
+  either. Unverified: §4.5 answers `204` with no body, so a wrong magnitude is accepted silently.
+  Confirm by reading the quote back.
+- **No idempotency key.** Unlike the quote, §4.5 documents none, and a `204` cannot distinguish
+  "created" from "already there". Report once, off the authorization.
 
 ## Allowed values and cross-field rules (harvested from QA, not in their doc)
 
@@ -172,17 +203,27 @@ Cross-field rules they enforce and the doc omits:
 - **A bare `500` has two unrelated causes. Rule out ours before blaming theirs.**
   1. *Ours:* a key we should have omitted (see the null rules above). Fixed at the boundary, but
      any new hand-built payload can reintroduce it.
-  2. *Theirs:* an unknown VIN. Their registry lookup has an unhandled null, so **any chassis other
-     than `1FMCU0GXXDUA25874` returns `500`** — verified across four spellings, with the plate
-     making no difference. Only that one VIN is seeded in QA.
+  2. *Theirs:* a VIN their registry doesn't know. The lookup has an unhandled null, so an
+     unseeded chassis returns `500` instead of a `400`.
 
   Their validation is otherwise good: bad enums come back as `400` with a field-keyed `errors`
-  map naming the allowed values. Diagnose by sending the known VIN — if the `500` becomes a
-  `400`, the problem was the VIN; if it stays a `500`, it is your payload.
-- **QA chassis blocker (genuinely theirs):** `1FMCU0GXXDUA25874` — the one VIN they know — returns
-  `400 "El chasis del vehículo no puede ser asegurado"`. So the only seeded chassis is
-  deliberately *not* insurable. End-to-end issuance cannot be QA-tested until Universal seeds an
-  insurable one. This is the only thing standing between us and a live quote.
+  map naming the allowed values. Diagnose by sending a chassis QA currently accepts — if the
+  `500` becomes a `400` or a green quote, the problem was the VIN; if it stays a `500`, it is
+  your payload.
+- **Which QA chassis works flips without warning — measure, don't trust this file.** Universal
+  re-seeds their QA registry, and the two VINs swapped roles between 2026-06 and 2026-08. As of
+  **2026-08-27**, measured live against Kanvas' `insuranceQuote`:
+
+  | Chassis | QA today (2026-08-27) | Previously (as first documented) |
+  |---|---|---|
+  | `1FMCUOGXXDUA25874sodfaojk` (letter `O`) | **quotes green** — complete and express modes | `500`, unknown VIN |
+  | `1FMCU0GXXDUA25874` (digit `0`) | `400 "El chasis del vehículo no puede ser asegurado"` | the only seeded VIN |
+
+  Note the `O`-vs-`0` at position 6 — the two differ by one character and the wrong one is a
+  silent `500`. The old claim that *only* `1FMCU0GXXDUA25874` is seeded no longer holds, and the
+  quote path is no longer blocked: **A-PA quotes end-to-end today**. Issuance is still unproven —
+  confirm with Universal which VIN their QA has enabled for emission before assuming a green
+  quote means a green policy.
 - **Anexo A's chassis reads `1FWCU…` in the PDF — that is an OCR artefact.** `FM` is Ford's real
   WMI and the only prefix their registry accepts. Don't retype VINs out of the PDF images.
 - **Error shape:** Universal returns RFC7231 problem+json; on validation errors a field-keyed
@@ -195,8 +236,14 @@ Cross-field rules they enforce and the doc omits:
   falls through), and adding the two components prices it at **1005.85** — `primaKm` is a rate
   *per kilometer driven*, not an amount. The premium is `primaFija`; the rate rides separately
   on `QuoteResult::$ratePerKm` → `rate_per_km` in GraphQL → `insurance_rate_per_km` on the Order.
-  The presence of `primaFija`, not a falsy `prima`, is what distinguishes the two shapes.
+  The presence of `primaFija`, not a falsy `prima`, is what distinguishes the two shapes — for
+  the *rate*. It does **not** pick the premium: A-PA sends `primaFija` too, but zero (found
+  2026-08-27), so `primaFija` wins only when it is `> 0` and otherwise falls back to `prima`.
   Regression: `testPerKilometerProductPricesOffTheFixedPremiumNotTheZeroPrima`.
+- **The quote response envelope is inconsistent — read `data.*` first.** `terminos` is nested under
+  `data`, and so is `numeroCotizacion`, despite the doc's sample showing it at the root. Reading the
+  root alone left `quote_number` empty and marked valid A-PA quotes `success:false` (fixed
+  2026-08-27). New fields: try `data.<field> ?? <field>`, never the root alone.
 - **DTO casing:** use `debidaDiligencia` (the A-KM Postman sample misspells it `debidadiligencia`).
 - **Emission is scoped per product.** `ConfigurationEnum::defaultScopes()` derives the scope list
   from `ProductEnum::emitScope()` so a new product can't ship without its emit scope. The old

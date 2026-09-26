@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\UniversalSeguros\Providers;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use DomainException;
+use Kanvas\Connectors\UniversalSeguros\DataTransferObject\PaymentInformation;
 use Kanvas\Connectors\UniversalSeguros\DataTransferObject\QuoteRequest;
 use Kanvas\Connectors\UniversalSeguros\Enums\ConfigurationEnum;
 use Kanvas\Connectors\UniversalSeguros\Enums\CustomFieldEnum;
@@ -19,13 +20,16 @@ use Kanvas\Insurance\Contracts\CatalogProviderInterface;
 use Kanvas\Insurance\Contracts\InspectionProviderInterface;
 use Kanvas\Insurance\Contracts\InsuranceProviderInterface;
 use Kanvas\Insurance\Contracts\PaymentLinkProviderInterface;
+use Kanvas\Insurance\Contracts\PaymentReportProviderInterface;
 use Kanvas\Insurance\Contracts\PolicyProviderInterface;
 use Kanvas\Insurance\Contracts\ProductCatalogProviderInterface;
 use Kanvas\Insurance\DataTransferObject\DocumentUploadResult;
 use Kanvas\Insurance\DataTransferObject\InsuranceDocument;
+use Kanvas\Insurance\DataTransferObject\InsurancePaymentReport;
 use Kanvas\Insurance\DataTransferObject\InsuranceProduct;
 use Kanvas\Insurance\DataTransferObject\InsuranceQuoteRequest;
 use Kanvas\Insurance\DataTransferObject\PaymentLinkResult;
+use Kanvas\Insurance\DataTransferObject\PaymentReportResult;
 use Kanvas\Insurance\DataTransferObject\PolicyResult;
 use Kanvas\Insurance\DataTransferObject\QuoteResult;
 use Kanvas\Insurance\Enums\InsuranceCustomFieldEnum;
@@ -40,6 +44,7 @@ class UniversalSegurosProvider implements
     InspectionProviderInterface,
     InsuranceProviderInterface,
     PaymentLinkProviderInterface,
+    PaymentReportProviderInterface,
     PolicyProviderInterface,
     ProductCatalogProviderInterface
 {
@@ -148,6 +153,45 @@ class UniversalSegurosProvider implements
             url: $url,
             sentByEmail: $byEmail,
             raw: $response,
+        );
+    }
+
+    /**
+     * Records how the premium was settled on our side. It neither charges nor
+     * emits, and answers 204 with no body — so a non-throwing call is the only
+     * success signal there is.
+     */
+    public function reportPayment(Order $order, InsurancePaymentReport $report): PaymentReportResult
+    {
+        $raw = $this->service->assignPaymentInformation(
+            PaymentInformation::fromReport($report->forQuote($this->quoteNumber($order)))
+        );
+
+        $order->set(InsuranceCustomFieldEnum::STATUS->value, InsuranceStatusEnum::PAID->value);
+
+        return new PaymentReportResult(
+            success: true,
+            message: 'Payment reported',
+            raw: $raw,
+        );
+    }
+
+    public function invoicePolicy(Order $order, InsurancePaymentReport $report): PaymentReportResult
+    {
+        $policyNumber = (string) $order->get(InsuranceCustomFieldEnum::POLICY_NUMBER->value);
+
+        if ($policyNumber === '') {
+            throw new ValidationException('Order has no policy number — emit it first.');
+        }
+
+        $raw = $this->service->invoicePolicy(
+            PaymentInformation::fromReport($report->forPolicy($policyNumber))
+        );
+
+        return new PaymentReportResult(
+            success: true,
+            message: 'Policy invoiced',
+            raw: $raw,
         );
     }
 

@@ -74,9 +74,15 @@ there:
 |---|---|---|
 | Bind the quote, stamp premium/tax/total | `AttachInsuranceQuoteActivity` | order created |
 | Push inspection documents | *(not wired)* | files attached to the order |
-| Payment | *(undecided — see below)* | — |
-| Emit the policy | *(not wired)* | payment completed |
+| Report the payment we took | `ReportInsurancePaymentActivity` | card authorized |
+| Emit the policy | *(not wired)* | payment reported |
+| Invoice the policy | *(not wired)* | policy emitted |
 | Poll the policy back | `SyncInsurancePolicyActivity` | schedule / status change |
+
+Whether the insurer collects or we do is the insurer's call, so both shapes are contracts:
+`PaymentLinkProviderInterface` hands the cardholder to their gateway, `PaymentReportProviderInterface`
+settles on our side and tells them afterwards. Universal is the second; the adapter's CLAUDE.md has
+why, and why reporting runs off the authorization rather than the capture.
 
 `AttachQuoteToOrderAction` **re-reads prices from the insurer** rather than trusting
 the client's quote payload, so a tampered payload can't set its own premium.
