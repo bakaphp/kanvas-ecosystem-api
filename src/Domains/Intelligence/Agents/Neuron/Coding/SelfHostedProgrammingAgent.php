@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CancelHarnessCodingJobTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CheckHarnessCodingJobTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\ContinueHarnessCodingJobTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\DispatchHarnessCodingTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\FetchHarnessCodingArtifactTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\KillHarnessCodingRuntimeTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\ListHarnessCodingJobsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\ListHarnessRepositoryFilesTool;
@@ -168,6 +169,7 @@ class SelfHostedProgrammingAgent extends SystemUserAgent
                 new CheckHarnessCodingJobTool($agent),
                 new ListHarnessCodingJobsTool($agent),
                 new ShowHarnessCodingDiffTool($agent),
+                new FetchHarnessCodingArtifactTool($agent),
                 new SteerHarnessCodingJobTool($agent),
                 new CancelHarnessCodingJobTool($agent),
                 new AnswerHarnessCodingPermissionTool($agent),

@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use InvalidArgumentException;
 use Kanvas\Filesystem\Enums\AllowedFileExtensionEnum;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Throwable;
 
@@ -128,6 +129,22 @@ trait AttachesFileToEntity
             ];
         }
 
+        return $this->attachStoredFile($entity, $entityLabel, $file, $name);
+    }
+
+    /**
+     * The half that is the same whatever produced the file: hang it on the entity and describe the
+     * result. A caller with its own way of getting the bytes — pulling an artifact off a coding
+     * machine, say — joins here rather than restating the failure copy.
+     *
+     * @return array<string, mixed>
+     */
+    protected function attachStoredFile(
+        EloquentModel $entity,
+        string $entityLabel,
+        Filesystem $file,
+        string $name,
+    ): array {
         try {
             $entity->addFile($file, $name);
         } catch (Throwable $e) {
