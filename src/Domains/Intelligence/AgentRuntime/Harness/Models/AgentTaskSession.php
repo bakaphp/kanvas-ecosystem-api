@@ -37,6 +37,7 @@ use Override;
  * @property string|null $endpoint
  * @property string|null $server_password
  * @property string|null $workspace_path
+ * @property Carbon|null $workspace_reaped_at
  * @property string|null $session_data_path
  * @property string|null $branch
  * @property string|null $pull_request_url
@@ -73,6 +74,7 @@ class AgentTaskSession extends BaseModel
             'started_at' => 'datetime',
             'heartbeat_at' => 'datetime',
             'completed_at' => 'datetime',
+            'workspace_reaped_at' => 'datetime',
             'is_deleted' => 'boolean',
         ];
     }
@@ -154,10 +156,52 @@ class AgentTaskSession extends BaseModel
 
     public function scopeLive(Builder $query): Builder
     {
-        return $query->whereNotIn('status', array_map(
-            static fn (HarnessStatusEnum $status): string => $status->value,
-            [HarnessStatusEnum::COMPLETED, HarnessStatusEnum::FAILED, HarnessStatusEnum::CANCELLED]
-        ));
+        return $query->whereNotIn('status', HarnessStatusEnum::terminalValues());
+    }
+
+    /**
+     * One harness's sessions on one machine — the predicate every sweep starts from.
+     *
+     * A machine can host more than one harness, and the reaper acts on the filesystem, so "whose is
+     * this" has to be asked identically everywhere it is asked. Written out per query it was already
+     * three copies in two clause orders.
+     */
+    public function scopeOnMachine(Builder $query, int $machineId, HarnessEnum $harness): Builder
+    {
+        return $query->where('agent_machine_id', $machineId)->where('harness', $harness->value);
+    }
+
+    /**
+     * Sessions on a machine whose checkout can be deleted: ended, older than the retention window, and
+     * not already reaped. Oldest first, because the caller batches — without an order the choice of
+     * which expired rows make the batch is the database's, and one can sit unreaped indefinitely.
+     *
+     * "Ended" is a terminal STATUS, not `completed_at IS NOT NULL`. A run that failed or was killed
+     * frequently never reaches the code that stamps that column, and those are precisely the sessions
+     * that leave the largest directories behind.
+     */
+    public function scopeWorkspaceReapable(
+        Builder $query,
+        int $machineId,
+        int $retentionHours,
+        HarnessEnum $harness
+    ): Builder {
+        $cutoff = Carbon::now()->subHours($retentionHours);
+
+        return $query->onMachine($machineId, $harness)
+            ->whereIn('status', HarnessStatusEnum::terminalValues())
+            ->whereNotNull('workspace_path')
+            ->whereNull('workspace_reaped_at')
+            ->where(
+                fn (Builder $ended): Builder => $ended
+                    ->where('completed_at', '<', $cutoff)
+                    ->orWhere(
+                        fn (Builder $unstamped): Builder => $unstamped
+                            ->whereNull('completed_at')
+                            ->where('updated_at', '<', $cutoff)
+                    )
+            )
+            ->orderByRaw('COALESCE(completed_at, updated_at) ASC');
     }
 
     /**

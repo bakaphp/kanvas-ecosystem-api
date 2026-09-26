@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Harness\Actions;
 
 use Baka\Support\Str;
 use Illuminate\Support\Carbon;
+use Kanvas\Connectors\Github\Client as GitHubClient;
 use Kanvas\Connectors\OpenCode\Actions\ProvisionCodingSessionAction;
 use Kanvas\Connectors\OpenCode\Actions\StopCodingSessionRuntimeAction;
 use Kanvas\Connectors\OpenCode\DataTransferObject\CodingRepository;
@@ -229,7 +230,17 @@ class DispatchHarnessTaskAction
      */
     private function repoSlug(): ?string
     {
-        return $this->repoSlug ?? $this->continues?->repo_slug;
+        $slug = Str::trimToNull($this->repoSlug ?? $this->continues?->repo_slug);
+
+        if ($slug === null) {
+            return null;
+        }
+
+        // Canonical `owner/name`, because this string is the key the repository's memories are filed
+        // under. People pass a URL one time and `owner/name` the next — both correct, both accepted —
+        // and storing them verbatim filed one repository's lessons into two buckets that could not see
+        // each other. A bare project name is not a GitHub reference and is kept as typed.
+        return GitHubClient::tryNormalizeRepository($slug) ?? $slug;
     }
 
     /**

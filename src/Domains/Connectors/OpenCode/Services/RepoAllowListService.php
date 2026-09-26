@@ -206,10 +206,6 @@ class RepoAllowListService
      */
     private function gitHubRepo(string $identifier): ?string
     {
-        try {
-            return GitHubClient::normalizeRepository($identifier);
-        } catch (ValidationException $e) {
-            return null;
-        }
+        return GitHubClient::tryNormalizeRepository($identifier);
     }
 }

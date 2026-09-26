@@ -19,6 +19,7 @@ use App\Console\Commands\Ecosystem\Users\DetectSignupAnomalyCommand;
 use App\Console\Commands\Event\GenerateUpcomingTimeSlotsCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\Lead\Schedules\LeadFollowUpSchedule;
+use App\Console\Commands\NervousSystem\Agents\ReapCodingAgentRuntimeCommand;
 use App\Console\Commands\NervousSystem\Agents\SweepCodingSessionsCommand;
 use App\Console\Commands\NervousSystem\Mcp\RefreshMcpToolCacheCommand;
 use App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule;
@@ -60,10 +61,14 @@ class Kernel extends ConsoleKernel
         // Hourly matches the descriptor cache's soft TTL, so a company's first turn of the day is warm
         // rather than paying three round trips per connected MCP server.
         $schedule->command(RefreshMcpToolCacheCommand::class)->hourly()->withoutOverlapping()->onOneServer();
-        // Coding runtime — the only thing that closes a wedged session and retires an idle container.
-        // Without it workspaces accumulate on the machine until its disk fills, and a session whose
-        // runtime died stays "running" forever, holding a concurrency slot nothing will ever release.
+        // Coding runtime, two cadences on purpose. A session whose runtime died stays "running"
+        // forever and holds a tenant's concurrency slot, so that is checked often; reclaiming disk is
+        // housekeeping, and at five minutes it would re-issue a couple of hundred `rm -rf` over SSH
+        // for things already gone. Without the second one, workspaces accumulate until the machine's
+        // disk fills — which shows up as unrelated services failing on a shared box.
         $schedule->command(SweepCodingSessionsCommand::class)->everyFiveMinutes()
+            ->withoutOverlapping()->onOneServer();
+        $schedule->command(ReapCodingAgentRuntimeCommand::class)->everyTwoHours()
             ->withoutOverlapping()->onOneServer();
 
         // The model cache's tag index never reclaims the entries of keys it has already flushed, and a

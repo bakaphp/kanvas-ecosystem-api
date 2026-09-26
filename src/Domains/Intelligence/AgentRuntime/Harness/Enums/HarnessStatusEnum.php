@@ -23,6 +23,22 @@ enum HarnessStatusEnum: string
     }
 
     /**
+     * The terminal statuses as stored values, for a `whereIn`. Derived from {@see self::isTerminal()}
+     * rather than listed again, so a new terminal case cannot be added to one and missed in the other.
+     *
+     * @return list<string>
+     */
+    public static function terminalValues(): array
+    {
+        return array_values(
+            array_map(
+                static fn (self $case): string => $case->value,
+                array_filter(self::cases(), static fn (self $case): bool => $case->isTerminal()),
+            )
+        );
+    }
+
+    /**
      * A session parked on a question or a permission is still live work, so the Task must NOT move —
      * `TaskStatusEnum::BLOCKED` is terminal and every poller bails on it, which would strand the run
      * the moment somebody answers. The waiting state lives on the session row instead.

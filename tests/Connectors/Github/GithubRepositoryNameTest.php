@@ -62,4 +62,21 @@ final class GithubRepositoryNameTest extends TestCase
     {
         $this->assertSame('BakaPHP/Kanvas-Ecosystem-API', Client::normalizeRepository('https://github.com/BakaPHP/Kanvas-Ecosystem-API'));
     }
+
+    #[DataProvider('repositoryForms')]
+    public function testTheNullableFormAnswersTheSameForARealRepository(string $input): void
+    {
+        $this->assertSame('bakaphp/kanvas-ecosystem-api', Client::tryNormalizeRepository($input));
+    }
+
+    /**
+     * A coding session's repository is whatever someone typed, and a bare project name with no owner is
+     * a legitimate thing to type. The nullable form exists so a caller can canonicalise what it can and
+     * keep the rest untouched, instead of having to catch an exception per row.
+     */
+    #[DataProvider('unusableValues')]
+    public function testTheNullableFormAnswersNullInsteadOfThrowing(string $input): void
+    {
+        $this->assertNull(Client::tryNormalizeRepository($input));
+    }
 }

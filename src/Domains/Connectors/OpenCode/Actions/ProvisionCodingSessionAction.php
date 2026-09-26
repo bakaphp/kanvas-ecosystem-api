@@ -83,6 +83,13 @@ class ProvisionCodingSessionAction
         }
 
         $machine = $this->resolveMachine();
+
+        // Recorded BEFORE the container exists, not after provisioning succeeds. The reaper finds work
+        // by looking at the machines sessions point at, so a crash between `docker run` and the save
+        // below would otherwise strand a container on a machine nothing knows to sweep.
+        $this->session->agent_machine_id = $machine->getId();
+        $this->session->saveOrFail();
+
         $runtime = new EnsureAgentCodingContainerAction($agent, $machine, $this->app)->execute();
 
         $client = SshClient::fromMachine($machine);
@@ -94,7 +101,6 @@ class ProvisionCodingSessionAction
             $client->disconnect();
         }
 
-        $this->session->agent_machine_id = $machine->getId();
         $this->session->container_name = $runtime['container'];
         $this->session->server_password = $runtime['password'];
         $this->session->port = $runtime['port'];

@@ -48,6 +48,22 @@ class Client
      * `/repos/https://github.com/owner/repo/releases` — a 404 that, on a private repository, reads
      * exactly like a token without access.
      */
+    /**
+     * The same thing for callers that hold a string which may not be a GitHub reference at all.
+     *
+     * A coding session's repository is whatever the person typed, and that is sometimes a bare project
+     * name with no owner. Those are legitimate and must survive untouched, so this answers null rather
+     * than throwing and leaves the caller to keep what it had.
+     */
+    public static function tryNormalizeRepository(string $repository): ?string
+    {
+        try {
+            return self::normalizeRepository($repository);
+        } catch (ValidationException) {
+            return null;
+        }
+    }
+
     public static function normalizeRepository(string $repository): string
     {
         $value = trim($repository);

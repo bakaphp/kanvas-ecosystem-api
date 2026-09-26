@@ -56,6 +56,32 @@ which can be queried from Task custom fields, and custom fields live on a differ
 - **`from_ia => true` on every plan post.** Otherwise an @mention inside the agent's own narration wakes
   the agent it names and two agents talk until the budget is gone.
 
+## Disk: what is reclaimed, and the one thing that is not
+
+`kanvas:coding:reap` (every 2h) removes idle containers and the checkouts of sessions that ended more
+than 24h ago. Three separate things live on a machine and only two of them are swept:
+
+| | Lifetime | Reclaimed by |
+|---|---|---|
+| per-session checkout | 24h after the session ends | the reaper |
+| idle container | 60min after the agent's last heartbeat | the reaper |
+| bare git mirror, per (company, repo) | forever — it is the expensive part | nothing, deliberately |
+| **`worktrees/.home`** — opencode's own session store | **forever** | **nothing** |
+
+**Checkout size tracks the work, not the task count.** Thirty checkouts of a static-HTML repo came to
+25MB; one Next.js task that ran `npm install` was 608MB on its own. So the 24h window matters far more
+for JS work than the number of sessions ever will.
+
+**The `.home` decision is deferred on purpose.** It is per agent, survives every container kill, and is
+the largest single item (~1GB after two days on one agent). It exists to make opencode sessions
+resumable — and nothing resumes them today: a continuation reuses only the branch, PR and repo, gets a
+fresh directory and starts a new opencode session. So it is currently buying nothing, and deleting it
+would lose nothing that is not already in the branch, the pull request, the handoff and the memories.
+
+It was left alone anyway, because one afternoon's numbers are a bad basis for a retention policy. The
+reaper now prints and logs `coding.runtime.disk` (`total_bytes`, `home_bytes`, `available_bytes`) per
+machine on every run — revisit with a few weeks of that series rather than another single `du`.
+
 ## The opencode API, as it actually is
 
 Verified against **2.0.16** via `GET /openapi.json` (`/doc` now serves the web UI). **v2 is not
@@ -126,6 +152,46 @@ Three things were learned the expensive way here:
 - **Do not install `@ai-sdk/*` into the image's config dir.** opencode ships its own. (An earlier note
   here claimed the install was required, and a later one claimed it was actively harmful; both were
   wrong — the actual variable was git, above.)
+
+## Configuration — every key, and which ones are not optional
+
+Nothing here has a sensible default that works, and a missing key fails late and unhelpfully: the
+session provisions, the turn runs, and the model answers from opencode's own hosted model or dies with
+`ModelUnavailableError`. Check this table before debugging anything else.
+
+**App-level** (`$app->set(...)`, `ConfigurationEnum`):
+
+| Key | Required | Notes |
+|---|---|---|
+| `opencode_provider_id` | **yes** | The provider block's name in `opencode.json` (e.g. `oai`). A model pinned with no provider block throws. |
+| `opencode_model` | **yes** | e.g. `gpt-6-luna`. Per-agent `CODING_MODEL` overrides it. |
+| `opencode_provider_api_key` | **yes** | Unless the agent carries its own `CODING_PROVIDER_API_KEY`. Company config wins over app. |
+| `opencode_provider_env_var` | no | Defaults `OPENAI_API_KEY`. Must match what the provider block's `env` names. |
+| `opencode_provider_base_url` | no | Defaults to OpenAI. |
+| `opencode_provider_npm` | no | `@ai-sdk/openai` for the Responses API (codex models, `gpt-6-luna` tool calls); `@ai-sdk/openai-compatible` otherwise. Both ship in the image. |
+| `opencode_image` | no | Until there is a registry this must already be built **on that machine** — see `kanvas:coding:build-image`. |
+| `opencode_workspace_root` | no | Defaults `/srv/kanvas`. Mirrors, worktrees and `.home` all live under it. |
+| `opencode_container_cpus` / `_memory` | no | Default memory is 2g. Larger than the box's free RAM is how MySQL gets OOM-killed. |
+| `coding_max_concurrent_sessions` | no | Per app. |
+| `coding_max_session_cost_usd` | no | Per session ceiling. |
+| `opencode_static_endpoint` / `_password` | no | Attach mode only. Leave unset for the real path, or provisioning attaches instead of launching. |
+
+**Agent-level** (custom fields, `AgentCustomFieldEnum`):
+
+| Key | Required | Notes |
+|---|---|---|
+| `CODING_MACHINE_ID` | **yes** | Tenant-scoped. Without it provisioning falls back to any active machine for the company. |
+| `CODING_GIT_TOKEN` | **yes** | Per agent, and it **is** the permission boundary — the agent's reach is exactly this token's reach. Not company-wide by design. |
+| `CODING_MODEL` | no | Overrides the app model for this agent. |
+| `CODING_PROVIDER_API_KEY` / `CODING_PROVIDER_KEY_NAME` | no | Agent's own key instead of the app's. Rotating it changes `kanvas.keyfp` and forces a container rebuild. |
+| `CODING_ALLOWED_REPOS` | no | Settings (base branch, rules, protected paths), **not** a gate — the token is the gate. |
+| `CODING_ALLOW_TRUNK_PUSH` | no | Off by default. The only way a push reaches main/master/develop/... |
+| `CODING_SYSTEM_PROMPT` | no | Appended to the agent document. |
+| `CODING_CONTAINER_PORT` / `_PASSWORD` | never set by hand | Written by the provisioner. |
+
+After changing an agent type or a tool, run `kanvas:intelligence:sync-agent-types` and
+`kanvas:nervous-system:sync-tools` or the PM cannot see or hire the agent — then reload Octane **and**
+the queue worker, which hold their own stale class graph.
 
 ## Running one by hand
 
