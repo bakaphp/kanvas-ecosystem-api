@@ -13,14 +13,24 @@ use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Twilio\Webhooks\ProcessTwilioWebhookJob;
+use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Guild\Customers\DataTransferObject\Address;
+use Kanvas\Guild\Customers\DataTransferObject\Contact;
+use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Leads\Models\LeadType;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Jobs\FlushMessageBurstJob;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Services\MessageBurstService;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
+use Spatie\LaravelData\DataCollection;
 use Tests\TestCase;
 
 class ProcessTwilioWebhookJobTest extends TestCase
@@ -272,6 +282,106 @@ class ProcessTwilioWebhookJobTest extends TestCase
         Queue::assertNotPushed(FlushMessageBurstJob::class);
     }
 
+    /**
+     * Two People share one phone, each with their own lead and conversation channel. The text
+     * belongs to whichever conversation was spoken in last — not the People holding an active
+     * lead, not the first People row — and that has to hold in both directions as the
+     * conversations trade turns. The lead that spoke last is deliberately a lost one: the old
+     * "whoever has an active lead" rule would pick the other person every time.
+     */
+    public function testInboundSmsFollowsTheLeadWhoseChannelSpokeLast(): void
+    {
+        $phone = '+1' . fake()->numerify('##########');
+        $job = $this->makeJob($this->buildTwilioPayload(['From' => $phone]));
+
+        $activePeople = $this->createPeopleWithPhone($phone, 'Active');
+        $lostPeople = $this->createPeopleWithPhone($phone, 'Lost');
+        $activeLead = $job->createLeadFromPeople($activePeople);
+        $lostLead = $job->createLeadFromPeople($lostPeople);
+        $lostLead->leads_status_id = $this->lostStatus()->getId();
+        $lostLead->saveOrFail();
+
+        $activeChannel = $this->createLeadChannel($activeLead);
+        $lostChannel = $this->createLeadChannel($lostLead);
+        $activeChannel->addMessage(Message::factory()->create());
+        $lostChannel->addMessage(Message::factory()->create());
+
+        $peoples = People::query()->whereKey([$activePeople->getId(), $lostPeople->getId()])->get();
+        $this->assertTrue($lostLead->is(
+            LeadsRepository::getLeadWithMostRecentChannel($peoples, $this->receiver->app, $this->receiver->company)
+        ));
+
+        $result = $this->dispatchWebhookJob($this->buildTwilioPayload(['From' => $phone]));
+
+        $smsChannel = Channel::query()->findOrFail($result[0]['channel_id']);
+        $this->assertSame((string) $lostLead->getId(), $smsChannel->entity_id);
+        $this->assertSame(
+            $lostPeople->getId(),
+            Message::query()->findOrFail($result[0]['message_id'])->people_id
+        );
+
+        // The other conversation speaks again, so the next text belongs to it. The SMS channel now
+        // points at the lost lead and carries the last text, so the active one needs a fresher turn.
+        $activeChannel->addMessage(Message::factory()->create());
+
+        $this->assertTrue($activeLead->is(
+            LeadsRepository::getLeadWithMostRecentChannel($peoples, $this->receiver->app, $this->receiver->company)
+        ));
+
+        $result = $this->dispatchWebhookJob($this->buildTwilioPayload(['From' => $phone]));
+
+        $smsChannel = Channel::query()->findOrFail($result[0]['channel_id']);
+        $this->assertSame((string) $activeLead->getId(), $smsChannel->entity_id);
+        $this->assertSame(
+            $activePeople->getId(),
+            Message::query()->findOrFail($result[0]['message_id'])->people_id
+        );
+    }
+
+    private function lostStatus(): LeadStatus
+    {
+        return LeadStatus::firstOrCreate(
+            [
+                'apps_id' => $this->receiver->app->getId(),
+                'companies_id' => $this->receiver->company->getId(),
+                'name' => 'Lost',
+            ],
+            ['is_default' => 0]
+        );
+    }
+
+    private function createPeopleWithPhone(string $phone, string $firstname): People
+    {
+        return new CreatePeopleAction(new PeopleDto(
+            app: $this->receiver->app,
+            branch: $this->receiver->company->defaultBranch,
+            user: $this->receiver->user,
+            firstname: $firstname,
+            contacts: Contact::collect([
+                [
+                    'value' => Str::of($phone)->ltrim('+')->toString(),
+                    'contacts_types_id' => ContactTypeEnum::CELLPHONE->value,
+                    'weight' => 100,
+                ],
+            ], DataCollection::class),
+            address: Address::collect([], DataCollection::class),
+            lastname: 'Shared Phone',
+        ))->execute();
+    }
+
+    private function createLeadChannel(Lead $lead): Channel
+    {
+        return Channel::create([
+            'name' => 'conversation-' . $lead->getId(),
+            'slug' => 'conversation-' . $lead->getId(),
+            'users_id' => $this->receiver->users_id,
+            'apps_id' => $this->receiver->app->getId(),
+            'companies_id' => $this->receiver->company->getId(),
+            'entity_namespace' => Lead::class,
+            'entity_id' => (string) $lead->getId(),
+        ]);
+    }
+
     private function buildTwilioPayload(array $overrides = []): array
     {
         $phone = '+1' . fake()->numerify('##########');
@@ -292,18 +402,23 @@ class ProcessTwilioWebhookJobTest extends TestCase
 
     private function dispatchWebhookJob(array $payload): array
     {
+        $job = $this->makeJob($payload);
+
+        Queue::fake();
+
+        return $job->handle();
+    }
+
+    private function makeJob(array $payload): ProcessTwilioWebhookJob
+    {
         $request = Request::create(
             'https://localhost/v1/receiver/' . $this->receiver->uuid,
             'POST',
             $payload
         );
 
-        $webhookRequest = new ProcessWebhookAttemptAction($this->receiver, $request)->execute();
-
-        Queue::fake();
-
-        $job = new ProcessTwilioWebhookJob($webhookRequest);
-
-        return $job->handle();
+        return new ProcessTwilioWebhookJob(
+            new ProcessWebhookAttemptAction($this->receiver, $request)->execute()
+        );
     }
 }
