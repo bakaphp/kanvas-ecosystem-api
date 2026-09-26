@@ -18,6 +18,7 @@ use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Nevadskiy\Tree\AsTree;
+use Override;
 
 /**
  * Class Action.
@@ -33,7 +34,7 @@ use Nevadskiy\Tree\AsTree;
  * @property string $name
  * @property string $slug
  * @property string $description
- * @property string $icon
+ * @property mixed $icon
  * @property string $form_fields
  * @property string $form_config
  * @property int is_active
@@ -50,9 +51,11 @@ class Action extends BaseModel
     protected $table = 'actions';
     protected $guarded = [];
 
+    #[Override]
     protected function casts(): array
     {
         return [
+            'icon' => Json::class,
             'form_fields' => Json::class,
             'form_config' => Json::class,
         ];
@@ -86,6 +89,7 @@ class Action extends BaseModel
         ];
     }
 
+    #[Override]
     public function shouldBeSearchable(): bool
     {
         return ! $this->isDeleted();
@@ -93,13 +97,15 @@ class Action extends BaseModel
 
     public static function search($query = '', $callback = null)
     {
-        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        // Mirrors the fromPublicOrCurrentApp/fromCompanyAndGlobal scopes the paginated query uses:
+        // actions ship both as platform globals (apps_id/companies_id 0) and per app/company rows.
+        $query = self::traitSearch($query, $callback)->whereIn('apps_id', [0, app(Apps::class)->getId()]);
         $user = auth()->user();
 
         if ($user instanceof UserInterface && app()->bound(CompaniesBranches::class)) {
-            $query->where('companies_id', app(CompaniesBranches::class)->company->getId());
-        } elseif ($user instanceof UserInterface && ! auth()->user()->isAppOwner()) {
-            $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
+            $query->whereIn('companies_id', [0, app(CompaniesBranches::class)->company->getId()]);
+        } elseif ($user instanceof UserInterface && ! $user->isAppOwner()) {
+            $query->whereIn('companies_id', [0, $user->getCurrentCompany()->getId()]);
         }
 
         return $query;

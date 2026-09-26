@@ -27,7 +27,7 @@ use Throwable;
 class ReapOrphanCodingContainersAction
 {
     private const int WORKSPACE_RETENTION_HOURS = 24;
-    private const int IDLE_GRACE_MINUTES = 30;
+    private const int IDLE_GRACE_MINUTES = 60;
 
     public function __construct(
         private readonly AgentMachine $machine,

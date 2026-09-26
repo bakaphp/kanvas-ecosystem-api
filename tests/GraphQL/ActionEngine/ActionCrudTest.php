@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\ActionEngine;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Testing\TestResponse;
 use Kanvas\ActionEngine\Actions\Models\Action;
 use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\Apps\Models\Apps;
@@ -11,10 +13,18 @@ use Tests\TestCase;
 
 class ActionCrudTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    /**
+     * Actions are written on action_engine, which the default-connection-only rollback leaves
+     * committed — including apps_id 0 globals, which every app's list query unions in.
+     */
+    protected $connectionsToTransact = [null, 'action_engine'];
+
     public function testCreateAction(): void
     {
         $input = [
-            'name' => 'Test Action ' . fake()->word(),
+            'name' => 'Test Action ' . fake()->uuid(),
             'description' => 'Test action description',
             'is_active' => true,
             'is_published' => true,
@@ -64,7 +74,7 @@ class ActionCrudTest extends TestCase
     public function testCreateActionWithAllFields(): void
     {
         $input = [
-            'name' => 'Full Action ' . fake()->word(),
+            'name' => 'Full Action ' . fake()->uuid(),
             'description' => 'Full action description',
             'icon' => 'icon-test',
             'form_fields' => ['field1' => 'value1'],
@@ -104,10 +114,58 @@ class ActionCrudTest extends TestCase
         ]);
     }
 
+    public function testCreateActionWithSvgIcon(): void
+    {
+        $icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">'
+            . '<path d="M9.4,39.4c1.5,1.5,3.1,2.8,4.9,3.9z" fill="#E75E18"/></svg>';
+
+        $input = [
+            'name' => 'Svg Icon Action ' . fake()->uuid(),
+            'icon' => $icon,
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: ActionInput!) {
+                createAction(input: $input) {
+                    id
+                    icon
+                }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        $this->assertSame($icon, $response->json('data.createAction.icon'));
+        $this->assertSame($icon, Action::find($response->json('data.createAction.id'))->icon);
+    }
+
+    /**
+     * `icon` is Mixed rather than String so a client can send a structured icon without breaking the
+     * apps still sending raw SVG. Baka's Json cast stores an array encoded and leaves a string alone,
+     * so both shapes round-trip through the same column.
+     */
+    public function testCreateActionWithStructuredIcon(): void
+    {
+        $icon = ['name' => 'star', 'type' => 'lucide', 'color' => '#FF0000'];
+
+        $response = $this->graphQL('
+            mutation($input: ActionInput!) {
+                createAction(input: $input) {
+                    id
+                    icon
+                }
+            }
+        ', ['input' => [
+            'name' => 'Structured Icon Action ' . fake()->uuid(),
+            'icon' => $icon,
+        ]])->assertSuccessful();
+
+        $this->assertSame($icon, $response->json('data.createAction.icon'));
+        $this->assertSame($icon, Action::find($response->json('data.createAction.id'))->icon);
+    }
+
     public function testUpdateAction(): void
     {
         $createInput = [
-            'name' => 'Action To Update ' . fake()->word(),
+            'name' => 'Action To Update ' . fake()->uuid(),
             'description' => 'Original description',
             'is_active' => true,
             'is_published' => true,
@@ -125,7 +183,7 @@ class ActionCrudTest extends TestCase
         $actionId = $createResponse->json('data.createAction.id');
 
         $updateInput = [
-            'name' => 'Updated Action ' . fake()->word(),
+            'name' => 'Updated Action ' . fake()->uuid(),
             'description' => 'Updated description',
             'is_active' => false,
         ];
@@ -159,7 +217,7 @@ class ActionCrudTest extends TestCase
     public function testDeleteAction(): void
     {
         $createInput = [
-            'name' => 'Action To Delete ' . fake()->word(),
+            'name' => 'Action To Delete ' . fake()->uuid(),
             'description' => 'Will be deleted',
             'is_active' => true,
             'is_published' => true,
@@ -191,7 +249,7 @@ class ActionCrudTest extends TestCase
     public function testCannotDeleteActionInUseByCompanyAction(): void
     {
         $createInput = [
-            'name' => 'Action In Use ' . fake()->word(),
+            'name' => 'Action In Use ' . fake()->uuid(),
             'description' => 'Should not be deletable',
             'is_active' => true,
             'is_published' => true,
@@ -238,7 +296,7 @@ class ActionCrudTest extends TestCase
     public function testGetActions(): void
     {
         $input = [
-            'name' => 'Queryable Action ' . fake()->word(),
+            'name' => 'Queryable Action ' . fake()->uuid(),
             'description' => 'For listing test',
             'is_active' => true,
             'is_published' => true,
@@ -314,14 +372,108 @@ class ActionCrudTest extends TestCase
             }
         ', ['input' => $input])->assertSuccessful();
 
-        $actionName = $createResponse->json('data.createAction.name');
+        $this->assertActionIsListed(
+            $createResponse->json('data.createAction.name'),
+            $createResponse->json('data.createAction.id'),
+        );
+    }
 
-        $this->graphQL('
+    /**
+     * createAction stamps the acting app on the row, so the list query has to union apps_id 0 with the
+     * current app rather than scoping to apps_id 0 alone.
+     */
+    public function testGetActionsReturnsCurrentAppAndGlobalActions(): void
+    {
+        $appActionName = 'App Scoped Action ' . fake()->uuid();
+        $appActionId = $this->createActionWithName($appActionName);
+        $globalAction = $this->createGlobalAction();
+
+        $this->assertSame(app(Apps::class)->getId(), Action::find($appActionId)->apps_id);
+
+        $this->assertActionIsListed($appActionName, $appActionId);
+        $this->assertActionIsListed($globalAction->name, $globalAction->getId());
+    }
+
+    /**
+     * The CRUD has no way to choose a tenant: every created action is pegged to the acting app, and
+     * a global one has to be moved there by hand. Locked in so an input field can't silently add one.
+     */
+    public function testCreateActionIsPeggedToTheActingAppAndCompany(): void
+    {
+        $action = Action::find($this->createActionWithName('Pegged Action ' . fake()->uuid()));
+
+        $this->assertSame(app(Apps::class)->getId(), $action->apps_id);
+        $this->assertSame(0, (int) $action->companies_id);
+    }
+
+    public function testCannotUpdateAGlobalAction(): void
+    {
+        $global = $this->createGlobalAction();
+
+        $response = $this->attemptRename($global->getId());
+
+        $this->assertStringContainsString('is read-only', json_encode($response->json()));
+        $this->assertSame($global->name, Action::find($global->getId())->name);
+    }
+
+    public function testCannotDeleteAGlobalAction(): void
+    {
+        $global = $this->createGlobalAction();
+
+        $response = $this->graphQL('
+            mutation($id: ID!) {
+                deleteAction(id: $id)
+            }
+        ', ['id' => (string) $global->getId()]);
+
+        $this->assertStringContainsString('is read-only', json_encode($response->json()));
+        $this->assertSame(0, (int) Action::find($global->getId())->is_deleted);
+    }
+
+    /**
+     * A missing action must stay indistinguishable from one owned by another app, so the read-only
+     * message can't be used to probe which ids exist elsewhere.
+     */
+    public function testUpdatingAnotherAppsActionReportsNotFoundRatherThanReadOnly(): void
+    {
+        $response = $this->attemptRename($this->createForeignAppAction()->getId());
+
+        $body = json_encode($response->json());
+        $this->assertStringNotContainsString('is read-only', $body);
+        $this->assertStringContainsString('No query results', $body);
+    }
+
+    public function testGetActionsDoesNotLeakOtherAppActions(): void
+    {
+        $otherAppAction = $this->createForeignAppAction();
+
+        $this->queryActionsByName($otherAppAction->name)
+            ->assertSuccessful()
+            ->assertJsonCount(0, 'data.actionEngineActions.data');
+    }
+
+    private function assertActionIsListed(string $name, int|string $expectedId): void
+    {
+        $this->queryActionsByName($name)
+            ->assertSuccessful()
+            ->assertJson([
+                'data' => [
+                    'actionEngineActions' => [
+                        'data' => [
+                            ['id' => (string) $expectedId],
+                        ],
+                    ],
+                ],
+            ]);
+    }
+
+    private function queryActionsByName(string $name): TestResponse
+    {
+        return $this->graphQL('
             query($where: QueryActionEngineActionsWhereWhereConditions) {
                 actionEngineActions(where: $where) {
                     data {
                         id
-                        name
                     }
                 }
             }
@@ -329,9 +481,64 @@ class ActionCrudTest extends TestCase
             'where' => [
                 'column' => 'NAME',
                 'operator' => 'EQ',
-                'value' => $actionName,
+                'value' => $name,
             ],
-        ])
-        ->assertSuccessful();
+        ]);
+    }
+
+    private function attemptRename(int|string $id): TestResponse
+    {
+        return $this->graphQL('
+            mutation($id: ID!, $input: UpdateActionInput!) {
+                updateAction(id: $id, input: $input) {
+                    id
+                }
+            }
+        ', [
+            'id' => (string) $id,
+            'input' => ['name' => 'Should Not Apply ' . fake()->uuid()],
+        ]);
+    }
+
+    private function createActionWithName(string $name): string
+    {
+        return $this->graphQL('
+            mutation($input: ActionInput!) {
+                createAction(input: $input) {
+                    id
+                }
+            }
+        ', ['input' => ['name' => $name]])
+            ->assertSuccessful()
+            ->json('data.createAction.id');
+    }
+
+    /**
+     * Built on the model rather than through createAction: the mutation pegs every row to the acting
+     * app, so a global action is only ever placed by the platform.
+     */
+    private function createGlobalAction(): Action
+    {
+        return $this->createActionRow(0, 'Global Action ');
+    }
+
+    private function createForeignAppAction(): Action
+    {
+        return $this->createActionRow(app(Apps::class)->getId() + 10000, 'Foreign App Action ');
+    }
+
+    private function createActionRow(int $appsId, string $namePrefix): Action
+    {
+        $action = new Action();
+        $action->apps_id = $appsId;
+        $action->companies_id = 0;
+        $action->users_id = auth()->user()->getId();
+        $action->pipelines_id = 0;
+        $action->name = $namePrefix . fake()->uuid();
+        $action->is_active = true;
+        $action->is_published = true;
+        $action->saveOrFail();
+
+        return $action;
     }
 }

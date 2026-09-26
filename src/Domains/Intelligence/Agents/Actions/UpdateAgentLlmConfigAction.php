@@ -26,6 +26,7 @@ class UpdateAgentLlmConfigAction
             $this->config->model = $this->data->model;
             $this->config->config = $this->data->config;
             $this->config->is_active = $this->data->is_active;
+            $this->config->is_routing_enabled = $this->data->is_routing_enabled;
             $this->config->saveOrFail();
 
             return $this->config;

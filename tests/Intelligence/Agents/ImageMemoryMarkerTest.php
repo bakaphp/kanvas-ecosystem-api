@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents;
 
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\Agents\Neuron\KanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
@@ -68,6 +70,26 @@ class ImageMemoryMarkerTest extends TestCase
         ]);
 
         $this->assertSame('', $marker);
+    }
+
+    public function testSalesProbesAttachedFilesWhenTurnWouldVanish(): void
+    {
+        $message = new SocialMessage();
+        $message->setRelation('files', new EloquentCollection([
+            new Filesystem(['url' => 'https://cdn.example/snap.jpg', 'name' => 'snap.jpg', 'file_type' => 'image/jpeg']),
+        ]));
+
+        $this->assertSame('[Attachment]', $this->salesMarker(['content' => ''], $message));
+    }
+
+    public function testSalesIgnoresNonDescribableAttachedFiles(): void
+    {
+        $message = new SocialMessage();
+        $message->setRelation('files', new EloquentCollection([
+            new Filesystem(['url' => 'https://cdn.example/clip.mp4', 'name' => 'clip.mp4', 'file_type' => 'video/mp4']),
+        ]));
+
+        $this->assertSame('', $this->salesMarker(['content' => ''], $message));
     }
 
     public function testConversationDescriptionsBecomeMemoryLines(): void

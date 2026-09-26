@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Currencies\Models;
 
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Factories\CurrenciesFactory;
@@ -21,8 +20,6 @@ use Override;
  */
 class Currencies extends BaseModel
 {
-    use Cachable;
-
     protected $table = 'currencies';
 
     #[Override]

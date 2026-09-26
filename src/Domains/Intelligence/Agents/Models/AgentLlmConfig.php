@@ -30,6 +30,7 @@ use Override;
  * @property string|null $model
  * @property array|null $config
  * @property bool $is_active
+ * @property bool $is_routing_enabled
  * @property bool $is_deleted
  */
 class AgentLlmConfig extends BaseModel
@@ -52,6 +53,7 @@ class AgentLlmConfig extends BaseModel
         'model',
         'config',
         'is_active',
+        'is_routing_enabled',
     ];
 
     #[Override]
@@ -61,6 +63,7 @@ class AgentLlmConfig extends BaseModel
             'api_key' => 'encrypted',
             'config' => Json::class,
             'is_active' => 'boolean',
+            'is_routing_enabled' => 'boolean',
             'is_deleted' => 'boolean',
         ];
     }
