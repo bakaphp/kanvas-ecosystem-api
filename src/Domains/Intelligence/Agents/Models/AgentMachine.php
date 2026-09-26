@@ -25,6 +25,9 @@ use Kanvas\Intelligence\Models\BaseModel;
  * @property string $ssh_user
  * @property string $ssh_private_key
  * @property string|null $region
+ * @property string $network_mode
+ * @property string|null $docker_network
+ * @property string|null $private_host
  * @property int $port_range_start
  * @property int $port_range_end
  * @property int $max_agents

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\PiDev\Actions;
 
-use Illuminate\Support\Str;
 use Kanvas\Connectors\PiDev\Client;
 use Kanvas\Connectors\PiDev\DataTransferObject\PiDevWorkRequest;
 use Kanvas\Connectors\PiDev\Enums\CustomFieldEnum;
@@ -15,10 +14,7 @@ use Kanvas\Connectors\PiDev\Services\PromptBuilder;
 use Kanvas\Connectors\PiDev\Services\RepoAllowListService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\NervousSystem\Plan\Actions\CreatePlanAction;
-use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
-use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
-use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
+use Kanvas\NervousSystem\Plan\Actions\CreateAgentRunPlanAction;
 use Kanvas\NervousSystem\Plan\Models\Task;
 use Kanvas\Users\Models\Users;
 
@@ -70,32 +66,13 @@ class DispatchCodingJobAction
      */
     private function recordAsTask(string $repoUrl, array $response): Task
     {
-        $plan = new CreatePlanAction(
-            new PlanData(
-                app: $this->agent->app,
-                company: $this->agent->company,
-                title: 'Coding: ' . Str::limit(trim($this->task), 80),
-                planType: 'coding_job',
-                agent: $this->agent,
-                user: $this->requestedBy ?? $this->agent->user,
-                description: $this->task,
-                input: ['repo_slug' => $this->repoSlug, 'repo_url' => $repoUrl],
-            ),
-            tasks: [
-                new TaskData(
-                    plan: null,
-                    title: Str::limit(trim($this->task), 120),
-                    description: $this->task,
-                    status: TaskStatusEnum::IN_PROGRESS,
-                ),
-            ],
-            fromSync: true,
+        $task = new CreateAgentRunPlanAction(
+            agent: $this->agent,
+            brief: $this->task,
+            planType: 'coding_job',
+            requestedBy: $this->requestedBy,
+            input: ['repo_slug' => $this->repoSlug, 'repo_url' => $repoUrl],
         )->execute();
-
-        /** @var Task $task */
-        $task = $plan->tasks()->firstOrFail();
-        $task->agent_id = $this->agent->getId();
-        $task->saveQuietly();
 
         $task->set(
             TaskCustomFieldEnum::PIDEV_JOB_ID->value,

@@ -6,13 +6,9 @@ namespace Tests\Connectors\Integration\Intellicheck;
 
 use Illuminate\Support\Str;
 use Kanvas\ActionEngine\Actions\Models\Action;
-use Kanvas\ActionEngine\Actions\Models\CompanyAction;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
-use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
-use Kanvas\ActionEngine\Pipelines\Models\PipelineStage;
-use Kanvas\Apps\Actions\SyncEmailTemplateAction;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdAction;
 use Kanvas\Connectors\Intellicheck\Activities\GenerateIdVerificationActivity;
@@ -20,10 +16,9 @@ use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Social\Channels\Actions\CreateChannelAction;
-use Kanvas\Social\Channels\DataTransferObject\Channel;
 use ReflectionClass;
 use ReflectionMethod;
+use Tests\Connectors\Integration\Intellicheck\Concerns\BuildsIdVerificationLead;
 use Tests\TestCase;
 
 /**
@@ -33,6 +28,8 @@ use Tests\TestCase;
  */
 final class IdVerificationEngagementReuseTest extends TestCase
 {
+    use BuildsIdVerificationLead;
+
     public function testAnExistingSubmittedEngagementIsReusedInsteadOfCreatingASecondOne(): void
     {
         $lead = $this->makeLead();
@@ -384,11 +381,6 @@ final class IdVerificationEngagementReuseTest extends TestCase
             ->invoke($action, $parent, $reuse);
     }
 
-    private function createEngagement(Lead $lead, People $people): ?Engagement
-    {
-        return new VerifyPeopleIdAction($people, $lead)->resolveEngagement(reuseExistingEngagement: true);
-    }
-
     private function findForPeople(Lead $lead, People $people): ?Engagement
     {
         return EngagementRepository::findEngagementForLeadPeople(
@@ -397,92 +389,5 @@ final class IdVerificationEngagementReuseTest extends TestCase
             ConfigurationEnum::ID_VERIFICATION->value,
             ActionStatusEnum::SUBMITTED->value
         );
-    }
-
-    private function makeLead(): Lead
-    {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
-
-        $lead = Lead::factory()
-            ->withAppId($app->getId())
-            ->withCompanyId($company->getId())
-            ->create();
-
-        $lead->leads_owner_id = $user->getId();
-        $lead->users_id = $user->getId();
-        $lead->saveQuietly();
-        $lead->refresh();
-
-        $lead->company->set('company_manager', []);
-
-        new SyncEmailTemplateAction($app, $user)->execute(overWrite: false);
-
-        $pipeline = Pipeline::firstOrCreate([
-            'slug' => ConfigurationEnum::ID_VERIFICATION->value,
-            'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
-        ], [
-            'users_id' => $user->getId(),
-            'name' => 'ID Verification',
-            'weight' => 0,
-        ]);
-
-        PipelineStage::firstOrCreate([
-            'pipelines_id' => $pipeline->getId(),
-            'slug' => 'submitted',
-        ], [
-            'name' => 'Submitted',
-            'weight' => 1,
-        ]);
-
-        $action = Action::firstOrCreate([
-            'slug' => ConfigurationEnum::ID_VERIFICATION->value,
-        ], [
-            'apps_id' => $app->getId(),
-            'companies_id' => $company->getId(),
-            'users_id' => $user->getId(),
-            'pipelines_id' => $pipeline->getId(),
-            'name' => 'ID Verification',
-        ]);
-
-        $branch = $company->defaultBranch ?? $company->branch()->firstOrFail();
-
-        CompanyAction::firstOrCreate([
-            'actions_id' => $action->getId(),
-            'companies_id' => $company->getId(),
-            'apps_id' => $app->getId(),
-        ], [
-            'users_id' => $user->getId(),
-            'companies_branches_id' => $branch->getId(),
-            'pipelines_id' => $pipeline->getId(),
-            'name' => 'ID Verification',
-        ]);
-
-        new CreateChannelAction(new Channel(
-            apps: $app,
-            companies: $company,
-            users: $user,
-            entity_id: $lead->getId(),
-            entity_namespace: Lead::class,
-            name: (string) $lead->uuid,
-            slug: (string) $lead->uuid,
-            description: (string) $lead->uuid,
-        ))->execute();
-
-        return $lead;
-    }
-
-    private function makePerson(Lead $lead): People
-    {
-        return People::factory()
-            ->withAppId($lead->apps_id)
-            ->withCompanyId($lead->companies_id)
-            ->withUserId(auth()->user()->getId())
-            ->create([
-                'firstname' => 'Co',
-                'lastname' => 'Buyer',
-            ]);
     }
 }

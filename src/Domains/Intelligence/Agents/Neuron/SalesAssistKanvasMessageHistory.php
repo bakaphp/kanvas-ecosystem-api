@@ -243,7 +243,8 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
      * descriptions backfilled by DescribeMessageAttachmentsJob (`attachment_descriptions`); falls
      * back to the raw `images` URL list (userChat) and, only when the turn would otherwise vanish,
      * the attached files (channel inbound) — the file lookup is gated to avoid an N+1 across the
-     * whole history.
+     * whole history. Probe via the `files` relation, not `getFiles()`: the latter hands back
+     * FilesystemEntities rows, which `isDescribableFile()` rejects with a TypeError.
      */
     private function buildAttachmentMarker(array $stored, SocialMessage $socialMessage): string
     {
@@ -265,7 +266,7 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
 
         // Channel inbound stores the attachment only as a file, and only before its description
         // backfills. Probe files just for the would-vanish case (empty text, no JSON image keys).
-        if ($text === '' && $socialMessage->getFiles()->contains(
+        if ($text === '' && $socialMessage->files->contains(
             fn (Filesystem $file): bool => AttachmentDescriptionService::isDescribableFile($file)
         )) {
             return '[Attachment]';
