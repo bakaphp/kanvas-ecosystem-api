@@ -104,6 +104,54 @@ class ActionCrudTest extends TestCase
         ]);
     }
 
+    public function testCreateActionWithSvgIcon(): void
+    {
+        $icon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">'
+            . '<path d="M9.4,39.4c1.5,1.5,3.1,2.8,4.9,3.9z" fill="#E75E18"/></svg>';
+
+        $input = [
+            'name' => 'Svg Icon Action ' . fake()->word(),
+            'icon' => $icon,
+        ];
+
+        $response = $this->graphQL('
+            mutation($input: ActionInput!) {
+                createAction(input: $input) {
+                    id
+                    icon
+                }
+            }
+        ', ['input' => $input])->assertSuccessful();
+
+        $this->assertSame($icon, $response->json('data.createAction.icon'));
+        $this->assertSame($icon, Action::find($response->json('data.createAction.id'))->icon);
+    }
+
+    /**
+     * `icon` is Mixed rather than String so a client can send a structured icon without breaking the
+     * apps still sending raw SVG. Baka's Json cast stores an array encoded and leaves a string alone,
+     * so both shapes round-trip through the same column.
+     */
+    public function testCreateActionWithStructuredIcon(): void
+    {
+        $icon = ['name' => 'star', 'type' => 'lucide', 'color' => '#FF0000'];
+
+        $response = $this->graphQL('
+            mutation($input: ActionInput!) {
+                createAction(input: $input) {
+                    id
+                    icon
+                }
+            }
+        ', ['input' => [
+            'name' => 'Structured Icon Action ' . fake()->word(),
+            'icon' => $icon,
+        ]])->assertSuccessful();
+
+        $this->assertSame($icon, $response->json('data.createAction.icon'));
+        $this->assertSame($icon, Action::find($response->json('data.createAction.id'))->icon);
+    }
+
     public function testUpdateAction(): void
     {
         $createInput = [
@@ -314,6 +362,7 @@ class ActionCrudTest extends TestCase
             }
         ', ['input' => $input])->assertSuccessful();
 
+        $actionId = $createResponse->json('data.createAction.id');
         $actionName = $createResponse->json('data.createAction.name');
 
         $this->graphQL('
@@ -332,6 +381,105 @@ class ActionCrudTest extends TestCase
                 'value' => $actionName,
             ],
         ])
-        ->assertSuccessful();
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'actionEngineActions' => [
+                    'data' => [
+                        ['id' => $actionId, 'name' => $actionName],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * createAction stamps the current app on the row, so the list query has to union apps_id 0 with
+     * the current app — scoping it to apps_id = 0 alone made every action a tenant created invisible.
+     */
+    public function testGetActionsReturnsCurrentAppAndGlobalActions(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+
+        $appActionName = 'App Scoped Action ' . fake()->uuid();
+        $appActionId = $this->graphQL('
+            mutation($input: ActionInput!) {
+                createAction(input: $input) {
+                    id
+                }
+            }
+        ', ['input' => ['name' => $appActionName]])->assertSuccessful()->json('data.createAction.id');
+
+        $this->assertSame($app->getId(), Action::find($appActionId)->apps_id);
+
+        $globalAction = new Action();
+        $globalAction->apps_id = 0;
+        $globalAction->companies_id = 0;
+        $globalAction->users_id = $user->getId();
+        $globalAction->pipelines_id = Action::find($appActionId)->pipelines_id;
+        $globalAction->name = 'Global Action ' . fake()->uuid();
+        $globalAction->is_active = true;
+        $globalAction->is_published = true;
+        $globalAction->saveOrFail();
+
+        foreach ([$appActionId => $appActionName, $globalAction->getId() => $globalAction->name] as $id => $name) {
+            $this->graphQL('
+                query($where: QueryActionEngineActionsWhereWhereConditions) {
+                    actionEngineActions(where: $where) {
+                        data {
+                            id
+                        }
+                    }
+                }
+            ', [
+                'where' => [
+                    'column' => 'NAME',
+                    'operator' => 'EQ',
+                    'value' => $name,
+                ],
+            ])
+            ->assertSuccessful()
+            ->assertJson([
+                'data' => [
+                    'actionEngineActions' => [
+                        'data' => [
+                            ['id' => (string) $id],
+                        ],
+                    ],
+                ],
+            ]);
+        }
+    }
+
+    public function testGetActionsDoesNotLeakOtherAppActions(): void
+    {
+        $otherAppAction = new Action();
+        $otherAppAction->apps_id = app(Apps::class)->getId() + 10000;
+        $otherAppAction->companies_id = 0;
+        $otherAppAction->users_id = auth()->user()->getId();
+        $otherAppAction->pipelines_id = 0;
+        $otherAppAction->name = 'Foreign App Action ' . fake()->uuid();
+        $otherAppAction->is_active = true;
+        $otherAppAction->is_published = true;
+        $otherAppAction->saveOrFail();
+
+        $this->graphQL('
+            query($where: QueryActionEngineActionsWhereWhereConditions) {
+                actionEngineActions(where: $where) {
+                    data {
+                        id
+                    }
+                }
+            }
+        ', [
+            'where' => [
+                'column' => 'NAME',
+                'operator' => 'EQ',
+                'value' => $otherAppAction->name,
+            ],
+        ])
+        ->assertSuccessful()
+        ->assertJsonCount(0, 'data.actionEngineActions.data');
     }
 }

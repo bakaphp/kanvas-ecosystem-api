@@ -13,6 +13,7 @@ use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
 use App\Console\Commands\CustomerSuccess\Schedules\CustomerSuccessSchedule;
 use App\Console\Commands\Ecosystem\Companies\FlagOverdueCorporateApplicationsCommand;
 use App\Console\Commands\Ecosystem\Imports\RunImportSourcesCommand;
+use App\Console\Commands\Ecosystem\PruneModelCacheTagsCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\Ecosystem\Users\DetectSignupAnomalyCommand;
 use App\Console\Commands\Event\GenerateUpcomingTimeSlotsCommand;
@@ -58,6 +59,11 @@ class Kernel extends ConsoleKernel
         // Hourly matches the descriptor cache's soft TTL, so a company's first turn of the day is warm
         // rather than paying three round trips per connected MCP server.
         $schedule->command(RefreshMcpToolCacheCommand::class)->hourly()->withoutOverlapping()->onOneServer();
+        // The model cache's tag index never reclaims the entries of keys it has already flushed, and a
+        // flush costs a DEL plus a ZREM per entry — so every write to a cached model gets slower as the
+        // index grows. Laravel's own cache:prune-stale-tags cannot see them: they are written with no
+        // TTL, and it prunes by score.
+        $schedule->command(PruneModelCacheTagsCommand::class)->hourly()->withoutOverlapping()->onOneServer();
         $schedule->command(SocialUserCounterResetCommand::class, ['13'])->dailyAt('00:00');
         $schedule->command(OrderFinishExpiredCommand::class)->everyMinute();
         $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();

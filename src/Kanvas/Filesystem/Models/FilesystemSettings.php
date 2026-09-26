@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Filesystem\Models;
 
 use Baka\Casts\Json;
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Models\BaseModel;
 use Override;
@@ -23,8 +22,6 @@ use Override;
  */
 class FilesystemSettings extends BaseModel
 {
-    use Cachable;
-
     protected $table = 'filesystem_settings';
     protected $touches = ['filesystem'];
 

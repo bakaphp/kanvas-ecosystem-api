@@ -28,30 +28,46 @@ class CreateRolesByTemplatesAction
 
     public function execute(): void
     {
+        $grants = [];
+        $pairs = [];
+
         foreach ($this->templates as $template) {
             $templateInstance = new $template();
-            $role = $templateInstance->role;
-            $denied = $templateInstance->denied;
-            $allowed = $templateInstance->allowed;
 
-            // If role has all permissions, grant everything
             if ($templateInstance->hasAllPermissions) {
-                Bouncer::allow($role)->everything();
+                Bouncer::allow($templateInstance->role)->everything();
 
                 continue;
             }
 
-            if (empty($allowed)) {
-                $allowed = ModulesRepositories::getAllAbilities();
-            }
-            foreach ($allowed as $key => $permissions) {
-                foreach ($permissions as $value) {
-                    if (in_array($value, $denied)) {
+            $allowed = empty($templateInstance->allowed)
+                ? ModulesRepositories::getAllAbilities()
+                : $templateInstance->allowed;
+
+            foreach ($allowed as $entityType => $abilities) {
+                foreach ($abilities as $ability) {
+                    if (in_array($ability, $templateInstance->denied)) {
                         continue;
                     }
-                    Bouncer::allow($role)->to($value, $key);
+
+                    $pairs[] = [$ability, $entityType];
+                    $grants[$templateInstance->role][] = ResolveAbilitiesAction::key($ability, $entityType);
                 }
             }
+        }
+
+        if (empty($grants)) {
+            return;
+        }
+
+        $resolved = new ResolveAbilitiesAction()->execute($pairs);
+
+        // One grant per role, not one per ability: Bouncer skips its own per-ability lookup when it
+        // is handed Ability models, so each role costs a single lookup plus a single attach.
+        foreach ($grants as $role => $keys) {
+            Bouncer::allow($role)->to(
+                array_values($resolved->only(array_unique($keys))->all())
+            );
         }
     }
 }
