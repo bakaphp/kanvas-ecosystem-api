@@ -29,6 +29,7 @@ class CreateAgentLlmConfigAction
             $config->model = $this->data->model;
             $config->config = $this->data->config;
             $config->is_active = $this->data->is_active;
+            $config->is_routing_enabled = $this->data->is_routing_enabled;
             $config->saveOrFail();
 
             return $config;
