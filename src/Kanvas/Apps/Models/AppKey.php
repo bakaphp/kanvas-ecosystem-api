@@ -29,8 +29,8 @@ use Override;
  */
 class AppKey extends BaseModel
 {
-    use UuidTrait;
     use Cachable;
+    use UuidTrait;
 
     /**
      * The table associated with the model.

@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
+use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
@@ -72,6 +73,7 @@ use Override;
 class People extends BaseModel
 {
     use HasAdminLink;
+    use HasApprovals;
     use CanUseWorkflow;
     use CascadeSoftDeletes;
     use DynamicSearchableTrait {
@@ -105,6 +107,16 @@ class People extends BaseModel
     public function trashed()
     {
         return (bool) $this->{$this->getDeletedAtColumn()};
+    }
+
+    /**
+     * People is gated explicitly by RequestPeopleApprovalActivity, never by its own lifecycle —
+     * same reasoning as Message: a hot table, saved constantly, that would otherwise pay an
+     * approval_policies lookup on every save just to learn there is no on-create policy.
+     */
+    protected static function approvalUsesLifecycleTriggers(): bool
+    {
+        return false;
     }
 
     #[Override]
