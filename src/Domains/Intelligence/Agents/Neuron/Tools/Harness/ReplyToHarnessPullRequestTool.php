@@ -82,8 +82,9 @@ class ReplyToHarnessPullRequestTool extends Tool implements HasRunKey
 
         if ($session === null || $url === null || $session->repo_slug === null) {
             return $this->notFound(
-                'Job ' . $job_id . ' has no pull request to comment on.',
-                guidance: 'Nothing was posted. Check the job before assuming there is a PR.'
+                ['job_id' => $job_id],
+                'Job ' . $job_id . ' has no pull request to comment on. Nothing was posted. Check the '
+                    . 'job before assuming there is a PR.'
             );
         }
 

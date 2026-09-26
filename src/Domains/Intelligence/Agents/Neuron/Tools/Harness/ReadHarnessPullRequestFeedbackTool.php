@@ -72,16 +72,20 @@ class ReadHarnessPullRequestFeedbackTool extends Tool implements HasRunKey
         $session = AgentTaskSession::forAgentJob($this->agent, $job_id);
 
         if ($session === null) {
-            return $this->notFound('No coding job ' . $job_id . ' for this agent.');
+            return $this->notFound(
+                ['job_id' => $job_id],
+                'No coding job ' . $job_id . ' for this agent. Use list_self_hosted_coding_jobs to find '
+                    . 'the right id.'
+            );
         }
 
         $url = Str::trimToNull((string) $session->pull_request_url);
 
         if ($url === null) {
             return $this->noop(
-                'Job ' . $job_id . ' has no pull request.',
-                guidance: 'Either it changed nothing, or the push failed. Check the job itself before '
-                    . 'assuming there is feedback to read.'
+                ['job_id' => $job_id],
+                'Job ' . $job_id . ' has no pull request. Either it changed nothing, or the push '
+                    . 'failed. Check the job itself before assuming there is feedback to read.'
             );
         }
 

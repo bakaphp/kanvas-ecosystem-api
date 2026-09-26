@@ -15,6 +15,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\AttachesFileToEntity;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -115,7 +116,11 @@ class FetchHarnessCodingArtifactTool extends Tool implements HasRunKey
         $session = AgentTaskSession::forAgentJob($this->agent, $job_id);
 
         if ($session === null) {
-            return $this->notFound('No coding job ' . $job_id . ' for this agent.');
+            return $this->notFound(
+                ['job_id' => $job_id],
+                'No coding job ' . $job_id . ' for this agent. Use list_self_hosted_coding_jobs to find '
+                    . 'the right id.'
+            );
         }
 
         $workspace = Str::trimToNull($session->workspace_path);
@@ -123,9 +128,10 @@ class FetchHarnessCodingArtifactTool extends Tool implements HasRunKey
 
         if ($workspace === null || $machine === null) {
             return $this->noop(
-                'Job ' . $job_id . ' has no workspace to read from.',
-                guidance: 'Attach mode keeps no workspace of its own, and a reaped one is gone for good. '
-                    . 'Say the file cannot be retrieved rather than describing its contents.'
+                ['job_id' => $job_id],
+                'Job ' . $job_id . ' has no workspace to read from. Attach mode keeps no workspace of its '
+                    . 'own, and a reaped one is gone for good — say the file cannot be retrieved rather '
+                    . 'than describing its contents.'
             );
         }
 
@@ -156,7 +162,12 @@ class FetchHarnessCodingArtifactTool extends Tool implements HasRunKey
         }
 
         try {
-            $file = $this->pull($machine->connectSsh(), $remote, $name);
+            $file = $this->pull(
+                $machine->connectSsh(),
+                $remote,
+                $name,
+                $user,
+            );
         } catch (Throwable $e) {
             report($e);
 
@@ -170,8 +181,25 @@ class FetchHarnessCodingArtifactTool extends Tool implements HasRunKey
             return $file;
         }
 
+        $attached = $this->attachStoredFile($task, 'task', $file, $name);
+
+        // Branch on it rather than wrapping it: `ok()` stamps `success: true`, so wrapping a failed
+        // attach would hand the model `success: true` beside `status: error` and tell it to give out
+        // a file_url that does not exist — the exact confusion ReportsToolOutcome exists to stop.
+        if (($attached['status'] ?? null) !== 'success') {
+            return $this->failed(
+                (string) ($attached['message'] ?? 'The file could not be attached to the task.'),
+                guidance: 'The file did not reach the task. Do not offer the person a link.'
+            );
+        }
+
         return $this->ok(
-            $this->attachStoredFile($task, 'task', $file, $name),
+            [
+                'job_id' => $job_id,
+                'filesystem_id' => $attached['filesystem_id'],
+                'file_name' => $attached['file_name'],
+                'file_url' => $attached['file_url'],
+            ],
             guidance: 'Give the person the file_url. Describe only what the job reported about it — you '
                 . 'have not read its contents.'
         );
@@ -184,15 +212,20 @@ class FetchHarnessCodingArtifactTool extends Tool implements HasRunKey
      *
      * @return Filesystem|array<string, mixed> the stored file, or a refusal
      */
-    private function pull(object $client, string $remote, string $name): mixed
-    {
+    private function pull(
+        object $client,
+        string $remote,
+        string $name,
+        Users $user,
+    ): mixed {
         try {
             $size = $this->remoteSize($client, $remote);
 
             if ($size === null) {
                 return $this->notFound(
-                    'There is no file at that path in the workspace.',
-                    guidance: 'List what the job actually produced before trying again.'
+                    ['path' => $remote],
+                    'There is no file at that path in the workspace. List what the job actually produced '
+                        . 'before trying again.'
                 );
             }
 
@@ -205,7 +238,7 @@ class FetchHarnessCodingArtifactTool extends Tool implements HasRunKey
             }
 
             return TempFile::using(
-                function (string $tmp) use ($client, $remote, $name): mixed {
+                function (string $tmp) use ($client, $remote, $name, $user): mixed {
                     if (! $client->downloadToFile($remote, $tmp) || ! is_file($tmp)) {
                         return $this->failed('The file could not be read off the machine.');
                     }
@@ -217,7 +250,7 @@ class FetchHarnessCodingArtifactTool extends Tool implements HasRunKey
                             mimeType: FilesystemServices::detectMimeType($tmp),
                             test: true,
                         ),
-                        $this->contextUser(),
+                        $user,
                     );
                 },
                 extension: pathinfo($name, PATHINFO_EXTENSION),

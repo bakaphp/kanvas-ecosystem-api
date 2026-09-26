@@ -69,7 +69,11 @@ class SyncHarnessPullRequestBranchTool extends Tool implements HasRunKey
         $url = $session === null ? null : Str::trimToNull((string) $session->pull_request_url);
 
         if ($session === null || $url === null || $session->repo_slug === null) {
-            return $this->notFound('Job ' . $job_id . ' has no pull request to update.');
+            return $this->notFound(
+                ['job_id' => $job_id],
+                'Job ' . $job_id . ' has no pull request to update. Check the job before assuming there '
+                    . 'is a branch to sync.'
+            );
         }
 
         $resolved = $this->resolveCodingRepository($this->agent, $session->repo_slug);
@@ -86,8 +90,9 @@ class SyncHarnessPullRequestBranchTool extends Tool implements HasRunKey
 
         if (($result['updated'] ?? false) !== true) {
             return $this->noop(
-                'The branch was not updated: ' . (string) ($result['error'] ?? 'unknown reason'),
-                guidance: 'Say exactly that. A conflict cannot be resolved from here and needs a person.'
+                ['job_id' => $job_id, 'error' => (string) ($result['error'] ?? 'unknown reason')],
+                'The branch was not updated: ' . (string) ($result['error'] ?? 'unknown reason')
+                    . '. Say exactly that. A conflict cannot be resolved from here and needs a person.'
             );
         }
 

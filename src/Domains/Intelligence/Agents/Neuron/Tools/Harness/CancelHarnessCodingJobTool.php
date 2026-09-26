@@ -77,15 +77,17 @@ class CancelHarnessCodingJobTool extends Tool implements HasRunKey
 
         if ($session === null) {
             return $this->notFound(
-                'No coding job ' . $job_id . ' for this agent.',
-                guidance: 'Use list_self_hosted_coding_jobs to find the right id.'
+                ['job_id' => $job_id],
+                'No coding job ' . $job_id . ' for this agent. Use list_self_hosted_coding_jobs to find '
+                    . 'the right id.'
             );
         }
 
         if (! $session->isLive()) {
             return $this->noop(
-                'Job ' . $job_id . ' already finished as "' . (string) $session->status . '".',
-                guidance: 'Nothing was stopped because nothing was running. Report its actual state.'
+                ['job_id' => $job_id, 'status' => (string) $session->status],
+                'Job ' . $job_id . ' already finished as "' . (string) $session->status . '". Nothing '
+                    . 'was stopped because nothing was running. Report its actual state.'
             );
         }
 

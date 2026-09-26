@@ -113,8 +113,9 @@ class AnswerHarnessCodingPermissionTool extends Tool implements HasRunKey
 
         if ($session === null || ! $session->isLive()) {
             return $this->notFound(
-                'No running coding job ' . $job_id . ' for this agent.',
-                guidance: 'A job that already ended cannot be answered. Check its state first.'
+                ['job_id' => $job_id],
+                'No running coding job ' . $job_id . ' for this agent. A job that already ended cannot '
+                    . 'be answered. Check its state first.'
             );
         }
 

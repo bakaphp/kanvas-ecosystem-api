@@ -91,8 +91,9 @@ class ReadHarnessRepositoryFileTool extends Tool implements HasRunKey
 
         if ($contents === null) {
             return $this->notFound(
-                'No file "' . $path . '" in ' . $repo->slug . '.',
-                guidance: 'Check the path with list_coding_repository_files rather than guessing again.'
+                ['path' => $path, 'repository' => $repo->slug],
+                'No file "' . $path . '" in ' . $repo->slug . '. Check the path with '
+                    . 'list_coding_repository_files rather than guessing again.'
             );
         }
 

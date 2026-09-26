@@ -82,8 +82,9 @@ class ContinueHarnessCodingJobTool extends Tool implements HasRunKey
 
         if ($previous === null) {
             return $this->notFound(
-                'No coding job ' . $job_id . ' for this agent.',
-                guidance: 'Use list_self_hosted_coding_jobs to find the right id.'
+                ['job_id' => $job_id],
+                'No coding job ' . $job_id . ' for this agent. Use list_self_hosted_coding_jobs to find '
+                    . 'the right id.'
             );
         }
 
