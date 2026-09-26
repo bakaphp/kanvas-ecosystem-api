@@ -9,6 +9,7 @@ use Kanvas\Connectors\OpenCode\Concerns\ResolvesCodingRepositoryForTool;
 use Kanvas\Connectors\OpenCode\DataTransferObject\ResolvedCodingRepository;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
@@ -26,7 +27,7 @@ use Override;
  * Nothing else here could refresh one, so the only way out was a human doing it by hand.
  */
 #[AgentTool(name: 'Sync Coding Pull Request Branch', category: 'coding')]
-class SyncHarnessPullRequestBranchTool extends Tool implements HasRunKey
+class SyncHarnessPullRequestBranchTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use ResolvesCodingRepositoryForTool;

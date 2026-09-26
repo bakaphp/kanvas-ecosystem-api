@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Kanvas\Connectors\OpenCode\Concerns\ResolvesCodingRepositoryForTool;
 use Kanvas\Connectors\OpenCode\DataTransferObject\ResolvedCodingRepository;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
@@ -24,7 +25,7 @@ use Override;
  * LLM invents produces a task about a file that is not there, and the coding agent has no way to ask.
  */
 #[AgentTool(name: 'List Coding Repository Files', category: 'coding')]
-class ListHarnessRepositoryFilesTool extends Tool implements HasRunKey
+class ListHarnessRepositoryFilesTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use ResolvesCodingRepositoryForTool;

@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Harness;
 
 use Kanvas\Connectors\OpenCode\Actions\KillAgentCodingContainerAction;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
@@ -28,7 +29,7 @@ use Throwable;
  * tool for that.
  */
 #[AgentTool(name: 'Kill Self-Hosted Coding Runtime', category: 'coding')]
-class KillHarnessCodingRuntimeTool extends Tool implements HasRunKey
+class KillHarnessCodingRuntimeTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;

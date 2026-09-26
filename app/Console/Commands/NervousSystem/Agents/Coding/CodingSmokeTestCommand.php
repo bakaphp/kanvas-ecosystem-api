@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Console\Commands\NervousSystem\Agents;
+namespace App\Console\Commands\NervousSystem\Agents\Coding;
 
 use Baka\Support\Str;
 use Baka\Traits\KanvasJobsTrait;

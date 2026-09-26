@@ -10,6 +10,7 @@ use Kanvas\Connectors\OpenCode\Services\GitHubRepositoryService;
 use Kanvas\Connectors\OpenCode\Services\RepoAllowListService;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
@@ -31,7 +32,7 @@ use Throwable;
  * cheerfully address the feedback on a branch whose tests are red and call it done.
  */
 #[AgentTool(name: 'Read Coding Pull Request Feedback', category: 'coding')]
-class ReadHarnessPullRequestFeedbackTool extends Tool implements HasRunKey
+class ReadHarnessPullRequestFeedbackTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;

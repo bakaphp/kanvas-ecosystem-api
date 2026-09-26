@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Harness;
 
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
@@ -22,7 +23,7 @@ use Override;
  * agent: one agent must not be able to enumerate another's work, even within the same tenant.
  */
 #[AgentTool(name: 'List Self-Hosted Coding Jobs', category: 'coding')]
-class ListHarnessCodingJobsTool extends Tool implements HasRunKey
+class ListHarnessCodingJobsTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;

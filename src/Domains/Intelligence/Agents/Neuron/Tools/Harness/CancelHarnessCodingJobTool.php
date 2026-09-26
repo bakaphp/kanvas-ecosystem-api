@@ -8,6 +8,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Actions\FinalizeHarnessSessionActio
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
@@ -29,7 +30,7 @@ use Throwable;
  * away what it did".
  */
 #[AgentTool(name: 'Cancel Self-Hosted Coding Job', category: 'coding')]
-class CancelHarnessCodingJobTool extends Tool implements HasRunKey
+class CancelHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;

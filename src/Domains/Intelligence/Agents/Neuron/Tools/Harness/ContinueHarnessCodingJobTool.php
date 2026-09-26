@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Harness;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\DispatchHarnessTaskAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
@@ -30,7 +31,7 @@ use Throwable;
  * that makes this a teammate rather than a one-shot generator: propose, get told, adjust, in one review.
  */
 #[AgentTool(name: 'Continue Self-Hosted Coding Job', category: 'coding')]
-class ContinueHarnessCodingJobTool extends Tool implements HasRunKey
+class ContinueHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;

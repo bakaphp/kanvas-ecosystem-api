@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Harness;
 
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
@@ -20,7 +21,7 @@ use Override;
  * check as often as it likes without spending a turn of the coding agent's budget.
  */
 #[AgentTool(name: 'Check Self-Hosted Coding Job', category: 'coding')]
-class CheckHarnessCodingJobTool extends Tool implements HasRunKey
+class CheckHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     // Checking two different jobs in one turn is normal; sharing a budget across them is not.

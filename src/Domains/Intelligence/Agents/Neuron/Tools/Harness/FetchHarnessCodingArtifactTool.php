@@ -11,6 +11,7 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Traits\AttachesFileToEntity;
@@ -42,7 +43,7 @@ use Throwable;
  *    transfer nobody asked for.
  */
 #[AgentTool(name: 'Fetch Coding Job Artifact', category: 'coding')]
-class FetchHarnessCodingArtifactTool extends Tool implements HasRunKey
+class FetchHarnessCodingArtifactTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use AttachesFileToEntity;
     use HasKanvasContext;

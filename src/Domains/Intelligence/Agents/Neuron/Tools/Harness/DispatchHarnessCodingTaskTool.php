@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Harness;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\DispatchHarnessTaskAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
@@ -20,7 +21,7 @@ use Override;
 use Throwable;
 
 #[AgentTool(name: 'Dispatch Self-Hosted Coding Task', category: 'coding')]
-class DispatchHarnessCodingTaskTool extends Tool implements HasRunKey
+class DispatchHarnessCodingTaskTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     // Distinct briefs are distinct work; without this every dispatch in a turn shares one budget.

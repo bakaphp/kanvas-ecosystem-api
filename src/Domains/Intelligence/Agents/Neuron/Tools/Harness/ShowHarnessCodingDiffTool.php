@@ -8,6 +8,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\CodingHarness;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
@@ -27,7 +28,7 @@ use Throwable;
  * job behind it has nowhere to come from.
  */
 #[AgentTool(name: 'Show Self-Hosted Coding Diff', category: 'coding')]
-class ShowHarnessCodingDiffTool extends Tool implements HasRunKey
+class ShowHarnessCodingDiffTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;

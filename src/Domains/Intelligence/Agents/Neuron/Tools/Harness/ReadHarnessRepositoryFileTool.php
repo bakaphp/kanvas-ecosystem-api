@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Kanvas\Connectors\OpenCode\Concerns\ResolvesCodingRepositoryForTool;
 use Kanvas\Connectors\OpenCode\DataTransferObject\ResolvedCodingRepository;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
@@ -28,7 +29,7 @@ use Override;
  * Truncated on purpose — this is for orienting, not for pulling a codebase into the context window.
  */
 #[AgentTool(name: 'Read Coding Repository File', category: 'coding')]
-class ReadHarnessRepositoryFileTool extends Tool implements HasRunKey
+class ReadHarnessRepositoryFileTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use ResolvesCodingRepositoryForTool;

@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Harness;
 use Kanvas\Connectors\OpenCode\Concerns\ResolvesCodingRepositoryForTool;
 use Kanvas\Connectors\OpenCode\DataTransferObject\ResolvedCodingRepository;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
@@ -24,7 +25,7 @@ use Override;
  * and collide, and the second only finds out at merge time.
  */
 #[AgentTool(name: 'List Coding Repository Open Work', category: 'coding')]
-class ListHarnessRepositoryWorkTool extends Tool implements HasRunKey
+class ListHarnessRepositoryWorkTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use ResolvesCodingRepositoryForTool;

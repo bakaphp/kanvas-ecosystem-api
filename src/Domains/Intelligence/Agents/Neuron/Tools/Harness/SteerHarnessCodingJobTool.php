@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\Harness;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
@@ -28,7 +29,7 @@ use Throwable;
  * A steer does NOT undo work already done. For a change of direction, cancel and dispatch again.
  */
 #[AgentTool(name: 'Steer Self-Hosted Coding Job', category: 'coding')]
-class SteerHarnessCodingJobTool extends Tool implements HasRunKey
+class SteerHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;

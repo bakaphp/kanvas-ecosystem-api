@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\NervousSystem\Plan\Traits;
+namespace Kanvas\NervousSystem\Plan\Concerns;
 
 use Illuminate\Support\Str;
 
-trait TruncatesTitleTrait
+trait TruncatesTitle
 {
     public function setTitleAttribute(?string $value): void
     {

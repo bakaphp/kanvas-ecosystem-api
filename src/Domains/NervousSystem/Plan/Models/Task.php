@@ -14,9 +14,9 @@ use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
+use Kanvas\NervousSystem\Plan\Concerns\TruncatesTitle;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Observers\TaskObserver;
-use Kanvas\NervousSystem\Plan\Traits\TruncatesTitleTrait;
 use Override;
 
 /**
@@ -45,7 +45,7 @@ class Task extends BaseModel
 {
     use HasApprovals;
     use EmitsLedgerEventsForEntity;
-    use TruncatesTitleTrait;
+    use TruncatesTitle;
     use UuidTrait;
 
     protected $table = 'nervous_system_tasks';

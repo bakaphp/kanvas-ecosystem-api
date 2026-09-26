@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Kanvas\Connectors\OpenCode\Concerns\ResolvesCodingRepositoryForTool;
 use Kanvas\Connectors\OpenCode\DataTransferObject\ResolvedCodingRepository;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
@@ -25,7 +26,7 @@ use Override;
  * guesses a path, reads the wrong file, and writes a brief against code that is not there.
  */
 #[AgentTool(name: 'Search Coding Repository Code', category: 'coding')]
-class SearchHarnessRepositoryCodeTool extends Tool implements HasRunKey
+class SearchHarnessRepositoryCodeTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use ResolvesCodingRepositoryForTool;

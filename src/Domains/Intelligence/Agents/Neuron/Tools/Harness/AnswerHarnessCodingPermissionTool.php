@@ -8,6 +8,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Enums\PermissionDecisionEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use NeuronAI\Tools\HasRunKey;
@@ -30,7 +31,7 @@ use Throwable;
  * when a human said so. The tool enforces that rather than trusting the model to remember it.
  */
 #[AgentTool(name: 'Answer Self-Hosted Coding Permission', category: 'coding')]
-class AnswerHarnessCodingPermissionTool extends Tool implements HasRunKey
+class AnswerHarnessCodingPermissionTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
     use TrackByInputs;
