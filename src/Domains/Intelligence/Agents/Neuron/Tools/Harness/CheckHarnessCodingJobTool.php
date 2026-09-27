@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Harness;
 
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPermissionRequest;
+use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
@@ -15,10 +17,13 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
+use Throwable;
 
 /**
- * Answered entirely from the session row — no call reaches the running container, so a supervisor can
- * check as often as it likes without spending a turn of the coding agent's budget.
+ * Answered from the session row, so a supervisor can check as often as it likes without spending a
+ * turn of the coding agent's budget. The one exception is a job parked on a human: what it is waiting
+ * on lives only in the runtime, and an agent told it is blocked without being told what by cannot
+ * unblock it.
  */
 #[AgentTool(name: 'Check Self-Hosted Coding Job', category: 'coding')]
 class CheckHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSystemAgent
@@ -33,7 +38,9 @@ class CheckHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSyste
         parent::__construct(
             name: 'check_self_hosted_coding_job',
             description: 'Check a coding job you started with dispatch_self_hosted_coding_task: whether it is '
-                . 'running, waiting on a human, finished or failed, plus elapsed time, tokens and cost. Call at '
+                . 'running, waiting on a human, finished or failed, plus elapsed time, tokens and cost. When it '
+                . 'is waiting, this also returns pending_permissions — each with the permission_id that '
+                . 'answer_self_hosted_coding_permission needs. Call at '
                 . 'most once per turn — the job advances between turns, not within one.',
         );
     }
@@ -69,20 +76,65 @@ class CheckHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSyste
             );
         }
 
-        return $this->ok([
-            'job_id' => $job_id,
-            'job_status' => $session->status,
-            'waiting_on_a_human' => $session->harnessStatus()->isWaitingOnAHuman(),
-            'elapsed_seconds' => $session->elapsedSeconds(),
-            'seconds_since_activity' => $session->secondsSinceHeartbeat(),
-            'model' => $session->model,
-            'input_tokens' => $session->input_tokens,
-            'output_tokens' => $session->output_tokens,
-            'estimated_cost_usd' => $session->estimated_cost,
-            'branch' => $session->branch,
-            'pull_request' => $session->pull_request_url,
-            'handoff' => $session->handoff,
-            'error' => $session->error_message,
-        ]);
+        $waiting = $session->harnessStatus()->isWaitingOnAHuman();
+
+        return $this->ok(
+            [
+                'job_id' => $job_id,
+                'job_status' => $session->status,
+                'waiting_on_a_human' => $waiting,
+                ...($waiting ? $this->whatItIsWaitingOn($session) : []),
+                'elapsed_seconds' => $session->elapsedSeconds(),
+                'seconds_since_activity' => $session->secondsSinceHeartbeat(),
+                'model' => $session->model,
+                'input_tokens' => $session->input_tokens,
+                'output_tokens' => $session->output_tokens,
+                'estimated_cost_usd' => $session->estimated_cost,
+                'branch' => $session->branch,
+                'pull_request' => $session->pull_request_url,
+                'handoff' => $session->handoff,
+                'error' => $session->error_message,
+            ],
+            guidance: $waiting
+                ? 'This job is blocked and will be killed at the session timeout if nobody answers. '
+                    . 'Answer each pending_permissions entry with answer_self_hosted_coding_permission, '
+                    . 'passing its permission_id — "once" is yours to judge on a specific command, '
+                    . '"always" only if a human in this conversation said so. Never tell the person to '
+                    . 'click Approve somewhere; there is no such button, and you hold the tool.'
+                : null
+        );
+    }
+
+    /**
+     * The pending permissions, read live from the runtime.
+     *
+     * The session row records THAT a job is waiting, never what on — so without this the agent learns
+     * it is blocked, cannot produce the `permission_id` the answer tool needs, and invents an Approve
+     * button for the person to click. The job then dies at the timeout with its work thrown away.
+     *
+     * Costs one call to the container, and only while a job is actually parked.
+     *
+     * @return array<string, mixed>
+     */
+    private function whatItIsWaitingOn(AgentTaskSession $session): array
+    {
+        try {
+            $tick = HarnessFactory::forSession($session)->status($session);
+        } catch (Throwable $e) {
+            report($e);
+
+            return [];
+        }
+
+        return [
+            'pending_permissions' => array_map(
+                static fn (HarnessPermissionRequest $permission): array => [
+                    'permission_id' => $permission->id,
+                    'wants_to_run' => $permission->describe(),
+                ],
+                $tick->permissions
+            ),
+            'pending_questions' => $tick->questions,
+        ];
     }
 }
