@@ -169,11 +169,7 @@ class UniversalSegurosProvider implements
 
         $order->set(InsuranceCustomFieldEnum::STATUS->value, InsuranceStatusEnum::PAID->value);
 
-        return new PaymentReportResult(
-            success: true,
-            message: 'Payment reported',
-            raw: $raw,
-        );
+        return new PaymentReportResult(success: true, message: 'Payment reported', raw: $raw);
     }
 
     public function invoicePolicy(Order $order, InsurancePaymentReport $report): PaymentReportResult
@@ -188,11 +184,7 @@ class UniversalSegurosProvider implements
             PaymentInformation::fromReport($report->forPolicy($policyNumber))
         );
 
-        return new PaymentReportResult(
-            success: true,
-            message: 'Policy invoiced',
-            raw: $raw,
-        );
+        return new PaymentReportResult(success: true, message: 'Policy invoiced', raw: $raw);
     }
 
     public function emit(Order $order): PolicyResult

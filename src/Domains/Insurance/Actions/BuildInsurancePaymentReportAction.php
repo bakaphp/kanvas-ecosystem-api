@@ -38,8 +38,8 @@ class BuildInsurancePaymentReportAction
             tax: (float) $this->order->get(InsuranceCustomFieldEnum::TAX->value),
             orderReference: $quoteNumber !== '' ? 'COT-' . $quoteNumber : null,
             transactedAt: $this->transactedAt(),
-            cardLastFour: $this->payment->payment_method_last_four ?: null,
-            cardBrand: $this->payment->payment_method_brand ?: null,
+            cardLastFour: $this->cardLastFour(),
+            cardBrand: $this->cardBrand(),
             retrievalReference: $this->fromMetadata('rrn'),
             batchNumber: $this->fromMetadata('lot_number'),
             receiptNumber: (string) ($this->payment->number ?? ''),
@@ -48,7 +48,30 @@ class BuildInsurancePaymentReportAction
 
     protected function fromMetadata(string $key): string
     {
-        return (string) ($this->payment->getMetadata($key) ?? '');
+        return (string) $this->payment->getMetadata($key);
+    }
+
+    /**
+     * The card columns are only filled by `persistVaultToken()`, which runs on the
+     * 3DS paths that capture — never on the `authorize()` this reports off. The
+     * masked PAN is stamped on every authorization, so it is the one that answers.
+     */
+    protected function cardLastFour(): ?string
+    {
+        if ($this->payment->payment_method_last_four) {
+            return $this->payment->payment_method_last_four;
+        }
+
+        $masked = preg_replace('/\D/', '', $this->fromMetadata('masked_card_number')) ?? '';
+
+        return strlen($masked) >= 4 ? substr($masked, -4) : null;
+    }
+
+    protected function cardBrand(): ?string
+    {
+        return $this->payment->payment_method_brand
+            ?: $this->payment->paymentMethod?->payment_methods_brand
+            ?: null;
     }
 
     /**
@@ -64,13 +87,19 @@ class BuildInsurancePaymentReportAction
         }
 
         try {
-            $parsed = strlen($stamped) === 14 && ctype_digit($stamped)
-                ? Carbon::createFromFormat('YmdHis', $stamped)
-                : Carbon::parse($stamped);
+            if (strlen($stamped) === 14 && ctype_digit($stamped)) {
+                $parsed = Carbon::createFromFormat('YmdHis', $stamped);
+
+                // Carbon rolls a bogus month or day over instead of refusing it,
+                // so `99999999999999` becomes the year 10007 rather than failing.
+                return $parsed && $parsed->format('YmdHis') === $stamped
+                    ? $parsed->toIso8601ZuluString('millisecond')
+                    : null;
+            }
+
+            return Carbon::parse($stamped)->toIso8601ZuluString('millisecond');
         } catch (Throwable) {
             return null;
         }
-
-        return $parsed === false ? null : $parsed->toIso8601ZuluString('millisecond');
     }
 }
