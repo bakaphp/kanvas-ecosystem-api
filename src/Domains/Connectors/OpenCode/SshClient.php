@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OpenCode;
 
 use Baka\Contracts\CompanyInterface;
+use Kanvas\Connectors\OpenCode\Services\CodingImageService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\SshClient as BaseClient;
@@ -31,7 +32,7 @@ class SshClient extends BaseClient
             containerHomeDotDir: '/home/kanvasrun/.config/opencode',
             mjsPath: 'opencode',
             cliAlias: 'opencode',
-            defaultSharedImageName: 'kanvas/opencode:1.18.32',
+            defaultSharedImageName: CodingImageService::pinnedTag(),
             defaultSharedImageDir: '/opt/kanvas-opencode',
             dirPlaceholder: '{{OPENCODE_DIR}}',
             gatewayTokenCustomFieldKey: 'OPENCODE_SERVER_PASSWORD',

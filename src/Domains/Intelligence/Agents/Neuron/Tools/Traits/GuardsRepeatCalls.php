@@ -44,12 +44,26 @@ trait GuardsRepeatCalls
     /**
      * Run the tool's work, unless this exact call already ran this turn.
      *
+     * `$inputs` need not be every argument — pass only the ones that define the destination when a
+     * repeat is wrong even though the payload differs. Posting two different comments to one pull
+     * request is still two notifications to the same reviewer. A tool that narrows the key that way
+     * must pass its own `$note`, because the default one says the arguments matched.
+     *
+     * `rememberFailures` decides what a failed call counts as. A read wants the default: a miss cannot
+     * become a hit within a turn, so replaying it stops the model retrying a hallucinated id. A write
+     * wants false, because the guard's whole claim is "that already happened" — saying it about a post
+     * GitHub refused tells the model the reviewer was answered when nobody was.
+     *
      * @param array<string, mixed> $inputs The arguments that define "the same call".
      * @param callable(): array<string, mixed> $work
      * @return array<string, mixed>
      */
-    protected function oncePerTurn(array $inputs, callable $work): array
-    {
+    protected function oncePerTurn(
+        array $inputs,
+        callable $work,
+        ?string $note = null,
+        bool $rememberFailures = true
+    ): array {
         $key = $this->repeatKey($inputs);
 
         if (isset($this->repeatLedger->results[$key])) {
@@ -60,14 +74,17 @@ trait GuardsRepeatCalls
                 ...$previous,
                 'outcome' => ToolOutcomeEnum::NOOP->value,
                 'repeat_call' => true,
-                'note' => 'You already called this tool with exactly these arguments earlier in this turn and '
-                    . 'this is the same answer it gave you. It has not changed and will not change. Use it, or '
-                    . 'do something different — do NOT call this again.',
+                'note' => $note ?? 'You already called this tool with exactly these arguments earlier in this '
+                    . 'turn and this is the same answer it gave you. It has not changed and will not change. '
+                    . 'Use it, or do something different — do NOT call this again.',
             ];
         }
 
         $result = $work();
-        $this->repeatLedger->results[$key] = $result;
+
+        if ($rememberFailures || ($result['success'] ?? true) !== false) {
+            $this->repeatLedger->results[$key] = $result;
+        }
 
         return $result;
     }

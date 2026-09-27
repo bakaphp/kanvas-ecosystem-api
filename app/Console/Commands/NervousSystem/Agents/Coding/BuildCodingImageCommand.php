@@ -9,6 +9,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
+use Kanvas\Connectors\OpenCode\Services\CodingImageService;
 use Kanvas\Connectors\OpenCode\SshClient;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
@@ -53,14 +54,11 @@ class BuildCodingImageCommand extends Command
 
         $this->overwriteAppService($app);
 
+        // Falls back to the tag the Dockerfile builds, so a fresh app needs no --image and cannot be
+        // pointed at a version this connector does not speak.
         $image = Str::trimToNull((string) $this->option('image'))
-            ?? Str::trimToNull((string) $app->get(ConfigurationEnum::IMAGE->value));
-
-        if ($image === null) {
-            $this->error('No image tag: pass --image, or set ' . ConfigurationEnum::IMAGE->value . ' on the app.');
-
-            return self::FAILURE;
-        }
+            ?? Str::trimToNull((string) $app->get(ConfigurationEnum::IMAGE->value))
+            ?? CodingImageService::pinnedTag();
 
         $machines = $this->machines($app);
 
@@ -85,6 +83,14 @@ class BuildCodingImageCommand extends Command
         }
 
         $this->reportDrift($machines, $image);
+
+        // The whole point of the build. Without this an operator builds the image successfully and
+        // dispatch still dies on "No opencode image configured", because the tag was only ever an
+        // argument — and the obvious next move, running the command again, reports no tag at all.
+        if ($failed === 0 && (string) $app->get(ConfigurationEnum::IMAGE->value) !== $image) {
+            $app->set(ConfigurationEnum::IMAGE->value, $image);
+            $this->info('Set ' . ConfigurationEnum::IMAGE->value . ' = ' . $image . ' on app ' . $app->getId() . '.');
+        }
 
         return $failed === 0 ? self::SUCCESS : self::FAILURE;
     }

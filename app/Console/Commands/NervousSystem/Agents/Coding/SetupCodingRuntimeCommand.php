@@ -10,6 +10,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\OpenCode\Actions\PrewarmCodingImageAction;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
+use Kanvas\Connectors\OpenCode\Services\CodingImageService;
+use Kanvas\Connectors\OpenCode\Services\CodingRuntimeReadinessService;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineNetworkModeEnum;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
@@ -27,11 +29,12 @@ class SetupCodingRuntimeCommand extends Command
     protected $signature = 'kanvas:coding:setup
         {--app= : App id to configure}
         {--machine= : Agent machine id that will run the containers}
-        {--image=kanvas/opencode:1.18.32 : Pinned runtime image}
+        {--image= : Pinned runtime image; defaults to the tag the Dockerfile builds}
         {--network= : Docker network the app can reach containers on, e.g. kanvas-ecosystem-api_sail}
-        {--provider=openai : Provider id as opencode resolves it}
-        {--model=gpt-4.1 : Model id to pin}
+        {--provider=oai : Provider id, as declared in the project config}
+        {--model=gpt-6-luna : Model id to pin}
         {--api-key-env=OPENAI_API_KEY : Env var the container reads its key from}
+        {--provider-npm= : @ai-sdk/openai for the Responses API (codex, gpt-6-luna tool calls)}
         {--api-key= : The provider key to store (company-scoped when --company is given)}
         {--company= : Store the key against this company instead of the app}
         {--workspace-root=/srv/kanvas : Where mirrors, worktrees and session data live on the machine}
@@ -66,11 +69,12 @@ class SetupCodingRuntimeCommand extends Command
     private function writeSettings(Apps $app): void
     {
         $settings = [
-            ConfigurationEnum::IMAGE->value => $this->option('image'),
+            ConfigurationEnum::IMAGE->value => $this->option('image') ?: CodingImageService::pinnedTag(),
             ConfigurationEnum::NETWORK->value => $this->option('network'),
             ConfigurationEnum::PROVIDER_ID->value => $this->option('provider'),
             ConfigurationEnum::MODEL->value => $this->option('model'),
             ConfigurationEnum::PROVIDER_ENV_VAR->value => $this->option('api-key-env'),
+            ConfigurationEnum::PROVIDER_NPM->value => $this->option('provider-npm'),
             ConfigurationEnum::WORKSPACE_ROOT->value => $this->option('workspace-root'),
             ConfigurationEnum::STATIC_ENDPOINT->value => $this->option('static-endpoint'),
             ConfigurationEnum::STATIC_PASSWORD->value => $this->option('static-password'),
@@ -144,8 +148,17 @@ class SetupCodingRuntimeCommand extends Command
             $missing[] = 'no machine and no --static-endpoint: there is nowhere to run a session';
         }
 
-        if ((string) ($app->get(ConfigurationEnum::PROVIDER_API_KEY->value) ?? '') === '' && $this->option('api-key') === null) {
-            $missing[] = 'no provider key stored — the container will start and every turn will fail';
+        // Same checklist the agent's own readiness tool reads, so an operator and an agent never get
+        // two different answers about the same app. The company matters because --company stores the
+        // key there, where an app-only lookup would not find it.
+        $readiness = new CodingRuntimeReadinessService();
+        $missing = [
+            ...$missing,
+            ...$readiness->failures($readiness->checksForApp($app, $this->resolveCompany())),
+        ];
+
+        if ($machine !== null) {
+            $missing = [...$missing, ...$readiness->hostProblems($machine, $app)];
         }
 
         $this->newLine();
