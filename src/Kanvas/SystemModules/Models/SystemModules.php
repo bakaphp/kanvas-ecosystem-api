@@ -56,8 +56,8 @@ use Silber\Bouncer\Database\Ability;
  */
 class SystemModules extends BaseModel
 {
-    use SlugTrait;
     use Cachable;
+    use SlugTrait;
     use UuidTrait;
 
     protected $table = 'system_modules';

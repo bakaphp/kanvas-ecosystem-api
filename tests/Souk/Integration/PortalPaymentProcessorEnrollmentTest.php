@@ -13,6 +13,7 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
+use Kanvas\Souk\Payments\Models\PaymentLogs;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 use Mockery;
@@ -60,6 +61,24 @@ final class PortalPaymentProcessorEnrollmentTest extends TestCase
         $this->assertSame(PaymentStatusEnum::FAILED->value, $result['status']);
         $this->assertStringContainsString('The cardholder could not be authenticated.', $result['message']);
         $this->assertSame(OrderStatusEnum::FAILED->value, $order->refresh()->status);
+    }
+
+    public function testAuthenticationFailureFillsTheLogErrorColumns(): void
+    {
+        [$payment] = $this->seedPayment();
+
+        $this->requestUserValidation($payment, $this->enrollment('AUTHENTICATION_FAILED', [
+            'reason' => 'CONSUMER_AUTHENTICATION_FAILED',
+            'message' => 'The cardholder could not be authenticated.',
+        ]));
+
+        $log = PaymentLogs::query()
+            ->where('payments_id', $payment->getId())
+            ->where('event_type', 'payment_authentication_failed')
+            ->firstOrFail();
+
+        $this->assertSame('CONSUMER_AUTHENTICATION_FAILED', $log->error_code);
+        $this->assertSame('The cardholder could not be authenticated.', $log->error_message);
     }
 
     public function testAuthTransactionIdIsPersistedAtEnrollment(): void

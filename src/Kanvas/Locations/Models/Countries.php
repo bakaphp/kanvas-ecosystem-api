@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Locations\Models;
 
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Kanvas\Models\BaseModel;
 use Kanvas\Users\Models\Users;
@@ -20,8 +19,6 @@ use Kanvas\Users\Models\Users;
  */
 class Countries extends BaseModel
 {
-    use Cachable;
-
     protected $table = 'countries';
 
     protected $fillable = [

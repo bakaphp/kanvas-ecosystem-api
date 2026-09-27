@@ -14,7 +14,7 @@ use Kanvas\Users\Models\Users;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
-class TruncatesTitleTraitTest extends TestCase
+class TruncatesTitleTest extends TestCase
 {
     /**
      * @return iterable<string, array{0: class-string<Plan|Task>}>

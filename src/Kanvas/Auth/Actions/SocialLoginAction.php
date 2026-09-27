@@ -33,6 +33,15 @@ class SocialLoginAction
      */
     public function execute(): Users
     {
+        $user = $this->resolveUser();
+
+        AuthenticationService::ensureCanAuthenticate($user->getAppProfile($this->app), $this->app);
+
+        return $user;
+    }
+
+    private function resolveUser(): Users
+    {
         $source = Sources::where('title', $this->provider)->firstOrFail();
         $userLinkedSource = UserLinkedSources::where('source_users_id', $this->socialUser->id)->where('source_id', $source->id)->first();
 

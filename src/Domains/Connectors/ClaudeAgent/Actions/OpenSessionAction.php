@@ -9,10 +9,10 @@ use Kanvas\Connectors\ClaudeAgent\Enums\CustomFieldEnum;
 use Kanvas\Connectors\ClaudeAgent\Exceptions\ClaudeAgentApiException;
 use Kanvas\Connectors\ClaudeAgent\Services\AgentSettingsService;
 use Kanvas\Connectors\ClaudeAgent\Services\RepoAllowListService;
-use Kanvas\Connectors\ClaudeAgent\Traits\ReportsAndContinues;
 use Kanvas\Connectors\ClaudeAgent\Traits\ResolvesClaudeClient;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\NervousSystem\Plan\Concerns\ReportsAndContinues;
 
 /**
  * Resolve the remote session backing a Kanvas conversation, creating it on first use.

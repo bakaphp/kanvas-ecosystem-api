@@ -69,6 +69,11 @@ interface AgentRuntimeProvider
 
     public function updateConfig(AgentDeployment $deployment, string $config): bool;
 
+    // The partial runtime config that moves a running deployment onto the cheap model + session
+    // settings, serialized the way updateConfig() expects for this runtime. '' means it already has
+    // them and nothing should be written.
+    public function costDefaultsPatch(string $currentConfig): string;
+
     public function dispatchBackup(AgentDeployment $deployment, AgentBackup $backup, bool $includeWorkspace): void;
 
     public function createWorkspaceBackupNow(AgentDeployment $deployment, AgentBackup $backup): AgentBackup;

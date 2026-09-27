@@ -16,6 +16,7 @@ type People {
     organizations: [Organization!] @belongsToMany
     contacts: [Contact!]! @hasMany
     address: [Address!]! @hasMany
+    approvalRequests: [ApprovalRequest!]! @hasMany(relation: "approvalRequests")
     created_at: DateTime!
     updated_at: DateTime
     first_message_at: DateTime

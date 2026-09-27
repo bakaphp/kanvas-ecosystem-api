@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Payments\Providers;
 
 use Baka\Support\IPInfo;
+use Baka\Support\Str;
 use Exception;
 use GuzzleHttp\Exception\ConnectException;
 use GuzzleHttp\Exception\RequestException;
@@ -31,6 +32,7 @@ use Kanvas\Connectors\EchoPay\Services\EchoPayService;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\DataTransferObject\PaymentFailure;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Models\Payments;
 use Throwable;
@@ -216,7 +218,7 @@ class PortalPaymentProcessor
                     'echopay_error' => $e->getErrorBody(),
                     'echopay_error_timestamp' => now()->toIso8601String(),
                 ],
-                $errorMessage
+                $e->toPaymentFailure()
             );
 
             return [
@@ -237,7 +239,7 @@ class PortalPaymentProcessor
                     'enrollment_data' => $enrollmentData,
                     'error' => $errorMessage,
                 ],
-                $errorMessage
+                $this->paymentFailure($e, $errorMessage)
             );
 
             return [
@@ -299,7 +301,7 @@ class PortalPaymentProcessor
                     'echopay_error' => $e->getErrorBody(),
                     'echopay_error_timestamp' => now()->toIso8601String(),
                 ],
-                $errorMessage
+                $e->toPaymentFailure()
             );
 
             return [
@@ -320,7 +322,7 @@ class PortalPaymentProcessor
                     'enrollment_data' => $validatedData,
                     'error' => $errorMessage,
                 ],
-                $errorMessage
+                $this->paymentFailure($e, $errorMessage)
             );
 
             return [
@@ -503,7 +505,7 @@ class PortalPaymentProcessor
             $errorBody = $e->getErrorBody();
             $userMessage = $e->getUserMessage();
 
-            $payment->addLog('payment_error', [
+            $this->logPaymentError($payment, $e, [
                 'error_type' => 'EchoPayException',
                 'error_message' => $errorMessage,
                 'error_body' => $errorBody,
@@ -545,11 +547,16 @@ class PortalPaymentProcessor
                 ? json_decode((string) $e->getResponse()->getBody())->data ?? []
                 : [];
 
-            $payment->addLog('payment_error', [
-                'error_type' => get_class($e),
-                'error_message' => $errorMessage,
-                'order_id' => $order->id,
-            ]);
+            $this->logPaymentError(
+                $payment,
+                $e,
+                [
+                    'error_type' => get_class($e),
+                    'error_message' => $errorMessage,
+                    'order_id' => $order->id,
+                ],
+                $errorMessage
+            );
 
             $payment->status = PaymentStatusEnum::FAILED->value;
             $order->updateQuietly([
@@ -587,9 +594,7 @@ class PortalPaymentProcessor
      */
     private function isEchoPayGatewayFailure(EchoPayException $e): bool
     {
-        $status = $e->getStatusCode();
-
-        return $status === 0 || $status >= 500;
+        return $e->isGatewayFailure();
     }
 
     public function capturePayment(Payments $payment, Order $order, string $transactionId): array
@@ -662,7 +667,7 @@ class PortalPaymentProcessor
                 report($e);
             }
 
-            $payment->addLog('payment_error', [
+            $this->logPaymentError($payment, $e, [
                 'error_type' => 'EchoPayException',
                 'error_message' => $e->getMessage(),
                 'error_body' => $e->getErrorBody(),
@@ -678,7 +683,7 @@ class PortalPaymentProcessor
         } catch (Throwable $e) {
             report($e);
 
-            $payment->addLog('payment_error', [
+            $this->logPaymentError($payment, $e, [
                 'error_type' => get_class($e),
                 'error_message' => $e->getMessage(),
                 'order_id' => $order->id,
@@ -735,7 +740,7 @@ class PortalPaymentProcessor
                 report($e);
             }
 
-            $payment->addLog('payment_error', [
+            $this->logPaymentError($payment, $e, [
                 'error_type' => 'EchoPayException',
                 'error_message' => $e->getMessage(),
                 'error_body' => $e->getErrorBody(),
@@ -753,7 +758,7 @@ class PortalPaymentProcessor
         } catch (Throwable $e) {
             report($e);
 
-            $payment->addLog('payment_error', [
+            $this->logPaymentError($payment, $e, [
                 'error_type' => get_class($e),
                 'error_message' => $e->getMessage(),
                 'transaction_id' => $transactionId,
@@ -864,17 +869,42 @@ class PortalPaymentProcessor
         ConsumerAuthentication $consumerAuthentication,
         array $errors
     ): void {
-        $payment->addLog('payment_authentication_failed', [
-            'order_id' => $payment->order->id,
-            'amount' => $payment->amount,
-            'enrollment_status' => $enrollmentData['status'] ?? null,
-            'reason' => $errors['code'],
-            'message' => $errors['message'],
-            'pares_status' => $consumerAuthentication->paresStatus,
-            'eci' => $consumerAuthentication->eci ?? $consumerAuthentication->eciRaw,
-            'authentication_transaction_id' => $consumerAuthentication->authenticationTransactionId,
-            'request_id' => $enrollmentData['id'] ?? null,
-        ]);
+        $payment->addLog(
+            'payment_authentication_failed',
+            [
+                'order_id' => $payment->order->id,
+                'amount' => $payment->amount,
+                'enrollment_status' => $enrollmentData['status'] ?? null,
+                'reason' => $errors['code'],
+                'message' => $errors['message'],
+                'pares_status' => $consumerAuthentication->paresStatus,
+                'eci' => $consumerAuthentication->eci ?? $consumerAuthentication->eciRaw,
+                'authentication_transaction_id' => $consumerAuthentication->authenticationTransactionId,
+                'request_id' => $enrollmentData['id'] ?? null,
+            ],
+            new PaymentFailure(
+                code: Str::trimToNull($errors['code']),
+                message: Str::trimToNull($errors['message']),
+            ),
+        );
+    }
+
+    private function logPaymentError(
+        Payments $payment,
+        Throwable $e,
+        array $context,
+        ?string $errorMessage = null
+    ): void {
+        $payment->addLog('payment_error', $context, $this->paymentFailure($e, $errorMessage));
+    }
+
+    private function paymentFailure(Throwable $e, ?string $message = null): PaymentFailure
+    {
+        if ($e instanceof EchoPayException) {
+            return $e->toPaymentFailure();
+        }
+
+        return new PaymentFailure(code: class_basename($e), message: $message ?? $e->getMessage());
     }
 
     private function rememberAuthTransactionId(Order $order, ConsumerAuthentication $consumerAuthentication): void
@@ -894,18 +924,22 @@ class PortalPaymentProcessor
         Payments $payment,
         string $stage,
         array $metadata,
-        string $errorMessage
+        PaymentFailure $failure
     ): void {
         $payment->status = PaymentStatusEnum::FAILED->value;
         $payment->addMetadata($metadata);
         $payment->save();
 
-        $payment->addLog('payment_authentication_error', [
-            'order_id' => $payment->order->id,
-            'amount' => $payment->amount,
-            'stage' => $stage,
-            'error' => $errorMessage,
-        ]);
+        $payment->addLog(
+            'payment_authentication_error',
+            [
+                'order_id' => $payment->order->id,
+                'amount' => $payment->amount,
+                'stage' => $stage,
+                'error' => $failure->message,
+            ],
+            $failure,
+        );
 
         $payment->order->updateQuietly([
             'status' => OrderStatusEnum::FAILED->value,

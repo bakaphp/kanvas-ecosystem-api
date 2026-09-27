@@ -9,6 +9,7 @@ use Illuminate\Auth\TokenGuard as AuthTokenGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Auth\Services\AuthenticationService;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Traits\TokenTrait;
@@ -100,6 +101,8 @@ class TokenGuard extends AuthTokenGuard
                 app(Apps::class),
                 1
             );
+
+            AuthenticationService::ensureCanAuthenticate($sessionUser->getAppProfile($app), $app);
 
             $sessionUser->setCurrentDeviceId($tokenDeviceId);
 

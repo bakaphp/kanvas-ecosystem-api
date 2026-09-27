@@ -75,6 +75,7 @@ type ScribeBill {
     tax_lines: [ScribeBillTaxLine!]! @hasMany(relation: "taxLines")
     allocations: [ScribeBillPaymentAllocation!]!
         @hasMany(relation: "allocations")
+    approvalRequests: [ApprovalRequest!]! @hasMany(relation: "approvalRequests")
     files: [Filesystem!]!
         @cacheRedis
         @paginate(
