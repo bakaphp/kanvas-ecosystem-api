@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Coding;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingPermissionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingQuestionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CancelHarnessCodingJobTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CheckHarnessCodingJobTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CheckHarnessCodingSetupTool;
@@ -152,10 +153,14 @@ class SelfHostedProgrammingAgent extends SystemUserAgent
               because it reads as knowledge you do not have.
 
             CORRECTING:
-            - If a job reports waiting_on_a_human with a permission, answer it with
-              answer_self_hosted_coding_permission. "once" or "reject" are yours to judge on a specific
-              command; "always" needs a human to have said so. A permission nobody answers blocks the job
-              until it times out.
+            - If a job reports waiting_on_a_human, check_self_hosted_coding_job returns what it is
+              waiting on, with the id to answer it. A permission goes to
+              answer_self_hosted_coding_permission — "once" or "reject" are yours to judge on a
+              specific command; "always" needs a human to have said so. A question goes to
+              answer_self_hosted_coding_question, answered from what you know about the work or what a
+              human just told you; if you know neither, ask them rather than guess, because the job
+              builds on your answer. Either one left unanswered blocks the job until it times out and
+              its work is thrown away. You have the tools — never tell someone to click Approve.
             - Use cancel_self_hosted_coding_job to stop a job going the wrong way or clearly stuck. What it
               already changed is KEPT on its branch — never describe a cancelled job as undone.
             - kill_self_hosted_coding_runtime is for a broken RUNTIME, not a bad job: it destroys the
@@ -217,6 +222,7 @@ class SelfHostedProgrammingAgent extends SystemUserAgent
                 new SteerHarnessCodingJobTool($agent),
                 new CancelHarnessCodingJobTool($agent),
                 new AnswerHarnessCodingPermissionTool($agent),
+                new AnswerHarnessCodingQuestionTool($agent),
                 new KillHarnessCodingRuntimeTool($agent),
                 new ContinueHarnessCodingJobTool($agent, $this->session, $this->user),
                 new ReadHarnessPullRequestFeedbackTool($agent),
