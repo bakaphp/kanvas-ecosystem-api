@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Harness;
 
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPermissionRequest;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessQuestion;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -97,10 +98,11 @@ class CheckHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSyste
             ],
             guidance: $waiting
                 ? 'This job is blocked and will be killed at the session timeout if nobody answers. '
-                    . 'Answer each pending_permissions entry with answer_self_hosted_coding_permission, '
-                    . 'passing its permission_id — "once" is yours to judge on a specific command, '
-                    . '"always" only if a human in this conversation said so. Never tell the person to '
-                    . 'click Approve somewhere; there is no such button, and you hold the tool.'
+                    . 'Answer each pending_permissions entry with answer_self_hosted_coding_permission '
+                    . 'and each pending_questions entry with answer_self_hosted_coding_question, passing '
+                    . 'the id it came with. "once" is yours to judge on a specific command, "always" '
+                    . 'only if a human in this conversation said so. Never tell the person to click '
+                    . 'Approve somewhere; there is no such button, and you hold the tools.'
                 : null
         );
     }
@@ -119,11 +121,13 @@ class CheckHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSyste
     private function whatItIsWaitingOn(AgentTaskSession $session): array
     {
         try {
-            $tick = HarnessFactory::forSession($session)->status($session);
+            $tick = HarnessFactory::forSession($session)->poll($session);
         } catch (Throwable $e) {
             report($e);
 
-            return [];
+            // Saying so, rather than returning nothing: an empty list and an unreadable runtime look
+            // identical to the model, and it reads the first as "nothing to answer" and moves on.
+            return ['pending_unreadable' => 'Could not reach the runtime to read what it is waiting on.'];
         }
 
         return [
@@ -134,7 +138,13 @@ class CheckHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSyste
                 ],
                 $tick->permissions
             ),
-            'pending_questions' => $tick->questions,
+            'pending_questions' => array_map(
+                static fn (HarnessQuestion $question): array => [
+                    'question_id' => $question->id,
+                    'asks' => $question->describe(),
+                ],
+                $tick->questions
+            ),
         ];
     }
 }

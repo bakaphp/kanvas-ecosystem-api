@@ -8,6 +8,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\CodingHarness;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPermissionRequest;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPrompt;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessQuestion;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessTick;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessUsage;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
@@ -249,7 +250,7 @@ class OpenCodeHarness implements CodingHarness
      * @param list<array<string, mixed>> $assistant
      * @param list<array<string, mixed>> $idle
      * @param list<array<string, mixed>> $permissions
-     * @param list<string>               $questions   already mapped: an unreadable question must not
+     * @param list<HarnessQuestion>      $questions   already mapped: an unreadable question must not
      *                                                park the session with nothing to answer
      */
     private function resolveStatus(
@@ -433,7 +434,7 @@ class OpenCodeHarness implements CodingHarness
      * enough for a person to see what is being asked and answer it.
      *
      * @param list<array<string, mixed>> $forms
-     * @return list<string>
+     * @return list<HarnessQuestion>
      */
     private function mapForms(array $forms): array
     {
@@ -441,8 +442,10 @@ class OpenCodeHarness implements CodingHarness
 
         foreach ($forms as $form) {
             $title = $form['title'] ?? null;
+            $id = $form['id'] ?? null;
 
-            if (! is_string($title) || $title === '') {
+            // No id means nothing can answer it, so parking the session on it would strand the job.
+            if (! is_string($title) || $title === '' || ! is_string($id) || $id === '') {
                 continue;
             }
 
@@ -455,7 +458,7 @@ class OpenCodeHarness implements CodingHarness
                 )
             ));
 
-            $mapped[] = $fields === [] ? $title : $title . ' (' . implode(', ', $fields) . ')';
+            $mapped[] = new HarnessQuestion(id: $id, title: $title, fields: $fields);
         }
 
         return $mapped;

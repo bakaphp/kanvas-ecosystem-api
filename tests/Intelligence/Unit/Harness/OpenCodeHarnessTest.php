@@ -108,7 +108,25 @@ class OpenCodeHarnessTest extends TestCase
         ])->poll($this->taskSession());
 
         $this->assertSame(HarnessStatusEnum::AWAITING_ANSWER, $tick->status);
-        $this->assertSame(['Which database? (Name)'], $tick->questions);
+        $this->assertSame('Which database? (Name)', $tick->questions[0]->describe());
+        // The id is the whole point: without it nothing can answer the form and the job dies at the
+        // session timeout with its work thrown away.
+        $this->assertSame('frm_1', $tick->questions[0]->id);
+    }
+
+    /** A form with no id cannot be answered by anything, so parking the session on it would strand it. */
+    public function testAFormWithNoIdIsNotTreatedAsAQuestion(): void
+    {
+        $tick = $this->harness([
+            'form' => ['data' => [[
+                'sessionID' => 'ses_x',
+                'title' => 'Which database?',
+                'fields' => [['key' => 'db', 'title' => 'Name']],
+            ]]],
+        ])->poll($this->taskSession());
+
+        $this->assertSame([], $tick->questions);
+        $this->assertNotSame(HarnessStatusEnum::AWAITING_ANSWER, $tick->status);
     }
 
     /**

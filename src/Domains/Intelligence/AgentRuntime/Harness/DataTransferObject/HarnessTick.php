@@ -15,7 +15,7 @@ class HarnessTick extends Data
     /**
      * @param list<string>                     $narration      new agent text since the last tick
      * @param list<HarnessPermissionRequest>   $permissions    requests parked, waiting on a decision
-     * @param list<string>                     $questions      questions the agent asked, verbatim
+     * @param list<HarnessQuestion>            $questions      forms the agent parked on, with their ids
      * @param list<string>                     $modelsObserved every model that produced a message this
      *                                                         tick; a value other than the pinned one
      *                                                         means the runtime substituted it
