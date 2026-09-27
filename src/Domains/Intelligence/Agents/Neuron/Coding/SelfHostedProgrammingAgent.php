@@ -9,6 +9,7 @@ use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingPermissionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CancelHarnessCodingJobTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CheckHarnessCodingJobTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CheckHarnessCodingSetupTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\ContinueHarnessCodingJobTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\DispatchHarnessCodingTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\FetchHarnessCodingArtifactTool;
@@ -50,8 +51,16 @@ use Override;
         'A coding runtime on the app: opencode_provider_id, opencode_model and the provider API key '
             . '(or the agent\'s own CODING_PROVIDER_API_KEY). Run kanvas:coding:setup to configure them '
             . 'and report what is still missing.',
+        'How opencode reaches that provider: opencode_provider_npm (@ai-sdk/openai, whose Responses API '
+            . 'is what gpt-6-luna tool calls need) or opencode_provider_base_url. With neither, the '
+            . 'container starts and every turn dies on ModelUnavailableError, which names nothing that '
+            . 'is actually missing.',
         'The runtime image built on that machine (kanvas:coding:build-image), until it is published to a '
             . 'registry.',
+        'Once hired, this list stops being the answer: the agent\'s own '
+            . 'check_self_hosted_coding_setup reads every one of these off the app and the agent and says '
+            . 'which are set, which are defaulted and who can fix the rest. Ask it rather than working '
+            . 'from here.',
     ],
 )]
 class SelfHostedProgrammingAgent extends SystemUserAgent
@@ -149,6 +158,11 @@ class SelfHostedProgrammingAgent extends SystemUserAgent
             - Failing checks come back named, with their output. Read them before guessing at a fix.
             - reply_to_coding_pull_request answers the reviewer in their own thread. After acting on
               feedback, say there what you changed — commits appearing with no explanation is not a reply.
+            - ONE comment per review round, and only when you have something to report: what you
+              changed, an answer to their question, or something you could not do. Every comment
+              notifies a person. Never post to acknowledge, to confirm you can see their comment, or to
+              give a status update — that is what this chat is for. If you find yourself about to post
+              a second comment in a row, everything in it belonged in the first one.
             - Never claim a change is merged. Merging is a human's decision, made on the pull request.
 
             REPORTING:
@@ -177,6 +191,7 @@ class SelfHostedProgrammingAgent extends SystemUserAgent
                 ...$this->identityTools(),
                 new DispatchHarnessCodingTaskTool($agent, $this->session, $this->user),
                 new CheckHarnessCodingJobTool($agent),
+                new CheckHarnessCodingSetupTool($agent),
                 new ListHarnessCodingJobsTool($agent),
                 new ShowHarnessCodingDiffTool($agent),
                 new FetchHarnessCodingArtifactTool($agent),

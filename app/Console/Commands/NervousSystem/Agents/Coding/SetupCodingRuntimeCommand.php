@@ -9,11 +9,9 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\OpenCode\Actions\PrewarmCodingImageAction;
-use Kanvas\Connectors\OpenCode\Concerns\PreparesHostDirectory;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenCode\Services\CodingImageService;
-use Kanvas\Connectors\OpenCode\SshClient;
-use Kanvas\Exceptions\ValidationException;
+use Kanvas\Connectors\OpenCode\Services\CodingRuntimeReadinessService;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineNetworkModeEnum;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
@@ -27,7 +25,6 @@ use Throwable;
 class SetupCodingRuntimeCommand extends Command
 {
     use KanvasJobsTrait;
-    use PreparesHostDirectory;
 
     protected $signature = 'kanvas:coding:setup
         {--app= : App id to configure}
@@ -142,61 +139,6 @@ class SetupCodingRuntimeCommand extends Command
         }
     }
 
-    /**
-     * What is wrong with the MACHINE, not the settings.
-     *
-     * Configuration being complete says nothing about the host, and a fresh box fails one prerequisite
-     * per dispatch: the container comes up, then the clone cannot write, then the image is not there.
-     * Each of those lands on a session row rather than in front of the person who just ran setup. Ask
-     * the machine here, while somebody is watching, and name the command that fixes it.
-     *
-     * Best-effort and never fatal on its own — an unreachable machine is reported, not thrown.
-     *
-     * @return list<string>
-     */
-    private function hostProblems(AgentMachine $machine, Apps $app): array
-    {
-        try {
-            $client = SshClient::fromMachine($machine);
-        } catch (Throwable $e) {
-            return ['cannot ssh to ' . $machine->name . ': ' . $e->getMessage()];
-        }
-
-        $problems = [];
-
-        try {
-            $owner = trim($client->exec('whoami', 30));
-
-            if (trim($client->exec('docker info >/dev/null 2>&1 && echo OK || echo NO', 60)) !== 'OK') {
-                $problems[] = 'docker is not usable by ' . $owner . ' on ' . $machine->name
-                    . ' — install it, or add that user to the docker group';
-            }
-
-            $root = rtrim((string) ($app->get(ConfigurationEnum::WORKSPACE_ROOT->value) ?? '/srv/kanvas'), '/');
-
-            try {
-                // The same preparation a session does, so this both reports and fixes what it can —
-                // and collects rather than throws, because the checks below are still worth running.
-                $this->prepareHostDirectory($client, $root, $machine->name);
-            } catch (ValidationException $e) {
-                $problems[] = $e->getMessage();
-            }
-
-            $image = (string) $app->get(ConfigurationEnum::IMAGE->value);
-
-            if ($image !== '' && trim($client->exec('docker images -q ' . escapeshellarg($image), 60)) === '') {
-                $problems[] = $image . ' is not on ' . $machine->name . ' — run: php artisan '
-                    . 'kanvas:coding:build-image --app=' . $app->getId() . ' --machine=' . $machine->getId();
-            }
-        } catch (Throwable $e) {
-            $problems[] = 'could not check ' . $machine->name . ': ' . $e->getMessage();
-        } finally {
-            $client->disconnect();
-        }
-
-        return $problems;
-    }
-
     private function report(Apps $app, ?AgentMachine $machine): int
     {
         $staticEndpoint = (string) $app->get(ConfigurationEnum::STATIC_ENDPOINT->value);
@@ -206,12 +148,17 @@ class SetupCodingRuntimeCommand extends Command
             $missing[] = 'no machine and no --static-endpoint: there is nowhere to run a session';
         }
 
-        if ((string) ($app->get(ConfigurationEnum::PROVIDER_API_KEY->value) ?? '') === '' && $this->option('api-key') === null) {
-            $missing[] = 'no provider key stored — the container will start and every turn will fail';
-        }
+        // Same checklist the agent's own readiness tool reads, so an operator and an agent never get
+        // two different answers about the same app. The company matters because --company stores the
+        // key there, where an app-only lookup would not find it.
+        $readiness = new CodingRuntimeReadinessService();
+        $missing = [
+            ...$missing,
+            ...$readiness->failures($readiness->checksForApp($app, $this->resolveCompany())),
+        ];
 
         if ($machine !== null) {
-            $missing = [...$missing, ...$this->hostProblems($machine, $app)];
+            $missing = [...$missing, ...$readiness->hostProblems($machine, $app)];
         }
 
         $this->newLine();

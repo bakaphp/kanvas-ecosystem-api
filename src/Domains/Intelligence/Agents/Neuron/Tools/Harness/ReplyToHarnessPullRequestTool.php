@@ -11,12 +11,11 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsRepeatCalls;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
-use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
-use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -25,22 +24,32 @@ use Override;
  * Without it the loop is silent on the side that matters: the agent reads a review, pushes a fix, and
  * the reviewer sees commits appear with no word about what was addressed or why. The reply belongs in
  * the thread they are reading, not in a chat window they cannot see.
+ *
+ * One comment per pull request per turn, and deliberately NOT `TrackByInputs`: keying the run budget
+ * by arguments hands every distinct comment body a fresh budget, so a model narrating its progress
+ * can notify a reviewer four times in one round and never touch the cap. The destination, not the
+ * text, is what "the same call" means for a tool that writes to a shared thread.
  */
 #[AgentTool(name: 'Reply To Coding Pull Request', category: 'coding')]
-class ReplyToHarnessPullRequestTool extends Tool implements HasRunKey, RequiresSystemAgent
+class ReplyToHarnessPullRequestTool extends Tool implements RequiresSystemAgent
 {
+    use GuardsRepeatCalls;
     use ReportsToolOutcome;
     use ResolvesCodingRepositoryForTool;
-    use TrackByInputs;
 
     public function __construct(
         private readonly Agent $agent,
     ) {
+        $this->initRepeatGuard();
+
         parent::__construct(
             name: 'reply_to_coding_pull_request',
-            description: 'Post a comment on the pull request a coding job produced — to say what you '
+            description: 'Post ONE comment on the pull request a coding job produced — to say what you '
                 . 'changed in response to a review, to answer a question, or to flag something you could '
-                . 'not do. Write it for the reviewer reading the PR, not as a summary for this chat.',
+                . 'not do. Write it for the reviewer reading the PR, not as a summary for this chat. '
+                . 'Every call notifies a human, so say everything you have to say in a single comment: '
+                . 'do not post an acknowledgement, a status update, or a follow-up confirming the same '
+                . 'round. If you have nothing to report beyond having read the review, post nothing.',
         );
     }
 
@@ -77,6 +86,22 @@ class ReplyToHarnessPullRequestTool extends Tool implements HasRunKey, RequiresS
             return $this->invalidArgs('The comment is empty.');
         }
 
+        return $this->oncePerTurn(
+            ['job_id' => $job_id],
+            fn (): array => $this->post($job_id, $body),
+            note: 'You have already commented on this pull request in this turn, and that comment was '
+                . 'posted. Nothing further was posted now. Each comment notifies the reviewer, so one per '
+                . 'round is the limit — anything else you wanted to say belonged in that comment. Do not '
+                . 'call this again; report what you did in the chat instead.',
+            rememberFailures: false,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function post(int $job_id, string $body): array
+    {
         $session = AgentTaskSession::forAgentJob($this->agent, $job_id);
 
         $url = $session === null ? null : Str::trimToNull((string) $session->pull_request_url);
