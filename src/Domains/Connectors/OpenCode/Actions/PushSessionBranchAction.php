@@ -54,9 +54,12 @@ class PushSessionBranchAction
      * `info/exclude`, but that is a setting; this is the guarantee. A bug in the exclusion must not be
      * able to commit our runtime config into somebody's repository.
      *
+     * `.reference` holds whole other repositories; committing one would put somebody else's codebase in
+     * this pull request. Stays in step with `PrepareSessionWorktreeAction::REFERENCE_DIR`.
+     *
      * @var list<string>
      */
-    private const array KANVAS_ARTIFACTS = ['opencode.json', '.kanvas'];
+    private const array KANVAS_ARTIFACTS = ['opencode.json', '.kanvas', PrepareSessionWorktreeAction::REFERENCE_DIR];
 
     public function __construct(
         private readonly AgentTaskSession $session,

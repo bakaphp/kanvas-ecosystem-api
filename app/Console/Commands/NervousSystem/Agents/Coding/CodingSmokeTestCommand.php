@@ -33,6 +33,7 @@ class CodingSmokeTestCommand extends Command
         {--agent= : Agent id or uuid to run as}
         {--task= : What the coding agent should do}
         {--repo= : Repository slug from the agent\'s allow-list (scopes its memory)}
+        {--reference=* : Another repository to check out beside the work, read-only. Repeatable}
         {--endpoint= : An already-running opencode server, e.g. http://127.0.0.1:4096}
         {--password= : That server\'s OPENCODE_SERVER_PASSWORD}
         {--provider= : Provider id as declared in the runtime config, e.g. oai}
@@ -72,6 +73,9 @@ class CodingSmokeTestCommand extends Command
                 agent: $agent,
                 task: $task,
                 repoSlug: Str::trimToNull((string) $this->option('repo')),
+                referenceSlugs: array_values(array_filter(
+                    array_map(strval(...), (array) $this->option('reference'))
+                )),
             )->execute();
         } catch (Throwable $e) {
             $this->error('Dispatch failed: ' . $e->getMessage());

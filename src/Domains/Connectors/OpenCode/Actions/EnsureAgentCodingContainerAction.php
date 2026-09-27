@@ -95,7 +95,6 @@ class EnsureAgentCodingContainerAction
 
             $this->prepareHostDirectory($client, $worktreeRoot, $this->machine->name);
             $client->exec('mkdir -p ' . escapeshellarg($worktreeRoot . '/.home'), 30);
-            $this->installGitCredential($client, $root);
 
             $this->removeStaleContainer($client, $container);
 
@@ -214,27 +213,6 @@ class EnsureAgentCodingContainerAction
     private function keyFingerprint(): string
     {
         return mb_substr(hash('sha256', $this->resolveApiKey()), 0, 16);
-    }
-
-    /**
-     * The agent's git identity, installed on the machine when its container comes up.
-     *
-     * Deliberately OUTSIDE the worktree root: that root is mounted into the container, and a credential
-     * inside it would be readable by whatever repository the agent is working on.
-     */
-    private function installGitCredential(SshClient $client, string $root): void
-    {
-        $token = Str::trimToNull((string) $this->agent->get(AgentCustomFieldEnum::GIT_TOKEN->value));
-
-        if ($token === null) {
-            return;
-        }
-
-        $path = $root . '/agents/' . $this->agent->getId() . '/git-credentials';
-
-        $client->exec('mkdir -p ' . escapeshellarg(dirname($path)), 30);
-        $client->writeFile($path, 'https://x-access-token:' . $token . '@github.com' . "\n");
-        $client->exec('chmod 600 ' . escapeshellarg($path), 30);
     }
 
     private function runCommand(

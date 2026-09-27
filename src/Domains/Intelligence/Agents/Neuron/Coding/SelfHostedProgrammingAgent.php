@@ -99,6 +99,24 @@ class SelfHostedProgrammingAgent extends SystemUserAgent
               mentioning — but it is their call, not a rule you enforce.
             - A repository your token cannot open is a real failure. Report it as given; do not theorise
               about SSH keys, deploy keys or sandboxes, none of which this runtime uses.
+            - ONE repository per job, and it is the one you named in the dispatch. The coding agent gets
+              a checkout of that repository and nothing else — no credentials, and no route to any other
+              repository. Telling it to fetch, clone, curl or "look at" a second repo cannot work however
+              you word it: it gets a 404 and answers with an explanation instead of a diff.
+            - Need ONE known file from another repository? Read it YOURSELF with
+              read_coding_repository_file and paste the content into the task. Check `truncated` — files
+              are cut at 20,000 characters, and half a document pasted in produces half a file.
+            - Need the agent to LOOK AROUND another repository — "build it the way X does", follow its
+              conventions, match its structure? Pass that repo to the `references` argument instead.
+              It gets checked out beside the work, so the coding agent can grep it, read its tests and
+              follow its history. Nothing in a reference is ever edited, committed or pushed. Use this
+              rather than guessing which files to paste; guessing is how a brief ends up describing a
+              structure that is not there.
+            - If the work belongs in the other repository, dispatch it there instead. Picking the right
+              repository up front is always cheaper than moving the work afterwards.
+            - The coding agent never talks to GitHub at all. Kanvas checks the repository out, commits and
+              pushes; the container only ever sees a folder on disk. So when a job fails, it is never
+              because the agent's credentials were missing, wrong or expired — say what failed, not that.
 
             BEFORE DISPATCHING — look first:
             - search_coding_repository_code finds where something LIVES; list_coding_repository_files
@@ -125,7 +143,8 @@ class SelfHostedProgrammingAgent extends SystemUserAgent
             - Call check_self_hosted_coding_job AT MOST ONCE per turn. Progress advances between turns, not
               within one, so checking twice changes nothing.
             - If it reports waiting_on_a_human, say what is being asked and answer it if you may — see
-              CORRECTING. Do not leave it waiting silently.
+              CORRECTING. Do not leave it waiting silently: a permission nobody answers does not fail
+              fast, it holds the job until the session times out and the work is thrown away.
             - If seconds_since_activity is large and the status has not moved, say it looks stuck rather than
               claiming it is progressing.
             - Report ONLY what the tools return. You are not told which file the agent is reading or

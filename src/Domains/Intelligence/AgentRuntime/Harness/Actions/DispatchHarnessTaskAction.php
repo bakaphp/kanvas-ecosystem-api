@@ -57,6 +57,13 @@ class DispatchHarnessTaskAction
          * quietly reverting it.
          */
         private readonly ?AgentTaskSession $continues = null,
+        /**
+         * Extra repositories to read from for this job, on top of the agent's standing ones. Slugs
+         * only — they are resolved against the allow-list where the clone URL lives.
+         *
+         * @var list<string>
+         */
+        private readonly array $referenceSlugs = [],
     ) {
     }
 
@@ -82,6 +89,7 @@ class DispatchHarnessTaskAction
                 $brief,
                 $this->repoSlug(),
                 Str::trimToNull((string) $this->agent->get(AgentCustomFieldEnum::SYSTEM_PROMPT->value)),
+                $this->referenceSlugs,
             );
 
             return $task;
