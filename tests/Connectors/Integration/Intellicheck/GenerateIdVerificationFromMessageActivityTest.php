@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests\Connectors\Integration\Intellicheck;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdAction;
 use Kanvas\Connectors\Intellicheck\Activities\GenerateIdVerificationFromMessageActivity;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Messages\Models\Message;
 use ReflectionClass;
 use ReflectionMethod;
@@ -213,6 +215,11 @@ final class GenerateIdVerificationFromMessageActivityTest extends TestCase
         $this->assertFalse(Cache::has($cacheKey), 'a regeneration must leave the window open');
     }
 
+    /**
+     * `id-verification-report` is a per-tenant template that `SyncEmailTemplateAction` does not ship,
+     * so the real send has no template to render on a fresh database — fake it, the window is claimed
+     * before the notification either way.
+     */
     public function testTheDefaultStillClaimsTheDedupWindow(): void
     {
         $lead = $this->makeLead();
@@ -221,6 +228,7 @@ final class GenerateIdVerificationFromMessageActivityTest extends TestCase
 
         $cacheKey = 'intellicheck_report_' . $lead->getId() . '_' . $lead->people->getId();
         Cache::forget($cacheKey);
+        Notification::fake();
 
         $this->capturingAction($lead->people, $lead)->execute(
             verificationData: $this->ocrOnlyPayload(),
@@ -229,6 +237,7 @@ final class GenerateIdVerificationFromMessageActivityTest extends TestCase
         );
 
         $this->assertTrue(Cache::has($cacheKey), 'the existing callers keep their retry guard');
+        Notification::assertSentTo($lead->owner, Blank::class);
     }
 
     /**
