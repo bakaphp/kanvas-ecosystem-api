@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\OpenCode\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Illuminate\Support\Facades\Cache;
+use Kanvas\Connectors\OpenCode\Concerns\PreparesHostDirectory;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenCode\SshClient;
@@ -29,6 +30,8 @@ use Kanvas\Intelligence\Agents\Models\AgentMachine;
  */
 class EnsureAgentCodingContainerAction
 {
+    use PreparesHostDirectory;
+
     public function __construct(
         private readonly Agent $agent,
         private readonly AgentMachine $machine,
@@ -90,7 +93,7 @@ class EnsureAgentCodingContainerAction
             $password = bin2hex(random_bytes(16));
             $port = $this->networkMode()->needsPublishedPort() ? $this->allocatePort($client) : null;
 
-            $this->prepareWorktreeRoot($client, $worktreeRoot);
+            $this->prepareHostDirectory($client, $worktreeRoot, $this->machine->name);
             $client->exec('mkdir -p ' . escapeshellarg($worktreeRoot . '/.home'), 30);
             $this->installGitCredential($client, $root);
 
@@ -136,24 +139,6 @@ class EnsureAgentCodingContainerAction
      * run. The alternative is a container that starts happily and cannot write a single file, which
      * surfaces much later as an inexplicably empty diff.
      */
-    private function prepareWorktreeRoot(SshClient $client, string $worktreeRoot): void
-    {
-        $path = escapeshellarg($worktreeRoot);
-        $owner = escapeshellarg((string) $this->machine->ssh_user);
-
-        $client->exec('mkdir -p ' . $path . ' 2>/dev/null || sudo -n mkdir -p ' . $path . ' 2>&1 || true', 60);
-        $client->exec('chown -R ' . $owner . ' ' . $path . ' 2>/dev/null || sudo -n chown -R ' . $owner . ' ' . $path . ' 2>&1 || true', 120);
-
-        $probe = trim($client->exec('test -w ' . $path . ' && echo WRITABLE || echo NO', 30));
-
-        if ($probe !== 'WRITABLE') {
-            throw new ValidationException(
-                'The coding workspace on ' . $this->machine->name . ' is not usable: ' . $worktreeRoot
-                . ' must exist and be writable by ' . $this->machine->ssh_user . '. Run on that host: '
-                . 'sudo mkdir -p ' . $worktreeRoot . ' && sudo chown -R ' . $this->machine->ssh_user . ' ' . $worktreeRoot
-            );
-        }
-    }
 
     /**
      * The uid the container runs as, which is deliberately the SSH user's rather than the image's own.

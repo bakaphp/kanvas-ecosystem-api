@@ -38,10 +38,20 @@ use Override;
         . 'reporting back what changed.',
     outputFormat: 'Plain text. Short paragraphs; a list only when enumerating jobs. Always report what '
         . 'changed and the branch it landed on.',
+    // An orchestrator repeats this list when it explains why a hire cannot work yet, so each entry
+    // names the exact setting rather than describing it.
     requires: [
-        'A configured coding runtime for this app (opencode image or a static endpoint, provider and model).',
-        'A git token on the agent (CODING_GIT_TOKEN). Its reach is the agent\'s reach — scope it to the '
-            . 'repositories this agent should be able to touch.',
+        'A git token, set by an admin as the agent\'s CODING_GIT_TOKEN — an agent may never mint or type '
+            . 'one. Its reach IS the agent\'s reach, so scope it to the repositories this agent should be '
+            . 'able to touch; there is no second allow-list behind it.',
+        'Optional: the machine it runs on, as the agent\'s CODING_MACHINE_ID. Without it the runtime '
+            . 'takes any active machine belonging to this company, which is fine with one and arbitrary '
+            . 'with several.',
+        'A coding runtime on the app: opencode_provider_id, opencode_model and the provider API key '
+            . '(or the agent\'s own CODING_PROVIDER_API_KEY). Run kanvas:coding:setup to configure them '
+            . 'and report what is still missing.',
+        'The runtime image built on that machine (kanvas:coding:build-image), until it is published to a '
+            . 'registry.',
     ],
 )]
 class SelfHostedProgrammingAgent extends SystemUserAgent

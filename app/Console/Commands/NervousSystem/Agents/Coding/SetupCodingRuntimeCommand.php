@@ -9,7 +9,11 @@ use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\OpenCode\Actions\PrewarmCodingImageAction;
+use Kanvas\Connectors\OpenCode\Concerns\PreparesHostDirectory;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
+use Kanvas\Connectors\OpenCode\Services\CodingImageService;
+use Kanvas\Connectors\OpenCode\SshClient;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineNetworkModeEnum;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
 use Throwable;
@@ -23,15 +27,17 @@ use Throwable;
 class SetupCodingRuntimeCommand extends Command
 {
     use KanvasJobsTrait;
+    use PreparesHostDirectory;
 
     protected $signature = 'kanvas:coding:setup
         {--app= : App id to configure}
         {--machine= : Agent machine id that will run the containers}
-        {--image=kanvas/opencode:1.18.32 : Pinned runtime image}
+        {--image= : Pinned runtime image; defaults to the tag the Dockerfile builds}
         {--network= : Docker network the app can reach containers on, e.g. kanvas-ecosystem-api_sail}
-        {--provider=openai : Provider id as opencode resolves it}
-        {--model=gpt-4.1 : Model id to pin}
+        {--provider=oai : Provider id, as declared in the project config}
+        {--model=gpt-6-luna : Model id to pin}
         {--api-key-env=OPENAI_API_KEY : Env var the container reads its key from}
+        {--provider-npm= : @ai-sdk/openai for the Responses API (codex, gpt-6-luna tool calls)}
         {--api-key= : The provider key to store (company-scoped when --company is given)}
         {--company= : Store the key against this company instead of the app}
         {--workspace-root=/srv/kanvas : Where mirrors, worktrees and session data live on the machine}
@@ -66,11 +72,12 @@ class SetupCodingRuntimeCommand extends Command
     private function writeSettings(Apps $app): void
     {
         $settings = [
-            ConfigurationEnum::IMAGE->value => $this->option('image'),
+            ConfigurationEnum::IMAGE->value => $this->option('image') ?: CodingImageService::pinnedTag(),
             ConfigurationEnum::NETWORK->value => $this->option('network'),
             ConfigurationEnum::PROVIDER_ID->value => $this->option('provider'),
             ConfigurationEnum::MODEL->value => $this->option('model'),
             ConfigurationEnum::PROVIDER_ENV_VAR->value => $this->option('api-key-env'),
+            ConfigurationEnum::PROVIDER_NPM->value => $this->option('provider-npm'),
             ConfigurationEnum::WORKSPACE_ROOT->value => $this->option('workspace-root'),
             ConfigurationEnum::STATIC_ENDPOINT->value => $this->option('static-endpoint'),
             ConfigurationEnum::STATIC_PASSWORD->value => $this->option('static-password'),
@@ -135,6 +142,61 @@ class SetupCodingRuntimeCommand extends Command
         }
     }
 
+    /**
+     * What is wrong with the MACHINE, not the settings.
+     *
+     * Configuration being complete says nothing about the host, and a fresh box fails one prerequisite
+     * per dispatch: the container comes up, then the clone cannot write, then the image is not there.
+     * Each of those lands on a session row rather than in front of the person who just ran setup. Ask
+     * the machine here, while somebody is watching, and name the command that fixes it.
+     *
+     * Best-effort and never fatal on its own — an unreachable machine is reported, not thrown.
+     *
+     * @return list<string>
+     */
+    private function hostProblems(AgentMachine $machine, Apps $app): array
+    {
+        try {
+            $client = SshClient::fromMachine($machine);
+        } catch (Throwable $e) {
+            return ['cannot ssh to ' . $machine->name . ': ' . $e->getMessage()];
+        }
+
+        $problems = [];
+
+        try {
+            $owner = trim($client->exec('whoami', 30));
+
+            if (trim($client->exec('docker info >/dev/null 2>&1 && echo OK || echo NO', 60)) !== 'OK') {
+                $problems[] = 'docker is not usable by ' . $owner . ' on ' . $machine->name
+                    . ' — install it, or add that user to the docker group';
+            }
+
+            $root = rtrim((string) ($app->get(ConfigurationEnum::WORKSPACE_ROOT->value) ?? '/srv/kanvas'), '/');
+
+            try {
+                // The same preparation a session does, so this both reports and fixes what it can —
+                // and collects rather than throws, because the checks below are still worth running.
+                $this->prepareHostDirectory($client, $root, $machine->name);
+            } catch (ValidationException $e) {
+                $problems[] = $e->getMessage();
+            }
+
+            $image = (string) $app->get(ConfigurationEnum::IMAGE->value);
+
+            if ($image !== '' && trim($client->exec('docker images -q ' . escapeshellarg($image), 60)) === '') {
+                $problems[] = $image . ' is not on ' . $machine->name . ' — run: php artisan '
+                    . 'kanvas:coding:build-image --app=' . $app->getId() . ' --machine=' . $machine->getId();
+            }
+        } catch (Throwable $e) {
+            $problems[] = 'could not check ' . $machine->name . ': ' . $e->getMessage();
+        } finally {
+            $client->disconnect();
+        }
+
+        return $problems;
+    }
+
     private function report(Apps $app, ?AgentMachine $machine): int
     {
         $staticEndpoint = (string) $app->get(ConfigurationEnum::STATIC_ENDPOINT->value);
@@ -146,6 +208,10 @@ class SetupCodingRuntimeCommand extends Command
 
         if ((string) ($app->get(ConfigurationEnum::PROVIDER_API_KEY->value) ?? '') === '' && $this->option('api-key') === null) {
             $missing[] = 'no provider key stored — the container will start and every turn will fail';
+        }
+
+        if ($machine !== null) {
+            $missing = [...$missing, ...$this->hostProblems($machine, $app)];
         }
 
         $this->newLine();
