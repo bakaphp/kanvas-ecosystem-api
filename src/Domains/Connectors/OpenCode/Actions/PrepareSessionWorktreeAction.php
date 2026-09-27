@@ -8,9 +8,11 @@ use Baka\Support\Str;
 use Kanvas\Connectors\OpenCode\Concerns\PreparesHostDirectory;
 use Kanvas\Connectors\OpenCode\Concerns\RunsCheckedSshCommands;
 use Kanvas\Connectors\OpenCode\Concerns\UsesGitCredential;
+use Kanvas\Connectors\OpenCode\DataTransferObject\CodingRepository;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\SshClient;
+use Throwable;
 
 /**
  * Gives a session its own checkout of a repository, on the host, before the container starts.
@@ -30,6 +32,13 @@ class PrepareSessionWorktreeAction
     use RunsCheckedSshCommands;
     use UsesGitCredential;
 
+    /**
+     * Must stay in step with `PushSessionBranchAction::KANVAS_ARTIFACTS` and the `info/exclude` seed in
+     * `ProvisionCodingSessionAction`: together they are what keep a reference out of a commit.
+     */
+    public const string REFERENCE_DIR = '.reference';
+
+    /** @param list<CodingRepository> $references Read beside the work; the working repo is already out. */
     public function __construct(
         private readonly AgentTaskSession $session,
         private readonly SshClient $client,
@@ -41,20 +50,22 @@ class PrepareSessionWorktreeAction
         private readonly string $root = '/srv/kanvas',
         /** The directory mounted into the agent's container; the checkout has to land inside it. */
         private readonly string $worktreeRoot = '/srv/kanvas/worktrees',
+        private readonly array $references = [],
     ) {
     }
 
     public function execute(): AgentTaskSession
     {
-        $mirror = $this->mirrorPath();
+        $mirror = $this->mirrorPath($this->repoSlug);
         $worktree = $this->worktreeRoot . '/' . $this->session->uuid;
         // A continuation keeps the branch it was given: the pull request is open against that name, and
         // pushing a second branch would strand the review on the first.
         $branch = Str::trimToNull($this->session->branch) ?? $this->branchPrefix . $this->session->task_id;
 
         $this->prepareHostDirectory($this->client, dirname($mirror, 2));
-        $this->ensureMirror($mirror);
+        $this->ensureMirror($mirror, $this->cloneUrl);
         $this->createCheckout($mirror, $worktree, $branch);
+        $this->checkoutReferences($worktree);
 
         $this->session->workspace_path = $worktree;
         $this->session->branch = $branch;
@@ -68,9 +79,49 @@ class PrepareSessionWorktreeAction
      * every branch this company has ever run against the repository, and an agent working on one task
      * has no business reading — or writing — the rest of them.
      */
-    private function mirrorPath(): string
+    private function mirrorPath(string $slug): string
     {
-        return $this->root . '/repos/' . $this->session->companies_id . '/' . $this->repoSlug . '.git';
+        return $this->root . '/repos/' . $this->session->companies_id . '/' . $slug . '.git';
+    }
+
+    /**
+     * Other repositories, checked out beside the work to be read from — cloned on the host from the
+     * same mirrors, so the container still holds no credential.
+     *
+     * Best-effort: the work stands without a reference, so a clone failure must not fail the job.
+     */
+    private function checkoutReferences(string $worktree): void
+    {
+        foreach ($this->references as $reference) {
+            $destination = $worktree . '/' . self::REFERENCE_DIR . '/' . $reference->slug;
+
+            try {
+                $mirror = $this->mirrorPath($reference->slug);
+
+                $this->ensureMirror($mirror, $reference->cloneUrl);
+
+                $startPoint = $this->hasBranch($mirror, $reference->baseBranch)
+                    ? $reference->baseBranch
+                    : null;
+
+                $this->runChecked(
+                    $this->client,
+                    'mkdir -p ' . escapeshellarg(dirname($destination)),
+                    'create the reference directory'
+                );
+                $this->runChecked(
+                    $this->client,
+                    'git clone ' . ($startPoint === null ? '' : '--branch ' . escapeshellarg($startPoint) . ' ')
+                    . escapeshellarg($mirror) . ' ' . escapeshellarg($destination),
+                    'check out the reference repository ' . $reference->slug,
+                    600
+                );
+            } catch (Throwable $e) {
+                // Half a checkout is worse than none: the agent would read it as the whole repository.
+                $this->client->exec('rm -rf ' . escapeshellarg($destination) . ' 2>&1 || true', 60);
+                report($e);
+            }
+        }
     }
 
     /**
@@ -80,14 +131,14 @@ class PrepareSessionWorktreeAction
      * private repo rather than "forbidden" — so the failure reads as a typo or a missing repository and
      * sends everyone looking in the wrong place.
      */
-    private function ensureMirror(string $mirror): void
+    private function ensureMirror(string $mirror, string $cloneUrl): void
     {
         $credentialPath = '/tmp/kanvas-git-clone-' . $this->session->uuid;
         $credential = $this->lendGitCredential(
             $this->client,
             $this->gitToken($this->session->agent),
             $credentialPath,
-            $this->cloneUrl
+            $cloneUrl
         );
 
         try {
@@ -113,7 +164,7 @@ class PrepareSessionWorktreeAction
             $this->runChecked(
                 $this->client,
                 'git' . $credential . ' clone --mirror '
-                . escapeshellarg($this->cloneUrl) . ' ' . escapeshellarg($mirror),
+                . escapeshellarg($cloneUrl) . ' ' . escapeshellarg($mirror),
                 'clone the repository',
                 900
             );

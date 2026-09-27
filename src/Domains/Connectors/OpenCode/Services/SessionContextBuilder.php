@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OpenCode\Services;
 
 use Baka\Support\Str;
+use Kanvas\Connectors\OpenCode\Actions\PrepareSessionWorktreeAction;
 use Kanvas\Connectors\OpenCode\DataTransferObject\CodingRepository;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\CodingRepositoryMemory;
@@ -28,9 +29,13 @@ class SessionContextBuilder
     private const int MEMORY_LIMIT = 25;
     private const int MEMORY_PER_CATEGORY = 6;
 
+    /**
+     * @param list<CodingRepository> $references
+     */
     public function __construct(
         private readonly Agent $agent,
         private readonly ?CodingRepository $repository = null,
+        private readonly array $references = [],
     ) {
     }
 
@@ -66,6 +71,35 @@ class SessionContextBuilder
     }
 
     /**
+     * A model that finds an unexplained second tree either edits it or reports changing it, and both
+     * read as work that happened. So it is told what the directory is and that nothing in it commits.
+     *
+     * @return list<string>
+     */
+    private function referenceSection(): array
+    {
+        if ($this->references === []) {
+            return [];
+        }
+
+        $lines = ['', '## Other repositories you can read', ''];
+        $lines[] = 'Checked out beside your work so you can see how things are built elsewhere. Read '
+            . 'them, grep them, follow their history — and copy the patterns you need into THIS '
+            . 'repository.';
+        $lines[] = '';
+        $lines[] = 'They are not part of this repository. Nothing you change in one is committed or '
+            . 'pushed, so do not edit them and never report a change you made in one as work done.';
+        $lines[] = '';
+
+        foreach ($this->references as $reference) {
+            $lines[] = '- `' . PrepareSessionWorktreeAction::REFERENCE_DIR . '/' . $reference->slug
+                . '/` — ' . $reference->slug;
+        }
+
+        return $lines;
+    }
+
+    /**
      * Returns null when there is genuinely nothing to say — an empty "no prior context" section is
      * noise the model still pays for.
      */
@@ -75,11 +109,11 @@ class SessionContextBuilder
         $history = $memories === [] ? $this->recentHandoffs() : [];
         $rules = Str::trimToNull($this->repository?->rules);
 
-        if ($memories === [] && $history === [] && $rules === null) {
+        if ($memories === [] && $history === [] && $rules === null && $this->references === []) {
             return null;
         }
 
-        $lines = ['# What we already know about this work'];
+        $lines = ['# What we already know about this work', ...$this->referenceSection()];
 
         if ($rules !== null) {
             $lines[] = '';

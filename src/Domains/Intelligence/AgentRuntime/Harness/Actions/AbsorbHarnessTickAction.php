@@ -30,6 +30,7 @@ class AbsorbHarnessTickAction
     public function execute(): AgentTaskSession
     {
         $usage = $this->tick->usage;
+        $wasWaiting = $this->session->harnessStatus()->isWaitingOnAHuman();
 
         $this->session->input_tokens = $usage->inputTokens;
         $this->session->output_tokens = $usage->outputTokens;
@@ -48,16 +49,24 @@ class AbsorbHarnessTickAction
         $this->session->saveOrFail();
 
         if ($this->announce) {
-            $this->say();
+            $this->say($wasWaiting);
         }
 
         return $this->session;
     }
 
-    private function say(): void
+    /**
+     * Every poll re-reports a pending permission, so announcing per tick buries the feed in identical
+     * messages. Announced on the way IN to the waiting state; parking again after a resume says so again.
+     */
+    private function say(bool $wasWaiting): void
     {
         if ($this->tick->hasNarration()) {
             $this->postNarration($this->session, $this->tick->narration);
+        }
+
+        if ($wasWaiting) {
+            return;
         }
 
         foreach ($this->tick->questions as $question) {

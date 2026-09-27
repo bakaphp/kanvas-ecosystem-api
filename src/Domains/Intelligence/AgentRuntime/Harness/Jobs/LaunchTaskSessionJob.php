@@ -20,6 +20,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPrompt;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Throwable;
 
 /**
@@ -37,12 +38,14 @@ class LaunchTaskSessionJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
+    /** @param list<string> $referenceSlugs Slugs, not DTOs: a Spatie Data object does not survive the queue. */
     public function __construct(
         public readonly Apps $app,
         public readonly int $sessionId,
         public readonly string $brief,
         public readonly ?string $repoSlug = null,
         public readonly ?string $persona = null,
+        public readonly array $referenceSlugs = [],
     ) {
         $this->onQueue('agent-runtime');
     }
@@ -72,7 +75,13 @@ class LaunchTaskSessionJob implements ShouldQueue
             // refusal there has to land on the session row like any other launch failure.
             $repository = $this->resolveRepository();
 
-            new ProvisionCodingSessionAction($session, $this->app, $company, $repository)->execute();
+            new ProvisionCodingSessionAction(
+                $session,
+                $this->app,
+                $company,
+                $repository,
+                $this->resolveReferences($agent, $repository),
+            )->execute();
 
             // No memories here: the launch path writes them into the workspace as `.kanvas/context.md`,
             // where they survive compaction instead of being spent once in the opening prompt.
@@ -89,6 +98,35 @@ class LaunchTaskSessionJob implements ShouldQueue
         }
 
         PollHarnessSessionJob::dispatch($this->app, $session->getId());
+    }
+
+    /**
+     * Standing plus dispatch-named, minus the repo being worked on — dropped rather than refused, since
+     * two copies of one tree with only one writable helps nobody. A named reference that cannot be
+     * opened throws: the model would otherwise find no `.reference/<slug>/` and answer from imagination.
+     *
+     * @return list<CodingRepository>
+     */
+    private function resolveReferences(Agent $agent, ?CodingRepository $working): array
+    {
+        $allowList = new RepoAllowListService($agent);
+        $references = $allowList->references();
+
+        // `??` because a job queued before this property existed comes back with it UNINITIALIZED,
+        // not defaulted, and a direct read fatals. Every job in Redis at deploy time is one of those.
+        foreach ($this->referenceSlugs ?? [] as $slug) {
+            $references[] = $allowList->resolveOrFail($slug);
+        }
+
+        $resolved = [];
+
+        foreach ($references as $reference) {
+            if ($reference->slug !== $working?->slug) {
+                $resolved[$reference->slug] ??= $reference;
+            }
+        }
+
+        return array_values($resolved);
     }
 
     private function resolveRepository(): ?CodingRepository

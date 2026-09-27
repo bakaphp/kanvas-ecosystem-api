@@ -19,6 +19,8 @@ class CodingRepository extends Data
 {
     /**
      * @param list<string> $protectedPaths
+     * @param bool $reference Read beside the work, never worked on — so branch prefix and protected
+     *                        paths mean nothing on one of these.
      */
     public function __construct(
         public readonly string $slug,
@@ -27,6 +29,7 @@ class CodingRepository extends Data
         public readonly string $branchPrefix = 'agent/',
         public readonly ?string $rules = null,
         public readonly array $protectedPaths = [],
+        public readonly bool $reference = false,
     ) {
     }
 
@@ -51,6 +54,7 @@ class CodingRepository extends Data
             branchPrefix: Str::trimToNull((string) ($entry['branch_prefix'] ?? '')) ?? 'agent/',
             rules: Str::trimToNull((string) ($entry['rules'] ?? '')),
             protectedPaths: is_array($protected) ? array_values(array_filter($protected, 'is_string')) : [],
+            reference: (bool) ($entry['reference'] ?? false),
         );
     }
 }

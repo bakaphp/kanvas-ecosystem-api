@@ -16,12 +16,18 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Throwable;
 
 /**
- * Adds, removes and shows the repositories one agent is allowed to work on.
+ * Adds, removes and shows the repositories one agent has settings for.
  *
- * The allow-list is the boundary: an agent can only ever clone and push to something on it, so adding
- * an entry is a privilege grant and deliberately NOT something the agent can do for itself. This is how
- * a human does it, instead of hand-editing JSON in a custom field and finding out it was malformed when
- * a job fails hours later.
+ * The list is **settings, not a boundary** — the boundary is `CODING_GIT_TOKEN`, and an agent reaches
+ * exactly what that token reaches whether or not it is written down here. What an entry supplies is the
+ * base branch, the branch prefix, the rules and the protected paths for a repository somebody has
+ * thought about; see `RepoAllowListService`, which falls back to asking GitHub for anything else.
+ *
+ * An entry marked `--reference` is the exception to "work on": it is checked out beside every job this
+ * agent runs, to be read from and never committed to.
+ *
+ * This exists so a human is not hand-editing JSON in a custom field and finding out it was malformed
+ * when a job fails hours later.
  */
 class AllowCodingRepoCommand extends Command
 {
@@ -35,10 +41,11 @@ class AllowCodingRepoCommand extends Command
         {--branch-prefix=agent/ : Prefix for the branch each task pushes}
         {--protected=* : A path the agent may never change, repeatable}
         {--rules= : Repository-specific instructions given to every session}
+        {--reference : Read-only example, checked out beside every job this agent runs}
         {--remove : Remove the repository named by --slug or --url}
         {--list : Show the list and change nothing}';
 
-    protected $description = 'Manage the repositories a coding agent is allowed to work on.';
+    protected $description = 'Manage the repositories a coding agent works on, and the ones it reads.';
 
     public function handle(): int
     {
@@ -98,7 +105,9 @@ class AllowCodingRepoCommand extends Command
             'branch_prefix' => (string) $this->option('branch-prefix'),
             'rules' => Str::trimToNull((string) $this->option('rules')),
             'protected_paths' => array_values(array_filter((array) $this->option('protected'))),
-        ], static fn (mixed $v): bool => $v !== null && $v !== []);
+            'reference' => (bool) $this->option('reference'),
+            // `false` is filtered out with the empties, so the flag appears only where it is true.
+        ], static fn (mixed $v): bool => $v !== null && $v !== [] && $v !== false);
 
         $agent->set(AgentCustomFieldEnum::ALLOWED_REPOS->value, json_encode($entries));
 
@@ -143,16 +152,25 @@ class AllowCodingRepoCommand extends Command
         $repositories = new RepoAllowListService($agent)->all();
 
         $this->newLine();
-        $this->line('<info>' . $agent->name . '</info> may work on:');
+        $this->line('<info>' . $agent->name . '</info> has settings for:');
 
         if ($repositories === []) {
-            $this->warn('  nothing — every coding task will be refused');
+            // Not a refusal: with nothing configured, jobs still run on defaults for anything the
+            // token opens. The gate is the token, and this line must not imply otherwise.
+            $this->line('  nothing — jobs still run on defaults for any repository the git token opens');
 
             return self::SUCCESS;
         }
 
         foreach ($repositories as $repository) {
             $this->line('  <comment>' . $repository->slug . '</comment>  ' . $repository->cloneUrl);
+
+            if ($repository->reference) {
+                $this->line('     reference · read beside every job, never committed to');
+
+                continue;
+            }
+
             $this->line('     base ' . $repository->baseBranch . ' · branches ' . $repository->branchPrefix . '{task}'
                 . ($repository->protectedPaths === []
                     ? ''
