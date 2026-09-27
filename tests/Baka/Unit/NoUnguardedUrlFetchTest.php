@@ -40,6 +40,9 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         // CLI: reads the coding-agent Docker build context (Dockerfile, entrypoint.sh) out of
         // base_path('docker/opencode'), by hardcoded file name and gated by is_readable().
         'app/Console/Commands/NervousSystem/Agents/Coding/BuildCodingImageCommand.php',
+        // Reads that same Dockerfile to derive the pinned image tag from its FROM line — one
+        // base_path() constant, gated by is_readable().
+        'src/Domains/Connectors/OpenCode/Services/CodingImageService.php',
         // CLI: operates on local temp files.
         'app/Console/Commands/Connectors/ScrapperApi/CleanScrapperImageCommand.php',
         // CLI: reads a local agent-type definition file.

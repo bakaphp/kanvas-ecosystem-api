@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OpenCode\Actions;
 
 use Baka\Support\Str;
+use Kanvas\Connectors\OpenCode\Concerns\PreparesHostDirectory;
 use Kanvas\Connectors\OpenCode\Concerns\RunsCheckedSshCommands;
 use Kanvas\Connectors\OpenCode\Concerns\UsesGitCredential;
 use Kanvas\Exceptions\ValidationException;
@@ -25,6 +26,7 @@ use Kanvas\Intelligence\AgentRuntime\SshClient;
  */
 class PrepareSessionWorktreeAction
 {
+    use PreparesHostDirectory;
     use RunsCheckedSshCommands;
     use UsesGitCredential;
 
@@ -50,6 +52,7 @@ class PrepareSessionWorktreeAction
         // pushing a second branch would strand the review on the first.
         $branch = Str::trimToNull($this->session->branch) ?? $this->branchPrefix . $this->session->task_id;
 
+        $this->prepareHostDirectory($this->client, dirname($mirror, 2));
         $this->ensureMirror($mirror);
         $this->createCheckout($mirror, $worktree, $branch);
 

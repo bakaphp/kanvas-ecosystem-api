@@ -169,7 +169,7 @@ session provisions, the turn runs, and the model answers from opencode's own hos
 | `opencode_provider_env_var` | no | Defaults `OPENAI_API_KEY`. Must match what the provider block's `env` names. |
 | `opencode_provider_base_url` | no | Defaults to OpenAI. |
 | `opencode_provider_npm` | no | `@ai-sdk/openai` for the Responses API (codex models, `gpt-6-luna` tool calls); `@ai-sdk/openai-compatible` otherwise. Both ship in the image. |
-| `opencode_image` | no | Until there is a registry this must already be built **on that machine** — see `kanvas:coding:build-image`. |
+| `opencode_image` | **yes** | Throws without it. `kanvas:coding:setup` and `kanvas:coding:build-image` both default it to the tag the Dockerfile builds (`CodingImageService::pinnedTag()`) and **build-image writes it on the app**, so you should never type a version. Until there is a registry the image must also already be built **on that machine**. |
 | `opencode_workspace_root` | no | Defaults `/srv/kanvas`. Mirrors, worktrees and `.home` all live under it. |
 | `opencode_container_cpus` / `_memory` | no | Default memory is 2g. Larger than the box's free RAM is how MySQL gets OOM-killed. |
 | `coding_max_concurrent_sessions` | no | Per app. |
@@ -180,8 +180,8 @@ session provisions, the turn runs, and the model answers from opencode's own hos
 
 | Key | Required | Notes |
 |---|---|---|
-| `CODING_MACHINE_ID` | **yes** | Tenant-scoped. Without it provisioning falls back to any active machine for the company. |
-| `CODING_GIT_TOKEN` | **yes** | Per agent, and it **is** the permission boundary — the agent's reach is exactly this token's reach. Not company-wide by design. |
+| `CODING_MACHINE_ID` | no | Tenant-scoped. Without it provisioning takes any active machine for the company — fine with one, arbitrary with several. |
+| `CODING_GIT_TOKEN` | **yes** | The only agent field you must set. Per agent, and it **is** the permission boundary — the agent's reach is exactly this token's reach, with no allow-list behind it. Unset, git falls back to the machine's own access, so a private clone and every push fail. |
 | `CODING_MODEL` | no | Overrides the app model for this agent. |
 | `CODING_PROVIDER_API_KEY` / `CODING_PROVIDER_KEY_NAME` | no | Agent's own key instead of the app's. Rotating it changes `kanvas.keyfp` and forces a container rebuild. |
 | `CODING_ALLOWED_REPOS` | no | Settings (base branch, rules, protected paths), **not** a gate — the token is the gate. |
