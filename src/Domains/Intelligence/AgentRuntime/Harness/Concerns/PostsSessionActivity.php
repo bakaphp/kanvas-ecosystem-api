@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\AgentRuntime\Harness\Concerns;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPermissionRequest;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
+use Kanvas\NervousSystem\Plan\Jobs\Traits\AnnouncesPlanOutcome;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Throwable;
 
@@ -19,6 +20,8 @@ use Throwable;
  */
 trait PostsSessionActivity
 {
+    use AnnouncesPlanOutcome;
+
     /**
      * @param list<string> $narration
      */
@@ -35,20 +38,43 @@ trait PostsSessionActivity
 
     protected function postQuestion(AgentTaskSession $session, string $question): void
     {
-        $this->postToPlan(
+        $this->postBlockingAsk(
             $session,
             "❓ The coding agent needs a decision:\n\n" . $question,
-            'coding_question'
+            'coding_question',
+            'Coding job waiting on an answer',
         );
     }
 
     protected function postPermissionRequest(AgentTaskSession $session, HarnessPermissionRequest $permission): void
     {
-        $this->postToPlan(
+        $this->postBlockingAsk(
             $session,
             "🔐 The coding agent is asking permission to run:\n\n`" . $permission->describe() . '`',
-            'coding_permission'
+            'coding_permission',
+            'Coding job waiting on a permission',
         );
+    }
+
+    /**
+     * Unanswered, the session dies at the timeout and its work is thrown away — so unlike narration
+     * this is mentioned and notified, like a finished job. Still `from_ia`, so no agent is woken.
+     */
+    private function postBlockingAsk(
+        AgentTaskSession $session,
+        string $body,
+        string $verb,
+        string $title
+    ): void {
+        /** @var Plan|null $plan */
+        $plan = $session->plan;
+
+        if ($plan === null) {
+            return;
+        }
+
+        $this->postToPlan($session, ($this->mentionFor($plan) ?? '') . $body, $verb);
+        $this->notifyTheAsker($plan, $title, $body);
     }
 
     protected function postToPlan(AgentTaskSession $session, string $content, string $verb): void

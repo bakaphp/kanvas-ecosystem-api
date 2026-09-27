@@ -36,11 +36,16 @@ class ProvisionCodingSessionAction
 {
     use ResolvesAgentMachine;
 
+    /**
+     * @param list<CodingRepository> $references Repositories checked out beside the work to be read
+     *                                           from. Never branched, never committed, never pushed.
+     */
     public function __construct(
         private readonly AgentTaskSession $session,
         private readonly AppInterface $app,
         private readonly CompanyInterface $company,
         private readonly ?CodingRepository $repository = null,
+        private readonly array $references = [],
     ) {
     }
 
@@ -145,6 +150,7 @@ class ProvisionCodingSessionAction
             branchPrefix: $this->repository->branchPrefix,
             root: rtrim((string) ($this->app->get(ConfigurationEnum::WORKSPACE_ROOT->value) ?? '/srv/kanvas'), '/'),
             worktreeRoot: $root,
+            references: $this->references,
         )->execute();
 
         return (string) $this->session->workspace_path;
@@ -196,7 +202,8 @@ class ProvisionCodingSessionAction
         $client->exec('mkdir -p ' . escapeshellarg($gitDir . '/info'), 30);
         $client->exec(
             'grep -qxF ' . escapeshellarg('opencode.json') . ' ' . escapeshellarg($exclude) . ' 2>/dev/null'
-            . ' || printf ' . escapeshellarg('opencode.json\n.kanvas/\n') . ' >> ' . escapeshellarg($exclude),
+            . ' || printf ' . escapeshellarg('opencode.json\n.kanvas/\n' . PrepareSessionWorktreeAction::REFERENCE_DIR . '/\n')
+            . ' >> ' . escapeshellarg($exclude),
             30
         );
     }
@@ -216,7 +223,7 @@ class ProvisionCodingSessionAction
             return;
         }
 
-        $builder = new SessionContextBuilder($agent, $this->repository);
+        $builder = new SessionContextBuilder($agent, $this->repository, $this->references);
 
         $client->exec('mkdir -p ' . escapeshellarg($workspace . '/.kanvas'), 30);
         $client->writeFile($workspace . '/.kanvas/agent.md', $builder->agentDocument());

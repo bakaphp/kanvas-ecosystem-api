@@ -9,6 +9,7 @@ use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\SplitsReferenceSlugs;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
 use Kanvas\Users\Models\Users;
@@ -34,6 +35,7 @@ use Throwable;
 class ContinueHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSystemAgent
 {
     use ReportsToolOutcome;
+    use SplitsReferenceSlugs;
     use TrackByInputs;
 
     public function __construct(
@@ -71,13 +73,22 @@ class ContinueHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSy
                     . 'about the ADJUSTMENT, not a restatement of the original task.',
                 required: true,
             ),
+            new ToolProperty(
+                name: 'references',
+                type: PropertyType::STRING,
+                description: 'Other repositories to READ while making this change, comma separated — for '
+                    . '"align it with how X does this". Checked out beside the work and never edited, '
+                    . 'committed or pushed. They are not remembered from the original job, so name them '
+                    . 'again here if this change needs them.',
+                required: false,
+            ),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(int $job_id, string $task): array
+    public function __invoke(int $job_id, string $task, ?string $references = null): array
     {
         $previous = AgentTaskSession::forAgentJob($this->agent, $job_id);
 
@@ -111,6 +122,7 @@ class ContinueHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSy
                 requestedBy: $this->requestedBy,
                 session: $this->session,
                 continues: $previous,
+                referenceSlugs: $this->splitReferenceSlugs($references),
             )->execute();
         } catch (Throwable $e) {
             return $this->failed(

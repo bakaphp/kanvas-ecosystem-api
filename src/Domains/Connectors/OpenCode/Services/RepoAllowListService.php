@@ -75,6 +75,20 @@ class RepoAllowListService
     }
 
     /**
+     * Read on every job, whatever the agent is working on — standing rather than per task, because
+     * whoever dispatches the work cannot be relied on to remember them.
+     *
+     * @return list<CodingRepository>
+     */
+    public function references(): array
+    {
+        return array_values(array_filter(
+            $this->all(),
+            static fn (CodingRepository $repository): bool => $repository->reference,
+        ));
+    }
+
+    /**
      * Finds the CONFIGURED entry for a repository, however it was written: slug, clone URL, or
      * `owner/name`. Returns null for one nobody configured — see `resolveOrFail`, which then asks the
      * token.

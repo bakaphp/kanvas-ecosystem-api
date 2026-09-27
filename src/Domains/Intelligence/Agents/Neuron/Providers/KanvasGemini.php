@@ -8,7 +8,9 @@ use Illuminate\Support\Facades\Log;
 use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
 use Kanvas\Intelligence\Agents\Exceptions\ProviderMalformedToolCallException;
 use NeuronAI\Chat\Messages\AssistantMessage;
+use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
 use NeuronAI\Chat\Messages\Message;
+use NeuronAI\Chat\Messages\ToolCallMessage;
 use NeuronAI\Providers\Gemini\Gemini;
 use Override;
 
@@ -64,6 +66,21 @@ class KanvasGemini extends Gemini
         }
 
         return parent::processChatResult($result);
+    }
+
+    /**
+     * A Gemini 3 thinking model signs each `functionCall` and rejects the next request without it.
+     * Upstream reads the signature off `$toolCalls[0]`, but collects them with `array_filter`, which
+     * preserves keys — and a thinking model emits its thought part first, so the call is at index 1
+     * and the lookup finds nothing. Re-indexing is the fix.
+     *
+     * @param ContentBlockInterface[] $blocks
+     * @param array<int, array> $toolCalls
+     */
+    #[Override]
+    protected function createToolCallMessage(array $blocks, array $toolCalls): ToolCallMessage
+    {
+        return parent::createToolCallMessage($blocks, array_values($toolCalls));
     }
 
     private function assertToolCallWellFormed(array $result): void
