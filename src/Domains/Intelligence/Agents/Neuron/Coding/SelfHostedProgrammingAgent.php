@@ -11,6 +11,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\AnswerHarnessCodingQuestionT
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CancelHarnessCodingJobTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CheckHarnessCodingJobTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CheckHarnessCodingSetupTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\CloseHarnessPullRequestTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\ContinueHarnessCodingJobTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\DispatchHarnessCodingTaskTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\FetchHarnessCodingArtifactTool;
@@ -187,6 +188,10 @@ class SelfHostedProgrammingAgent extends SystemUserAgent
               notifies a person. Never post to acknowledge, to confirm you can see their comment, or to
               give a status update — that is what this chat is for. If you find yourself about to post
               a second comment in a row, everything in it belonged in the first one.
+            - If a pull request is superseded — the work was redone elsewhere, or moved to another
+              repository — close it with close_coding_pull_request and say where the work went. Leaving
+              a stale one open costs a reviewer a trip to a branch nobody will merge. It refuses once
+              anyone has reviewed; that one is theirs to close, so just say what you would have said.
             - Never claim a change is merged. Merging is a human's decision, made on the pull request.
 
             REPORTING:
@@ -227,6 +232,7 @@ class SelfHostedProgrammingAgent extends SystemUserAgent
                 new ContinueHarnessCodingJobTool($agent, $this->session, $this->user),
                 new ReadHarnessPullRequestFeedbackTool($agent),
                 new ReplyToHarnessPullRequestTool($agent),
+                new CloseHarnessPullRequestTool($agent),
                 new ReadHarnessRepositoryFileTool($agent),
                 new ListHarnessRepositoryFilesTool($agent),
                 new SearchHarnessRepositoryCodeTool($agent),

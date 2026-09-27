@@ -70,7 +70,7 @@ class AbsorbHarnessTickAction
         }
 
         foreach ($this->tick->questions as $question) {
-            $this->postQuestion($this->session, $question->describe());
+            $this->postQuestion($this->session, $question);
         }
 
         foreach ($this->tick->permissions as $permission) {
