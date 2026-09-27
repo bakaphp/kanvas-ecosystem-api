@@ -337,6 +337,74 @@ class GitHubRepositoryService
     }
 
     /**
+     * Closes a pull request the work has moved on from, with the reason on the thread first.
+     *
+     * Comment before close, and only close if the comment landed: a pull request that shuts with no
+     * explanation reads to its reviewer as the work being abandoned, and they have no way to find
+     * where it went.
+     *
+     * Refuses a pull request anyone has reviewed: merging is a human's decision and so is overruling a
+     * review. `merged` cannot be closed and says so rather than failing.
+     *
+     * @return array{closed: bool, reason: string}
+     */
+    public function close(int $number, string $body): array
+    {
+        $repo = $this->repo();
+
+        if ($repo === null) {
+            return ['closed' => false, 'reason' => 'This repository is not on GitHub.'];
+        }
+
+        $pr = $this->get('/repos/' . $repo . '/pulls/' . $number);
+
+        if ($pr === null) {
+            return ['closed' => false, 'reason' => 'Pull request ' . $number . ' could not be read.'];
+        }
+
+        if (($pr['merged_at'] ?? null) !== null) {
+            return ['closed' => false, 'reason' => 'Pull request ' . $number . ' is already merged.'];
+        }
+
+        if ((string) ($pr['state'] ?? '') === 'closed') {
+            return ['closed' => true, 'reason' => 'Pull request ' . $number . ' was already closed.'];
+        }
+
+        $reviews = $this->get('/repos/' . $repo . '/pulls/' . $number . '/reviews?per_page=1');
+
+        if (is_array($reviews) && $reviews !== []) {
+            return [
+                'closed' => false,
+                'reason' => 'Pull request ' . $number . ' has been reviewed by someone. Closing it is '
+                    . 'their call — say what you would have closed it for instead.',
+            ];
+        }
+
+        if (! $this->comment($number, $body)) {
+            return [
+                'closed' => false,
+                'reason' => 'The reason could not be posted, so nothing was closed — a pull request '
+                    . 'that shuts without one leaves its reviewer nowhere to look.',
+            ];
+        }
+
+        try {
+            $closed = Http::withToken($this->token)
+                ->timeout(20)
+                ->patch('https://api.github.com/repos/' . $repo . '/pulls/' . $number, ['state' => 'closed'])
+                ->successful();
+        } catch (Throwable $e) {
+            report($e);
+
+            $closed = false;
+        }
+
+        return $closed
+            ? ['closed' => true, 'reason' => 'Closed, with the reason on the thread.']
+            : ['closed' => false, 'reason' => 'GitHub refused to close it. The reason was posted.'];
+    }
+
+    /**
      * One file at a ref, so a brief can be written against what the code actually says.
      *
      * Reads from GitHub rather than a container, because the useful moment is BEFORE a job exists —

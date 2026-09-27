@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Concerns;
 
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPermissionRequest;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessQuestion;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\NervousSystem\Plan\Actions\PostPlanActivityMessageAction;
 use Kanvas\NervousSystem\Plan\Jobs\Traits\AnnouncesPlanOutcome;
@@ -36,11 +37,12 @@ trait PostsSessionActivity
         $this->postToPlan($session, '🔧 ' . $text, 'coding_progress');
     }
 
-    protected function postQuestion(AgentTaskSession $session, string $question): void
+    protected function postQuestion(AgentTaskSession $session, HarnessQuestion $question): void
     {
         $this->postBlockingAsk(
             $session,
-            "❓ The coding agent needs a decision:\n\n" . $question,
+            "❓ The coding agent needs a decision:\n\n" . $question->describe()
+                . $this->howToAnswer($session, 'question', $question->id),
             'coding_question',
             'Coding job waiting on an answer',
         );
@@ -50,10 +52,24 @@ trait PostsSessionActivity
     {
         $this->postBlockingAsk(
             $session,
-            "🔐 The coding agent is asking permission to run:\n\n`" . $permission->describe() . '`',
+            "🔐 The coding agent is asking permission to run:\n\n`" . $permission->describe() . '`'
+                . $this->howToAnswer($session, 'permission', $permission->id),
             'coding_permission',
             'Coding job waiting on a permission',
         );
+    }
+
+    /**
+     * The two ids a person needs to hand this back to the agent.
+     *
+     * Without them the alert says what is being asked and nothing about which job or which request, so
+     * answering means going and looking both up — and the agent, which can clear this itself, is never
+     * told to. Named `job` because that is what the agent's tools call it; the column is `task_id`.
+     */
+    private function howToAnswer(AgentTaskSession $session, string $kind, string $id): string
+    {
+        return "\n\nJob " . $session->task_id . ' · ' . $kind . ' `' . $id . '`'
+            . "\nAsk the agent to answer it — it has the tool and does not need you to click anything.";
     }
 
     /**
