@@ -1,14 +1,15 @@
 type AgentAi {
     id: ID!
-    company: [Company!]! @belongsTo
+    company: Company @belongsTo(relation: "company")
     user: User @belongsTo(relation: "user")
     creator: User @belongsTo(relation: "creator")
-    type: agentType! @belongsTo
-    model: AgentAiModel @belongsTo
-    companyTaskList: TaskList @belongsTo
+    type: agentType! @belongsTo(relation: "type")
+    model: AgentAiModel @belongsTo(relation: "model")
+    llmConfig: AgentLlmConfig @belongsTo(relation: "llmConfig")
+    companyTaskList: TaskList @belongsTo(relation: "companyTaskList")
     parent: AgentAi @belongsTo(relation: "parent")
     children: [AgentAi!]! @hasMany(relation: "children")
-    swarms: [AgentSwarm!]! @belongsToMany
+    swarms: [AgentSwarm!]! @belongsToMany(relation: "swarms")
     uuid: String!
     name: String!
     description: String
@@ -20,6 +21,7 @@ type AgentAi {
     identity: Mixed
     user_context: String
     tools_config: String
+    voice_config: Mixed
     deployment_status: String!
     activeDeployment: AgentDeploymentType @hasOne
     agent_model_id: ID
@@ -115,6 +117,7 @@ input AgentAiInput {
     name: String!
     user_id: ID
     agent_model_id: Int
+    agent_llm_config_id: ID
     description: String
     config: Mixed!
     role: Mixed!
@@ -124,6 +127,7 @@ input AgentAiInput {
     identity: Mixed
     user_context: String
     tools_config: String
+    voice_config: Mixed
     parent_agent_id: ID
     is_active: Boolean!
     company_task_list_id: Int
@@ -177,6 +181,7 @@ input UserChatInput {
     images: [String!]
     files: [String!]
     uploads: [Upload!]
+    async: Boolean
 }
 
 input NeuronChatInput {
@@ -190,8 +195,25 @@ input NeuronChatInput {
 type UserChatResponse {
     response: Mixed!
     session_id: String!
-    message: Message!
-    channel: SocialChannel!
+    """
+    Null when status is `pending` — the turn is on the queue. The broadcast then carries
+    `message_id`; fetch the turn with it (`response` in the payload is dropped whenever the
+    push exceeds Pusher's ~10KB cap, so never rely on it being there).
+    """
+    message: Message
+    """
+    The session's channel. Null only on the very first turn of a brand-new session, which is
+    where the channel gets created; every later turn carries it, pending or not.
+    """
+    channel: SocialChannel
+    "`completed` when the reply is in this response, `pending` when it will be broadcast."
+    status: String!
+    """
+    Broadcast channel to subscribe to for this session, e.g. `agent-chat-141-11569-<uuid>`.
+    Events: `agent.chat.response` and `agent.chat.failed`. Always use this value — the name is
+    keyed on the AGENT's tenant, which for a global agent is not the caller's company.
+    """
+    broadcast_channel: String!
 }
 
 extend type Mutation @guard {
@@ -223,7 +245,10 @@ extend type Mutation @guard {
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentIntegrationConfigMutation@set"
         )
-    createAgentConfigBackup(agent_id: ID!, notes: String): AgentConfigBackupType!
+    createAgentConfigBackup(
+        agent_id: ID!
+        notes: String
+    ): AgentConfigBackupType!
         @field(
             resolver: "App\\GraphQL\\Intelligence\\Mutations\\AgentConfigBackupMutation@create"
         )
@@ -290,10 +315,7 @@ extend type Query @guard {
         )
     agentConfigBackups(
         agent_id: ID!
-        where: _
-            @whereConditions(
-                columns: ["id", "status", "created_at"]
-            )
+        where: _ @whereConditions(columns: ["id", "status", "created_at"])
         orderBy: _ @orderBy(columns: ["id", "created_at"])
     ): [AgentConfigBackupType!]!
         @paginate(
@@ -327,14 +349,19 @@ type AgentAnalytics {
     by_user: [AnalyticsCategoryPoint!]!
 }
 
-extend type Subscription @guard {
-    agentChatResponse(agent_id: ID!, session_id: String!): JSON
-        @subscription(
-            class: "App\\GraphQL\\Intelligence\\Subscriptions\\AgentChatSubscription"
-        )
-}
+# Disabled: `agentChatResponse` duplicated the AgentChatResponseEvent Pusher broadcast onto the same
+# connection while costing a queued broadcast job per turn plus Redis subscriber storage, and no
+# client consumed it. Clients use the `broadcast_channel` returned by aiAgentUserChat instead.
+# To revive, uncomment this AND the two Subscription::broadcast calls (AgentChatKernel,
+# DeliverScheduledMessageToChannelAction). AgentChatSubscription is left in place unused.
+#
+# extend type Subscription @guard {
+#     agentChatResponse(agent_id: ID!, session_id: String!): JSON
+#         @subscription(
+#             class: "App\\GraphQL\\Intelligence\\Subscriptions\\AgentChatSubscription"
+#         )
+# }
 
-# Canonical path is observer-driven; these are app-owner overrides only.
 extend type Mutation @guardByAppKey {
     setAgentKanvasModule(
         agent_id: ID!

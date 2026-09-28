@@ -4,6 +4,7 @@ namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
 use Illuminate\Http\JsonResponse;
+use Override;
 use Sentry\Laravel\Integration;
 use Throwable;
 
@@ -15,7 +16,6 @@ class Handler extends ExceptionHandler
      * @var array<int, class-string<Throwable>>
      */
     protected $dontReport = [
-
     ];
 
     /**
@@ -34,6 +34,7 @@ class Handler extends ExceptionHandler
      *
      * @return void
      */
+    #[Override]
     public function register()
     {
         $this->reportable(function (Throwable $e) {
@@ -43,8 +44,8 @@ class Handler extends ExceptionHandler
 
     /**
      * Render an exception into an HTTP response.
-     *
      */
+    #[Override]
     public function render($request, Throwable $exception): JsonResponse
     {
         if (app()->isProduction()) {
@@ -52,12 +53,14 @@ class Handler extends ExceptionHandler
                 'message' => 'A server error has occurred. We are looking into it',
             ], 503);
         }
+
         return parent::render($request, $exception);
     }
 
     /**
      * Send the exception to the error log.
      */
+    #[Override]
     public function report(Throwable $exception): void
     {
         parent::report($exception);

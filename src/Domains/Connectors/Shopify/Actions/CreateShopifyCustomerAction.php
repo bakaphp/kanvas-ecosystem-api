@@ -109,7 +109,7 @@ class CreateShopifyCustomerAction
 
     protected function prepareAddresses(): array
     {
-        $address = $this->people->address()->first();
+        $address = $this->people->getDefaultAddress();
 
         if (! $address) {
             return [];

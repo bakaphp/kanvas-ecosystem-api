@@ -32,6 +32,7 @@ class People extends Data
         public ?string $license_number = null,
         #[WithCast(DateTimeInterfaceCast::class, format: 'Y-m-d')]
         public ?DateTime $license_expiration_date = null,
+        public ?string $license_state = null,
         public ?string $facebook_contact_id = null,
         public ?string $google_contact_id = null,
         public ?string $apple_contact_id = null,
@@ -46,6 +47,9 @@ class People extends Data
         public ?bool $flushPreviousAddress = false,
         public ?bool $runWorkflow = true,
         public ?bool $skipDuplicateContactCheck = false,
+        // Partial senders (a webhook that only knows the phone it came from) must set this,
+        // otherwise the update treats their one contact as the full list and deletes the rest.
+        public ?bool $mergeContacts = false,
     ) {
         $this->cleanFirstNameFromMiddleName();
     }

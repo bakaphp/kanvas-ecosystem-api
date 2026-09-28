@@ -10,6 +10,7 @@ use Kanvas\Analytics\DataTransferObject\AnalyticsGroupBy;
 use Kanvas\Analytics\DataTransferObject\AnalyticsRequest;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
+use Kanvas\Social\Messages\Enums\MessageSenderTypeEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
 
@@ -38,6 +39,12 @@ class MessageAnalyticsQuery
                     column: 'message_types_id',
                     relation: 'messageType',
                     labelColumn: 'name',
+                ),
+                'by_sender' => new AnalyticsGroupBy(
+                    column: 'sender_type',
+                    labelResolver: fn (mixed $key): string => $key === null
+                        ? 'Other'
+                        : (MessageSenderTypeEnum::tryFrom((string) $key)?->label() ?? (string) $key),
                 ),
             ],
             extraScopes: isset($args['message_type_id'])

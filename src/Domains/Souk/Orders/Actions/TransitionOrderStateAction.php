@@ -6,8 +6,10 @@ use Exception;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Orders\Models\OrderItem;
 use Kanvas\Souk\Orders\Models\OrderStatus;
 use Kanvas\Souk\Orders\Models\OrderTransitionHistory;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 
@@ -54,7 +56,7 @@ class TransitionOrderStateAction
         try {
             $transitioned = false;
 
-            DB::transaction(function () use ($orderStatusTransitions, $currentOrderStatus, $customDate, &$transitioned) {
+            DB::connection('commerce')->transaction(function () use ($orderStatusTransitions, $currentOrderStatus, $customDate, &$transitioned) {
                 // Lock the order row to prevent concurrent transitions
                 $locked = Order::lockForUpdate()->find($this->order->id);
 
@@ -64,28 +66,31 @@ class TransitionOrderStateAction
 
                 $transitioned = true;
 
-                // Update the order status transition
-                $current = OrderTransitionHistory::where('order_id', $this->order->id)
-                ->where('is_current', true)
-                ->first();
+                $openTransitions = OrderTransitionHistory::where('order_id', $this->order->id)
+                    ->where(
+                        fn ($query) => $query->whereNull('ended_at')->orWhere('is_current', true)
+                    )
+                    ->get();
 
-                if ($current) {
-                    $transitionDate = $customDate ? Carbon::parse($customDate) : Carbon::now();
-                    $duration = $current->changed_at->diffInSeconds($transitionDate);
+                $closedAt = $customDate ? Carbon::parse($customDate) : Carbon::now();
 
-                    $current->updateQuietly([
+                foreach ($openTransitions as $openTransition) {
+                    $openTransition->updateQuietly([
                         'is_current' => false,
-                        'ended_at' => $transitionDate,
-                        'duration_in_seconds' => $duration,
+                        'ended_at' => $closedAt,
+                        'duration_in_seconds' => $openTransition->changed_at->diffInSeconds($closedAt),
                         'ended_by' => $this->user->getId(),
                     ]);
                 }
 
-                // Update the order status
-                $this->order->updateQuietly(['order_status_id' => $this->newOrderStatus->id]);
+                $attributes = ['order_status_id' => $this->newOrderStatus->id];
 
-                // Insert into order_transitions_history
-                $transitionDate = $customDate ? Carbon::parse($customDate) : Carbon::now();
+                if ($this->newOrderStatus->slug === PaymentStatusEnum::PAID->value) {
+                    $attributes['payment_status'] = PaymentStatusEnum::PAID->value;
+                }
+
+                $this->order->updateQuietly($attributes);
+
                 OrderTransitionHistory::create([
                     'apps_id' => $this->order->apps_id,
                     'companies_id' => $this->order->companies_id,
@@ -96,8 +101,9 @@ class TransitionOrderStateAction
                     'description' => 'Order status changed from ' . $currentOrderStatus->slug . ' to ' . $this->newOrderStatus->slug,
                     'metadata' => is_array($this->order->metadata) ? json_encode($this->order->metadata) : $this->order->metadata,
                     'is_current' => true,
-                    'changed_at' => $transitionDate,
+                    'changed_at' => $closedAt,
                     'changed_by' => $this->user->getId(),
+                    ...$this->amountSnapshot(),
                 ]);
             });
 
@@ -145,9 +151,26 @@ class TransitionOrderStateAction
             'is_current' => true,
             'changed_at' => now(),
             'changed_by' => $this->user->getId(),
+            ...$this->amountSnapshot(),
         ]);
 
         $this->fireWorkflow(null);
+    }
+
+    private function amountSnapshot(): array
+    {
+        return [
+            'total_gross_amount' => (float) $this->order->total_gross_amount,
+            'discount_amount' => (float) $this->order->discount_amount,
+            'total_net_amount' => (float) $this->order->total_net_amount,
+            'items_snapshot' => $this->order->allItems()->get()->map(fn (OrderItem $item) => [
+                'order_item_id' => $item->id,
+                'variant_id' => $item->variant_id,
+                'product_name' => $item->product_name,
+                'quantity' => (float) $item->quantity,
+                'unit_price' => (float) $item->unit_price_net_amount,
+            ])->all(),
+        ];
     }
 
     private function fireWorkflow($currentOrderStatus): void

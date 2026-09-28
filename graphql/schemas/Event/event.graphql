@@ -71,6 +71,7 @@ type EventVersion {
     price_per_ticket: Money!
     currency: Currency @belongsTo(relation: "currency")
     eventStatus: EventStatus @belongsTo(relation: "eventStatus")
+    timeSlot: TimeSlots @belongsTo(relation: "timeSlot")
     max_capacity: Int @method(name: "getMaxCapacity")
     created_at: DateTime
     updated_at: DateTime
@@ -499,6 +500,7 @@ extend type Query @guard {
                     "end_at"
                     "event_status_id"
                     "currency_id"
+                    "time_slot_id"
                 ]
             )
         eventStatus: _

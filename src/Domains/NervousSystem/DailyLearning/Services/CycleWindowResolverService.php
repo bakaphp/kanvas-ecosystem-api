@@ -32,15 +32,20 @@ final class CycleWindowResolverService
         ];
     }
 
-    // Company.timezone → app.timezone → AppEnums::DEFAULT_TIMEZONE (NY).
-    // Companies.timezone is nullable despite the model's `@property string`
-    // docblock (hence the cast); Apps has no column so we read from
-    // custom_fields via ->get().
+    /**
+     * Company.timezone → app.timezone → AppEnums::DEFAULT_TIMEZONE (NY).
+     * Companies::getTimezone() returns null for both an unset and an invalid
+     * stored zone, so either falls through; Apps has no column so we read from
+     * custom_fields via ->get().
+     *
+     * @todo Move to Baka\Support\DateHelper as the single tenant-timezone resolver. ~45 call sites
+     *       resolve it inline today (grep `company->timezone`, `get('timezone')`) with conflicting
+     *       defaults (UTC vs NY) and sources (column vs custom field); unify those in the same PR.
+     */
     public static function resolveTimezone(AppInterface $app, Companies $company): string
     {
-        /** @psalm-suppress RedundantCastGivenDocblockType */
-        $companyTz = (string) $company->timezone;
-        if ($companyTz !== '') {
+        $companyTz = $company->getTimezone();
+        if ($companyTz !== null) {
             return $companyTz;
         }
 

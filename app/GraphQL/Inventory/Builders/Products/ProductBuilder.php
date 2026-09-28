@@ -49,6 +49,10 @@ class ProductBuilder
             $query->filterByVariantAttributeValue($args['variantAttributeValue']);
         }
 
+        foreach ($args['attributeValues'] ?? [] as $filter) {
+            $query->filterByAttributeValue(...Products::attributeFilterArgsFromInput($filter));
+        }
+
         if (! empty($args['withAttributeSlug'])) {
             $slug = $args['withAttributeSlug'];
             $query->whereHas(
@@ -58,21 +62,20 @@ class ProductBuilder
             );
         }
 
-        if (! empty($args['variantAttributeOrderBy'])) {
-            $order = $args['variantAttributeOrderBy'];
-            $query->orderByVariantAttribute(
-                $order['name'],
-                $order['format'],
-                $order['sort']
-            );
-        }
+        $variantOrder = $args['variantAttributeOrderBy'] ?? null;
+        $attributeOrder = $args['attributeOrderBy'] ?? null;
 
-        if (! empty($args['attributeOrderBy']) && empty($args['variantAttributeOrderBy'])) {
-            $order = $args['attributeOrderBy'];
+        if (! empty($variantOrder['name'])) {
+            $query->orderByVariantAttribute(
+                $variantOrder['name'],
+                $variantOrder['format'] ?? 'STRING',
+                $variantOrder['sort'] ?? 'ASC'
+            );
+        } elseif (! empty($attributeOrder['name'])) {
             $query->orderByAttribute(
-                $order['name'],
-                $order['format'],
-                $order['sort']
+                $attributeOrder['name'],
+                $attributeOrder['format'] ?? 'STRING',
+                $attributeOrder['sort'] ?? 'ASC'
             );
         }
 
@@ -104,6 +107,9 @@ class ProductBuilder
                 )
             );
         }
+
+        // Batch-load the visible attributes for n+1 query prevention when resolving visibleAttributesRelation
+        $query->with('visibleAttributesRelation');
 
         return $query;
     }

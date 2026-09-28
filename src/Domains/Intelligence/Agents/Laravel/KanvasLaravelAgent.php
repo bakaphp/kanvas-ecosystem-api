@@ -8,13 +8,18 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Config;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\Enums\AgentLlmProviderEnum;
 use Kanvas\Intelligence\Agents\Laravel\Contracts\KanvasToolInterface;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Common\CurrentTimeTool;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentRecord;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
+use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
+use Kanvas\Intelligence\Agents\Services\AgentProviderService;
+use Kanvas\Intelligence\Agents\Traits\HasEntityContext;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Laravel\Ai\Contracts\Agent;
 use Laravel\Ai\Contracts\Conversational;
+use Laravel\Ai\Contracts\HasStructuredOutput;
 use Laravel\Ai\Contracts\HasTools;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Files\File;
@@ -43,20 +48,11 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
     ): void {
         $this->agentRecord = $agent;
         $this->entity = $entity;
-        // Request-scoped app/company take precedence over the agent's own values,
-        // which may be null or id=0 for global agents.
         $this->app = $app ?? $agent->app;
         $this->company = $company ?? $agent->company;
         $this->externalReferenceId = $externalReferenceId;
     }
 
-    /**
-     * Surfaces the Kanvas Agent id to consumers that only see the Laravel AI
-     * agent instance (e.g. KanvasConversationStore via $prompt->agent on the
-     * RememberConversation middleware path). Laravel AI's ConversationStore
-     * interface doesn't pass the agent into storeConversation, so this is the
-     * bridge that lets us wire conversation rows back to their Kanvas Agent.
-     */
     public function getKanvasAgentId(): ?int
     {
         return $this->agentRecord?->getId();
@@ -64,23 +60,59 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
 
     protected function getProvider(): ?Lab
     {
-        $provider = $this->agentRecord?->model?->config['provider'] ?? null;
+        $selected = $this->selectedLlmConfig();
+        if ($selected !== null) {
+            return self::labForProvider($selected->providerEnum());
+        }
 
-        return match ($provider) {
-            'anthropic' => Lab::Anthropic,
-            'openai' => Lab::OpenAI,
-            'gemini' => Lab::Gemini,
-            'groq' => Lab::Groq,
-            'mistral' => Lab::Mistral,
-            'ollama' => Lab::Ollama,
-            'deepseek' => Lab::DeepSeek,
-            default => null,
-        };
+        // groq is the one laravel-ai provider AgentLlmProviderEnum has no case for.
+        $provider = $this->agentRecord?->model?->config['provider'] ?? null;
+        if ($provider === 'groq') {
+            return Lab::Groq;
+        }
+
+        $enum = AgentLlmProviderEnum::tryFrom((string) $provider);
+        if ($enum !== null) {
+            return self::labForProvider($enum);
+        }
+
+        // Fall back to the app default rather than null — a null provider leaves the
+        // agent with a key but nothing to call, and it replies empty.
+        return $this->agentRecord !== null
+            ? self::labForProvider(AgentProviderService::resolveProviderEnum($this->agentRecord))
+            : null;
     }
 
     protected function getModel(): ?string
     {
-        return $this->agentRecord?->model?->config['model'] ?? null;
+        return $this->selectedLlmConfig()?->model
+            ?? $this->agentRecord?->model?->config['model']
+            ?? ($this->agentRecord !== null ? AgentProviderService::resolveModel($this->agentRecord) : null);
+    }
+
+    private function selectedLlmConfig(): ?AgentLlmConfig
+    {
+        return $this->agentRecord !== null
+            ? AgentProviderService::selectedConfig($this->agentRecord)
+            : null;
+    }
+
+    /**
+     * Map the runtime-agnostic provider enum to a laravel-ai Lab. OPENAI_LIKE → OpenAICompatible,
+     * whose url + key we inject per-tenant in applyTenantProviderCredentials().
+     */
+    private static function labForProvider(AgentLlmProviderEnum $provider): Lab
+    {
+        return match ($provider) {
+            AgentLlmProviderEnum::GEMINI => Lab::Gemini,
+            AgentLlmProviderEnum::ANTHROPIC => Lab::Anthropic,
+            AgentLlmProviderEnum::OPENAI => Lab::OpenAI,
+            AgentLlmProviderEnum::OPENAI_LIKE => Lab::OpenAICompatible,
+            AgentLlmProviderEnum::MISTRAL => Lab::Mistral,
+            AgentLlmProviderEnum::DEEPSEEK => Lab::DeepSeek,
+            AgentLlmProviderEnum::XAI => Lab::xAI,
+            AgentLlmProviderEnum::OLLAMA => Lab::Ollama,
+        };
     }
 
     #[Override]
@@ -153,6 +185,11 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
      */
     protected function applyTenantProviderCredentials(): \Closure
     {
+        $selected = $this->selectedLlmConfig();
+        if ($selected !== null) {
+            return $this->applySelectedConfigCredentials($selected);
+        }
+
         $app = $this->app;
         if ($app === null) {
             return static fn () => null;
@@ -182,6 +219,37 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
         };
     }
 
+    /**
+     * Push the selected LLM config's credentials into laravel-ai's provider config for the duration
+     * of one prompt (snapshot → set → restore, same Octane-safe dance as the tenant-key path). The
+     * `driver` is set explicitly because getInstanceConfig() only defaults it when the whole provider
+     * block is absent — once we set `.key`/`.url` the block exists without a driver and would break.
+     */
+    private function applySelectedConfigCredentials(AgentLlmConfig $config): \Closure
+    {
+        $driver = self::labForProvider($config->providerEnum())->value;
+
+        $overrides = ["ai.providers.{$driver}.driver" => $driver];
+        if ($config->api_key !== null && $config->api_key !== '') {
+            $overrides["ai.providers.{$driver}.key"] = $config->api_key;
+        }
+        if ($config->base_uri !== null && $config->base_uri !== '') {
+            $overrides["ai.providers.{$driver}.url"] = $config->base_uri;
+        }
+
+        $snapshot = [];
+        foreach ($overrides as $configPath => $value) {
+            $snapshot[$configPath] = Config::get($configPath);
+            Config::set($configPath, $value);
+        }
+
+        return static function () use ($snapshot): void {
+            foreach ($snapshot as $configPath => $originalValue) {
+                Config::set($configPath, $originalValue);
+            }
+        };
+    }
+
     #[Override]
     final public function tools(): iterable
     {
@@ -190,7 +258,10 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
         foreach ($this->withUniversalTools($this->agentTools()) as $tool) {
             if (($tool instanceof KanvasToolInterface || $tool instanceof KanvasAgentAsTool)
                 && $this->app && $this->company) {
-                $tool->withContext($this->app, $this->company);
+                $tool->withContext($this->app, $this->company, $this->agentRecord);
+            }
+            if (in_array(HasEntityContext::class, class_uses_recursive($tool), true)) {
+                $tool->withEntity($this->entity);
             }
             $tools[] = $tool;
         }
@@ -213,6 +284,15 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
         $tools = is_array($agentTools)
             ? array_values($agentTools)
             : iterator_to_array($agentTools, false);
+
+        // A one-shot structured-output agent with no tools of its own must stay
+        // tool-free: Gemini rejects the whole request when a JSON response mime
+        // type is combined with function calling ("Function calling with a
+        // response mime type: 'application/json' is unsupported"), so injecting
+        // a clock it never asked for makes it unrunnable on that provider.
+        if ($tools === [] && $this instanceof HasStructuredOutput) {
+            return [];
+        }
 
         foreach ($tools as $tool) {
             if ($tool instanceof CurrentTimeTool) {

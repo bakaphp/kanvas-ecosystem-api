@@ -12,7 +12,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-#[AgentTool(name: 'Communication Channel')]
+#[AgentTool(name: 'Communication Channel', category: 'crm')]
 class CommunicationChannelTool extends Tool
 {
     use ResolvesLeadForTool;

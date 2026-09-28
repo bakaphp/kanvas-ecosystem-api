@@ -19,6 +19,7 @@ input ImporterProductInput {
     categories: [CategoryInput!]
     attributes: [ProductAttributesInput!]
     customFields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
 }
 
 extend type Mutation @guard {

@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio\Workflows;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\NotifyLeadStakeholdersService;
+use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
@@ -24,11 +26,20 @@ use Kanvas\Workflow\KanvasActivity;
 /**
  * @todo move to a SA namespace, this is not for Twilio anymore
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Human Agent Channel Response',
+    description: 'Delivers a HUMAN colleague\'s reply out to the customer\'s channel — the human-in-the-loop '
+        . 'counterpart to the agent responders. Nothing here is written by an agent.',
+    integration: IntegrationsEnum::INTERNAL,
+    params: [
+        'message' => 'Supplied by the trigger — the message that arrived.',
+        'user' => 'The human replying.',
+        'title' => 'Optional title for the outbound notification.',
+        'from' => 'Optional sender identity.',
+    ],
+)]
 class HumanAgentChannelResponseActivity extends KanvasActivity
 {
-    private const string SMS_OPT_OUT_NOTICE = 'Reply STOP to opt out.';
-
     public $tries = 3;
 
     public function execute(Channel $channel, Apps $app, array $params): array
@@ -161,14 +172,8 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
 
                 $message->addTag('engagement');
 
-                if (
-                    $channelType === LeadCommunicationChannelEnum::SMS->value
-                    && $this->isFirstChannelMessage($channel, $message)
-                ) {
-                    $body = is_string($content) ? $content : '';
-                    if (! $this->alreadyHasOptOutNotice($body)) {
-                        $content = trim($body) . "\n\n" . self::SMS_OPT_OUT_NOTICE;
-                    }
+                if ($channelType === LeadCommunicationChannelEnum::SMS->value) {
+                    $content = SmsOptOutNoticeService::appendIfFirstOutbound($channel, $content, $message);
                 }
 
                 $result = new SendMessageToLeadAction($lead)->execute(
@@ -179,6 +184,7 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
                     false,
                     $files->isNotEmpty() ? $files : null
                 );
+                new StoreMessageSidAction($message)->execute($result);
 
                 new MarkLeadMessagesAsRespondedAction($lead, $message)->execute();
                 new NotifyLeadStakeholdersService($lead)->onAgentReply($message, isHuman: true);
@@ -192,24 +198,5 @@ class HumanAgentChannelResponseActivity extends KanvasActivity
             company: $channel->company,
             additionalParams: $params,
         );
-    }
-
-    private function isFirstChannelMessage(Channel $channel, Message $message): bool
-    {
-        return $channel->messages()
-            ->where('messages.id', '!=', $message->getId())
-            ->where('messages.is_deleted', 0)
-            ->doesntExist();
-    }
-
-    private function alreadyHasOptOutNotice(string $body): bool
-    {
-        foreach (['reply stop', 'opt out', 'opt-out'] as $needle) {
-            if (stripos($body, $needle) !== false) {
-                return true;
-            }
-        }
-
-        return false;
     }
 }

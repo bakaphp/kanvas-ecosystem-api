@@ -37,4 +37,14 @@ trait KanvasJobsTrait
     {
         Bouncer::scope()->to(RolesEnums::getScope($app));
     }
+
+    /**
+     * The concrete Apps model behind an AppInterface, for the many signatures that are typed
+     * AppInterface by their contract. The container fallback is only correct once
+     * overwriteAppService($app) has bound it, which every job and activity does first.
+     */
+    public function appModel(AppInterface $app): Apps
+    {
+        return $app instanceof Apps ? $app : app(Apps::class);
+    }
 }

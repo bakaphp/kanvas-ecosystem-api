@@ -10,6 +10,18 @@ extend type Query @guard {
         )
 }
 
+extend type Query @guard {
+    orderActivityLogs(
+        order_number: String
+        where: _ @whereConditions(columns: ["description", "event", "causer_id", "created_at"])
+        orderBy: _ @orderBy(columns: ["id", "created_at"])
+    ): [ActivityLog!]!
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Souk\\Queries\\Orders\\OrderActivityLogQuery@getCompanyBuilder"
+        )
+}
+
 extend type Mutation @guard {
     amendOrder(
         order_id: ID!

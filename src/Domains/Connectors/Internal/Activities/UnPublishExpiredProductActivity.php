@@ -8,10 +8,17 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Unpublish Expired Product',
+    description: 'Takes a single product off sale once its end-date attribute has passed. Runs on the PRODUCT '
+        . 'and does nothing if the date is still in the future, so it is safe to attach to any product '
+        . 'event.',
+    integration: IntegrationsEnum::INTERNAL,
+)]
 class UnPublishExpiredProductActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

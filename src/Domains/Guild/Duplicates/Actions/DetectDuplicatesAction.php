@@ -8,8 +8,6 @@ use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\FindPeopleDuplicatesService;
-use Kanvas\Guild\Duplicates\Enums\DuplicateReviewStatusEnum;
-use Kanvas\Guild\Duplicates\Models\DuplicateReviewGroup;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Services\FindOrganizationDuplicatesService;
 
@@ -34,45 +32,16 @@ class DetectDuplicatesAction
         $created = 0;
         $skipped = 0;
 
+        $organizationUpserter = new UpsertDuplicateReviewGroupAction(Organization::class, $this->app->getId(), $this->company->getId());
         foreach (new FindOrganizationDuplicatesService()->generate($this->app, $this->company) as $group) {
-            $this->upsert(Organization::class, $group) ? $created++ : $skipped++;
+            $organizationUpserter->execute($group) ? $created++ : $skipped++;
         }
 
+        $peopleUpserter = new UpsertDuplicateReviewGroupAction(People::class, $this->app->getId(), $this->company->getId());
         foreach (new FindPeopleDuplicatesService()->generate($this->app, $this->company) as $group) {
-            $this->upsert(People::class, $group) ? $created++ : $skipped++;
+            $peopleUpserter->execute($group) ? $created++ : $skipped++;
         }
 
         return ['created' => $created, 'skipped' => $skipped];
-    }
-
-    private function upsert(string $entityType, mixed $group): bool
-    {
-        $memberIds = $group->member_ids;
-        sort($memberIds);
-        $signature = sha1(implode(',', $memberIds));
-
-        $existing = DuplicateReviewGroup::query()
-            ->where('apps_id', $this->app->getId())
-            ->where('companies_id', $this->company->getId())
-            ->where('entity_type', $entityType)
-            ->where('signature', $signature)
-            ->exists();
-
-        if ($existing) {
-            return false;
-        }
-
-        DuplicateReviewGroup::create([
-            'apps_id' => $this->app->getId(),
-            'companies_id' => $this->company->getId(),
-            'entity_type' => $entityType,
-            'canonical_id' => $group->canonical_id,
-            'member_ids' => $memberIds,
-            'signature' => $signature,
-            'reason' => $group->reason,
-            'status' => DuplicateReviewStatusEnum::PENDING->value,
-        ]);
-
-        return true;
     }
 }

@@ -13,7 +13,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Save Lead Preferred Channel',
+    description: 'Records which channel a lead actually replied on, so later outreach uses the one they use. '
+        . 'Writes to the lead only; sends nothing.',
+)]
 class SaveLeadPreferredChannelActivity extends KanvasActivity
 {
     public $tries = 3;

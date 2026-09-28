@@ -141,7 +141,6 @@ final class ProcessPaymentActivityTest extends TestCase
             'X-Kanvas-App' => $app->key,
         ]);
 
-
         $order = $response->json('data.createOrderFromCart.order');
 
         $order = Order::fromApp($app)->find($order['id']);

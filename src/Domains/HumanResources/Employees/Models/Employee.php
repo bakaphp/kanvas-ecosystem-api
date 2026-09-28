@@ -26,7 +26,7 @@ use Kanvas\HumanResources\Models\BaseModel;
 use Kanvas\HumanResources\Positions\Models\Position;
 use Kanvas\HumanResources\Seats\Models\SeatAssignment;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
-use Kanvas\Social\Messages\Traits\HasMessagesTrait;
+use Kanvas\Social\Messages\Concerns\HasMessages;
 use Nevadskiy\Tree\AsTree;
 use Override;
 
@@ -46,6 +46,9 @@ use Override;
  * @property string      $employment_type
  * @property string|null $home_entity
  * @property string      $status
+ *
+ * @property-read Position|null   $position
+ * @property-read Department|null $department
  */
 #[ObservedBy([EmployeeObserver::class])]
 class Employee extends BaseModel
@@ -56,7 +59,7 @@ class Employee extends BaseModel
     }
     use EmitsLedgerEventsForEntity;
     use HasLightHouseCache;
-    use HasMessagesTrait;
+    use HasMessages;
     use UuidTrait;
 
     protected $table = 'hr_employees';
@@ -99,6 +102,21 @@ class Employee extends BaseModel
         return 'reporting_path';
     }
 
+    /**
+     * A one-line summary — title, department, description — an orchestrator can match work against.
+     * Null when the record carries none of these, so callers fall back to matching by name.
+     */
+    public function describeForAssignment(): ?string
+    {
+        $parts = array_filter([
+            trim((string) $this->position?->title),
+            trim((string) $this->department?->name),
+            trim((string) $this->description),
+        ]);
+
+        return $parts === [] ? null : implode(' — ', $parts);
+    }
+
     public function people(): BelongsTo
     {
         return $this->belongsTo(People::class, 'people_id');
@@ -139,6 +157,16 @@ class Employee extends BaseModel
         return $this->hasOne(EmployeeCompensation::class, 'employee_id')
             ->whereNull('effective_to')
             ->latestOfMany('effective_from');
+    }
+
+    /**
+     * Whether this employee is somewhere up the reporting line from $employee. Shared by the leave
+     * approval paths — the GraphQL resolver and the agent tool must not each carry their own idea of
+     * who is allowed to approve whose time off.
+     */
+    public function manages(self $employee): bool
+    {
+        return $this->descendants()->where('id', $employee->getId())->exists();
     }
 
     /**

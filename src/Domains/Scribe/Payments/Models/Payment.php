@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Payments\Models;
 
 use Baka\Casts\Json;
+use Baka\Observers\ClearsLightHouseCacheObserver;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Kanvas\Scribe\Banking\Models\BankAccount;
@@ -45,8 +48,10 @@ use Override;
  * @property array|null $metadata
  * @property bool $is_deleted
  */
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class Payment extends BaseModel
 {
+    use HasLightHouseCache;
     use UuidTrait;
 
     protected $table = 'payments';
@@ -82,5 +87,11 @@ class Payment extends BaseModel
     public function reversedBy(): BelongsTo
     {
         return $this->belongsTo(Users::class, 'reversed_by_users_id', 'id');
+    }
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'ScribePayment';
     }
 }

@@ -113,7 +113,7 @@ class FollowUpEngagementActionV2Test extends TestCase
 
             $lead->setContactStatus(LeadGroupStatusEnum::WAITING);
 
-            $followUpKey = new LeadConfigurationService(true)->getFollowUpModeKey($lead);
+            $followUpKey = new LeadConfigurationService()->getFollowUpModeKey($lead);
             $lead->set($followUpKey, FollowUpValueEnum::ON()->value);
 
             $lead->people->addEmail(fake()->email);
@@ -307,7 +307,7 @@ class FollowUpEngagementActionV2Test extends TestCase
 
             StructuredAnonymousAgent::fake([$fakeStructuredData, $fakeStructuredData]);
 
-            $result = new FollowUpEngagementAction($lead, null, true)->execute();
+            $result = new FollowUpEngagementAction($lead)->execute();
 
             $this->assertIsArray($result);
         } finally {

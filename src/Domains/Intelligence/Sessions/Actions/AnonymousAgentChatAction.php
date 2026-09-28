@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\DataTransferObject\Session as SessionData;
@@ -55,13 +56,17 @@ final class AnonymousAgentChatAction
             throw new ValidationException('Demo limit reached — sign up to keep going.');
         }
 
-        $reply = new AgentChatKernel(
-            agent: $this->agent,
-            session: $session,
-            message: $this->message,
-            user: $guestUser,
-            persistConversation: true,
-        )->execute();
+        try {
+            $reply = new AgentChatKernel(
+                agent: $this->agent,
+                session: $session,
+                message: $this->message,
+                user: $guestUser,
+                persistConversation: true,
+            )->execute();
+        } catch (AgentReplySkippedException) {
+            throw new ValidationException(AgentReplySkippedException::DEACTIVATED_USER_MESSAGE);
+        }
 
         $this->incrementTurns($session, $turnsUsed);
 

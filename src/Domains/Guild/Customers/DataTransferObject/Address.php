@@ -19,7 +19,7 @@ class Address extends Data
         public readonly ?string $state = null,
         public readonly ?string $country = null,
         public readonly ?string $zip = null,
-        public readonly bool $is_default = true,
+        public readonly bool $is_default = false,
         public readonly ?int $city_id = null,
         public readonly ?int $state_id = null,
         public readonly ?int $country_id = null,
@@ -98,15 +98,22 @@ class Address extends Data
 
         $countryId = $countryId ?? 230; // Default to US
 
+        $streetLines = self::splitStreetLines((string) ($data['address'] ?? ''));
+        $addressLine2 = $data['address_2'] ?? $data['address_line2'] ?? null;
+
+        if (empty($addressLine2) && count($streetLines) > 1) {
+            $addressLine2 = implode(' ', array_slice($streetLines, 1));
+        }
+
         return new self(
-            address: $data['address'] ?? '',
-            address_2: $data['address_2'] ?? $data['address_line2'] ?? null,
+            address: $streetLines[0] ?? '',
+            address_2: $addressLine2,
             city: $data['city'] ?? null,
             county: $data['county'] ?? null,
             state: $data['state'] ?? null,
             country: $data['country'] ?? null,
             zip: $data['zip'] ?? $data['zip_code'] ?? $data['postal_code'] ?? null,
-            is_default: (bool) ($data['is_default'] ?? true),
+            is_default: (bool) ($data['is_default'] ?? false),
             city_id: $cityId,
             state_id: $stateId,
             country_id: $countryId,
@@ -116,6 +123,31 @@ class Address extends Data
             longitude: isset($data['longitude']) ? (float) $data['longitude'] : null,
             id: isset($data['id']) ? (int) $data['id'] : null
         );
+    }
+
+    /**
+     * Split a multi-line street into its lines.
+     *
+     * Form payloads reach us with the textarea line break in three shapes: a real CRLF, the
+     * raw HTML entity (`&#x0d;&#x0a;`), or the half-decoded literal `hex0d;Hex0a;` the legacy
+     * SalesAssist forms emit — which otherwise lands in the DB as "350 Monon Blvdhex0d;Hex0a;Apt 315".
+     *
+     * @return list<string>
+     */
+    public static function splitStreetLines(string $address): array
+    {
+        $normalized = preg_replace('/(&#x0?[da];|&#1[03];|hex0?[da];|<br\s*\/?>)/i', "\n", $address) ?? $address;
+        $lines = preg_split('/\R/', $normalized) ?: [];
+
+        return array_values(array_filter(array_map('trim', $lines), fn (string $line): bool => $line !== ''));
+    }
+
+    /**
+     * The one-line form, for downstream systems whose address field has no second line.
+     */
+    public static function flattenStreet(mixed $address): string
+    {
+        return implode(' ', self::splitStreetLines((string) $address));
     }
 
     /**

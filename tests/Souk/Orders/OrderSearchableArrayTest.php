@@ -72,6 +72,37 @@ class OrderSearchableArrayTest extends TestCase
     }
 
     /**
+     * The raw metadata / private_metadata objects must never reach the search engine, regardless
+     * of size. Typesense (enable_nested_fields) auto-detects a type per nested key and then rejects
+     * any later document that disagrees — Sentry KANVAS-ECOSYSTEM-628: metadata.data.business_days_late
+     * locked to int64 from whole-number orders, so a half-day 5.5 failed the whole import. The scalar
+     * still has to survive in metadata_text so search can match it.
+     */
+    public function testToSearchableArrayNeverIndexesRawMetadataObjects(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $order = Order::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->withUserId($user->getId())
+            ->create(['status' => 'completed']);
+
+        $order->metadata = ['data' => ['business_days_late' => 5.5, 'po_number' => 'PO-99']];
+        $order->private_metadata = ['secret' => 'do-not-index'];
+        $order->saveOrFail();
+
+        $doc = $order->fresh()->toSearchableArray();
+
+        $this->assertArrayNotHasKey('metadata', $doc, 'Raw nested metadata object must never be indexed.');
+        $this->assertArrayNotHasKey('private_metadata', $doc, 'private_metadata would leak secrets into the index.');
+        $this->assertStringContainsString('5.5', $doc['metadata_text'], 'Fractional scalar must survive in metadata_text.');
+        $this->assertStringContainsString('PO-99', $doc['metadata_text']);
+    }
+
+    /**
      * Algolia fails the whole batch when a single record is over its byte limit (Sentry
      * KANVAS-ECOSYSTEM-5SS: an order with a huge integration metadata blob hit 101412/100000).
      * The doc must be trimmed to fit while keeping the fields search actually queries on.

@@ -48,7 +48,7 @@ class SummarizeAgentDailyLearningAction
         protected readonly Carbon $cycleDate,
         protected readonly bool $dryRun = false,
         protected readonly bool $skipPush = false,
-        protected readonly string $model = 'gemini-2.5-pro',
+        protected readonly string $model = 'gemini-3.8-flash',
     ) {
     }
 

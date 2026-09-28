@@ -17,7 +17,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist Pull User From CRM',
+    description: 'Matches a Kanvas user to their salesperson record in the connected CRM and stores the link, '
+        . 'so pushed work is attributed to the right person. Runs on the USER.',
+    integration: IntegrationsEnum::SALESASSIST,
+)]
 class PullUserFromCRMActivity extends KanvasActivity
 {
     public function execute(Users $user, AppInterface $app, array $params): array

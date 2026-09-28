@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\GraphQL\Inventory\Mutations\Variants;
 
+use App\GraphQL\Concerns\SyncsEntityRelatedInput;
 use Kanvas\Companies\Repositories\CompaniesRepository;
 use Kanvas\Inventory\Attributes\Repositories\AttributesRepository;
 use Kanvas\Inventory\Channels\Repositories\ChannelRepository;
@@ -13,6 +14,7 @@ use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction as AddToWarehouse;
 use Kanvas\Inventory\Variants\Actions\CreateVariantsAction;
 use Kanvas\Inventory\Variants\Actions\DeleteVariantsAction;
+use Kanvas\Inventory\Variants\Actions\RemoveAttributeAction;
 use Kanvas\Inventory\Variants\Actions\UpdateVariantsAction;
 use Kanvas\Inventory\Variants\DataTransferObject\Translate as VariantTranslateDto;
 use Kanvas\Inventory\Variants\DataTransferObject\VariantChannel;
@@ -31,6 +33,8 @@ use Kanvas\Languages\Models\Languages;
 
 class Variants
 {
+    use SyncsEntityRelatedInput;
+
     /**
      * create.
      */
@@ -83,7 +87,7 @@ class Variants
         if (isset($req['input']['channels'])) {
             foreach ($req['input']['channels'] as $variantChannel) {
                 $warehouse = WarehouseRepository::getById((int) $variantChannel['warehouses_id']);
-                $channel = ChannelRepository::getById((int) $variantChannel['channels_id']);
+                $channel = ChannelRepository::getByIdOrGlobal((int) $variantChannel['channels_id'], $company);
                 $variantChannelDto = VariantChannel::from($variantChannel);
 
                 VariantService::addVariantChannel(
@@ -94,6 +98,9 @@ class Variants
                 );
             }
         }
+
+        self::syncTagsAndReindex($variantModel, $req['input']);
+
         $variantModel->products->searchable();
 
         return $variantModel;
@@ -112,7 +119,7 @@ class Variants
         $variant = VariantsRepository::getById((int) $req['id'], $company);
         $req['input']['products_id'] = $variant->product->getId();
         $variantDto = VariantDto::viaRequest($req['input'], auth()->user());
-        $variantModel = (new UpdateVariantsAction($variant, $variantDto, auth()->user()))->execute();
+        $variantModel = new UpdateVariantsAction($variant, $variantDto, auth()->user())->execute();
 
         if (isset($req['input']['attributes'])) {
             $variantModel->addAttributes(auth()->user(), $req['input']['attributes']);
@@ -125,6 +132,9 @@ class Variants
         if (isset($req['input']['channels'])) {
             ChannelService::updateChannelVariant($variantModel, $req['input']['channels']);
         }
+
+        self::syncTagsAndReindex($variantModel, $req['input']);
+
         $variantModel->products->searchable();
 
         return $variantModel;
@@ -142,7 +152,7 @@ class Variants
             auth()->user()
         );
 
-        return (new DeleteVariantsAction($variant, auth()->user()))->execute();
+        return new DeleteVariantsAction($variant, auth()->user())->execute();
     }
 
     /**
@@ -159,7 +169,11 @@ class Variants
         }
         $variantWarehouses = VariantsWarehouses::viaRequest($variant, $warehouse, $req['input']);
 
-        (new AddToWarehouse($variant, $warehouse, $variantWarehouses))->execute();
+        new AddToWarehouse(
+            $variant,
+            $warehouse,
+            $variantWarehouses
+        )->execute();
 
         return $variant;
     }
@@ -200,23 +214,17 @@ class Variants
         $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
 
         $attribute = AttributesRepository::getById((int) $req['attributes_id']);
-        (new AddAttributeAction($variant, $attribute, $req['input']['value']))->execute();
+        new AddAttributeAction($variant, $attribute, $req['input']['value'])->execute();
 
         return $variant;
     }
 
-    /**
-     * @todo Remove and use softdelete.
-     * removeAttribute.
-     */
     public function removeAttribute(mixed $root, array $req): VariantModel
     {
         $variant = VariantsRepository::getById((int) $req['id'], auth()->user()->getCurrentCompany());
-
         $attribute = AttributesRepository::getById((int) $req['attributes_id']);
-        $variant->attributes()->detach($attribute);
 
-        return $variant;
+        return new RemoveAttributeAction($variant, $attribute)->execute();
     }
 
     /**
@@ -224,9 +232,10 @@ class Variants
      */
     public function addToChannel(mixed $root, array $req): VariantModel
     {
-        $variant = VariantsRepository::getById((int) $req['variants_id'], auth()->user()->getCurrentCompany());
+        $company = auth()->user()->getCurrentCompany();
+        $variant = VariantsRepository::getById((int) $req['variants_id'], $company);
         $warehouse = WarehouseRepository::getById((int) $req['warehouses_id']);
-        $channel = ChannelRepository::getById((int) $req['channels_id']);
+        $channel = ChannelRepository::getByIdOrGlobal((int) $req['channels_id'], $company);
         $variantChannelDto = VariantChannel::from($req['input']);
 
         VariantService::addVariantChannel(
@@ -244,9 +253,10 @@ class Variants
      */
     public function updateVariantInChannel(mixed $root, array $req)
     {
-        $variant = VariantsRepository::getById((int) $req['variants_id'], auth()->user()->getCurrentCompany());
-        $warehouse = WarehouseRepository::getById((int) $req['warehouses_id'], auth()->user()->getCurrentCompany());
-        $channel = ChannelRepository::getById((int) $req['channels_id'], auth()->user()->getCurrentCompany());
+        $company = auth()->user()->getCurrentCompany();
+        $variant = VariantsRepository::getById((int) $req['variants_id'], $company);
+        $warehouse = WarehouseRepository::getById((int) $req['warehouses_id'], $company);
+        $channel = ChannelRepository::getByIdOrGlobal((int) $req['channels_id'], $company);
 
         $variantChannel = VariantsChannels::where('products_variants_id', $variant->getId())
             ->where('warehouses_id', $warehouse->getId())
@@ -268,12 +278,13 @@ class Variants
      */
     public function removeChannel(mixed $root, array $req): VariantModel
     {
-        $variant = VariantsRepository::getById((int) $req['variants_id'], auth()->user()->getCurrentCompany());
+        $company = auth()->user()->getCurrentCompany();
+        $variant = VariantsRepository::getById((int) $req['variants_id'], $company);
         $warehouse = WarehouseRepository::getById((int) $req['warehouses_id']);
         $variantWarehouses = ModelsVariantsWarehouses::where('products_variants_id', $variant->getId())
             ->where('warehouses_id', $warehouse->getId())
             ->firstOrFail();
-        $channel = ChannelRepository::getById((int) $req['channels_id']);
+        $channel = ChannelRepository::getByIdOrGlobal((int) $req['channels_id'], $company);
         $variantWarehouses->channels()->where('id', $channel->getId())->detach($channel->id);
 
         return $variant;
@@ -311,5 +322,19 @@ class Variants
         $variantAttribute->save();
 
         return $variantAttribute;
+    }
+
+    /**
+     * Attaching tags doesn't touch the variant row, so Scout's save hook never fires —
+     * re-index by hand or the tags never reach the variant document.
+     */
+    private static function syncTagsAndReindex(VariantModel $variant, array $input): void
+    {
+        if (! array_key_exists('tags', $input)) {
+            return;
+        }
+
+        self::syncTags($variant, $input);
+        $variant->searchable();
     }
 }

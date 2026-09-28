@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Recombee;
 
 use Baka\Contracts\AppInterface;
 use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Recombee\Enums\RegionEnum;
 use Kanvas\Exceptions\ValidationException;
 use Recombee\RecommApi\Client as RecommApiClient;
 
@@ -21,7 +22,7 @@ class Client
     ) {
         $recombeeDatabase = (string) ($recombeeDatabase ?? $app->get(ConfigurationEnum::RECOMBEE_DATABASE->value));
         $recombeeApiKey = (string) ($recombeeApiKey ?? $app->get(ConfigurationEnum::RECOMBEE_API_KEY->value));
-        $recombeeRegion = (string) ($recombeeRegion ?? $app->get(ConfigurationEnum::RECOMBEE_REGION->value) ?? 'ca-east');
+        $region = RegionEnum::fromConfiguration($recombeeRegion ?? $app->get(ConfigurationEnum::RECOMBEE_REGION->value));
 
         if (empty($recombeeDatabase) || empty($recombeeApiKey)) {
             throw new ValidationException('Recombee database and api key are required');
@@ -31,7 +32,7 @@ class Client
             $recombeeDatabase,
             $recombeeApiKey,
             [
-                'region' => $recombeeRegion,
+                'region' => $region->value,
             ]
         );
     }

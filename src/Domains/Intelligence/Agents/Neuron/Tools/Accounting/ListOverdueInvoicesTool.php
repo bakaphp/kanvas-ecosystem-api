@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Accounting;
 
 use Illuminate\Support\Carbon;
+use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Organizations\Services\OrganizationNameNormalizerService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Scribe\Invoices\Enums\AgingBucketEnum;
@@ -16,7 +18,7 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
 
-#[AgentTool(name: 'List Overdue Invoices')]
+#[AgentTool(name: 'List Overdue Invoices', category: 'accounting')]
 class ListOverdueInvoicesTool extends Tool
 {
     use HasKanvasContext;
@@ -28,7 +30,7 @@ class ListOverdueInvoicesTool extends Tool
             description: 'Lists individual overdue invoices (issued/sent, balance_due > 0, due_date in the past). '
                 . 'Returns invoice_number, customer name, total, balance due, days overdue, aging bucket. '
                 . 'Use this when the user asks "which invoices are overdue", wants a hit list to chase, or asks '
-                . 'about a specific customer\'s late invoices.',
+                . 'about a specific customer\'s late invoices — pass customer to filter to one.',
         );
     }
 
@@ -36,6 +38,12 @@ class ListOverdueInvoicesTool extends Tool
     protected function properties(): array
     {
         return [
+            new ToolProperty(
+                name: 'customer',
+                type: PropertyType::STRING,
+                description: 'Filter to one customer by (partial) organization name. Omit for all customers.',
+                required: false,
+            ),
             new ToolProperty(
                 name: 'limit',
                 type: PropertyType::INTEGER,
@@ -51,13 +59,25 @@ class ListOverdueInvoicesTool extends Tool
         ];
     }
 
-    public function __invoke(?int $limit = null, ?int $min_days_overdue = null): array
+    public function __invoke(?string $customer = null, ?int $limit = null, ?int $min_days_overdue = null): array
     {
         $app = $this->app;
         $company = $this->company;
         $limit = max(1, min(100, $limit ?? 25));
         $minDays = max(1, $min_days_overdue ?? 1);
         $today = Carbon::today();
+
+        $orgIds = null;
+        if ($customer !== null && $customer !== '') {
+            $term = OrganizationNameNormalizerService::normalize($customer) ?: $customer;
+
+            $orgIds = Organization::query()
+                ->where('apps_id', $app->getId())
+                ->where('companies_id', $company->getId())
+                ->where('is_deleted', false)
+                ->where('name', 'like', '%' . $term . '%')
+                ->pluck('id');
+        }
 
         $invoices = Invoice::query()
             ->where('apps_id', $app->getId())
@@ -70,6 +90,7 @@ class ListOverdueInvoicesTool extends Tool
             ->where('balance_due_base', '>', 0.005)
             ->whereDate('due_date', '<=', $today->copy()->subDays($minDays))
             ->where('is_deleted', false)
+            ->when($orgIds !== null, fn ($q) => $q->whereIn('customer_organization_id', $orgIds))
             ->orderBy('due_date')
             ->limit($limit)
             ->get();

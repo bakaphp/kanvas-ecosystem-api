@@ -13,6 +13,7 @@ use Kanvas\Connectors\Mercury\Services\MercuryTransactionService;
 use Kanvas\Scribe\Banking\Actions\MatchBankTransactionAction;
 use Kanvas\Scribe\Banking\Models\BankAccount;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
@@ -25,7 +26,14 @@ use Override;
  * The subtlety: we only book `sent` transactions, but a card auth is CREATED `pending` and later UPDATED to
  * `sent` — so the settlement arrives as `transaction.updated`, and trusting the create payload would miss it.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Mercury Banking Webhook',
+    description: 'Receiver for Mercury bank events: on any nudge it re-fetches the transaction by id and books '
+        . 'it, then tries to match it to an open invoice or bill. Inbound only. The delivery is treated '
+        . 'as a nudge rather than data because a card authorization arrives first as pending and only '
+        . 'settles later, so trusting the payload would miss the settlement. Re-delivery is harmless.',
+    integration: IntegrationsEnum::MERCURY,
+)]
 class ProcessMercuryWebhookJob extends ProcessWebhookJob
 {
     #[Override]

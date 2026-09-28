@@ -13,7 +13,9 @@ use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Intelligence\Tools\Traits\Guild\CreatesLeadTrait;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -27,6 +29,7 @@ use Override;
  */
 #[AgentTool(
     name: 'Capture Conversation Lead',
+    category: 'crm',
     description: 'Creates a lead for the prospect in the current conversation AND focuses the session on '
         . 'them so later turns are lead-scoped (dedupes a repeat call to the same prospect). For '
         . 'single-prospect conversational agents like sales. Do NOT assign to agents that handle many '
@@ -106,7 +109,15 @@ class CaptureConversationLeadTool extends Tool
             new ToolProperty(
                 name: 'organization_id',
                 type: PropertyType::INTEGER,
-                description: 'Optional organization ID to link the lead to. Leave 0 if unknown.',
+                description: 'Optional ID of an EXISTING organization to link the lead to. Leave 0 if unknown — '
+                    . 'never guess an ID. Use organization_name instead when you only know the company name.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'organization_name',
+                type: PropertyType::STRING,
+                description: 'Optional company / account the person belongs to (e.g. "Brooklinen"). Created if it '
+                    . 'does not exist yet, and the person is added to it. Ignored when organization_id is given.',
                 required: false,
             ),
         ];
@@ -122,6 +133,7 @@ class CaptureConversationLeadTool extends Tool
         ?int $lead_type_id = null,
         ?int $lead_source_id = null,
         ?int $organization_id = null,
+        ?string $organization_name = null,
     ): array {
         // Refuse duplicate create_lead in the same prospect session — return the
         // existing lead_id instead.
@@ -153,9 +165,12 @@ class CaptureConversationLeadTool extends Tool
             leadTypeId: $lead_type_id ?? 0,
             leadSourceId: $lead_source_id ?? 0,
             organizationId: ($organization_id !== null && $organization_id > 0) ? $organization_id : null,
+            organizationName: $organization_name,
         );
 
-        if (isset($result['lead_id']) && $this->session !== null) {
+        // An internal agent's session is the staffer's own thread, reachable only by its key; repointing it at
+        // the prospect makes the next turn open a second session under that same key and split the chat.
+        if (isset($result['lead_id']) && $this->session !== null && ! $this->session->agent?->conversesWithUser()) {
             $this->promoteSessionToPeople((int) $result['lead_id']);
             $result['session_promoted'] = true;
             $result['next_step'] = 'You may now call lead-scoped tools '
@@ -169,8 +184,9 @@ class CaptureConversationLeadTool extends Tool
     /**
      * Repoint the anonymous session at the prospect's People row. If a People
      * session already exists for this (people, agent), reuse its channel;
-     * otherwise promote the current session in place. Pre-existing channel
-     * messages are cross-linked to both People and Lead channels either way.
+     * otherwise promote the current session in place. A conversation-isolated
+     * session's prior messages are backfilled onto both the People and Lead
+     * channels; a channel-derived (shared-DM) session gets a clean slate.
      */
     private function promoteSessionToPeople(int $leadId): void
     {
@@ -197,11 +213,9 @@ class CaptureConversationLeadTool extends Tool
         );
 
         $currentChannel = $this->session->channel;
-        if ($currentChannel !== null) {
-            // The ai-assist channel is keyed by (agent, user), so it accumulates
-            // every anonymous chat this user ever had with this agent. Only
-            // backfill messages tagged with THIS session's UUID — otherwise we
-            // drag unrelated past conversations into the new People channel.
+        if ($currentChannel !== null && $this->sessionIsolatesConversation($currentChannel, $lead)) {
+            // Backfill only THIS conversation's turns. sessionIsolatesConversation() has already
+            // excluded channel-derived (shared-DM) sessions, where this UUID filter can't tell leads apart.
             foreach ($currentChannel->messages()->get() as $message) {
                 $stored = $message->getMessage();
                 $msgSessionId = $stored['thread_id'] ?? $stored['session_id'] ?? null;
@@ -239,5 +253,25 @@ class CaptureConversationLeadTool extends Tool
         $this->session->entity_id = $people->getId();
         $this->session->channel_id = $existingPeopleSession?->channel_id ?? $peopleChannel->getId();
         $this->session->saveQuietly();
+    }
+
+    /**
+     * True only when the session UUID is unique to this conversation, so its messages can be
+     * safely backfilled onto the new lead. A channel-derived session (Slack/WhatsApp/email)
+     * keys its UUID on the channel slug via SessionChannelService::buildChannelSessionUuid —
+     * one durable DM shared across every lead the prospect generates — so that UUID cannot
+     * separate this lead's turns from prior leads'. Those sessions return false → clean slate.
+     */
+    private function sessionIsolatesConversation(Channel $channel, Lead $lead): bool
+    {
+        if ($this->session === null) {
+            return false;
+        }
+
+        return $this->session->uuid !== SessionChannelService::buildChannelSessionUuid(
+            $channel,
+            $lead->app,
+            $lead->company,
+        );
     }
 }

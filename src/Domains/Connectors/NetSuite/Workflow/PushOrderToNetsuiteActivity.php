@@ -18,7 +18,12 @@ use Override;
 use RuntimeException;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'NetSuite Push Order',
+    description: 'Pushes the order into NetSuite as a quote. Outbound one-way write. On failure it emails the '
+        . 'configured operators rather than failing quietly, so a broken ERP link is noticed.',
+    integration: IntegrationsEnum::NETSUITE,
+)]
 class PushOrderToNetsuiteActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

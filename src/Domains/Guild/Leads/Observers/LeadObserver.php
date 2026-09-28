@@ -6,14 +6,19 @@ namespace Kanvas\Guild\Leads\Observers;
 
 use Baka\Support\Str;
 use Kanvas\Guild\Customers\Actions\CreatePeopleByEmailAction;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Events\LeadCompanyUpdateEvent;
 use Kanvas\Guild\Leads\Events\LeadUpdateEvent;
+use Kanvas\Guild\Leads\Jobs\SummarizeLeadConversationJob;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Guild\Pipelines\Models\Pipeline;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Services\RagComponents;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Actions\WriteLeadStageChangeThreadMessageAction;
+use Kanvas\Intelligence\Knowledge\DataTransferObject\KnowledgeEntity;
+use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Intelligence\Sessions\Actions\DeleteSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\UpdateLeadSessionsAction;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -97,6 +102,10 @@ class LeadObserver
 
     public function created(Lead $lead): void
     {
+        if ($lead->people_id && $this->isCounted($lead)) {
+            $this->adjustActiveLeadsCount((int) $lead->people_id, +1);
+        }
+
         if ($lead->user) {
             (
                 new CreateChannelAction(
@@ -139,11 +148,14 @@ class LeadObserver
             }
         }
 
+        $this->queueKnowledgeIndex($lead);
         //$lead->clearLightHouseCacheJob();
     }
 
     public function updated(Lead $lead): void
     {
+        $this->syncActiveLeadsCount($lead);
+
         //Subscription::broadcast('leadUpdate', $lead, true);
         LeadUpdateEvent::dispatch($lead);
         LeadCompanyUpdateEvent::dispatch($lead);
@@ -151,11 +163,35 @@ class LeadObserver
         if ($lead->company->get(ConfigurationEnum::AI_ENABLE->value)) {
             new UpdateLeadSessionsAction($lead)->execute();
         }
+
+        if ($lead->wasChanged('leads_status_id')) {
+            SummarizeLeadConversationJob::dispatchIfEligible($lead);
+        }
+
+        if ($lead->wasChanged([
+            'firstname',
+            'lastname',
+            'title',
+            'email',
+            'phone',
+            'description',
+            'people_id',
+            'organization_id',
+            'companies_id',
+        ])) {
+            $this->queueKnowledgeIndex($lead);
+        }
         //$lead->clearLightHouseCacheJob();
     }
 
     public function deleted(Lead $lead): void
     {
+        // Runs first so the counter update still applies even if anything
+        // below this line fails.
+        if ($lead->people_id && $this->isCounted($lead)) {
+            $this->adjustActiveLeadsCount((int) $lead->people_id, -1);
+        }
+
         //delete social channel related to this lead
         $channel = $lead->getSocialChannel();
 
@@ -175,5 +211,71 @@ class LeadObserver
         ]);
 
         new DeleteSessionAction($lead)->execute();
+    }
+
+    private function queueKnowledgeIndex(Lead $lead): void
+    {
+        if (! RagComponents::isEnabled($lead)) {
+            return;
+        }
+
+        KnowledgeIndexRequested::dispatch(KnowledgeEntity::fromModel($lead));
+    }
+
+    /**
+     * Maintains the active_leads_count counter cache on People. "Counted"
+     * mirrors Lead::hasOpenLeadStatus() (the global open ids plus the
+     * company's `guild_open_leads_status_ids` setting) — NOT Lead::isOpen()'s
+     * `status` int column, which no app code writes and is stuck at its DB
+     * default.
+     */
+    private function syncActiveLeadsCount(Lead $lead): void
+    {
+        $originalPeopleId = $lead->getOriginal('people_id') ? (int) $lead->getOriginal('people_id') : null;
+        $currentPeopleId = $lead->people_id ? (int) $lead->people_id : null;
+        $wasCounted = $this->wasCounted($lead);
+        $isCounted = $this->isCounted($lead);
+
+        if ($originalPeopleId === $currentPeopleId) {
+            if ($wasCounted === $isCounted) {
+                return;
+            }
+
+            if ($currentPeopleId !== null) {
+                $this->adjustActiveLeadsCount($currentPeopleId, $isCounted ? +1 : -1);
+            }
+
+            return;
+        }
+
+        if ($wasCounted && $originalPeopleId !== null) {
+            $this->adjustActiveLeadsCount($originalPeopleId, -1);
+        }
+
+        if ($isCounted && $currentPeopleId !== null) {
+            $this->adjustActiveLeadsCount($currentPeopleId, +1);
+        }
+    }
+
+    private function isCounted(Lead $lead): bool
+    {
+        return $lead->hasOpenLeadStatus() && ! (bool) $lead->is_deleted;
+    }
+
+    private function wasCounted(Lead $lead): bool
+    {
+        return $lead->isOpenLeadStatusId((int) $lead->getOriginal('leads_status_id'))
+            && ! (bool) $lead->getOriginal('is_deleted');
+    }
+
+    private function adjustActiveLeadsCount(int $peopleId, int $delta): void
+    {
+        $query = People::where('id', $peopleId);
+
+        if ($delta < 0) {
+            $query->where('active_leads_count', '>', 0);
+        }
+
+        $query->increment('active_leads_count', $delta);
     }
 }

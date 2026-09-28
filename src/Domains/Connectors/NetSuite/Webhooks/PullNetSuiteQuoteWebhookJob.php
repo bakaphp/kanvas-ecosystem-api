@@ -8,10 +8,16 @@ use Exception;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteQuoteToOrderAction;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'NetSuite Pull Quote',
+    description: 'Receiver that pulls a NetSuite quote into Kanvas and updates the matching order with it. '
+        . 'Inbound one-way.',
+    integration: IntegrationsEnum::NETSUITE,
+)]
 class PullNetSuiteQuoteWebhookJob extends ProcessWebhookJob
 {
     #[Override]

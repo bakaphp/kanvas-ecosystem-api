@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\Bills\Actions;
 
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Scribe\Bills\DataTransferObject\Bill as BillData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillLine as BillLineData;
 use Kanvas\Scribe\Bills\DataTransferObject\BillTaxLine as BillTaxLineData;
 use Kanvas\Scribe\Bills\Enums\BillDocumentStatusEnum;
+use Kanvas\Scribe\Bills\Exceptions\DuplicateBillNumberException;
 use Kanvas\Scribe\Bills\Models\Bill;
 use Kanvas\Scribe\Bills\Models\BillLine;
 use Kanvas\Scribe\Bills\Models\BillTaxLine;
@@ -35,6 +38,9 @@ class CreateBillAction
     public function execute(): Bill
     {
         return DB::connection('accounting')->transaction(function (): Bill {
+            $vendorOrganizationId = $this->data->vendor?->getPayeeId();
+            $this->assertBillNumberIsFree($vendorOrganizationId);
+
             [$totals, $baseTotals] = $this->computeTotals();
             $fxRate = $this->data->fx_rate_to_base;
 
@@ -78,9 +84,7 @@ class CreateBillAction
             $bill->metadata = $this->data->metadata;
             $bill->users_id = $this->user?->getId();
 
-            if ($this->data->vendor !== null) {
-                $bill->vendor_organization_id = $this->data->vendor->getPayeeId();
-            }
+            $bill->vendor_organization_id = $vendorOrganizationId;
 
             $bill->vendor_display_name = $this->data->vendor_display_name;
             $bill->vendor_legal_name = $this->data->vendor_legal_name;
@@ -88,7 +92,16 @@ class CreateBillAction
             $bill->vendor_email = $this->data->vendor_email;
             $bill->vendor_address_snapshot = $this->data->vendor_address_snapshot;
 
-            $bill->save();
+            try {
+                $bill->save();
+            } catch (UniqueConstraintViolationException $e) {
+                // A concurrent insert that beat the pre-check. The external_id index is a different fault.
+                if (! str_contains($e->getMessage(), 'bills_vendor_number_uq')) {
+                    throw $e;
+                }
+
+                $this->rejectDuplicate($vendorOrganizationId);
+            }
 
             $sortOrder = 0;
             foreach ($this->data->lines as $lineData) {
@@ -139,6 +152,48 @@ class CreateBillAction
 
             return $bill;
         });
+    }
+
+    /**
+     * Mirrors `bills_vendor_number_uq`, which spans soft-deleted rows too — a deleted bill still
+     * holds its number. Both columns are nullable and MySQL never collides on NULL.
+     */
+    private function assertBillNumberIsFree(?int $vendorOrganizationId): void
+    {
+        if ($vendorOrganizationId === null || $this->data->bill_number === null) {
+            return;
+        }
+
+        $existing = Bill::withTrashed()
+            ->where('apps_id', $this->data->app->getId())
+            ->where('companies_id', $this->data->company->getId())
+            ->where('vendor_organization_id', $vendorOrganizationId)
+            ->where('bill_number', $this->data->bill_number)
+            ->first();
+
+        if ($existing !== null) {
+            $this->rejectDuplicate(
+                $vendorOrganizationId,
+                $existing
+            );
+        }
+    }
+
+    /**
+     * Logged here rather than reported: every caller (agent tool, GraphQL) shows the conflict to the
+     * person, and the exception is ShouldntReport so it stays out of Sentry.
+     */
+    private function rejectDuplicate(?int $vendorOrganizationId, ?Bill $existing = null): never
+    {
+        Log::warning('Duplicate bill number rejected', [
+            'apps_id' => $this->data->app->getId(),
+            'companies_id' => $this->data->company->getId(),
+            'vendor_organization_id' => $vendorOrganizationId,
+            'bill_number' => $this->data->bill_number,
+            'existing_bill_id' => $existing?->getId(),
+        ]);
+
+        throw new DuplicateBillNumberException((string) $this->data->bill_number, $existing);
     }
 
     /**

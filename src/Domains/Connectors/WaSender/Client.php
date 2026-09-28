@@ -10,6 +10,7 @@ use GuzzleHttp\Client as GuzzleClient;
 use GuzzleHttp\Exception\ClientException;
 use GuzzleHttp\Exception\GuzzleException;
 use Kanvas\Connectors\WaSender\Enums\ConfigurationEnum;
+use Kanvas\Connectors\WaSender\Exceptions\WaSenderRefusedException;
 use Kanvas\Exceptions\ValidationException;
 
 class Client
@@ -48,105 +49,26 @@ class Client
         ]);
     }
 
-    /**
-     * Perform a GET request to the API.
-     */
     public function get(string $endpoint, array $queryParams = []): array
     {
-        try {
-            $response = $this->client->get($endpoint, [
-                'query' => $queryParams,
-            ]);
-            $body = $response->getBody()->getContents();
-
-            return json_decode($body, true);
-        } catch (ClientException $e) {
-            $response = $e->getResponse();
-            $body = $response->getBody()->getContents();
-            $error = json_decode($body, true);
-
-            throw new ValidationException(
-                $error['message'] ?? $e->getMessage(),
-                (int)($error['code'] ?? $e->getCode())
-            );
-        }
+        return $this->send('GET', $endpoint, ['query' => $queryParams]);
     }
 
-    /**
-     * Perform a POST request to the API.
-     */
     public function post(string $endpoint, array $data): array
     {
-        try {
-            $response = $this->client->post($endpoint, [
-                'json' => $data,
-            ]);
-            $body = $response->getBody()->getContents();
-
-            return json_decode($body, true);
-        } catch (ClientException $e) {
-            $response = $e->getResponse();
-            $body = $response->getBody()->getContents();
-            $error = json_decode($body, true);
-
-            throw new ValidationException(
-                $error['message'] ?? $e->getMessage(),
-                (int)($error['code'] ?? $e->getCode())
-            );
-        }
+        return $this->send('POST', $endpoint, ['json' => $data]);
     }
 
-    /**
-     * Perform a PUT request to the API.
-     */
     public function put(string $endpoint, array $data): array
     {
-        try {
-            $response = $this->client->put($endpoint, [
-                'json' => $data,
-            ]);
-            $body = $response->getBody()->getContents();
-
-            return json_decode($body, true);
-        } catch (ClientException $e) {
-            $response = $e->getResponse();
-            $body = $response->getBody()->getContents();
-            $error = json_decode($body, true);
-
-            throw new ValidationException(
-                $error['message'] ?? $e->getMessage(),
-                (int)($error['code'] ?? $e->getCode())
-            );
-        }
+        return $this->send('PUT', $endpoint, ['json' => $data]);
     }
 
-    /**
-     * Perform a DELETE request to the API.
-     */
     public function delete(string $endpoint, array $queryParams = []): array
     {
-        try {
-            $response = $this->client->delete($endpoint, [
-                'query' => $queryParams,
-            ]);
-            $body = $response->getBody()->getContents();
-
-            return json_decode($body, true);
-        } catch (ClientException $e) {
-            $response = $e->getResponse();
-            $body = $response->getBody()->getContents();
-            $error = json_decode($body, true);
-
-            throw new ValidationException(
-                $error['message'] ?? $e->getMessage(),
-                (int)($error['code'] ?? $e->getCode())
-            );
-        }
+        return $this->send('DELETE', $endpoint, ['query' => $queryParams]);
     }
 
-    /**
-     * Send a WhatsApp text message.
-     */
     public function sendMessage(string $to, string $text): array
     {
         return $this->post('/api/send-message', [
@@ -155,9 +77,6 @@ class Client
         ]);
     }
 
-    /**
-     * Validate API credentials.
-     */
     public static function validateCredentials(
         string $baseUrl,
         string $apiKey
@@ -171,14 +90,9 @@ class Client
                 ],
             ]);
 
-            // Try to make a simple request to check if the credentials are valid
-            // You might need to adjust this endpoint based on WasenderAPI's documentation
             $response = $client->get('/api/status');
+            $data = json_decode($response->getBody()->getContents(), true);
 
-            $body = $response->getBody()->getContents();
-            $data = json_decode($body, true);
-
-            // Make sure we got a valid response
             if (! is_array($data) || ! isset($data['status'])) {
                 throw new ValidationException('Invalid response from Wasender API');
             }
@@ -190,5 +104,32 @@ class Client
                 $e->getCode()
             );
         }
+    }
+
+    private function send(string $method, string $endpoint, array $options): array
+    {
+        try {
+            $response = $this->client->request($method, $endpoint, $options);
+
+            return json_decode($response->getBody()->getContents(), true);
+        } catch (ClientException $e) {
+            throw $this->rejection($e);
+        }
+    }
+
+    /**
+     * Guzzle raises ClientException for 4xx only, so anything reaching here is the API declining the
+     * request rather than failing at it — hence its own type, which a caller can skip on. `error` is
+     * WaSender's own key; without it the reason stays buried in Guzzle's "Client error: POST …" blurb.
+     */
+    private function rejection(ClientException $e): WaSenderRefusedException
+    {
+        $error = json_decode($e->getResponse()->getBody()->getContents(), true);
+        $error = is_array($error) ? $error : [];
+
+        return new WaSenderRefusedException(
+            $error['message'] ?? $error['error'] ?? $e->getMessage(),
+            $error['code'] ?? $e->getResponse()->getStatusCode()
+        );
     }
 }

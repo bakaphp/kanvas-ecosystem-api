@@ -9,10 +9,13 @@ use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\SlugTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Inventory\Channels\Actions\UnPublishAllVariantsAction;
 use Kanvas\Inventory\Models\BaseModel;
@@ -21,6 +24,7 @@ use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Social\Tags\Traits\HasTagsTrait;
+use Override;
 
 /**
  * Class Channels.
@@ -154,7 +158,7 @@ class Channels extends BaseModel
     public function toSearchableArray(): array
     {
         return [
-            'objectID' => $this->id,
+            'objectID' => (string) $this->id,
             'id' => (string) $this->id,
             'name' => $this->name,
             'description' => $this->description,
@@ -201,5 +205,43 @@ class Channels extends BaseModel
         }
 
         return $query;
+    }
+
+    /**
+     * Overrides KanvasCompanyScopesTrait::scopeFromCompanyOrGlobal() for this model only — a
+     * declared method on the class always wins over one brought in by `use`. Unlike the trait's
+     * version, this is NOT gated by Souk's ALLOW_CROSS_COMPANY_VARIANTS: that flag also toggles
+     * cross-company cart/product/region visibility platform-wide, far broader than "show the one
+     * shared channel" — an app-wide channel (e.g. "popular") should be visible unconditionally.
+     */
+    #[Override]
+    public function scopeFromCompanyOrGlobal(Builder $query, mixed $company = null): Builder
+    {
+        $table = $this->getTable() . '.';
+
+        if (app()->bound(AppKey::class) && ! app()->bound(CompaniesBranches::class)) {
+            return $query->where($table . 'companies_id', '>=', 0);
+        }
+
+        $company = $company instanceof Companies ? $company : auth()->user()->getCurrentCompany();
+        $companyId = $company->getId();
+
+        return $query->where(
+            fn ($q) => $q->where($table . 'companies_id', 0)
+                ->orWhere($table . 'companies_id', $companyId)
+        );
+    }
+
+    /**
+     * Lighthouse applies @orderBy before scopes and passes the query args, so this only kicks in
+     * when the client sent no orderBy of its own.
+     */
+    public function scopeDefaultOrder(Builder $query, array $args = []): Builder
+    {
+        if (! empty($args['orderBy'])) {
+            return $query;
+        }
+
+        return $query->orderBy($this->getTable() . '.id', 'asc');
     }
 }

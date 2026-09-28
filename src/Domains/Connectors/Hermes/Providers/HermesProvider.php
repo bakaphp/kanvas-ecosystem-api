@@ -35,6 +35,7 @@ use Kanvas\Connectors\Hermes\Kanban\Actions\FetchKanbanBoardAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\FetchKanbanTaskAction;
 use Kanvas\Connectors\Hermes\Kanban\Actions\TransitionKanbanTaskAction;
 use Kanvas\Connectors\Hermes\Kanban\Support\HermesProfileResolver;
+use Kanvas\Connectors\Hermes\Services\DockerComposeBuilderService;
 use Kanvas\Connectors\Hermes\SshClient;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\DailyLearningSummary;
 use Kanvas\Intelligence\AgentRuntime\DataTransferObject\KanbanTask;
@@ -178,6 +179,12 @@ class HermesProvider extends AbstractAgentRuntimeProvider
     }
 
     #[Override]
+    public function costDefaultsPatch(string $currentConfig): string
+    {
+        return new DockerComposeBuilderService()->costDefaultsPatch($currentConfig);
+    }
+
+    #[Override]
     public function dispatchBackup(AgentDeployment $deployment, AgentBackup $backup, bool $includeWorkspace): void
     {
         BackupAgentWorkspaceJob::dispatch($deployment, $backup, $includeWorkspace);
@@ -279,6 +286,7 @@ class HermesProvider extends AbstractAgentRuntimeProvider
         string $message,
         ?string $sessionKey = null,
         array $images = [],
+        array $additionalTools = [],
     ): string {
         return new ChatWithAgentAction(
             $agent,

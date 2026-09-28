@@ -10,8 +10,10 @@ use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
 use Kanvas\SystemModules\Actions\CreateInCurrentAppAction;
 
 class CreatePlanAction
@@ -37,10 +39,15 @@ class CreatePlanAction
         new CreateInCurrentAppAction($this->data->app)->execute(Plan::class);
 
         return DB::connection('intelligence')->transaction(function (): Plan {
-            $effectiveStatus = $this->data->requiresHumanApproval
-                && $this->data->status === PlanStatusEnum::ACTIVE
-                ? PlanStatusEnum::AWAITING_APPROVAL
-                : $this->data->status;
+            $boardColumn = new ProjectBoardColumns()->resolveForPlan(
+                $this->data->project,
+                $this->data->boardColumnKey,
+            );
+            $requestedStatus = $boardColumn !== null
+                ? PlanStatusEnum::from($boardColumn['plan_status'])
+                : $this->initialStatus();
+
+            $effectiveStatus = $requestedStatus->heldForApproval($this->data->requiresHumanApproval);
 
             // Demote any existing active mission for this swarm BEFORE
             // saving the new plan, so the unique-active invariant holds
@@ -59,6 +66,7 @@ class CreatePlanAction
             $plan->apps_id = $this->data->app->getId();
             $plan->companies_id = $this->data->company->getId();
             $plan->agent_id = $this->data->agent?->getId();
+            $plan->created_by_agent_id = $this->data->createdByAgent?->getId();
             $plan->users_id = $this->data->user?->getId();
             $plan->parent_plan_id = $this->data->parentPlan?->id;
             $plan->project_id = $this->data->project?->getId();
@@ -68,6 +76,7 @@ class CreatePlanAction
             $plan->title = $this->data->title;
             $plan->description = $this->data->description;
             $plan->status = $effectiveStatus->value;
+            $plan->board_column_key = $boardColumn['key'] ?? null;
             $plan->priority = $this->data->priority;
             $plan->completion_pct = 0;
             $plan->deadline_at = $this->data->deadlineAt;
@@ -118,5 +127,20 @@ class CreatePlanAction
 
             return $plan;
         });
+    }
+
+    /**
+     * Every plan is born in TODO, except one recorded for work that is already running — a dispatched
+     * coding job or Claude session — which is in progress from its first row.
+     */
+    private function initialStatus(): PlanStatusEnum
+    {
+        $alreadyRunning = $this->data->status === PlanStatusEnum::DRAFT
+            && array_any(
+                $this->tasks,
+                fn (TaskData $task): bool => $task->status === TaskStatusEnum::IN_PROGRESS,
+            );
+
+        return $alreadyRunning ? PlanStatusEnum::ACTIVE : $this->data->status;
     }
 }

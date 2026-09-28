@@ -7,17 +7,18 @@ namespace Kanvas\Connectors\Slack;
 use Baka\Http\SafeUrl;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
+use Kanvas\Connectors\Slack\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Slack\Services\SlackMarkdownService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Workflow\Models\ReceiverWebhook;
+use Throwable;
 
 class Client
 {
     private const string BASE_URL = 'https://slack.com/api/';
-
-    // Slack rejects a message whose text exceeds its limit with `msg_too_long`. It only renders
-    // ~4000 chars cleanly, so we split below that and send the overflow as follow-up messages.
-    private const int MAX_TEXT_LENGTH = 3900;
+    private const int MAX_TEXT_LENGTH = 3000;
 
     // Slack's file download 302-chains through a couple of hosts (workspace host → signed CDN); a
     // handful of hops is plenty, and the cap stops a redirect loop from hanging the worker.
@@ -42,11 +43,27 @@ class Client
     }
 
     /**
-     * The posted message's `ts`, which doubles as its id for updateMessage() — the
-     * placeholder-then-edit pattern an agent turn needs, since it outlives Slack's ack window.
+     * The listener has no agent to hang a token on, so its credentials live on the receiver.
      */
-    public function postMessage(string $channel, string $text, ?string $threadTs = null): string
+    public static function getInstanceByReceiver(ReceiverWebhook $receiver): self
     {
+        $botToken = (string) ($receiver->configuration[ConfigurationEnum::BOT_TOKEN->value] ?? '');
+
+        if ($botToken === '') {
+            throw new ValidationException(
+                'Receiver ' . (int) $receiver->getId() . ' has no Slack bot token. Connect the listener first.'
+            );
+        }
+
+        return new self($botToken);
+    }
+
+    /** Returns the message timestamp used to update, delete, or reply to it. */
+    public function postMessage(
+        string $channel,
+        string $text,
+        ?string $threadTs = null
+    ): string {
         return (string) $this->call('chat.postMessage', array_filter([
             'channel' => $channel,
             'text' => $text,
@@ -54,8 +71,11 @@ class Client
         ]))['ts'];
     }
 
-    public function updateMessage(string $channel, string $ts, string $text): void
-    {
+    public function updateMessage(
+        string $channel,
+        string $ts,
+        string $text
+    ): void {
         $this->call('chat.update', [
             'channel' => $channel,
             'ts' => $ts,
@@ -63,38 +83,58 @@ class Client
         ]);
     }
 
+    public function deleteMessage(string $channel, string $ts): void
+    {
+        $this->call('chat.delete', ['channel' => $channel, 'ts' => $ts]);
+    }
+
+    public function postMarkdownMessage(string $channel, string $markdown, ?string $threadTs = null): string
+    {
+        $firstTs = null;
+
+        foreach (SlackMarkdownService::split($markdown, self::MAX_TEXT_LENGTH) as $chunk) {
+            $response = $this->call('chat.postMessage', array_filter([
+                'channel' => $channel,
+                'markdown_text' => $chunk,
+                'thread_ts' => $threadTs ?: $firstTs,
+            ], static fn ($value): bool => $value !== null && $value !== ''));
+
+            $firstTs ??= (string) $response['ts'];
+        }
+
+        return (string) $firstTs;
+    }
+
     /**
-     * Edit the placeholder message with a reply that may exceed Slack's per-message limit: the first
-     * chunk updates the placeholder, the rest are posted as follow-ups in the same thread. Avoids the
-     * `msg_too_long` failure a long agent reply otherwise triggers on chat.update.
+     * Post a new reply to trigger notifications; chat.update does not notify.
+     * Delete the placeholder only after every chunk succeeds so failures can still update it.
      */
-    public function updateMessageWithOverflow(
+    public function replacePlaceholderWithReply(
         string $channel,
-        string $ts,
+        string $placeholderTs,
         string $text,
         ?string $threadTs = null
     ): void {
-        $chunks = self::splitText($text);
+        $this->postMarkdownMessage($channel, $text, $threadTs);
 
-        $this->updateMessage($channel, $ts, $chunks[0]);
-
-        // Keep follow-ups in the same thread; when the turn wasn't threaded, hang them off the
-        // placeholder itself so the reply stays a single readable unit.
-        $thread = $threadTs !== null && $threadTs !== '' ? $threadTs : $ts;
-        foreach (array_slice($chunks, 1) as $chunk) {
-            $this->postMessage($channel, $chunk, $thread);
+        try {
+            $this->deleteMessage($channel, $placeholderTs);
+        } catch (Throwable $e) {
+            // A cleanup failure must not mark an already-delivered reply as failed.
+            report($e);
         }
     }
 
     /**
-     * Split text into Slack-sized chunks, preferring newline boundaries so mrkdwn formatting isn't
-     * cut mid-entity. A single line longer than the limit is hard-split as a last resort.
+     * Split text into Slack-sized chunks by BYTE length (Slack's `msg_too_long` is byte-counted),
+     * preferring newline boundaries so mrkdwn formatting isn't cut mid-entity. A single line longer
+     * than the limit is hard-split on UTF-8 character boundaries so no multibyte char is severed.
      *
      * @return list<string>
      */
     public static function splitText(string $text, int $limit = self::MAX_TEXT_LENGTH): array
     {
-        if (mb_strlen($text) <= $limit) {
+        if (strlen($text) <= $limit) {
             return [$text];
         }
 
@@ -102,12 +142,12 @@ class Client
         $current = '';
 
         foreach (explode("\n", $text) as $line) {
-            if (mb_strlen($line) > $limit) {
+            if (strlen($line) > $limit) {
                 if ($current !== '') {
                     $chunks[] = $current;
                     $current = '';
                 }
-                foreach (mb_str_split($line, max(1, $limit)) as $piece) {
+                foreach (self::hardSplitByBytes($line, $limit) as $piece) {
                     $chunks[] = $piece;
                 }
 
@@ -115,7 +155,7 @@ class Client
             }
 
             $candidate = $current === '' ? $line : $current . "\n" . $line;
-            if (mb_strlen($candidate) > $limit) {
+            if (strlen($candidate) > $limit) {
                 $chunks[] = $current;
                 $current = $line;
             } else {
@@ -130,9 +170,69 @@ class Client
         return $chunks;
     }
 
+    /**
+     * Hard-split one over-long line into <= $limit BYTE pieces without cutting a multibyte character:
+     * accumulate whole UTF-8 characters until the next one would breach the byte budget.
+     *
+     * @return list<string>
+     */
+    private static function hardSplitByBytes(string $line, int $limit): array
+    {
+        $pieces = [];
+        $current = '';
+
+        foreach (mb_str_split($line) as $char) {
+            if ($current !== '' && strlen($current) + strlen($char) > $limit) {
+                $pieces[] = $current;
+                $current = '';
+            }
+            $current .= $char;
+        }
+
+        if ($current !== '') {
+            $pieces[] = $current;
+        }
+
+        return $pieces;
+    }
+
     public function userInfo(string $userId): array
     {
         return $this->call('users.info', ['user' => $userId])['user'] ?? [];
+    }
+
+    /**
+     * Returns one page and its cursor rather than looping internally: this endpoint is rate-limited
+     * hard enough that a full sweep has to be spread over time by the caller.
+     *
+     * @return array{channels: array, next_cursor: string}
+     */
+    public function conversationsList(string $cursor = '', string $types = 'public_channel'): array
+    {
+        $response = $this->call('conversations.list', array_filter([
+            'types' => $types,
+            'exclude_archived' => 'true',
+            'limit' => '200',
+            'cursor' => $cursor === '' ? null : $cursor,
+        ]));
+
+        return [
+            'channels' => (array) ($response['channels'] ?? []),
+            'next_cursor' => (string) ($response['response_metadata']['next_cursor'] ?? ''),
+        ];
+    }
+
+    /**
+     * Public channels only — a bot cannot join a private channel, a human has to invite it.
+     */
+    public function joinConversation(string $channelId): void
+    {
+        $this->call('conversations.join', ['channel' => $channelId]);
+    }
+
+    public function conversationInfo(string $channelId): array
+    {
+        return $this->call('conversations.info', ['channel' => $channelId])['channel'] ?? [];
     }
 
     public function lookupUserIdByEmail(string $email): ?string
@@ -156,6 +256,46 @@ class Client
     public function authTest(): array
     {
         return $this->call('auth.test', []);
+    }
+
+    /**
+     * Uploads a file into a channel/DM as a real Slack attachment, via the current 3-step external
+     * upload flow (the old one-shot files.upload was deprecated): reserve an upload URL, PUT the
+     * bytes to it, then complete the upload against the destination channel.
+     */
+    public function uploadFile(
+        string $channel,
+        string $filename,
+        string $contents,
+        ?string $initialComment = null,
+        ?string $threadTs = null,
+    ): void {
+        $reservation = $this->call('files.getUploadURLExternal', [
+            'filename' => $filename,
+            'length' => (string) strlen($contents),
+        ]);
+
+        $uploadUrl = (string) ($reservation['upload_url'] ?? '');
+        $fileId = (string) ($reservation['file_id'] ?? '');
+
+        if ($uploadUrl === '' || $fileId === '') {
+            throw new ValidationException('Slack files.getUploadURLExternal did not return an upload_url/file_id.');
+        }
+
+        $response = Http::timeout(30)
+            ->withBody($contents, 'application/octet-stream')
+            ->post($uploadUrl);
+
+        if (! $response->successful()) {
+            throw new ValidationException('Slack file upload failed with HTTP ' . $response->status() . '.');
+        }
+
+        $this->call('files.completeUploadExternal', array_filter([
+            'files' => json_encode([['id' => $fileId, 'title' => $filename]]),
+            'channel_id' => $channel,
+            'initial_comment' => $initialComment,
+            'thread_ts' => $threadTs,
+        ]));
     }
 
     /**

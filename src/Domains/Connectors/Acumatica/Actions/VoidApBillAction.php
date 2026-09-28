@@ -67,48 +67,72 @@ class VoidApBillAction
 
         return $this->writer()->withSession(
             function (Client $client) use ($billGuid, $billRef, $vendorCode, $vendorRef, $amount): string {
-                $before = $this->debitAdjustmentsByVendorRef($client, $vendorCode, $vendorRef);
+                // Resume a prior attempt's leftover Debit Adj. instead of calling ReverseBill again — a
+                // failure partway through this method (e.g. a session hiccup on the release/apply steps)
+                // still leaves ReverseBill's own effect committed, so retrying blind piles up duplicates.
+                $existing = $this->debitAdjustmentsByVendorRef($client, $vendorCode, $vendorRef);
 
-                // A client timeout here doesn't mean it failed server-side; the poll below is the real check.
-                try {
-                    $client->invokeAction('Bill', 'ReverseBill', ['entity' => ['id' => $billGuid]]);
-                } catch (Throwable) {
+                if ($existing !== []) {
+                    // array_key_first() on a purely-numeric ReferenceNbr (the common case) comes back as
+                    // an int — PHP casts numeric string array keys automatically — so re-cast to string.
+                    $debitAdjRef = (string) array_key_first($existing);
+                    $debitAdjId = $existing[$debitAdjRef];
+                } else {
+                    // A client timeout here doesn't mean it failed server-side; the poll below is the real check.
+                    try {
+                        $client->invokeAction('Bill', 'ReverseBill', ['entity' => ['id' => $billGuid]]);
+                    } catch (Throwable) {
+                    }
+
+                    [$debitAdjRef, $debitAdjId] = $this->findNewDebitAdjustment($client, $vendorCode, $vendorRef, []);
                 }
 
-                [$debitAdjRef, $debitAdjId] = $this->findNewDebitAdjustment($client, $vendorCode, $vendorRef, $before);
-
-                $client->put('Bill', ['id' => $debitAdjId] + AcumaticaPayload::wrap(['Hold' => false]));
-
-                try {
-                    $client->invokeAction('Bill', 'ReleaseBill', ['entity' => ['id' => $debitAdjId]]);
-                } catch (Throwable) {
-                }
-
-                $this->waitForBillStatus($client, $debitAdjId, ['Open', 'Balanced']);
-
-                $applyBody = AcumaticaPayload::wrap([
-                    'Type' => 'Debit Adj.',
-                    'ReferenceNbr' => $debitAdjRef,
-                ]);
-                $applyBody['Details'] = [
-                    AcumaticaPayload::wrap([
-                        'DocType' => 'Bill',
-                        'ReferenceNbr' => $billRef,
-                        'AmountPaid' => $amount,
-                    ]),
-                ];
-                $client->put('Check', $applyBody);
-
-                try {
-                    $client->invokeAction('Check', 'ReleaseCheck', ['entity' => ['id' => $debitAdjId]]);
-                } catch (Throwable) {
-                }
-
-                $this->waitForCheckClosed($client, $debitAdjId);
+                $this->releaseAndApply($client, $debitAdjId, $debitAdjRef, $billRef, $amount);
 
                 return $debitAdjRef;
             }
         );
+    }
+
+    /** Advances a Debit Adj. through Hold->Release->apply-to-bill->ReleaseCheck, skipping any step it's already past. */
+    private function releaseAndApply(Client $client, string $debitAdjId, string $debitAdjRef, string $billRef, float $amount): void
+    {
+        $status = AcumaticaPayload::value($client->get('Bill/' . $debitAdjId), 'Status');
+
+        if ($status === 'Closed') {
+            return;
+        }
+
+        if ($status === 'On Hold') {
+            $client->put('Bill', ['id' => $debitAdjId] + AcumaticaPayload::wrap(['Hold' => false]));
+
+            try {
+                $client->invokeAction('Bill', 'ReleaseBill', ['entity' => ['id' => $debitAdjId]]);
+            } catch (Throwable) {
+            }
+
+            $this->waitForBillStatus($client, $debitAdjId, ['Open', 'Balanced']);
+        }
+
+        $applyBody = AcumaticaPayload::wrap([
+            'Type' => 'Debit Adj.',
+            'ReferenceNbr' => $debitAdjRef,
+        ]);
+        $applyBody['Details'] = [
+            AcumaticaPayload::wrap([
+                'DocType' => 'Bill',
+                'ReferenceNbr' => $billRef,
+                'AmountPaid' => $amount,
+            ]),
+        ];
+        $client->put('Check', $applyBody);
+
+        try {
+            $client->invokeAction('Check', 'ReleaseCheck', ['entity' => ['id' => $debitAdjId]]);
+        } catch (Throwable) {
+        }
+
+        $this->waitForCheckClosed($client, $debitAdjId);
     }
 
     /**
@@ -148,7 +172,7 @@ class VoidApBillAction
             $new = array_diff_key($after, $before);
 
             if ($new !== []) {
-                $ref = array_key_first($new);
+                $ref = (string) array_key_first($new);
 
                 return [$ref, $new[$ref]];
             }

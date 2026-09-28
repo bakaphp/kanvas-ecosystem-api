@@ -8,6 +8,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\SalesAssist\Actions\CreateLeadFromADFAction;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\NervousSystem\DailyLearning\Services\CycleWindowResolverService;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Tests\TestCase;
@@ -16,12 +17,80 @@ class CreateLeadFromADFActionTest extends TestCase
 {
     public function testExecute(): void
     {
+        [$lead, $webhookCall] = $this->createLeadWebhookCall(fn (string $xml) => $xml);
+
+        new CreateLeadFromADFAction($webhookCall)->execute();
+
+        $this->assertIsArray($lead->get(LeadCustomFieldEnum::ADF_LEAD_XML->value));
+    }
+
+    public function testExecuteWithCarfaxProcessingInstructionAndFooter(): void
+    {
+        [$lead, $webhookCall] = $this->createLeadWebhookCall(
+            fn (string $xml) => str_replace('<?ADF version="1.0"?>', "<?adf version=\"1.0\"?>\r\n  ", $xml)
+                . "\r\n\r\nIf you would like to unsubscribe and stop receiving these emails click here: "
+                . 'https://unsubscribe.example.com/u?token=test-token-3D.'
+        );
+
+        new CreateLeadFromADFAction($webhookCall)->execute();
+
+        $this->assertIsArray($lead->get(LeadCustomFieldEnum::ADF_LEAD_XML->value));
+    }
+
+    public function testExecuteMatchesRequestDateSentWithLocalOffset(): void
+    {
+        [$lead, $webhookCall] = $this->createLeadWebhookCall(
+            fn (string $xml, Lead $lead) => str_replace(
+                $lead->created_at->format('Y-m-d\TH:i:s.vP'),
+                $lead->created_at->copy()->setTimezone('America/New_York')->format('Y-m-d\TH:i:s.vP'),
+                $xml
+            )
+        );
+
+        new CreateLeadFromADFAction($webhookCall)->execute();
+
+        $this->assertIsArray($lead->get(LeadCustomFieldEnum::ADF_LEAD_XML->value));
+    }
+
+    public function testExecuteReadsRequestDateWithoutOffsetInTenantTimezone(): void
+    {
+        [$lead, $webhookCall] = $this->createLeadWebhookCall(
+            fn (string $xml, Lead $lead) => str_replace(
+                $lead->created_at->format('Y-m-d\TH:i:s.vP'),
+                $lead->created_at->copy()
+                    ->setTimezone(CycleWindowResolverService::resolveTimezone($lead->app, $lead->company))
+                    ->format('Y-m-d\TH:i:s.v'),
+                $xml
+            )
+        );
+
+        new CreateLeadFromADFAction($webhookCall)->execute();
+
+        $this->assertIsArray($lead->get(LeadCustomFieldEnum::ADF_LEAD_XML->value));
+    }
+
+    public function testExecuteSkipsNonAdfEmail(): void
+    {
+        [, $webhookCall] = $this->createLeadWebhookCall(
+            fn () => "Verification Code\r\nTo verify your account, enter this code in TikTok:\r\n000000"
+        );
+
+        $result = new CreateLeadFromADFAction($webhookCall)->execute();
+
+        $this->assertSame(['error' => 'ADF prospect not found in payload'], $result);
+    }
+
+    /**
+     * @return array{0: Lead, 1: ReceiverWebhookCall}
+     */
+    private function createLeadWebhookCall(callable $shapeBody): array
+    {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
         $lead = Lead::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
 
-        $ReceiverWebhook = ReceiverWebhook::create([
+        $receiverWebhook = ReceiverWebhook::create([
             'name' => 'ADF Webhook',
             'url' => 'https://example.com/webhook',
             'is_active' => true,
@@ -30,28 +99,28 @@ class CreateLeadFromADFActionTest extends TestCase
             'action_id' => 0,
             'users_id' => $user->getId(),
         ]);
-        $xml = $this->getXmlAsString();
 
-        $email = $lead->people->getEmails()->first()->value;
-        $phone = $lead->people->getCellPhones()->first()->value;
-
-        $xml = str_replace('example@kanvas.dev', $email, $xml);
-        $xml = str_replace('8093505555', $phone, $xml);
-        $xml = str_replace('2025-09-19T17:00:01.045-07:00', $lead->created_at->format('Y-m-d\TH:i:s.vP'), $xml);
+        $xml = str_replace(
+            ['example@kanvas.dev', '8093505555', '2025-09-19T17:00:01.045-07:00'],
+            [
+                $lead->people->getEmails()->first()->value,
+                $lead->people->getCellPhones()->first()->value,
+                $lead->created_at->format('Y-m-d\TH:i:s.vP'),
+            ],
+            $this->getXmlAsString()
+        );
+        $body = $shapeBody($xml, $lead);
 
         $webhookCall = ReceiverWebhookCall::create([
-            'receiver_webhooks_id' => $ReceiverWebhook->id,
+            'receiver_webhooks_id' => $receiverWebhook->id,
             'url' => 'https://example.com/webhook',
             'payload' => [
-                'body-plain' => $xml,
-                'stripped-text' => strip_tags($xml),
+                'body-plain' => $body,
+                'stripped-text' => strip_tags($body),
             ],
         ]);
 
-        $data = (new CreateLeadFromADFAction($webhookCall))->execute();
-
-        $this->assertIsArray($lead->get(LeadCustomFieldEnum::ADF_LEAD_XML->value));
-        $this->assertTrue(true);
+        return [$lead, $webhookCall];
     }
 
     protected function getXmlAsString(): string
@@ -79,8 +148,8 @@ class CreateLeadFromADFActionTest extends TestCase
                 </vehicle>
                 <customer>
                   <contact>
-                    <name part="first">vanessa</name>
-                    <name part="last">garcia-moreno</name>
+                    <name part="first">John</name>
+                    <name part="last">Doe</name>
                     <email>example@kanvas.dev</email>
                     <phone type="voice">8093505555</phone>
                     <address>

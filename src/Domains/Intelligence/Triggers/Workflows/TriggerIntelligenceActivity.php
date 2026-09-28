@@ -9,12 +9,15 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
 use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeAction;
-use Kanvas\Intelligence\Triggers\Actions\ApplyLeadAiModeV1Action;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Trigger Intelligence On Lead',
+    description: 'Starts the intelligence pipeline for a lead — scoring, enrichment and whatever the app has '
+        . 'configured. Entry point rather than an action in itself.',
+)]
 class TriggerIntelligenceActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -34,10 +37,7 @@ class TriggerIntelligenceActivity extends KanvasActivity
                 }
 
                 $configService = new LeadConfigurationService();
-                $actionClass = $configService->isV2Enabled($lead->company)
-                    ? ApplyLeadAiModeAction::class
-                    : ApplyLeadAiModeV1Action::class;
-                $result = new $actionClass($lead, $triggerType)->execute();
+                $result = new ApplyLeadAiModeAction($lead, $triggerType)->execute();
                 if ($aiMode = $lead->get($configService->getAiModeKey($lead))) {
                     $this->sendDataToOrchestration($lead, $aiMode);
                 }
@@ -51,7 +51,16 @@ class TriggerIntelligenceActivity extends KanvasActivity
     {
         $data = ['stateDelta' => ['mode' => $aiMode]];
         foreach ($lead->aiSession as $session) {
-            $handle = new $session->agent->type->handler();
+            $handler = $session->agent?->type?->handler;
+            if (! $handler || ! class_exists($handler)) {
+                continue;
+            }
+
+            $handle = new $handler();
+            if (! method_exists($handle, 'sendDataToAgent')) {
+                continue;
+            }
+
             $handle->setConfiguration(
                 agent: $session->agent,
                 entity: $session->entity(),

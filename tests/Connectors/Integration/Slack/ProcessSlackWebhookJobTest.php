@@ -112,9 +112,9 @@ final class ProcessSlackWebhookJobTest extends TestCase
 
         $this->assertTrue($outbound->message['from_ia']);
         $this->assertStringContainsString('Hola Mundo', $outbound->message['content']);
-        $this->assertSlackReplyWasEdited();
+        $this->assertSlackReplyWasPosted();
         // A DM reads like a normal chat — the reply posts at the top level, not in a thread.
-        $this->assertPlaceholderThreadTs(null);
+        $this->assertSlackPostThreadTs(null);
     }
 
     public function testChannelMentionIsAnsweredAndBoundToTheChannel(): void
@@ -138,9 +138,9 @@ final class ProcessSlackWebhookJobTest extends TestCase
         // Bot handle stripped; the speaker is attributed so the agent knows who's talking this turn.
         $speakerName = trim($this->user->firstname . ' ' . $this->user->lastname);
         $this->assertSame($speakerName . ': status on the deal', $inbound->message['content']);
-        $this->assertSlackReplyWasEdited();
+        $this->assertSlackReplyWasPosted();
         // A top-level mention → reply in the main channel, not forced into a thread.
-        $this->assertPlaceholderThreadTs(null);
+        $this->assertSlackPostThreadTs(null);
     }
 
     public function testAMentionInsideAThreadIsAnsweredInThatThread(): void
@@ -155,7 +155,7 @@ final class ProcessSlackWebhookJobTest extends TestCase
         ]));
 
         // The human is already in a thread — stay in it rather than replying to the channel.
-        $this->assertPlaceholderThreadTs('1699999999.000001');
+        $this->assertSlackPostThreadTs('1699999999.000001');
     }
 
     public function testDirectMessageFromUnknownSlackUserIsRejected(): void
@@ -291,15 +291,20 @@ final class ProcessSlackWebhookJobTest extends TestCase
     }
 
     /**
-     * The agent's answer replaces the "working on it…" placeholder rather than posting twice.
+     * The answer must go out as a real post — Slack notifies nobody about a chat.update, so an
+     * edited-in-place reply reaches the user silently. The placeholder is deleted, not overwritten.
      */
-    private function assertSlackReplyWasEdited(): void
+    private function assertSlackReplyWasPosted(): void
     {
-        Http::assertSent(fn ($request) => str_contains($request->url(), 'chat.update')
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'chat.postMessage')
             && str_contains((string) $request->body(), 'Hola'));
+
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'chat.delete'));
+
+        Http::assertNotSent(fn ($request) => str_contains($request->url(), 'chat.update'));
     }
 
-    private function assertPlaceholderThreadTs(?string $expected): void
+    private function assertSlackPostThreadTs(?string $expected): void
     {
         Http::assertSent(function ($request) use ($expected): bool {
             if (! str_contains($request->url(), 'chat.postMessage')) {

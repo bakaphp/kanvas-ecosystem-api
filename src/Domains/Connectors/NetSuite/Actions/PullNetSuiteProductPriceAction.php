@@ -45,6 +45,11 @@ class PullNetSuiteProductPriceAction
     public function execute(string $barcode): array
     {
         $searchNetsuiteProductInfo = $this->productService->searchProductByItemNumber($barcode);
+
+        if (empty($searchNetsuiteProductInfo)) {
+            return $this->notFoundResult($barcode, 'Product not found in NetSuite');
+        }
+
         $netsuiteProductInfo = $this->productService->getProductById($searchNetsuiteProductInfo[0]->internalId);
 
         $setMinimumQuantity = $this->app->get(ConfigurationEnum::NET_SUITE_MINIMUM_PRODUCT_QUANTITY->value);
@@ -56,12 +61,7 @@ class PullNetSuiteProductPriceAction
                 ->first();
 
         if (! $variant) {
-            return [
-                'company' => $this->mainAppCompany->getId(),
-                'app' => $this->app->getId(),
-                'item' => $barcode,
-                'error' => 'Product not found',
-            ];
+            return $this->notFoundResult($barcode, 'Product not found');
         }
 
         $variantWarehouse = $variant->variantWarehouses()->firstOrFail();
@@ -75,12 +75,7 @@ class PullNetSuiteProductPriceAction
         : $this->customSearchProductByItemNumber($variant->barcode, $locationId);
 
         if (empty($product)) {
-            return [
-                'company' => $this->mainAppCompany->getId(),
-                'app' => $this->app->getId(),
-                'item' => $barcode,
-                'error' => 'Product not found',
-            ];
+            return $this->notFoundResult($barcode, 'Product not found');
         }
 
         $config = [
@@ -115,6 +110,16 @@ class PullNetSuiteProductPriceAction
             'config' => $config,
             'options' => $warehouseOptions,
             'product' => $product,
+        ];
+    }
+
+    private function notFoundResult(string $barcode, string $error): array
+    {
+        return [
+            'company' => $this->mainAppCompany->getId(),
+            'app' => $this->app->getId(),
+            'item' => $barcode,
+            'error' => $error,
         ];
     }
 

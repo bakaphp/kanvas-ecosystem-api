@@ -12,7 +12,14 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'RespondIO Push Lead',
+    description: 'Pushes the lead into Respond.io so the CRM has it. Outbound one-way sync — it writes to '
+        . 'Respond.io and does not bring anything back, and it does not contact the customer. Only '
+        . 'useful if this company actually runs Respond.io; several connectors ship a near-identical '
+        . 'step, so pick the one matching the CRM the company uses.',
+    integration: IntegrationsEnum::RESPOND_IO,
+)]
 class PushLeadActivity extends KanvasActivity
 {
     public $tries = 3;

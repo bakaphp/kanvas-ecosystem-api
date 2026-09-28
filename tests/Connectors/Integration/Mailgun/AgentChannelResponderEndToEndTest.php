@@ -9,7 +9,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Mailgun\Actions\AgentChannelResponderAction;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
+use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
@@ -156,6 +159,91 @@ class AgentChannelResponderEndToEndTest extends TestCase
             'Original Outreach Subject',
             (string) Lead::getById($lead->getId(), $app)->get('title_email_follow_up'),
         );
+    }
+
+    // Regression (Sentry KANVAS-ECOSYSTEM-5W0): a rule fanning every inbound message at the
+    // Mailgun activity delivered Twilio SMS payloads here — no from_email, so the responder
+    // crashed on the undefined key. It must skip, and persist nothing.
+    public function testInboundWithoutFromEmailIsSkippedInsteadOfCrashing(): void
+    {
+        Notification::fake();
+
+        ['app' => $app, 'company' => $company, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
+            $this->seedInboundEmailScenario();
+
+        $inbound->message = [
+            'content' => '11am',
+            'from_me' => false,
+            'from_ia' => false,
+            'chat_jid' => '+16503859777',
+        ];
+        $inbound->saveOrFail();
+
+        $lastMessageId = (int) $inbound->getId();
+        $skipped = null;
+
+        try {
+            new AgentChannelResponderAction($channel, $inbound->fresh(), $agent, $session)->execute([]);
+        } catch (AgentReplySkippedException $e) {
+            $skipped = $e;
+        }
+
+        $this->assertNotNull($skipped, 'A non-email inbound must be skipped, not crash on from_email');
+
+        $outbound = Message::query()
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', $company->getId())
+            ->where('id', '>', $lastMessageId)
+            ->whereJsonContains('message->from_ia', true)
+            ->whereHas(
+                'channels',
+                fn ($q) => $q->where('channels.id', $channel->getId()),
+            )
+            ->exists();
+
+        $this->assertFalse($outbound, 'No agent reply should be persisted for a non-email inbound');
+    }
+
+    // Regression: without this marker the agent had no way to know a new attachment existed and reused an older one's summary from chat history instead.
+    public function testCurrentAttachmentIsSurfacedAsAnExplicitMarker(): void
+    {
+        ['inbound' => $inbound] = $this->seedInboundEmailScenario();
+
+        $filesystem = $this->makeFilesystemRow('02_VATIT_INV2607GB30K00006851.pdf');
+        $inbound->addFile($filesystem, 'attachment-1');
+        $inbound = $inbound->fresh();
+
+        $markers = AttachmentPromptBuilder::withFilesystemMarkers('', $inbound->files);
+
+        $this->assertStringContainsString('filesystem_id: ' . $filesystem->getId(), $markers);
+        $this->assertStringContainsString('"02_VATIT_INV2607GB30K00006851.pdf"', $markers);
+    }
+
+    public function testNoAttachmentMarkerWhenNothingIsAttached(): void
+    {
+        ['inbound' => $inbound] = $this->seedInboundEmailScenario();
+
+        $this->assertSame('', AttachmentPromptBuilder::withFilesystemMarkers('', $inbound->files));
+    }
+
+    private function makeFilesystemRow(string $name): Filesystem
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $row = new Filesystem();
+        $row->apps_id = $app->getId();
+        $row->companies_id = $company->getId();
+        $row->users_id = $user->getId();
+        $row->name = $name;
+        $row->path = 'test/' . $name;
+        $row->url = 'https://example.test/' . $name;
+        $row->size = '12345';
+        $row->file_type = 'pdf';
+        $row->save();
+
+        return $row;
     }
 
     /**

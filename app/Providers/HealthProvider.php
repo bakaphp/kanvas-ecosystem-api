@@ -28,14 +28,14 @@ class HealthProvider extends ServiceProvider
                ->name('queue-sizes')
                ->thresholds([
                    'default' => 5000,
-                   'scout' => 5000,
+                   'scout' => 100000,
                    'agent-runtime' => 2000,
                    'batch-logger' => 5000,
                    'ledger' => 5000,
                ])
                ->warnings([
                    'default' => 1000,
-                   'scout' => 1000,
+                   'scout' => 100000,
                    'agent-runtime' => 500,
                    'batch-logger' => 1000,
                    'ledger' => 1000,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Contracts;
 
 use Kanvas\Connectors\Facebook\OAuth\FacebookOAuthProvider;
+use Kanvas\Connectors\Mcp\OAuth\McpOAuthProvider;
 use Kanvas\Connectors\Microsoft\OAuth\MicrosoftOAuthProvider;
 use Kanvas\Connectors\Shopify\OAuth\ShopifyOAuthProvider;
 use Kanvas\Exceptions\ValidationException;
@@ -22,6 +23,7 @@ class OAuthProviderFactory
             'shopify' => new ShopifyOAuthProvider(),
             'facebook' => new FacebookOAuthProvider(),
             'microsoft' => new MicrosoftOAuthProvider(),
+            'mcp' => new McpOAuthProvider(),
             default => throw new ValidationException("Unsupported OAuth provider: {$provider}"),
         };
     }

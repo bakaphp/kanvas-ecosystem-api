@@ -1,0 +1,29 @@
+type ParticipantActivity {
+    participant_id: ID!
+    name: String!
+    email: String
+    count: Int!
+    first_event_date: Date
+    last_event_date: Date
+    had_prior_activity: Boolean!
+}
+
+type ParticipantStats {
+    total: Int!
+    "First booking ever falls inside the window. Only meaningful when from_date is given."
+    new_count: Int!
+    returning_count: Int!
+    rows: [ParticipantActivity!]!
+}
+
+extend type Query @guard {
+    "Activity per player (participant), not per booker — one person books for the whole foursome."
+    participantStats(
+        from_date: Date
+        to_date: Date
+        top_n: Int
+    ): ParticipantStats!
+        @field(
+            resolver: "App\\GraphQL\\Event\\Queries\\Stats\\ParticipantStatsQuery"
+        )
+}

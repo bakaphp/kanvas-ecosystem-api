@@ -22,7 +22,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'OfferLogix Soft Pull From Lead',
+    description: 'Runs a soft credit pull for the lead through OfferLogix and stores the result. Touches a '
+        . 'credit bureau — only wire it where the customer has consented.',
+    integration: IntegrationsEnum::OFFERLOGIX,
+)]
 class SoftPullFromLeadActivity extends KanvasActivity
 {
     public function execute(Lead $lead, Apps $app, array $params): array

@@ -14,8 +14,6 @@ use Kanvas\Workflow\KanvasActivity;
 #[WorkflowAction]
 class PushPeopleActivity extends KanvasActivity
 {
-    public $tries = 3;
-
     public function execute(People $people, Apps $app, array $params): array
     {
         $this->overwriteAppService($app);

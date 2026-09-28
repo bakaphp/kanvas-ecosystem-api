@@ -52,7 +52,7 @@ class CreateEventFromGhostReceiverJob extends ProcessWebhookJob
             $company,
             $data,
         );
-        $event = (new CreateEventAction($dto))->execute();
+        $event = new CreateEventAction($dto)->withoutNotifications()->execute();
 
         return $event->toArray();
     }

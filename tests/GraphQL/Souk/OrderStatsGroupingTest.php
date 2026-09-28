@@ -174,18 +174,17 @@ class OrderStatsGroupingTest extends OrderBase
         $this->assertEquals('2026-02-02', $result['data'][0]['date']);
         $this->assertEquals('2026-02-09', $result['data'][1]['date']);
 
-        // Week 1: 3 + 10 + 5 = 18
-        $this->assertEquals(18, $result['data'][0]['count']);
-        // Week 2: 8 + 2 = 10
-        $this->assertEquals(10, $result['data'][1]['count']);
+        // Stock series: each bucket closes on its last day, it does not sum its days.
+        // Week 1 closes on 2026-02-04 with 5
+        $this->assertEquals(5, $result['data'][0]['count']);
+        // Week 2 closes on 2026-02-10 with 2
+        $this->assertEquals(2, $result['data'][1]['count']);
 
-        // Max should be week 1 with 18
-        $this->assertEquals(18, $result['maxOrdersDate']['count']);
-        // Min should be week 2 with 10
-        $this->assertEquals(10, $result['minOrdersDate']['count']);
+        $this->assertEquals(5, $result['maxOrdersDate']['count']);
+        $this->assertEquals(2, $result['minOrdersDate']['count']);
 
-        // Average: (18 + 10) / 2 = 14
-        $this->assertEquals(14, $result['orderAvg']);
+        // Average closing stock: (5 + 2) / 2 = 3.5
+        $this->assertEquals(3.5, $result['orderAvg']);
     }
 
     public function testDateGroupingHelperGroupByMonth(): void
@@ -208,10 +207,10 @@ class OrderStatsGroupingTest extends OrderBase
         $this->assertEquals('2026-01-01', $result['data'][0]['date']);
         $this->assertEquals('2026-02-01', $result['data'][1]['date']);
 
-        // January: 10 + 6 = 16
-        $this->assertEquals(16, $result['data'][0]['count']);
-        // February: 2 + 4 = 6
-        $this->assertEquals(6, $result['data'][1]['count']);
+        // January closes on 2026-01-20 with 6
+        $this->assertEquals(6, $result['data'][0]['count']);
+        // February closes on 2026-02-10 with 4
+        $this->assertEquals(4, $result['data'][1]['count']);
     }
 
     public function testDateGroupingHelperTurnoverGroupByWeek(): void
@@ -247,7 +246,26 @@ class OrderStatsGroupingTest extends OrderBase
         $this->assertEquals(15, $result['totalExits']);
     }
 
-    public function testDateGroupingHelperStateMerging(): void
+    public function testDateGroupingHelperKeepsClosingDayOutOfOrderInput(): void
+    {
+        $dailyData = [
+            'orderAvg' => 5,
+            'maxOrdersDate' => ['date' => '2026-02-03', 'count' => 9],
+            'minOrdersDate' => ['date' => '2026-02-02', 'count' => 4],
+            'data' => [
+                ['date' => '2026-02-04', 'count' => 7, 'states' => [['state' => 'paid', 'count' => 7]]],
+                ['date' => '2026-02-02', 'count' => 4, 'states' => [['state' => 'paid', 'count' => 4]]],
+                ['date' => '2026-02-03', 'count' => 9, 'states' => [['state' => 'paid', 'count' => 9]]],
+            ],
+        ];
+
+        $result = DateGroupingHelper::groupOrdersInPeriod($dailyData, DateGroupByEnum::WEEK, 'UTC');
+
+        $this->assertCount(1, $result['data']);
+        $this->assertEquals(7, $result['data'][0]['count']);
+    }
+
+    public function testDateGroupingHelperKeepsClosingDayStates(): void
     {
         $dailyData = [
             'orderAvg' => 5,
@@ -269,12 +287,12 @@ class OrderStatsGroupingTest extends OrderBase
 
         // Both dates are in the same week (2026-02-02 is Monday)
         $this->assertCount(1, $result['data']);
-        $this->assertEquals(15, $result['data'][0]['count']);
+        $this->assertEquals(5, $result['data'][0]['count']);
 
-        // States should be merged: paid=6+2=8, active=4+3=7
+        // States come from the closing day as-is, they are not merged across days
         $states = collect($result['data'][0]['states'])->keyBy('state');
-        $this->assertEquals(8, $states['paid']['count']);
-        $this->assertEquals(7, $states['active']['count']);
+        $this->assertEquals(2, $states['paid']['count']);
+        $this->assertEquals(3, $states['active']['count']);
     }
 
     public function testOrderStatsFilterByProductId(): void

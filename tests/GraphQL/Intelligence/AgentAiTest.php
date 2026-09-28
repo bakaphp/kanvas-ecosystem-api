@@ -6,10 +6,13 @@ namespace Tests\GraphQL\Intelligence;
 
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Factories\AgentLlmConfigFactory;
+use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\Intelligence\Agents\Models\AgentModel;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Models\CommunicationChannel;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Tests\TestCase;
 
 class AgentAiTest extends TestCase
@@ -35,6 +38,60 @@ class AgentAiTest extends TestCase
             ->withCompanyId(auth()->user()->getCurrentCompany()->id)
             ->withUserId(auth()->user()->id)
             ->create();
+    }
+
+    public function testCreateAgentWithLlmConfigExposesRelation(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $llmConfig = AgentLlmConfigFactory::new()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['name' => 'Box ' . fake()->unique()->word()]);
+
+        $response = $this->graphQL('
+            mutation($input: AgentAiInput!) {
+                createAiAgent(input: $input) {
+                    id
+                    llmConfig { id name provider has_api_key }
+                }
+            }
+        ', ['input' => [
+            'agent_type_id' => $this->createAgentType()->getId(),
+            'name' => 'Agent ' . fake()->word(),
+            'role' => ['name' => 'r', 'description' => 'd'],
+            'config' => ['key' => 'value'],
+            'is_active' => true,
+            'agent_llm_config_id' => $llmConfig->getId(),
+        ]])
+        ->assertSuccessful()
+        ->assertJson(['data' => ['createAiAgent' => ['llmConfig' => [
+            'id' => (string) $llmConfig->getId(),
+            'name' => $llmConfig->name,
+            'provider' => 'openai_like',
+            'has_api_key' => true,
+        ]]]]);
+
+        $agentId = $response->json('data.createAiAgent.id');
+
+        // Clearing the selection: omitting the field drops the relation (replace semantics).
+        $this->graphQL('
+            mutation($id: ID!, $input: AgentAiInput!) {
+                updateAiAgent(id: $id, input: $input) {
+                    id
+                    llmConfig { id }
+                }
+            }
+        ', ['id' => $agentId, 'input' => [
+            'agent_type_id' => $this->createAgentType()->getId(),
+            'name' => 'Agent renamed',
+            'role' => ['name' => 'r', 'description' => 'd'],
+            'config' => ['key' => 'value'],
+            'is_active' => true,
+        ]])
+        ->assertSuccessful()
+        ->assertJson(['data' => ['updateAiAgent' => ['llmConfig' => null]]]);
     }
 
     public function testCreateAgent()
@@ -491,5 +548,95 @@ class AgentAiTest extends TestCase
         $deletedDeployment = AgentDeployment::withTrashed()->find($deploymentId);
         $this->assertNotNull($deletedDeployment);
         $this->assertTrue((bool) $deletedDeployment->is_deleted);
+    }
+
+    public function testAgentsAiExposesCompanyAsSingleObject(): void
+    {
+        $company = auth()->user()->getCurrentCompany();
+
+        $this->graphQL('
+            mutation($input: AgentAiInput!) {
+                createAiAgent(input: $input) {
+                    id
+                }
+            }
+        ', ['input' => [
+            'agent_type_id' => $this->createAgentType()->getId(),
+            'name' => 'Company Relation Agent ' . fake()->unique()->word(),
+            'description' => 'Company Relation Agent',
+            'role' => 'test-role',
+            'config' => ['key' => 'value'],
+            'is_active' => true,
+        ]])->assertSuccessful();
+
+        $this->graphQL('
+            query {
+                agentsAi(first: 25) {
+                    data {
+                        id
+                        company {
+                            id
+                            name
+                        }
+                    }
+                }
+            }
+        ')
+            ->assertSuccessful()
+            ->assertJsonFragment([
+                'company' => [
+                    'id' => (string) $company->getId(),
+                    'name' => $company->name,
+                ],
+            ]);
+    }
+
+    public function testAgentsAiCustomFieldsResolveSystemModule(): void
+    {
+        $agentId = $this->graphQL('
+            mutation($input: AgentAiInput!) {
+                createAiAgent(input: $input) {
+                    id
+                }
+            }
+        ', ['input' => [
+            'agent_type_id' => $this->createAgentType()->getId(),
+            'name' => 'Custom Field Agent ' . fake()->unique()->word(),
+            'description' => 'Custom Field Agent',
+            'role' => 'test-role',
+            'config' => ['key' => 'value'],
+            'is_active' => true,
+        ]])->assertSuccessful()->json('data.createAiAgent.id');
+
+        Agent::getById((int) $agentId)->set('crash_probe', 'value');
+        $systemModule = SystemModulesRepository::getByModelName(Agent::class, app(Apps::class));
+
+        $this->graphQL('
+            query($id: Mixed!) {
+                agentsAi(first: 1, where: { column: ID, operator: EQ, value: $id }) {
+                    data {
+                        id
+                        custom_fields {
+                            data {
+                                name
+                                systemModule {
+                                    uuid
+                                    name
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        ', ['id' => $agentId])
+            ->assertSuccessful()
+            ->assertJsonMissingPath('errors')
+            ->assertJsonFragment([
+                'name' => 'crash_probe',
+                'systemModule' => [
+                    'uuid' => $systemModule->uuid,
+                    'name' => $systemModule->name,
+                ],
+            ]);
     }
 }

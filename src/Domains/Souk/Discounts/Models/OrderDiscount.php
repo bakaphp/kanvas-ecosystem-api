@@ -48,9 +48,9 @@ class OrderDiscount extends BaseModel
         return $this->belongsTo(Discount::class, 'discount_id');
     }
 
-    public function getCodeAttribute(): String
+    public function getCodeAttribute(): ?string
     {
-        return $this->discount->code;
+        return $this->discount?->code;
     }
 
     public function getTypeAttribute(): String

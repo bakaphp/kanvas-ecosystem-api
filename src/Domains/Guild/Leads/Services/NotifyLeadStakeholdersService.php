@@ -6,6 +6,7 @@ namespace Kanvas\Guild\Leads\Services;
 
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
+use Kanvas\Companies\Services\CompanyManagerService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
@@ -14,8 +15,6 @@ use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Notifications\Templates\EngagementNotification;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UsersRepository;
 
 class NotifyLeadStakeholdersService
 {
@@ -24,6 +23,7 @@ class NotifyLeadStakeholdersService
     public const string NOTIFY_ON_HUMAN_REPLY = 'ai_manager_notify_on_human_reply';
     public const string NOTIFY_ON_INBOUND = 'ai_manager_notifications';
     public const string MANAGER_ROLE = 'BDCManager';
+    public const string ACTIONS_MANAGER_ROLE = 'ActionsNotifications';
 
     public const string LAST_AGENT_REPLY_NOTIFICATION_AT = 'last_agent_reply_notification_at';
     public const string AGENT_REPLY_DEDUPE_SECONDS_KEY = 'agent_reply_notification_dedupe_seconds';
@@ -46,6 +46,13 @@ class NotifyLeadStakeholdersService
         $this->followers();
     }
 
+    public function allActionManagers(): void
+    {
+        $this->owner();
+        $this->managers(self::ACTIONS_MANAGER_ROLE);
+        $this->followers();
+    }
+
     public function owner(): void
     {
         if ($this->notification === null) {
@@ -57,25 +64,28 @@ class NotifyLeadStakeholdersService
         }
     }
 
-    public function managers(): void
+    public function managers(?string $role = null): void
     {
         if ($this->notification === null) {
             return;
         }
 
-        $companyManagers = $this->lead->company->get('company_manager');
-
         if ($this->lead->get('sent_email_notification_to_manager')) {
             return;
         }
 
-        if ($companyManagers && is_array($companyManagers)) {
-            $this->lead->set('sent_email_notification_to_manager', 1);
+        $managers = new CompanyManagerService(
+            $this->lead->company,
+            $this->lead->app
+        )->getManagers($role);
 
-            $users = Users::whereIn('id', $companyManagers)->get();
-
-            Notification::send($users, $this->notification);
+        if ($managers->isEmpty()) {
+            return;
         }
+
+        $this->lead->set('sent_email_notification_to_manager', 1);
+
+        Notification::send($managers, $this->notification);
     }
 
     public function followers(): void
@@ -147,6 +157,7 @@ class NotifyLeadStakeholdersService
                 'lead_name' => $this->lead->people->name,
                 'lead_id' => $this->lead->getId(),
                 'people_id' => $this->lead->people->getId(),
+                'branch_id' => $this->lead->companies_branches_id,
             ],
             via: $channels,
             entity: $this->lead
@@ -223,6 +234,7 @@ class NotifyLeadStakeholdersService
                 'lead_name' => $this->lead->people->name,
                 'lead_id' => $this->lead->getId(),
                 'people_id' => $this->lead->people->getId(),
+                'branch_id' => $this->lead->companies_branches_id,
             ],
             via: $channels,
             entity: $this->lead
@@ -350,11 +362,8 @@ class NotifyLeadStakeholdersService
      */
     protected function collectManagerRecipients(Message $message, bool $includeOwner): Collection
     {
-        $managers = UsersRepository::getCompanyAppUserByRole(
-            $message->company,
-            $message->app,
-            self::MANAGER_ROLE
-        )->get();
+        $managers = new CompanyManagerService($message->company, $message->app)
+            ->getManagersByRole(self::MANAGER_ROLE);
 
         if ($includeOwner) {
             $owner = $this->lead->owner;

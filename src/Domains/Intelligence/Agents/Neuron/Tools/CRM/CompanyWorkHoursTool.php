@@ -14,7 +14,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Yasumi\Yasumi;
 
-#[AgentTool(name: 'Company Work Hours')]
+#[AgentTool(name: 'Company Work Hours', category: 'crm')]
 class CompanyWorkHoursTool extends Tool
 {
     protected Carbon $now;

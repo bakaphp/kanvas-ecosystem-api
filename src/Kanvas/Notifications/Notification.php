@@ -28,6 +28,7 @@ use Kanvas\Notifications\Traits\NotificationStorageTrait;
 use Kanvas\Social\Interactions\Models\Interactions;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 use Kanvas\Users\Models\Users;
+use NotificationChannels\Expo\ExpoChannel;
 use Override;
 
 class Notification extends LaravelNotification implements EmailInterfaces, ShouldQueue
@@ -49,6 +50,7 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     protected ?UserInterface $fromUser = null;
     protected ?UserInterface $toUser = null;
     protected ?CompanyInterface $company = null;
+    protected array $cc = [];
     public ?array $pathAttachment = null;
 
     public function __construct(
@@ -76,6 +78,29 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
     }
 
     /**
+     * @param array<int, string> $emails
+     */
+    public function setCc(array $emails): self
+    {
+        $this->cc = array_values(
+            array_filter(
+                $emails,
+                static fn ($email): bool => is_string($email) && trim($email) !== ''
+            )
+        );
+
+        return $this;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getCc(): array
+    {
+        return $this->cc;
+    }
+
+    /**
      * Determine which channels the notification should be delivered on.
      *
      * Resolves slug-based channels (e.g. 'sms', 'push') to their class implementations,
@@ -98,6 +123,19 @@ class Notification extends LaravelNotification implements EmailInterfaces, Shoul
         $this->setNotifiableData($notifiable);
 
         return $channels;
+    }
+
+    /**
+     * Laravel checks this per channel right before delivering, letting us drop a channel
+     * whose content didn't render instead of failing the queued job inside the driver.
+     */
+    public function shouldSend(object $notifiable, string $channel): bool
+    {
+        if ($channel === ExpoChannel::class) {
+            return $this->hasExpoContent();
+        }
+
+        return true;
     }
 
     private function isNotifiableReceivable(object $notifiable): bool

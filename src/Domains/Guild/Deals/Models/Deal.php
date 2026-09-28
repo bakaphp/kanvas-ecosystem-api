@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Deals\Models;
 
-use Baka\Traits\DatabaseSearchableTrait;
+use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
+use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Event\Events\Traits\EventResourceTrait;
@@ -55,10 +58,11 @@ use Override;
 #[ObservedBy([DealObserver::class])]
 class Deal extends BaseModel
 {
+    use HasAdminLink;
     use UuidTrait;
     use HasTagsTrait;
     use CanUseWorkflow;
-    use DatabaseSearchableTrait {
+    use DynamicSearchableTrait {
         search as public traitSearch;
     }
     use FollowersTrait;
@@ -77,6 +81,12 @@ class Deal extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'Deal';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::DEAL;
     }
 
     public function people(): BelongsTo
@@ -144,6 +154,13 @@ class Deal extends BaseModel
             ->where('name', ChannelNameEnum::NOTES->value);
     }
 
+    public function defaultChannel(): HasOne
+    {
+        return $this->hasOne(Channel::class, 'entity_id', 'string_id')
+            ->where('entity_namespace', self::class)
+            ->where('slug', $this->uuid);
+    }
+
     public function aiSession(): HasMany
     {
         return $this->hasMany(Session::class, 'entity_id', 'string_id')
@@ -158,22 +175,154 @@ class Deal extends BaseModel
         return config('scout.prefix') . ($customIndex ?? 'deal_index');
     }
 
+    public function searchQueryBy(): string
+    {
+        return 'title,description,people_name,people_firstname,people_lastname';
+    }
+
+    /** Scout only eager-loads what this adds, and toSearchableArray reads the contact per row. */
+    protected function makeAllSearchableUsing(EloquentBuilder $query): EloquentBuilder
+    {
+        return $query->with('people');
+    }
+
     public function toSearchableArray(): array
     {
+        $people = $this->people;
+
         return [
-            'id' => $this->id,
-            'uuid' => $this->uuid,
-            'apps_id' => $this->apps_id,
-            'companies_id' => $this->companies_id,
-            'companies_branches_id' => $this->companies_branches_id,
-            'leads_id' => $this->leads_id,
-            'people_id' => $this->people_id,
-            'organization_id' => $this->organization_id,
-            'title' => $this->title,
-            'description' => $this->description,
-            'status_id' => $this->status_id,
-            'pipeline_id' => $this->pipeline_id,
-            'pipeline_stage_id' => $this->pipeline_stage_id,
+            'objectID' => self::class . '::' . $this->id,
+            'id' => (string) $this->id, // Typesense rejects a non-string document id
+            'uuid' => (string) $this->uuid,
+            'apps_id' => (int) $this->apps_id,
+            'companies_id' => (int) $this->companies_id,
+            'companies_branches_id' => (int) $this->companies_branches_id,
+            'leads_id' => (int) $this->leads_id,
+            'people_id' => (int) $this->people_id,
+            'organization_id' => (int) $this->organization_id,
+            'title' => (string) $this->title,
+            'description' => (string) $this->description,
+            // Flattened rather than a nested people object: the contact's name is a query_by target,
+            // and nested fields can't be named in query_by without enable_nested_fields gymnastics.
+            'people_name' => (string) $people?->getName(),
+            'people_firstname' => (string) $people?->firstname,
+            'people_lastname' => (string) $people?->lastname,
+            'status_id' => (int) $this->status_id,
+            'pipeline_id' => (int) $this->pipeline_id,
+            'pipeline_stage_id' => (int) $this->pipeline_stage_id,
+            'created_at' => $this->created_at?->timestamp,
+            'updated_at' => $this->updated_at?->timestamp,
+        ];
+    }
+
+    /**
+     * Typesense collections are immutable once created — changing this has no effect on a live
+     * collection until it is dropped and reindexed.
+     */
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'uuid',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'companies_branches_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'leads_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'people_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'organization_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'title',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'description',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'people_name',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'people_firstname',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'people_lastname',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'status_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'pipeline_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'pipeline_stage_id',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'int64',
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'updated_at',
+                    'type' => 'int64',
+                    'optional' => true,
+                ],
+            ],
+            'default_sorting_field' => 'created_at',
         ];
     }
 
@@ -185,10 +334,23 @@ class Deal extends BaseModel
 
     public static function search($query = '', $callback = null)
     {
-        $query = self::traitSearch($query, $callback)->where('apps_id', app(Apps::class)->getId());
+        $query = self::traitSearch(
+            $query,
+            $callback
+        )->where(
+            'apps_id',
+            app(Apps::class)->getId()
+        );
+
         $user = auth()->user();
         if ($user instanceof UserInterface && ! $user->isAppOwner()) {
             $query->where('companies_id', $user->getCurrentCompany()->getId());
+        }
+
+        if ($query->model->isTypesense()) {
+            $query->options([
+                'query_by' => $query->model->searchQueryBy(),
+            ]);
         }
 
         return $query;

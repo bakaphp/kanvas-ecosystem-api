@@ -10,6 +10,7 @@ enum DiscountTypeEnum: string
     case PERCENTAGE = 'percentage';
     case FREE_SHIPPING = 'free_shipping';
     case BUY_X_GET_Y = 'buy_x_get_y';
+    case AUTO_APPLIED_CREDIT = 'auto_applied_credit';
 
     public function label(): string
     {
@@ -18,6 +19,7 @@ enum DiscountTypeEnum: string
             self::PERCENTAGE => 'Percentage',
             self::FREE_SHIPPING => 'Free Shipping',
             self::BUY_X_GET_Y => 'Buy X Get Y',
+            self::AUTO_APPLIED_CREDIT => 'Auto Applied Credit',
         };
     }
 }

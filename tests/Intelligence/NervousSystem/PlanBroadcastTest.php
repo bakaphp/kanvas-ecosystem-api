@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Event;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\NervousSystem\Ledger\Enums\LedgerConfigurationEnum;
@@ -21,6 +22,10 @@ use Tests\TestCase;
 
 class PlanBroadcastTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    protected $connectionsToTransact = ['mysql', 'ecosystem', 'intelligence', 'social'];
+
     public function testCreatePlanFiresPlanBroadcastWithCreatedChangeType(): void
     {
         Event::fake([PlanBroadcast::class]);
@@ -128,31 +133,36 @@ class PlanBroadcastTest extends TestCase
         );
     }
 
+    /**
+     * The flag lives in a Redis hash keyed by app id alone, shared by every parallel test process, so
+     * an un-restored write here silences broadcasts for the rest of the run — and the assertion throws.
+     */
     public function testNoBroadcastWhenAppFlagOff(): void
     {
         $app = app(Apps::class);
-        $app->set(LedgerConfigurationEnum::BROADCAST_PLAN_EVENTS->value, false);
-
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        Event::fake([PlanBroadcast::class]);
+        $app->set(LedgerConfigurationEnum::BROADCAST_PLAN_EVENTS->value, false);
 
-        new CreatePlanAction(
-            new PlanData(
-                app: $app,
-                company: $company,
-                title: 'No broadcast',
-                planType: 'workspace_issue',
-                user: $user,
-                status: PlanStatusEnum::DRAFT,
-            ),
-        )->execute();
+        try {
+            Event::fake([PlanBroadcast::class]);
 
-        Event::assertNotDispatched(PlanBroadcast::class);
+            new CreatePlanAction(
+                new PlanData(
+                    app: $app,
+                    company: $company,
+                    title: 'No broadcast',
+                    planType: 'workspace_issue',
+                    user: $user,
+                    status: PlanStatusEnum::DRAFT,
+                ),
+            )->execute();
 
-        // restore default for other tests
-        $app->set(LedgerConfigurationEnum::BROADCAST_PLAN_EVENTS->value, true);
+            Event::assertNotDispatched(PlanBroadcast::class);
+        } finally {
+            $app->set(LedgerConfigurationEnum::BROADCAST_PLAN_EVENTS->value, true);
+        }
     }
 
     public function testBroadcastChannelsIncludeWorkspacePlanAndAgentScopes(): void

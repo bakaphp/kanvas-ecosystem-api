@@ -44,6 +44,7 @@ class AgentSessionQuery
         return [
             'id' => $request['id'],
             'name' => 'orchestrate',
+            'agent_name' => $session->agent->name,
             'company' => $session->company,
             'user' => $session->user,
             'company_config' => $session->agent->type->config,

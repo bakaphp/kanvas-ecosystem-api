@@ -11,7 +11,7 @@ class Action extends Data
     public function __construct(
         public readonly string $name,
         public readonly ?string $description = null,
-        public readonly ?string $icon = null,
+        public readonly mixed $icon = null,
         public readonly mixed $form_fields = null,
         public readonly mixed $form_config = null,
         public readonly bool $is_active = true,

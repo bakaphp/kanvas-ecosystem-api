@@ -6,13 +6,19 @@ namespace App\GraphQL\Ecosystem\Queries\CustomFields;
 
 use Baka\Enums\StateEnums;
 use GraphQL\Type\Definition\ResolveInfo;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Models\CompaniesSettings;
 use Kanvas\CustomFields\DataTransferObject\CustomFieldInput;
 use Kanvas\CustomFields\Models\AppsCustomFields;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\SystemModules\Models\SystemModules;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Users\Models\UserConfig;
+use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
 class CustomFieldQuery
@@ -60,6 +66,21 @@ class CustomFieldQuery
                 });
 
                 return $customFields; */
+    }
+
+    /**
+     * Rows come from two shapes: Redis arrays (getAllByGraphType) and the users/companies
+     * settings models (HashFieldsQuery). Neither carries a systemModule relation.
+     */
+    public function systemModule(array|Model $root): SystemModules
+    {
+        $modelName = match (true) {
+            $root instanceof UserConfig => Users::class,
+            $root instanceof CompaniesSettings => Companies::class,
+            default => $root['model_name'],
+        };
+
+        return SystemModulesRepository::getByModelName($modelName, app(Apps::class));
     }
 
     /**

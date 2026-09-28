@@ -6,7 +6,6 @@ namespace Tests\Connectors\Integration\Recombee;
 
 use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeInteractionService;
 use Kanvas\Connectors\Recombee\Services\RecombeeItemRecommendationService;
 use Kanvas\Connectors\Recombee\Services\RecombeeProductIndexService;
@@ -19,10 +18,13 @@ use Kanvas\Social\Interactions\Actions\CreateInteraction;
 use Kanvas\Social\Interactions\Actions\CreateUserInteractionAction;
 use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
+use Tests\Connectors\Traits\HasRecombeeConfiguration;
 use Tests\TestCase;
 
 final class RecombeeProductIndexServiceTest extends TestCase
 {
+    use HasRecombeeConfiguration;
+
     protected RecombeeProductIndexService $service;
     protected Products $product;
     protected Variants $variant;
@@ -32,10 +34,9 @@ final class RecombeeProductIndexServiceTest extends TestCase
     {
         parent::setUp();
 
+        $this->skipWithoutRecombeeEcomCredentials();
+
         $app = app(Apps::class);
-        //$app->set('TEST_RECOMBEE_DATABASE_ECOM', getenv('TEST_RECOMBEE_DATABASE_ECOM'));
-        //$app->set(ConfigurationEnum::RECOMBEE_API_KEY->value, getenv('TEST_RECOMBEE_API_KEY'));
-        //$app->set(ConfigurationEnum::RECOMBEE_REGION->value, getenv('TEST_RECOMBEE_REGION'));
 
         $this->service = new RecombeeProductIndexService(
             $app,
@@ -52,7 +53,6 @@ final class RecombeeProductIndexServiceTest extends TestCase
 
     public function testCreateProductCatalogDatabase(): void
     {
-        //$this->markTestSkipped('Requires Recombee API configuration');
         $this->service->createProductCatalogDatabase();
 
         $indexProduct = $this->service->indexProduct($this->product);

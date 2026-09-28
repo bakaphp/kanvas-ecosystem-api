@@ -7,7 +7,6 @@ namespace Kanvas\Auth\Actions;
 use Baka\Contracts\CompanyInterface;
 use Baka\Validations\EmailDomain;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 use Kanvas\AccessControlList\Actions\AssignRoleAction;
@@ -16,6 +15,8 @@ use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Exceptions\AuthenticationException;
+use Kanvas\Auth\Services\RegistrationAbuseReportService;
+use Kanvas\Auth\Services\RegistrationVelocityService;
 use Kanvas\Companies\Actions\CreateCompaniesAction;
 use Kanvas\Companies\DataTransferObject\Company;
 use Kanvas\Enums\AppEnums;
@@ -33,6 +34,9 @@ use Throwable;
 
 class CreateUserAction
 {
+    private const int SPAM_NAME_MIN_LENGTH = 4;
+    private const float SPAM_NAME_UPPERCASE_RATIO = 0.4;
+
     protected Apps $app;
     protected bool $runWorkflow = true;
     protected bool $extraValidation = false;
@@ -126,30 +130,20 @@ class CreateUserAction
         }
     }
 
-    /**
-     * Reject bot signups by their email signature — a blocklisted/disposable
-     * domain or a randomized local part — independent of IP, name or any other
-     * field the frontend may omit. Built-in blocklist plus per-app additions.
-     *
-     * Only the public register mutation opts into this. Social logins
-     * (Apple/Google/Facebook) are provider-verified and legitimately produce
-     * randomized relay addresses (e.g. Apple Hide-My-Email), so they skip it.
-     */
     protected function validateEmailNotSpam(): void
     {
-        if (EmailDomain::isBlockedDomain($this->data->email, $this->getBlockedEmailDomains())
-            || EmailDomain::hasSpamLocalPart($this->data->email)
-        ) {
-            Log::warning('auth.registration_spam_email_blocked', [
-                'app_id' => $this->app->getId(),
-                'app_name' => $this->app->name,
-                'email' => $this->data->email,
-            ]);
+        $reason = EmailDomain::spamReason($this->data->email, $this->getBlockedEmailDomains())
+            ?? new RegistrationVelocityService($this->app)->violation($this->data->email);
 
-            throw ValidationException::withMessages([
-                'email' => ['The email provided is not allowed.'],
-            ]);
+        if ($reason === null) {
+            return;
         }
+
+        new RegistrationAbuseReportService($this->app)->blocked($this->data->email, $reason);
+
+        throw ValidationException::withMessages([
+            'email' => ['The email provided is not allowed.'],
+        ]);
     }
 
     /**
@@ -191,33 +185,48 @@ class CreateUserAction
             throw new ValidationException($validator);
         }
 
-        if ($this->hasSpamNamePattern($this->data->firstname) || $this->hasSpamNamePattern($this->data->lastname)) {
-            $validator = Validator::make(
-                ['firstname' => $this->data->firstname],
-                ['firstname' => 'required'],
-                ['firstname.required' => 'Registration information appears to be invalid.']
-            );
+        $invalidNameFields = [];
 
-            throw new ValidationException($validator);
+        if ($this->hasSpamNamePattern($this->data->firstname)) {
+            $invalidNameFields['firstname'] = ['Registration information appears to be invalid.'];
+        }
+
+        if ($this->hasSpamNamePattern($this->data->lastname)) {
+            $invalidNameFields['lastname'] = ['Registration information appears to be invalid.'];
+        }
+
+        if ($invalidNameFields !== []) {
+            throw ValidationException::withMessages($invalidNameFields);
         }
     }
 
-    /**
-     * Detects spam registration names with randomized character patterns.
-     */
     private function hasSpamNamePattern(string $name): bool
     {
-        if (empty($name)) {
+        if (trim($name) === '') {
             return true;
         }
 
-        $uppercaseCount = preg_match_all('/[A-Z]/', $name);
+        $letters = preg_replace('/[^a-zA-Z]/', '', $name);
+        $length = strlen($letters);
+
+        // Below this the ratio carries no signal: "So" and "Li" are 50%
+        // uppercase and entirely legitimate surnames.
+        if ($length < self::SPAM_NAME_MIN_LENGTH) {
+            return false;
+        }
+
+        $uppercaseCount = preg_match_all('/[A-Z]/', $letters);
 
         if ($uppercaseCount === false) {
             return false;
         }
 
-        return ($uppercaseCount / strlen($name)) > 0.4;
+        // All-caps is a typing habit ("JOHN SMITH"), not randomized casing.
+        if ($uppercaseCount === $length) {
+            return false;
+        }
+
+        return ($uppercaseCount / $length) > self::SPAM_NAME_UPPERCASE_RATIO;
     }
 
     protected function validatePhoneNumber(): void

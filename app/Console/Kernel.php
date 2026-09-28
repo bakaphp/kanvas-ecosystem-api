@@ -2,15 +2,26 @@
 
 namespace App\Console;
 
+use App\Console\Commands\Analytics\Schedules\AnalyticsSchedule;
+use App\Console\Commands\Approvals\ExpireApprovalRequestsCommand;
 use App\Console\Commands\Connectors\Acumatica\ScheduledAcumaticaSyncCommand;
 use App\Console\Commands\Connectors\Mercury\PullMercuryCommand;
 use App\Console\Commands\Connectors\Movipass\ChargeLateOrdersCommand;
 use App\Console\Commands\Connectors\Movipass\CheckExpiringOrdersCommand;
 use App\Console\Commands\Connectors\Notifications\MailCaddieLabCommand;
 use App\Console\Commands\Connectors\OpenClaw\CollectAgentTelemetryCommand;
+use App\Console\Commands\CustomerSuccess\Schedules\CustomerSuccessSchedule;
+use App\Console\Commands\Ecosystem\Companies\FlagOverdueCorporateApplicationsCommand;
+use App\Console\Commands\Ecosystem\Imports\RunImportSourcesCommand;
+use App\Console\Commands\Ecosystem\PruneModelCacheTagsCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
+use App\Console\Commands\Ecosystem\Users\DetectSignupAnomalyCommand;
+use App\Console\Commands\Event\GenerateUpcomingTimeSlotsCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\Lead\Schedules\LeadFollowUpSchedule;
+use App\Console\Commands\NervousSystem\Agents\Coding\ReapCodingAgentRuntimeCommand;
+use App\Console\Commands\NervousSystem\Agents\Coding\SweepCodingSessionsCommand;
+use App\Console\Commands\NervousSystem\Mcp\RefreshMcpToolCacheCommand;
 use App\Console\Commands\NervousSystem\Schedules\NervousSystemSchedule;
 use App\Console\Commands\Scribe\Schedules\ScribeSchedule;
 use App\Console\Commands\Search\ScoutMessageReindexCommand;
@@ -44,11 +55,40 @@ class Kernel extends ConsoleKernel
 
         // Ecosystem / Social / Souk / Connectors — small enough to inline today.
         $schedule->command(DeleteUsersRequestedCommand::class)->dailyAt('00:00');
+        $schedule->command(DetectSignupAnomalyCommand::class)->hourly()->withoutOverlapping()->onOneServer();
+        $schedule->command(ExpireApprovalRequestsCommand::class)->hourly()->withoutOverlapping()->onOneServer();
+        $schedule->command(FlagOverdueCorporateApplicationsCommand::class)->hourly()->withoutOverlapping()->onOneServer();
+        // Hourly matches the descriptor cache's soft TTL, so a company's first turn of the day is warm
+        // rather than paying three round trips per connected MCP server.
+        $schedule->command(RefreshMcpToolCacheCommand::class)->hourly()->withoutOverlapping()->onOneServer();
+        // Coding runtime, two cadences on purpose. A session whose runtime died stays "running"
+        // forever and holds a tenant's concurrency slot, so that is checked often; reclaiming disk is
+        // housekeeping, and at five minutes it would re-issue a couple of hundred `rm -rf` over SSH
+        // for things already gone. Without the second one, workspaces accumulate until the machine's
+        // disk fills — which shows up as unrelated services failing on a shared box.
+        $schedule->command(SweepCodingSessionsCommand::class)->everyFiveMinutes()
+            ->withoutOverlapping()->onOneServer();
+        $schedule->command(ReapCodingAgentRuntimeCommand::class)->everyTwoHours()
+            ->withoutOverlapping()->onOneServer();
+
+        // The model cache's tag index never reclaims the entries of keys it has already flushed, and a
+        // flush costs a DEL plus a ZREM per entry — so every write to a cached model gets slower as the
+        // index grows. Laravel's own cache:prune-stale-tags cannot see them: they are written with no
+        // TTL, and it prunes by score.
+        $schedule->command(PruneModelCacheTagsCommand::class)->hourly()->withoutOverlapping()->onOneServer();
         $schedule->command(SocialUserCounterResetCommand::class, ['13'])->dailyAt('00:00');
         $schedule->command(OrderFinishExpiredCommand::class)->everyMinute();
         $schedule->command(CheckExpiringOrdersCommand::class)->everyMinute();
         $schedule->command(ChargeLateOrdersCommand::class)->hourly()->withoutOverlapping();
         $schedule->command(CancelStalePaymentsCommand::class)->everyFiveMinutes();
+
+        // Event — roll the booking window forward daily so active schedule rules always
+        // have slots up to their app's horizon, and refresh price snapshots on unsold ones.
+        $schedule->command(GenerateUpcomingTimeSlotsCommand::class, ['--prune'])->dailyAt('01:30')->withoutOverlapping();
+
+        // Scheduled imports (FTP/SFTP → mapper → importer). Each source has its own cron + timezone;
+        // this tick only queues the ones that are due.
+        $schedule->command(RunImportSourcesCommand::class)->everyFifteenMinutes()->withoutOverlapping()->onOneServer();
 
         // Acumatica — incremental delta sync for every opted-in company (gated per company).
         //$schedule->command(ScheduledAcumaticaSyncCommand::class)->hourly()->withoutOverlapping()->onOneServer();
@@ -68,6 +108,13 @@ class Kernel extends ConsoleKernel
 
         // Scribe — daily AR-aging fan-out (per (app, company) tuple with open AR).
         ScribeSchedule::register($schedule);
+
+        // Customer Success — monthly product-update drafts for every account tagged "newsletter".
+        // Posts approval cards only; a human still sends.
+        CustomerSuccessSchedule::register($schedule);
+
+        // Analytics — weekly Engage usage leaderboard to each company's managers.
+        AnalyticsSchedule::register($schedule);
 
         /*         $schedule->command(CollectAgentTelemetryCommand::class)
                     ->everyMinute()

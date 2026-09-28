@@ -134,4 +134,98 @@ class ChatHelperTest extends TestCase
 
         $this->assertSame($body, ChatHelper::extractTextFromResponse($body));
     }
+
+    /**
+     * The envelope is what the reply text throws away: an agent that answered with a whole record
+     * keeps only its body once {@see ChatHelper::extractTextFromResponse()} picks a field.
+     */
+    public function testExtractsTheWholeEnvelopeFromAFencedReply(): void
+    {
+        $reply = "```json\n" . json_encode([
+            'title' => 'Education accelerates classroom construction',
+            'content' => '<p>Body.</p>',
+            'tags' => ['Education', 'María Trinidad Sánchez'],
+        ], JSON_UNESCAPED_UNICODE) . "\n```";
+
+        $envelope = ChatHelper::extractJsonEnvelope($reply);
+
+        $this->assertSame('Education accelerates classroom construction', $envelope['title']);
+        $this->assertSame(['Education', 'María Trinidad Sánchez'], $envelope['tags']);
+        $this->assertSame('<p>Body.</p>', ChatHelper::extractTextFromResponse($reply));
+    }
+
+    public function testEnvelopeIsNullForAPlainTextReply(): void
+    {
+        $this->assertNull(ChatHelper::extractJsonEnvelope("Hi Max,\n\nHappy to help."));
+    }
+
+    /**
+     * A newsroom burst carrying two press releases comes back as a LIST of records. Anchoring the
+     * fenced match on `{` left it unparsed, so the envelope was lost and the caller published the
+     * model's raw JSON as the article body (prod, El Nuevo Diario).
+     */
+    public function testExtractsAFencedListOfRecordsAsTheEnvelope(): void
+    {
+        $envelope = ChatHelper::extractJsonEnvelope($this->twoArticles(fenced: true));
+
+        $this->assertCount(2, $envelope);
+        $this->assertSame('First article', $envelope[0]['title']);
+        $this->assertSame('Second article', $envelope[1]['title']);
+    }
+
+    public function testExtractsABareListOfRecordsAsTheEnvelope(): void
+    {
+        $envelope = ChatHelper::extractJsonEnvelope($this->twoArticles(fenced: false));
+
+        $this->assertCount(2, $envelope);
+        $this->assertSame('First article', $envelope[0]['title']);
+    }
+
+    /**
+     * Every value in a list is an array, so the string scan found nothing and returned '' — and an
+     * empty reply makes the responder throw the whole agent turn away.
+     */
+    public function testTheReplyTextOfAListIsTheFirstRecordNotEmpty(): void
+    {
+        foreach ([true, false] as $fenced) {
+            $this->assertSame(
+                '<p>First article body.</p>',
+                ChatHelper::extractTextFromResponse($this->twoArticles($fenced))
+            );
+        }
+    }
+
+    /**
+     * Prose with a bracketed aside decodes as a valid JSON array. Treating that as structure handed
+     * the caller one fragment of the list — or, when the members were numbers, an empty reply, which
+     * the responder reads as "the agent said nothing" and throws the turn away.
+     */
+    public function testProseContainingABracketedListIsNotAnEnvelope(): void
+    {
+        $prose = 'The steps are [1, 2, 3] and nothing else.';
+
+        $this->assertNull(ChatHelper::extractJsonEnvelope($prose));
+        $this->assertSame($prose, ChatHelper::extractTextFromResponse($prose));
+    }
+
+    public function testProseContainingAQuotedListIsNotAnEnvelope(): void
+    {
+        $prose = 'You can pick ["blue", "red"] whenever you like.';
+
+        $this->assertNull(ChatHelper::extractJsonEnvelope($prose));
+        $this->assertSame($prose, ChatHelper::extractTextFromResponse($prose));
+    }
+
+    private function twoArticles(bool $fenced): string
+    {
+        $json = json_encode(
+            [
+                ['title' => 'First article', 'content' => '<p>First article body.</p>', 'status' => 'draft'],
+                ['title' => 'Second article', 'content' => '<p>Second article body.</p>', 'status' => 'draft'],
+            ],
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE
+        );
+
+        return $fenced ? "```json\n" . $json . "\n```" : $json . "\n";
+    }
 }

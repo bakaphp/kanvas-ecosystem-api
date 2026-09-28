@@ -17,8 +17,6 @@ use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\ReceiverWebhookCall;
 use Throwable;
 
-use function Sentry\captureException;
-
 abstract class ProcessWebhookJob implements ShouldQueue
 {
     use Dispatchable;
@@ -37,8 +35,10 @@ abstract class ProcessWebhookJob implements ShouldQueue
         $this->receiver = $this->webhookRequest->receiverWebhook()->firstOrFail();
     }
 
-    public function handle()
+    public function handle(): ?array
     {
+        $results = null;
+
         try {
             config(['laravel-model-caching.disabled' => true]);
             Auth::loginUsingId($this->receiver->user->getId());
@@ -51,12 +51,9 @@ abstract class ProcessWebhookJob implements ShouldQueue
                 'status' => 'success',
                 'results' => $results,
             ]);
-
-            return $results;
         } catch (Throwable $e) {
-            //notify via sentry
-            Log::error($e->getMessage());
-            captureException($e);
+            //Log::error($e->getMessage());
+            report($e);
             $this->webhookRequest->update([
                 'status' => 'failed',
                 'exception' => [
@@ -66,6 +63,8 @@ abstract class ProcessWebhookJob implements ShouldQueue
                 ],
             ]);
         }
+
+        return $results;
     }
 
     public function getFailedReturnHttpCode(): int
@@ -95,6 +94,17 @@ abstract class ProcessWebhookJob implements ShouldQueue
     public static function handshakeResponse(Request $request, ReceiverWebhook $receiver): ?array
     {
         return null;
+    }
+
+    /**
+     * Whether the request's uploaded files must be persisted before this job runs. A receiver can
+     * also opt in with `capture_files`, but a job that cannot work without the files declares it
+     * here rather than trusting whoever wired the receiver: the multipart request is gone by the
+     * time the job runs, so a missing flag drops the files with nothing logged anywhere.
+     */
+    public static function capturesFiles(): bool
+    {
+        return false;
     }
 
     abstract public function execute(): array;

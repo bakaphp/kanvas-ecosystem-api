@@ -24,10 +24,6 @@ class Client
         protected AppInterface $app,
         protected Companies $company
     ) {
-        // All Reynolds settings are tenant-scoped (per Kanvas multi-tenancy
-        // convention for credentials + dealer routing). Each company owns its
-        // own RCI account / dealer registration, so credentials live on the
-        // company, not the app.
         $this->endpoint = (string) $company->get(ConfigurationEnum::REYNOLDS_ENDPOINT->value);
         $this->username = (string) $company->get(ConfigurationEnum::REYNOLDS_USERNAME->value);
         $this->password = (string) $company->get(ConfigurationEnum::REYNOLDS_PASSWORD->value);
@@ -39,9 +35,9 @@ class Client
         $this->client = new GuzzleClient([
             'base_uri' => $this->endpoint,
             'timeout' => 60,
-            'curl' => [
-                CURLOPT_SSLVERSION => CURL_SSLVERSION_TLSv1_2,
-            ],
+            // Force TLS 1.2 via Guzzle's managed option; the raw
+            // CURLOPT_SSLVERSION curl option is deprecated in guzzle 7.11+.
+            'crypto_method' => STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT,
         ]);
     }
 

@@ -13,7 +13,13 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Override;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'ElevenLabs Send Message To Caller',
+    description: 'One of the endpoints an ElevenLabs VOICE agent calls back into Kanvas mid-call. These are '
+        . 'wired as that agent\'s server-side tools, not chosen as workflow steps — the caller on the '
+        . 'phone triggers them. This one SENDS the caller a message mid-call — a confirmation, a link, '
+        . 'whatever the agent composed. It CONTACTS the customer.',
+)]
 class ProcessElevenLabsSendMessageWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

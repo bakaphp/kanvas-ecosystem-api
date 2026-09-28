@@ -69,6 +69,11 @@ interface AgentRuntimeProvider
 
     public function updateConfig(AgentDeployment $deployment, string $config): bool;
 
+    // The partial runtime config that moves a running deployment onto the cheap model + session
+    // settings, serialized the way updateConfig() expects for this runtime. '' means it already has
+    // them and nothing should be written.
+    public function costDefaultsPatch(string $currentConfig): string;
+
     public function dispatchBackup(AgentDeployment $deployment, AgentBackup $backup, bool $includeWorkspace): void;
 
     public function createWorkspaceBackupNow(AgentDeployment $deployment, AgentBackup $backup): AgentBackup;
@@ -105,12 +110,18 @@ interface AgentRuntimeProvider
     // Chat with the agent's live container deployment over its runtime HTTP API. Only the
     // container runtimes (OpenClaw, Hermes) implement this — in-process providers don't deploy
     // containers, so the abstract base default-throws.
-    /** @param list<string> $images URLs to forward as multimodal image content. */
+    /**
+     * @param list<string> $images URLs to forward as multimodal image content.
+     * @param list<object> $additionalTools Kanvas tools injected for this turn only (the board
+     *        toolset a wake job supplies). Machine runtimes ignore them — they cannot hold our
+     *        tools; hosted runtimes bridge them back in-process.
+     */
     public function chat(
         Agent $agent,
         string $message,
         ?string $sessionKey = null,
         array $images = [],
+        array $additionalTools = [],
     ): string;
 
     // Pull the agent's conversation transcripts out of the runtime's per-deployment store

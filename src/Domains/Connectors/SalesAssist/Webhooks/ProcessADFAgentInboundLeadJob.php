@@ -9,6 +9,8 @@ use Kanvas\Connectors\DealerSocket\Actions\PullLeadAction;
 use Kanvas\Connectors\DealerSocket\Actions\PullPeopleAction;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\SalesAssist\Actions\PullLeadFromADFAction;
+use Kanvas\Connectors\SalesAssist\Services\AdfXmlParserService;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDTO;
@@ -18,9 +20,9 @@ use Kanvas\Guild\Leads\DataTransferObject\Lead as LeadDTO;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadReceiver;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
-use Kiwilan\XmlReader\XmlReader;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
@@ -28,7 +30,14 @@ use Spatie\LaravelData\DataCollection;
  * @todo this is tied right now to Dealer Socket
  * we have to make this agonistic
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'ADF Agent Lead Receiver',
+    description: 'Receiver that parses an inbound ADF XML lead, creates the person and the lead, and hands it '
+        . 'to the agent flow so it can be worked. The agent-facing counterpart of the plain ADF '
+        . 'receiver — that one records the lead, this one starts work on it. Currently shaped around '
+        . 'DealerSocket\'s ADF dialect.',
+    integration: IntegrationsEnum::SALESASSIST,
+)]
 class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
 {
     #[Override]
@@ -40,9 +49,7 @@ class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
         $user = $this->webhookRequest->receiverWebhook->user;
         $configuration = $this->webhookRequest->receiverWebhook->configuration ?? [];
 
-        // Parse XML
-        $xml = XmlReader::make($payload['body-plain'], true, true);
-        $data = $xml->toArray();
+        $data = AdfXmlParserService::toArray($payload['body-plain'] ?? null);
 
         if (! isset($data['adf']['prospect'])) {
             return [
@@ -78,13 +85,10 @@ class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
             }
         }
 
-        // Extract email safely
-        $emailData = $contact['email'] ?? null;
-        $email = is_array($emailData) ? ($emailData['@content'] ?? null) : $emailData;
+        $email = AdfXmlParserService::content($contact['email'] ?? null);
 
-        // Extract phone safely
         $phoneData = $contact['phone'] ?? null;
-        $phone = is_array($phoneData) ? ($phoneData['@content'] ?? null) : $phoneData;
+        $phone = AdfXmlParserService::content($phoneData);
         $phoneType = is_array($phoneData) && isset($phoneData['@attributes']['type']) ? $phoneData['@attributes']['type'] : null;
 
         // Extract address
@@ -156,6 +160,8 @@ class ProcessADFAgentInboundLeadJob extends ProcessWebhookJob
                         email: $email,
                         phoneNumber: $phone
                     );
+                } catch (ModelNotFoundException) {
+                    $people = null;
                 } catch (InvalidArgumentException $e) {
                     report($e);
                     $people = null;

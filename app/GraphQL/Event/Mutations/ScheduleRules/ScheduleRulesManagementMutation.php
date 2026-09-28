@@ -35,7 +35,11 @@ class ScheduleRulesManagementMutation
             'metadata' => $req['input']['metadata'] ?? null,
         ]);
 
-        [$windowFrom, $windowTo] = GenerateTimeSlots::resolveWindow($scheduleRule->start_at, $scheduleRule->end_at);
+        [$windowFrom, $windowTo] = GenerateTimeSlots::resolveWindow(
+            $scheduleRule->start_at,
+            $scheduleRule->end_at,
+            GenerateTimeSlots::horizonDaysForApp($app)
+        );
 
         dispatch(new GenerateTimeSlots(
             $entity->id,
@@ -71,7 +75,11 @@ class ScheduleRulesManagementMutation
             'metadata' => $req['input']['metadata'] ?? $scheduleRule->metadata,
         ]);
 
-        [$windowFrom, $windowTo] = GenerateTimeSlots::resolveWindow($scheduleRule->start_at, $scheduleRule->end_at);
+        [$windowFrom, $windowTo] = GenerateTimeSlots::resolveWindow(
+            $scheduleRule->start_at,
+            $scheduleRule->end_at,
+            GenerateTimeSlots::horizonDaysForApp($app)
+        );
 
         dispatch(new GenerateTimeSlots(
             $scheduleRule->resources_id,

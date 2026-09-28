@@ -15,7 +15,7 @@ use Override;
 use Stringable;
 use Throwable;
 
-#[AgentTool(name: 'Apollo LinkedIn Lookup')]
+#[AgentTool(name: 'Apollo LinkedIn Lookup', category: 'crm')]
 class ApolloLinkedInLookupTool implements KanvasToolInterface
 {
     use HasKanvasContext;

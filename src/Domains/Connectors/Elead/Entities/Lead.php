@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Elead\Entities;
 
 use Baka\Contracts\AppInterface;
 use DateTime;
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Elead\Actions\SyncPeopleAction;
 use Kanvas\Connectors\Elead\Client;
@@ -13,6 +14,7 @@ use Kanvas\Connectors\Elead\DataTransferObject\TradeIn;
 use Kanvas\Connectors\Elead\DataTransferObject\Vehicle;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Elead\Exceptions\ELeadException;
+use Kanvas\Connectors\Elead\Services\LeadUserService;
 use Kanvas\Connectors\Elead\Support\EleadCache;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
 use Kanvas\Guild\Leads\Models\LeadSource;
@@ -89,14 +91,14 @@ class Lead
             'upType' => $leadSourceName !== 'Lead Link' ? $leadUpType : 'Internet',
         ];
 
-        if ($lead->owner
-            && $lead->owner->get(CustomFieldEnum::getUserKey($lead->company))
-            && $lead->owner->get(CustomFieldEnum::getUserJobPositionKey($lead->company))) {
+        $salesUser = LeadUserService::resolve($lead, requireJobPosition: true);
+
+        if ($salesUser !== null) {
             $opportunityData['salesTeam'][] = [
-                'id' => $lead->owner->get(CustomFieldEnum::getUserKey($lead->company)),
+                'id' => $salesUser->get(CustomFieldEnum::getUserKey($lead->company)),
                 'isPrimary' => true,
                 'isPositionPrimary' => true,
-                'positionCode' => $lead->owner->get(CustomFieldEnum::getUserJobPositionKey($lead->company)),
+                'positionCode' => $salesUser->get(CustomFieldEnum::getUserJobPositionKey($lead->company)),
             ];
         }
 
@@ -284,16 +286,28 @@ class Lead
     public static function getByCustomerId(AppInterface $app, Companies $company, string $customerId): self
     {
         $client = new Client($app, $company);
-        $response = $client->get(
-            '/sales/v2/elead/opportunities/search-by-customerId/' . $customerId,
-        );
+
+        try {
+            $response = $client->get(
+                '/sales/v2/elead/opportunities/search-by-customerId/' . $customerId,
+            );
+        } catch (ClientException $e) {
+            if (! self::isNoOpportunitiesResponse($e)) {
+                throw $e;
+            }
+
+            // A customer with no opportunities is an empty result, not a fault — Elead just answers it
+            // with a 404. Raise the domain exception callers already treat as "nothing to sync" so it
+            // stops reaching Sentry.
+            throw self::noOpportunitiesFound($customerId);
+        }
 
         if (isset($response['code']) && $response['message']) {
             throw new ELeadException($response['message']);
         }
 
         if (! isset($response['totalItems']) || $response['totalItems'] == 0) {
-            throw new ELeadException('No Lead Found for this customer ' . $customerId);
+            throw self::noOpportunitiesFound($customerId);
         }
 
         $lead = new Lead();
@@ -302,6 +316,26 @@ class Lead
         $lead->assign($response['items'][0]);
 
         return $lead;
+    }
+
+    /**
+     * PullLeadAction keys its people-matching fallback off the "No Opportunities found" substring,
+     * so keep Elead's own wording in the message.
+     */
+    public static function noOpportunitiesFound(string $customerId): ELeadException
+    {
+        return new ELeadException('No Opportunities found for customer ' . $customerId);
+    }
+
+    public static function isNoOpportunitiesResponse(ClientException $e): bool
+    {
+        if ($e->getResponse()?->getStatusCode() !== 404) {
+            return false;
+        }
+
+        $body = json_decode((string) $e->getResponse()?->getBody(), true);
+
+        return is_array($body) && ($body['code'] ?? null) === 'OpportunitiesNotFoundError';
     }
 
     /**

@@ -17,8 +17,7 @@ class RegionObserver
 
         $defaultRegion = $region::getDefault($region->company);
 
-        // if default already exist remove its default
-        if ($region->is_default && $defaultRegion) {
+        if ($region->is_default && $defaultRegion && ! $defaultRegion->isGlobal()) {
             $defaultRegion->is_default = false;
             $defaultRegion->saveQuietly();
         }
@@ -36,8 +35,8 @@ class RegionObserver
 
         $defaultRegion = Regions::getDefault($region->company);
 
-        // if default already exist remove its default
         if ($defaultRegion &&
+            ! $defaultRegion->isGlobal() &&
             $region->is_default &&
             $region->getId() != $defaultRegion->getId()
         ) {

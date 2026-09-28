@@ -18,6 +18,13 @@ enum ConfigurationEnum: string
     case ACUMATICA_DEFAULT_SUBACCOUNT = 'ACUMATICA_DEFAULT_SUBACCOUNT';
 
     /**
+     * TaxZone code to send on an AR Invoice/Credit Memo push when the Kanvas document has zero tax
+     * (e.g. Germany's "NONTAX" zone). Without this, Acumatica falls back to the tenant's default tax
+     * zone and silently adds VAT on top of a document Kanvas computed as tax-exempt.
+     */
+    case ACUMATICA_TAX_EXEMPT_ZONE = 'ACUMATICA_TAX_EXEMPT_ZONE';
+
+    /**
      * Per-tenant required custom fields injected into a SalesOrder push, so a tenant's Acumatica
      * customizations (e.g. required Usr* order-date fields) are satisfied without hardcoding them in
      * the connector. Map of Acumatica field name → spec; a spec is `{days:int}` (order date + N days,

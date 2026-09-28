@@ -32,11 +32,21 @@ class EntityContextBriefService
      */
     public function brief(Model $entity): array
     {
-        if ($entity instanceof ProvidesAgentContext) {
-            return $entity->agentContextBrief();
+        $brief = $entity instanceof ProvidesAgentContext
+            ? $entity->agentContextBrief()
+            : $this->genericBrief($entity);
+
+        // Handed over rather than left for build_admin_link: the record in scope is the one the agent
+        // is most likely to be asked to link, and a link it was given cannot be a link it composed wrong.
+        if (method_exists($entity, 'adminUrl')) {
+            $url = $entity->adminUrl();
+
+            if ($url !== null) {
+                $brief['admin_url'] = $url;
+            }
         }
 
-        return $this->genericBrief($entity);
+        return $brief;
     }
 
     /**

@@ -17,7 +17,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Send Slack DM')]
+#[AgentTool(name: 'Send Slack DM', category: 'ecosystem')]
 class SendSlackDirectMessageTool extends Tool
 {
     public function __construct(private readonly ?Agent $agent = null)
@@ -90,7 +90,7 @@ class SendSlackDirectMessageTool extends Tool
                 ];
             }
 
-            $client->postMessage($client->openDirectMessageChannel($slackUserId), $message);
+            $client->postMarkdownMessage($client->openDirectMessageChannel($slackUserId), $message);
         } catch (ValidationException $e) {
             return ['status' => 'error', 'message' => 'Slack could not deliver the DM: ' . $e->getMessage()];
         } catch (Throwable $e) {

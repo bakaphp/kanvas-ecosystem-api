@@ -9,6 +9,7 @@ use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Elead\Entities\SalesActivities;
 use Kanvas\Connectors\Elead\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Elead\Services\LeadUserService;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -53,12 +54,8 @@ class ScheduleEleadActivityFromEventAction
 
         $dueDate = $this->resolveDueDate();
 
-        $assignToEmployeeId = null;
-        if ($this->lead->owner) {
-            $assignToEmployeeId = $this->lead->owner->get(
-                ConfigurationEnum::getUserKey($company, $this->lead->owner)
-            );
-        }
+        $salesUser = LeadUserService::resolve($this->lead);
+        $assignToEmployeeId = $salesUser?->get(ConfigurationEnum::getUserKey($company, $salesUser));
 
         $data = [
             'opportunityId' => $opportunityId,

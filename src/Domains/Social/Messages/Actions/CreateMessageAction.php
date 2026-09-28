@@ -42,6 +42,7 @@ class CreateMessageAction
                 'parent_unique_id' => $this->messageInput->parent_unique_id,
                 'companies_id' => $this->messageInput->company->getId(),
                 'users_id' => $this->messageInput->user->getId(),
+                'people_id' => $this->resolvePeopleId(),
                 'message_types_id' => $this->messageInput->type->getId(),
                 'message' => $this->messageInput->message,
                 'reactions_count' => $this->messageInput->reactions_count,
@@ -104,17 +105,21 @@ class CreateMessageAction
                 );
             }
 
-            if ($this->messageInput->channel_slug !== null) {
+            if ($this->messageInput->channel_uuid !== null || $this->messageInput->channel_slug !== null) {
                 $allowAppWideChannel = (bool) $this->messageInput->app->get(AppEnum::ALLOW_APP_WIDE_USER_CHANNEL_ASSIGNMENT->value);
 
-                $channel = ModelsChannel::where('slug', $this->messageInput->channel_slug)
-                    ->where('apps_id', $this->messageInput->app->getId())
-                    ->when(! $allowAppWideChannel, fn (Builder $q): Builder => $q->where('companies_id', $this->messageInput->company->getId()))
-                    ->where('is_deleted', 0)
-                    ->when($this->entityId !== null && $this->systemModule !== null, function (Builder $query) {
-                        $query->where('entity_id', $this->entityId)
-                            ->where('entity_namespace', $this->systemModule->model_name);
-                    })
+                $channel = ModelsChannel::query()
+                    ->when(
+                        $this->messageInput->channel_uuid !== null,
+                        fn (Builder $q) => $q->where('uuid', $this->messageInput->channel_uuid),
+                        fn (Builder $q) => $q->where('slug', $this->messageInput->channel_slug),
+                    )
+                    ->fromApp($this->messageInput->app)
+                    ->when(! $allowAppWideChannel, fn (Builder $q) => $q->fromCompany($this->messageInput->company))
+                    ->when($this->entityId !== null && $this->systemModule !== null, fn (Builder $q) => $q
+                        ->where('entity_id', $this->entityId)
+                        ->where('entity_namespace', $this->systemModule->model_name))
+                    ->notDeleted()
                     ->first();
                 if ($channel) {
                     $channel->addMessage($message, $message->user);
@@ -156,5 +161,22 @@ class CreateMessageAction
             $this->messageInput->type->verb,
             $this->messageInput->files,
         );
+    }
+
+    private function resolvePeopleId(): ?int
+    {
+        if (! Message::isCustomerCommunication($this->messageInput->message, $this->messageInput->type->verb)) {
+            return null;
+        }
+
+        if ($this->messageInput->people !== null) {
+            return $this->messageInput->people->getId();
+        }
+
+        if ($this->systemModule === null || $this->entityId === null) {
+            return null;
+        }
+
+        return Message::peopleIdForEntity($this->systemModule->model_name, (int) $this->entityId);
     }
 }

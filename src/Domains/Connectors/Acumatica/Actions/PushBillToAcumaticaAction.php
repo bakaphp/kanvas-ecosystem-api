@@ -57,6 +57,11 @@ class PushBillToAcumaticaAction
      */
     public function execute(): string
     {
+        // Seatbelt: the real guarantee is that the push only runs from the approval handler,
+        // but this catches a call site added later that skips it and would otherwise send an
+        // un-approved bill to Acumatica.
+        $this->bill->assertApproved();
+
         // Never push a bill that originated in Acumatica back to it — self-defending even when this
         // action is called directly (bypassing the activity's guard).
         if ($this->bill->source === IntegrationsEnum::ACUMATICA->value) {

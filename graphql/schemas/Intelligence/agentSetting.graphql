@@ -1,0 +1,11 @@
+extend type Mutation @guardByAdmin {
+    setAgentSetting(input: ModuleConfigInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Config\\AgentConfigManagement@setAgentSetting"
+        )
+
+    deleteAgentSetting(input: ModuleConfigInput!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Intelligence\\Config\\AgentConfigManagement@deleteAgentSetting"
+        )
+}

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Companies\Enums;
 
+use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Contracts\EnumsInterface;
 use Kanvas\Enums\AppEnums;
 use Override;
@@ -32,5 +34,16 @@ enum Defaults implements EnumsInterface
             self::SEARCHABLE_INDEX => 'companies',
             self::ALLOW_DUPLICATE_CONTACTS => 'feat_allow_duplicate_contacts',
         };
+    }
+
+    /**
+     * App wins over company: an app that states a value states it for every tenant under it, and a
+     * company only decides the keys the app leaves unset.
+     */
+    public function getFromAppOrCompany(AppInterface $app, CompanyInterface $company): mixed
+    {
+        $key = (string) $this->getValue();
+
+        return $app->get($key) ?? $company->get($key);
     }
 }

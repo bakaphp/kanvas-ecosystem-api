@@ -13,9 +13,11 @@ use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Kanvas\Approvals\Services\ApproverResolverRegistryService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Services\KanvasGeminiGateway;
 use Kanvas\Sessions\Models\Sessions;
+use Kanvas\Social\Messages\Approvals\ChannelMemberApproverResolver;
 use Kanvas\Subscription\Subscriptions\Models\AppsStripeCustomer;
 use Laravel\Ai\AiManager;
 use Laravel\Ai\Contracts\ConversationStore;
@@ -67,6 +69,10 @@ class AppServiceProvider extends ServiceProvider
         Cashier::useCustomerModel(AppsStripeCustomer::class);
         Bouncer::cache(); // Enable caching for Bouncer to use redis
         ScoutMacros::register();
+
+        // Registered here rather than in the approvals registry's own table: the resolver has to know
+        // what a Channel is, and nothing in src/Kanvas/ may depend on a Domains/ sibling.
+        ApproverResolverRegistryService::register('channel_members', ChannelMemberApproverResolver::class);
 
         RateLimiter::for('graphql', function (Request $request) {
             $userId = $request->user()?->id;

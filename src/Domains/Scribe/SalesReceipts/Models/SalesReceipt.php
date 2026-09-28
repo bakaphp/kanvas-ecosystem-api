@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace Kanvas\Scribe\SalesReceipts\Models;
 
 use Baka\Casts\Json;
+use Baka\Observers\ClearsLightHouseCacheObserver;
 use Baka\Traits\DynamicSearchableTrait;
+use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
@@ -66,12 +69,14 @@ use Override;
  * @property array|null $metadata
  * @property bool $is_deleted
  */
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
 class SalesReceipt extends BaseModel
 {
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
     use EmitsLedgerEventsForEntity;
+    use HasLightHouseCache;
     use UuidTrait;
 
     protected $table = 'sales_receipts';
@@ -210,5 +215,11 @@ class SalesReceipt extends BaseModel
         }
 
         return $searchQuery;
+    }
+
+    #[Override]
+    public function getGraphTypeName(): string
+    {
+        return 'ScribeSalesReceipt';
     }
 }

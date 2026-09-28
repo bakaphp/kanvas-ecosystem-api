@@ -8,6 +8,8 @@ use Baka\Traits\DynamicSearchableTrait;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\SystemModules\Models\SystemModules;
@@ -29,6 +31,7 @@ use Override;
  */
 class Rule extends BaseModel
 {
+    use HasAdminLink;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
@@ -42,6 +45,12 @@ class Rule extends BaseModel
         'is_async' => 'boolean',
     ];
 
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::RULE;
+    }
+
     public function searchableAs(): string
     {
         $app = $this->app ?? app(Apps::class);
@@ -52,7 +61,7 @@ class Rule extends BaseModel
     public function toSearchableArray(): array
     {
         return [
-            'objectID' => $this->id,
+            'objectID' => (string) $this->id,
             'id' => (string) $this->id,
             'name' => $this->name,
             'description' => $this->description,

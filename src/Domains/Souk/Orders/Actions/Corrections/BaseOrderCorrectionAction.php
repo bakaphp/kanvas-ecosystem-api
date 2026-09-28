@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Orders\Actions\Corrections;
 use Closure;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Users\Models\Users;
 
@@ -35,6 +36,10 @@ abstract class BaseOrderCorrectionAction
 
     protected function guardNotFinalStatus(): void
     {
+        if ((bool) $this->order->app->get(ConfigurationEnum::ALLOW_ORDER_CORRECTION_ON_FINAL_STATUS->value)) {
+            return;
+        }
+
         if ($this->order->orderStatus?->is_final) {
             $slug = $this->order->orderStatus->slug;
 
@@ -49,6 +54,7 @@ abstract class BaseOrderCorrectionAction
         array $evidenceUrls = []
     ): void {
         activity()
+            ->useLog($this->order->getActivityLogName())
             ->causedBy($this->user)
             ->performedOn($this->order)
             ->withProperties([
@@ -59,18 +65,5 @@ abstract class BaseOrderCorrectionAction
                 'order_number' => $this->order->order_number,
             ])
             ->log($correctionType);
-    }
-
-    // Does NOT call saveOrFail() — the concrete action owns the save within transact().
-    protected function appendEvidenceImages(array $urls): void
-    {
-        if (empty($urls)) {
-            return;
-        }
-
-        $metadata = is_array($this->order->metadata) ? $this->order->metadata : [];
-        $existing = $metadata['data']['images'] ?? [];
-        $metadata['data']['images'] = array_values(array_unique(array_merge($existing, $urls)));
-        $this->order->metadata = $metadata;
     }
 }

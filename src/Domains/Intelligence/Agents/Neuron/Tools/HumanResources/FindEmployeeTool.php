@@ -10,9 +10,11 @@ use Kanvas\HumanResources\Employees\Models\Employee;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Users\Models\Users;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -21,9 +23,10 @@ use Override;
  * candidates to disambiguate rather than a single guess.
  */
 #[AgentTool(name: 'Find Employee', category: 'human_resources')]
-class FindEmployeeTool extends Tool
+class FindEmployeeTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {
@@ -99,17 +102,24 @@ class FindEmployeeTool extends Tool
             ->limit($limit)
             ->get();
 
+        $employees = $matches->map(fn (Employee $employee): array => [
+            'employee_id' => $employee->getId(),
+            'name' => $employee->people?->name,
+            'email' => $employee->user?->email,
+            'position' => $employee->position?->title,
+            'department' => $employee->department?->name,
+            'status' => $employee->status,
+        ])->all();
+
         return [
             'query' => $query,
-            'count' => $matches->count(),
-            'employees' => $matches->map(fn (Employee $employee): array => [
-                'employee_id' => $employee->getId(),
-                'name' => $employee->people?->name,
-                'email' => $employee->user?->email,
-                'position' => $employee->position?->title,
-                'department' => $employee->department?->name,
-                'status' => $employee->status,
-            ])->all(),
+            'count' => count($employees),
+            'employees' => $employees,
+            'note' => $employees === []
+                ? "No employee matches \"{$query}\". Do NOT call find_employee again with the same query — "
+                    . 'tell the user no match was found and ask them to verify the name/email or confirm the '
+                    . 'person has been onboarded as an employee.'
+                : 'If more than one candidate is listed, confirm which one before acting.',
         ];
     }
 }

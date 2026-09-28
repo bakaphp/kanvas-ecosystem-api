@@ -24,6 +24,7 @@ use Kanvas\Connectors\Credit700\Services\CreditScoreService;
 use Kanvas\Connectors\Credit700\Support\Setup;
 use Kanvas\Enums\AppEnums;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Guild\Customers\DataTransferObject\Address as AddressData;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Channels\Services\DistributionMessageService;
@@ -188,7 +189,7 @@ class CreateCreditScoreFromLeadActivity extends KanvasActivity
         return $creditScoreService->getCreditScore(
             new CreditApplicant(
                 $peopleName,
-                $housing['address'],
+                AddressData::flattenStreet($housing['address']),
                 $housing['city'],
                 $housing['state']['code'],
                 $housing['zip_code'],

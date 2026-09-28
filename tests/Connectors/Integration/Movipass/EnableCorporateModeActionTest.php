@@ -7,16 +7,40 @@ namespace Tests\Connectors\Integration\Movipass;
 use Bouncer;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\CorporateApplications\Actions\ApproveCorporateApplicationAction;
+use Kanvas\Companies\CorporateApplications\Actions\RejectCorporateApplicationAction;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Movipass\Actions\EnableCorporateModeAction;
+use Kanvas\Connectors\Movipass\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
 use Kanvas\Connectors\Movipass\Jobs\MigrateCorporateUserVariantsJob;
+use Kanvas\Connectors\Movipass\Workflows\Activities\SetupApprovedCorporateCompanyActivity;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Inventory\Regions\Enums\CustomFieldEnum as RegionCustomFieldEnum;
 use Kanvas\Users\Jobs\OnBoardingJob;
+use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
+use Kanvas\Workflow\Models\StoredWorkflow;
+use Tests\Connectors\Traits\HasIntegrationCompany;
+use Tests\Connectors\Traits\MakesGlobalRegions;
 use Tests\TestCase;
 
 final class EnableCorporateModeActionTest extends TestCase
 {
+    use HasIntegrationCompany;
+    use MakesGlobalRegions;
+
+    private Users $kanvasUser;
+    private Apps $kanvasApp;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -24,82 +48,225 @@ final class EnableCorporateModeActionTest extends TestCase
         if (getenv('GITHUB_ACTIONS')) {
             $this->markTestSkipped('Movipass corporate workflow tests are skipped in CI');
         }
+
+        $this->kanvasUser = Auth::user();
+        $this->kanvasApp = app(Apps::class);
+
+        $this->kanvasUser->del('is_corporate');
+        $this->discardPreviousRequests();
+
+        Bouncer::scope()->to(RolesEnums::getScope($this->kanvasApp, $this->kanvasUser->getCurrentCompany()));
     }
 
-    public function testApprovesValidUpgradeAndDispatchesMigrationJob(): void
+    public function testRequestProvisionsTheCompanyWithoutGrantingCorporatePrivilege(): void
     {
         Bus::fake();
 
-        $user = Auth::user();
-        $app = app(Apps::class);
+        $company = $this->request();
 
-        // Mirror a real GraphQL request: middleware leaves the Bouncer tenant scope on the
-        // user's current company, not the app-global company_0 where roles live. This is the
-        // exact condition that made the admin-role lookup throw "No query results for Role".
-        Bouncer::scope()->to(RolesEnums::getScope($app, $user->getCurrentCompany()));
-
-        $company = new EnableCorporateModeAction(
-            user: $user,
-            app: $app,
-            fields: $this->validFields(),
-        )->execute();
-
-        $this->assertNotNull($company);
-        $this->assertTrue((bool) $company->get('is_corporate'));
         $this->assertEquals('Empresa de Pruebas SRL', $company->get('legal_name'));
         $this->assertEquals('Empresa Pruebas', $company->get('commercial_name'));
         $this->assertEquals('131123456', $company->get('rnc'));
 
-        $user->refresh();
-        $this->assertTrue((bool) $user->get('is_corporate'));
-        $this->assertEquals('Juan Pérez', $user->get('contact_name'));
-        $this->assertEquals('Gerente', $user->get('contact_role'));
+        $this->assertFalse((bool) $company->get('is_corporate'));
+
+        $this->kanvasUser->refresh();
+        $this->assertFalse((bool) $this->kanvasUser->get('is_corporate'));
+        $this->assertEquals('Juan Pérez', $this->kanvasUser->get('contact_name'));
+
+        Bus::assertNotDispatched(MigrateCorporateUserVariantsJob::class);
+    }
+
+    public function testRequestDoesNotSwitchTheUserIntoTheUnapprovedCompany(): void
+    {
+        Bus::fake();
+
+        $previousCompanyId = $this->kanvasUser->getCurrentCompany()->getId();
+
+        $company = $this->request();
+
+        $this->kanvasUser->refresh();
+        $this->assertNotEquals($previousCompanyId, $company->getId());
+        $this->assertEquals($previousCompanyId, $this->kanvasUser->default_company);
+    }
+
+    public function testRequestFilesAPendingLeadForTheAdminQueue(): void
+    {
+        Bus::fake();
+
+        $company = $this->request();
+        $lead = $this->latestRequestLead();
+
+        $this->assertNotNull($lead);
+        $this->assertEquals(
+            CorporateApplicationStatusEnum::PENDING->value,
+            $lead->get(Field::STATUS->value)
+        );
+        $this->assertEquals(
+            (string) $company->getId(),
+            (string) $lead->get(Field::COMPANY_ID->value)
+        );
+        $this->assertEquals('131123456', $lead->get('rnc'));
+    }
+
+    public function testApprovalGrantsThePrivilege(): void
+    {
+        Bus::fake();
+
+        $company = $this->request();
+        $lead = $this->latestRequestLead();
+
+        $result = new ApproveCorporateApplicationAction($lead, $this->kanvasApp, $this->kanvasUser)->execute();
+
+        $this->assertEquals(CorporateApplicationStatusEnum::APPROVED->value, $result['status']);
+        $this->assertEquals($company->getId(), $result['company_id']);
+        $this->assertNull($result['invite_hash']);
+
+        $this->assertTrue((bool) $company->fresh()->get('is_corporate'));
+
+        $this->kanvasUser->refresh();
+        $this->assertTrue((bool) $this->kanvasUser->get('is_corporate'));
+        $this->assertEquals($company->getId(), $this->kanvasUser->default_company);
+    }
+
+    public function testRejectionReleasesTheProvisionalCompany(): void
+    {
+        Bus::fake();
+        Notification::fake();
+
+        $company = $this->request();
+        $lead = $this->latestRequestLead();
+
+        $this->assertTrue($this->userBelongsTo($company));
+
+        $result = new RejectCorporateApplicationAction(
+            $lead,
+            $this->kanvasApp,
+            'RNC no existe',
+            $this->kanvasUser
+        )->execute();
+
+        $this->assertEquals(CorporateApplicationStatusEnum::REJECTED->value, $result['status']);
+        $this->assertTrue((bool) $company->fresh()->is_deleted);
+        $this->assertFalse($this->userBelongsTo($company));
+
+        $this->assertTrue($this->userBelongsTo(Companies::getById((int) Field::UPGRADE_SOURCE_COMPANY_ID->readFrom($lead))));
+    }
+
+    public function testAnApprovedUpgradeCannotBeRejected(): void
+    {
+        Bus::fake();
+        Notification::fake();
+
+        $company = $this->request();
+        $lead = $this->latestRequestLead();
+        new ApproveCorporateApplicationAction($lead, $this->kanvasApp, $this->kanvasUser)->execute();
+
+        try {
+            new RejectCorporateApplicationAction(
+                $lead->fresh(),
+                $this->kanvasApp,
+                'too late',
+                $this->kanvasUser
+            )->execute();
+            $this->fail('expected a ValidationException');
+        } catch (ValidationException) {
+        }
+
+        $this->assertFalse((bool) $company->fresh()->is_deleted);
+        $this->assertEquals(CorporateApplicationStatusEnum::APPROVED->value, Field::STATUS->readFrom($lead->fresh()));
+    }
+
+    private function userBelongsTo(Companies $company): bool
+    {
+        return UsersAssociatedApps::query()
+            ->where('users_id', $this->kanvasUser->getId())
+            ->where('companies_id', $company->getId())
+            ->where('apps_id', $this->kanvasApp->getId())
+            ->exists();
+    }
+
+    public function testApprovedUpgradeMigratesVariantsThroughTheWorkflowActivity(): void
+    {
+        Bus::fake();
+
+        $this->setIntegration(
+            $this->kanvasApp,
+            IntegrationsEnum::MOVIPASS,
+            MovipassHandler::class,
+            $this->kanvasUser->getCurrentCompany(),
+            $this->kanvasUser
+        );
+
+        $company = $this->request();
+        $lead = $this->latestRequestLead();
+        new ApproveCorporateApplicationAction($lead, $this->kanvasApp, $this->kanvasUser)->execute();
+
+        $result = new SetupApprovedCorporateCompanyActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        )->execute($lead->fresh(), $this->kanvasApp, []);
+
+        $this->assertEquals($company->getId(), $result['company_id']);
+        $this->assertTrue($result['variants_migration_dispatched']);
 
         Bus::assertDispatched(MigrateCorporateUserVariantsJob::class);
     }
 
-    public function testSwitchesUserDefaultCompanyToTheNewCorporateCompany(): void
+    public function testRequestWritesBothRegionKeys(): void
     {
         Bus::fake();
 
-        $user = Auth::user();
-        $app = app(Apps::class);
+        $region = $this->makeGlobalRegion($this->kanvasApp, 'test-corporate-request-' . uniqid(), 'TCRR');
 
-        Bouncer::scope()->to(RolesEnums::getScope($app, $user->getCurrentCompany()));
+        $company = $this->request(['region_id' => $region->getId()]);
 
-        $previousCompanyId = $user->getCurrentCompany()->getId();
+        $this->assertEquals($region->getId(), (int) $company->get(CustomFieldEnum::COMPANY_REGION_ID->value));
+        $this->assertEquals($region->getId(), (int) $company->get(RegionCustomFieldEnum::DEFAULT_REGION_ID->value));
+    }
 
-        $company = new EnableCorporateModeAction(
-            user: $user,
-            app: $app,
-            fields: $this->validFields(),
-        )->execute();
+    public function testApprovalActivityWritesBothRegionKeys(): void
+    {
+        Bus::fake();
 
-        $branch = $company->branch()->firstOrFail();
+        $this->setIntegration(
+            $this->kanvasApp,
+            IntegrationsEnum::MOVIPASS,
+            MovipassHandler::class,
+            $this->kanvasUser->getCurrentCompany(),
+            $this->kanvasUser
+        );
 
-        $user->refresh();
-        $this->assertNotEquals($previousCompanyId, $company->getId());
-        $this->assertEquals($company->getId(), $user->default_company);
-        $this->assertEquals($branch->getId(), $user->default_company_branch);
+        $region = $this->makeGlobalRegion($this->kanvasApp, 'test-corporate-approval-' . uniqid(), 'TCAR');
+
+        $company = $this->request();
+        $company->del(CustomFieldEnum::COMPANY_REGION_ID->value);
+        $company->del(RegionCustomFieldEnum::DEFAULT_REGION_ID->value);
+
+        $lead = $this->latestRequestLead();
+        $lead->set('region_id', $region->getId());
+        new ApproveCorporateApplicationAction($lead, $this->kanvasApp, $this->kanvasUser)->execute();
+
+        new SetupApprovedCorporateCompanyActivity(
+            0,
+            now()->toDateTimeString(),
+            StoredWorkflow::make(),
+            []
+        )->execute($lead->fresh(), $this->kanvasApp, []);
+
+        $company = $company->fresh();
+        $this->assertEquals($region->getId(), (int) $company->get(CustomFieldEnum::COMPANY_REGION_ID->value));
+        $this->assertEquals($region->getId(), (int) $company->get(RegionCustomFieldEnum::DEFAULT_REGION_ID->value));
     }
 
     public function testDispatchesOnboardingForTheCorporateCompany(): void
     {
         Bus::fake();
 
-        $user = Auth::user();
-        $app = app(Apps::class);
+        $company = $this->request();
 
-        Bouncer::scope()->to(RolesEnums::getScope($app, $user->getCurrentCompany()));
-
-        $company = new EnableCorporateModeAction(
-            user: $user,
-            app: $app,
-            fields: $this->validFields(),
-        )->execute();
-
-        // Region + warehouse are provisioned by OnBoardingJob (Inventory Setup), the same
-        // path the user-registration/lead-accept flow runs.
         Bus::assertDispatched(
             OnBoardingJob::class,
             fn (OnBoardingJob $job) => $job->branch->companies_id === $company->getId(),
@@ -111,36 +278,62 @@ final class EnableCorporateModeActionTest extends TestCase
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('RNC must be 9 or 11 digits');
 
-        new EnableCorporateModeAction(
-            user: Auth::user(),
-            app: app(Apps::class),
-            fields: $this->validFields(['rnc' => '1234567']),
-        )->execute();
+        $this->request(['rnc' => '1234567']);
+    }
+
+    public function testRejectsASecondRequestWhileOneIsUnderReview(): void
+    {
+        Bus::fake();
+
+        $this->request();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('You already have a corporate request under review.');
+
+        $this->request();
     }
 
     public function testRejectsAlreadyCorporateUser(): void
     {
-        Bus::fake();
-
-        $user = Auth::user();
-        $app = app(Apps::class);
-
-        new EnableCorporateModeAction(
-            user: $user,
-            app: $app,
-            fields: $this->validFields(),
-        )->execute();
-
-        $user->refresh();
+        $this->kanvasUser->set('is_corporate', true);
 
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('User is already corporate');
 
-        new EnableCorporateModeAction(
-            user: $user,
-            app: $app,
-            fields: $this->validFields(),
+        $this->request();
+    }
+
+    private function request(array $overrides = []): Companies
+    {
+        return new EnableCorporateModeAction(
+            user: $this->kanvasUser,
+            app: $this->kanvasApp,
+            fields: $this->validFields($overrides),
         )->execute();
+    }
+
+    private function latestRequestLead(): ?Lead
+    {
+        return $this->requestLeadQuery()->orderByDesc('id')->first();
+    }
+
+    private function discardPreviousRequests(): void
+    {
+        $this->requestLeadQuery()->get()->each(fn (Lead $lead) => $lead->softDelete());
+    }
+
+    private function requestLeadQuery()
+    {
+        return Lead::query()
+            ->whereIn('id', function ($q) {
+                $q->select('entity_id')
+                    ->from(DB::connection('ecosystem')->getDatabaseName() . '.apps_custom_fields')
+                    ->where('model_name', Lead::class)
+                    ->where('name', Field::UPGRADE_USER_ID->value)
+                    ->where('value', (string) $this->kanvasUser->getId())
+                    ->where('is_deleted', 0);
+            })
+            ->notDeleted();
     }
 
     private function validFields(array $overrides = []): array

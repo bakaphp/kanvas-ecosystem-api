@@ -6,7 +6,9 @@ namespace App\GraphQL\Scribe\Mutations\Invoices;
 
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Scribe\Documents\Services\DocumentPdfService;
 use Kanvas\Scribe\Invoices\Actions\AllocateInvoicePaymentAction;
 use Kanvas\Scribe\Invoices\Actions\AmendInvoiceAction;
 use Kanvas\Scribe\Invoices\Actions\CreateInvoiceAction;
@@ -184,5 +186,17 @@ class InvoiceMutation
             ),
             user: $user,
         )->execute();
+    }
+
+    public function generatePdf(mixed $rootValue, array $request): Filesystem
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        /** @var Invoice $invoice */
+        $invoice = Invoice::getByIdFromCompanyApp((int) $request['id'], $company, $app);
+
+        return new DocumentPdfService($invoice, $request['template_name'] ?? null)->generate($user);
     }
 }

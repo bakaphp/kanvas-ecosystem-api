@@ -9,7 +9,13 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'ElevenLabs Hand Off To Human',
+    description: 'One of the endpoints an ElevenLabs VOICE agent calls back into Kanvas mid-call. These are '
+        . 'wired as that agent\'s server-side tools, not chosen as workflow steps — the caller on the '
+        . 'phone triggers them. This one hands the call off — the voice agent has decided it should '
+        . 'stop and a person should take over, and passes on its summary of the conversation so far.',
+)]
 class ProcessElevenLabsHandOffWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

@@ -35,7 +35,7 @@ class Lead extends Data
     {
         $prospectId = $lead->get(CustomFieldEnum::PROSPECT_ID->value);
         $prospectType = $lead->get(CustomFieldEnum::PROSPECT_TYPE->value)
-            ?? ($lead->type()->first()?->name ?? 'Internet');
+            ?? self::prospectTypeFromLeadType($lead);
 
         return new self(
             prospectId: $prospectId !== null ? (string) $prospectId : null,
@@ -62,13 +62,34 @@ class Lead extends Data
     {
         return array_filter([
             'ProspectCategory' => $this->prospectCategory,
-            'ProviderName' => $this->providerName,
+            // R&R only takes a real ProviderName on Internet prospects; any other type is sent as Other
+            'ProviderName' => $this->isInternet() ? $this->providerName : 'Other',
             'IsAiGenerated' => $this->isAiGenerated,
             'ProspectType' => $this->prospectType,
             'ProspectStatus' => $this->prospectStatus,
             'ProspectNote' => $this->prospectNote,
             'PrimarySalesPerson' => $this->primarySalesPerson,
         ], fn ($v) => $v !== null && $v !== '');
+    }
+
+    private function isInternet(): bool
+    {
+        return strtolower($this->prospectType) === 'internet';
+    }
+
+    /**
+     * Kanvas lead types are free-form per company; R&R only accepts its fixed
+     * ProspectType enum, so anything that isn't Internet is sent as Other.
+     */
+    private static function prospectTypeFromLeadType(LeadModel $lead): string
+    {
+        $typeName = $lead->type()->first()?->name;
+
+        if ($typeName === null || strtolower($typeName) === 'internet') {
+            return 'Internet';
+        }
+
+        return 'Other';
     }
 
     private static function ownerName(LeadModel $lead): ?string

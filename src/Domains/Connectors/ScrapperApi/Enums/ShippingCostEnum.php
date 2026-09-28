@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\ScrapperApi\Enums;
 
 enum ShippingCostEnum: string
 {
+    case SHIPPING_HANDLING_FEE = 'shipping_handling_fee';
     case DELIVERY_COST_LAST_MILE = 'delivery_cost_last_mile';
     case COURIER_COST = 'courier_cost';
     case FUEL = 'fuel';

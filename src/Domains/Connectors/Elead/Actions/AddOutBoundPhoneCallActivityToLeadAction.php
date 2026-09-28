@@ -9,6 +9,7 @@ use DateTime;
 use DateTimeZone;
 use Illuminate\Support\Facades\Notification;
 use InvalidArgumentException;
+use Kanvas\Companies\Services\CompanyManagerService;
 use Kanvas\Connectors\Elead\Entities\SalesActivities;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -17,7 +18,6 @@ use Kanvas\Notifications\Channels\OneSignalNotificationChannel;
 use Kanvas\Notifications\Channels\TwilioSmsChannel;
 use Kanvas\Notifications\Templates\EngagementNotification;
 use Kanvas\Social\Messages\Models\Message;
-use Kanvas\Users\Repositories\UsersRepository;
 use NotificationChannels\Expo\ExpoChannel;
 
 class AddOutBoundPhoneCallActivityToLeadAction
@@ -126,6 +126,7 @@ class AddOutBoundPhoneCallActivityToLeadAction
                 'lead_name' => $this->lead->people->name,
                 'lead_id' => $this->lead->getId(),
                 'people_id' => $this->lead->people->getId(),
+                'branch_id' => $this->lead->companies_branches_id,
             ],
             via: ['sms', 'push', 'expo', 'mail', 'database'],
             entity: $this->lead
@@ -138,12 +139,8 @@ class AddOutBoundPhoneCallActivityToLeadAction
 
         $this->configureNotificationChannels($notification);
 
-        //managers
-        $managers = UsersRepository::getCompanyAppUserByRole(
-            $this->lead->company,
-            $this->lead->app,
-            'BDCManager'
-        )->get();
+        $managers = new CompanyManagerService($this->lead->company, $this->lead->app)
+            ->getManagersByRole('BDCManager');
 
         Notification::send($managers, $notification);
     }

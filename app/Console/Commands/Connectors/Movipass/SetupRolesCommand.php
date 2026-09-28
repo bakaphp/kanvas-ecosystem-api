@@ -16,24 +16,15 @@ class SetupRolesCommand extends Command
 {
     use KanvasJobsTrait;
 
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
     protected $signature = 'kanvas:movipass-setup-roles {app_id?}';
 
-    /**
-     * The console command description.
-     *
-     * @var string|null
-     */
     protected $description = 'Setup roles for movipass orders';
 
     public function handle(): void
     {
         $appsId = $this->argument('app_id');
         $app = Apps::getById($appsId);
+        $this->overwriteAppService($app);
         $this->setupRoles($app);
 
         $this->info('Roles setup successfully');
@@ -42,53 +33,65 @@ class SetupRolesCommand extends Command
     protected function setupRoles(AppInterface $app): void
     {
         $abilities = [
-            "list-orders" => [
+            'list-orders' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::AGENT,
                 MovipassRolesEnum::TRUCK_DRIVER,
+                MovipassRolesEnum::PARQUEAT,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
-            "view-order" => [
+            'view-order' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::AGENT,
+                MovipassRolesEnum::PARQUEAT,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
-            "update-orders" => [
+            'update-orders' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::AGENT,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
-            "update-vouchers" => [
+            'update-vouchers' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
             ],
-            "download-orders" => [
+            'download-orders' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::TRUCK_DRIVER,
+                MovipassRolesEnum::PARKING_MANAGER,
             ],
-            "order-reports" => [
+            'order-reports' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
                 MovipassRolesEnum::FINANCE,
+                MovipassRolesEnum::PARKING_MANAGER,
             ],
-            "cancel-orders" => [
+            'cancel-orders' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
+                MovipassRolesEnum::PARKING_MANAGER,
             ],
             'configure-company' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
+                MovipassRolesEnum::PARKING_MANAGER,
             ],
             'list-paso-rapido' => [
                 RolesEnums::OWNER,
@@ -138,47 +141,81 @@ class SetupRolesCommand extends Command
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::PARQUEAT,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
+            ],
+            'correct-vehicle-data' => [
+                RolesEnums::OWNER,
+                RolesEnums::ADMIN,
+                MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::PARQUEAT,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
             'adjust-amount' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::PARKING_MANAGER,
             ],
             'mark-duplicate' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::PARKING_MANAGER,
             ],
             'add-observations' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
             'associate-payment' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
-                MovipassRolesEnum::FINANCE,
                 MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
             'relocate' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
                 MovipassRolesEnum::OPERATIONS,
+                MovipassRolesEnum::PARQUEAT,
+                MovipassRolesEnum::PARKING_MANAGER,
+                MovipassRolesEnum::PARKING_OPERATOR,
             ],
             'admin-reverse-transition' => [
                 RolesEnums::OWNER,
                 RolesEnums::ADMIN,
             ],
+            'insurance-client' => [
+                RolesEnums::INSURANCE_CLIENT,
+            ],
         ];
 
-        Bouncer::scope()->to(RolesEnums::getScope($app));
+        $scope = RolesEnums::getScope($app);
+        Bouncer::scope()->to($scope);
+
+        foreach (MovipassRolesEnum::cases() as $movipassRole) {
+            Bouncer::role()->firstOrCreate(
+                ['name' => $movipassRole->value, 'scope' => $scope],
+                ['title' => $movipassRole->value],
+            );
+        }
+
         foreach ($abilities as $ability => $roles) {
             foreach ($roles as $roleName) {
                 Bouncer::allow($roleName->value)->to($ability);
             }
 
-            if (! in_array(MovipassRolesEnum::RDVIAL_CONSULTANT, $roles, true)) {
-                Bouncer::disallow(MovipassRolesEnum::RDVIAL_CONSULTANT->value)->to($ability);
+            // Bouncer::allow is additive-only, so a role dropped from an ability keeps the grant unless revoked here
+            foreach (MovipassRolesEnum::cases() as $movipassRole) {
+                if (! in_array($movipassRole, $roles, true)) {
+                    Bouncer::disallow($movipassRole->value)->to($ability);
+                }
             }
         }
 

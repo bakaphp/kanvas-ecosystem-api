@@ -237,7 +237,7 @@ final class SyncMovipassImpoundActivityTest extends TestCase
         $this->assertEquals($result['status'], 'success');
         $this->assertEquals($result['message'], 'Order synced correctly');
         $this->assertEquals($order->fulfillment_status, OrderFulfillmentStatusEnum::COMPLETED->value);
-        $this->assertNotNull($order->metadata["data"]["payment_date"]);
+        $this->assertNotNull($order->metadata['data']['payment_date']);
     }
 
     public function testOrderReleaseWorkflow(): void
@@ -292,24 +292,24 @@ final class SyncMovipassImpoundActivityTest extends TestCase
             ],
             'order_type' => OrderTypeEnum::IMPOUND_LOT->value,
             'metadata' => [
-                "data" => [
-                    "start_at" => "2025-09-10 17:17",
-                    "vehicleBrand" => "Chevrolet",
-                    "vehicleColor" => "blanco",
-                    "vehiclePlate" => "T000001",
-                    "images" => [],
-                    "carDeposit" => [
-                        "id" => "259177",
-                        "name" => "Centro de Retención",
-                        "description" => "Avenida 27 de Febrero",
+                'data' => [
+                    'start_at' => '2025-09-10 17:17',
+                    'vehicleBrand' => 'Chevrolet',
+                    'vehicleColor' => 'blanco',
+                    'vehiclePlate' => 'T000001',
+                    'images' => [],
+                    'carDeposit' => [
+                        'id' => '259177',
+                        'name' => 'Centro de Retención',
+                        'description' => 'Avenida 27 de Febrero',
                     ],
-                    "terms_and_conditions" => true,
-                    "parking_spot" => "8",
-                    "proof_images" => [],
-                    "delivery_time" => "2025-09-10 17:25",
-                    "observations" => null,
-                    "payment_images" => [],
-                ]
+                    'terms_and_conditions' => true,
+                    'parking_spot' => '8',
+                    'proof_images' => [],
+                    'delivery_time' => '2025-09-10 17:25',
+                    'observations' => null,
+                    'payment_images' => [],
+                ],
             ],
             'items' => [
                 [
@@ -353,6 +353,6 @@ final class SyncMovipassImpoundActivityTest extends TestCase
         ]);
 
         $order->refresh();
-        $this->assertNotNull($order->metadata["data"]["release_date"]);
+        $this->assertNotNull($order->metadata['data']['release_date']);
     }
 }

@@ -142,7 +142,7 @@ class EngagementStatusChangedEvent implements ShouldBroadcast
             ]
         );
 
-        new NotifyLeadStakeholdersService($this->lead, $notification)->all();
+        new NotifyLeadStakeholdersService($this->lead, $notification)->allActionManagers();
         $notificationImport = $this->lead->app->get('notification-import-types') ?? [];
 
         if (is_array($this->message->message) && ! empty($this->message->message)) {
@@ -162,7 +162,7 @@ class EngagementStatusChangedEvent implements ShouldBroadcast
                 new NotifyLeadStakeholdersService(
                     $this->lead,
                     $notification
-                )->all();
+                )->allActionManagers();
             }
         }
     }

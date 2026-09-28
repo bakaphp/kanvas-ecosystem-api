@@ -1,0 +1,69 @@
+type NervousSystemScheduledAction {
+    id: ID!
+    uuid: String!
+    company: Company! @belongsTo(relation: "company")
+    recipient: User @belongsTo(relation: "recipient")
+    agent: AgentAi @belongsTo(relation: "agent")
+    action_type: String!
+    status: String!
+    run_at: DateTime!
+    timezone: String!
+    is_recurring: Boolean! @method(name: "isRecurring")
+    recurrence_cron: String
+    recurrence_ends_at: DateTime
+    max_occurrences: Int
+    occurrences_count: Int!
+    payload: Mixed
+    channel: String
+    session_uuid: String
+    source_entity_type: String
+    source_entity_id: String
+    attempts: Int!
+    last_error: String
+    last_fired_at: DateTime
+    executed_at: DateTime
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+extend type Query @guard {
+    nervousSystemScheduledActions(
+        where: _
+            @whereConditions(
+                columns: [
+                    "id"
+                    "uuid"
+                    "users_id"
+                    "agent_id"
+                    "status"
+                    "action_type"
+                    "channel"
+                    "run_at"
+                ]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "run_at", "created_at", "last_fired_at"])
+    ): [NervousSystemScheduledAction!]!
+        @paginate(
+            model: "Kanvas\\NervousSystem\\Scheduling\\Models\\ScheduledAction"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}
+
+extend type Mutation @guard {
+    pauseNervousSystemScheduledAction(id: ID!): NervousSystemScheduledAction!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ScheduledActionMutation@pause"
+        )
+
+    resumeNervousSystemScheduledAction(id: ID!): NervousSystemScheduledAction!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ScheduledActionMutation@resume"
+        )
+
+    cancelNervousSystemScheduledAction(id: ID!): NervousSystemScheduledAction!
+        @field(
+            resolver: "App\\GraphQL\\NervousSystem\\Mutations\\ScheduledActionMutation@cancel"
+        )
+}

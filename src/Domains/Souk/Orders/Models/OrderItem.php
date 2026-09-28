@@ -60,7 +60,8 @@ class OrderItem extends BaseModel
 
     public function variant(): BelongsTo
     {
-        return $this->belongsTo(Variants::class, 'variant_id', 'id');
+        return $this->belongsTo(Variants::class, 'variant_id', 'id')
+                ->withTrashed();
     }
 
     #[Override]

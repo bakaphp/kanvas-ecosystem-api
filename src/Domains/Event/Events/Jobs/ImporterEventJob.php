@@ -18,13 +18,15 @@ use Kanvas\Event\Events\Models\EventType;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
+use Override;
 use Throwable;
 
 use function Sentry\captureException;
 
 class ImporterEventJob extends ProductImporterJob
 {
-    public function handle()
+    #[Override]
+    public function handle(): void
     {
         config(['laravel-model-caching.disabled' => true]);
         Auth::loginUsingId($this->user->getId());
@@ -78,7 +80,7 @@ class ImporterEventJob extends ProductImporterJob
                     $request['category_id'] = $category->getId();
                 }
                 $data = Event::fromMultiple($this->app, $this->user, $this->branch->company, $request);
-                $event = (new CreateEventAction($data))->execute();
+                $event = new CreateEventAction($data)->withoutNotifications()->execute();
 
                 if ($event->wasRecentlyCreated) {
                     $created++;
@@ -118,6 +120,7 @@ class ImporterEventJob extends ProductImporterJob
         );
     }
 
+    #[Override]
     protected function notificationStatus(
         int $totalItems,
         int $totalProcessSuccessfully,

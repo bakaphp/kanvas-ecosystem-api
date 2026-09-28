@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\NervousSystem\Plan\Observers;
 
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
+use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfBlockedPlanJob;
+use Kanvas\NervousSystem\Plan\Jobs\NotifyPlanOwnerOfCompletedPlanJob;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Project\Jobs\NotifyProjectOwnerOfBlockedPlanJob;
+use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
 use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelData;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
@@ -17,6 +20,16 @@ class PlanObserver
     public function updating(Plan $plan): void
     {
         $plan->clearLightHouseCache(withKanvasConfiguration: false);
+
+        // Only a board drag writes board_column_key, so every other writer of `status` would leave the
+        // card in a column that no longer matches it. Sitting on the model covers all of them at once.
+        if ($this->shouldRepointBoardColumn($plan)) {
+            $plan->board_column_key = new ProjectBoardColumns()->keyForStatus(
+                $plan->project,
+                $plan->status,
+                $plan->board_column_key,
+            );
+        }
 
         // Record the assignee that just blocked this plan so the PM can't re-hand it to the same agent
         // (which would only re-block). Folded into this same UPDATE — no extra write. See NS-6909.
@@ -35,14 +48,47 @@ class PlanObserver
 
     public function updated(Plan $plan): void
     {
-        if ($plan->project_id !== null
-            && $plan->wasChanged('status')
-            && $plan->status === PlanStatusEnum::BLOCKED->value
-        ) {
-            // Delay so a burst of near-simultaneous blocks settles — the first job to run then digests
-            // ALL of them into ONE alert, and the rest are suppressed by the per-project throttle.
-            NotifyProjectOwnerOfBlockedPlanJob::dispatch($plan)->delay(now()->addSeconds(45));
+        if (! $plan->wasChanged('status')) {
+            return;
         }
+
+        // Success needs telling as much as failure does. Unlike a block it goes to the plan's OWNER
+        // even when a project exists: the PM is who finished the work, so routing "it's done" to the
+        // PM tells the one person who already knows.
+        if ($plan->status === PlanStatusEnum::DONE->value) {
+            NotifyPlanOwnerOfCompletedPlanJob::dispatch($plan)->delay(now()->addSeconds(45));
+
+            return;
+        }
+
+        if ($plan->status !== PlanStatusEnum::BLOCKED->value) {
+            return;
+        }
+
+        // No project means no PM watching — and a person is waiting on it. A plan under a project takes
+        // the same route only when a PERSON is the one who can unblock it, so they are interrupted for
+        // what they can act on; a capability block belongs to the operator digest below.
+        if ($plan->project_id === null || $plan->blockedNeedsAHuman()) {
+            NotifyPlanOwnerOfBlockedPlanJob::dispatch($plan)->delay(now()->addSeconds(45));
+
+            return;
+        }
+
+        // Delay so a burst of near-simultaneous blocks settles — the first job to run then digests
+        // ALL of them into ONE alert, and the rest are suppressed by the per-project throttle.
+        NotifyProjectOwnerOfBlockedPlanJob::dispatch($plan)->delay(now()->addSeconds(45));
+    }
+
+    /**
+     * An explicit column move is authoritative — it writes both fields, and re-pointing it would undo
+     * a move into the second of two columns that share a plan_status.
+     */
+    private function shouldRepointBoardColumn(Plan $plan): bool
+    {
+        return $plan->isDirty('status')
+            && ! $plan->isDirty('board_column_key')
+            && $plan->board_column_key !== null
+            && $plan->project !== null;
     }
 
     public function created(Plan $plan): void

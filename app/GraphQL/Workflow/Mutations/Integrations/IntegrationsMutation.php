@@ -55,7 +55,8 @@ class IntegrationsMutation
             app: $integrationDto->app,
             company: $integrationDto->company,
             region: $integrationDto->region,
-            data: $integrationDto->config
+            data: $integrationDto->config,
+            integration: $integration
         );
 
         if ($handlerInstance->setup()) {
@@ -68,7 +69,11 @@ class IntegrationsMutation
                             ->first();
         }
 
-        $integrationCompany = (new CreateIntegrationCompanyAction($integrationDto, $user, $status))->execute();
+        $integrationCompany = new CreateIntegrationCompanyAction(
+            $integrationDto,
+            $user,
+            $status
+        )->execute();
 
         return $integrationCompany;
     }

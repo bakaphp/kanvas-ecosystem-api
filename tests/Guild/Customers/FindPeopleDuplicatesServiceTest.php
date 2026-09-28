@@ -45,13 +45,11 @@ class FindPeopleDuplicatesServiceTest extends TestCase
         $this->assertSame((int) $a->id, $group->canonical_id);
     }
 
-    public function test_finds_lastname_only_duplicates_missed_by_exact_name(): void
+    public function test_finds_lastname_only_duplicates_between_two_records_missing_firstname(): void
     {
         $lastname = 'Pina' . uniqid();
-        // Mirrors the real Salesforce case: a Contact with no FirstName gets firstname=lastname
-        // fabricated by PullPeopleAction, so it never matches a sibling with a real first name.
-        $a = $this->seedPeople($lastname, $lastname);
-        $b = $this->seedPeople('Andres', $lastname);
+        $a = $this->seedPeople('', $lastname);
+        $b = $this->seedPeople('', $lastname);
 
         $groups = new FindPeopleDuplicatesService()->generate($this->kanvasApp, $this->company);
 
@@ -59,6 +57,52 @@ class FindPeopleDuplicatesServiceTest extends TestCase
         $this->assertNotNull($group);
         $this->assertSame('lastname_match', $group->reason);
         $this->assertEqualsCanonicalizing([(int) $a->id, (int) $b->id], $group->member_ids);
+    }
+
+    public function test_finds_firstname_only_duplicates_between_two_records_missing_lastname(): void
+    {
+        $firstname = 'Andres' . uniqid();
+        $a = $this->seedPeople($firstname, '');
+        $b = $this->seedPeople($firstname, '');
+
+        $groups = new FindPeopleDuplicatesService()->generate($this->kanvasApp, $this->company);
+
+        $group = $this->findGroupContaining($groups, (int) $a->id);
+        $this->assertNotNull($group);
+        $this->assertSame('firstname_match', $group->reason);
+        $this->assertEqualsCanonicalizing([(int) $a->id, (int) $b->id], $group->member_ids);
+    }
+
+    public function test_shared_lastname_alone_does_not_flag_two_different_people(): void
+    {
+        $lastname = 'Abreu' . uniqid();
+        $alan = $this->seedPeople('Alan', $lastname);
+        $pedro = $this->seedPeople('Pedro', $lastname);
+
+        $groups = new FindPeopleDuplicatesService()->generate($this->kanvasApp, $this->company);
+
+        $this->assertNull($this->findGroupContaining($groups, (int) $alan->id));
+        $this->assertNull($this->findGroupContaining($groups, (int) $pedro->id));
+
+        $this->assertSame([], new FindPeopleDuplicatesService()->checkRecord($pedro->fresh()));
+    }
+
+    public function test_lastname_only_record_does_not_cross_match_against_many_full_name_records(): void
+    {
+        $lastname = 'Pina' . uniqid();
+        foreach (['Andres', 'Pedro', 'Alan', 'Maria', 'Jose'] as $firstname) {
+            $this->seedPeople($firstname, $lastname);
+        }
+        $lonePartial = $this->seedPeople('', $lastname);
+
+        $this->assertSame([], new FindPeopleDuplicatesService()->checkRecord($lonePartial->fresh()));
+
+        $otherPartial = $this->seedPeople('', $lastname);
+
+        $groups = new FindPeopleDuplicatesService()->checkRecord($otherPartial->fresh());
+        $group = $this->findGroupContaining($groups, (int) $otherPartial->id);
+        $this->assertNotNull($group);
+        $this->assertEqualsCanonicalizing([(int) $lonePartial->id, (int) $otherPartial->id], $group->member_ids);
     }
 
     public function test_finds_email_duplicates_case_insensitive(): void
@@ -100,6 +144,37 @@ class FindPeopleDuplicatesServiceTest extends TestCase
 
         $this->assertCount(1, $matches, 'Same member set shouldn\'t appear under both dimensions.');
         $this->assertSame('external_id_conflict', $matches[0]->reason, 'external_id_conflict must win over exact_name.');
+    }
+
+    public function test_check_record_finds_only_matches_for_that_person(): void
+    {
+        $lastname = 'Puello' . uniqid();
+        $a = $this->seedPeople('Arfenis', $lastname);
+        $b = $this->seedPeople('arfenis', strtolower($lastname));
+        $unrelated = $this->seedPeople('Unrelated', 'Person' . uniqid());
+
+        $groupsForA = new FindPeopleDuplicatesService()->checkRecord($a->fresh());
+        $group = $this->findGroupContaining($groupsForA, (int) $a->id);
+        $this->assertNotNull($group);
+        $this->assertSame('exact_name', $group->reason);
+        $this->assertEqualsCanonicalizing([(int) $a->id, (int) $b->id], $group->member_ids);
+
+        $groupsForUnrelated = new FindPeopleDuplicatesService()->checkRecord($unrelated->fresh());
+        $this->assertSame([], $groupsForUnrelated);
+    }
+
+    public function test_check_record_finds_lastname_match_between_two_records_missing_firstname(): void
+    {
+        $lastname = 'Pina' . uniqid();
+        $a = $this->seedPeople('', $lastname);
+        $b = $this->seedPeople('', $lastname);
+
+        $groups = new FindPeopleDuplicatesService()->checkRecord($b->fresh());
+
+        $group = $this->findGroupContaining($groups, (int) $b->id);
+        $this->assertNotNull($group);
+        $this->assertSame('lastname_match', $group->reason);
+        $this->assertEqualsCanonicalizing([(int) $a->id, (int) $b->id], $group->member_ids);
     }
 
     public function test_singletons_are_not_returned(): void

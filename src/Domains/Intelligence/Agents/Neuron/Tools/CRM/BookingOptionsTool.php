@@ -24,7 +24,7 @@ use Override;
  * the lead's OWNER. The staff roster is returned for context; booking with a different staff member
  * requires reassigning the lead or handing off to a human.
  */
-#[AgentTool(name: 'Booking Options')]
+#[AgentTool(name: 'Booking Options', category: 'crm')]
 class BookingOptionsTool extends Tool
 {
     use ResolvesLeadForTool;

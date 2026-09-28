@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\VinSolution\DataTransferObject;
 use DateTime;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Support\Phone;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Locations\Models\States;
 use Kanvas\Social\Messages\Models\Message;
 use Spatie\LaravelData\Data;
@@ -21,7 +22,7 @@ class CreditApp extends Data
     ) {
     }
 
-    public static function fromMessage(Message $message): self
+    public static function fromMessage(Message $message, ?People $people = null): self
     {
         $company = $message->company;
         $message = $message->getMessage();
@@ -36,13 +37,14 @@ class CreditApp extends Data
             $contactDOB = null;
         }
 
-        $employContact = preg_replace('/\D+/', '', $formData['financial']['current_employer_phone'] ?? '');
         $previousEmployerStateId = $formData['financial']['previous_state']['id'] ?? 0;
         $previousEmployersState = $previousEmployerStateId > 0 ? States::find($previousEmployerStateId) : null;
         $currentEmployerStateId = $formData['financial']['state']['id'] ?? 0;
         $currentEmployerState = $currentEmployerStateId > 0 ? States::find($currentEmployerStateId) : null;
-        $currentEmployerPhoneNumber = strlen(Phone::removeUSCountryCode($formData['financial']['current_employer_phone'])) === 10 ? Phone::removeUSCountryCode($formData['financial']['current_employer_phone']) : '';
-        $previousEmployerPhoneNumber = strlen(Phone::removeUSCountryCode($formData['financial']['previous_employer_phone'])) === 10 ? Phone::removeUSCountryCode($formData['financial']['previous_employer_phone']) : '';
+        $currentEmployerPhoneNumber = Phone::removeUSCountryCode($formData['financial']['current_employer_phone'] ?? '');
+        $currentEmployerPhoneNumber = strlen($currentEmployerPhoneNumber) === 10 ? $currentEmployerPhoneNumber : '';
+        $previousEmployerPhoneNumber = Phone::removeUSCountryCode($formData['financial']['previous_employer_phone'] ?? '');
+        $previousEmployerPhoneNumber = strlen($previousEmployerPhoneNumber) === 10 ? $previousEmployerPhoneNumber : '';
         $defaultState = $company->get(ConfigurationEnum::DEFAULT_STATE_KEY->value) ?? 'FL';
 
         $result = [
@@ -117,6 +119,14 @@ class CreditApp extends Data
             $result['licenseData']['LicenseID'] = $formData['personal']['drivers_license'];
             $result['licenseData']['Country'] = 'US';
             $result['licenseData']['State'] = isset($formData['personal']['drivers_license_state']['code']) ? $formData['personal']['drivers_license_state']['code'] : $formData['personal']['drivers_license_state'];
+        } elseif ($peopleLicense = $people?->getDriverLicense()) {
+            $result['licenseData']['LicenseID'] = $peopleLicense->number;
+            $result['licenseData']['Country'] = 'US';
+            $result['licenseData']['State'] = $peopleLicense->state;
+
+            if (! isset($result['licenseData']['DateOfBirth']) && $peopleLicense->dob !== null) {
+                $result['licenseData']['DateOfBirth'] = $peopleLicense->dob->format('Y-m-d\TH:i:s\Z');
+            }
         }
 
         //set state

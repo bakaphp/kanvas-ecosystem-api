@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace Kanvas\Regions\Services;
 
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Baka\Support\IPInfo;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Kanvas\Enums\AppEnums;
 use Kanvas\Inventory\Regions\Enums\ConfigurationEnum;
 use Kanvas\Inventory\Regions\Enums\CustomFieldEnum;
 use Kanvas\Inventory\Regions\Models\Regions;
@@ -27,6 +29,31 @@ class RegionResolutionService
         return $this->fromUserProfile($user)
             ?? $this->fromGeoIp($request)
             ?? $this->fromAppDefault();
+    }
+
+    /**
+     * A company's default region is a custom field pointing at either one of its own regions
+     * or an app-global one (companies_id = 0) — the regions table itself can't express
+     * "this global region is my default", since is_default there is app-wide.
+     */
+    public function forCompany(CompanyInterface $company): ?Regions
+    {
+        $regionId = $company->get(CustomFieldEnum::DEFAULT_REGION_ID->value);
+
+        if (! empty($regionId)) {
+            $region = Regions::query()
+                ->fromApp($this->app)
+                ->notDeleted()
+                ->where('id', (int) $regionId)
+                ->whereIn('companies_id', [AppEnums::GLOBAL_COMPANY_ID->getValue(), $company->getId()])
+                ->first();
+
+            if ($region !== null) {
+                return $region;
+            }
+        }
+
+        return Regions::getDefault($company, $this->app);
     }
 
     protected function fromUserProfile(?UserInterface $user): ?Regions

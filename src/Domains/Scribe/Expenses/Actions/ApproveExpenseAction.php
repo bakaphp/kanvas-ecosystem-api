@@ -10,6 +10,8 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Scribe\Approvals\Enums\ApprovalQueueStatusEnum;
 use Kanvas\Scribe\Approvals\Models\ApprovalQueueItem;
+use Kanvas\Scribe\Banking\Actions\LinkBankTransactionToExpenseAction;
+use Kanvas\Scribe\Banking\Services\BankTransactionMatchService;
 use Kanvas\Scribe\DocumentSequences\Enums\DocumentTypeEnum;
 use Kanvas\Scribe\DocumentSequences\Services\DocumentNumberAllocatorService;
 use Kanvas\Scribe\Expenses\Enums\ExpenseReimbursementStatusEnum;
@@ -18,6 +20,8 @@ use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\Expenses\Services\ExpenseJournalEntryComposerService;
 use Kanvas\Scribe\Expenses\Services\ExpenseStateMachineService;
 use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
+use Kanvas\Scribe\Ledger\Enums\AccountSubTypeEnum;
+use Kanvas\Scribe\Ledger\Services\AccountResolverService;
 
 /**
  * Transitions PENDING_APPROVAL → APPROVED and posts the approval JE (DR Expense / CR {paid_by-driven}).
@@ -31,6 +35,13 @@ use Kanvas\Scribe\Ledger\Actions\PostJournalEntryAction;
  *   6. Compose JE via ExpenseJournalEntryComposerService::composeApproval + post via PostJournalEntryAction
  *   7. Close the matching ApprovalQueueItem (if any) — APPROVED
  *
+ * Step 6 has a second shape. The bank feed does not wait for an approver: when the statement row lands
+ * first it credits the card itself and parks the debit in Suspense. Crediting the card again here would
+ * credit one real charge twice and strand the parked amount forever, so an approval that finds such a row
+ * drains it instead — same per-line debits, CR Suspense — and links the row to this expense.
+ * BankTransactionMatchService guards the opposite order; both halves are needed, because which side of
+ * the race arrives first is not something either one can control.
+ *
  * @see plan §11.4 — Juan's hotel; this is the "Finance approves" step that posts the DR Expense / CR Due to Employees JE
  */
 class ApproveExpenseAction
@@ -42,6 +53,8 @@ class ApproveExpenseAction
         protected readonly ExpenseStateMachineService $stateMachine = new ExpenseStateMachineService(),
         protected readonly ExpenseJournalEntryComposerService $composer = new ExpenseJournalEntryComposerService(),
         protected readonly ?DocumentNumberAllocatorService $allocator = null,
+        protected readonly BankTransactionMatchService $matcher = new BankTransactionMatchService(),
+        protected readonly AccountResolverService $accountResolver = new AccountResolverService(),
     ) {
     }
 
@@ -71,11 +84,27 @@ class ApproveExpenseAction
             $expense->refresh();
             $expense->load('lines');
 
-            $jeData = $this->composer->composeApproval($expense);
+            $parkedCharge = $this->matcher->findSuspendedChargeFor($expense);
+            $suspenseAccount = $parkedCharge === null
+                ? null
+                : $this->accountResolver->bySubType($expense->app, $expense->company, AccountSubTypeEnum::SUSPENSE);
+
+            $jeData = $this->composer->composeApproval($expense, $suspenseAccount);
+
             new PostJournalEntryAction(
                 data: $jeData,
                 postedByUser: $this->approver,
             )->execute();
+
+            if ($parkedCharge !== null) {
+                // No journalEntryId: the row keeps the entry it already posted, which is the one still
+                // holding the Suspense balance this approval just drained.
+                new LinkBankTransactionToExpenseAction(
+                    bankTransaction: $parkedCharge,
+                    expense: $expense,
+                    user: $this->approver,
+                )->execute();
+            }
 
             $this->closeApprovalQueueItem($expense);
 

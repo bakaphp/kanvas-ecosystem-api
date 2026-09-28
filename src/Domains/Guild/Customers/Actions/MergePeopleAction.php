@@ -8,10 +8,12 @@ use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Duplicates\Actions\MarkDuplicateGroupsResolvedAction;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
 use Kanvas\NervousSystem\Ledger\Actions\AppendEventAction;
 use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as LedgerEventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
+use Kanvas\Workflow\Enums\WorkflowEnum;
 use RuntimeException;
 use Throwable;
 
@@ -93,6 +95,25 @@ class MergePeopleAction
             $addressesTransferred,
             $customFieldsAdopted,
         );
+
+        new MarkDuplicateGroupsResolvedAction(
+            entityType: People::class,
+            appsId: (int) $this->target->apps_id,
+            companiesId: (int) $this->target->companies_id,
+            sourceId: $sourceId,
+            targetId: $targetId,
+            user: $this->user,
+        )->execute();
+
+        try {
+            $this->target->fireWorkflow(WorkflowEnum::AFTER_MERGE->value, true, [
+                'app' => $this->target->app,
+                'source_id' => $sourceId,
+                'target_id' => $targetId,
+            ]);
+        } catch (Throwable $e) {
+            report($e);
+        }
 
         return $this->target->refresh();
     }
@@ -238,7 +259,39 @@ class MergePeopleAction
             $transferred++;
         }
 
+        // Both people carried their own current address; merging them would otherwise leave the
+        // target with two, and readers resolve whichever row happens to sort first.
+        $this->collapseDefaultAddresses($targetId);
+
         return $transferred;
+    }
+
+    /**
+     * Leave the target with exactly one current address: the newest row already flagged as one,
+     * or the newest row overall when the merge left none.
+     */
+    private function collapseDefaultAddresses(int $targetId): void
+    {
+        $addresses = DB::connection('crm')->table('peoples_address')
+            ->where('peoples_id', $targetId)
+            ->where('is_deleted', 0)
+            ->orderByDesc('id')
+            ->get();
+
+        if ($addresses->isEmpty()) {
+            return;
+        }
+
+        $keep = $addresses->firstWhere('is_default', 1) ?? $addresses->first();
+
+        DB::connection('crm')->table('peoples_address')
+            ->where('peoples_id', $targetId)
+            ->where('id', '!=', $keep->id)
+            ->update(['is_default' => 0]);
+
+        DB::connection('crm')->table('peoples_address')
+            ->where('id', $keep->id)
+            ->update(['is_default' => 1]);
     }
 
     /**

@@ -55,6 +55,44 @@ class Tag extends BaseModel
         return 'Tag';
     }
 
+    /**
+     * Tag input reaches us in three shapes: a GraphQL `[TagInput!]`
+     * (`[['name' => 'a']]`), a plain name list (`['a', 'b']`), and a raw CSV
+     * cell (`'a, b'`). Flatten all three to a de-duplicated name list here so
+     * every caller — mutations, importers, connectors — agrees on the shape.
+     */
+    public static function normalizeNames(mixed $tags): array
+    {
+        if (is_string($tags)) {
+            $tags = explode(',', $tags);
+        }
+
+        if (! is_array($tags)) {
+            return [];
+        }
+
+        $names = [];
+        foreach ($tags as $tag) {
+            $name = is_array($tag) ? ($tag['name'] ?? null) : $tag;
+
+            // addTag() takes a name or a tag id; anything else (a nested array,
+            // an object with no __toString) would fatal on the cast below.
+            if (! is_string($name) && ! is_int($name)) {
+                continue;
+            }
+
+            $name = is_string($name) ? trim($name) : $name;
+
+            if ($name === '') {
+                continue;
+            }
+
+            $names[(string) $name] = $name;
+        }
+
+        return array_values($names);
+    }
+
     public function taggables(): HasMany
     {
         return $this->hasMany(TagEntity::class, 'tags_id');
@@ -96,13 +134,17 @@ class Tag extends BaseModel
             $query->where('companies_id', auth()->user()->getCurrentCompany()->getId());
         }
 
+        if ($query->model->isTypesense()) {
+            $query->options(['query_by' => 'name,slug,description']);
+        }
+
         return $query;
     }
 
     public function toSearchableArray(): array
     {
         return [
-            'objectID' => $this->id,
+            'objectID' => (string) $this->id,
             'id' => (string) $this->id,
             'name' => $this->name,
             'company' => [
@@ -116,10 +158,85 @@ class Tag extends BaseModel
             'slug' => $this->slug,
             'description' => $this->description,
             'apps_id' => $this->apps_id,
+            'companies_id' => $this->companies_id,
             'weight' => $this->weight,
             'status' => $this->status,
             'is_featured' => $this->is_feature,
             'created_at' => $this->created_at->format('Y-m-d H:i:s'),
+        ];
+    }
+
+    public function typesenseCollectionSchema(): array
+    {
+        return [
+            'name' => $this->searchableAs(),
+            'fields' => [
+                [
+                    'name' => 'objectID',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'id',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'name',
+                    'type' => 'string',
+                ],
+                [
+                    'name' => 'slug',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'description',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'company',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'user',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'apps_id',
+                    'type' => 'int64',
+                ],
+                [
+                    'name' => 'companies_id',
+                    'type' => 'int64',
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'weight',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'sort' => true,
+                ],
+                [
+                    'name' => 'status',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'is_featured',
+                    'type' => 'int64',
+                    'optional' => true,
+                    'facet' => true,
+                ],
+                [
+                    'name' => 'created_at',
+                    'type' => 'string',
+                    'optional' => true,
+                ],
+            ],
+            'enable_nested_fields' => true,
         ];
     }
 }

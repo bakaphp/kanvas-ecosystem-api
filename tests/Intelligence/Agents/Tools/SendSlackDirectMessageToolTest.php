@@ -36,7 +36,7 @@ final class SendSlackDirectMessageToolTest extends TestCase
 
         $result = new SendSlackDirectMessageTool($agent)->__invoke(
             recipient_email: $this->user->email,
-            message: 'Standup moved to 10am.',
+            message: '**Standup** moved to [10am](https://example.com/meeting).',
         );
 
         $this->assertSame('success', $result['status']);
@@ -45,7 +45,7 @@ final class SendSlackDirectMessageToolTest extends TestCase
         Http::assertSent(
             fn (Request $request): bool => str_contains($request->url(), 'chat.postMessage')
                 && $request['channel'] === 'D123'
-                && $request['text'] === 'Standup moved to 10am.'
+                && $request['markdown_text'] === '**Standup** moved to [10am](https://example.com/meeting).'
         );
     }
 
@@ -61,6 +61,32 @@ final class SendSlackDirectMessageToolTest extends TestCase
 
         $this->assertSame('error', $result['status']);
         Http::assertNothingSent();
+    }
+
+    public function testLongDirectMessagesContinueInTheFirstMessagesThread(): void
+    {
+        $this->fakeSlack(slackUserFound: true);
+        $agent = $this->connectedAgent();
+        $markdown = str_repeat("### Plan progress\n\n**Owner:** Max — waiting on credentials.\n\n", 100);
+
+        $result = new SendSlackDirectMessageTool($agent)->__invoke(
+            recipient_email: $this->user->email,
+            message: $markdown,
+        );
+
+        $this->assertSame('success', $result['status']);
+        $posts = Http::recorded(fn (Request $request): bool => str_contains($request->url(), 'chat.postMessage'))->values();
+        $this->assertGreaterThan(1, $posts->count());
+        $delivered = '';
+
+        foreach ($posts as $index => [$request]) {
+            $this->assertArrayNotHasKey('text', $request->data());
+            $this->assertLessThanOrEqual(3000, strlen($request['markdown_text']));
+            $this->assertSame($index === 0 ? null : '1700000000.000100', $request['thread_ts'] ?? null);
+            $delivered .= $request['markdown_text'];
+        }
+
+        $this->assertSame(trim($markdown), $delivered);
     }
 
     public function testErrorsWhenTheTeammateIsNotInTheSlackWorkspace(): void

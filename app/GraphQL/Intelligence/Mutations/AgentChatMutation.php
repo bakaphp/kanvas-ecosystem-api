@@ -8,14 +8,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Traits\HasMutationUploadFiles;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Enums\AgentChatStatusEnum;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
+use Kanvas\Intelligence\Agents\Helpers\AgentChatBroadcastChannel;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
+use Kanvas\Intelligence\Agents\Jobs\ProcessAgentChatTurnJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Actions\CreateSessionAction;
 use Kanvas\Intelligence\Sessions\Actions\CreateUserSessionAction;
@@ -44,7 +50,11 @@ class AgentChatMutation
         );
 
         $sessionId = (string) $input['session_id'];
-        $session = Session::fromApp($app)->fromCompany($company)->where('uuid', $sessionId)->first();
+        $session = Session::fromApp($app)
+            ->fromCompany($company)
+            ->fromAgent($agent)
+            ->where('uuid', $sessionId)
+            ->first();
 
         [$mergedImages, $mergedFiles, $attachments] = $this->mergeUploadsWithUrls(
             $input,
@@ -53,18 +63,25 @@ class AgentChatMutation
             $session ?? $agent
         );
 
-        return new AgentChatKernel(
-            agent: $agent,
-            session: $session,
-            message: AttachmentPromptBuilder::withAttachments(
-                (string) $input['message'],
-                $mergedFiles,
-            ),
-            user: $user,
-            images: $mergedImages,
-            attachments: $attachments,
-            documents: $mergedFiles,
-        )->execute();
+        try {
+            return new AgentChatKernel(
+                agent: $agent,
+                session: $session,
+                message: AttachmentPromptBuilder::withFilesystemMarkers(
+                    AttachmentPromptBuilder::withAttachments(
+                        (string) $input['message'],
+                        $mergedFiles,
+                    ),
+                    $attachments,
+                ),
+                user: $user,
+                images: $mergedImages,
+                attachments: $attachments,
+                documents: $mergedFiles,
+            )->execute();
+        } catch (AgentReplySkippedException) {
+            throw $this->deactivatedAgentError();
+        }
     }
 
     public function createSession(mixed $root, array $req): string
@@ -150,21 +167,55 @@ class AgentChatMutation
             $session
         );
 
-        $processor = new AgentChatKernel(
-            agent: $agent,
-            session: $session,
-            message: AttachmentPromptBuilder::withAttachments(
+        $message = AttachmentPromptBuilder::withFilesystemMarkers(
+            AttachmentPromptBuilder::withAttachments(
                 (string) $input['message'],
                 $mergedFiles,
             ),
+            $attachments,
+        );
+
+        if ($this->shouldRunAsync($input, $app)) {
+            ProcessAgentChatTurnJob::dispatch(
+                app: $app,
+                agent: $agent,
+                session: $session,
+                user: $user,
+                message: $message,
+                images: $mergedImages,
+                documents: $mergedFiles,
+                attachmentIds: array_map(static fn (Filesystem $file): int => $file->getId(), $attachments),
+                currentLeadId: $currentLead?->getId(),
+            );
+
+            return [
+                'response' => '',
+                'session_id' => $session->uuid,
+                'message' => null,
+                'channel' => $session->channel,
+                'status' => AgentChatStatusEnum::PENDING->value,
+                'broadcast_channel' => AgentChatBroadcastChannel::nameFor($agent, $session->uuid),
+            ];
+        }
+
+        $processor = new AgentChatKernel(
+            agent: $agent,
+            session: $session,
+            message: $message,
             user: $user,
             images: $mergedImages,
             attachments: $attachments,
             currentLead: $currentLead,
             documents: $mergedFiles,
+            rendersArtifacts: true,
         );
 
-        $response = $processor->execute();
+        try {
+            $response = $processor->execute();
+        } catch (AgentReplySkippedException) {
+            throw $this->deactivatedAgentError();
+        }
+
         /** @var Message $reply userChat always supplies a Session, so persistence always runs and sets the reply (or throws). */
         $reply = $processor->persistedReply();
 
@@ -173,7 +224,33 @@ class AgentChatMutation
             'session_id' => $session->uuid,
             'message' => $reply,
             'channel' => $reply->channels()->first(),
+            'status' => AgentChatStatusEnum::COMPLETED->value,
+            'broadcast_channel' => AgentChatBroadcastChannel::nameFor($agent, $session->uuid),
         ];
+    }
+
+    /**
+     * AgentReplySkippedException is not ClientAware, so letting it escape hands the caller a generic
+     * 503 in production.
+     */
+    private function deactivatedAgentError(): ValidationException
+    {
+        return new ValidationException(AgentReplySkippedException::DEACTIVATED_USER_MESSAGE);
+    }
+
+    /**
+     * Per-request `async` wins so one heavy turn can be forced onto the queue (or opted back out);
+     * otherwise the app-level setting decides.
+     *
+     * @param array<string, mixed> $input
+     */
+    protected function shouldRunAsync(array $input, Apps $app): bool
+    {
+        if (array_key_exists('async', $input) && $input['async'] !== null) {
+            return (bool) $input['async'];
+        }
+
+        return (bool) ($app->get(AppSettingsEnums::AGENT_CHAT_ASYNC->getValue()) ?? false);
     }
 
     /**
@@ -195,6 +272,7 @@ class AgentChatMutation
         if (! empty($input['session_id'])) {
             $session = Session::fromApp($app)
                 ->fromCompany($company)
+                ->fromAgent($agent)
                 ->where('uuid', (string) $input['session_id'])
                 ->first();
 
@@ -311,7 +389,7 @@ class AgentChatMutation
 
     /**
      * @param array<string, mixed> $input
-     * @return array{0: list<string>, 1: list<string>, 2: list<\Kanvas\Filesystem\Models\Filesystem>} `[$images, $files, $attachments]`
+     * @return array{0: list<string>, 1: list<string>, 2: list<Filesystem>} `[$images, $files, $attachments]`
      */
     protected function mergeUploadsWithUrls(
         array $input,
@@ -330,19 +408,65 @@ class AgentChatMutation
             static fn (mixed $item): bool => $item instanceof UploadedFile,
         ));
 
-        if ($uploads === [] || $attachTo === null) {
-            return [$images, $files, $attachments];
-        }
-
-        foreach ($this->uploadFilesAndCollect($attachTo, $app, $user, $uploads) as $filesystem) {
-            if ($filesystem->mediaType()->isImage()) {
-                $images[] = $filesystem->url;
-            } else {
-                $files[] = $filesystem->url;
+        if ($uploads !== [] && $attachTo !== null) {
+            foreach ($this->uploadFilesAndCollect($attachTo, $app, $user, $uploads) as $filesystem) {
+                if ($filesystem->mediaType()->isImage()) {
+                    $images[] = $filesystem->url;
+                } else {
+                    $files[] = $filesystem->url;
+                }
+                $attachments[] = $filesystem;
             }
-            $attachments[] = $filesystem;
         }
 
-        return [$images, $files, $attachments];
+        // Keyed by id, because the URLs just uploaded are in $images/$files too and would otherwise
+        // resolve back to rows already collected — the same file, marked up twice in the prompt.
+        $collected = [];
+
+        foreach ([...$attachments, ...$this->resolveOwnedFilesystems([...$images, ...$files], $app, $user)] as $filesystem) {
+            $collected[$filesystem->getId()] = $filesystem;
+        }
+
+        return [$images, $files, array_values($collected)];
+    }
+
+    /**
+     * Filesystem rows behind URLs the client passed instead of uploading through this mutation.
+     *
+     * A client that uploads first and then sends the URL leaves `$attachments` empty, so the agent
+     * gets the image natively but no `filesystem_id` marker — it can read the receipt and then asks
+     * the person for a file id they have no way to know. Resolving the URL back gives the same
+     * marker the multipart path produces.
+     *
+     * Scoped to the caller's own app + company: the URL is client-supplied, so an unscoped lookup
+     * would hand back another tenant's filesystem_id, and every file tool keys on that id.
+     *
+     * @param  list<string>  $urls
+     * @return list<Filesystem>
+     */
+    private function resolveOwnedFilesystems(array $urls, Apps $app, Users $user): array
+    {
+        $urls = array_values(
+            array_unique(
+                array_filter(
+                    $urls,
+                    static fn (mixed $url): bool => is_string($url) && $url !== ''
+                )
+            )
+        );
+
+        if ($urls === []) {
+            return [];
+        }
+
+        $company = $user->getCurrentCompany();
+
+        return Filesystem::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->whereIn('url', $urls)
+            ->get()
+            ->all();
     }
 }

@@ -18,7 +18,7 @@ use Override;
 
 use function Laravel\Ai\agent;
 
-#[AgentTool(name: 'Completion Status')]
+#[AgentTool(name: 'Completion Status', category: 'crm')]
 class CompletionStatusTool extends Tool
 {
     use ResolvesLeadForTool;
@@ -68,7 +68,7 @@ class CompletionStatusTool extends Tool
 
         /** @var StructuredAgentResponse $response */
         $response = agent(
-            instructions: Blade::render(implode(' ', $neuronAgent->role['background']), $data),
+            instructions: Blade::render($neuronAgent->roleSection('background'), $data),
             schema: fn ($schema): array => [
                 'lead_intent' => $schema->string()->description('Echo of the intent passed as input')->required(),
                 'intent_completion_status' => $schema->string()->enum(['COMPLETE', 'INCOMPLETE'])->description('Whether the intent is completed')->required(),
@@ -80,9 +80,9 @@ class CompletionStatusTool extends Tool
                 'internal_notes' => $schema->string()->description('One concise CRM note; no PII beyond artifacts')->required(),
             ],
         )->prompt(
-            Blade::render(implode('\n', $neuronAgent->role['steps']), $data),
+            Blade::render($neuronAgent->roleSection('steps', "\n"), $data),
             provider: Lab::Gemini,
-            model: 'gemini-2.5-pro',
+            model: 'gemini-3.1-flash-lite',
         );
 
         return $response->structured;

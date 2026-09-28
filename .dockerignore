@@ -1,15 +1,39 @@
 # Files
 .env
+.env.*
+!.env.example
 .gitignore
 .gitattributes
-docker-compose.yml
+docker-compose*.yml
+compose*.yml
+compose-dev.yaml
 phpunit.xml
 .phpunit.result.cache
-compose-dev.yaml
+.php-cs-fixer.cache
+.DS_Store
+service-account.json
+google_auth.json
+google-play-service-account.json
+*.sqlite
+*.HEIC
 
 # Folders
 node_modules/
 vendor/
 .github/
 .vscode/
+.idea/
 .git
+.claude/
+.planning/
+docs/
+ansible/
+helm/
+tools/
+caddy/
+typesense-data/
+
+# Runtime state. The deploy rsync excludes /storage, so on a long-lived host it holds only uploads,
+# logs and job scratch — this is what grew `COPY .` to 15 GB. The Dockerfiles recreate the skeleton.
+storage/
+bootstrap/cache/

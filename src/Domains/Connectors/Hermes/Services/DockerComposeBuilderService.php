@@ -281,6 +281,36 @@ class DockerComposeBuilderService extends BaseDockerComposeBuilderService
      * how OpenRouter routes to the upstream backend. So we strip only when the prefix
      * matches the resolved native provider; openrouter keeps the full string.
      */
+    /**
+     * Hermes talks to the Gemini API directly, so the only cost knob its config carries is the model —
+     * it has no heartbeat, compaction or context-window settings to set. Returns '' when the model is
+     * already non-Pro, so a deliberate Claude/OpenRouter pairing is never rewritten.
+     */
+    #[Override]
+    public function costDefaultsPatch(string $currentConfig): string
+    {
+        $current = Yaml::parse($currentConfig);
+        $currentModel = is_array($current) ? ($current['model']['default'] ?? null) : null;
+
+        if (is_string($currentModel) && ! self::isProModel($currentModel)) {
+            return '';
+        }
+
+        $provider = $this->detectProvider(self::DEFAULT_MODEL);
+
+        return Yaml::dump(
+            [
+                'model' => [
+                    'default' => $this->normalizeModelName(self::DEFAULT_MODEL, $provider),
+                    'provider' => $provider,
+                    'base_url' => $this->providerBaseUrl($provider),
+                ],
+            ],
+            4,
+            2,
+        );
+    }
+
     private function normalizeModelName(string $model, string $provider): string
     {
         if ($provider === 'openrouter') {

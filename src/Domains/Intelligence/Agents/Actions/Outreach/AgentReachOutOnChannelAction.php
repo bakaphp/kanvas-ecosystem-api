@@ -6,10 +6,12 @@ namespace Kanvas\Intelligence\Agents\Actions\Outreach;
 
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\RespondIO\Enums\MessageTypeEnum as RespondIoMessageTypeEnum;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\MessageTypeEnum as TwilioMessageTypeEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -34,6 +36,8 @@ class AgentReachOutOnChannelAction
         protected readonly Agent $agent,
         protected readonly string $channelType,
         protected readonly string $recipient,
+        protected readonly bool $deferDelivery = false,
+        protected readonly ?string $from = null,
     ) {
     }
 
@@ -91,6 +95,13 @@ class AgentReachOutOnChannelAction
             }
         }
 
+        // No first-outbound gate: this lane is the first touch by construction, and its
+        // $channel is the cross-protocol People channel — a prior email would wrongly
+        // suppress it. Applied before persisting so deferDelivery locks the body it ships.
+        if ($this->channelType === ChannelCategoryEnum::SMS->value) {
+            $responseText = SmsOptOutNoticeService::appendTo($responseText);
+        }
+
         $messageTypeVerb = $this->resolveMessageTypeVerb();
         $type = MessageTypeService::getOrCreate($this->lead->app, $messageTypeVerb);
 
@@ -110,7 +121,13 @@ class AgentReachOutOnChannelAction
                     'chat_jid' => $this->recipient,
                 ])->toArray(),
                 is_public: 1,
-                tags: [$this->recipient, 'agent-reach-out', 'first-touch'],
+                tags: array_values(array_filter([
+                    $this->recipient,
+                    'agent-reach-out',
+                    'first-touch',
+                    'first-message',
+                    $this->deferDelivery ? 'agent-reach-out-delayed' : null,
+                ])),
                 type: $type,
             )
         );
@@ -118,6 +135,8 @@ class AgentReachOutOnChannelAction
         $outbound = $createMessage->execute();
 
         $outbound->set('communicationChannel', $this->channelType);
+        $outbound->set('from_number', $this->from);
+        $outbound->set('title', $emailSubject);
         // $channel is the master People channel. addMessage() handles the channel pivot;
         // the polymorphic People entity link (used by history loaders) needs an explicit
         // addEntity.
@@ -135,31 +154,38 @@ class AgentReachOutOnChannelAction
         );
 
         // Company in APPROVAL
-        if (
+        if ($this->deferDelivery) {
+            $outbound->setLock();
+            $outbound->setPrivate();
+        } elseif (
             $this->channelType === ChannelCategoryEnum::EMAIL->value
             && $company->requiresAgentHumanApproval()
         ) {
             $outbound->setLock();
         }
 
-        $outbound->fireWorkflow(
-            WorkflowEnum::CREATED->value,
-            true,
-            ['app' => $this->lead->app],
-        );
+        if (! $this->deferDelivery) {
+            $outbound->fireWorkflow(
+                WorkflowEnum::CREATED->value,
+                true,
+                ['app' => $this->lead->app],
+            );
+        }
 
         // Deliver via the canonical Lead-level dispatcher (SMS/email/WhatsApp/voice),
         // unless the draft is held for human approval.
         if (! $outbound->isLocked()) {
-            new SendMessageToLeadAction($this->lead)->execute(
+            $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
                 channel: $this->channelType,
                 message: $responseText,
-                from: null,
+                from: $this->from,
                 title: $emailSubject,
                 signature: false,
                 files: null,
                 to: $this->recipient,
+                fromAgent: $this->agent,
             );
+            new StoreMessageSidAction($outbound)->execute($providerResponse);
         }
 
         return $outbound;

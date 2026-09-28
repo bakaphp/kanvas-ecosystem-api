@@ -6,7 +6,9 @@ namespace Kanvas\Guild\Leads\Services;
 
 use Baka\Support\Str;
 use Exception;
+use Kanvas\ActionEngine\Engagements\Models\Engagement;
 use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Leads\Exceptions\MissingParticipantPeopleIdException;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Models\Message;
 use Throwable;
@@ -85,68 +87,83 @@ class LeadChannelFilesService
 
     protected function formatMessageFileGroup(Message $message): array
     {
-        // Get the last submitted message or the latest child
         $lastMessage = $this->getLastSubmittedMessage($message) ?? $message;
 
         $files = $this->getFilesFromMessage($lastMessage);
-        $notificationName = null;
+        $verb = 'message';
+        $action = 'Message Files';
+        $status = 'submitted';
+        $metadata = [];
 
+        //a message with no engagement is a plain conversation message, it keeps the generic labels
         try {
-            // Get engagement information if available
-            $companyAction = null;
-            $stages = null;
-            $verb = null;
-            $action = 'Message Files';
-            $status = 'submitted';
-
-            // Try to get engagement data
-
             $engagement = $lastMessage->getEngagement();
-            if ($engagement->companyAction) {
-                $companyAction = $engagement->companyAction;
-                $verb = $companyAction->actions->slug ?? null;
-                $action = $companyAction->actions->name ?? 'Message Files';
-            }
-            if ($engagement->stage) {
-                $stages = $engagement->stage;
-                $status = $stages->slug ?? 'submitted';
-            }
-
-            // Get participant name if different from lead people
-            try {
-                if ($message->get('people_id') && $message->get('people_id') != $this->lead->people_id) {
-                    $coBuyerPeople = People::getByIdOrFail($message->get('people_id'));
-                    $notificationName = ' (' . $coBuyerPeople->name . ')';
-                }
-            } catch (Exception $e) {
-                $notificationName = null;
-            }
-
-            // Get message data
-            $messageForm = $lastMessage->message;
-            $metadata = [];
-            if (is_array($messageForm) && key_exists('data', $messageForm)) {
-                $metadata = $messageForm['data'];
-            }
-        } catch (Exception $e) {
-            $verb = 'message';
-            $action = 'Message Files';
-            $status = 'submitted';
-            $metadata = [];
+        } catch (Exception) {
+            $engagement = null;
         }
+
+        if ($engagement?->companyAction) {
+            $companyAction = $engagement->companyAction;
+            $verb = $companyAction->action->slug ?? $verb;
+            $action = $companyAction->name ?: ($companyAction->action->name ?? $action);
+        }
+
+        if ($engagement?->stage) {
+            $status = $engagement->stage->slug ?? $status;
+        }
+
+        $messageForm = $lastMessage->message;
+        if (is_array($messageForm) && key_exists('data', $messageForm)) {
+            $metadata = $messageForm['data'];
+        }
+
+        $participant = $this->resolveParticipant($engagement, $lastMessage, $message);
 
         return [
             'id' => (string) $message->getId(),
             'uuid' => $message->uuid,
-            'verb' => $verb ?? 'message',
-            'action' => $action . ($notificationName ?? ''),
+            'verb' => $verb,
+            'action' => $participant ? $action . ' (' . $participant->name . ')' : $action,
             'status' => $status,
-            'participant_name' => $notificationName ? trim($notificationName, ' ()') : null,
+            'participant_name' => $participant?->name,
             'created_at' => $message->created_at->format('Y-m-d H:i:s'),
             'last_message_at' => $lastMessage->created_at->format('Y-m-d H:i:s'),
-            'files' => $this->removeDuplicateFiles($files, $notificationName),
+            'files' => $this->removeDuplicateFiles($files),
             'metadata' => $metadata,
         ];
+    }
+
+    /**
+     * The engagement's people_id — or the message's own people_id custom field, which is what the
+     * showroom ID verification flow writes — points at the participant that submitted the action.
+     * A co-buyer's ID verification belongs to them, not to the lead's main buyer.
+     */
+    protected function resolveParticipant(?Engagement $engagement, Message $lastMessage, Message $message): ?People
+    {
+        //`?:` and not `??`: engagement.people_id is 0 on legacy rows and 0 would never fall through `??`
+        $peopleId = (int) ($engagement?->people_id ?: 0)
+            ?: (int) ($lastMessage->get('people_id') ?: 0);
+
+        //every get() is a custom field lookup, so only reach for the thread parent when it is another row
+        if (! $peopleId && ! $lastMessage->is($message)) {
+            $peopleId = (int) ($message->get('people_id') ?: 0);
+        }
+
+        if (! $peopleId || $peopleId === (int) $this->lead->people_id) {
+            return null;
+        }
+
+        try {
+            return People::getByIdFromCompanyApp($peopleId, $this->lead->company, $this->lead->app);
+        } catch (Throwable) {
+            if ($this->lead->participants()->where('peoples_id', $peopleId)->exists()) {
+                throw new MissingParticipantPeopleIdException(
+                    'Lead ' . $this->lead->getId() . ' participant people_id ' . $peopleId . ' does not resolve'
+                );
+            }
+
+            return null;
+        }
     }
 
     protected function getLeadFileGroup(): array
@@ -173,7 +190,6 @@ class LeadChannelFilesService
         $groups = [];
 
         try {
-            // Get co-buyer participants
             $coBuyerParticipants = $this->lead->participants()
                 ->whereHas('type', function ($query) {
                     $query->where('name', 'Co-buyer');
@@ -183,7 +199,13 @@ class LeadChannelFilesService
             foreach ($coBuyerParticipants as $participant) {
                 $people = $participant->people;
 
-                // Get participant files using the standard files relationship
+                if ($people === null) {
+                    throw new MissingParticipantPeopleIdException(
+                        'Lead ' . $this->lead->getId() . ' participant ' . $participant->getId()
+                        . ' points at peoples_id ' . $participant->peoples_id . ' which does not resolve'
+                    );
+                }
+
                 $participantFiles = $people->getFiles();
 
                 if ($participantFiles->isNotEmpty()) {
@@ -201,7 +223,10 @@ class LeadChannelFilesService
                     ];
                 }
             }
-        } catch (Throwable $e) {
+        } catch (MissingParticipantPeopleIdException $e) {
+            //the generic catch below is a Throwable, so the integrity signal has to be let through first
+            throw $e;
+        } catch (Throwable) {
             // Ignore errors in participant processing
         }
 
@@ -245,7 +270,9 @@ class LeadChannelFilesService
                 'url' => $file->url,
                 'file_type' => $file->file_type ?? '',
                 'size' => $file->size ?? 0,
-                'field_name' => $file->pivot->field_name ?? '',
+                //getFiles() returns FilesystemEntities rows with the filesystem columns joined in, not
+                //a belongsToMany, so field_name is a column on the row itself and there is no pivot
+                'field_name' => $file->field_name ?? '',
                 'attributes' => $file->attributes ?? [],
             ];
         })->toArray();
@@ -253,22 +280,25 @@ class LeadChannelFilesService
 
     protected function formatFiles(array $files): array
     {
-        return array_map(function ($file) {
-            return [
-                'id' => (string) ($file['id'] ?? ''),
-                'name' => $file['name'] ?? '',
-                'url' => $file['url'] ?? '',
-                'file_type' => $file['file_type'] ?? '',
-                'size' => $file['size'] ?? 0,
-                'field_name' => $file['field_name'] ?? '',
-                'verification_status' => $file['attributes']['id_verification_status'] ?? null,
-                'verification_message' => $file['attributes']['id_verification_msg'] ?? null,
-                'attributes' => $file['attributes'] ?? [],
-            ];
-        }, $files);
+        return array_map(fn (array $file): array => $this->presentFile($file), $files);
     }
 
-    protected function removeDuplicateFiles(array $files, ?string $name = null): array
+    protected function presentFile(array $file): array
+    {
+        return [
+            'id' => (string) ($file['id'] ?? ''),
+            'name' => $file['name'] ?? '',
+            'url' => $file['url'] ?? '',
+            'file_type' => $file['file_type'] ?? '',
+            'size' => $file['size'] ?? 0,
+            'field_name' => $file['field_name'] ?? '',
+            'verification_status' => $file['attributes']['id_verification_status'] ?? null,
+            'verification_message' => $file['attributes']['id_verification_msg'] ?? null,
+            'attributes' => $file['attributes'] ?? [],
+        ];
+    }
+
+    protected function removeDuplicateFiles(array $files): array
     {
         $uniqueFiles = [];
         $hasIdVerificationMsg = false;
@@ -311,20 +341,7 @@ class LeadChannelFilesService
             }
         }
 
-        // Convert to format expected by GraphQL
-        return array_map(function ($file) {
-            return [
-                'id' => (string) ($file['id'] ?? ''),
-                'name' => $file['name'] ?? '',
-                'url' => $file['url'] ?? '',
-                'file_type' => $file['file_type'] ?? '',
-                'size' => $file['size'] ?? 0,
-                'field_name' => $file['field_name'] ?? '',
-                'verification_status' => $file['attributes']['id_verification_status'] ?? null,
-                'verification_message' => $file['attributes']['id_verification_msg'] ?? null,
-                'attributes' => $file['attributes'] ?? [],
-            ];
-        }, array_values($uniqueFiles));
+        return array_map(fn (array $file): array => $this->presentFile($file), array_values($uniqueFiles));
     }
 
     /**

@@ -16,7 +16,7 @@ use Override;
 use Stringable;
 use Throwable;
 
-#[AgentTool(name: 'FMP Altman Z Score')]
+#[AgentTool(name: 'FMP Altman Z Score', category: 'knowledge')]
 class FmpAltmanZScoreTool implements KanvasToolInterface
 {
     use HasKanvasContext;
@@ -36,7 +36,7 @@ class FmpAltmanZScoreTool implements KanvasToolInterface
     #[Override]
     public function description(): Stringable|string
     {
-        return "Fetch the Altman Z-Score for a public company. Returns the score and zone (Distress / Grey / Safe).";
+        return 'Fetch the Altman Z-Score for a public company. Returns the score and zone (Distress / Grey / Safe).';
     }
 
     #[Override]

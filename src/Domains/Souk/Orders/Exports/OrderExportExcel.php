@@ -17,6 +17,7 @@ use Maatwebsite\Excel\Concerns\WithDrawings;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Override;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class OrderExportExcel implements FromQuery, WithMapping, WithDrawings, WithColumnWidths, WithStyles, WithEvents, WithCustomStartCell, ShouldAutoSize, WithChunkReading
@@ -325,7 +326,8 @@ class OrderExportExcel implements FromQuery, WithMapping, WithDrawings, WithColu
         }
     }
 
-    public function styles(Worksheet $sheet)
+    #[Override]
+    public function styles(Worksheet $sheet): ?array
     {
         $lastColumn = $this->getExcelColumn((int) (count($this->data['headers']) - 1));
         $titleRow = 5;

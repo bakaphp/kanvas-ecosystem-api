@@ -22,7 +22,7 @@ class RouteSignalAction
 
     public function __construct(
         private readonly InboundSignal $signal,
-        private readonly string $model = 'gemini-2.5-pro',
+        private readonly string $model = 'gemini-3.1-flash-lite',
     ) {
     }
 

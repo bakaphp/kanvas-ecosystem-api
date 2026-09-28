@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\AccessControlList\Actions;
 
 use Bouncer;
+use Illuminate\Support\Carbon;
 use Kanvas\AccessControlList\Enums\RolesEnums;
 use Kanvas\AccessControlList\Models\AbilitiesModules;
 use Kanvas\AccessControlList\Models\Ability;
@@ -30,39 +31,86 @@ class CreateAbilitiesByModule
         Bouncer::scope()->to($scope);
         Bouncer::useAbilityModel(Ability::class);
 
-        // Create module-level permissions first
         $this->createModulePermissions();
 
-        // Then create entity-specific permissions
-        foreach (ModulesRepositories::getAbilitiesByModule() as $module => $subModule) {
-            foreach ($subModule as $model => $abilities) {
-                $systemModule = SystemModulesRepository::getByModelName($model, $this->app);
-                foreach ($abilities as $ability) {
-                    $ability = Bouncer::ability()->firstOrCreate(
-                        [
-                            'name' => $ability,
-                            'entity_type' => $model,
-                        ],
-                        [
-                            'title' => ucfirst($ability),
-                        ]
-                    );
+        $abilitiesByModule = ModulesRepositories::getAbilitiesByModule();
 
-                    // Update or create abilities_modules, ensuring no stale entries
-                    AbilitiesModules::updateOrCreate(
-                        [
-                            'module_id' => $module,
-                            'apps_id' => $this->app->getId(),
-                            'scope' => $scope,
-                            'system_modules_id' => $systemModule->getId(),
-                            'abilities_id' => $ability->id,
-                        ],
-                        [
-                            'is_deleted' => 0,
-                        ]
-                    );
+        $systemModules = SystemModulesRepository::getByModelNames(
+            array_merge(...array_map('array_keys', array_values($abilitiesByModule))),
+            $this->app
+        );
+
+        $grants = [];
+        foreach ($abilitiesByModule as $module => $subModule) {
+            foreach ($subModule as $model => $abilities) {
+                foreach ($abilities as $ability) {
+                    $grants[] = [$module, $model, $ability];
                 }
             }
+        }
+
+        $resolved = new ResolveAbilitiesAction()->execute(
+            array_map(static fn (array $grant): array => [$grant[2], $grant[1]], $grants)
+        );
+
+        $wanted = [];
+        foreach ($grants as [$module, $model, $ability]) {
+            $systemModuleId = $systemModules[$model]->getId();
+            $abilityId = $resolved[ResolveAbilitiesAction::key($ability, $model)]->getKey();
+
+            $wanted[$module . '-' . $systemModuleId . '-' . $abilityId] = [
+                'module_id' => $module,
+                'apps_id' => $this->app->getId(),
+                'scope' => $scope,
+                'system_modules_id' => $systemModuleId,
+                'abilities_id' => $abilityId,
+            ];
+        }
+
+        $this->syncAbilitiesModules($wanted, $scope);
+    }
+
+    /**
+     * One select plus at most one insert and one update, in place of an updateOrCreate per ability.
+     *
+     * @param array<string, array<string, mixed>> $wanted
+     */
+    protected function syncAbilitiesModules(array $wanted, string $scope): void
+    {
+        if (empty($wanted)) {
+            return;
+        }
+
+        $existing = AbilitiesModules::query()
+            ->where('apps_id', $this->app->getId())
+            ->where('scope', $scope)
+            ->whereIn('abilities_id', array_column($wanted, 'abilities_id'))
+            ->get()
+            ->keyBy(fn (AbilitiesModules $row): string => $row->module_id . '-' . $row->system_modules_id . '-' . $row->abilities_id);
+
+        $missing = array_diff_key($wanted, $existing->all());
+        $now = Carbon::now();
+
+        if (! empty($missing)) {
+            AbilitiesModules::query()->insert(array_map(
+                static fn (array $row): array => $row + [
+                    'is_deleted' => 0,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ],
+                array_values($missing)
+            ));
+        }
+
+        // A module/ability pairing that is wanted again must come back even if it was soft deleted.
+        $revive = $existing
+            ->only(array_keys($wanted))
+            ->filter(fn (AbilitiesModules $row): bool => (int) $row->is_deleted !== 0)
+            ->pluck('id')
+            ->all();
+
+        if (! empty($revive)) {
+            AbilitiesModules::query()->whereIn('id', $revive)->update(['is_deleted' => 0]);
         }
     }
 
@@ -72,15 +120,15 @@ class CreateAbilitiesByModule
      */
     protected function createModulePermissions(): void
     {
-        foreach (ModulesRepositories::getModulePermissions() as $moduleId => $permissionNames) {
+        $pairs = [];
+
+        foreach (ModulesRepositories::getModulePermissions() as $permissionNames) {
             foreach ($permissionNames as $permissionName) {
-                // Create ability with compound name (e.g., 'view-module-inventory')
                 // entity_type is null because these are simple permissions without entity
-                Bouncer::ability()->firstOrCreate([
-                    'name' => $permissionName,
-                    'title' => ucwords(str_replace('-', ' ', $permissionName)),
-                ]);
+                $pairs[] = [$permissionName, null, ucwords(str_replace('-', ' ', $permissionName))];
             }
         }
+
+        new ResolveAbilitiesAction()->execute($pairs);
     }
 }

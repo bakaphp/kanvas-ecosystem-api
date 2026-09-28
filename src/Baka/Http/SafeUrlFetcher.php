@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Baka\Http;
 
 use Baka\Http\Exceptions\SsrfException;
+use Closure;
 use GuzzleHttp\Client;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -19,12 +20,30 @@ use Psr\Http\Message\UriInterface;
  */
 final class SafeUrlFetcher
 {
+    private const string FAKE_BINDING = 'baka.safe-url-fetcher.fake';
+
+    /**
+     * Tests only: answer every fetch with $responder instead of the network. The fetcher builds its own
+     * Guzzle client, so Http::fake() never reaches it. Held in the container, which every test rebuilds,
+     * and ignored outside a unit-test run.
+     *
+     * @param Closure(string): string $responder
+     */
+    public static function fake(Closure $responder): void
+    {
+        app()->instance(self::FAKE_BINDING, $responder);
+    }
+
     /**
      * @throws SsrfException on an unsafe URL or an oversized response
      * @throws \GuzzleHttp\Exception\GuzzleException on a transport error
      */
     public static function fetch(string $url): string
     {
+        if (app()->runningUnitTests() && app()->bound(self::FAKE_BINDING)) {
+            return app(self::FAKE_BINDING)($url);
+        }
+
         $maxBytes = (int) config('ssrf.max_bytes', 50 * 1024 * 1024);
 
         $ips = SafeUrl::resolve($url);
@@ -43,6 +62,9 @@ final class SafeUrlFetcher
             'connect_timeout' => (float) config('ssrf.connect_timeout', 5),
             'timeout' => (float) config('ssrf.timeout', 15),
             'stream' => true,
+            'headers' => [
+                'User-Agent' => (string) config('ssrf.user_agent', 'KanvasBot/1.0 (+https://kanvas.dev)'),
+            ],
             'allow_redirects' => [
                 'max' => (int) config('ssrf.max_redirects', 3),
                 'strict' => true,

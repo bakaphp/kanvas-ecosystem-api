@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
-use Baka\Http\SafeUrlFetcher;
-use finfo;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Filesystem\Services\FilesystemServices;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
+use Kanvas\Intelligence\Agents\Laravel\Contracts\TransformsStructuredOutput;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentHistory;
+use Kanvas\Intelligence\Agents\Services\AttachmentBudgetService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
+use Kanvas\Intelligence\Agents\Services\AttachmentFetchService;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
@@ -23,7 +26,6 @@ use Laravel\Ai\Files\Document;
 use Laravel\Ai\Files\File;
 use Laravel\Ai\Files\Image;
 use Laravel\Ai\Responses\StructuredAgentResponse;
-use Throwable;
 
 class RunLaravelAgentChatAction
 {
@@ -54,12 +56,15 @@ class RunLaravelAgentChatAction
                 : $this->handler->forUser($this->user);
         }
 
-        $response = $this->handler->promptWithConfig($this->message, $this->buildAttachments());
+        [$attachments, $promptBlocks] = $this->buildAttachments();
+        $prompt = implode("\n\n", [$this->message, ...$promptBlocks]);
+
+        $response = $this->handler->promptWithConfig($prompt, $attachments);
         // Structured-output agents (HasStructuredOutput) return their payload in
         // ->structured; ->text is empty in JSON mode. Surface the JSON as the
         // reply so the recommendations actually reach the caller instead of "".
         $responseText = $response instanceof StructuredAgentResponse
-            ? $response->toJson()
+            ? $this->resolveStructuredPayload($response)
             : $response->text;
 
         if ($sessionEntity !== null) {
@@ -117,49 +122,82 @@ class RunLaravelAgentChatAction
     }
 
     /**
-     * Fetch each attachment and wrap it as the matching base64 laravel-ai file (image / audio /
-     * document) so the model sees it on this turn. SSRF guard: remote URLs go through the validated
-     * fetcher (blocks internal hosts / cloud-metadata); local paths keep the raw read. A failed
-     * fetch or a non-native type is skipped, not fatal.
+     * Agents implementing TransformsStructuredOutput declare a minimal schema and
+     * rebuild the full payload server-side, so the model never spends output
+     * tokens re-emitting rows a tool already handed it.
+     */
+    private function resolveStructuredPayload(StructuredAgentResponse $response): string
+    {
+        if (! $this->handler instanceof TransformsStructuredOutput) {
+            return $response->toJson();
+        }
+
+        return (string) json_encode(
+            $this->handler->transformStructuredOutput($response->toArray()),
+        );
+    }
+
+    /**
+     * Wrap each attachment as the matching base64 laravel-ai file (image / audio / document) so the
+     * model sees it on this turn. laravel-ai has no file type for text, so anything the extractor can
+     * read (CSV, JSON, YAML, source, DOCX, XLSX) is inlined into the prompt instead; a type that is
+     * neither is skipped, and an unreadable or over-budget one becomes a note on the prompt.
      *
-     * @return list<File>
+     * @return array{0: list<File>, 1: list<string>} `[$attachments, $promptBlocks]`
      */
     private function buildAttachments(): array
     {
         $attachments = [];
+        $promptBlocks = [];
+        $allowStructuredText = ! $this->handler instanceof ConversesWithCustomer;
+        $budget = new AttachmentBudgetService();
 
         foreach ($this->media as $url) {
-            try {
-                if (preg_match('#^https?://#i', $url)) {
-                    $binary = SafeUrlFetcher::fetch($url);
-                } else {
-                    $raw = file_get_contents($url);
-                    $binary = $raw === false ? '' : $raw;
-                }
+            $binary = AttachmentFetchService::fetch($url);
 
-                if ($binary === '') {
-                    continue;
-                }
+            if ($binary === null) {
+                $promptBlocks[] = AttachmentFetchService::unavailableNote($url);
 
-                $file = $this->wrapAttachment($binary);
-                if ($file !== null) {
-                    $attachments[] = $file;
-                }
-            } catch (Throwable $e) {
-                report($e);
+                continue;
+            }
+
+            if ($binary === '') {
+                continue;
+            }
+
+            if (! $budget->admits($url, strlen($binary))) {
+                continue;
+            }
+
+            $mimeType = FilesystemServices::detectMimeTypeFromBytes($binary);
+            $kind = AttachmentDescriptionService::nativeKind($mimeType, $allowStructuredText);
+            $file = $this->wrapAttachment($binary, $mimeType, $kind);
+
+            if ($file !== null) {
+                $attachments[] = $file;
+
+                continue;
+            }
+
+            if ($kind === 'text') {
+                $promptBlocks[] = AttachmentDescriptionService::wrapTextForBlock($binary, $mimeType);
             }
         }
 
-        return $attachments;
+        $overBudget = $budget->skippedNote();
+        if ($overBudget !== null) {
+            $promptBlocks[] = $overBudget;
+        }
+
+        return [$attachments, $promptBlocks];
     }
 
-    private function wrapAttachment(string $binary): ?File
+    /** Takes the resolved $kind rather than re-deriving it, so the customer-facing gate can't be bypassed here. */
+    private function wrapAttachment(string $binary, string $mimeType, ?string $kind): ?File
     {
-        $mimeType = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
-        $mimeType = is_string($mimeType) && $mimeType !== '' ? $mimeType : 'application/octet-stream';
         $base64 = base64_encode($binary);
 
-        return match (AttachmentDescriptionService::nativeKind($mimeType)) {
+        return match ($kind) {
             'image' => Image::fromBase64($base64, $mimeType),
             'audio' => Audio::fromBase64($base64, $mimeType),
             'pdf' => Document::fromBase64($base64, $mimeType),

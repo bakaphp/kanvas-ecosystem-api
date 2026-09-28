@@ -16,6 +16,13 @@ use Kanvas\Scribe\Models\BaseModel;
 use Kanvas\Users\Models\Users;
 
 /**
+ * @deprecated Superseded by Kanvas\Approvals\Models\ApprovalRequest.
+ *
+ * The table stays for the history already in it, and new rows are still written for tenants with no
+ * approval policy configured — but a tenant that has one writes only approval_requests. Seeding a
+ * policy (kanvas:approvals:seed-scribe-policies) is what moves a tenant across; when every tenant has
+ * one, the remaining writers and ResolveApprovalAction / ResolveApproverEmailAction can go.
+ *
  * Durable accounting audit row for an approval request.
  *
  * Cut B usage: expense approval (target_type='expense', action_type='approve_expense').

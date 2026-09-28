@@ -9,6 +9,7 @@ use Exception;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Companies\Services\CompanyManagerService;
 use Kanvas\Connectors\Intellicheck\Services\IdVerificationService;
 use Kanvas\Connectors\SalesAssist\Services\DriverLicenseVerificationService;
 use Kanvas\Guild\Customers\Models\People;
@@ -16,7 +17,6 @@ use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
 use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UsersRepository;
 
 class ProcessLeadDriverLicenseVerificationAction
 {
@@ -478,7 +478,7 @@ class ProcessLeadDriverLicenseVerificationAction
 
     protected function sendVerificationNotification(Lead $lead, People $people): void
     {
-        $usersToNotify = UsersRepository::findUsersByArray($lead->company->get('company_manager'), $lead->app);
+        $usersToNotify = new CompanyManagerService($lead->company, $lead->app)->getManagers();
         $notification = new Blank(
             'id-verification-report',
             [

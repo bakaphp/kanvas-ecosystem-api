@@ -183,13 +183,13 @@ class FollowUpPromptActivity extends KanvasActivity implements WorkflowActivityI
             'day' => (float) $followUpDay->pipelineStage->weight,
         ];
 
-        $background = $agent->role['background'] ?? [];
+        $background = $agent->roleSection('background');
 
-        if (empty($background)) {
+        if (trim($background) === '') {
             return null;
         }
 
-        return Blade::render(implode(' ', $background), $data);
+        return Blade::render($background, $data);
     }
 
     protected function mapConversationHistory(Session $session, Lead $lead): array

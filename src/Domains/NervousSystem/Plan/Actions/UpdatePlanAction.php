@@ -7,8 +7,9 @@ namespace Kanvas\NervousSystem\Plan\Actions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Plan as PlanData;
-use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
+use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan;
+use Kanvas\NervousSystem\Project\Support\ProjectBoardColumns;
 
 class UpdatePlanAction
 {
@@ -47,12 +48,23 @@ class UpdatePlanAction
                 ? (string) $this->data->confidenceScore
                 : null;
             $this->plan->requires_human_approval = $this->data->requiresHumanApproval;
+            $this->plan->blocked_needs = $this->data->blockedNeeds?->value;
             $this->plan->swarm_id = $this->data->swarm?->getId();
             $this->plan->is_swarm_mission = $this->data->isSwarmMission;
             $this->plan->impact_summary = $this->data->impactSummary;
             $this->plan->status_pill = $this->data->statusPill;
 
-            $newStatus = $this->data->status->value;
+            // PlanData::forUpdate re-sends the plan's own column key on every partial update, so only
+            // an actual column *change* may drive the status — otherwise an agent marking a plan done
+            // would be silently reverted to the column's. No project means no board, hence no column.
+            $column = $this->data->project === null
+                ? null
+                : new ProjectBoardColumns()->resolveForPlan($this->data->project, $this->data->boardColumnKey);
+            $columnChanged = $column !== null && $column['key'] !== $this->plan->board_column_key;
+            $this->plan->board_column_key = $column['key'] ?? null;
+            $newStatus = $columnChanged ? $column['plan_status'] : $this->data->status->value;
+
+            $newStatus = PlanStatusEnum::from($newStatus)->heldForApproval($this->plan->needsApproval())->value;
 
             if ($newStatus === 'active' && $this->plan->started_at === null) {
                 $this->plan->started_at = Carbon::now();
@@ -71,17 +83,11 @@ class UpdatePlanAction
                 $this->plan->addMultipleFilesFromUrl($this->data->files);
             }
 
-            $this->plan->emitLedgerEvent('plan.updated', payload: [
-                'status_from' => $oldStatus,
-                'status_to' => $newStatus,
-                'completion_pct' => $this->plan->completion_pct,
-            ]);
+            if ($oldStatus !== $newStatus && $newStatus === PlanStatusEnum::DONE->value) {
+                new CompletePlanTasksAction($this->plan, fromSync: $this->fromSync)->execute();
+            }
 
-            $this->plan->broadcastChange(
-                changeType: PlanChangeTypeEnum::UPDATED,
-                previousStatus: $oldStatus,
-                fromSync: $this->fromSync,
-            );
+            $this->plan->announceUpdate($oldStatus, fromSync: $this->fromSync);
 
             // Org-level milestone — only on the actual transition into a
             // terminal state (not on subsequent saves while already terminal).

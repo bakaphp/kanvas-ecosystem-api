@@ -16,7 +16,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Cancel Calendar Event')]
+#[AgentTool(name: 'Cancel Calendar Event', category: 'crm')]
 class CancelCalendarEventTool extends Tool
 {
     use ResolvesLeadForTool;

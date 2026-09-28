@@ -67,6 +67,13 @@ class CreateEsimOrderAction
         }
 
         $this->esimData = $this->customerService->getEsimInfo($this->availableVariant->sku);
+
+        if (empty($this->esimData['data']['downloadUrl'])) {
+            throw new ValidationException(
+                'CMLink returned no eSim info for ICCID ' . $this->availableVariant->sku . ': ' . ($this->esimData['description'] ?? json_encode($this->esimData))
+            );
+        }
+
         $qrCodeBase64 = $this->generateQrCode($this->esimData['data']['downloadUrl']);
 
         return $this->createESimObject($qrCodeBase64);

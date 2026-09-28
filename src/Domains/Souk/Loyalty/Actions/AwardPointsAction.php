@@ -44,7 +44,7 @@ class AwardPointsAction
 
         $useWallet = (bool) ($program->referral_config['add_to_wallet'] ?? false);
         //add point to the wallet
-        if ($useWallet) {
+        if ($useWallet && $earnedPoints > 0) {
             new AddFundsToUserWalletAction(
                 order: $this->order,
                 useOrderTotal: false,

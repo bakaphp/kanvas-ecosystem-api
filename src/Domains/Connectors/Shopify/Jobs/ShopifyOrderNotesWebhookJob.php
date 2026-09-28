@@ -7,11 +7,17 @@ namespace Kanvas\Connectors\Shopify\Jobs;
 use Kanvas\Connectors\Shopify\Services\ShopifyOrderService;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Integrations\Models\IntegrationsCompany;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Shopify Order Notes Webhook',
+    description: 'Receiver that syncs an order\'s notes from Shopify. Notes only — use the order receiver for '
+        . 'the order itself.',
+    integration: IntegrationsEnum::SHOPIFY,
+)]
 class ShopifyOrderNotesWebhookJob extends ProcessWebhookJob
 {
     #[Override]

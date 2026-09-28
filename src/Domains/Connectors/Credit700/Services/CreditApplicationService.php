@@ -79,17 +79,34 @@ class CreditApplicationService
             'DOB' => $application->dob,
             'EMAIL' => $application->email,
             'PHONE' => $application->phone,
+            'MOBILE' => $application->mobileNumber,
+
             'EMPLOYER' => $application->employer,
             'EMPLOYMENTSTATUS' => $application->employmentStatus,
             'POSITION' => $application->position,
             'YEARS' => $application->employmentYears,
             'MONTHS' => $application->employmentMonths,
             'WPHONE' => $application->workPhone,
+
+            'PREVEMPLOYER' => $application->previousEmployer,
+            'PREVEMPLOYMENTYEARS' => $application->previousEmploymentYears,
+            'PREVOCCUPATION' => $application->previousEmploymentTitle,
+            'PREVWORKPHONE' => $application->previousWorkPhone,
+
             'MINCOME' => $application->monthlyIncome,
             'OTHERINCOME' => $application->otherIncome,
             'OTHERINCOMEEXPLN' => $application->otherIncomeExplanation,
+
             'HOUSING' => $application->housingType,
             'HOUSINGPAY' => $application->housingPayment,
+
+            'CURRENTADDRESSPERIOD' => $application->currentAddressPeriod,
+            'PREVADDRESS' => $application->previousAddress,
+            'PREVCITY' => $application->previousCity,
+            'PREVSTATE' => $application->previousState,
+            'PREVZIP' => $application->previousZip,
+            'PREVADDRESSPERIOD' => $application->previousAddressPeriod,
+
             'DRIVERSLICENSENO' => $application->driversLicenseNumber,
             'DLSTATE' => $application->driversLicenseState,
         ];

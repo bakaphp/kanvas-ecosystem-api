@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Agents\Tools;
 
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\AddLeadTagsTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\CreateLeadTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\GetOrganizationCustomFieldsTool;
+use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\HandOffLeadTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\SetLeadCustomFieldsTool;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Guild\SetOrganizationCustomFieldsTool;
+use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Laravel\Ai\Tools\Request;
 use Tests\TestCase;
 
@@ -230,6 +233,63 @@ class GuildToolsTest extends TestCase
         ]));
 
         $this->assertStringContainsString('No tags provided', $response);
+    }
+
+    public function testHandOffLeadToolExecutesPromptSelectedType(): void
+    {
+        Notification::fake();
+
+        /** @var CreateLeadTool $createTool */
+        $createTool = $this->makeTool(CreateLeadTool::class);
+        $createResponse = json_decode((string) $createTool->handle($this->makeRequest([
+            'title' => 'Handoff Tool Test Lead',
+            'firstname' => 'Handoff Test',
+        ])), true);
+        $leadId = $createResponse['lead_id'];
+
+        /** @var HandOffLeadTool $tool */
+        $tool = $this->makeTool(HandOffLeadTool::class);
+        $response = $tool->handle($this->makeRequest([
+            'lead_id' => $leadId,
+            'handoff_type' => 'human',
+            'conversation_summary' => 'Customer requested a person.',
+        ]));
+
+        $result = json_decode((string) $response, true);
+
+        $this->assertTrue($result['success']);
+        $this->assertSame($leadId, $result['lead_id']);
+        $this->assertSame('human', $result['handoff_type']);
+
+        $lead = Lead::findOrFail($leadId);
+        $this->assertEquals(1, $lead->get(ConfigurationEnum::AGENT_HAND_OFF->value));
+        $this->assertSame('human', $lead->get(ConfigurationEnum::AGENT_HAND_OFF_TYPE->value));
+    }
+
+    public function testHandOffLeadToolRejectsUnsupportedTypeWithoutChangingLead(): void
+    {
+        /** @var CreateLeadTool $createTool */
+        $createTool = $this->makeTool(CreateLeadTool::class);
+        $createResponse = json_decode((string) $createTool->handle($this->makeRequest([
+            'title' => 'Invalid Handoff Type Lead',
+            'firstname' => 'Invalid Handoff',
+        ])), true);
+        $leadId = $createResponse['lead_id'];
+
+        /** @var HandOffLeadTool $tool */
+        $tool = $this->makeTool(HandOffLeadTool::class);
+        $response = $tool->handle($this->makeRequest([
+            'lead_id' => $leadId,
+            'handoff_type' => 'not_configured_by_backend',
+        ]));
+
+        $result = json_decode((string) $response, true);
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('Unsupported handoff type.', $result['error']);
+
+        $lead = Lead::findOrFail($leadId);
+        $this->assertNull($lead->get(ConfigurationEnum::AGENT_HAND_OFF->value));
     }
 
     public function testGetOrganizationCustomFieldsToolReturnsAllFields(): void

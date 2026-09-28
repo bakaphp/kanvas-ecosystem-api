@@ -17,6 +17,7 @@ use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Models\UsersAssociatedApps;
+use NeuronAI\Tools\HasRunKey;
 use Tests\TestCase;
 
 class SystemAgentToolsTest extends TestCase
@@ -160,6 +161,29 @@ class SystemAgentToolsTest extends TestCase
         $result = new WhoIsUserTool($app, $company, null)->__invoke(handle: 'nobody-xyz-404');
 
         $this->assertSame('error', $result['status']);
+        $this->assertStringContainsString('@nobody-xyz-404', $result['message']);
+        $this->assertStringContainsString('Do not retry', $result['message']);
+    }
+
+    /**
+     * Regression (Sentry KANVAS-ECOSYSTEM-621): NeuronAI caps a tool at 10 executions per turn keyed on
+     * the tool NAME by default, so resolving a handful of DISTINCT teammates in one turn (a thread naming
+     * several people) threw ToolRunsExceededException. HasRunKey keys the counter on the inputs instead.
+     */
+    public function testWhoIsUserBudgetsRunsPerInputsNotPerToolName(): void
+    {
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $tool = new WhoIsUserTool($app, $company, null);
+        $this->assertInstanceOf(HasRunKey::class, $tool);
+
+        $shin = $tool->setInputs(['handle' => 'shin'])->getRunKey();
+        $johnny = $tool->setInputs(['handle' => 'johnnynzxt'])->getRunKey();
+        $shinAgain = $tool->setInputs(['handle' => 'shin'])->getRunKey();
+
+        $this->assertNotEquals($shin, $johnny, 'Distinct teammates must not share a run budget.');
+        $this->assertEquals($shinAgain, $shin, 'Identical lookups collapse to one key so a loop is still capped.');
     }
 
     public function testReadUserActivityScopesToThisRecordAndUser(): void

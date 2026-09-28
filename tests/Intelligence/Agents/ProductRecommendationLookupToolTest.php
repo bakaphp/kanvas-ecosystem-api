@@ -5,320 +5,130 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Agents;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\JsonSchema\JsonSchemaTypeFactory;
+use Illuminate\Support\Facades\Cache;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Inventory\ProductRecommendationLookupTool;
-use Kanvas\Inventory\Categories\Models\Categories;
-use Kanvas\Inventory\Products\Actions\CreateProductAction;
-use Kanvas\Inventory\Products\DataTransferObject\Product;
 use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Inventory\Support\Setup as InventorySetup;
 use Kanvas\Users\Models\Users;
 use Laravel\Ai\Tools\Request;
 use Tests\TestCase;
 
+/**
+ * The tool is a pass-through to RecommendProductsAction, so this covers the
+ * agent-facing contract only — that the sentence reaches the action unmodified,
+ * that the payload shape survives, and that misuse produces a message the model
+ * can act on instead of an exception in the chat.
+ *
+ * Matching, budgets, tenant scoping and engine selection are the action's
+ * behavior and are tested in tests/Inventory/Recommendations/.
+ */
 class ProductRecommendationLookupToolTest extends TestCase
 {
     use DatabaseTransactions;
 
-    protected Apps $kanvasApp;
-    protected Users $user;
-    protected mixed $originalSearchEngine = null;
+    protected $connectionsToTransact = [null, 'inventory'];
+
+    private Apps $kanvasApp;
 
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->kanvasApp = app(Apps::class);
+        Cache::flush();
+    }
+
+    public function testReturnsTheRecommendationPayloadShape(): void
+    {
+        $product = $this->makeProduct('Reloj de lujo');
+
+        $decoded = json_decode($this->invokeTool('reloj'), true);
+
+        $this->assertIsArray($decoded);
+        $this->assertSame($product->getId(), $decoded[0]['product']['id']);
+        $this->assertArrayHasKey('variants', $decoded[0]);
+        $this->assertArrayHasKey('channel', $decoded[0]['variants'][0]);
+        $this->assertArrayHasKey('is_available', $decoded[0]['variants'][0]['channel']);
+    }
+
+    public function testPassesTheSentenceThroughWithoutPreExtraction(): void
+    {
+        $this->makeProduct('Perfume floral');
+
+        // The whole sentence goes to the search — a budget in it becomes a real
+        // filter, which is exactly what pre-extracting in the prompt destroyed.
+        $decoded = json_decode($this->invokeTool('un perfume para mi mamá, menos de $500'), true);
+
+        $this->assertIsArray($decoded);
+        $this->assertNotEmpty($decoded);
+    }
+
+    public function testEmptyQueryReturnsAnActionableMessageNotAnException(): void
+    {
+        $result = $this->invokeTool('   ');
+
+        $this->assertStringContainsString('query', $result);
+        $this->assertNull(json_decode($result, true), 'A guidance message, not a payload the model would try to parse.');
+    }
+
+    public function testNoMatchTellsTheModelWhatToDoNext(): void
+    {
+        $result = $this->invokeTool('zzzzznotacatalogword');
+
+        // A bare "no results" reads as "try again" and the model re-calls with
+        // the same words until its run budget trips.
+        $this->assertStringContainsString('No products found', $result);
+        $this->assertStringContainsString('broader', $result);
+    }
+
+    public function testRespectsTheLimit(): void
+    {
+        $this->makeProduct('Reloj uno');
+        $this->makeProduct('Reloj dos');
+        $this->makeProduct('Reloj tres');
+
+        $decoded = json_decode($this->invokeTool('reloj', 2), true);
+
+        $this->assertCount(2, $decoded);
+    }
+
+    public function testExposesOnlyQueryAndLimitToTheModel(): void
+    {
+        $schema = new ProductRecommendationLookupTool()->schema(new JsonSchemaTypeFactory());
+
+        // Every extra knob is a chance for the model to pre-parse the request
+        // and degrade the match; the sentence is the whole input.
+        $this->assertSame(['query', 'limit'], array_keys($schema));
+    }
+
+    private function invokeTool(string $query, ?int $limit = null): string
+    {
         /** @var Users $user */
         $user = auth()->user();
-        $this->user = $user;
 
-        $this->originalSearchEngine = $this->kanvasApp->get('search_engine');
-
-        new InventorySetup($this->kanvasApp, $user, $user->getCurrentCompany())->run();
-    }
-
-    protected function tearDown(): void
-    {
-        // These tests toggle the tenant search engine, which lives in the app's
-        // Redis-backed settings — DatabaseTransactions does NOT roll that back.
-        // Restore it so sibling suites don't resolve Scout to a leaked engine
-        // (e.g. a leaked 'algolia' with no creds breaks Lead indexing/search).
-        if ($this->originalSearchEngine === null) {
-            $this->kanvasApp->del('search_engine');
-        } else {
-            $this->kanvasApp->set('search_engine', $this->originalSearchEngine);
-        }
-
-        parent::tearDown();
-    }
-
-    public function testTokenizesMultiWordKeyword(): void
-    {
-        // A single contiguous LIKE on "%perfume hombre%" would never match this
-        // name — tokenization is what makes the multi-word interest hit.
-        $product = $this->createProduct('Perfume Hugo Boss para Hombre ' . uniqid());
-
-        $ids = $this->ids($this->lookup(['keyword' => 'perfume hombre']));
-
-        $this->assertContains($product->getId(), $ids);
-    }
-
-    public function testRanksProductMatchingMoreTermsHigher(): void
-    {
-        $more = $this->createProduct('Perfume para Hombre ' . uniqid());
-        $less = $this->createProduct('Perfume Floral ' . uniqid());
-
-        $ids = $this->ids($this->lookup(['keyword' => 'perfume hombre']));
-
-        $this->assertContains($more->getId(), $ids);
-        $this->assertContains($less->getId(), $ids);
-        $this->assertLessThan(
-            array_search($less->getId(), $ids, true),
-            array_search($more->getId(), $ids, true),
-            'Product matching both terms should rank above the one matching only "perfume".',
-        );
-    }
-
-    public function testRecipientGenderBoostsMatchingProduct(): void
-    {
-        $male = $this->createProduct('Reloj Plateado ' . uniqid(), 'ideal para hombre, estilo masculino');
-        $neutral = $this->createProduct('Reloj Dorado ' . uniqid(), 'elegante y brillante');
-
-        $ids = $this->ids($this->lookup(['keyword' => 'reloj', 'recipient_gender' => 'male']));
-
-        $this->assertContains($male->getId(), $ids);
-        $this->assertContains($neutral->getId(), $ids);
-        $this->assertLessThan(
-            array_search($neutral->getId(), $ids, true),
-            array_search($male->getId(), $ids, true),
-            'recipient_gender=male should rank the male-targeted product higher.',
-        );
-    }
-
-    public function testEmptyKeywordReturnsTopRatedFirst(): void
-    {
-        $high = $this->createProduct('Z Top Rated Item ' . uniqid(), rating: 5.0);
-        $low = $this->createProduct('Z Low Rated Item ' . uniqid(), rating: 1.0);
-
-        $ids = $this->ids($this->lookup([]));
-
-        $this->assertContains($high->getId(), $ids);
-        $this->assertContains($low->getId(), $ids);
-        $this->assertLessThan(
-            array_search($low->getId(), $ids, true),
-            array_search($high->getId(), $ids, true),
-            'With no keyword, higher-rated products should come first.',
-        );
-    }
-
-    public function testCategoryParamMatchesProductWithoutKeywordInName(): void
-    {
-        $company = $this->user->getCurrentCompany();
-        $categoryName = 'GiftIdeas' . uniqid();
-
-        $category = Categories::create([
-            'apps_id' => $this->kanvasApp->getId(),
-            'companies_id' => $company->getId(),
-            'users_id' => $this->user->getId(),
-            'name' => $categoryName,
-            'slug' => strtolower($categoryName),
-        ]);
-
-        $product = $this->createProduct('Nondescript Item ' . uniqid(), categoryIds: [$category->getId()]);
-
-        $ids = $this->ids($this->lookup(['categories' => [$categoryName]]));
-
-        $this->assertContains($product->getId(), $ids);
-    }
-
-    public function testInStockFilterUsesTotalQuantityNotDefaultChannelLink(): void
-    {
-        // Stock lives on the warehouse total, not necessarily on the default
-        // channel's productVariantWarehouse link. With only_in_stock=true the
-        // product must still surface when getTotalQuantity() > 0.
-        $keyword = 'Cuchillotest' . uniqid();
-        $product = $this->createProduct($keyword . ' Chef');
-
-        $variant = $product->variants->first();
-        $this->assertNotNull($variant);
-        $variant->set('total_variant_quantity', 7);
-
-        $result = new ProductRecommendationLookupTool()
-            ->withContext($this->kanvasApp, $this->user->getCurrentCompany())
-            ->handle(new Request(['keyword' => $keyword, 'only_in_stock' => true, 'limit' => 20]));
-
-        $data = json_decode((string) $result, true);
-        $this->assertIsArray($data, 'Expected products, got: ' . $result);
-
-        $match = collect($data)->firstWhere('product.id', $product->getId());
-        $this->assertNotNull($match, 'In-stock product was wrongly filtered out.');
-        $this->assertSame(7, $match['variants'][0]['channel']['quantity']);
-    }
-
-    public function testUnpricedProductIsShownAndFlaggedUnavailableEvenWithBudget(): void
-    {
-        $keyword = 'Unpricedgift' . uniqid();
-        $product = $this->createProduct($keyword . ' Box');
-
-        $variant = $product->variants->first();
-        $this->assertNotNull($variant);
-        $variant->set('total_variant_quantity', 4);
-
-        // Budget set, but the product has no channel price — it must still show.
-        $result = new ProductRecommendationLookupTool()
-            ->withContext($this->kanvasApp, $this->user->getCurrentCompany())
-            ->handle(new Request([
-                'keyword' => $keyword,
-                'only_in_stock' => true,
-                'max_price' => 50,
-                'limit' => 20,
-            ]));
-
-        $data = json_decode((string) $result, true);
-        $this->assertIsArray($data, 'Expected products, got: ' . $result);
-
-        $match = collect($data)->firstWhere('product.id', $product->getId());
-        $this->assertNotNull($match, 'Unpriced product was wrongly filtered out by the budget.');
-
-        $channel = $match['variants'][0]['channel'];
-        $this->assertNull($channel['price']);
-        $this->assertFalse($channel['is_available'], 'Unpriced variant should be flagged unavailable.');
-    }
-
-    public function testOutOfStockProductIsStillReturnedFlaggedWhenOnlyInStockTrue(): void
-    {
-        // only_in_stock is a soft preference now — a zero-stock match must still
-        // come back (flagged is_available=false), not be hard-filtered out.
-        $keyword = 'Outofstockgift' . uniqid();
-        $product = $this->createProduct($keyword . ' Box');
-
-        $variant = $product->variants->first();
-        $this->assertNotNull($variant);
-        $variant->set('total_variant_quantity', 0);
-
-        $result = new ProductRecommendationLookupTool()
-            ->withContext($this->kanvasApp, $this->user->getCurrentCompany())
-            ->handle(new Request(['keyword' => $keyword, 'only_in_stock' => true, 'limit' => 20]));
-
-        $data = json_decode((string) $result, true);
-        $this->assertIsArray($data, 'Expected products, got: ' . $result);
-
-        $match = collect($data)->firstWhere('product.id', $product->getId());
-        $this->assertNotNull($match, 'Out-of-stock match should still be returned (soft preference).');
-
-        $channel = $match['variants'][0]['channel'];
-        $this->assertSame(0, $channel['quantity']);
-        $this->assertFalse($channel['is_available']);
-    }
-
-    public function testSearchEngineConfiguredReflectsTenantEngineSetting(): void
-    {
         $tool = new ProductRecommendationLookupTool()
-            ->withContext($this->kanvasApp, $this->user->getCurrentCompany());
+            ->withContext($this->kanvasApp, $user->getCurrentCompany());
 
-        $method = new \ReflectionMethod($tool, 'searchEngineConfigured');
-
-        $this->kanvasApp->set('search_engine', 'algolia');
-        $this->assertTrue($method->invoke($tool), 'A real engine should enable the Scout path.');
-
-        $this->kanvasApp->set('search_engine', 'database');
-        $this->assertFalse($method->invoke($tool), 'database driver is not a real search engine here.');
-
-        // No tenant engine + a non-search global driver must fall back to SQL.
-        // (The literal 'null' string can't be persisted — get() JSON-decodes it
-        // back to null — so drive this through the global scout.driver instead.)
-        $this->kanvasApp->del('search_engine');
-        config(['scout.driver' => 'null']);
-        $this->assertFalse($method->invoke($tool), 'null driver must fall back to SQL.');
-    }
-
-    public function testFallsBackToSqlWhenEngineUnreachable(): void
-    {
-        // Engine "configured" but unreachable (no creds) → the lookup must degrade
-        // to the SQL path and still return matches, never blow up.
-        $keyword = 'Fallbackgift' . uniqid();
-        $product = $this->createProduct($keyword . ' Item');
-
-        // Point the tenant at a dead engine ONLY after the product is indexed —
-        // with SCOUT_QUEUE=false, creating it earlier would synchronously hit the
-        // unreachable engine during indexing and throw before the lookup runs.
-        $this->kanvasApp->set('search_engine', 'algolia');
-
-        $ids = $this->ids($this->lookup(['keyword' => $keyword]));
-
-        $this->assertContains($product->getId(), $ids);
-    }
-
-    public function testReturnsRecommendationShape(): void
-    {
-        $product = $this->createProduct('Cafetera Premium ' . uniqid());
-
-        $data = $this->lookup(['keyword' => 'cafetera']);
-
-        $match = collect($data)->firstWhere('product.id', $product->getId());
-
-        $this->assertNotNull($match);
-        $this->assertArrayHasKey('product', $match);
-        $this->assertArrayHasKey('variants', $match);
-        $this->assertArrayHasKey('slug', $match['product']);
-        $this->assertNotEmpty($match['variants']);
-    }
-
-    /**
-     * @param array<int, int> $categoryIds
-     */
-    private function createProduct(
-        string $name,
-        ?string $description = null,
-        array $categoryIds = [],
-        float $rating = 0.0,
-    ): Products {
-        $product = new CreateProductAction(
-            new Product(
-                app: $this->kanvasApp,
-                company: $this->user->getCurrentCompany(),
-                user: $this->user,
-                name: $name,
-                description: $description,
-                is_published: true,
-                sku: 'REC-' . uniqid(),
-                categories: array_map(fn (int $id) => ['id' => $id], $categoryIds),
-            ),
-            $this->user,
-        )->execute();
-
-        if ($rating > 0) {
-            $product->rating = $rating;
-            $product->saveQuietly();
+        $payload = ['query' => $query];
+        if ($limit !== null) {
+            $payload['limit'] = $limit;
         }
+
+        return (string) $tool->handle(new Request($payload));
+    }
+
+    private function makeProduct(string $name): Products
+    {
+        /** @var Users $user */
+        $user = auth()->user();
+
+        /** @var Products $product */
+        $product = Products::factory()
+            ->withAppId($this->kanvasApp->getId())
+            ->withCompanyId($user->getCurrentCompany()->getId())
+            ->create(['name' => $name, 'is_published' => 1, 'is_deleted' => 0]);
 
         return $product;
-    }
-
-    /**
-     * @param array<string, mixed> $args
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    private function lookup(array $args): array
-    {
-        $result = new ProductRecommendationLookupTool()
-            ->withContext($this->kanvasApp, $this->user->getCurrentCompany())
-            ->handle(new Request($args + ['only_in_stock' => false, 'limit' => 20]));
-
-        $decoded = json_decode((string) $result, true);
-
-        return is_array($decoded) ? $decoded : [];
-    }
-
-    /**
-     * @param array<int, array<string, mixed>> $data
-     *
-     * @return array<int, int>
-     */
-    private function ids(array $data): array
-    {
-        return array_map(fn (array $r) => (int) $r['product']['id'], $data);
     }
 }

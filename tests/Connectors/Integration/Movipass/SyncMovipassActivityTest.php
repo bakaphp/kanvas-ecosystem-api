@@ -6,17 +6,14 @@ namespace Tests\Connectors\Integration\Movipass;
 
 use Illuminate\Support\Facades\Auth;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
-use Kanvas\Connectors\Movipass\Handlers\MovipassHandler;
+use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
+use Kanvas\Connectors\Movipass\Enums\ProductAttributeEnum;
 use Kanvas\Connectors\Movipass\Workflows\Activities\SyncMovipassActivity;
-use Kanvas\Inventory\Products\Models\Products;
-use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Discounts\Models\Discount;
 use Kanvas\Souk\Discounts\Models\DiscountType;
-use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
+use Tests\Connectors\Traits\CreatesMovipassParkingOrder;
 use Tests\Connectors\Traits\HasIntegrationCompany;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\GraphQL\Souk\Traits\PaymentCases;
@@ -24,6 +21,7 @@ use Tests\TestCase;
 
 final class SyncMovipassActivityTest extends TestCase
 {
+    use CreatesMovipassParkingOrder;
     use HasIntegrationCompany;
     use InventoryCases;
     use PaymentCases;
@@ -34,90 +32,6 @@ final class SyncMovipassActivityTest extends TestCase
         if (getenv('GITHUB_ACTIONS')) {
             $this->markTestSkipped('Movipass integration tests are skipped in CI');
         }
-    }
-
-    private function createMovipassOrder(Apps $app, array $metadataData = []): Order
-    {
-        $user = Auth::user();
-        $company = $user->getCurrentCompany();
-        $region = Regions::getDefault($company, $app);
-
-        $this->setIntegration(
-            $app,
-            IntegrationsEnum::MOVIPASS,
-            MovipassHandler::class,
-            $company,
-            $user
-        );
-
-        $this->setAllowNoPaymentStatus(true, $app);
-
-        $warehouseResponse = $this->createWarehouses((string) $region->getId())->json()['data']['createWarehouse'];
-        $productResponse = $this->createProduct(attributes: [
-            [
-                'name' => 'slots',
-                'value' => 100,
-            ],
-        ])->json()['data']['createProduct'];
-
-        $product = Products::fromApp($app)->find($productResponse['id']);
-
-        $channelResponse = $this->createChannel()->json()['data']['createChannel'];
-
-        $this->addVariantToChannel(
-            variantId: (string) $product->variants->first()->id,
-            channelId: $channelResponse['id'],
-            warehouseData: ['id' => $warehouseResponse['id']]
-        );
-
-        $this->addVariantToWarehouse(
-            variantId: (string) $product->variants->first()->id,
-            warehouseId: $warehouseResponse['id'],
-            amount: 100
-        );
-
-        $data = [
-            'cartId' => 0,
-            'customer' => [
-                'email' => fake()->email(),
-            ],
-            'order_type' => OrderTypeEnum::MOVIPASS->value,
-            'metadata' => [
-                'data' => array_merge([
-                    'vehiclePlate' => 'T000001',
-                    'vehicleBrand' => 'Toyota',
-                    'vehicleColor' => 'red',
-                    'is_manual' => false,
-                ], $metadataData),
-            ],
-            'items' => [
-                [
-                    'variant_id' => (string) $product->variants->first()->id,
-                    'quantity' => 1,
-                    'price' => 100,
-                ],
-            ],
-            'reference' => 'Movipass parking test',
-        ];
-
-        $response = $this->graphQL('
-            mutation createOrderFromCart($input: OrderCartInput!) {
-                createOrderFromCart(input: $input) {
-                    order {
-                        id
-                    }
-                }
-            }
-        ', [
-            'input' => $data,
-        ], [], [
-            'X-Kanvas-Location' => $company->branch->uuid,
-            'X-Kanvas-App' => $app->key,
-        ]);
-
-        $orderId = $response->json('data.createOrderFromCart.order.id');
-
-        return Order::fromApp($app)->find($orderId);
     }
 
     private function createActiveDiscount(Apps $app, int $companiesId): Discount
@@ -263,5 +177,38 @@ final class SyncMovipassActivityTest extends TestCase
 
         $this->assertEquals('success', $result['status']);
         $this->assertSame('Movipass parking test #' . $order->order_number, $order->reference);
+    }
+
+    public function testFreeTierOrderActivatesWithoutPayment(): void
+    {
+        $app = app(Apps::class);
+
+        $order = $this->createMovipassOrder($app, [], [$this->freeMinutesAttribute(150)]);
+
+        $activity = new SyncMovipassActivity(
+            0,
+            now()->toDateTimeString(),
+            new StoredWorkflow(),
+            []
+        );
+
+        $result = $activity->execute($order, $app, [
+            'currentEventTypeName' => WorkflowEnum::CREATED->value,
+        ]);
+
+        $order->refresh();
+
+        $this->assertEquals('success', $result['status']);
+        $this->assertTrue($order->metadata['data']['free_tier']);
+        $this->assertEquals(MovipassOrderStatusEnum::ACTIVE->slug(), $order->orderStatus?->slug);
+        $this->assertNotEquals('paid', $order->payment_status);
+    }
+
+    private function freeMinutesAttribute(int $minutes): array
+    {
+        return [
+            'name' => ProductAttributeEnum::PARKING_FREE_MINUTES->value,
+            'value' => $minutes,
+        ];
     }
 }

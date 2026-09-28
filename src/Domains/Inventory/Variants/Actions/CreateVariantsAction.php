@@ -44,21 +44,23 @@ class CreateVariantsAction
             $this->user
         );
 
-        $validator = Validator::make(
-            ['sku' => $this->variantDto->sku],
-            ['sku' => new UniqueSkuRule($this->variantDto->product->app, $this->variantDto->product->company)]
-        );
-
-        if ($validator->fails()) {
-            throw new ValidationException($validator->messages()->__toString());
-        }
-
         $search = [
             'products_id' => $this->variantDto->product->getId(),
             'sku' => $this->variantDto->sku,
             'companies_id' => $this->variantDto->product->companies_id,
             'apps_id' => $this->variantDto->product->apps_id,
         ];
+
+        $existingVariant = Variants::where($search)->first();
+
+        $validator = Validator::make(
+            ['sku' => $this->variantDto->sku],
+            ['sku' => new UniqueSkuRule($this->variantDto->product->app, $this->variantDto->product->company, $existingVariant)]
+        );
+
+        if ($validator->fails()) {
+            throw new ValidationException($validator->messages()->__toString());
+        }
 
         $variant = Variants::updateOrCreate(
             $search,

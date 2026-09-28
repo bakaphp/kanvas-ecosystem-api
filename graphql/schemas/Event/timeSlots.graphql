@@ -20,6 +20,8 @@ type TimeSlots {
     updated_at: DateTime
     resource: TimeSlotResource @morphTo
     scheduleRule: ScheduleRules @belongsTo(relation: "scheduleRule")
+    bookings: [EventVersion!]!
+        @hasMany(relation: "eventVersions", scopes: ["notDeleted"])
     is_from_schedule_rule: Boolean! @method(name: "isFromScheduleRule")
     is_standalone: Boolean! @method(name: "isStandalone")
 }

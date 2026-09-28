@@ -10,7 +10,7 @@ use Kanvas\Intelligence\Agents\Services\EntityContextBriefService;
 use NeuronAI\Tools\Tool;
 use Override;
 
-#[AgentTool(name: 'Read Entity Context')]
+#[AgentTool(name: 'Read Entity Context', category: 'ecosystem')]
 class ReadEntityContextTool extends Tool
 {
     public function __construct(

@@ -13,9 +13,11 @@ use Kanvas\Intelligence\Agents\Models\AgentDeployment;
  * look the concrete implementation up via {@see \Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory}
  * (which returns an {@see \Kanvas\Intelligence\AgentRuntime\Contracts\AgentRuntimeProvider}).
  *
- * NEURON / LARAVEL / ADK are in-process providers that don't deploy as containers;
- * OPENCLAW / HERMES are the runtime providers that the factory has concrete implementations
- * for today.
+ * Three families:
+ * - In-process (NEURON / LARAVEL / ADK) — run inside the PHP process, nothing to deploy.
+ * - Machine runtimes (OPENCLAW / HERMES) — containers we stand up on an AgentMachine.
+ * - Hosted runtimes (CLAUDE) — the vendor owns both the agent loop and the sandbox, so there is
+ *   no AgentMachine, no ports and no AgentDeployment row; the linkage lives in agent custom fields.
  */
 enum AgentProviderEnum: string
 {
@@ -24,12 +26,41 @@ enum AgentProviderEnum: string
     case ADK = 'adk';
     case OPENCLAW = 'openclaw';
     case HERMES = 'hermes';
+    case CLAUDE = 'claude';
 
+    /**
+     * Runtimes that install onto an AgentMachine. Anything fanning out over machines (e.g.
+     * AgentMachineMutation::updateContainers) MUST use this list rather than remoteProviders() —
+     * a hosted runtime has no machine and every machine op default-throws on it.
+     */
     public static function runtimeProviders(): array
     {
         return [
             self::OPENCLAW,
             self::HERMES,
+        ];
+    }
+
+    /**
+     * Vendor-hosted runtimes: loop and sandbox both live on the vendor's infrastructure. We hold
+     * a config pointer (agent id / session id), never a container.
+     */
+    public static function hostedProviders(): array
+    {
+        return [
+            self::CLAUDE,
+        ];
+    }
+
+    /**
+     * Everything executing outside this PHP process. Drives Agent::isContainerRuntime(), which is
+     * what routes a chat turn to RunRuntimeChatAction instead of an in-process handler.
+     */
+    public static function remoteProviders(): array
+    {
+        return [
+            ...self::runtimeProviders(),
+            ...self::hostedProviders(),
         ];
     }
 
@@ -57,12 +88,22 @@ enum AgentProviderEnum: string
 
     public function isRuntimeProvider(): bool
     {
-        return in_array($this, self::runtimeProviders(), true);
+        return in_array($this, self::remoteProviders(), true);
+    }
+
+    public function isHosted(): bool
+    {
+        return in_array($this, self::hostedProviders(), true);
     }
 
     public function isHermes(): bool
     {
         return $this === self::HERMES;
+    }
+
+    public function isClaude(): bool
+    {
+        return $this === self::CLAUDE;
     }
 
     public function isOpenClaw(): bool

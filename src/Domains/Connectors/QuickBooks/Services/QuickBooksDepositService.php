@@ -147,8 +147,8 @@ class QuickBooksDepositService
     private function getAvailableCreditsForCustomer(string $customerId): array
     {
         try {
-            // Get credit memos for the customer
-            $creditMemos = $this->dataService->Query("SELECT * FROM CreditMemo WHERE CustomerRef = '{$customerId}'");
+            $escapedCustomerId = QuickBooksQueryService::escapeId($customerId);
+            $creditMemos = $this->dataService->Query("SELECT * FROM CreditMemo WHERE CustomerRef = '{$escapedCustomerId}'");
 
             // Filter credit memos that still have available balance
             $availableCredits = [];

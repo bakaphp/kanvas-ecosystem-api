@@ -12,7 +12,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Attach Message Files To Lead',
+    description: 'Copies any files on a message onto the lead it belongs to, so attachments live with the '
+        . 'record rather than only in the conversation. Moves files; sends nothing.',
+)]
 class AttachMessageFilesToLeadActivity extends KanvasActivity
 {
     public $tries = 2;

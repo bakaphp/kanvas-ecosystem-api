@@ -153,7 +153,7 @@ extend type Query @guard {
     ): [Action!]!
         @paginate(
             model: "Kanvas\\ActionEngine\\Actions\\Models\\Action"
-            scopes: ["fromPublicApp", "notDeleted"]
+            scopes: ["fromPublicOrCurrentApp", "fromCompanyAndGlobal", "notDeleted"]
             defaultCount: 25
         )
 

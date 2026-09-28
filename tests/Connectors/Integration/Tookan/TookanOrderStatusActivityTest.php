@@ -189,6 +189,7 @@ final class TookanOrderStatusActivityTest extends TestCase
                 OrderNotification::class,
                 function ($notification, $channels) use ($status) {
                     $expectedTemplate = 'user-' . strtolower($status->value);
+
                     return $notification->getTemplateName() === $expectedTemplate;
                 }
             );

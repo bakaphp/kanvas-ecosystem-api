@@ -19,7 +19,7 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Email Teammate')]
+#[AgentTool(name: 'Email Teammate', category: 'ecosystem')]
 class SendEmailToUserTool extends Tool
 {
     public function __construct(private readonly ?Agent $agent = null)

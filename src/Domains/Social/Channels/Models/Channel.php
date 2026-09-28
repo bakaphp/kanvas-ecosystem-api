@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
 use Kanvas\Social\Channels\Enums\ChannelNameEnum;
+use Kanvas\Social\Channels\Events\ChannelMessageAttachedEvent;
 use Kanvas\Social\Channels\Events\ChannelMessageCreatedEvent;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Models\BaseModel;
@@ -32,7 +33,7 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
  *  @property string $slug
  *  @property string|null $title
  *  @property string|null $description
- *  @property int $last_message_id
+ *  @property int|null $last_message_id
  *  @property int $apps_id
  *  @property int $companies_id
  *  @property int|null $entity_id
@@ -126,6 +127,8 @@ class Channel extends BaseModel
         // Update last_message_id regardless
         $this->last_message_id = $message->id;
         $this->saveOrFail();
+
+        ChannelMessageAttachedEvent::dispatch($this, $message);
 
         $this->fireWorkflow(
             WorkflowEnum::UPDATED->value,

@@ -44,7 +44,8 @@ class Client
 
             if (! $response->successful()) {
                 throw new DriveCentricException(
-                    'Failed to authenticate with DriveCentric: ' . $response->body()
+                    'Failed to authenticate with DriveCentric: ' . $response->body(),
+                    $response->status()
                 );
             }
 
@@ -72,7 +73,8 @@ class Client
                 : $body;
 
             throw new DriveCentricException(
-                "DriveCentric API Error (HTTP {$response->status()}): {$message}"
+                "DriveCentric API Error (HTTP {$response->status()}): {$message}",
+                $response->status()
             );
         }
 

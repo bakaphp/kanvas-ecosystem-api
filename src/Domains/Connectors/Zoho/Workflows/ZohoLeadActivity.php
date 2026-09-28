@@ -20,7 +20,13 @@ use Override;
 /**
  * @todo refactor move core logic to SyncLeadWithZohoAction
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Zoho Push Lead',
+    description: 'Pushes the lead into Zoho CRM so the CRM has it. Outbound one-way sync — it writes to Zoho '
+        . 'and does not bring anything back, and it does not contact the customer. Only useful if this '
+        . 'company actually runs Zoho.',
+    integration: IntegrationsEnum::ZOHO,
+)]
 class ZohoLeadActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     //public $tries = 5;
@@ -46,12 +52,22 @@ class ZohoLeadActivity extends KanvasActivity implements WorkflowActivityInterfa
                 $syncLeadWithZoho = new SyncLeadToZohoAction($app, $lead);
                 $zohoLead = $syncLeadWithZoho->execute();
 
-                return [
-                    'zohoLeadId' => $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value),
+                $zohoLeadId = $lead->get(CustomFieldEnum::ZOHO_LEAD_ID->value);
+
+                $result = [
+                    'zohoLeadId' => $zohoLeadId,
                     'zohoRequest' => $zohoLead,
                     'leadId' => $lead->getId(),
                     'status' => $lead->status()->first()->name,
                 ];
+
+                if (empty($zohoLeadId)) {
+                    return $this->failWorkflow([
+                        'message' => 'Lead was not created in Zoho, no Zoho lead id was returned',
+                    ] + $result);
+                }
+
+                return $result;
             },
             company: $lead->company,
         );

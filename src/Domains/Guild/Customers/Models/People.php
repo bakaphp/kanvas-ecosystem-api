@@ -9,26 +9,33 @@ use Baka\Traits\HasLightHouseCache;
 use Baka\Traits\SoftDeletesTrait;
 use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
+use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
+use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Enums\AppSettingsEnums;
+use Kanvas\Event\Events\Traits\EventResourceTrait;
 use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Repositories\FilesystemEntitiesRepository;
 use Kanvas\Guild\Customers\DataTransferObject\Address as DataTransferObjectAddress;
+use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Guild\Traits\HasNotesChannelTrait;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Scribe\Quotes\Models\Quote;
 use Kanvas\Social\Interactions\Traits\LikableTrait;
@@ -52,8 +59,9 @@ use Override;
  * @property string|null $firstname
  * @property string|null $middlename = null
  * @property string|null $lastname
- * @property string $license_number
+ * @property string|null $license_number
  * @property string|null $license_expiration_date
+ * @property string|null $license_state
  * @property string|null $dob = null
  * @property string|null $google_contact_id
  * @property string|null $facebook_contact_id
@@ -64,12 +72,16 @@ use Override;
  */
 class People extends BaseModel
 {
+    use HasAdminLink;
+    use HasApprovals;
     use CanUseWorkflow;
     use CascadeSoftDeletes;
     use DynamicSearchableTrait {
         search as public traitSearch;
     }
+    use EventResourceTrait;
     use HasLightHouseCache;
+    use HasNotesChannelTrait;
     use HasTagsTrait;
     use LikableTrait;
     use Notifiable;
@@ -77,7 +89,7 @@ class People extends BaseModel
     use SoftDeletesTrait;
     use UuidTrait;
 
-    public const DELETED_AT = 'is_deleted';
+    public const string DELETED_AT = 'is_deleted';
 
     protected $table = 'peoples';
     protected $guarded = [];
@@ -97,10 +109,26 @@ class People extends BaseModel
         return (bool) $this->{$this->getDeletedAtColumn()};
     }
 
+    /**
+     * People is gated explicitly by RequestPeopleApprovalActivity, never by its own lifecycle —
+     * same reasoning as Message: a hot table, saved constantly, that would otherwise pay an
+     * approval_policies lookup on every save just to learn there is no on-create policy.
+     */
+    protected static function approvalUsesLifecycleTriggers(): bool
+    {
+        return false;
+    }
+
     #[Override]
     public function getGraphTypeName(): string
     {
         return 'People';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::PEOPLE;
     }
 
     public function address(): HasMany
@@ -127,7 +155,8 @@ class People extends BaseModel
             Lead::class,
             'people_id',
             'id'
-        )->orderBy('created_at', 'desc');
+        )->notDeleted()
+            ->orderBy('created_at', 'desc');
     }
 
     public function orders(): HasMany
@@ -313,6 +342,17 @@ class People extends BaseModel
         return preg_replace('/\s+/', ' ', $name);
     }
 
+    /**
+     * Connector imports and bulk creates populate `name` and leave the firstname/lastname parts empty,
+     * which is all getName() reads — so anything rendering a person to a human wants this, not getName().
+     */
+    public function getDisplayName(): string
+    {
+        $name = $this->getName();
+
+        return $name !== '' ? $name : trim((string) $this->name);
+    }
+
     #[Override]
     protected static function newFactory()
     {
@@ -323,7 +363,7 @@ class People extends BaseModel
     {
         $typeId = $address->address_type_id ?? AddressType::getByName(AddressTypeEnum::HOME->value, $this->app)->getId();
 
-        return Address::updateOrCreate(
+        $stored = Address::updateOrCreate(
             [
                 'peoples_id' => $this->id,
                 'address' => $address->address,
@@ -335,8 +375,15 @@ class People extends BaseModel
             [
                 'address_2' => $address->address_2,
                 'address_type_id' => $typeId, // @todo move to search
+                'is_default' => (int) $address->is_default,
             ]
         );
+
+        // Keeps "a person with addresses has exactly one current address" true structurally, so
+        // a guest checkout or an ID scan that only ever calls addAddress() still resolves.
+        $this->ensureDefaultAddress();
+
+        return $stored->refresh();
     }
 
     public function addDefaultAddress(DataTransferObjectAddress $address): Address
@@ -344,6 +391,39 @@ class People extends BaseModel
         $address = $this->addAddress($address);
         $address->is_default = 1;
         $address->saveOrFail();
+
+        // A person has exactly one current address; leaving stale defaults behind makes
+        // readers resolve the oldest row (usually a previous home) as the current one.
+        $this->address()
+            ->where('id', '!=', $address->getKey())
+            ->where('is_default', 1)
+            ->update(['is_default' => 0]);
+
+        return $address;
+    }
+
+    public function getDefaultAddress(): ?Address
+    {
+        /** @var Address|null $address */
+        $address = $this->address()->where('is_default', 1)->orderByDesc('id')->first()
+            ?? $this->address()->orderByDesc('id')->first();
+
+        return $address;
+    }
+
+    /**
+     * `is_default` is opt-in on both the DTO and the column, so a person whose addresses all
+     * arrived through `addAddress()` would otherwise carry no current address at all. Persists
+     * the fallback `getDefaultAddress()` already resolves to.
+     */
+    public function ensureDefaultAddress(): ?Address
+    {
+        $address = $this->getDefaultAddress();
+
+        if ($address !== null && ! $address->is_default) {
+            $address->is_default = 1;
+            $address->saveOrFail();
+        }
 
         return $address;
     }
@@ -404,6 +484,29 @@ class People extends BaseModel
         return $this->contacts()
             ->whereIn('contacts_types_id', $phoneTypes)
             ->update(['is_opt_out' => 1]);
+    }
+
+    public function setPhoneOptOut(string $phoneNumber, bool $optOut = true): int
+    {
+        $normalizedPhone = Contact::normalizeValue(
+            $phoneNumber,
+            ContactTypeEnum::CELLPHONE->value,
+        );
+
+        return $this->contacts()
+            ->whereIn('contacts_types_id', Contact::PHONE_TYPES)
+            ->get()
+            ->filter(
+                fn (Contact $contact): bool => Contact::normalizeValue(
+                    $contact->value,
+                    $contact->contacts_types_id,
+                ) === $normalizedPhone,
+            )
+            ->each(function (Contact $contact) use ($optOut): void {
+                $contact->is_opt_out = (int) $optOut;
+                $contact->saveOrFail();
+            })
+            ->count();
     }
 
     public static function findByEmailOrCreate(
@@ -570,6 +673,31 @@ class People extends BaseModel
             ->get();
     }
 
+    /**
+     * A phone is also matched as a raw contact value, so a number stored under a non-phone
+     * contact type still finds its person.
+     */
+    public static function getAllByPhoneOrEmail(
+        ?string $phone,
+        ?string $email,
+        Companies $company,
+        Apps $app
+    ): Collection {
+        $people = new Collection();
+
+        if ($phone !== null && $phone !== '') {
+            $people = $people
+                ->merge(self::getAllByPhoneMatchingValue($phone, $company, $app))
+                ->merge(self::getAllByMatchingValue($phone, $company, $app));
+        }
+
+        if ($email !== null && $email !== '') {
+            $people = $people->merge(self::getAllByMatchingValue($email, $company, $app));
+        }
+
+        return $people->unique('id');
+    }
+
     #[Override]
     public function shouldBeSearchable(): bool
     {
@@ -591,10 +719,10 @@ class People extends BaseModel
         $people = [
             'objectID' => $this->uuid,
             'id' => (string) $this->id,
-            'name' => $this->name,
-            'firstname' => $this->firstname,
-            'middlename' => $this->middlename,
-            'lastname' => $this->lastname,
+            'name' => (string) $this->name,
+            'firstname' => (string) $this->firstname,
+            'middlename' => (string) $this->middlename,
+            'lastname' => (string) $this->lastname,
             'companies_id' => $this->companies_id,
             'email' => $this->getEmails()->first()?->value,
             'phone' => $this->getAllPhones()->first()?->value,
@@ -803,11 +931,42 @@ class People extends BaseModel
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name,description,translations,firstname,lastname,email,phone', // Use just 'message' instead of 'message.name'
+                'query_by' => 'name,firstname,lastname,email,phone',
             ]);
         }
 
         return $query;
+    }
+
+    public function getDriverLicense(): ?DriverLicense
+    {
+        $legacyScan = $this->get('get_docs_drivers_license');
+        $legacy = is_array($legacyScan) ? DriverLicense::fromScan($legacyScan) : null;
+
+        $number = $this->license_number
+            ?: ($this->get('drivers_license_number') ?: $legacy?->number);
+
+        if (empty($number)) {
+            return null;
+        }
+
+        $state = DriverLicense::normalizeState($this->license_state) ?? $legacy?->state;
+        if ($state === null) {
+            $state = DriverLicense::normalizeState($this->getDefaultAddress()?->state);
+        }
+
+        return new DriverLicense(
+            number: (string) $number,
+            state: $state,
+            expirationDate: $this->license_expiration_date
+                ? Carbon::parse($this->license_expiration_date)
+                : $legacy?->expirationDate,
+            dob: $this->dob ? Carbon::parse($this->dob) : $legacy?->dob,
+            firstname: $this->firstname,
+            middlename: $this->middlename,
+            lastname: $this->lastname,
+            address: $legacy?->address,
+        );
     }
 
     /**
@@ -815,42 +974,7 @@ class People extends BaseModel
      */
     public function getDriverLicenseData(): ?array
     {
-        $licenseNumber = null;
-        $licenseState = null;
-
-        if (! empty($this->license_number)) {
-            $licenseNumber = $this->license_number;
-        }
-
-        if (empty($licenseNumber)) {
-            $licenseNumber = $this->get('drivers_license_number');
-        }
-
-        $legacyLicense = $this->get('get_docs_drivers_license');
-        if (! empty($legacyLicense) && is_array($legacyLicense)) {
-            if (empty($licenseNumber) && ! empty($legacyLicense['license'])) {
-                $licenseNumber = $legacyLicense['license'];
-            }
-            if (! empty($legacyLicense['state'])) {
-                $licenseState = $legacyLicense['state'];
-            }
-        }
-
-        if (empty($licenseState)) {
-            $defaultAddress = $this->address()->where('is_default', true)->first();
-            if ($defaultAddress && ! empty($defaultAddress->state)) {
-                $licenseState = $defaultAddress->state;
-            }
-        }
-
-        if (empty($licenseNumber)) {
-            return null;
-        }
-
-        return [
-            'driversLicenseNumber' => $licenseNumber,
-            'driversLicenseState' => $licenseState,
-        ];
+        return $this->getDriverLicense()?->toDriveCentricArray();
     }
 
     public function getPhoto(): ?FilesystemEntities

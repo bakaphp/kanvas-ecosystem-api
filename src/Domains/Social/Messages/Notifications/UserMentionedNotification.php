@@ -31,7 +31,7 @@ class UserMentionedNotification extends Notification
         ]);
 
         $this->setType(EmailTemplateEnum::BLANK->value);
-        $this->setTemplateName(NotificationTemplateEnum::EMAIL_NEW_MESSAGE->value);
+        $this->setTemplateName(NotificationTemplateEnum::EMAIL_USER_MENTION->value);
         $this->setPushTemplateName(NotificationTemplateEnum::PUSH_NEW_MESSAGE->value);
         $this->setInteraction(InteractionEnum::MENTION->getValue());
         $this->setSubject($fromName . ' mentioned you');

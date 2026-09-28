@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Guild\Leads\Actions;
 
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
@@ -28,56 +29,78 @@ class SyncLeadByThirdPartyCustomFieldAction
             throw new ValidationException('Lead Missing Custom Fields Key and Value to find reference');
         }
 
-        $lockKey = 'lead_sync:' . $this->lead->app->getId() . $this->lead->branch->company->getId() . ':' . $customFieldKeys[0] . ':' . $customFieldValues[0];
+        $company = $this->lead->branch->company;
+        $customFieldKey = (string) $customFieldKeys[0];
+        $customFieldValue = (string) $customFieldValues[0];
+        $lockKey = 'lead_sync:' . $this->lead->app->getId() . $company->getId() . ':' . $customFieldKey . ':' . $customFieldValue;
 
-        return Cache::lock($lockKey, 10)->block(5, function () use ($customFieldKeys, $customFieldValues) {
-            $lead = ModelsLead::getByCustomField(
-                $customFieldKeys[0],
-                $customFieldValues[0],
-                $this->lead->branch->company,
+        try {
+            return Cache::lock($lockKey, 10)
+                ->block(11, fn () => $this->sync($customFieldKey, $customFieldValue));
+        } catch (LockTimeoutException $e) {
+            // The concurrent sync created/updated the canonical lead for this reference.
+            // Yield to it and return that lead instead of surfacing a 500; only rethrow
+            // if it somehow isn't there yet.
+            /** @var ModelsLead|null $lead */
+            $lead = ModelsLead::getByCustomField($customFieldKey, $customFieldValue, $company);
+
+            if ($lead !== null) {
+                return $lead;
+            }
+
+            throw $e;
+        }
+    }
+
+    private function sync(string $customFieldKey, string $customFieldValue): ModelsLead
+    {
+        /** @var ModelsLead|null $lead */
+        $lead = ModelsLead::getByCustomField(
+            $customFieldKey,
+            $customFieldValue,
+            $this->lead->branch->company,
+        );
+
+        $peopleSync = new SyncPeopleByThirdPartyCustomFieldAction($this->lead->people);
+        $people = $peopleSync->execute();
+
+        if ($lead === null) {
+            $this->lead->people->id = $people->id;
+            $createLead = new CreateLeadAction(
+                $this->lead,
             );
+            $lead = $createLead->execute();
+        }
 
-            $peopleSync = new SyncPeopleByThirdPartyCustomFieldAction($this->lead->people);
-            $people = $peopleSync->execute();
+        $lead->firstname = $this->lead->people->firstname;
+        $lead->lastname = $this->lead->people->lastname;
+        $lead->email = $this->lead->people->getEmails()[0]['value'] ?? null;
+        $lead->people_id = $people->getId();
+        $lead->description = $this->lead->description;
+        $lead->leads_status_id = $this->lead->status_id;
+        $lead->leads_types_id = $this->lead->type_id;
+        $lead->leads_sources_id = $this->lead->source_id;
+        $lead->leads_owner_id = $this->lead->leads_owner_id;
+        $lead->title = $this->lead->title;
+        $lead->setCustomFields(
+            $this->lead->custom_fields,
+        );
 
-            if ($lead === null) {
-                $this->lead->people->id = $people->id;
-                $createLead = new CreateLeadAction(
-                    $this->lead,
-                );
-                $lead = $createLead->execute();
+        if (method_exists($lead, 'disableWorkflows')) {
+            $lead->disableWorkflows();
+        }
+
+        $lead->saveOrFail();
+        $lead->saveCustomFields();
+
+        if (count($this->lead->followers)) {
+            foreach ($this->lead->followers as $follower) {
+                $follower->follow($lead);
             }
+        }
 
-            $lead->firstname = $this->lead->people->firstname;
-            $lead->lastname = $this->lead->people->lastname;
-            $lead->email = $this->lead->people->getEmails()[0]['value'] ?? null;
-            $lead->people_id = $people->getId();
-            $lead->description = $this->lead->description;
-            $lead->leads_status_id = $this->lead->status_id;
-            $lead->leads_types_id = $this->lead->type_id;
-            $lead->leads_sources_id = $this->lead->source_id;
-            $lead->leads_owner_id = $this->lead->leads_owner_id;
-            $lead->title = $this->lead->title;
-            $lead->setCustomFields(
-                $this->lead->custom_fields,
-            );
+        LeadCompanySyncEvent::dispatch($lead);
 
-            if (method_exists($lead, 'disableWorkflows')) {
-                $lead->disableWorkflows();
-            }
-
-            $lead->saveOrFail();
-            $lead->saveCustomFields();
-
-            if (count($this->lead->followers)) {
-                foreach ($this->lead->followers as $follower) {
-                    $follower->follow($lead);
-                }
-            }
-
-            LeadCompanySyncEvent::dispatch($lead);
-
-            return $lead;
-        });
+        return $lead;
     }
 }

@@ -32,9 +32,10 @@ class EventLookupMutationsTest extends TestCase
             mutation($input: EventLookupInput!) {
                 createEventType(input: $input) { id name }
             }
-        ', ['input' => ['name' => 'Test Type ' . uniqid()]])->assertSuccessful();
+        ', ['input' => ['name' => 'Test Type ' . uniqid(), 'is_default' => true]])->assertSuccessful();
         $id = $create->json('data.createEventType.id');
         $this->assertNotNull($id);
+        $this->assertSame(1, (int) EventType::findOrFail($id)->is_default);
 
         $this->graphQL('
             mutation($id: ID!, $input: EventLookupUpdateInput!) {

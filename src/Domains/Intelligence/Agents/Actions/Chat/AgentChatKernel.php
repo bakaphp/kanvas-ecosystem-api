@@ -5,23 +5,22 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Baka\Support\Str;
-use Baka\Traits\LimitsBroadcastPayload;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Actions\TrackAgentUsageAction;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Exceptions\AgentProviderException;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
 use Kanvas\Intelligence\Sessions\Actions\PersistChatTurnToSocialAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Users\Models\Users;
-use Nuwave\Lighthouse\Execution\Utils\Subscription;
 use Throwable;
 
 /**
@@ -35,9 +34,9 @@ use Throwable;
  */
 class AgentChatKernel
 {
-    use LimitsBroadcastPayload;
-
     protected ?Message $persistedReply = null;
+
+    protected ?RunNeuronChatAction $neuronRun = null;
 
     /**
      * @param list<string> $images Image URLs the model can take natively on every backend.
@@ -59,6 +58,11 @@ class AgentChatKernel
         protected readonly bool $persistConversation = true,
         protected readonly array $documents = [],
         protected readonly array $additionalTools = [],
+        protected readonly bool $privateUserTurn = false,
+        protected readonly ?string $adkAppName = null,
+        protected readonly ?string $adkBaseUrl = null,
+        protected readonly bool $fallbackOnFailure = true,
+        protected readonly bool $rendersArtifacts = false,
     ) {
     }
 
@@ -80,6 +84,14 @@ class AgentChatKernel
 
     public function execute(): string
     {
+        // Outside the try below on purpose: that catch rewraps everything as AgentProviderException,
+        // which would strip the ShouldntReport/SilentWorkflowException markers and report the skip.
+        if (! $this->agent->is_active) {
+            throw new AgentReplySkippedException(
+                sprintf('Agent %d is deactivated', $this->agent->getId())
+            );
+        }
+
         $startTime = microtime(true);
         $sessionId = $this->session?->uuid ?? '';
 
@@ -96,9 +108,45 @@ class AgentChatKernel
             $this->persistConversationToSocial($response);
         }
 
-        $this->broadcastChatResponse($sessionId, $response);
+        // A private turn is one nobody typed. Whatever drove it delivers the reply itself, so broadcasting
+        // here would show the driving prompt as a chat message and the reply twice.
+        if (! $this->privateUserTurn) {
+            $this->broadcastChatResponse($sessionId, $response);
+        }
 
         return $response;
+    }
+
+    /**
+     * True when the turn stopped because it spent its tool-output budget, not because the agent was done.
+     * Only the Neuron backend bounds tool output, so every other backend reads false.
+     */
+    public function endedOnToolBudget(): bool
+    {
+        return $this->neuronRun?->endedOnToolBudget() ?? false;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function executedToolCalls(): array
+    {
+        return $this->neuronRun?->executedToolCalls() ?? [];
+    }
+
+    public function agent(): Agent
+    {
+        return $this->agent;
+    }
+
+    public function session(): ?Session
+    {
+        return $this->session;
+    }
+
+    public function user(): Users
+    {
+        return $this->user;
     }
 
     /**
@@ -135,6 +183,10 @@ class AgentChatKernel
                 message: $this->message,
                 user: $this->user,
                 images: $this->images,
+                // Forwarded, not dropped: a wake job injects the board toolset here, and a hosted
+                // agent that silently loses it replies "I've marked it done" while the task never
+                // moves.
+                additionalTools: $this->additionalTools,
             )->execute();
         }
 
@@ -180,6 +232,8 @@ class AgentChatKernel
                 user: $this->user,
                 sourceChannel: $this->sourceChannel,
                 sourceMessage: $this->sourceMessage,
+                appName: $this->adkAppName,
+                baseUrl: $this->adkBaseUrl,
             )->execute();
         }
 
@@ -189,7 +243,7 @@ class AgentChatKernel
             user: $this->user,
         );
 
-        if ($handler instanceof BaseKanvasAgent) {
+        if ($handler instanceof BehavesAsKanvasAgent) {
             // userChat (sourceChannel === null): scope history to this thread.
             // Channel agents: thread by entity — Lead+People IS the conversation,
             // not the per-channel session. Cross-channel rollup is the design
@@ -202,21 +256,26 @@ class AgentChatKernel
             // Plumb the turn's attachment URLs so the conversation history can persist a reference
             // for describing — the handler itself only ever sees the base64 content blocks.
             $handler->setTurnMedia($this->nativeMedia());
+            $handler->setPrivateUserTurn($this->privateUserTurn);
+            $handler->setRendersArtifacts($this->rendersArtifacts);
         }
 
-        if ($this->additionalTools !== [] && $handler instanceof BaseKanvasAgent) {
+        if ($this->additionalTools !== [] && $handler instanceof BehavesAsKanvasAgent) {
             $handler->addTool($this->additionalTools);
         }
 
-        return new RunNeuronChatAction(
+        $this->neuronRun = new RunNeuronChatAction(
             agent: $this->agent,
             session: $this->session,
             message: $this->message,
             app: $this->agent->app,
             user: $this->user,
             handler: $handler,
-            media: $this->nativeMedia()
-        )->execute();
+            media: $this->nativeMedia(),
+            fallbackOnFailure: $this->fallbackOnFailure,
+        );
+
+        return $this->neuronRun->execute();
     }
 
     protected function trackUsage(
@@ -238,21 +297,37 @@ class AgentChatKernel
 
     protected function broadcastChatResponse(string $sessionId, string $response): void
     {
-        AgentChatResponseEvent::dispatch(
-            $this->agent,
-            $sessionId,
-            $this->message,
-            $response
-        );
+        // Best-effort: broadcasting is a live-update nicety. The reply is already computed and
+        // persisted, so a Pusher/subscription outage must NEVER crash the chat turn (otherwise a
+        // transient broadcast failure surfaces to the client as a 500 "Internal server error").
+        try {
+            AgentChatResponseEvent::dispatch(
+                $this->agent,
+                $sessionId,
+                $this->message,
+                $response,
+                $this->persistedReply,
+            );
 
-        Subscription::broadcast('agentChatResponse', [
-            'agent_id' => $this->agent->getId(),
-            'agent_name' => $this->agent->name,
-            'session_id' => $sessionId,
-            ...$this->limitBroadcastPayloadSet([
-                'message' => $this->message,
-                'response' => $response,
-            ]),
-        ]);
+            // The `agentChatResponse` Lighthouse subscription duplicated the event above onto the
+            // same Pusher connection while costing a queued broadcast job per turn plus Redis
+            // subscriber storage, and no client consumed it. Disabled here, in
+            // DeliverScheduledMessageToChannelAction, and in the schema — re-enable all three
+            // together. Needs `Nuwave\Lighthouse\Execution\Utils\Subscription` and the
+            // `Baka\Traits\LimitsBroadcastPayload` trait imported back on this class.
+            //
+            // Subscription::broadcast('agentChatResponse', [
+            //     'agent_id' => $this->agent->getId(),
+            //     'agent_name' => $this->agent->name,
+            //     'session_id' => $sessionId,
+            //     'message_id' => $this->persistedReply?->getId(),
+            //     ...$this->limitBroadcastPayloadSet([
+            //         'message' => $this->message,
+            //         'response' => $response,
+            //     ]),
+            // ]);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 }

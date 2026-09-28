@@ -101,24 +101,6 @@ type Rotation {
     companies_id: ID!
 }
 
-type LeadReceiver {
-    id: ID!
-    uuid: String!
-    company: Company! @belongsTo
-    branch: CompanyBranch! @belongsTo
-    name: String!
-    user: User @belongsTo
-    agent: User @belongsTo
-    rotation: Rotation! @belongsTo
-    source: LeadSource @belongsTo
-    type: LeadType @belongsTo
-    source_name: String
-    template: JSON
-    total_leads: Int!
-    is_default: Boolean!
-    created_at: DateTime!
-}
-
 type LeadStatus {
     id: ID!
     name: String!

@@ -23,9 +23,14 @@ use Kanvas\Workflow\Models\ReceiverWebhookCall;
 
 class CreateMessageFromEmailAction
 {
+    /**
+     * `$suppressAgentResponse` files the mail without firing the responder workflow. Set it when the
+     * message is a stop request: the mail still belongs in the record, but nothing may answer it.
+     */
     public function __construct(
         protected ReceiverWebhookCall $webhookRequest,
         protected ?Lead $lead = null,
+        protected bool $suppressAgentResponse = false,
     ) {
     }
 
@@ -119,18 +124,20 @@ class CreateMessageFromEmailAction
                 new NotifyLeadStakeholdersService($this->lead)->onCustomerEngagement($newMessage);
             }
 
-            $channel->fireWorkflow(
-                WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
-                true,
-                [
-                       'message' => $newMessage,
-                       'user' => $newMessage->user,
-                       'app' => $newMessage->app,
-                       'company' => $newMessage->company,
-                       'communication_channel' => 'email',
-                       'text' => $text,
-                ]
-            );
+            if (! $this->suppressAgentResponse) {
+                $channel->fireWorkflow(
+                    WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
+                    true,
+                    [
+                        'message' => $newMessage,
+                        'user' => $newMessage->user,
+                        'app' => $newMessage->app,
+                        'company' => $newMessage->company,
+                        'communication_channel' => 'email',
+                        'text' => $text,
+                    ]
+                );
+            }
         }
 
         return $newMessage;

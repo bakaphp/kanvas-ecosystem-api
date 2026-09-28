@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Souk\Loyalty\Activities;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Loyalty\Actions\AssignLoyaltyProgramAction;
 use Kanvas\Souk\Loyalty\Actions\AwardPointsAction;
 use Kanvas\Souk\Loyalty\Actions\CheckOfferTriggersAction;
@@ -46,7 +47,17 @@ class ProcessOrderLoyaltyActivity extends KanvasActivity
 
                 // Step 2: Award points for this order
                 $awardPoints = new AwardPointsAction($order, $membership);
-                $orderLoyaltyPoints = $awardPoints->execute();
+
+                try {
+                    $orderLoyaltyPoints = $awardPoints->execute();
+                } catch (ValidationException $e) {
+                    return $this->failWorkflow([
+                        'result' => false,
+                        'message' => $e->getMessage(),
+                        'order_id' => $order->getId(),
+                        'user_id' => $user->getId(),
+                    ]);
+                }
 
                 // Refresh membership to get updated points
                 $membership->refresh();

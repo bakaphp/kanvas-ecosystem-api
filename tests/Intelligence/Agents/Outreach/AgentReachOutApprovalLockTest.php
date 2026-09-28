@@ -73,6 +73,7 @@ class AgentReachOutApprovalLockTest extends TestCase
             ]);
 
         $outbound = null;
+
         try {
             $outbound = new AgentReachOutOnChannelAction(
                 lead: $lead,
@@ -144,6 +145,7 @@ class AgentReachOutApprovalLockTest extends TestCase
             ]);
 
         $outbound = null;
+
         try {
             $outbound = new AgentReachOutOnChannelAction(
                 lead: $lead,

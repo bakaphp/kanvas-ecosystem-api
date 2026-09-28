@@ -164,10 +164,10 @@ final class AzulProcessorTest extends AzulBase
     public function testTokenizeStoresCardInDataVault(): void
     {
         $result = $this->processor->tokenize([
-            'number'     => '6011000000000004',
+            'number' => '6011000000000004',
             'expiration' => '202812',
-            'cvc'        => '818',
-            'brand'      => 'discover',
+            'cvc' => '818',
+            'brand' => 'discover',
         ]);
 
         $this->assertInstanceOf(TokenizeResult::class, $result);
@@ -185,10 +185,10 @@ final class AzulProcessorTest extends AzulBase
     public function testDeleteTokenAfterTokenize(): void
     {
         $tokenizeResult = $this->processor->tokenize([
-            'number'     => '6011000000000004',
+            'number' => '6011000000000004',
             'expiration' => '202812',
-            'cvc'        => '818',
-            'brand'      => 'discover',
+            'cvc' => '818',
+            'brand' => 'discover',
         ]);
 
         $this->assertTrue($tokenizeResult->success);
@@ -215,8 +215,8 @@ final class AzulProcessorTest extends AzulBase
         $paymentMethod = Mockery::mock(\Kanvas\Payments\Models\PaymentMethods::class)->makePartial();
         $paymentMethod->metadata = [
             'card_number' => '6011000000000004',
-            'expiration'  => '202812',
-            'cvc'         => '818',
+            'expiration' => '202812',
+            'cvc' => '818',
             CustomFieldEnum::AZUL_DATA_VAULT_TOKEN->value => $dataVaultToken,
         ];
         $paymentMethod->shouldReceive('getMetadata')->andReturnUsing(

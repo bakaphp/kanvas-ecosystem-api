@@ -25,7 +25,7 @@ type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
         @cacheRedis
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getPaginatedFileByGraphType"
         )
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
@@ -38,8 +38,9 @@ type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
         @method(name: "visibleAttributes")
         @cacheRedis
     companies: Company! @belongsTo(relation: "company")
+    leadReceivers: [LeadReceiver!]! @hasMany(relation: "leadReceivers")
     channels(currencyCode: String): [VariantChannelRelationship!]!
-        @BelongsToMany(relation: "channels")
+        @belongsToMany(relation: "channels")
     channel(currencyCode: String): VariantPricingInfo
         @cacheRedis
         @field(
@@ -53,6 +54,11 @@ type Variant @model(class: "Kanvas\\Inventory\\Variants\\Models\\Variants") {
         @paginate(
             defaultCount: 25
             resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
+    tags: [Tag!]
+        @paginate(
+            defaultCount: 25
+            builder: "App\\GraphQL\\Social\\Queries\\Tags\\TagsQueries@getTagsBuilder"
         )
     inventory_quantity: Int @method(name: "getTotalQuantity")
     activities: [ActivityLog!] @method(name: "getActivities")
@@ -109,6 +115,7 @@ input VariantsInput {
     warehouses: [WarehouseReferenceInput!]
     channels: [VariantChannelReferenceInput!]
     custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
 }
 
 input VariantsUpdateInput {
@@ -129,6 +136,7 @@ input VariantsUpdateInput {
     warehouses: [WarehouseReferenceInput!]
     channels: [VariantChannelReferenceInput!]
     custom_fields: [CustomFieldEntityInput!]
+    tags: [TagInput!]
 }
 
 input VariantTranslationInput {
@@ -209,6 +217,11 @@ extend type Query @guard {
             @whereHasConditions(
                 relation: "attributeValues"
                 columns: ["products_variants_id", "value", "attributes_id"]
+            )
+        hasTags: _
+            @whereHasConditions(
+                relation: "tags"
+                columns: ["id", "name", "slug"]
             )
         hasChannel: _
             @whereHasConditions(

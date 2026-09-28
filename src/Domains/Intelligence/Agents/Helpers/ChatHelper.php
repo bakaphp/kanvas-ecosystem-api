@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Helpers;
 
-use Baka\Support\Str;
-
 class ChatHelper
 {
     public static function extractTextFromResponse(string $response): string
@@ -15,7 +13,7 @@ class ChatHelper
 
     private static function resolveResponseText(string $response): string
     {
-        $data = self::decodeJsonEnvelope($response);
+        $data = self::extractJsonEnvelope($response);
         if ($data !== null) {
             return self::pickResponseField($data);
         }
@@ -79,7 +77,7 @@ class ChatHelper
      */
     public static function extractSubjectFromResponse(string $response): ?string
     {
-        $data = self::decodeJsonEnvelope($response);
+        $data = self::extractJsonEnvelope($response);
         if ($data === null) {
             return null;
         }
@@ -98,32 +96,66 @@ class ChatHelper
      * a fenced ```json block, then a bare `{...}` anywhere in the text. Returns null
      * when nothing parses as a JSON object.
      *
+     * Public because the reply text alone is lossy: {@see pickResponseField()} selects ONE
+     * field, so an agent that answers with a whole record (a post, a quote, an enrichment)
+     * loses every field but the body. Callers that persist the reply keep the envelope
+     * alongside it so a later activity can consume the structure.
+     *
      * @return array<array-key, mixed>|null
      */
-    private static function decodeJsonEnvelope(string $response): ?array
+    public static function extractJsonEnvelope(string $response): ?array
     {
-        if (Str::isJson($response)) {
-            $data = json_decode($response, true);
-            if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
-                return $data;
-            }
+        $candidates = [$response];
+
+        if (preg_match('/```(?:json)?\s*(.*?)\s*```/s', $response, $matches)) {
+            $candidates[] = $matches[1];
         }
 
-        if (preg_match('/```(?:json)?\s*(\{.*\})\s*```/s', $response, $matches)) {
-            $data = json_decode($matches[1], true);
-            if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
-                return $data;
-            }
+        // `[` as well as `{`: a list of records is an envelope too, and anchoring on `{` alone left
+        // a fenced array unparsed, so the caller published the model's raw JSON as its own body.
+        if (preg_match('/[\{\[].*[\}\]]/s', $response, $matches)) {
+            $candidates[] = $matches[0];
         }
 
-        if (preg_match('/\{.*\}/s', $response, $matches)) {
-            $data = json_decode($matches[0], true);
-            if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
+        foreach ($candidates as $candidate) {
+            $data = json_decode(trim($candidate), true);
+
+            if (json_last_error() === JSON_ERROR_NONE && self::isEnvelope($data)) {
                 return $data;
             }
         }
 
         return null;
+    }
+
+    /**
+     * The single record an envelope describes: itself when it is an object, its first record when the
+     * agent answered with several in one turn. Null when a list carries no record at all — prose with
+     * a bracketed aside, `Los pasos son [1, 2, 3]`, decodes as a perfectly valid JSON array, and
+     * reading that as structure hands back one fragment of the list instead of what the agent wrote.
+     *
+     * @param array<array-key, mixed> $envelope
+     *
+     * @return array<array-key, mixed>|null
+     */
+    public static function firstRecord(array $envelope): ?array
+    {
+        if (! array_is_list($envelope)) {
+            return $envelope;
+        }
+
+        foreach ($envelope as $record) {
+            if (is_array($record)) {
+                return $record;
+            }
+        }
+
+        return null;
+    }
+
+    private static function isEnvelope(mixed $data): bool
+    {
+        return is_array($data) && self::firstRecord($data) !== null;
     }
 
     /**
@@ -140,6 +172,15 @@ class ChatHelper
      */
     private static function pickResponseField(array $data): string
     {
+        // Several records in one turn: the first one is the reply, the rest live on in the envelope.
+        // Without this every value is an array, the string scan below finds nothing, and the empty
+        // result reads to callers as "the agent said nothing" — throwing the whole turn away.
+        if (array_is_list($data)) {
+            $record = self::firstRecord($data);
+
+            return $record !== null ? self::pickResponseField($record) : '';
+        }
+
         foreach (['response', 'content', 'message', 'text', 'body', 'reply', 'answer', 'output'] as $key) {
             if (isset($data[$key]) && is_string($data[$key]) && trim($data[$key]) !== '') {
                 return $data[$key];

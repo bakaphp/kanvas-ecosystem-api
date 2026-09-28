@@ -20,6 +20,7 @@ class EntityIntegrationHistory extends Data
         public Status $status,
         public EntityIntegrationInterface|Model $entity,
         public ?Rule $rule,
+        public mixed $input = null,
         public mixed $response = null,
         public mixed $exception = null,
         public ?int $workflowId = null

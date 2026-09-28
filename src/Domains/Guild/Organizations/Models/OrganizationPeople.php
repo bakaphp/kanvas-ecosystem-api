@@ -57,4 +57,12 @@ class OrganizationPeople extends BaseModel
             'created_at' => date('Y-m-d H:i:s'),
         ]);
     }
+
+    public static function removePeopleFromOrganization(Organization $organization, People $people): int
+    {
+        return self::query()
+            ->where('organizations_id', $organization->getId())
+            ->where('peoples_id', $people->getId())
+            ->delete();
+    }
 }

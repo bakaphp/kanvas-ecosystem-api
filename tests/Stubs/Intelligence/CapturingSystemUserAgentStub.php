@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Stubs\Intelligence;
 
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Users\Models\Users;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\InMemoryChatHistory;
 use NeuronAI\Providers\AIProviderInterface;
@@ -18,6 +20,10 @@ use Override;
  */
 class CapturingSystemUserAgentStub extends SystemUserAgent
 {
+    public static ?Session $lastSession = null;
+    public static ?Users $lastConversationHuman = null;
+    public static ?bool $lastRendersArtifacts = null;
+
     #[Override]
     protected function provider(): AIProviderInterface
     {
@@ -31,11 +37,18 @@ class CapturingSystemUserAgentStub extends SystemUserAgent
     }
 
     /**
+     * Real tools are replaced with nothing, but the scheduling context the caller wired is recorded —
+     * it's what the schedule_* tools would have been built with on this turn.
+     *
      * @return list<object>
      */
     #[Override]
     protected function tools(): array
     {
+        self::$lastSession = $this->session;
+        self::$lastConversationHuman = $this->conversationHuman;
+        self::$lastRendersArtifacts = $this->rendersArtifacts;
+
         return [];
     }
 

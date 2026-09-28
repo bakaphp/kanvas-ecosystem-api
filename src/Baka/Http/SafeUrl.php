@@ -63,8 +63,20 @@ final class SafeUrl
         }
 
         // parse_url keeps the brackets on an IPv6 literal host.
-        $host = trim($parts['host'], '[]');
+        return self::resolvePublicHost(trim($parts['host'], '[]'));
+    }
 
+    /**
+     * The host-only half of resolve(), for non-HTTP transports (FTP, SFTP) that have no URL to
+     * validate. Connect to a returned IP rather than the hostname, so a DNS rebind between this
+     * check and the connect can't swap in a private address.
+     *
+     * @return list<string>
+     *
+     * @throws SsrfException
+     */
+    public static function resolvePublicHost(string $host): array
+    {
         $ips = self::resolveHost($host);
         if ($ips === []) {
             throw new SsrfException("Could not resolve host: {$host}");

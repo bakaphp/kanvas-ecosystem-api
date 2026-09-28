@@ -17,7 +17,7 @@ use NeuronAI\Tools\Tool;
 
 use function Laravel\Ai\agent;
 
-#[AgentTool(name: 'Contact Checker')]
+#[AgentTool(name: 'Contact Checker', category: 'crm')]
 class ContactCheckerTool extends Tool
 {
     protected Agent $agent;
@@ -53,7 +53,7 @@ class ContactCheckerTool extends Tool
 
         /** @var StructuredAgentResponse $response */
         $response = agent(
-            instructions: Blade::render(implode(' ', $this->agent->role['background']), $data),
+            instructions: Blade::render($this->agent->roleSection('background'), $data),
             schema: fn ($schema) => [
                 'already_contacted' => $schema->boolean()->description('Whether the lead has been contacted by a representative')->required(),
                 'should_send_first_message' => $schema->boolean()->description('Whether a first message should be sent to the lead')->required(),
@@ -63,9 +63,9 @@ class ContactCheckerTool extends Tool
                 '_thought_process' => $schema->string()->description('Internal reasoning and analysis process')->required(),
             ],
         )->prompt(
-            Blade::render(implode('\n', $this->agent->role['steps']), $data),
+            Blade::render($this->agent->roleSection('steps', "\n"), $data),
             provider: Lab::Gemini,
-            model: 'gemini-2.5-pro',
+            model: 'gemini-3.1-flash-lite',
         );
 
         return $response->structured;

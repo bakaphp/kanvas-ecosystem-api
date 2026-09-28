@@ -4,22 +4,24 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\NervousSystem\Schedules;
 
-use App\Console\Commands\Intelligence\CollectAgentDeploymentUsageCommand;
-use App\Console\Commands\Intelligence\CollectAgentSessionTranscriptsCommand;
-use App\Console\Commands\Intelligence\DailyAgentConfigBackupCommand;
-use App\Console\Commands\Intelligence\RollupLocalAgentUsageCommand;
-use App\Console\Commands\NervousSystem\ArchiveOldLedgerEventsCommand;
-use App\Console\Commands\NervousSystem\CheckAgentRuntimeHealthCommand;
-use App\Console\Commands\NervousSystem\DetectStalledPlanTasksCommand;
-use App\Console\Commands\NervousSystem\ExpireCapabilitiesCommand;
-use App\Console\Commands\NervousSystem\NudgeInactivePlansCommand;
-use App\Console\Commands\NervousSystem\ProjectHeartbeatCommand;
-use App\Console\Commands\NervousSystem\RecordAgentDailyCyclesCommand;
-use App\Console\Commands\NervousSystem\RefreshAgentLiveCountersCommand;
-use App\Console\Commands\NervousSystem\SendDailyLearningDigestCommand;
-use App\Console\Commands\NervousSystem\SummarizeAgentDailyLearningCommand;
-use App\Console\Commands\NervousSystem\SyncKanbanDeploymentsCommand;
-use App\Console\Commands\NervousSystem\SyncModelPricingCommand;
+use App\Console\Commands\Intelligence\Agents\DailyAgentConfigBackupCommand;
+use App\Console\Commands\Intelligence\Usage\CollectAgentDeploymentUsageCommand;
+use App\Console\Commands\Intelligence\Usage\CollectAgentSessionTranscriptsCommand;
+use App\Console\Commands\Intelligence\Usage\RollupLocalAgentUsageCommand;
+use App\Console\Commands\NervousSystem\Agents\CheckAgentRuntimeHealthCommand;
+use App\Console\Commands\NervousSystem\Agents\ExpireCapabilitiesCommand;
+use App\Console\Commands\NervousSystem\Agents\RefreshAgentLiveCountersCommand;
+use App\Console\Commands\NervousSystem\Learning\RecordAgentDailyCyclesCommand;
+use App\Console\Commands\NervousSystem\Learning\SendDailyLearningDigestCommand;
+use App\Console\Commands\NervousSystem\Learning\SummarizeAgentDailyLearningCommand;
+use App\Console\Commands\NervousSystem\Ledger\ArchiveOldLedgerEventsCommand;
+use App\Console\Commands\NervousSystem\Metrics\SyncModelPricingCommand;
+use App\Console\Commands\NervousSystem\Plans\DetectStalledPlanTasksCommand;
+use App\Console\Commands\NervousSystem\Plans\NudgeInactivePlansCommand;
+use App\Console\Commands\NervousSystem\Plans\ProjectHeartbeatCommand;
+use App\Console\Commands\NervousSystem\Plans\SweepStaleIntakeCommand;
+use App\Console\Commands\NervousSystem\Plans\SyncKanbanDeploymentsCommand;
+use App\Console\Commands\NervousSystem\Scheduling\SweepScheduledActionsCommand;
 use Illuminate\Console\Scheduling\Schedule;
 use Kanvas\NervousSystem\Dashboard\Jobs\RollupDailyDashboardMetricsJob;
 use Kanvas\NervousSystem\Pulse\Jobs\RollupDailyPulseMetricsJob;
@@ -50,6 +52,8 @@ final class NervousSystemSchedule
      *   06:04 NY   RecordAgentDailyCycles       ← daily-learning pipeline
      *   06:30 NY   SummarizeAgentDailyLearning  ← 26min buffer for record
      *   07:30 NY   SendDailyLearningDigest      ← 60min buffer for queue
+     *   08:00 NY   NudgeInactivePlans
+     *   08:15 NY   SweepStaleIntake             (+15min after the nudge)
      *
      * Daily-learning pipeline buffers depend on:
      *  - RecordAgentDailyCycles finishing in <26min for all active agents
@@ -83,11 +87,30 @@ final class NervousSystemSchedule
             ->hourly()
             ->withoutOverlapping();
 
+        // Scheduled agent actions (reminders / agent tasks) — the every-minute sweep claims the due
+        // batch and dispatches a fire-job per row. Pure dispatcher; ±1 min fire precision.
+        $schedule->command(SweepScheduledActionsCommand::class)
+            ->everyMinute()
+            ->withoutOverlapping()
+            ->runInBackground();
+
         // Inactive-plan nudge — once a day, ping owners of open plans that have gone silent past the
         // 24h threshold. Daily (not the 5-min heartbeat cadence) because the signal is day-scale and the
         // action posts a comment / notifies a human; the action's own ledger guard prevents re-nudging.
         $schedule->command(NudgeInactivePlansCommand::class)
             ->dailyAt('08:00')
+            ->timezone('America/New_York')
+            ->withoutOverlapping()
+            ->onOneServer();
+
+        // Unanswered intake — chase the owner, and after three unanswered rounds cancel the plan.
+        // A plan parked in INTAKE looks like work in progress, so leaving it there is worse than
+        // never having created it. Staggered 15min after the inactive-plan nudge so an owner with
+        // both a silent plan and a silent intake gets two separate pings rather than one pile.
+        // Daily rather than hourly because the action's own 24h window guard means a finer cadence
+        // would re-scan without ever chasing sooner.
+        $schedule->command(SweepStaleIntakeCommand::class)
+            ->dailyAt('08:15')
             ->timezone('America/New_York')
             ->withoutOverlapping()
             ->onOneServer();
