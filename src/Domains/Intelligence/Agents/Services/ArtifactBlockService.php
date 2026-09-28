@@ -17,6 +17,13 @@ class ArtifactBlockService
     public const string FENCE = 'kanvas-artifact';
 
     /**
+     * How Kanvas names a record: the integer id or the uuid. The admin card sends each to its own column —
+     * a uuid compared against an integer id is a cast ("5f1c…" reads as 5), not a miss — so anything else
+     * is refused here rather than rendered as a card that shows the wrong record.
+     */
+    private const string RECORD_ID_PATTERN = '/^(\d+|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i';
+
+    /**
      * @param array<string, mixed> $props
      * @return list<string>
      */
@@ -42,7 +49,9 @@ class ArtifactBlockService
             $block['title'] = trim($title);
         }
 
-        $block['props'] = $props;
+        // As an object: an empty PHP array encodes as `[]`, and a component whose props are all optional
+        // (approvals with no filter) is only valid with `{}`.
+        $block['props'] = (object) $props;
 
         return '```' . self::FENCE . "\n"
             . json_encode($block, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)
@@ -91,12 +100,24 @@ class ArtifactBlockService
     private function checkValue(mixed $value, array $rule, string $path): array
     {
         return match ($rule['type']) {
-            'string' => is_string($value) && $this->hasNoFence($value) ? [] : [$path . ' must be a string without ```'],
+            'string' => $this->checkString($value, $rule, $path),
             'number' => is_int($value) || is_float($value) ? [] : [$path . ' must be a number'],
+            'integer' => is_int($value) && $value >= $rule['min'] && $value <= $rule['max']
+                ? []
+                : [sprintf('%s must be a whole number from %d to %d', $path, $rule['min'], $rule['max'])],
             'bool' => is_bool($value) ? [] : [$path . ' must be true or false'],
             'id' => is_int($value) || (is_string($value) && trim($value) !== '' && $this->hasNoFence($value))
                 ? []
                 : [$path . ' must be the record id'],
+            'record_id' => $this->isRecordId($value) ? [] : [$path . ' must be a numeric id or a uuid'],
+            'record_id_list' => $this->checkList(
+                $value,
+                $rule,
+                $path,
+                fn (mixed $item, string $itemPath): array => $this->isRecordId($item)
+                    ? []
+                    : [$itemPath . ' must be a numeric id or a uuid']
+            ),
             'text_or_number' => $this->isTextOrNumber($value) ? [] : [$path . ' must be a string or a number'],
             'scalar' => $value === null || is_bool($value) || $this->isTextOrNumber($value)
                 ? []
@@ -186,6 +207,36 @@ class ArtifactBlockService
         return $missing === []
             ? []
             : [sprintf('props.data has no field named %s — xKey and series keys must be fields of data', implode(', ', $missing))];
+    }
+
+    /**
+     * @param array<string, mixed> $rule
+     * @return list<string>
+     */
+    private function checkString(mixed $value, array $rule, string $path): array
+    {
+        if (! is_string($value) || ! $this->hasNoFence($value)) {
+            return [$path . ' must be a string without ```'];
+        }
+
+        if (($rule['non_empty'] ?? false) === true && trim($value) === '') {
+            return [$path . ' must not be empty'];
+        }
+
+        if (isset($rule['max_length']) && mb_strlen(trim($value)) > $rule['max_length']) {
+            return [sprintf('%s must be at most %d characters', $path, $rule['max_length'])];
+        }
+
+        return [];
+    }
+
+    private function isRecordId(mixed $value): bool
+    {
+        if (is_int($value)) {
+            return $value > 0;
+        }
+
+        return is_string($value) && preg_match(self::RECORD_ID_PATTERN, trim($value)) === 1;
     }
 
     private function isTextOrNumber(mixed $value): bool
