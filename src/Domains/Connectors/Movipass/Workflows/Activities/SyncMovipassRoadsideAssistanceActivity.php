@@ -11,13 +11,18 @@ use Kanvas\Connectors\Movipass\Actions\AssignMechanicToOrderAction;
 use Kanvas\Connectors\Movipass\Actions\AttachRoadsideAssistancePhotosAction;
 use Kanvas\Connectors\Movipass\Actions\CancelMechanicAssignmentAction;
 use Kanvas\Connectors\Movipass\Actions\CheckMechanicArrivalAction;
+use Kanvas\Connectors\Movipass\Actions\CloseAssistanceWithIncidentAction;
 use Kanvas\Connectors\Movipass\Actions\GenerateRoadsideAssistancePinAction;
+use Kanvas\Connectors\Movipass\Actions\MarkAssistanceNotAuthorizedAction;
 use Kanvas\Connectors\Movipass\Actions\NotifyAvailableMechanicsAction;
 use Kanvas\Connectors\Movipass\Actions\PrepareRoadsideAssistanceCaseAction;
+use Kanvas\Connectors\Movipass\Actions\RegisterAssistanceIncidentAction;
+use Kanvas\Connectors\Movipass\Actions\RescheduleAssistanceAction;
 use Kanvas\Connectors\Movipass\Actions\SendRoadsideChatMessagePushAction;
 use Kanvas\Connectors\Movipass\Actions\ValidateRoadsideAssistancePinAction;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Connectors\Movipass\Enums\RoadsideNotProceedReasonEnum;
 use Kanvas\Connectors\Movipass\Events\RefreshActiveAssistanceEvent;
 use Kanvas\Connectors\Movipass\Notifications\RoadsideAssistanceStatusNotification;
 use Kanvas\Exceptions\ValidationException;
@@ -313,7 +318,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                     'message' => $e->getMessage(),
                 ];
             }
-            $feedback = $this->normalizeFeedback($assistanceCase['user_feedback'] ?? null);
+            $feedback = $this->normalizeOptionalText($assistanceCase['user_feedback'] ?? null);
 
             $isResolved = (bool) ($assistanceCase['mechanic_completion_resolved'] ?? true);
             $targetStatus = $isResolved
@@ -403,6 +408,91 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 'status' => 'success',
                 'message' => 'Mechanic assignment cancelled, order returned to awaiting_operator',
             ];
+        }
+
+        if (($assistanceCase['not_authorized'] ?? false) === true) {
+            $user = $this->resolveUser($order->users_id);
+
+            if (! $user instanceof Users) {
+                return $this->missingOrderUser($order);
+            }
+
+            $reason = RoadsideNotProceedReasonEnum::tryFrom((string) ($assistanceCase['not_authorized_reason'] ?? ''));
+
+            if ($reason === null) {
+                return [
+                    'order' => $order->getId(),
+                    'status' => 'error',
+                    'message' => 'not_authorized_reason must be one of: '
+                        . implode(', ', array_column(RoadsideNotProceedReasonEnum::cases(), 'value')),
+                ];
+            }
+
+            return $this->runFlowAction(
+                fn () => new MarkAssistanceNotAuthorizedAction(
+                    $order,
+                    $user,
+                    $reason,
+                    $this->normalizeOptionalText($assistanceCase['not_authorized_notes'] ?? null),
+                )->execute(),
+                $order,
+                'Case declined at the authorization gate, order transitioned to service_not_authorized',
+            );
+        }
+
+        if (($assistanceCase['register_incident'] ?? false) === true) {
+            $reporter = $this->resolveUser($assistanceCase['mechanic']['user_id'] ?? 0)
+                ?? $this->resolveUser($order->users_id);
+
+            if (! $reporter instanceof Users) {
+                return $this->missingOrderUser($order);
+            }
+
+            return $this->runFlowAction(
+                fn () => new RegisterAssistanceIncidentAction(
+                    $order,
+                    $reporter,
+                    (string) ($assistanceCase['incident_reason'] ?? ''),
+                )->execute(),
+                $order,
+                'Incident registered, awaiting a reschedule decision',
+            );
+        }
+
+        if (($assistanceCase['reschedule'] ?? false) === true) {
+            $user = $this->resolveUser($order->users_id);
+
+            if (! $user instanceof Users) {
+                return $this->missingOrderUser($order);
+            }
+
+            return $this->runFlowAction(
+                fn () => new RescheduleAssistanceAction(
+                    $order,
+                    $user,
+                    $this->normalizeOptionalText($assistanceCase['reschedule_notes'] ?? null),
+                )->execute(),
+                $order,
+                'Case rescheduled, order returned to the assignment pool',
+            );
+        }
+
+        if (($assistanceCase['close_with_incident'] ?? false) === true) {
+            $user = $this->resolveUser($order->users_id);
+
+            if (! $user instanceof Users) {
+                return $this->missingOrderUser($order);
+            }
+
+            return $this->runFlowAction(
+                fn () => new CloseAssistanceWithIncidentAction(
+                    $order,
+                    $user,
+                    $this->normalizeOptionalText($assistanceCase['close_notes'] ?? null),
+                )->execute(),
+                $order,
+                'Case closed with incident, order transitioned to service_completed_not_resolved',
+            );
         }
 
         if ($currentStatusSlug !== MovipassOrderStatusEnum::ON_SITE->slug()) {
@@ -538,6 +628,11 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                 $assistanceCase['pin_hash'] = null;
                 $assistanceCase['pin_invalidated_at'] = $timestamp;
             })(),
+            MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->slug() => (function () use (&$assistanceCase, $timestamp) {
+                $assistanceCase['not_authorized_at'] = $timestamp;
+                $assistanceCase['pin_hash'] = null;
+                $assistanceCase['pin_invalidated_at'] = $timestamp;
+            })(),
             default => null,
         };
 
@@ -554,7 +649,8 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         match ($toStatus) {
             MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
             MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug() => $order->fulfill(),
-            MovipassOrderStatusEnum::SERVICE_CANCELLED->slug() => $order->fulfillCancelled(),
+            MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+            MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->slug() => $order->fulfillCancelled(),
             default => null,
         };
 
@@ -563,6 +659,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
             MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
             MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+            MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->slug(),
         ];
 
         if (in_array($toStatus, $refreshStatuses, true)) {
@@ -585,6 +682,11 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
                     'Service cancelled',
                     'The roadside assistance service has been cancelled.',
                     MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+                ],
+                MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->slug() => [
+                    'Service not available',
+                    'We could not process this roadside assistance request.',
+                    MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->slug(),
                 ],
                 default => ['Order updated', 'Your order has been updated.', $toStatus],
             };
@@ -708,6 +810,7 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
             MovipassOrderStatusEnum::SERVICE_COMPLETED->slug(),
             MovipassOrderStatusEnum::SERVICE_COMPLETED_NOT_RESOLVED->slug(),
             MovipassOrderStatusEnum::SERVICE_CANCELLED->slug(),
+            MovipassOrderStatusEnum::SERVICE_NOT_AUTHORIZED->slug(),
         ], true);
     }
 
@@ -777,14 +880,43 @@ class SyncMovipassRoadsideAssistanceActivity extends KanvasActivity implements W
         return $value;
     }
 
-    private function normalizeFeedback(mixed $feedback): ?string
+    private function normalizeOptionalText(mixed $value): ?string
     {
-        if (! is_string($feedback)) {
+        if (! is_string($value)) {
             return null;
         }
 
-        $trimmed = trim($feedback);
+        $trimmed = trim($value);
 
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    /**
+     * The flowchart decisions (declined at the gate, incident registered, rescheduled, closed with
+     * incident) all delegate to an action that either commits the whole transition or throws before
+     * touching anything. A rejected decision is operator error, not a broken run, so it comes back
+     * as an error result rather than failing the workflow.
+     */
+    private function runFlowAction(callable $operation, $order, string $successMessage): array
+    {
+        try {
+            $operation();
+        } catch (ValidationException $exception) {
+            return [
+                'order' => $order->getId(),
+                'status' => 'error',
+                'message' => $exception->getMessage(),
+            ];
+        }
+
+        $order->refresh();
+
+        return [
+            'order' => $order->getId(),
+            'status' => 'success',
+            'message' => $successMessage,
+            'data' => $order->toArray(),
+            'response' => $order->toArray(),
+        ];
     }
 }
