@@ -491,6 +491,56 @@ class ExpenseLifecycleTest extends TestCase
         $this->assertSame(0.92, $receipt->metadata['ocr_confidence']);
     }
 
+    /**
+     * `ScribeExpense` exposes both `receipts` and the platform-standard `files`. A client reading
+     * `files` — the field every other Kanvas entity carries — must not find an expense empty while
+     * its receipt sits under a field only Scribe knows about.
+     */
+    public function test_attach_receipt_also_exposes_the_file_under_files(): void
+    {
+        $draft = $this->createDraftExpense(amount: 75.0);
+        $filesystem = $this->createFilesystemRow();
+
+        new AttachExpenseReceiptAction(
+            expense: $draft,
+            filesystem: $filesystem,
+            user: static::$cachedUser,
+        )->execute();
+
+        $files = $draft->filesForGraphType()->get();
+
+        $this->assertCount(1, $files);
+        $this->assertSame($filesystem->name, $files->first()->name);
+    }
+
+    /**
+     * The reason the field_name is keyed per receipt. With filesystem_allow_duplicate_files_by_name off
+     * — the default — AttachFilesystemAction rebinds the row already holding that field_name rather than
+     * adding one, so a constant 'receipt' would drop the first file the moment a second was attached,
+     * while `receipts` kept showing both.
+     */
+    public function test_a_second_receipt_does_not_displace_the_first_under_files(): void
+    {
+        $draft = $this->createDraftExpense(amount: 75.0);
+        $first = $this->createFilesystemRow();
+        $second = $this->createFilesystemRow();
+
+        foreach ([$first, $second] as $filesystem) {
+            new AttachExpenseReceiptAction(
+                expense: $draft,
+                filesystem: $filesystem,
+                user: static::$cachedUser,
+            )->execute();
+        }
+
+        $names = $draft->filesForGraphType()->get()->pluck('name')->all();
+
+        $this->assertCount(2, $names);
+        $this->assertContains($first->name, $names);
+        $this->assertContains($second->name, $names);
+        $this->assertSame(2, $draft->receipts()->count());
+    }
+
     public function test_attach_receipt_rejected_on_voided_expense(): void
     {
         $draft = $this->createDraftExpense(amount: 75.0);

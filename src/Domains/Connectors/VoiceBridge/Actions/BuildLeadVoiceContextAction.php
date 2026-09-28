@@ -52,13 +52,8 @@ class BuildLeadVoiceContextAction
             'role' => $ownerName ?: null,
         ]);
 
-        $background = is_array($this->agent->role['background'] ?? null)
-            ? implode(' ', $this->agent->role['background'])
-            : ($this->agent->role['background'] ?? '');
-
-        $steps = is_array($this->agent->role['steps'] ?? null)
-            ? implode(' ', $this->agent->role['steps'])
-            : ($this->agent->role['steps'] ?? '');
+        $background = $this->agent->roleSection('background');
+        $steps = $this->agent->roleSection('steps');
 
         $leadContext = $this->lead->get(IntelligenceConfigurationEnum::LEAD_CONTEXT_INFO->value) ?? [];
 

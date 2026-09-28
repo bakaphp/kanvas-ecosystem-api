@@ -1,0 +1,13 @@
+type TwilioPhoneNumber {
+    phone_number: String!
+    friendly_name: String
+    sid: String!
+}
+
+extend type Query @guard {
+    "List the company's AVAILABLE (purchased, unassigned) Twilio numbers, to pick from when configuring an agent's voice. Pass agent_uuid when editing an agent so its own number stays listed."
+    twilioAvailablePhoneNumbers(agent_uuid: String): [TwilioPhoneNumber!]!
+        @field(
+            resolver: "App\\GraphQL\\Connector\\Twilio\\Queries\\TwilioPhoneNumbersQuery@available"
+        )
+}

@@ -22,6 +22,10 @@ class UpdateAgentAction
 
     public function execute(): AgentModel
     {
+        // Names the human behind the edit so the prompt-history row records who changed it rather
+        // than falling back to the agent's own user. The observer reads this during the update.
+        $this->agentModel->versionEditedByUserId = $this->agent->createdBy?->getId();
+
         $this->agentModel->update([
             'agent_type_id' => $this->agent->agentType->id,
             'user_id' => $this->agent->user->id,
@@ -31,6 +35,7 @@ class UpdateAgentAction
             'description' => $this->agent->description,
             'config' => $this->agent->config,
             'agent_model_id' => $this->agent->agentModel?->id,
+            'agent_llm_config_id' => $this->agent->agentLlmConfig?->getId(),
             'company_task_list_id' => $this->agent->task?->id ?? null,
             'soul' => $this->agent->soul,
             'instructions' => $this->agent->instructions,
@@ -38,6 +43,7 @@ class UpdateAgentAction
             'identity' => $this->agent->identity,
             'user_context' => $this->agent->userContext,
             'tools_config' => $this->agent->toolsConfig,
+            'voice_config' => $this->agent->voiceConfig,
             'parent_id' => $this->agent->parentAgent?->getId(),
             'is_sub_agent' => $this->agent->isSubAgent,
         ]);

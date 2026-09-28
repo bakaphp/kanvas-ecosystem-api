@@ -13,6 +13,8 @@ use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemEntities;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Filesystem\Services\ImageOptimizerService;
+use Mockery;
+use RuntimeException;
 use Tests\TestCase;
 
 final class FilesystemTest extends TestCase
@@ -122,6 +124,49 @@ final class FilesystemTest extends TestCase
 
         // Clean up
         $filesystemService->delete($filesystem);
+    }
+
+    public function testCreateFileSystemFromBase64DeletesTempFileAfterUpload(): void
+    {
+        $uploadedPath = null;
+        $filesystemService = Mockery::mock(FilesystemServices::class)->makePartial();
+        $filesystemService->shouldReceive('upload')
+            ->once()
+            ->andReturnUsing(function (UploadedFile $file) use (&$uploadedPath): Filesystem {
+                $uploadedPath = $file->getPathname();
+                $this->assertFileExists($uploadedPath);
+                $this->assertSame('photo.jpg', $file->getClientOriginalName());
+
+                return new Filesystem();
+            });
+
+        $filesystemService->createFileSystemFromBase64(base64_encode($this->fakeJpegBytes()), 'photo.jpg', Auth::user());
+
+        $this->assertNotNull($uploadedPath);
+        $this->assertFileDoesNotExist($uploadedPath);
+    }
+
+    public function testCreateFileSystemFromBase64DeletesTempFileWhenUploadFails(): void
+    {
+        $uploadedPath = null;
+        $filesystemService = Mockery::mock(FilesystemServices::class)->makePartial();
+        $filesystemService->shouldReceive('upload')
+            ->once()
+            ->andReturnUsing(function (UploadedFile $file) use (&$uploadedPath): never {
+                $uploadedPath = $file->getPathname();
+
+                throw new RuntimeException('storage unavailable');
+            });
+
+        try {
+            $filesystemService->createFileSystemFromBase64(base64_encode($this->fakeJpegBytes()), 'photo.jpg', Auth::user());
+            $this->fail('Upload failure should propagate');
+        } catch (RuntimeException $e) {
+            $this->assertSame('storage unavailable', $e->getMessage());
+        }
+
+        $this->assertNotNull($uploadedPath);
+        $this->assertFileDoesNotExist($uploadedPath);
     }
 
     private function fakeJpegBytes(): string

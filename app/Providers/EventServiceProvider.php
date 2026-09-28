@@ -13,23 +13,26 @@ use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\PeopleEmploymentHistory;
 use Kanvas\Guild\Customers\Observers\PeopleEmploymentHistoryObserver;
 use Kanvas\Guild\Customers\Observers\PeopleObserver;
+use Kanvas\Guild\Leads\Listeners\QueueVariantInterestReindexListener;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Observers\LeadObserver;
 use Kanvas\Intelligence\AgentRuntime\Events\AgentDeploymentStatusChanged;
 use Kanvas\Intelligence\AgentRuntime\Listeners\SendAgentDeploymentLifecycleEmailListener;
 use Kanvas\Intelligence\Agents\Events\AgentChatResponseEvent;
 use Kanvas\Intelligence\Agents\Listeners\RespondToAgentMentionListener;
-use Kanvas\Inventory\Categories\Observers\ProductsCategoriesObserver;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Listeners\QueueChannelKnowledgeIndexListener;
+use Kanvas\Intelligence\Agents\Neuron\RAG\Listeners\QueueKnowledgeIndexListener;
+use Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Channels\Observers\ChannelObserver;
 use Kanvas\Inventory\Channels\Observers\VariantsChannelObserver;
-use Kanvas\Inventory\Products\Models\ProductsCategories;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Observers\ProductsTypesObserver;
 use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Inventory\Regions\Observers\RegionObserver;
 use Kanvas\Inventory\Status\Models\Status;
 use Kanvas\Inventory\Status\Observers\StatusObserver;
+use Kanvas\Inventory\Variants\Events\VariantSearchDocumentChanged;
 use Kanvas\Inventory\Variants\Models\VariantsChannels;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Observers\WarehouseObserver;
@@ -38,8 +41,11 @@ use Kanvas\NervousSystem\Plan\Listeners\NotifyPlanCreatorOfAgentProgressListener
 use Kanvas\NervousSystem\Plan\Listeners\PushPlanChangeToKanbanListener;
 use Kanvas\NervousSystem\Plan\Listeners\SyncKanbanAfterChatListener;
 use Kanvas\NervousSystem\Plan\Listeners\WakeAgentOnPlanChangeListener;
+use Kanvas\NervousSystem\Plan\Listeners\WakePlanAgentOnChannelCommentListener;
+use Kanvas\NervousSystem\Plan\Listeners\WakeProjectManagerOnPlanOutcomeListener;
 use Kanvas\Notifications\Events\PushNotificationsEvent;
 use Kanvas\Notifications\Listeners\NotificationsListener;
+use Kanvas\Social\Channels\Events\ChannelMessageAttachedEvent;
 use Kanvas\Social\Messages\Events\AppModuleMessageCreatedEvent;
 use Kanvas\Social\Messages\Events\MessageMentionsStoredEvent;
 use Kanvas\Social\Messages\Listeners\NotifyMentionedUsersListener;
@@ -65,6 +71,7 @@ class EventServiceProvider extends ServiceProvider
             WakeAgentOnPlanChangeListener::class,
             PushPlanChangeToKanbanListener::class,
             NotifyPlanCreatorOfAgentProgressListener::class,
+            WakeProjectManagerOnPlanOutcomeListener::class,
         ],
         AgentChatResponseEvent::class => [
             SyncKanbanAfterChatListener::class,
@@ -86,6 +93,16 @@ class EventServiceProvider extends ServiceProvider
         ],
         AppModuleMessageCreatedEvent::class => [
             UpdatePeopleMessageTimestampsListener::class,
+        ],
+        ChannelMessageAttachedEvent::class => [
+            QueueChannelKnowledgeIndexListener::class,
+            WakePlanAgentOnChannelCommentListener::class,
+        ],
+        KnowledgeIndexRequested::class => [
+            QueueKnowledgeIndexListener::class,
+        ],
+        VariantSearchDocumentChanged::class => [
+            QueueVariantInterestReindexListener::class,
         ],
         MessageMentionsStoredEvent::class => [
             RespondToAgentMentionListener::class,
@@ -112,7 +129,6 @@ class EventServiceProvider extends ServiceProvider
         Channels::observe(ChannelObserver::class);
         ProductsTypes::observe(ProductsTypesObserver::class);
         VariantsChannels::observe(VariantsChannelObserver::class);
-        ProductsCategories::observe(ProductsCategoriesObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
         People::observe(PeopleObserver::class);
         AppsStripeCustomer::observe(AppsStripeCustomerObserver::class);

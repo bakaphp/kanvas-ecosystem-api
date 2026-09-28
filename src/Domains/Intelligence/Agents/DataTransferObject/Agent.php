@@ -8,6 +8,7 @@ use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Intelligence\Agents\Models\Agent as AgentModel;
+use Kanvas\Intelligence\Agents\Models\AgentLlmConfig;
 use Kanvas\Intelligence\Agents\Models\AgentModel as AgentAiModel;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Users\Models\Users;
@@ -34,10 +35,12 @@ class Agent extends Data
         public array|string|null $identity = null,
         public ?string $userContext = null,
         public ?string $toolsConfig = null,
+        public array|string|null $voiceConfig = null,
         public ?array $tools = null,
         public ?AgentModel $parentAgent = null,
         public ?Users $createdBy = null,
         public bool $isSubAgent = false,
+        public ?AgentLlmConfig $agentLlmConfig = null,
     ) {
     }
 }

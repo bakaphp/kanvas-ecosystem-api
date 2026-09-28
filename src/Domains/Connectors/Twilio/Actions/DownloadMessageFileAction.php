@@ -61,7 +61,7 @@ class DownloadMessageFileAction
         $tempPath = sys_get_temp_dir() . '/' . $filename;
         file_put_contents($tempPath, $response->body());
 
-        $user = $this->message->company->getAiAgentUser() ?? Users::getById($this->message->user_id);
+        $user = $this->message->company->getAiAgentUser() ?? Users::getById($this->message->users_id);
 
         try {
             $uploadedFile = new UploadedFile(

@@ -29,6 +29,31 @@ class PushTemplateParserTest extends TestCase
         $this->assertNull(PushTemplateParser::parseStrict($rendered));
     }
 
+    public function testStrictRepairsStrayBackslashFromEscapedApostrophe(): void
+    {
+        // Exact Sentry KANVAS-ECOSYSTEM-5RJ payload: the image name "Man's" was
+        // addslashes-escaped then Blade HTML-escaped, leaving a stray `\&` that
+        // makes the string invalid JSON. The repair drops the stray backslash so
+        // strict parsing succeeds (no lenient fallback, no Sentry report).
+        $rendered = '{"title":"New AI creation!","message": "Your image for Man\\&#039;s Beautiful Hair has been processed"}';
+
+        $parsed = PushTemplateParser::parseStrict($rendered);
+
+        $this->assertSame('New AI creation!', $parsed['title']);
+        $this->assertSame('Your image for Man&#039;s Beautiful Hair has been processed', $parsed['message']);
+        $this->assertNull($parsed['subtitle']);
+    }
+
+    public function testStrictPreservesValidJsonEscapes(): void
+    {
+        $rendered = '{"title":"Line\\nbreak","message":"Quote \\" and slash \\/ kept"}';
+
+        $parsed = PushTemplateParser::parseStrict($rendered);
+
+        $this->assertSame("Line\nbreak", $parsed['title']);
+        $this->assertSame('Quote " and slash / kept', $parsed['message']);
+    }
+
     public function testStrictReturnsNullForEmpty(): void
     {
         $this->assertNull(PushTemplateParser::parseStrict(''));

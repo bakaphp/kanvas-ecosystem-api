@@ -12,7 +12,13 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Configure B2B Company Pricing',
+    description: 'Sets up wholesale pricing for a buyer company against the seller\'s catalog, so B2B buyers '
+        . 'see their own prices. Runs on a COMPANY, not a lead or an order. Configuration only; '
+        . 'contacts nobody.',
+    integration: IntegrationsEnum::INTERNAL,
+)]
 class B2BCompanyPriceConfigurationActivity extends KanvasActivity
 {
     public function execute(Companies $buyerCompany, AppInterface $app, array $params): array

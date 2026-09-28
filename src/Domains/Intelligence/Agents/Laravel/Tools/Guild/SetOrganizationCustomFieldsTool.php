@@ -13,7 +13,7 @@ use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
 
-#[AgentTool(name: 'Set Organization Custom Fields')]
+#[AgentTool(name: 'Set Organization Custom Fields', category: 'crm')]
 class SetOrganizationCustomFieldsTool implements KanvasToolInterface
 {
     use HasKanvasContext;

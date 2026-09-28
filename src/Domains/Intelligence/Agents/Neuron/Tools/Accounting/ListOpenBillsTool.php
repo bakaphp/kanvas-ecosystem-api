@@ -18,7 +18,7 @@ use Override;
  * Lists open (received, unpaid) bills — what we currently owe, invoice by invoice. Optionally
  * filtered to a vendor or to only past-due bills.
  */
-#[AgentTool(name: 'List Open Bills')]
+#[AgentTool(name: 'List Open Bills', category: 'accounting')]
 class ListOpenBillsTool extends Tool
 {
     use HasKanvasContext;

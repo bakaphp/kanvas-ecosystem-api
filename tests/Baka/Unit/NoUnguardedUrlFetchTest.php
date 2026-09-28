@@ -35,10 +35,18 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         'src/Baka/Discovery/AttributeClassDiscovery.php',
         // CLI: reads a local JSON file argument.
         'app/Console/Commands/Ecosystem/ImportEmailTemplatesCommand.php',
+        // CLI: reads a local Item Balance XML file argument.
+        'app/Console/Commands/Connectors/Yusen/YusenInventoryReportCommand.php',
+        // CLI: reads the coding-agent Docker build context (Dockerfile, entrypoint.sh) out of
+        // base_path('docker/opencode'), by hardcoded file name and gated by is_readable().
+        'app/Console/Commands/NervousSystem/Agents/Coding/BuildCodingImageCommand.php',
+        // Reads that same Dockerfile to derive the pinned image tag from its FROM line — one
+        // base_path() constant, gated by is_readable().
+        'src/Domains/Connectors/OpenCode/Services/CodingImageService.php',
         // CLI: operates on local temp files.
         'app/Console/Commands/Connectors/ScrapperApi/CleanScrapperImageCommand.php',
         // CLI: reads a local agent-type definition file.
-        'app/Console/Commands/Intelligence/CreateAgentTypeCommand.php',
+        'app/Console/Commands/Intelligence/Agents/CreateAgentTypeCommand.php',
         // Hardcoded SightEngine moderation API URL from config.
         'src/Domains/Connectors/SightEngine/Services/ContentModerationService.php',
         // Local PDF generation.
@@ -50,6 +58,13 @@ final class NoUnguardedUrlFetchTest extends TestCaseUnit
         // Reads a local temp file it created itself (tempnam()) to build a backup ZIP —
         // never a remote or user-influenced path.
         'src/Domains/Intelligence/Agents/Services/AgentConfigBackupService.php',
+        // Reads the admin-configured Google OAuth token file from disk, gated by is_file().
+        'src/Domains/Connectors/Google/Actions/CreateGoogleCalendarMeetingAction.php',
+        // CLI: reads a local golden-set JSON file from the --file option, gated by is_readable().
+        'app/Console/Commands/Inventory/EvaluateProductDiscoveryCommand.php',
+        // Reads the local PHP source of a reflected tool class (ReflectionClass::getFileName()) to
+        // tokenise its description argument, gated by is_readable().
+        'src/Domains/Intelligence/Agents/Services/AgentToolDiscoveryService.php',
     ];
 
     public function testNoUnguardedRemoteUrlFetch(): void

@@ -14,10 +14,15 @@ use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
 
-#[AgentTool(name: 'List Available Products')]
+#[AgentTool(name: 'List Available Products', category: 'inventory')]
 class ListAvailableProductsTool implements KanvasToolInterface
 {
     use HasKanvasContext;
+
+    public function name(): string
+    {
+        return 'list_available_products';
+    }
 
     #[Override]
     public function description(): Stringable|string

@@ -16,7 +16,7 @@ use Override;
 use Stringable;
 use Throwable;
 
-#[AgentTool(name: 'FMP Company Search')]
+#[AgentTool(name: 'FMP Company Search', category: 'knowledge')]
 class FmpCompanySearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;

@@ -10,10 +10,16 @@ use Kanvas\Inventory\Regions\Models\Regions;
 use Kanvas\Users\Models\Users;
 use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Shopify Order Webhook',
+    description: 'Receiver for Shopify orders: creates or updates the matching Kanvas order. Inbound only — '
+        . 'this is how store orders ARRIVE, not how they are sent back.',
+    integration: IntegrationsEnum::SHOPIFY,
+)]
 class ProcessShopifyOrderWebhookJob extends ProcessWebhookJob
 {
     #[Override]

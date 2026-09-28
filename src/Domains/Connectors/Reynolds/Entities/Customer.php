@@ -170,6 +170,10 @@ class Customer
             'contacts' => $this->buildContactsForPeopleData(),
             'address' => $this->buildAddressForPeopleData(),
             'custom_fields' => $customFields,
+            // PullLeadAction already resolved the People by NameRecId → contacts;
+            // CreatePeopleAction's own contact check would silently absorb a new
+            // customer into whoever shares their phone, stealing that NameRecId.
+            'skipDuplicateContactCheck' => true,
         ];
 
         if ($existingPeopleId !== null) {

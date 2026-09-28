@@ -7,6 +7,7 @@ namespace Kanvas\Souk\Discounts\Models;
 use Baka\Traits\NoCompanyRelationshipTrait;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Kanvas\Souk\Discounts\Enums\DiscountTypeEnum;
 use Kanvas\Souk\Discounts\Factories\DiscountTypeFactory;
 use Kanvas\Souk\Models\BaseModel;
 use Override;
@@ -33,6 +34,11 @@ class DiscountType extends BaseModel
     public function discounts(): HasMany
     {
         return $this->hasMany(Discount::class, 'discount_type_id');
+    }
+
+    public function isAutoAppliedCredit(): bool
+    {
+        return $this->name === DiscountTypeEnum::AUTO_APPLIED_CREDIT->label();
     }
 
     #[Override]

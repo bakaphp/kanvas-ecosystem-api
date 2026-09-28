@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\HumanResources;
 
+use Kanvas\AccessControlList\Actions\AssignRoleAction;
+use Kanvas\AccessControlList\Enums\RolesEnums;
+use Kanvas\AccessControlList\Models\Role;
+use Kanvas\Auth\Actions\RegisterUsersAppAction;
+use Kanvas\Enums\AppEnums;
+use Kanvas\Enums\StateEnums;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Customers\Actions\CreatePeopleFromUserAction;
 use Kanvas\HumanResources\Departments\Models\Department;
@@ -17,10 +23,14 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesPositionAndDepartmentForTool;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
+use Throwable;
 
 /**
  * Onboards an existing platform user as an HR employee — the "fill in this person's HR info" flow that
@@ -29,11 +39,12 @@ use Override;
  * the same CreateEmployeeAction as the mutation (so the one-employee-per-user guard still holds).
  */
 #[AgentTool(name: 'Create Employee', category: 'human_resources')]
-class CreateEmployeeTool extends Tool
+class CreateEmployeeTool extends Tool implements HasRunKey
 {
     use GuardsAdminForTool;
     use HasKanvasContext;
     use ResolvesPositionAndDepartmentForTool;
+    use TrackByInputs;
 
     public function __construct()
     {
@@ -125,6 +136,18 @@ class CreateEmployeeTool extends Tool
         }
 
         $department = $this->findDepartmentByName($department_name);
+
+        try {
+            $this->ensureLoginUserInApp($loginUser);
+        } catch (Throwable $e) {
+            report($e);
+
+            return [
+                'created' => false,
+                'message' => "Could not add {$user_email} to this app: " . $e->getMessage(),
+            ];
+        }
+
         $people = new CreatePeopleFromUserAction($this->app, $this->company->defaultBranch, $loginUser)->execute();
 
         try {
@@ -157,5 +180,52 @@ class CreateEmployeeTool extends Tool
             'department' => $department?->name,
             'status' => $employee->status,
         ];
+    }
+
+    /**
+     * A new hire's platform account can exist without being a member of THIS app — onboarding then
+     * blows up inside CreatePeopleFromUserAction at getAppProfile() ("User not found in app"). Since
+     * the requester is already admin-gated, add the existing user to the app + company as a normal
+     * User so onboarding proceeds. No-op when they are already a member.
+     */
+    private function ensureLoginUserInApp(Users $loginUser): void
+    {
+        $alreadyMember = UsersAssociatedApps::where('users_id', $loginUser->getId())
+            ->where('apps_id', $this->app->getId())
+            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->exists();
+
+        if ($alreadyMember) {
+            return;
+        }
+
+        $role = Role::firstOrCreate(
+            [
+                'name' => RolesEnums::USER->value,
+                'scope' => RolesEnums::getScope($this->app),
+            ],
+            ['title' => RolesEnums::USER->value],
+        );
+
+        // The companies_id=0 row is the one getAppProfile() reads; the company rows make them a
+        // real member of the onboarding company.
+        new RegisterUsersAppAction($loginUser, $this->app)->execute((string) $loginUser->password);
+        $this->company->associateUser(
+            $loginUser,
+            StateEnums::YES->getValue(),
+            $this->company->defaultBranch,
+            (int) $role->id
+        );
+        $this->company->associateUserApp(
+            $loginUser,
+            $this->app,
+            StateEnums::YES->getValue(),
+            (int) $role->id
+        );
+        new AssignRoleAction(
+            $loginUser,
+            $role,
+            $this->app
+        )->execute();
     }
 }

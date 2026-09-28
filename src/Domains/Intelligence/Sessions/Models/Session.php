@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Sessions\Models;
 
 use Baka\Casts\Json;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Guild\Customers\Models\People;
@@ -45,6 +46,16 @@ class Session extends BaseModel
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class, 'agents_id');
+    }
+
+    /**
+     * A channel session uuid leaves the agent out, so every agent on one channel shares it. Look up by
+     * uuid through this, newest first, or a turn can bind to another agent's row — or to a stale row of
+     * its own — and record into the wrong conversation.
+     */
+    public function scopeFromAgent(Builder $query, Agent $agent): Builder
+    {
+        return $query->where('agents_id', $agent->getId())->latest('id');
     }
 
     public function channel(): BelongsTo

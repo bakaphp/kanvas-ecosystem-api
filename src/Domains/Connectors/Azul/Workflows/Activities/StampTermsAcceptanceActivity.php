@@ -14,7 +14,13 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Azul Stamp Terms Acceptance',
+    description: 'Records WHEN and from which IP the customer accepted terms on a new order, for the audit '
+        . 'trail. Writes to the order only; contacts nobody. Runs on order creation and skips silently '
+        . 'on any other trigger, and skips when the order carries no terms acceptance.',
+    integration: IntegrationsEnum::AZUL,
+)]
 class StampTermsAcceptanceActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

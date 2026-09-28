@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Workflows;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
@@ -31,7 +32,11 @@ use Kanvas\Workflow\KanvasActivity;
  * another AI, not a person stepping in. It only delivers the message, marks the thread responded,
  * and notifies stakeholders as a (non-human) agent reply.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'External Agent Channel Response',
+    description: 'Delivers an agent reply that was produced elsewhere back onto the channel it belongs to. '
+        . 'Part of the external/async responder path — you rarely wire this by hand.',
+)]
 class ExternalAgentChannelResponseActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -169,6 +174,7 @@ class ExternalAgentChannelResponseActivity extends KanvasActivity
                     false,
                     $files->isNotEmpty() ? $files : null
                 );
+                new StoreMessageSidAction($message)->execute($result);
 
                 new MarkLeadMessagesAsRespondedAction($lead, $message)->execute();
                 new NotifyLeadStakeholdersService($lead)->onAgentReply($message, isHuman: false);

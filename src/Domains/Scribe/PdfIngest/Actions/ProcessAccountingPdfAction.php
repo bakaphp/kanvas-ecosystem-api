@@ -15,8 +15,8 @@ use Kanvas\Scribe\PdfIngest\DataTransferObject\PdfIngestInput;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestDocumentTypeEnum;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestStatusEnum;
 use Kanvas\Scribe\PdfIngest\Models\PdfIngestLog;
-use Kanvas\Scribe\PdfIngest\Services\GeminiPdfClassifierService;
 use Kanvas\Scribe\PdfIngest\Services\RemotePdfContentHasherService;
+use Kanvas\Scribe\PdfIngest\Traits\ResolvesPdfClassifierTrait;
 use Throwable;
 
 /**
@@ -40,6 +40,8 @@ use Throwable;
  */
 class ProcessAccountingPdfAction
 {
+    use ResolvesPdfClassifierTrait;
+
     public function __construct(
         public readonly PdfIngestInput $input,
         public readonly ?UserInterface $user = null,
@@ -301,14 +303,7 @@ class ProcessAccountingPdfAction
 
     private function resolveClassifier(): PdfClassifierServiceInterface
     {
-        if ($this->classifier !== null) {
-            return $this->classifier;
-        }
-        if (app()->bound(PdfClassifierServiceInterface::class)) {
-            return app(PdfClassifierServiceInterface::class);
-        }
-
-        return new GeminiPdfClassifierService();
+        return $this->classifier ?? $this->defaultPdfClassifier();
     }
 
     private function resolveHasher(): PdfContentHasherInterface

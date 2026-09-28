@@ -1,0 +1,214 @@
+enum ImportDriver {
+    FTP @enum(value: "ftp")
+    SFTP @enum(value: "sftp")
+}
+
+enum ImportRunStatus {
+    QUEUED @enum(value: "queued")
+    RUNNING @enum(value: "running")
+    COMPLETED @enum(value: "completed")
+    SKIPPED @enum(value: "skipped")
+    FAILED @enum(value: "failed")
+}
+
+type ImportConnection {
+    id: ID!
+    uuid: String!
+    name: String!
+    driver: ImportDriver!
+    host: String!
+    port: Int!
+    username: String!
+    root: String
+    passive: Boolean!
+    default_schedule: String
+    timezone: String
+    is_app_wide: Boolean! @method(name: "isAppWide")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type ImportSourceFileFilter {
+    column: String!
+    in: [String!]!
+}
+
+type ImportSourceFile {
+    pattern: String!
+    filter: ImportSourceFileFilter
+    required: Boolean!
+}
+
+type ImportSource {
+    id: ID!
+    uuid: String!
+    name: String!
+    root: String
+    files: [ImportSourceFile!]!
+    unpublish_missing: Boolean!
+    extra: Mixed
+    schedule: String
+    timezone: String
+    effective_schedule: String @method(name: "effectiveSchedule")
+    effective_timezone: String! @method(name: "effectiveTimezone")
+    is_active: Boolean!
+    last_run_at: DateTime
+    last_status: ImportRunStatus
+    last_message: String
+    company: Company! @belongsTo(relation: "company")
+    branch: CompanyBranch! @belongsTo(relation: "branch")
+    user: User! @belongsTo(relation: "user")
+    region: Region! @belongsTo(relation: "region")
+    mapper: FilesystemMapper! @belongsTo(relation: "filesystemMapper")
+    connection: ImportConnection! @belongsTo(relation: "importConnection")
+    warehouse: Warehouse @belongsTo(relation: "warehouse")
+    channel: Channel @belongsTo(relation: "channel")
+    last_import: FilesystemImportHistory
+        @belongsTo(relation: "lastFilesystemImport")
+    created_at: DateTime!
+    updated_at: DateTime
+}
+
+type ImportConnectionTest {
+    connected: Boolean!
+    message: String
+    files: [String!]!
+}
+
+type ImportRunFile {
+    pattern: String!
+    matched: String
+    downloaded: Boolean!
+}
+
+type ImportRunResult {
+    status: ImportRunStatus!
+    message: String!
+    files: [ImportRunFile!]!
+    rows: Int!
+    skipped_rows: Int!
+    "Dry run: the first records exactly as the importer would receive them."
+    sample: [Mixed!]!
+}
+
+input ImportConnectionInput {
+    name: String
+    driver: ImportDriver
+    host: String
+    port: Int
+    username: String
+    password: String
+    root: String
+    passive: Boolean
+    default_schedule: String
+    timezone: String
+}
+
+input ImportSourceFileFilterInput {
+    column: String!
+    in: [String!]!
+}
+
+input ImportSourceFileInput {
+    pattern: String!
+    filter: ImportSourceFileFilterInput
+    required: Boolean
+}
+
+input ImportSourceInput {
+    name: String
+    import_connection_id: ID
+    filesystem_mapper_id: ID
+    regions_id: ID
+    warehouses_id: ID
+    channels_id: ID
+    users_id: ID
+    files: [ImportSourceFileInput!]
+    unpublish_missing: Boolean
+    extra: Mixed
+    root: String
+    schedule: String
+    timezone: String
+    is_active: Boolean
+}
+
+extend type Query @guardByAdmin {
+    importConnections(
+        where: _ @whereConditions(columns: ["id", "uuid", "name", "driver"])
+        orderBy: _ @orderBy(columns: ["id", "name", "created_at"])
+    ): [ImportConnection!]!
+        @paginate(
+            model: "Kanvas\\Imports\\Models\\ImportConnection"
+            scopes: ["fromApp", "usableBy", "notDeleted"]
+            defaultCount: 25
+        )
+
+    importSources(
+        where: _
+            @whereConditions(
+                columns: ["id", "uuid", "name", "is_active", "last_status"]
+            )
+        orderBy: _
+            @orderBy(columns: ["id", "name", "last_run_at", "created_at"])
+    ): [ImportSource!]!
+        @paginate(
+            model: "Kanvas\\Imports\\Models\\ImportSource"
+            scopes: ["fromApp", "fromCompany", "notDeleted"]
+            defaultCount: 25
+        )
+}
+
+extend type Mutation @guardByAdmin {
+    createImportConnection(input: ImportConnectionInput!): ImportConnection!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\ImportConnectionMutation@create"
+        )
+    updateImportConnection(
+        id: ID!
+        input: ImportConnectionInput!
+    ): ImportConnection!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\ImportConnectionMutation@update"
+        )
+    deleteImportConnection(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\ImportConnectionMutation@delete"
+        )
+    testImportConnection(
+        id: ID
+        input: ImportConnectionInput
+        root: String
+    ): ImportConnectionTest!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\ImportConnectionMutation@test"
+        )
+
+    createImportSource(input: ImportSourceInput!): ImportSource!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\ImportSourceMutation@create"
+        )
+    createImportSourceFromTemplate(
+        template: ImportTemplateKey!
+        options: Mixed
+        input: ImportSourceInput!
+    ): ImportSource!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\ImportTemplateMutation@createImportSource"
+        )
+    updateImportSource(id: ID!, input: ImportSourceInput!): ImportSource!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\ImportSourceMutation@update"
+        )
+    deleteImportSource(id: ID!): Boolean!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\ImportSourceMutation@delete"
+        )
+    dryRunImportSource(id: ID!, limit: Int = 5): ImportRunResult!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\ImportSourceMutation@dryRun"
+        )
+    runImportSource(id: ID!): ImportSource!
+        @field(
+            resolver: "App\\GraphQL\\Ecosystem\\Mutations\\Filesystem\\ImportSourceMutation@run"
+        )
+}

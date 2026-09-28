@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
+use Kanvas\NervousSystem\Plan\Enums\PlanBlockedNeedsEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Models\Plan as PlanModel;
 use Kanvas\NervousSystem\Project\Models\Project;
@@ -42,6 +43,10 @@ class Plan extends Data
         /** @var array<int, array<string, mixed>> */
         public readonly array $files = [],
         public readonly ?Project $project = null,
+        public readonly ?Agent $createdByAgent = null,
+        /** Who can unblock it — only a HUMAN block is worth interrupting a person with. */
+        public readonly ?PlanBlockedNeedsEnum $blockedNeeds = null,
+        public readonly ?string $boardColumnKey = null,
     ) {
     }
 
@@ -97,6 +102,7 @@ class Plan extends Data
             statusPill: $data['status_pill'] ?? null,
             files: (array) ($data['files'] ?? []),
             project: $project,
+            boardColumnKey: isset($data['board_column_key']) ? (string) $data['board_column_key'] : null,
         );
     }
 
@@ -162,6 +168,13 @@ class Plan extends Data
                 : $plan->getRawOriginal('status_pill'),
             files: (array) ($data['files'] ?? []),
             project: $project,
+            createdByAgent: $plan->createdByAgent,
+            blockedNeeds: array_key_exists('blocked_needs', $data)
+                ? PlanBlockedNeedsEnum::tryFrom((string) $data['blocked_needs'])
+                : PlanBlockedNeedsEnum::tryFrom((string) $plan->blocked_needs),
+            boardColumnKey: array_key_exists('board_column_key', $data)
+                ? ($data['board_column_key'] !== null ? (string) $data['board_column_key'] : null)
+                : $plan->board_column_key,
         );
     }
 }

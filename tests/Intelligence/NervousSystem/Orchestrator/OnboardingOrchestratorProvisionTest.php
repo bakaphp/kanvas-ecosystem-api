@@ -13,8 +13,17 @@ use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Orchestrator\ProjectOrchestratorAgent;
 use Kanvas\Users\Jobs\OnBoardingJob;
 use Kanvas\Users\Models\Users;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+/**
+ * Serial: toggling an onboarding flag on the shared test app is global. `HashTableTrait::set()` writes
+ * to Redis and upserts on the `ecosystem` connection, and neither is rolled back by
+ * DatabaseTransactions — so in the parallel lane the flag turns onboarding orchestration on for every
+ * other process for as long as this test runs, and their user-creating tests silently start
+ * provisioning orchestrators.
+ */
+#[Group('serial')]
 class OnboardingOrchestratorProvisionTest extends TestCase
 {
     use DatabaseTransactions;

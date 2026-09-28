@@ -10,6 +10,11 @@ type Warehouse {
     is_default: Boolean!
     is_published: Boolean!
     total_products: Int! @method(name: "getTotalProducts")
+    custom_fields: [CustomField!]!
+        @paginate(
+            defaultCount: 25
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\CustomFields\\CustomFieldQuery@getAllByGraphType"
+        )
 }
 
 input WarehouseInput {

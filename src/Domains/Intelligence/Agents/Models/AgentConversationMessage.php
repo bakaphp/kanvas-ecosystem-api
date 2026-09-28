@@ -30,6 +30,7 @@ use Override;
  * @property int|null $user_id
  * @property string $agent
  * @property string $role
+ * @property bool $is_public
  * @property string|null $content
  * @property array|null $attachments
  * @property array|null $tool_calls
@@ -53,6 +54,7 @@ class AgentConversationMessage extends ImmutableBaseModel
     protected function casts(): array
     {
         return [
+            'is_public' => 'boolean',
             'attachments' => Json::class,
             'tool_calls' => Json::class,
             'tool_results' => Json::class,

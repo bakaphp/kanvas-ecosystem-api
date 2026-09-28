@@ -70,8 +70,7 @@ class CreateLeadFirstEngagementMessageAction
         $data['leadOwnerName'] = $this->lead->owner?->firstname . ' ' . $this->lead->owner?->lastname;
         $data['voice_enabled'] = ! empty($this->lead->app->get(VoiceBridgeConfigurationEnum::API_KEY->value));
         $data['available_channels'] = $this->resolveAvailableChannels();
-        $steps = is_array($this->agent->role['steps']) ? implode(' ', $this->agent->role['steps']) : $this->agent->role['steps'];
-        $prompt = Blade::render($steps, $data['additional_context_information']);
+        $prompt = Blade::render($this->agent->roleSection('steps'), $data['additional_context_information']);
 
         try {
             $response = $this->callAi($prompt);
@@ -115,7 +114,7 @@ class CreateLeadFirstEngagementMessageAction
         )->prompt(
             $prompt,
             provider: Lab::Gemini,
-            model: 'gemini-2.5-pro',
+            model: 'gemini-3.8-flash',
             timeout: 220,
         );
 

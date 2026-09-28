@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\Ecosystem;
 
+use Kanvas\Apps\Models\Apps;
+use Kanvas\SystemModules\Repositories\SystemModulesRepository;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 class CustomFieldsTest extends TestCase
@@ -230,6 +233,43 @@ class CustomFieldsTest extends TestCase
             'entity_id' => auth()->user()->uuid,
         ],
         )->assertSee($value);
+    }
+
+    public function testUserCustomFieldsResolveSystemModule(): void
+    {
+        $user = auth()->user();
+        $key = 'system_module_probe_' . fake()->unique()->word();
+        $user->set($key, ['hellos' => 1], isPublic: true);
+        $systemModule = SystemModulesRepository::getByModelName(Users::class, app(Apps::class));
+
+        $response = $this->graphQL( /** @lang GraphQL */
+            '
+            query {
+                me {
+                    custom_fields(first: 100) {
+                        data {
+                            name
+                            systemModule {
+                                uuid
+                            }
+                        }
+                    }
+                }
+            }',
+        );
+
+        // Redis and the ecosystem connection don't roll back, so remove the probe before asserting.
+        $user->del($key);
+
+        $response
+            ->assertSuccessful()
+            ->assertJsonMissingPath('errors')
+            ->assertJsonFragment([
+                'name' => $key,
+                'systemModule' => [
+                    'uuid' => $systemModule->uuid,
+                ],
+            ]);
     }
 
     public function testDeleteCustomField(): void

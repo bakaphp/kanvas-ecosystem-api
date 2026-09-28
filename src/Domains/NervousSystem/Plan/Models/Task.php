@@ -6,14 +6,17 @@ namespace Kanvas\NervousSystem\Plan\Models;
 
 use Baka\Casts\Json;
 use Baka\Traits\UuidTrait;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
+use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
+use Kanvas\NervousSystem\Plan\Concerns\TruncatesTitle;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
-use Kanvas\NervousSystem\Plan\Traits\TruncatesTitleTrait;
+use Kanvas\NervousSystem\Plan\Observers\TaskObserver;
 use Override;
 
 /**
@@ -37,10 +40,12 @@ use Override;
  * @property Carbon $created_at
  * @property Carbon|null $updated_at
  */
+#[ObservedBy([TaskObserver::class])]
 class Task extends BaseModel
 {
+    use HasApprovals;
     use EmitsLedgerEventsForEntity;
-    use TruncatesTitleTrait;
+    use TruncatesTitle;
     use UuidTrait;
 
     protected $table = 'nervous_system_tasks';
@@ -63,6 +68,19 @@ class Task extends BaseModel
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Explicit gating only. A task is saved on every status change of every plan in the platform, and a
+     * policy lookup on each of those is a cost with no reader — the only approval a task raises is the
+     * one the coding harness asks for before a push.
+     *
+     * No #[Override]: this overrides a CONCRETE trait method, which PHP does not treat as a valid
+     * override target — the attribute fatals at class load.
+     */
+    protected static function approvalUsesLifecycleTriggers(): bool
+    {
+        return false;
     }
 
     public function plan(): BelongsTo
@@ -105,6 +123,37 @@ class Task extends BaseModel
     protected function resolveDefaultActorId(): ?int
     {
         return $this->agent_id ?? $this->plan?->agent_id ?? $this->plan?->users_id ?? null;
+    }
+
+    /**
+     * What the worker reported when it finished this task, or null if nothing was recorded.
+     */
+    public function workerSummary(): ?string
+    {
+        $result = is_array($this->result) ? $this->result : [];
+        $summary = trim((string) ($result['worker_summary'] ?? ''));
+
+        return $summary !== '' ? $summary : null;
+    }
+
+    /**
+     * The summary trimmed to fit, keeping BOTH ends.
+     *
+     * These reports narrate first and answer last as often as not — one lead audit wrote four sentences
+     * of method before "a total matching count of 33". Cutting the head off at a fixed length keeps the
+     * preamble and throws away the number, which is the one part anyone asks about afterwards.
+     */
+    public function workerSummaryExcerpt(int $cap): ?string
+    {
+        $summary = $this->workerSummary();
+
+        if ($summary === null || mb_strlen($summary) <= $cap) {
+            return $summary;
+        }
+
+        return mb_substr($summary, 0, (int) round($cap * 0.6))
+            . ' […] '
+            . mb_substr($summary, -(int) round($cap * 0.4));
     }
 
     public function scopeStalled(Builder $query, int $minutes): Builder

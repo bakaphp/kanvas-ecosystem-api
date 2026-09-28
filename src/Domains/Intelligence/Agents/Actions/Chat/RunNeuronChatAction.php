@@ -4,36 +4,44 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
-use Baka\Http\SafeUrlFetcher;
-use finfo;
+use GuzzleHttp\Exception\RequestException;
+use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
+use Kanvas\Intelligence\Agents\Exceptions\ProviderContentBlockedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
+use Kanvas\Intelligence\Agents\Services\AttachmentBudgetService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
+use Kanvas\Intelligence\Agents\Services\AttachmentFetchService;
+use Kanvas\Intelligence\Agents\Services\NeuronResponderProviderFallback;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
 use NeuronAI\Agent\AgentHandler;
 use NeuronAI\Agent\AgentState;
-use NeuronAI\Chat\Enums\SourceType;
-use NeuronAI\Chat\Messages\ContentBlocks\AudioContent;
-use NeuronAI\Chat\Messages\ContentBlocks\ContentBlockInterface;
-use NeuronAI\Chat\Messages\ContentBlocks\FileContent;
-use NeuronAI\Chat\Messages\ContentBlocks\ImageContent;
 use NeuronAI\Chat\Messages\ContentBlocks\TextContent;
 use NeuronAI\Chat\Messages\Message;
 use NeuronAI\Chat\Messages\ToolCallMessage;
 use NeuronAI\Chat\Messages\ToolResultMessage;
 use NeuronAI\Chat\Messages\UserMessage;
+use NeuronAI\Exceptions\ToolRunsExceededException;
 use NeuronAI\Tools\ToolInterface;
 use Throwable;
 
 class RunNeuronChatAction
 {
+    private bool $endedOnToolBudget = false;
+
+    /** @var list<string> */
+    private array $executedToolCalls = [];
+
     /**
      * @param list<string> $media Attachment URLs (image/audio/PDF/text/CSV) sent natively as content blocks.
      */
@@ -44,7 +52,13 @@ class RunNeuronChatAction
         protected readonly Apps $app,
         protected readonly Users $user,
         protected readonly mixed $handler,
-        protected readonly array $media = []
+        protected readonly array $media = [],
+        /**
+         * Prose answers a failed turn only when a human reads it. A caller whose reply feeds a
+         * pipeline wants the exception — the newsroom published the apology as an article once
+         * already (KANVAS-ECOSYSTEM-691).
+         */
+        protected readonly bool $fallbackOnFailure = true,
     ) {
     }
 
@@ -55,30 +69,37 @@ class RunNeuronChatAction
         // Agents whose chatHistory already records each turn (KanvasMessageHistory) must not also
         // logTurn here — that writes a second, parallel conversation. SalesAssist-style agents write
         // their history to Social messages, so they keep logTurn as their only conversation record.
-        $selfRecords = $this->handler instanceof BaseKanvasAgent
+        $selfRecords = $this->handler instanceof BehavesAsKanvasAgent
             && $this->handler->persistsTurnsToConversationStore();
+
+        $allowStructuredText = ! $this->handler instanceof ConversesWithCustomer;
+        $budget = new AttachmentBudgetService();
 
         $userMessage = new UserMessage($this->message);
         foreach ($this->media as $attachment) {
-            // One unreachable/oversized attachment must not sink the whole turn — fetch failures
-            // (SafeUrlFetcher throws on transport/SSRF) are reported and skipped, not propagated.
-            try {
-                // SSRF guard: remote URLs go through the validated fetcher (blocks internal
-                // hosts / cloud-metadata); data: URIs and local paths keep the raw read.
-                if (preg_match('#^https?://#i', $attachment)) {
-                    $binary = SafeUrlFetcher::fetch($attachment);
-                } else {
-                    $raw = file_get_contents($attachment);
-                    $binary = $raw === false ? '' : $raw;
-                }
+            $binary = AttachmentFetchService::fetch($attachment);
 
-                $block = $this->buildContentBlock($binary);
-                if ($block !== null) {
-                    $userMessage->addContent($block);
-                }
-            } catch (Throwable $e) {
-                report($e);
+            if ($binary === null) {
+                $userMessage->addContent(
+                    new TextContent(AttachmentFetchService::unavailableNote($attachment))
+                );
+
+                continue;
             }
+
+            if (! $budget->admits($attachment, strlen($binary))) {
+                continue;
+            }
+
+            $block = AttachmentDescriptionService::contentBlockFor($binary, allowStructuredText: $allowStructuredText);
+            if ($block !== null) {
+                $userMessage->addContent($block);
+            }
+        }
+
+        $overBudget = $budget->skippedNote();
+        if ($overBudget !== null) {
+            $userMessage->addContent(new TextContent($overBudget));
         }
 
         $toolCalls = [];
@@ -86,6 +107,17 @@ class RunNeuronChatAction
         $usage = [];
 
         try {
+            if (is_object($this->handler)
+                && method_exists($this->handler, 'resolveProvider')
+                && method_exists($this->handler, 'setAiProvider')) {
+                $this->handler->setAiProvider(
+                    new NeuronResponderProviderFallback()->wrap(
+                        $this->handler->resolveProvider(),
+                        $this->agent,
+                    ),
+                );
+            }
+
             // chat() returns immediately with an AgentHandler; the actual LLM
             // round-trip happens inside run() / getMessage(). Both must be
             // inside the try block so provider errors (e.g. Gemini returning
@@ -96,6 +128,8 @@ class RunNeuronChatAction
                 $state = $responseContent->run();
                 $responseMessage = $state->getMessage();
                 [$toolCalls, $toolResults, $usage] = $this->extractTurnTelemetry($state, $responseMessage);
+                $this->endedOnToolBudget = BoundToolResultsMiddleware::exhausted($state);
+                $this->executedToolCalls = BoundToolResultsMiddleware::executedCalls($state);
             } else {
                 $responseMessage = $responseContent;
                 if ($responseMessage instanceof Message && ($u = $responseMessage->getUsage())) {
@@ -103,19 +137,23 @@ class RunNeuronChatAction
                 }
             }
         } catch (Throwable $e) {
-            report($e);
+            $fallback = $this->humanizedFallback($e);
 
-            // User-facing fallback stays friendly for channel responders.
-            // The trailing `[provider_error: ...]` marker is parseable by
-            // structured callers (e.g. FollowUpLeadAction) so they don't have
-            // to correlate two Sentry events to debug a provider failure.
-            $fallback = sprintf(
-                'I ran into a hiccup processing that. Could you try rephrasing, '
-                . "or let me know if you want me to hand off to a human?\n"
-                . '[provider_error: %s: %s]',
-                $e::class,
-                substr($e->getMessage(), 0, 500),
-            );
+            // Logged on both paths: report() only captures Issues, and a rethrown failure is reported
+            // by a caller that no longer knows which agent, session or handler it came from.
+            Log::error('Neuron chat turn failed', [
+                'agent_id' => $this->agent->getId(),
+                'apps_id' => $this->app->getId(),
+                'companies_id' => $this->agent->companies_id,
+                'users_id' => $this->user->getId(),
+                'session_id' => $sessionId,
+                'handler' => get_class($this->handler),
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile() . ':' . $e->getLine(),
+                'fallback_on_failure' => $this->fallbackOnFailure,
+                'fallback' => $fallback,
+            ]);
 
             if (! $selfRecords) {
                 new KanvasConversationStore()->logTurn(
@@ -127,6 +165,16 @@ class RunNeuronChatAction
                     agentId: $this->agent->getId(),
                     usage: ['error' => $e::class, 'message' => $e->getMessage()],
                 );
+            }
+
+            // The caller reports what it rethrows, so the turn is never counted twice.
+            if (! $this->fallbackOnFailure) {
+                throw $e;
+            }
+
+            // A safety block is the provider judging the content, not a fault to fix — the person is told why instead.
+            if (! $e instanceof ProviderContentBlockedException) {
+                report($e);
             }
 
             return $fallback;
@@ -159,6 +207,97 @@ class RunNeuronChatAction
         $this->backfillChannelMessagesToLead();
 
         return $content;
+    }
+
+    /**
+     * True when the turn stopped because it spent its tool-output budget, not because the agent was done.
+     */
+    public function endedOnToolBudget(): bool
+    {
+        return $this->endedOnToolBudget;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function executedToolCalls(): array
+    {
+        return $this->executedToolCalls;
+    }
+
+    private function humanizedFallback(Throwable $e): string
+    {
+        // A prospect talks to a persona (Sales, Receptionist): any system wording — a hiccup, an
+        // overloaded AI, a safety filter — breaks it. The real cause is still logged and reported.
+        if ($this->agent->conversesWithCustomer()) {
+            return 'What do you mean?';
+        }
+
+        if ($this->isDuplicateEntryError($e)) {
+            return "It looks like that already exists — I didn't create a duplicate. Let me know if you'd "
+                . 'like me to look into it or handle it a different way.';
+        }
+
+        // Any tool can trip the run budget, not just the people lookups this copy used to name —
+        // a reporting tool looping on an empty date range hits it too (KANVAS-ECOSYSTEM-682).
+        if ($e instanceof ToolRunsExceededException) {
+            return 'I kept retrying the same lookup without getting anywhere. Could you narrow it down for me — '
+                . 'an exact name, email, or date range — and ask again?';
+        }
+
+        // Rephrasing doesn't help: the blocked content stays in the history and every later turn is refused too.
+        if ($e instanceof ProviderContentBlockedException) {
+            return "I can't respond to this conversation — the AI provider's content safety filter blocked it. "
+                . 'This is an automatic check on their side, so sending it again will be blocked too. '
+                . 'Starting a new conversation without the flagged content should work.';
+        }
+
+        // Nothing about the request was wrong, so telling the person to rephrase sends them to fix
+        // something that is not broken — and inviting a hand-off escalates a wait to a human. The
+        // model was busy; the only useful instruction is to ask again.
+        if ($this->isProviderOverloaded($e)) {
+            return 'The AI service is overloaded right now — that is on their side, not yours. '
+                . 'Ask me the same thing again in a moment and it should go through.';
+        }
+
+        return 'I ran into a hiccup processing that. Could you try rephrasing, '
+            . 'or let me know if you want me to hand off to a human?';
+    }
+
+    /**
+     * A transient fault at the model provider rather than a fault in the request.
+     *
+     * Keyed on the HTTP status, because the provider's prose varies and is truncated by the time it
+     * reaches a log ("This model is currently experiencing high demand"). 429 is a rate limit; every
+     * 5xx covers the rest — Gemini's 503 and Anthropic's 529 alike — and the same request would
+     * survive a retry in all of them.
+     */
+    private function isProviderOverloaded(Throwable $e): bool
+    {
+        for ($current = $e; $current !== null; $current = $current->getPrevious()) {
+            if (! $current instanceof RequestException || ! $current->hasResponse()) {
+                continue;
+            }
+
+            $status = $current->getResponse()->getStatusCode();
+
+            if ($status === 429 || $status >= 500) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function isDuplicateEntryError(Throwable $e): bool
+    {
+        for ($current = $e; $current !== null; $current = $current->getPrevious()) {
+            if ($current instanceof UniqueConstraintViolationException) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function backfillChannelMessagesToLead(): void
@@ -202,31 +341,6 @@ class RunNeuronChatAction
                 );
             }
         }
-    }
-
-    /**
-     * Wrap a fetched attachment in the matching Neuron content block by sniffing its bytes —
-     * image / audio / PDF ride as binary blocks the model reads natively; text/CSV rides inline as a
-     * TextContent block (it's just text). Anything else returns null (skipped; its URL is already
-     * folded into the prompt text by AttachmentPromptBuilder upstream).
-     */
-    private function buildContentBlock(string $binary): ?ContentBlockInterface
-    {
-        if ($binary === '') {
-            return null;
-        }
-
-        $mimeType = new finfo(FILEINFO_MIME_TYPE)->buffer($binary);
-        $mimeType = is_string($mimeType) && $mimeType !== '' ? $mimeType : 'application/octet-stream';
-        $base64 = base64_encode($binary);
-
-        return match (AttachmentDescriptionService::nativeKind($mimeType)) {
-            'image' => new ImageContent($base64, SourceType::BASE64, $mimeType),
-            'audio' => new AudioContent($base64, SourceType::BASE64, $mimeType),
-            'pdf' => new FileContent($base64, SourceType::BASE64, $mimeType),
-            'text' => new TextContent(AttachmentDescriptionService::wrapTextForBlock($binary, $mimeType)),
-            default => null,
-        };
     }
 
     /**

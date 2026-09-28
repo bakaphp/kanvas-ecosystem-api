@@ -46,10 +46,10 @@ class Azul3DSChallengeTest extends AzulBase
     {
         parent::setUp();
 
-        $this->apps    = app(Apps::class);
-        $this->user    = auth()->user();
+        $this->apps = app(Apps::class);
+        $this->user = auth()->user();
         $this->company = $this->user->getCurrentCompany();
-        $this->region  = Regions::getDefault($this->company, $this->apps);
+        $this->region = Regions::getDefault($this->company, $this->apps);
 
         $this->apps->set(ConfigurationEnum::AZUL_AUTH1->value, env('TEST_AZUL_AUTH1') ?? env('AZUL_AUTH1'));
         $this->apps->set(ConfigurationEnum::AZUL_AUTH2->value, env('TEST_AZUL_AUTH2') ?? env('AZUL_AUTH2'));
@@ -69,10 +69,10 @@ class Azul3DSChallengeTest extends AzulBase
         $this->setAllowNoPaymentStatus(true, $this->apps);
 
         $this->warehouseResponse = $this->createWarehouses((string) $this->region->getId())->json()['data']['createWarehouse'];
-        $this->channelResponse   = $this->createChannel()->json()['data']['createChannel'];
+        $this->channelResponse = $this->createChannel()->json()['data']['createChannel'];
 
         $productResponse = $this->createProduct()->json()['data']['createProduct'];
-        $variant         = Products::find($productResponse['id'])->variants()->first();
+        $variant = Products::find($productResponse['id'])->variants()->first();
 
         $this->addVariantToChannel(
             variantId: (string) $variant->id,
@@ -92,31 +92,31 @@ class Azul3DSChallengeTest extends AzulBase
     protected function get3DSCardData(): array
     {
         return [
-            'number'          => env('TEST_AZUL_3DS_CARD', '5424180279791732'),
+            'number' => env('TEST_AZUL_3DS_CARD', '5424180279791732'),
             'expiration_date' => env('TEST_AZUL_3DS_EXPIRY', '12/28'),
-            'cvv'             => env('TEST_AZUL_3DS_CVV', '732'),
-            'processor'       => 'azul',
-            'firstname'       => 'Test',
-            'lastname'        => 'User',
-            'address'         => '123 Calle Principal',
-            'city'            => 'Santo Domingo',
-            'state'           => 'DN',
-            'country'         => 'DO',
-            'zip_code'        => '10101',
+            'cvv' => env('TEST_AZUL_3DS_CVV', '732'),
+            'processor' => 'azul',
+            'firstname' => 'Test',
+            'lastname' => 'User',
+            'address' => '123 Calle Principal',
+            'city' => 'Santo Domingo',
+            'state' => 'DN',
+            'country' => 'DO',
+            'zip_code' => '10101',
         ];
     }
 
     protected function getBrowserInfo(): array
     {
         return [
-            'accept_header'      => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'ip_address'         => env('TEST_CLIENT_IP', '190.2.132.215'),
-            'language'           => 'es-DO',
-            'color_depth'        => '24',
-            'screen_width'       => '1920',
-            'screen_height'      => '1080',
-            'time_zone'          => '-240',
-            'user_agent'         => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'accept_header' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'ip_address' => env('TEST_CLIENT_IP', '190.2.132.215'),
+            'language' => 'es-DO',
+            'color_depth' => '24',
+            'screen_width' => '1920',
+            'screen_height' => '1080',
+            'time_zone' => '-240',
+            'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'javascript_enabled' => 'true',
         ];
     }
@@ -131,16 +131,16 @@ class Azul3DSChallengeTest extends AzulBase
             }
         ', [
             'input' => [
-                'cartId'           => 0,
-                'customer'         => ['email' => fake()->email()],
-                'currency'         => 'USD',
+                'cartId' => 0,
+                'customer' => ['email' => fake()->email()],
+                'currency' => 'USD',
                 'shipping_address' => [
-                    'address'   => '123 Calle Principal',
+                    'address' => '123 Calle Principal',
                     'address_2' => '10101',
-                    'city'      => 'Santo Domingo',
-                    'state'     => 'DN',
+                    'city' => 'Santo Domingo',
+                    'state' => 'DN',
                 ],
-                'items'      => [['variant_id' => $this->variantId, 'quantity' => 1]],
+                'items' => [['variant_id' => $this->variantId, 'quantity' => 1]],
                 'order_type' => 'order',
             ],
         ], [], [
@@ -158,7 +158,7 @@ class Azul3DSChallengeTest extends AzulBase
      */
     public function testStart3DSChallengeWithCard(): void
     {
-        $order    = $this->createOrder();
+        $order = $this->createOrder();
         $cardData = $this->get3DSCardData();
 
         // Step 1: Initiate 3DS sale
@@ -172,20 +172,20 @@ class Azul3DSChallengeTest extends AzulBase
                 }
             }
         ', [
-            'orderId'     => $order->id,
+            'orderId' => $order->id,
             'paymentData' => [
-                'number'          => $cardData['number'],
+                'number' => $cardData['number'],
                 'expiration_date' => $cardData['expiration_date'],
-                'cvv'             => $cardData['cvv'],
-                'processor'       => $cardData['processor'],
-                'firstname'       => $cardData['firstname'],
-                'lastname'        => $cardData['lastname'],
-                'address'         => $cardData['address'],
-                'city'            => $cardData['city'],
-                'state'           => $cardData['state'],
-                'country'         => $cardData['country'],
-                'zip_code'        => $cardData['zip_code'],
-                'browser_info'    => $this->getBrowserInfo(),
+                'cvv' => $cardData['cvv'],
+                'processor' => $cardData['processor'],
+                'firstname' => $cardData['firstname'],
+                'lastname' => $cardData['lastname'],
+                'address' => $cardData['address'],
+                'city' => $cardData['city'],
+                'state' => $cardData['state'],
+                'country' => $cardData['country'],
+                'zip_code' => $cardData['zip_code'],
+                'browser_info' => $this->getBrowserInfo(),
             ],
         ], [], [
             'X-Kanvas-Location' => $this->company->branch->uuid,
@@ -197,7 +197,7 @@ class Azul3DSChallengeTest extends AzulBase
         $startData = $startResponse->json('data.startPaymentChallengeWithCard');
         $this->assertTrue($startData['success'], 'startPaymentChallengeWithCard failed: ' . $startData['message']);
 
-        $status    = $startData['status'];
+        $status = $startData['status'];
         $paymentId = $startData['data']['payment_id'] ?? null;
 
         // Case C: frictionless — card not enrolled in 3DS, approved immediately
@@ -223,7 +223,7 @@ class Azul3DSChallengeTest extends AzulBase
             // after the hidden iframe loads and the browser sends fingerprint data.
             $payment->addMetadata([
                 'data' => [
-                    '3ds_server_trans_id'            => 'test-trans-id-' . time(),
+                    '3ds_server_trans_id' => 'test-trans-id-' . time(),
                     '3ds_method_notification_status' => 'RECEIVED',
                 ],
             ]);
@@ -247,16 +247,16 @@ class Azul3DSChallengeTest extends AzulBase
         $cRes = env('TEST_AZUL_CRES'); // set to a real cRes from Azul sandbox for full approval
         if (empty($cRes)) {
             $cRes = base64_encode(json_encode([
-                'messageType'           => 'CRes',
-                'messageVersion'        => '2.1.0',
-                'threeDSServerTransID'  => 'stub-' . uniqid(),
-                'transStatus'           => 'Y',
+                'messageType' => 'CRes',
+                'messageVersion' => '2.1.0',
+                'threeDSServerTransID' => 'stub-' . uniqid(),
+                'transStatus' => 'Y',
             ]));
         }
 
         $payment->addMetadata([
             'data' => [
-                '3ds_pa_res'      => $cRes,
+                '3ds_pa_res' => $cRes,
                 '3ds_pa_res_type' => 'cRes',
             ],
         ]);

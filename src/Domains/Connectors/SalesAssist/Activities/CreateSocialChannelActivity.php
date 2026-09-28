@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\SalesAssist\Actions\CreateAIAssistChannelAction;
 use Kanvas\Connectors\SalesAssist\Actions\CreateCrmNoteAction;
 use Kanvas\Connectors\SalesAssist\Actions\CreateSocialChannelForContactAction;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -14,7 +15,18 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist Create Contact Channel',
+    description: 'Opens the messaging channel between an agent and a contact or lead, so there is somewhere '
+        . 'for the conversation to live. Creates the channel only; it sends no message. Needs an agent, '
+        . 'and does nothing without one.',
+    integration: IntegrationsEnum::INTERNAL,
+    params: [
+        'agent_id' => 'The agent the channel belongs to. Required — without it the step errors.',
+        'ai_assist_agent_id' => 'Optional. Agent for the lead AI Assist channel when AI Assist is enabled; '
+            . 'falls back to the company ai_assist_agent setting, then to agent_id.',
+    ],
+)]
 class CreateSocialChannelActivity extends KanvasActivity
 {
     public function execute(
@@ -78,6 +90,13 @@ class CreateSocialChannelActivity extends KanvasActivity
                 $hasNewChannel = true;
             }
         }
+
+        CreateAIAssistChannelAction::ifEnabled(
+            $lead,
+            $app,
+            $params,
+            (int) $params['agent_id']
+        )?->execute();
 
         $crmNoteResult = $hasNewChannel
             ? new CreateCrmNoteAction($lead, $app)->execute()

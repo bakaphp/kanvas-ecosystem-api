@@ -17,7 +17,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Plate Recognizer Process Vehicle Image',
+    description: 'Reads a licence plate from a vehicle image on a message and stores it. Extraction only.',
+    integration: IntegrationsEnum::PLATE_RECOGNIZER,
+)]
 class ProcessVehicleImageActivity extends KanvasActivity
 {
     public $tries = 3;

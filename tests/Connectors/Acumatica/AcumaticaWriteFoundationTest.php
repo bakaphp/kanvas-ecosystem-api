@@ -235,4 +235,28 @@ class AcumaticaWriteFoundationTest extends TestCase
 
         new AcumaticaWriteService($this->app(), $client)->push('Bill', AcumaticaPayload::wrap(['Description' => 'x']));
     }
+
+    public function testPushSurfacesNestedFieldErrorOverGenericTopLevelMessage(): void
+    {
+        $this->enableWrites();
+        $body = [
+            'error' => "Inserting  'AP document' record raised at least one error. Please review the errors.",
+            'PostPeriod' => ['value' => '082026', 'error' => 'Error: The 08-2026 financial period is inactive in the NZXT US company.'],
+            'Details' => [
+                ['Account' => ['value' => '71610'], 'Subaccount' => []],
+            ],
+        ];
+        $response = new Response(422, [], (string) json_encode($body));
+        $request = new Request('PUT', 'entity/Default/24.200.001/Bill');
+
+        $client = Mockery::mock(Client::class);
+        $client->shouldReceive('login')->once();
+        $client->shouldReceive('put')->once()->andThrow(new RequestException('Client error', $request, $response));
+        $client->shouldReceive('logout')->once();
+
+        $this->expectException(AcumaticaWriteException::class);
+        $this->expectExceptionMessage('PostPeriod: Error: The 08-2026 financial period is inactive in the NZXT US company.');
+
+        new AcumaticaWriteService($this->app(), $client)->push('Bill', AcumaticaPayload::wrap(['Description' => 'x']));
+    }
 }

@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Scribe\Banking;
 
+use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\Handler\MockHandler;
+use GuzzleHttp\HandlerStack;
+use GuzzleHttp\Middleware;
+use GuzzleHttp\Psr7\Response;
 use Kanvas\Connectors\Mercury\Actions\PullMercuryAccountsAction;
 use Kanvas\Connectors\Mercury\Actions\PullMercuryCardsAction;
 use Kanvas\Connectors\Mercury\Actions\PullMercuryStatementsAction;
 use Kanvas\Connectors\Mercury\Actions\PullMercuryTransactionsAction;
+use Kanvas\Connectors\Mercury\Client;
 use Kanvas\Connectors\Mercury\Enums\TransactionKindEnum;
 use Kanvas\Connectors\Mercury\Services\MercuryAccountService;
 use Kanvas\Connectors\Mercury\Services\MercuryCardService;
@@ -271,6 +277,38 @@ final class MercuryPullTest extends ScribeTestCase
         )->execute();
 
         $this->assertSame([], $statements);
+    }
+
+    public function testItDownloadsStatementPdfsThroughTheAuthenticatedEndpoint(): void
+    {
+        // The PDF lives behind the authenticated `statements/{id}/pdf` route — an anonymous URL download 401s.
+        // We assert the request hits that endpoint asking for a PDF, and the raw bytes come back untouched.
+        $pdfBytes = '%PDF-1.4 fake statement bytes';
+        $history = [];
+
+        $stack = HandlerStack::create(new MockHandler([
+            new Response(200, ['Content-Type' => 'application/pdf'], $pdfBytes),
+        ]));
+        $stack->push(Middleware::history($history));
+
+        $service = new MercuryStatementService(
+            $this->kanvasApp,
+            $this->company,
+            new Client(
+                $this->kanvasApp,
+                $this->company,
+                new GuzzleClient([
+                    'base_uri' => 'https://api.mercury.com/api/v1/',
+                    'handler' => $stack,
+                ]),
+            ),
+        );
+
+        $this->assertSame($pdfBytes, $service->downloadStatementPdf('stmt-123'));
+
+        $request = $history[0]['request'];
+        $this->assertStringEndsWith('statements/stmt-123/pdf', (string) $request->getUri());
+        $this->assertSame('application/pdf', $request->getHeaderLine('Accept'));
     }
 
     public function testPayingOurOwnCreditCardIsClassifiedAsATransfer(): void

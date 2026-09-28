@@ -22,7 +22,9 @@ use Kanvas\Notifications\Templates\Blank;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\ApproveAgentMessageAction;
 use Kanvas\Social\Messages\Actions\RejectAgentMessageAction;
+use Kanvas\Social\Messages\Actions\RequestMessageApprovalAction;
 use Kanvas\Social\Messages\Models\Message;
+use Kanvas\Social\Messages\Support\MessageApproval;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
 use Laravel\Ai\AnonymousAgent;
@@ -34,18 +36,15 @@ class AgentMessageApprovalTest extends TestCase
 {
     use DatabaseTransactions;
 
+    // ecosystem for the approval_requests/approval_policies rows, intelligence for the ledger event
+    // every decision emits, social for the messages themselves.
+    protected $connectionsToTransact = ['mysql', 'social', 'ecosystem', 'intelligence'];
+
     public function testCompanyApprovalModeLocksDraftAndSkipsSend(): void
     {
         Notification::fake();
 
-        ['app' => $app, 'company' => $company, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
-            $this->seedInboundEmailScenario();
-
-        $company->set(ConfigurationEnum::AGENT_AI_MODE->value, IntelligenceModeEnum::APPROVAL->value);
-
-        $this->runResponder($channel, $inbound, $agent, $session);
-
-        $outbound = $this->latestOutbound($app, $company, $channel);
+        $outbound = $this->draftInApprovalMode();
 
         $this->assertNotNull($outbound);
         $this->assertSame(1, (int) $outbound->is_locked, 'Draft must be locked in APPROVAL mode');
@@ -56,12 +55,7 @@ class AgentMessageApprovalTest extends TestCase
     {
         Notification::fake();
 
-        ['app' => $app, 'company' => $company, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
-            $this->seedInboundEmailScenario();
-
-        $this->runResponder($channel, $inbound, $agent, $session);
-
-        $outbound = $this->latestOutbound($app, $company, $channel);
+        $outbound = $this->draftWithApprovalOff();
 
         $this->assertNotNull($outbound);
         $this->assertSame(0, (int) $outbound->is_locked, 'Draft must not be locked when approval is off');
@@ -72,12 +66,7 @@ class AgentMessageApprovalTest extends TestCase
     {
         Notification::fake();
 
-        ['app' => $app, 'company' => $company, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
-            $this->seedInboundEmailScenario();
-
-        $company->set(ConfigurationEnum::AGENT_AI_MODE->value, IntelligenceModeEnum::APPROVAL->value);
-        $this->runResponder($channel, $inbound, $agent, $session);
-        $draft = $this->latestOutbound($app, $company, $channel);
+        $draft = $this->draftInApprovalMode();
         $this->assertSame(1, (int) $draft->is_locked);
 
         Notification::fake();
@@ -95,12 +84,7 @@ class AgentMessageApprovalTest extends TestCase
     {
         Notification::fake();
 
-        ['app' => $app, 'company' => $company, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
-            $this->seedInboundEmailScenario();
-
-        $company->set(ConfigurationEnum::AGENT_AI_MODE->value, IntelligenceModeEnum::APPROVAL->value);
-        $this->runResponder($channel, $inbound, $agent, $session);
-        $draft = $this->latestOutbound($app, $company, $channel);
+        $draft = $this->draftInApprovalMode();
 
         $approved = new ApproveAgentMessageAction($draft, 'Edited human reply')->execute();
 
@@ -111,11 +95,7 @@ class AgentMessageApprovalTest extends TestCase
     {
         Notification::fake();
 
-        ['app' => $app, 'company' => $company, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
-            $this->seedInboundEmailScenario();
-
-        $this->runResponder($channel, $inbound, $agent, $session);
-        $outbound = $this->latestOutbound($app, $company, $channel);
+        $outbound = $this->draftWithApprovalOff();
         $this->assertSame(0, (int) $outbound->is_locked);
 
         $this->expectException(ValidationException::class);
@@ -128,12 +108,7 @@ class AgentMessageApprovalTest extends TestCase
     {
         Notification::fake();
 
-        ['app' => $app, 'company' => $company, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
-            $this->seedInboundEmailScenario();
-
-        $company->set(ConfigurationEnum::AGENT_AI_MODE->value, IntelligenceModeEnum::APPROVAL->value);
-        $this->runResponder($channel, $inbound, $agent, $session);
-        $draft = $this->latestOutbound($app, $company, $channel);
+        $draft = $this->draftInApprovalMode();
 
         $this->assertTrue(new RejectAgentMessageAction($draft)->execute());
         $this->assertTrue((bool) $draft->fresh()->is_deleted);
@@ -156,8 +131,13 @@ class AgentMessageApprovalTest extends TestCase
             ->withMessageType($smsType)
             ->create([
                 'message' => ['content' => 'hi', 'chat_jid' => '+15550000000', 'from_ia' => true],
-                'is_locked' => 1,
             ]);
+
+        new RequestMessageApprovalAction(
+            message: $locked,
+            kind: MessageApproval::KIND_EMAIL_DRAFT,
+            private: false,
+        )->execute();
 
         $this->expectException(ValidationException::class);
         $this->expectExceptionMessage('Approval send is not supported');
@@ -199,7 +179,6 @@ class AgentMessageApprovalTest extends TestCase
                     'from_me' => true,
                     'from_ia' => true,
                 ],
-                'is_locked' => 1,
             ]);
 
         DB::connection('social')->table('app_module_message')->insert([
@@ -213,6 +192,12 @@ class AgentMessageApprovalTest extends TestCase
             'updated_at' => now(),
         ]);
         $draft = $draft->fresh();
+
+        new RequestMessageApprovalAction(
+            message: $draft,
+            kind: MessageApproval::KIND_EMAIL_DRAFT,
+            private: false,
+        )->execute();
 
         new ApproveAgentMessageAction($draft)->execute();
 
@@ -228,6 +213,37 @@ class AgentMessageApprovalTest extends TestCase
 
         // Anchored on the lead so later follow-ups thread under it.
         $this->assertSame('Quick sync this week', (string) Lead::getById($lead->getId(), $app)->get('title_email_follow_up'));
+    }
+
+    /**
+     * Run the responder with the company in APPROVAL mode and hand back the draft it held. The
+     * seed/mode/run/fetch sequence is the arrange for most of this file; spelled out per test it drifts.
+     */
+    private function draftInApprovalMode(): Message
+    {
+        return $this->seedAndRespond(IntelligenceModeEnum::APPROVAL);
+    }
+
+    private function draftWithApprovalOff(): Message
+    {
+        return $this->seedAndRespond(null);
+    }
+
+    private function seedAndRespond(?IntelligenceModeEnum $mode): Message
+    {
+        ['app' => $app, 'company' => $company, 'channel' => $channel, 'inbound' => $inbound, 'agent' => $agent, 'session' => $session] =
+            $this->seedInboundEmailScenario();
+
+        if ($mode !== null) {
+            $company->set(ConfigurationEnum::AGENT_AI_MODE->value, $mode->value);
+        }
+
+        $this->runResponder($channel, $inbound, $agent, $session);
+
+        $outbound = $this->latestOutbound($app, $company, $channel);
+        $this->assertNotNull($outbound, 'the responder persisted no outbound message');
+
+        return $outbound;
     }
 
     private function runResponder(Channel $channel, Message $inbound, Agent $agent, $session): void

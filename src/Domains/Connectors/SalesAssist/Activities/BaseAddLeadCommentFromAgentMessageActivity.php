@@ -11,6 +11,7 @@ use Kanvas\Social\Enums\ChannelCategoryEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
+use Throwable;
 
 abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
 {
@@ -149,8 +150,15 @@ abstract class BaseAddLeadCommentFromAgentMessageActivity extends KanvasActivity
                     $formattedNote = $this->appendAiChatLink($formattedNote, $aiChatLink, $app, $fromAgent);
                 }
 
-                // Add note to the external CRM system
-                $externalResult = $this->addNoteToExternalSystem($lead, $formattedNote, $message, $app);
+                try {
+                    $externalResult = $this->addNoteToExternalSystem($lead, $formattedNote, $message, $app);
+                } catch (Throwable $e) {
+                    return $this->failWorkflow([
+                        'error' => $e->getMessage(),
+                        'integration' => $this->getIntegration()->value,
+                        'lead' => $lead->getId(),
+                    ]);
+                }
 
                 // Handle failure from external system
                 if (is_array($externalResult) && isset($externalResult['error'])) {

@@ -11,7 +11,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'DriveCentric Pull Lead',
+    description: 'Brings a lead\'s latest state INTO Kanvas from DriveCentric — the opposite direction to the '
+        . 'push steps. Use it when DriveCentric is the source of truth and Kanvas should follow.',
+    integration: IntegrationsEnum::DRIVE_CENTRIC,
+)]
 class PullLeadActivity extends KanvasActivity
 {
     public $tries = 3;

@@ -7,6 +7,7 @@ namespace Kanvas\HumanResources\Employees\Services;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
+use Illuminate\Database\Eloquent\Collection;
 use Kanvas\HumanResources\Employees\Models\Employee;
 
 /**
@@ -29,5 +30,29 @@ class EmployeeIdentityResolver
             ->first();
 
         return $employee;
+    }
+
+    /**
+     * Batch variant of fromUser: resolve many users to their Employee records in one query,
+     * keyed by users_id, with position + department eager-loaded for display.
+     *
+     * @param array<int, int> $userIds
+     *
+     * @return Collection<int, Employee>
+     */
+    public function fromUsers(array $userIds, CompanyInterface $company, AppInterface $app): Collection
+    {
+        if ($userIds === []) {
+            return new Collection();
+        }
+
+        return Employee::query()
+            ->fromApp($app)
+            ->fromCompany($company)
+            ->notDeleted()
+            ->whereIn('users_id', $userIds)
+            ->with(['position', 'department'])
+            ->get()
+            ->keyBy('users_id');
     }
 }

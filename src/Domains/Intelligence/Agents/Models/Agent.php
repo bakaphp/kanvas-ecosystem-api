@@ -20,8 +20,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
@@ -29,11 +30,12 @@ use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Enums\AgentProviderEnum;
 use Kanvas\Intelligence\Agents\Factories\AgentFactory;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Observers\AgentObserver;
 use Kanvas\Intelligence\Agents\Types\OpenClawAgentHandler;
 use Kanvas\Intelligence\Models\BaseModel;
 use Kanvas\NervousSystem\Capability\Models\Tool;
+use Kanvas\NervousSystem\Scheduling\Models\ScheduledAction;
 use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Nevadskiy\Tree\AsTree;
@@ -62,14 +64,17 @@ use Override;
  * @property array|null $identity
  * @property string|null $user_context
  * @property string|null $tools_config
+ * @property array|null $voice_config
  * @property string|null $deployment_status
  * @property int|null $agent_model_id
+ * @property int|null $agent_llm_config_id
  * @property bool $is_active
  * @property bool $is_deleted
  */
 #[ObservedBy(AgentObserver::class)]
 class Agent extends BaseModel
 {
+    use HasAdminLink;
     use AsTree;
     use CanUseWorkflow;
     use CascadeSoftDeletes;
@@ -81,7 +86,26 @@ class Agent extends BaseModel
     }
     use HasLightHouseCache;
 
-    protected $cascadeDeletes = ['deployments', 'swarmMemberships'];
+    /** What an agent is TOLD, as opposed to what it can touch. Edits here are snapshotted first. */
+    public const array PROMPT_FIELDS = [
+        'soul',
+        'instructions',
+        'identity',
+        'user_context',
+        'output_format',
+        'role',
+    ];
+
+    // Set before saving; AgentObserver reads them. Plain properties, so Eloquent never persists them.
+    public ?string $versionChangeReason = null;
+    public ?int $versionEditedByUserId = null;
+    public ?AgentVersion $lastRecordedVersion = null;
+
+    protected $cascadeDeletes = [
+        'deployments',
+        'swarmMemberships',
+        'scheduledActions',
+    ];
 
     protected $fillable = [
         'uuid',
@@ -105,8 +129,10 @@ class Agent extends BaseModel
         'identity',
         'user_context',
         'tools_config',
+        'voice_config',
         'deployment_status',
         'agent_model_id',
+        'agent_llm_config_id',
         'is_active',
         'is_sub_agent',
         'awake_state',
@@ -117,6 +143,12 @@ class Agent extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'AgentAi';
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::AGENT;
     }
 
     #[Override]
@@ -132,15 +164,11 @@ class Agent extends BaseModel
             'config' => Json::class,
             'role' => Json::class,
             'identity' => Json::class,
+            'voice_config' => Json::class,
             'is_active' => 'boolean',
             'is_sub_agent' => 'boolean',
             'last_state_changed_at' => 'datetime',
         ];
-    }
-
-    public function company(): BelongsTo
-    {
-        return $this->belongsTo(Companies::class, 'companies_id');
     }
 
     public function type(): BelongsTo
@@ -151,6 +179,11 @@ class Agent extends BaseModel
     public function model(): BelongsTo
     {
         return $this->belongsTo(AgentModel::class, 'agent_model_id');
+    }
+
+    public function llmConfig(): BelongsTo
+    {
+        return $this->belongsTo(AgentLlmConfig::class, 'agent_llm_config_id');
     }
 
     public function companyTaskList(): BelongsTo
@@ -207,12 +240,6 @@ class Agent extends BaseModel
         );
     }
 
-    /**
-     * Module subscriptions for this agent. Each row carries a per-agent JSON
-     * `config` (e.g. which inventory integrations / channels / pipelines to
-     * watch). Soft-deleted rows are excluded by default; `is_active=false`
-     * rows are included so the UI can render disabled-but-configured state.
-     */
     public function kanvasModules(): HasMany
     {
         return $this->hasMany(AgentKanvasModule::class, 'agent_id', 'id')
@@ -231,6 +258,12 @@ class Agent extends BaseModel
         return $this->hasMany(AgentDailyCycle::class, 'agent_id', 'id')
             ->where('agent_daily_cycles.is_deleted', 0)
             ->orderBy('cycle_date', 'desc');
+    }
+
+    public function scheduledActions(): HasMany
+    {
+        return $this->hasMany(ScheduledAction::class, 'agent_id', 'id')
+            ->where('nervous_system_scheduled_actions.is_deleted', 0);
     }
 
     public function latestDailyCycle(): HasOne
@@ -346,9 +379,39 @@ class Agent extends BaseModel
     {
         $handler = $this->type?->handler;
 
-        return is_string($handler)
-            && ! $this->isContainerRuntime()
-            && is_a($handler, BaseKanvasAgent::class, true);
+        if (! is_string($handler) || $handler === '') {
+            return false;
+        }
+
+        // A hosted runtime (Claude Managed Agents) executes our PHP tools through the custom-tool
+        // bridge, so it CAN hold the board toolset — the test is capability, not transport. Machine
+        // runtimes (Hermes/OpenClaw) stay excluded: they run their own kanban and cannot hold our
+        // tools at all.
+        if ($this->isHostedRuntime()) {
+            return true;
+        }
+
+        return ! $this->isContainerRuntime()
+            && is_a($handler, BehavesAsKanvasAgent::class, true);
+    }
+
+    /**
+     * Vendor-hosted runtime — the loop and sandbox live on the vendor's infrastructure, so there is
+     * no deployment row to consult; the agent type's provider is the whole answer.
+     */
+    public function isHostedRuntime(): bool
+    {
+        return AgentProviderEnum::tryFrom(strtolower($this->type?->provider ?? ''))?->isHosted() === true;
+    }
+
+    /**
+     * The company an agent's turn belongs to: its own, or — for a global agent, which has none — the company
+     * of the person it is talking to. The handler and every conversation record resolve it here, so a turn
+     * can never be filed under a different company than the chat it belongs to.
+     */
+    public function companyFor(Users $user): CompanyInterface
+    {
+        return $this->company ?? $user->getCurrentCompany();
     }
 
     /**
@@ -379,6 +442,17 @@ class Agent extends BaseModel
             && $handler !== ''
             && class_exists($handler)
             && is_subclass_of($handler, ConversesWithCustomer::class);
+    }
+
+    /**
+     * A role section (background, steps, output) as one prompt string. Tenants store each section
+     * either as a single string or as an array of lines, so every prompt builder must accept both.
+     */
+    public function roleSection(string $key, string $separator = ' '): string
+    {
+        $section = is_array($this->role) ? ($this->role[$key] ?? null) : null;
+
+        return is_array($section) ? implode($separator, $section) : (string) $section;
     }
 
     /**

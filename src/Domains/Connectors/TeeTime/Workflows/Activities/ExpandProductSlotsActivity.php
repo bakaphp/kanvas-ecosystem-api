@@ -44,6 +44,7 @@ class ExpandProductSlotsActivity extends KanvasActivity implements WorkflowActiv
                         $capacityOverride = $params['capacity_override'] ?? null;
                         $leadTimeMin = $params['lead_time_min'] ?? 0;
                         $cutoffTimeMin = $params['cutoff_time_min'] ?? 0;
+                        $horizonDays = isset($params['booking_horizon_days']) ? (int) $params['booking_horizon_days'] : null;
 
                         if (! $variant) {
                             return [
@@ -65,7 +66,8 @@ class ExpandProductSlotsActivity extends KanvasActivity implements WorkflowActiv
                             slotDurationMinutes: $slotDurationMinutes,
                             capacityOverride: $capacityOverride,
                             leadTimeMin: $leadTimeMin,
-                            cutoffTimeMin: $cutoffTimeMin
+                            cutoffTimeMin: $cutoffTimeMin,
+                            horizonDays: $horizonDays
                         );
 
                         // Create schedule rules (existing rules are automatically cleared during execution)

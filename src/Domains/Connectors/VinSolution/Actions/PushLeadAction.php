@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\VinSolution\Actions;
 use Kanvas\Connectors\VinSolution\ClientCredential;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
+use Kanvas\Connectors\VinSolution\Services\LeadUserService;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead as LeadModel;
 
@@ -20,7 +21,7 @@ class PushLeadAction
     ) {
         $this->vinCredential = ClientCredential::get(
             $this->lead->company,
-            $this->lead->user,
+            LeadUserService::resolve($this->lead),
             $this->lead->app
         );
     }

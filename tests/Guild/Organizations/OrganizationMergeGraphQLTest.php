@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Guild\Organizations;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -12,7 +13,8 @@ use Tests\TestCase;
 
 /**
  * GraphQL surface tests for the duplicate-cleanup operator UI:
- *   - `findOrganizationDuplicates` query → returns clusters as JSON
+ *   - `detectOrganizationDuplicates` mutation → live-scans and persists into duplicate_review_groups
+ *   - `findOrganizationDuplicates` query → reads the persisted duplicate_review_groups queue
  *   - `mergeOrganizations` mutation → executes the merge + returns the target
  *
  * The underlying business logic is covered by FindOrganizationDuplicatesServiceTest +
@@ -35,7 +37,39 @@ class OrganizationMergeGraphQLTest extends TestCase
         $this->company = static::$cachedUser->getCurrentCompany();
     }
 
-    public function test_find_duplicates_query_returns_clusters(): void
+    public function test_detect_duplicates_mutation_scans_and_persists(): void
+    {
+        Queue::fake();
+
+        $cluster = 'GraphCluster' . uniqid();
+        $a = $this->seedOrganization($cluster);
+        $b = $this->seedOrganization(strtolower($cluster));
+
+        $response = $this->graphQL('
+            mutation {
+                detectOrganizationDuplicates(max_groups: 50) {
+                    canonical_id
+                    member_ids
+                    reason
+                    sample_name
+                }
+            }
+        ')->assertSuccessful();
+
+        $groups = $response->json('data.detectOrganizationDuplicates');
+        $matching = $this->findClusterFor($groups, $a, $b);
+        $this->assertSame((int) $a->id, $matching['canonical_id'], 'Canonical = oldest id.');
+        $this->assertSame('exact_name', $matching['reason']);
+
+        $this->assertDatabaseHas('duplicate_review_groups', [
+            'apps_id' => $this->kanvasApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'entity_type' => Organization::class,
+            'status' => 'pending',
+        ], 'crm');
+    }
+
+    public function test_find_duplicates_query_reads_the_persisted_queue(): void
     {
         $cluster = 'GraphCluster' . uniqid();
         $a = $this->seedOrganization($cluster);
@@ -57,23 +91,27 @@ class OrganizationMergeGraphQLTest extends TestCase
         ')->assertSuccessful();
 
         $groups = $response->json('data.findOrganizationDuplicates');
-        $this->assertIsArray($groups);
-
-        // Our cluster should be among the returned groups
-        $matching = array_filter($groups, function (array $g) use ($a, $b): bool {
-            $ids = array_map('intval', $g['member_ids']);
-            sort($ids);
-
-            return $ids === [(int) $a->id, (int) $b->id];
-        });
-        $this->assertCount(1, $matching, 'The seeded duplicate cluster should appear once in the GraphQL response.');
-
-        $group = array_values($matching)[0];
+        $group = $this->findClusterFor($groups, $a, $b);
         $this->assertSame((int) $a->id, $group['canonical_id'], 'Canonical = oldest id.');
         $this->assertSame('exact_name', $group['reason']);
 
         $memberIds = array_map(fn ($m) => (int) $m['id'], $group['organizations']);
         $this->assertEqualsCanonicalizing([(int) $a->id, (int) $b->id], $memberIds);
+    }
+
+    private function findClusterFor(?array $groups, Organization $a, Organization $b): array
+    {
+        $this->assertIsArray($groups);
+
+        $matching = array_values(array_filter($groups, function (array $g) use ($a, $b): bool {
+            $ids = array_map('intval', $g['member_ids']);
+            sort($ids);
+
+            return $ids === [(int) $a->id, (int) $b->id];
+        }));
+        $this->assertCount(1, $matching, 'The seeded duplicate cluster should appear once in the GraphQL response.');
+
+        return $matching[0];
     }
 
     public function test_merge_mutation_collapses_a_single_source_into_target(): void

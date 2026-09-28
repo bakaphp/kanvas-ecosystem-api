@@ -18,9 +18,6 @@ class UpdateVariantsAction
 {
     protected bool $runWorkflow = true;
 
-    /**
-     * __construct.
-     */
     public function __construct(
         protected Variants $variant,
         protected VariantsDto $variantDto,
@@ -35,9 +32,6 @@ class UpdateVariantsAction
         return $this;
     }
 
-    /**
-     * execute.
-     */
     public function execute(): Variants
     {
         CompaniesRepository::userAssociatedToCompany(
@@ -77,6 +71,10 @@ class UpdateVariantsAction
                 'is_published' => $this->variantDto->is_published,
             ]
         );
+
+        if (! empty($this->variantDto->files)) {
+            $this->variant->addMultipleFilesFromUrl($this->variantDto->files);
+        }
 
         if ($this->runWorkflow && $this->variant->product?->shouldBeSearchable() === true) {
             $this->variant->product->searchable();

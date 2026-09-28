@@ -31,7 +31,6 @@ class AddObservationsAction extends BaseOrderCorrectionAction
             $metadata['data']['observations'] = $this->observations;
             $this->order->metadata = $metadata;
 
-            $this->appendEvidenceImages($this->evidenceUrls);
             $this->order->saveOrFail();
 
             $this->logCorrection(

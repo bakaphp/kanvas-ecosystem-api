@@ -125,8 +125,10 @@ class AttachFilesystemAction
                 //   $fileEntity->flushCache();
             }
 
-            // Fire events after successful database operations
-            if ($this->entity->hasWorkflow()) {
+            // Fire events after successful database operations. $entity is typed as a bare
+            // EloquentModel, and hasWorkflow() comes from KanvasModelTrait — a model without it
+            // (FiscalPeriod) reaches here and fatals, so probe it the way clearLightHouseCache is.
+            if (method_exists($this->entity, 'hasWorkflow') && $this->entity->hasWorkflow()) {
                 $this->entity->fireWorkflow(
                     WorkflowEnum::ATTACH_FILE->value,
                     true,

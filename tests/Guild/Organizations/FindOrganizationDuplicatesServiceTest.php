@@ -127,6 +127,23 @@ class FindOrganizationDuplicatesServiceTest extends TestCase
         );
     }
 
+    public function test_check_record_finds_only_matches_for_that_record(): void
+    {
+        $cluster = 'AcmeCheck' . uniqid();
+        $a = $this->seedOrganization($cluster);
+        $b = $this->seedOrganization(strtolower($cluster));
+        $unrelated = $this->seedOrganization('Unrelated Vendor ' . uniqid());
+
+        $groupsForA = new FindOrganizationDuplicatesService()->checkRecord($a->fresh());
+        $group = $this->findGroupContaining($groupsForA, (int) $a->id);
+        $this->assertNotNull($group);
+        $this->assertSame('exact_name', $group->reason);
+        $this->assertEqualsCanonicalizing([(int) $a->id, (int) $b->id], $group->member_ids);
+
+        $groupsForUnrelated = new FindOrganizationDuplicatesService()->checkRecord($unrelated->fresh());
+        $this->assertSame([], $groupsForUnrelated);
+    }
+
     public function test_singletons_are_not_returned(): void
     {
         $org = $this->seedOrganization('Lonely Vendor ' . uniqid(), email: 'lonely-' . uniqid() . '@test.com');

@@ -22,7 +22,7 @@ type Company {
     country: String
     zip: String
     is_active: Boolean!
-    users: [User] @HasManyThrough
+    users: [User] @hasManyThrough(relation: "users")
     files: [Filesystem!]!
         @paginate(
             defaultCount: 25

@@ -15,10 +15,15 @@ use Override;
 use Stringable;
 use Throwable;
 
-#[AgentTool(name: 'Inventory Search')]
+#[AgentTool(name: 'Inventory Search', category: 'inventory')]
 class InventorySearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;
+
+    public function name(): string
+    {
+        return 'inventory_search';
+    }
 
     #[Override]
     public function description(): Stringable|string

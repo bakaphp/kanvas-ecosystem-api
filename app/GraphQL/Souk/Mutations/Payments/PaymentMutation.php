@@ -15,6 +15,7 @@ use Kanvas\Connectors\Movipass\Actions\ValidatePaymentAction;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
+use Kanvas\Souk\Payments\Actions\EnforceCardVelocityLimitAction;
 use Kanvas\Souk\Payments\Actions\MakePaymentIntentAction;
 use Kanvas\Souk\Payments\Enums\PaymentMethodTypesEnum;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
@@ -53,7 +54,7 @@ class PaymentMutation
         $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
-            throw new Exception('Payment not found');
+            throw new ValidationException('Payment not found');
         }
 
         // The payment row is created by whoever opened the order (often the corporate actor/system),
@@ -127,7 +128,7 @@ class PaymentMutation
         }
 
         try {
-            $formData['amount'] = $formData['amount'] ?? $order->getTotalAmount();
+            $formData['amount'] = $formData['amount'] ?? $order->getTotalDueAmount();
             $formData['payment_method_type'] = $paymentMethodType;
 
             if ($paymentMethodType === PaymentMethodTypesEnum::CASH->value) {
@@ -171,7 +172,7 @@ class PaymentMutation
         $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
-            throw new Exception('Payment not found');
+            throw new ValidationException('Payment not found');
         }
 
         if ($payment->status === PaymentStatusEnum::PAID) {
@@ -187,6 +188,8 @@ class PaymentMutation
                 'message' => 'Payment is already waiting for device data',
             ];
         }
+
+        new EnforceCardVelocityLimitAction($payment)->execute();
 
         try {
             $paymentProcessor = new PortalPaymentProcessor(
@@ -258,7 +261,7 @@ class PaymentMutation
         $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
-            throw new Exception('Payment not found');
+            throw new ValidationException('Payment not found');
         }
 
         $order = $payment->order;
@@ -376,7 +379,7 @@ class PaymentMutation
         $payment = Payments::getLatestForEntity($order);
 
         if (! $payment) {
-            throw new Exception('Payment not found');
+            throw new ValidationException('Payment not found');
         }
 
         $order = $payment->order;

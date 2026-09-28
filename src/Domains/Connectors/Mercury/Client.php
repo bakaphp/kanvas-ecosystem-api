@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\Mercury;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use GuzzleHttp\Client as GuzzleClient;
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Connectors\Mercury\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
@@ -60,6 +61,26 @@ class Client
     }
 
     /**
+     * A 404 is an ANSWER, not a fault — the resource isn't there (or isn't visible to this token). Callers
+     * that model absence as null use this so a missing record doesn't throw and get reported to Sentry.
+     *
+     * @param array<string, mixed> $query
+     * @return array<array-key, mixed>|null
+     */
+    public function getOrNull(string $endpoint, array $query = []): ?array
+    {
+        try {
+            return $this->get($endpoint, $query);
+        } catch (ClientException $e) {
+            if ($e->getResponse()->getStatusCode() === 404) {
+                return null;
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
      * Arrays serialize as REPEATED KEYS (`accountId=a&accountId=b`), not Guzzle's default `accountId[0]=a`.
      * Mercury SILENTLY IGNORES the bracket form — 200 OK, unfiltered results — so a scoped request quietly
      * returns every account's transactions. Load-dependent too: a small `limit` comes back clean.
@@ -102,5 +123,14 @@ class Client
     public function getRaw(string $endpoint): string
     {
         return (string) $this->client->get(ltrim($endpoint, '/'))->getBody();
+    }
+
+    public function getBinary(string $endpoint, string $accept = 'application/octet-stream'): string
+    {
+        $response = $this->client->get(ltrim($endpoint, '/'), [
+            'headers' => ['Accept' => $accept],
+        ]);
+
+        return (string) $response->getBody();
     }
 }

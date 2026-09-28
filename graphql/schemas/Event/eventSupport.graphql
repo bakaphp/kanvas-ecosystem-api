@@ -1,6 +1,7 @@
 type EventTheme {
     id: ID!
     name: String!
+    is_default: Boolean
     user: User! @belongsTo(relation: "user")
     created_at: DateTime
     updated_at: DateTime
@@ -20,6 +21,7 @@ type EventTheme {
 type EventThemeArea {
     id: ID!
     name: String!
+    is_default: Boolean
     user: User! @belongsTo(relation: "user")
     created_at: DateTime
     updated_at: DateTime
@@ -39,6 +41,7 @@ type EventThemeArea {
 type EventType {
     id: ID!
     name: String!
+    is_default: Boolean
     user: User! @belongsTo(relation: "user")
     created_at: DateTime
     updated_at: DateTime
@@ -58,6 +61,7 @@ type EventType {
 type EventClass {
     id: ID!
     name: String!
+    is_default: Boolean
     user: User! @belongsTo(relation: "user")
     created_at: DateTime
     updated_at: DateTime
@@ -78,6 +82,7 @@ type EventStatus {
     id: ID!
     name: String!
     slug: String
+    is_default: Boolean
     user: User! @belongsTo(relation: "user")
     created_at: DateTime
     updated_at: DateTime

@@ -11,6 +11,11 @@ enum PeriodType {
     YEAR
 }
 
+enum OrderStatsExcludeMode {
+    IN_RANGE # exclude an order from turnover only if it hit an excluded state within the queried period
+    CURRENT # exclude an order whenever its current status is excluded (live snapshot)
+}
+
 type OrderPaymentBreakdownItem {
     label: String!
     total_transactions: Int!
@@ -142,6 +147,7 @@ input OrderStatsInput {
     finalStates: [String!]
     currentCountStates: [String!]
     productId: Int # Filter by product ID (orders containing variants of this product)
+    variantId: Int # Filter by a single variant (e.g. one impound center); takes precedence over productId
     productTypeSlugs: [String!] # Filter services by product type slugs (e.g., ["service", "accessory"])
     orderTypeNames: [String!] # Filter by order type names (e.g., ["parking", "reservation"])
     date: String # single date (e.g., "2025-07-07")
@@ -153,6 +159,8 @@ input OrderStatsInput {
     provider_company_id: [ID!] # DB-level filter: only orders linked to these provider companies via order_providers
     providers: [ProviderInput!] # Email-pattern byProvider breakdown (same as OrderPaymentStatsInput)
     user_email: String # Filter by order user email
+    excludeStates: [String!] # States that neutralize an order in turnover — counts as neither entry nor exit (e.g. ["cancelled"]); empty = no exclusion
+    excludeMode: OrderStatsExcludeMode # How excludeStates is applied: CURRENT (default, live) or IN_RANGE (within period)
 }
 
 input ProviderInput {

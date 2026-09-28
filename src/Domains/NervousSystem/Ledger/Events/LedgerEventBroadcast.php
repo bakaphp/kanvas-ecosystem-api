@@ -28,6 +28,10 @@ class LedgerEventBroadcast implements ShouldBroadcast
      */
     public string $broadcastQueue = LedgerQueueEnum::LEDGER->value;
 
+    public int $tries = 3;
+
+    public array $backoff = [10, 30];
+
     public function __construct(
         public Event $event,
     ) {

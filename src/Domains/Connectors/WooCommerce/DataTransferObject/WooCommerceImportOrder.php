@@ -28,6 +28,7 @@ class WooCommerceImportOrder extends OrderDto
         object $order,
         ?Address $shippingAddress = null,
         ?Address $billingAddress = null,
+        ?string $orderNumberOverride = null,
     ): self {
         $items = [];
         $currency = Currencies::getByCode($order->currency);
@@ -81,8 +82,17 @@ class WooCommerceImportOrder extends OrderDto
             default => throw new InvalidArgumentException('Invalid status'),
         };
 
-        // Calculate total before discount (WooCommerce's total is already discounted)
-        $totalBeforeDiscount = (float)$order->total + (float)$order->discount_total;
+        $wooCommerceMeta = self::normalizeMetaData($order->meta_data ?? []);
+
+        // WooCommerce ships gateway as a machine id + human title; keep the title when present.
+        $paymentGateway = array_values(array_filter([
+            $order->payment_method_title ?? $order->payment_method ?? null,
+        ]));
+
+        // trp_language is a locale like "es_ES"; Kanvas stores the primary subtag ("es").
+        $languageCode = isset($wooCommerceMeta['trp_language'])
+            ? explode('_', (string) $wooCommerceMeta['trp_language'])[0]
+            : null;
 
         return new self(
             app: $app,
@@ -91,17 +101,59 @@ class WooCommerceImportOrder extends OrderDto
             people: $people,
             user: $user,
             token: $order->order_key,
-            orderNumber: (string)$order->number,
+            orderNumber: $orderNumberOverride ?? (string) $order->number,
             shippingAddress: $shippingAddress,
             billingAddress: $billingAddress,
-            total: $totalBeforeDiscount,
+            email: $order->billing->email ?? null,
+            phone: $order->billing->phone ?? null,
+            paymentGatewayName: $paymentGateway,
+            languageCode: $languageCode,
+            // Seed total is 0: the base Order DTO's getOrderItems() ADDS each line item's
+            // (price x quantity) onto this value. Passing WooCommerce's order total here double-counted
+            // the products (order total already includes them), inflating total_gross_amount — the
+            // figure the affiliate commission is calculated off. Let the line items build the total.
+            total: 0.0,
             totalDiscount: (float)$order->discount_total,
             totalShipping: $shippingLine,
             taxes: $taxTotal,
             status: $status,
             checkoutToken: '',
             currency: $currency,
+            metadata: $wooCommerceMeta !== [] ? ['woocommerce_meta_data' => $wooCommerceMeta] : null,
             items: $items,
         );
+    }
+
+    /**
+     * Flatten WooCommerce order meta_data into a key => value map.
+     *
+     * The REST API returns an array of {id, key, value} objects; some webhook payloads send an
+     * already-associative object. Handle both so the caller always gets a plain associative array.
+     *
+     * @param iterable<mixed> $metaData
+     *
+     * @return array<string, mixed>
+     */
+    private static function normalizeMetaData(iterable $metaData): array
+    {
+        $normalized = [];
+
+        foreach ($metaData as $key => $meta) {
+            if (is_object($meta) && isset($meta->key)) {
+                $normalized[(string) $meta->key] = $meta->value ?? null;
+
+                continue;
+            }
+
+            if (is_array($meta) && isset($meta['key'])) {
+                $normalized[(string) $meta['key']] = $meta['value'] ?? null;
+
+                continue;
+            }
+
+            $normalized[(string) $key] = $meta;
+        }
+
+        return $normalized;
     }
 }

@@ -9,10 +9,16 @@ use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadStatus;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Zoho Deal Updates Lead Status',
+    description: 'Receiver that moves a Kanvas lead\'s status when its Zoho deal changes, so the pipeline '
+        . 'reflects what sales did in Zoho. Inbound one-way, status only.',
+    integration: IntegrationsEnum::ZOHO,
+)]
 class UpdateLeadFromZohoDealWebhookJob extends ProcessWebhookJob
 {
     #[Override]

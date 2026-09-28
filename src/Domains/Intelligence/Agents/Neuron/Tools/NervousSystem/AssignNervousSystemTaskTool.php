@@ -8,20 +8,24 @@ use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesTaskForTool;
+use Kanvas\NervousSystem\Plan\Support\MentionHandle;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForTaskJob;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
  * Lets the PM assign a task to a member agent — the "delegate the work" verb of orchestration. The
  * assigned agent becomes the task's executor (Task.agent_id).
  */
-#[AgentTool(name: 'Assign Task')]
-class AssignNervousSystemTaskTool extends Tool
+#[AgentTool(name: 'Assign Task', category: 'nervous_system')]
+class AssignNervousSystemTaskTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
     use ResolvesTaskForTool;
 
     public function __construct()
@@ -85,6 +89,19 @@ class AssignNervousSystemTaskTool extends Tool
         $task->agent_id = $agent->getId();
         $task->saveQuietly();
 
+        // A plan nobody owns is inert: WakeWorkerForPlanJob returns on its first line, the plan-change
+        // wake bails, and a comment on its board wakes nobody — so the work sits there while the PM
+        // hand-drives it task by task (plan 22975). Assigning the first task adopts the plan for that
+        // assignee. Only when it is unowned: a plan already delegated keeps its owner.
+        $plan = $task->plan;
+        $adoptedPlan = false;
+
+        if ($plan !== null && $plan->agent_id === null && $plan->assigned_users_id === null) {
+            $plan->agent_id = $agent->getId();
+            $plan->saveQuietly();
+            $adoptedPlan = true;
+        }
+
         // Delegation means the assignee actually runs — wake it to execute the task.
         WakeAgentForTaskJob::dispatch($task);
 
@@ -92,6 +109,10 @@ class AssignNervousSystemTaskTool extends Tool
             'task_id' => $task->getId(),
             'agent_id' => $agent->getId(),
             'agent_name' => $agent->name,
+            // The only form an @mention can be written in: the parser matches ONE @token, so the
+            // display name ("Format Specialist") becomes "@Format" and reaches nobody.
+            'agent_handle' => MentionHandle::forUser($agent->user, $this->app),
+            'plan_owner_set' => $adoptedPlan,
         ];
     }
 }

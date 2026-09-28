@@ -5,6 +5,8 @@ namespace Kanvas\Connectors\EchoPay\Workflows\Activities;
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Souk\Payments\Actions\EnforceCardVelocityLimitAction;
 use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Kanvas\Souk\Payments\Providers\PortalPaymentProcessor;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -13,7 +15,13 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'EchoPay Process Payment',
+    description: 'Charges the customer\'s card through EchoPay for a pending payment on an order. This MOVES '
+        . 'MONEY — attach it only where a charge is genuinely intended, and never to a trigger that can '
+        . 'fire more than once for the same payment.',
+    integration: IntegrationsEnum::ECHO_PAY,
+)]
 class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]
@@ -32,6 +40,16 @@ class ProcessPaymentActivity extends KanvasActivity implements WorkflowActivityI
                         'status' => 'error',
                         'message' => 'Payment processor is not portal',
                     ];
+                }
+
+                try {
+                    new EnforceCardVelocityLimitAction($payment)->execute();
+                } catch (ValidationException $e) {
+                    return $this->failWorkflow([
+                        'payment' => $payment->getId(),
+                        'status' => 'error',
+                        'message' => $e->getMessage(),
+                    ]);
                 }
 
                 $order = $payment->order;

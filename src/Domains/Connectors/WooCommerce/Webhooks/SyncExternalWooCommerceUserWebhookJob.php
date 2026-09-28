@@ -17,7 +17,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'WooCommerce Sync Customer Account',
+    description: 'Receiver that creates or updates the Kanvas user behind a WooCommerce customer, so the same '
+        . 'person is one account on both sides. Creates real user accounts — inbound only.',
+)]
 class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
 {
     #[Override]
@@ -108,10 +112,10 @@ class SyncExternalWooCommerceUserWebhookJob extends ProcessWebhookJob
     {
         $registerInput = $this->prepareRegisterInput([
             'email' => $user->email,
-            'firstname' => $user->firstname,
-            'lastname' => $user->lastname,
+            'first_name' => $user->firstname,
+            'last_name' => $user->lastname,
             'displayname' => $user->displayname,
-            'password' => $userData['password'],
+            'password' => $userData['password'] ?? null,
             'phone_number' => $user->phone_number,
             'cell_phone_number' => $user->cell_phone_number,
             'custom_fields' => $userData['custom_fields'] ?? [],

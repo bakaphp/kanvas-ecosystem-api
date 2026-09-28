@@ -9,9 +9,10 @@ use Baka\Contracts\CompanyInterface;
 use Kanvas\Intelligence\AgentRuntime\Contracts\ProviderConfig;
 use Kanvas\Intelligence\AgentRuntime\Exceptions\AgentRuntimeUnreachableException;
 use Kanvas\Intelligence\Agents\Models\AgentMachine;
-use phpseclib3\Crypt\Common\PrivateKey;
-use phpseclib3\Crypt\PublicKeyLoader;
-use phpseclib3\Net\SFTP;
+use phpseclib4\Crypt\Common\PrivateKey;
+use phpseclib4\Crypt\PublicKeyLoader;
+use phpseclib4\Net\SFTP;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -21,7 +22,9 @@ use Throwable;
  *  - Company-based: reads SSH creds from company custom fields (legacy CLI model)
  *  - Machine-based: reads SSH creds from AgentMachine model (Docker isolation model)
  *
- * Uses phpseclib3 SFTP (which extends SSH2) for command execution and file transfer.
+ * Uses phpseclib4 SFTP (which extends SSH2) for command execution and file transfer.
+ * phpseclib4 signals filesystem failures by throwing instead of returning false, so the
+ * bool-returning helpers below translate those throws back into the false callers expect.
  *
  * Concrete subclasses (AgentRuntime\SshClient, Hermes\SshClient) implement:
  *  - makeProviderConfig(): ProviderConfig — supplies all provider-specific constants
@@ -87,9 +90,10 @@ abstract class SshClient
     public function exec(string $command, int $timeout = 30): string
     {
         $this->sftp->setTimeout($timeout);
-        $result = $this->sftp->exec($command);
 
-        return is_string($result) ? $result : '';
+        // Keep the `?? ''`. Psalm calls it redundant because exec() is annotated
+        // `($callback is callable ? null : string)`, but the PTY branch returns null with no callback.
+        return $this->sftp->exec($command) ?? '';
     }
 
     public function cli(string $subcommand): string
@@ -129,32 +133,49 @@ abstract class SshClient
 
     public function writeFile(string $remotePath, string $content): bool
     {
-        $dir = dirname($remotePath);
-        $this->sftp->mkdir($dir, 0755, true);
-
-        return $this->sftp->put($remotePath, $content);
+        return $this->putRemote($remotePath, $content, SFTP::SOURCE_STRING);
     }
 
     // SOURCE_LOCAL_FILE streams from disk — avoids loading the whole file into memory.
     public function uploadFromFile(string $remotePath, string $localPath): bool
     {
-        $dir = dirname($remotePath);
-        $this->sftp->mkdir($dir, 0755, true);
+        return $this->putRemote($remotePath, $localPath, SFTP::SOURCE_LOCAL_FILE);
+    }
 
-        return $this->sftp->put($remotePath, $localPath, SFTP::SOURCE_LOCAL_FILE);
+    // mkdir shares the put's catch on purpose: v3 returned false for an already-existing dir (hence the
+    // ignored return), while v4 returns early for that case — so it only throws when the put would fail too.
+    private function putRemote(string $remotePath, string $source, int $mode): bool
+    {
+        try {
+            $this->sftp->mkdir(dirname($remotePath), 0755, true);
+            $this->sftp->put($remotePath, $source, $mode);
+        } catch (RuntimeException) {
+            return false;
+        }
+
+        return true;
     }
 
     public function readFile(string $remotePath): string
     {
-        $result = $this->sftp->get($remotePath);
-
-        return is_string($result) ? $result : '';
+        try {
+            return $this->sftp->get($remotePath) ?? '';
+        } catch (RuntimeException) {
+            return '';
+        }
     }
 
     // Streams to disk — avoids loading the whole file into memory.
+    // get() returns null once it has written to $localPath, so success is "it didn't throw".
     public function downloadToFile(string $remotePath, string $localPath): bool
     {
-        return (bool) $this->sftp->get($remotePath, $localPath);
+        try {
+            $this->sftp->get($remotePath, $localPath);
+        } catch (RuntimeException) {
+            return false;
+        }
+
+        return true;
     }
 
     public function getProviderHome(): string

@@ -15,7 +15,13 @@ use Kanvas\Workflow\KanvasActivity;
 use Stripe\StripeClient;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Stripe Create Order Payment Intent',
+    description: 'Creates the Stripe payment intent for an order and stores it, which is what lets the '
+        . 'checkout collect the card. No money moves here — the charge is confirmed later, and the '
+        . 'result arrives on the order-payment receiver.',
+    integration: IntegrationsEnum::STRIPE,
+)]
 class SetOrderPaymentIntentActivity extends KanvasActivity
 {
     public $tries = 3;

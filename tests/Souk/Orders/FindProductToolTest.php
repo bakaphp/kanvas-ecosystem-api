@@ -6,10 +6,13 @@ namespace Tests\Souk\Orders;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\CreateSampleOrderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindProductTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Sales\FindSalesOrderTool;
 use Kanvas\Inventory\Products\Actions\CreateProductAction;
 use Kanvas\Inventory\Products\DataTransferObject\Product as ProductDto;
 use Kanvas\Inventory\Support\Setup as InventorySetup;
+use NeuronAI\Tools\HasRunKey;
 use Tests\TestCase;
 
 class FindProductToolTest extends TestCase
@@ -48,5 +51,35 @@ class FindProductToolTest extends TestCase
 
         $this->assertSame(0, (int) $result['count']);
         $this->assertSame([], $result['products']);
+    }
+
+    /**
+     * Quoting a multi-line order means calling these once per line, so each must key its run budget by
+     * inputs — otherwise the 11th DISTINCT call in a turn trips NeuronAI's per-tool-name cap and aborts
+     * the whole turn (Sentry KANVAS-ECOSYSTEM-64Q).
+     */
+    public function test_commerce_per_record_tools_key_their_run_budget_by_inputs(): void
+    {
+        $tools = [
+            new FindProductTool(),
+            new FindSalesOrderTool(),
+            new CreateSampleOrderTool(),
+        ];
+
+        foreach ($tools as $tool) {
+            $this->assertInstanceOf(HasRunKey::class, $tool, $tool->getName() . ' must key its run budget by inputs.');
+
+            $tool->setInputs(['query' => 'Kraken Elite', 'order_number' => 'SO-1', 'sku' => 'RL-KP336']);
+            $keyOne = $tool->getRunKey();
+
+            $tool->setInputs(['query' => 'Kraken Mini', 'order_number' => 'SO-2', 'sku' => 'RL-KP337']);
+            $keyTwo = $tool->getRunKey();
+
+            $tool->setInputs(['query' => 'Kraken Elite', 'order_number' => 'SO-1', 'sku' => 'RL-KP336']);
+            $keyOneAgain = $tool->getRunKey();
+
+            $this->assertNotEquals($keyOne, $keyTwo, $tool->getName() . ': distinct records must not share a run budget.');
+            $this->assertEquals($keyOneAgain, $keyOne, $tool->getName() . ': identical calls must collapse so a loop is still capped.');
+        }
     }
 }

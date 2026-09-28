@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\GraphQL\Inventory\Mutations\Products;
 
 use Baka\Support\Str;
-use InvalidArgumentException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Companies\Repositories\CompaniesRepository;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Imports\Actions\WriteImporterArrayToJsonlFileAction;
 use Kanvas\Inventory\Importer\DataTransferObjects\ProductImporter;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob as ImporterJob;
@@ -36,7 +36,7 @@ class ImportMutation
         $region = ! isset($req['regionId']) ? Regions::getDefault($company) : RegionRepository::getById($req['regionId'], $company);
 
         if (empty($req['input']) || ! is_array($req['input'])) {
-            throw new InvalidArgumentException('Input array cannot be empty.');
+            throw new ValidationException('Input array cannot be empty.');
         }
 
         //verify it has the correct format

@@ -9,9 +9,11 @@ use Kanvas\HumanResources\Employees\Services\EmployeeIdentityResolver;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HandlesLeaveForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -20,10 +22,11 @@ use Override;
  * balance, never anyone else's.
  */
 #[AgentTool(name: 'Get My Leave Balance', category: 'human_resources')]
-class GetMyLeaveBalanceTool extends Tool
+class GetMyLeaveBalanceTool extends Tool implements HasRunKey
 {
     use HandlesLeaveForTool;
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

@@ -8,11 +8,16 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Notifications\AnonymousNotifiable;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SendEmailTool;
+use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Notifications\Templates\Blank;
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Tests\TestCase;
 
@@ -43,13 +48,20 @@ class SendEmailToolTest extends TestCase
         return $lead;
     }
 
+    private function tool(): SendEmailTool
+    {
+        $user = auth()->user();
+
+        return new SendEmailTool()->withContext(app(Apps::class), $user->getCurrentCompany(), $user);
+    }
+
     public function testSendEmailSendsToTheAddressOnFileAndLogsTheLead(): void
     {
         Notification::fake();
         $lead = $this->makeLead();
         $lead->people->addEmail('prospect@example.com');
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the **quote** you asked for.',
@@ -58,6 +70,18 @@ class SendEmailToolTest extends TestCase
         $this->assertSame('success', $result['status']);
         $this->assertSame('prospect@example.com', $result['to']);
         $this->assertSame('Your quote', $result['subject']);
+
+        $channel = Channel::getById($result['channel_id']);
+        $outbound = Message::getById($result['message_id'], app(Apps::class));
+
+        $this->assertSame(
+            SessionChannelService::createChannelSlug('email', 'prospect@example.com'),
+            $channel->slug,
+        );
+        $this->assertSame('mailgun-email', $outbound->messageType->verb);
+        $this->assertSame('Here is the **quote** you asked for.', $outbound->message['content']);
+        $this->assertSame('Your quote', $outbound->get('title'));
+        $this->assertTrue($channel->messages()->whereKey($outbound->getId())->exists());
 
         Notification::assertSentOnDemand(
             Blank::class,
@@ -81,7 +105,7 @@ class SendEmailToolTest extends TestCase
         Notification::fake();
         $lead = $this->makeLead();
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -98,7 +122,7 @@ class SendEmailToolTest extends TestCase
         $lead->people->addEmail('optout@example.com');
         $lead->people->contacts()->where('value', 'optout@example.com')->update(['is_opt_out' => 1]);
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -114,7 +138,7 @@ class SendEmailToolTest extends TestCase
         $lead = $this->makeLead();
         $lead->people->addEmail('prospect@example.com');
 
-        new SendEmailTool()->__invoke(
+        $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -130,7 +154,7 @@ class SendEmailToolTest extends TestCase
         $lead->people->addEmail('prospect@example.com');
         $lead->set('title_email_follow_up', 'Your inquiry about the Civic');
 
-        new SendEmailTool()->__invoke(
+        $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -155,7 +179,7 @@ class SendEmailToolTest extends TestCase
             'weight' => 0,
         ]);
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -171,7 +195,7 @@ class SendEmailToolTest extends TestCase
         $lead = $this->makeLead();
         $lead->people->addEmail('dead@example.com')->markBounce(permanent: true);
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -188,7 +212,7 @@ class SendEmailToolTest extends TestCase
         $lead = $this->makeLead();
         $lead->people->addEmail('flaky@example.com')->markBounce(permanent: false);
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -205,7 +229,7 @@ class SendEmailToolTest extends TestCase
         $lead->people->addEmail('prospect@example.com');
         $lead->set('do_not_contact', 1);
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -221,7 +245,7 @@ class SendEmailToolTest extends TestCase
         $lead = $this->makeLead();
         $lead->people->addEmail('prospect@example.com');
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: $lead->getId(),
             subject: '   ',
             body: 'Here is the quote.',
@@ -235,7 +259,7 @@ class SendEmailToolTest extends TestCase
     {
         Notification::fake();
 
-        $result = new SendEmailTool()->__invoke(
+        $result = $this->tool()->__invoke(
             lead_id: 999999999,
             subject: 'Your quote',
             body: 'Here is the quote.',
@@ -243,5 +267,228 @@ class SendEmailToolTest extends TestCase
 
         $this->assertSame('error', $result['status']);
         Notification::assertNothingSent();
+    }
+
+    public function testSendEmailCopiesAnOtherContactOnTheLeadPerson(): void
+    {
+        Notification::fake();
+        $lead = $this->makeLead();
+        $lead->people->addEmail('prospect@example.com');
+        $lead->people->addEmail('spouse@example.com');
+
+        $result = $this->tool()->__invoke(
+            lead_id: $lead->getId(),
+            subject: 'Your quote',
+            body: 'Here is the quote.',
+            cc: 'spouse@example.com',
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('prospect@example.com', $result['to']);
+        $this->assertSame(['spouse@example.com'], $result['cc']);
+        $this->assertSame([], $result['cc_rejected']);
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification): bool => $notification->getCc() === ['spouse@example.com']
+        );
+    }
+
+    public function testSendEmailCopiesAContactOnTheLeadOrganization(): void
+    {
+        Notification::fake();
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $lead = $this->makeLead();
+        $lead->people->addEmail('prospect@example.com');
+
+        $org = Organization::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'users_id' => auth()->user()->getId(),
+            'name' => 'Latino Express',
+            'address' => '',
+            'total_employees' => 0,
+        ]);
+        $hrPerson = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['firstname' => 'Karla', 'lastname' => 'Feliz']);
+        $hrPerson->contacts()->delete();
+        $hrPerson->addEmail('hr@example.com');
+        $hrPerson->organizations()->attach($org->getId(), ['created_at' => now()]);
+
+        $lead->organization_id = $org->getId();
+        $lead->saveOrFail();
+
+        $result = $this->tool()->__invoke(
+            lead_id: $lead->getId(),
+            subject: 'Policy update',
+            body: 'Here is the update.',
+            cc: 'hr@example.com',
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame(['hr@example.com'], $result['cc']);
+        $this->assertSame([], $result['cc_rejected']);
+    }
+
+    public function testSendEmailCopiesAParticipantOnTheLead(): void
+    {
+        Notification::fake();
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $lead = $this->makeLead();
+        $lead->people->addEmail('prospect@example.com');
+
+        $coBuyer = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['firstname' => 'Ana', 'lastname' => 'Perez']);
+        $coBuyer->contacts()->delete();
+        $coBuyer->addEmail('cobuyer@example.com');
+
+        $lead->addParticipant($coBuyer);
+
+        $result = $this->tool()->__invoke(
+            lead_id: $lead->getId(),
+            subject: 'Your quote',
+            body: 'Here is the quote.',
+            cc: 'cobuyer@example.com',
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame('prospect@example.com', $result['to']);
+        $this->assertSame(['cobuyer@example.com'], $result['cc']);
+        $this->assertSame([], $result['cc_rejected']);
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification): bool => $notification->getCc() === ['cobuyer@example.com']
+        );
+    }
+
+    public function testSendEmailDoesNotCopyARemovedParticipant(): void
+    {
+        Notification::fake();
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $lead = $this->makeLead();
+        $lead->people->addEmail('prospect@example.com');
+
+        $formerParticipant = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId($company->getId())
+            ->create(['firstname' => 'Luis', 'lastname' => 'Gomez']);
+        $formerParticipant->contacts()->delete();
+        $formerParticipant->addEmail('former@example.com');
+
+        $lead->addParticipant($formerParticipant);
+        $lead->removeParticipant($formerParticipant);
+
+        $result = $this->tool()->__invoke(
+            lead_id: $lead->getId(),
+            subject: 'Your quote',
+            body: 'Here is the quote.',
+            cc: 'former@example.com',
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame([], $result['cc']);
+        $this->assertSame(['former@example.com'], $result['cc_rejected']);
+    }
+
+    public function testSendEmailDoesNotCopyAParticipantBelongingToAnotherCompany(): void
+    {
+        Notification::fake();
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        $lead = $this->makeLead();
+        $lead->people->addEmail('prospect@example.com');
+
+        // A participant row can be written by paths that never check the tenant (connector imports,
+        // lead merges), so the CC allowlist has to reject a foreign person on its own.
+        $foreignPerson = People::factory()
+            ->withAppId($app->getId())
+            ->withCompanyId(Companies::factory()->create()->getId())
+            ->create(['firstname' => 'Otra', 'lastname' => 'Empresa']);
+        $foreignPerson->contacts()->delete();
+        $foreignPerson->addEmail('outsider@example.com');
+
+        $lead->addParticipant($foreignPerson);
+
+        $result = $this->tool()->__invoke(
+            lead_id: $lead->getId(),
+            subject: 'Your quote',
+            body: 'Here is the quote.',
+            cc: 'outsider@example.com',
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame([], $result['cc']);
+        $this->assertSame(['outsider@example.com'], $result['cc_rejected']);
+    }
+
+    public function testSendEmailAllowsNoCcWhenTheToolHasNoTenantContext(): void
+    {
+        Notification::fake();
+        $lead = $this->makeLead();
+        $lead->people->addEmail('prospect@example.com');
+        $lead->people->addEmail('spouse@example.com');
+
+        $result = new SendEmailTool()->__invoke(
+            lead_id: $lead->getId(),
+            subject: 'Your quote',
+            body: 'Here is the quote.',
+            cc: 'spouse@example.com',
+        );
+
+        $this->assertSame('error', $result['status']);
+        Notification::assertNothingSent();
+    }
+
+    public function testSendEmailDropsCcAddressesNotOnFile(): void
+    {
+        Notification::fake();
+        $lead = $this->makeLead();
+        $lead->people->addEmail('prospect@example.com');
+
+        $result = $this->tool()->__invoke(
+            lead_id: $lead->getId(),
+            subject: 'Your quote',
+            body: 'Here is the quote.',
+            cc: 'attacker@evil.com',
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame([], $result['cc']);
+        $this->assertSame(['attacker@evil.com'], $result['cc_rejected']);
+
+        Notification::assertSentOnDemand(
+            Blank::class,
+            fn (Blank $notification): bool => $notification->getCc() === []
+        );
+    }
+
+    public function testSendEmailIgnoresACcThatDuplicatesThePrimaryRecipient(): void
+    {
+        Notification::fake();
+        $lead = $this->makeLead();
+        $lead->people->addEmail('prospect@example.com');
+
+        $result = $this->tool()->__invoke(
+            lead_id: $lead->getId(),
+            subject: 'Your quote',
+            body: 'Here is the quote.',
+            cc: 'PROSPECT@example.com',
+        );
+
+        $this->assertSame('success', $result['status']);
+        $this->assertSame([], $result['cc']);
+        $this->assertSame([], $result['cc_rejected']);
     }
 }

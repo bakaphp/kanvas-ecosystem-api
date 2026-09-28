@@ -9,6 +9,7 @@ use Baka\Users\Contracts\UserInterface;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
 use Kanvas\Connectors\DriveCentric\Enums\CustomFieldEnums;
+use Kanvas\Connectors\DriveCentric\Services\LeadUserService;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Guild\Leads\Models\LeadSource;
 use Kanvas\Guild\Leads\Models\LeadStatus;
@@ -47,7 +48,7 @@ class Lead extends DataTransferObjectLead
         $leadStatus = self::getLeadStatus($data);
 
         // Determine lead owner
-        $leadOwnerId = self::getLeadOwnerId($data, $company, $user);
+        $leadOwnerId = self::getLeadOwnerId($data, $company);
 
         $dealId = self::getDealIdentifier($data, 'CrmId');
         $partnerId = self::getDealIdentifier($data, 'PartnerId');
@@ -145,60 +146,25 @@ class Lead extends DataTransferObjectLead
     /**
      * Get lead owner ID from deal data.
      */
-    protected static function getLeadOwnerId(array $data, Companies $company, UserInterface $user): int
+    protected static function getLeadOwnerId(array $data, Companies $company): int
     {
-        // Try to find user from deal's salesperson data
-        $salesUser = $data['salesperson1'] ?? $data['salesPerson'] ?? $data['user'] ?? null;
+        $salesUserId = LeadUserService::extractSalespersonCrmId($data);
 
-        if ($salesUser) {
-            // Extract CrmId from identifiers
-            $salesUserId = null;
-            if (isset($salesUser['identifiers'])) {
-                foreach ($salesUser['identifiers'] as $identifier) {
-                    if (($identifier['type'] ?? '') === 'CrmId') {
-                        $salesUserId = $identifier['value'] ?? null;
-
-                        break;
-                    }
-                }
-            } elseif (isset($salesUser['userId'])) {
-                $salesUserId = $salesUser['userId'];
-            }
-
-            if ($salesUserId) {
-                $userConfig = UserConfig::where('name', 'LIKE', ConfigurationEnum::getUserKey($company) . '%')
-                    ->where('value', $salesUserId)
-                    ->orderBy('users_id', 'DESC')
-                    ->first();
-
-                if ($userConfig) {
-                    return $userConfig->users_id;
-                }
-            }
+        if ($salesUserId === null) {
+            return 0;
         }
 
-        return 0;
+        $userConfig = UserConfig::where('name', 'LIKE', ConfigurationEnum::getUserKey($company) . '%')
+            ->where('value', $salesUserId)
+            ->orderBy('users_id', 'DESC')
+            ->first();
+
+        return $userConfig?->users_id ?? 0;
     }
 
-    /**
-     * Get identifier value from deal identifiers.
-     */
     protected static function getDealIdentifier(array $data, string $type): ?string
     {
-        $identifiers = $data['identifiers'] ?? [];
-
-        foreach ($identifiers as $identifier) {
-            if (($identifier['type'] ?? '') === $type) {
-                return $identifier['value'] ?? null;
-            }
-        }
-
-        // Also check deal ID directly
-        if ($type === 'CrmId' && isset($data['dealId'])) {
-            return (string) $data['dealId'];
-        }
-
-        return null;
+        return LeadUserService::extractDealIdentifier($data, $type);
     }
 
     /**

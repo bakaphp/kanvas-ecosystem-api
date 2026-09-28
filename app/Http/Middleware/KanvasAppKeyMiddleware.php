@@ -92,7 +92,7 @@ class KanvasAppKeyMiddleware
 
         if (! empty($appKey = $request->header($appKeyHeader))) {
             try {
-                $kanvasAppKey = AppKey::where('client_secret_id', $appKey)->firstOrFail();
+                $kanvasAppKey = AppKey::notDeleted()->where('client_secret_id', $appKey)->firstOrFail();
                 $kanvasApp = $kanvasAppKey->app()->firstOrFail();
 
                 if ($kanvasAppKey->hasExpired()) {

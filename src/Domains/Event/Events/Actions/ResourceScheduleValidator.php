@@ -10,13 +10,12 @@ use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\ScheduleException;
 use Kanvas\Event\Events\Models\ScheduleRules;
+use Kanvas\Event\Events\Services\ResourceTimezoneService;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class ResourceScheduleValidator
 {
-    private const DEFAULT_TIMEZONE = 'America/Santo_Domingo';
-
     protected Model $scheduled;
     protected string $tz;
 
@@ -152,9 +151,7 @@ class ResourceScheduleValidator
 
     private function getResourceTimezone(): string
     {
-        return $this->scheduled->tz
-            ?? $this->scheduled->company->timezone
-            ?? self::DEFAULT_TIMEZONE;
+        return ResourceTimezoneService::resolve($this->scheduled);
     }
 
     private function findRuleForDay(Carbon $datetime): ?ScheduleRules

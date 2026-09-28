@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\SalesAssist\Activities;
 
 use Baka\Contracts\AppInterface;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\DriveCentric\Actions\PushPeopleAction;
 use Kanvas\Connectors\DriveCentric\Enums\ConfigurationEnum;
+use Kanvas\Connectors\DriveCentric\Exceptions\DriveCentricException;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
@@ -15,7 +17,12 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist Push Person',
+    description: 'Pushes a person\'s contact record into the SalesAssist legacy CRM. Outbound one-way write; '
+        . 'use the push-lead step for the opportunity itself.',
+    integration: IntegrationsEnum::SALESASSIST,
+)]
 class PushPeopleActivity extends KanvasActivity
 {
     public function execute(People $people, AppInterface $app, array $params): array
@@ -33,7 +40,12 @@ class PushPeopleActivity extends KanvasActivity
             app: $app,
             integration: IntegrationsEnum::INTERNAL,
             additionalParams: $params,
-            integrationOperation: function (People $people, Apps $app, mixed $integrationCompany, array $additionalParams) {
+            integrationOperation: function (
+                People $people,
+                Apps $app,
+                mixed $integrationCompany,
+                array $additionalParams
+            ) {
                 $company = $people->company;
 
                 $isElead = $company->get(CustomFieldEnum::COMPANY->value) !== null;
@@ -44,7 +56,26 @@ class PushPeopleActivity extends KanvasActivity
                 $result = [];
                 if ($isDriveCentric) {
                     $connectedCRM = 'DriveCentric';
-                    $result = new PushPeopleAction($people)->execute();
+
+                    try {
+                        $result = new PushPeopleAction($people)->execute();
+                    } catch (DriveCentricException $e) {
+                        if (! $e->isDataRejection()) {
+                            throw $e;
+                        }
+
+                        Log::warning('SalesAssist push people to DriveCentric failed', [
+                            'people_id' => $people->getId(),
+                            'company_id' => $company->getId(),
+                            'error' => $e->getMessage(),
+                        ]);
+
+                        return $this->failWorkflow([
+                            'error' => $e->getMessage(),
+                            'crm' => $connectedCRM,
+                            'people_id' => $people->getId(),
+                        ]);
+                    }
                 }
 
                 return [

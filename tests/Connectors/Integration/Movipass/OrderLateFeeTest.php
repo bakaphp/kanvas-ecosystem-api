@@ -17,6 +17,7 @@ use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 use Tests\GraphQL\Inventory\Traits\InventoryCases;
 use Tests\TestCase;
 
@@ -301,12 +302,14 @@ class OrderLateFeeTest extends TestCase
 
         $this->assertCount(3, $lateOrders);
         $this->assertCount(2, $order->items);
-        $this->assertEquals($total + 200, $order->getTotalAmount()); // 1 day + 30 days
+
+        // The fee is a flat one-time charge, so how late the order is no longer scales it.
+        $this->assertEquals($total + 100, $order->getTotalAmount());
 
         // Check that updated_at was NOT changed by late fee processing
         $this->assertEquals($firstUpdatedAt->getTimestamp(), $order->updated_at->getTimestamp(), 'The updated_at timestamp should not change when processing late fees');
-        $this->assertEquals($total + 300, $reservation2->fresh()->getTotalAmount()); // 1 day + 60 days
-        $this->assertEquals($total + 200, $reservation3->fresh()->getTotalAmount()); // 1 day + 59 days
+        $this->assertEquals($total + 100, $reservation2->fresh()->getTotalAmount());
+        $this->assertEquals($total + 100, $reservation3->fresh()->getTotalAmount());
     }
 
     public function testOrderLateFeeWithHolidays(): void
@@ -319,7 +322,7 @@ class OrderLateFeeTest extends TestCase
         // Add special days: Christmas Eve as half-day, custom company day as full day
         $this->company->set(CompaniesEnumsConfigurationEnum::SPECIAL_DAYS->value, [
             [
-                'date' => "2025-12-25",
+                'date' => '2025-12-25',
                 'type' => 'full_day',
                 'name' => 'Christmas',
             ],
@@ -425,12 +428,12 @@ class OrderLateFeeTest extends TestCase
         // Configure company with special days for Dec 24 and 25
         $this->company->set(CompaniesEnumsConfigurationEnum::SPECIAL_DAYS->value, [
             [
-                'date' => "2025-12-24",
+                'date' => '2025-12-24',
                 'type' => 'full_day',
                 'name' => 'Christmas Eve',
             ],
             [
-                'date' => "2025-12-25",
+                'date' => '2025-12-25',
                 'type' => 'full_day',
                 'name' => 'Christmas',
             ],
@@ -781,7 +784,7 @@ class OrderLateFeeTest extends TestCase
         $this->assertEquals($originalTotal + 100, $orderFresh->getTotalAmount());
     }
 
-    public function testLateFeeQuantityIncrementsWithoutDuplicating(): void
+    public function testLateFeeStaysAtASingleUnitNoMatterHowLate(): void
     {
         Notification::fake();
         $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
@@ -852,15 +855,98 @@ class OrderLateFeeTest extends TestCase
         $this->assertEquals(1, $order->fresh()->items()->where('variant_id', $lateFeeVariantId)->count());
         $this->assertEquals(1, $order->fresh()->items()->where('variant_id', $lateFeeVariantId)->first()->quantity);
 
-        // Same order, now 61 days late → feeCount = ceil(60/30) = 2. The existing late-fee
-        // item's quantity must be updated in place, never a second row inserted.
+        // Same order, now 61 days late. The fee is one-time: neither a second row nor a
+        // bumped quantity — the order keeps exactly one unit.
         $laterRun = $rightNow->addDays(30);
         Date::setTestNow($laterRun);
 
         new GenerateOrderLateFee($this->apps)->execute($laterRun->toDateTimeString(), [$order->getId()]);
 
         $this->assertEquals(1, $order->fresh()->items()->where('variant_id', $lateFeeVariantId)->count());
-        $this->assertEquals(2, $order->fresh()->items()->where('variant_id', $lateFeeVariantId)->first()->quantity);
+        $this->assertEquals(1, $order->fresh()->items()->where('variant_id', $lateFeeVariantId)->first()->quantity);
+    }
+
+    public function testNoLateFeeOnceTheOrderIsPaid(): void
+    {
+        Notification::fake();
+        $this->apps->set(ConfigurationEnum::CHECK_EXPIRED_ORDERS->value, '1');
+        $this->apps->set(EnumsConfigurationEnum::GRACE_PERIOD_DAYS->value, '1');
+
+        $lateFeeProductResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late_fee',
+                'value' => 100,
+            ],
+        ])->json()['data']['createProduct'];
+
+        $lateFee = Products::find($lateFeeProductResponse['id']);
+
+        $productResponse = $this->createProduct(attributes: [
+            [
+                'name' => 'late-fee-variant-id',
+                'value' => $lateFee->variants()->first()->id,
+            ],
+        ])->json()['data']['createProduct'];
+
+        $product = Products::find($productResponse['id']);
+
+        $this->addVariantToChannel(
+            variantId: (string) $lateFee->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        );
+
+        $this->addVariantToChannel(
+            variantId: (string) $product->variants()->first()->id,
+            channelId: $this->channelResponse['id'],
+            warehouseData: ['id' => $this->warehouseResponse['id']]
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $lateFee->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $this->addVariantToWarehouse(
+            variantId: (string) $product->variants()->first()->id,
+            warehouseId: $this->warehouseResponse['id'],
+            amount: 100
+        );
+
+        $timezone = 'America/New_York';
+        Date::setTestNow(now()->startOfSecond());
+        $rightNow = CarbonImmutable::now($timezone);
+
+        $order = $this->createDraftOrder(
+            variantId: $product->variants()->first()->id,
+            quantity: 1,
+            metadata: [
+                'data' => [
+                    'start_at' => $rightNow->subDays(32)->toDateTimeString(),
+                    'late-fee-variant-id' => $lateFee->variants()->first()->id,
+                    'late_fee_grace_start_at' => $rightNow->subDays(31)->startOfDay()->toDateTimeString(),
+                ],
+            ],
+        );
+
+        $originalTotal = $order->getTotalAmount();
+        $originalItemCount = $order->items()->count();
+
+        // The deposit flow marks the order paid without ever touching fulfillment_status,
+        // which used to be the only thing stopping the hourly charge.
+        $order->payment_status = PaymentStatusEnum::PAID->value;
+        $order->saveQuietly();
+
+        $lateOrders = new GenerateOrderLateFee($this->apps)
+            ->execute($rightNow->toDateTimeString(), [$order->getId()]);
+
+        $orderFresh = $order->fresh();
+
+        $this->assertCount(0, $lateOrders, 'A paid order must never be picked up as late');
+        $this->assertEquals($originalItemCount, $orderFresh->items()->count());
+        $this->assertEquals($originalTotal, $orderFresh->getTotalAmount());
+        $this->assertEquals('pending', $orderFresh->fulfillment_status);
     }
 
     public function testAddAndRemoveLateFee(): void

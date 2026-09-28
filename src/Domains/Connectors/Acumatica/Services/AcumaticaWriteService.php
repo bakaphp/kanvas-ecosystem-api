@@ -58,6 +58,7 @@ class AcumaticaWriteService
      * @param array<string, mixed>                                             $body  `{value:}`-wrapped (AcumaticaPayload::wrap)
      * @param array<int, array{name: string, content: string, type?: string}> $files
      * @param array<string, mixed>|null                                        $findQuery OData filter to adopt an existing record
+     * @param string                                                            $releaseAction action name to invoke when $release is true (some entities use a non-generic name, e.g. Check -> ReleaseCheck)
      *
      * @return array<array-key, mixed> the persisted record (includes the `id` GUID)
      */
@@ -66,9 +67,11 @@ class AcumaticaWriteService
         array $body,
         bool $release = false,
         array $files = [],
-        ?array $findQuery = null
+        ?array $findQuery = null,
+        string $releaseAction = 'Release'
     ): array {
         $this->assertWriteEnabled();
+        $this->keepRunningPastClientDisconnect();
 
         $client = $this->client();
 
@@ -91,7 +94,7 @@ class AcumaticaWriteService
                 $id = AcumaticaPayload::recordId($record);
 
                 if ($id !== null) {
-                    $client->invokeAction($entity, 'Release', ['entity' => ['id' => $id]]);
+                    $client->invokeAction($entity, $releaseAction, ['entity' => ['id' => $id]]);
                 }
             }
 
@@ -109,6 +112,7 @@ class AcumaticaWriteService
     public function withSession(callable $callback): mixed
     {
         $this->assertWriteEnabled();
+        $this->keepRunningPastClientDisconnect();
 
         $client = $this->client();
 
@@ -134,6 +138,7 @@ class AcumaticaWriteService
     public function findOrCreate(string $entity, array $query, array $createBody): array
     {
         $this->assertWriteEnabled();
+        $this->keepRunningPastClientDisconnect();
 
         $client = $this->client();
 
@@ -196,5 +201,11 @@ class AcumaticaWriteService
         } catch (Throwable) {
             // A failed logout must never mask the real write error.
         }
+    }
+
+    /** A client disconnect mid-write would otherwise abort PHP before our finally-block logout runs, leaking the Acumatica session. */
+    private function keepRunningPastClientDisconnect(): void
+    {
+        ignore_user_abort(true);
     }
 }

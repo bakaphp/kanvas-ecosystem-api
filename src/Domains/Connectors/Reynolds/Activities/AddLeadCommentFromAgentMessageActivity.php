@@ -15,7 +15,12 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Override;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Reynolds Add Lead Comment From Agent Message',
+    description: 'Copies an agent\'s message into the Reynolds lead as a comment, so the CRM shows what the '
+        . 'agent said. Writes to Reynolds only; it sends nothing to the customer.',
+    integration: IntegrationsEnum::REYNOLDS,
+)]
 class AddLeadCommentFromAgentMessageActivity extends BaseAddLeadCommentFromAgentMessageActivity
 {
     #[Override]
@@ -56,6 +61,8 @@ class AddLeadCommentFromAgentMessageActivity extends BaseAddLeadCommentFromAgent
         try {
             return new AddNoteToLeadAction($lead, $note)->execute();
         } catch (Throwable $e) {
+            report($e);
+
             return $this->failWorkflow([
                 'error' => 'Reynolds USL Note failed: ' . $e->getMessage(),
             ]);

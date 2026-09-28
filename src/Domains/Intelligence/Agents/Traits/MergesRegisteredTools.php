@@ -6,13 +6,25 @@ namespace Kanvas\Intelligence\Agents\Traits;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Mcp\Services\McpConnectionService;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ProvidesToolDependencies;
+use Kanvas\Intelligence\Agents\Contracts\RequiresMcpConnection;
+use Kanvas\Intelligence\Agents\Contracts\RequiresSystemAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Mcp\RemoteMcpToolkit;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsAdminForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\RequiresHumanCaller;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\NervousSystem\Capability\Services\CapabilityProvider;
+use Kanvas\NervousSystem\Plan\Support\VerifierToolPolicy;
+use Kanvas\NervousSystem\Plan\Support\WorkerToolPolicy;
 use Kanvas\Users\Models\Users;
+use Kanvas\Workflow\Models\Integrations;
+use NeuronAI\Tools\Toolkits\ToolkitInterface;
 use ReflectionClass;
 use ReflectionNamedType;
 use ReflectionParameter;
@@ -54,6 +66,16 @@ trait MergesRegisteredTools
         ?Agent $agent,
         CapabilityFrameworkEnum $framework,
     ): array {
+        // A hardcoded baseline tool is constructed by the subclass, so it never passed through
+        // defaultRegisteredToolResolver() and would otherwise run with uninitialized tenant context —
+        // which for a HasKanvasContext tool means an unscoped query. Fill it here so a tool is
+        // tenant-bound whether the subclass hardcoded it or the registry resolved it.
+        $baseline = array_map(fn (object $tool): object => $this->fillKanvasContext($tool), $baseline);
+        $baseline = array_values(array_filter(
+            $baseline,
+            fn (object $tool): bool => $this->keepIfSystemAgent($tool, $agent) !== null,
+        ));
+
         if ($agent === null) {
             return array_values($baseline);
         }
@@ -81,7 +103,78 @@ trait MergesRegisteredTools
             }
         }
 
-        return array_values($baseline);
+        return $this->applyWorkerBoundary(array_values($baseline));
+    }
+
+    /**
+     * Strip tools a task worker may not hold. A single chokepoint on purpose: this is the one place
+     * every toolset is assembled — baseline plus registry, Neuron and Laravel alike — so filtering
+     * here is the difference between a boundary and a request. Outside a worker turn the policy is
+     * inactive and this is a no-op.
+     *
+     * @param list<object> $tools
+     * @return list<object>
+     */
+    protected function applyWorkerBoundary(array $tools): array
+    {
+        $verifying = VerifierToolPolicy::isActive();
+
+        if (! $verifying && ! WorkerToolPolicy::isActive()) {
+            return $tools;
+        }
+
+        // A toolkit answers to neither getName() nor name(), so an MCP grant would otherwise be kept
+        // wholesale under the worker policy (unfiltered) and dropped wholesale under the verifier.
+        // Expanding first makes every MCP tool face the policy on its own name, which is the only way
+        // the boundary means anything here. Guidelines are lost in this mode — restricted execution is
+        // the right place to trade prompt framing for an enforceable allow-list.
+        $tools = $this->expandToolkits($tools);
+
+        return array_values(array_filter(
+            $tools,
+            static function (object $tool) use ($verifying): bool {
+                // The two tool trees name themselves differently; a tool that answers to neither is
+                // kept under the worker policy — silently dropping something unidentifiable is the
+                // worse failure there. Under the verifier it is dropped, because an unidentifiable
+                // tool cannot be shown to be read-only and the allow-list must fail closed.
+                $name = match (true) {
+                    method_exists($tool, 'getName') => $tool->getName(),
+                    method_exists($tool, 'name') => $tool->name(),
+                    default => null,
+                };
+
+                if (! is_string($name)) {
+                    return ! $verifying;
+                }
+
+                return $verifying
+                    ? VerifierToolPolicy::permits($name)
+                    : WorkerToolPolicy::permits($name);
+            },
+        ));
+    }
+
+    /**
+     * @param list<object> $tools
+     * @return list<object>
+     */
+    protected function expandToolkits(array $tools): array
+    {
+        $expanded = [];
+
+        foreach ($tools as $tool) {
+            if (! $tool instanceof ToolkitInterface) {
+                $expanded[] = $tool;
+
+                continue;
+            }
+
+            foreach ($tool->tools() as $inner) {
+                $expanded[] = $inner;
+            }
+        }
+
+        return $expanded;
     }
 
     /**
@@ -90,7 +183,53 @@ trait MergesRegisteredTools
      */
     protected function resolveRegisteredTool(Tool $tool): ?object
     {
+        if ($tool->isMcp()) {
+            return $this->resolveRegisteredMcpTool($tool);
+        }
+
+        if ($tool->agents_id !== null && method_exists($this, 'resolveRegisteredSubAgentTool')) {
+            return $this->resolveRegisteredSubAgentTool($tool);
+        }
+
         return $this->defaultRegisteredToolResolver($tool);
+    }
+
+    /**
+     * An MCP row is backed by an `integrations` row rather than a PHP handler, and resolves to a
+     * toolkit so Neuron expands it lazily into whatever the server currently publishes.
+     */
+    protected function resolveRegisteredMcpTool(Tool $tool): ?object
+    {
+        // Unaudited third-party tools must never reach a prospect — the same reasoning that keeps
+        // read_file off a customer surface. The grant is refused at write time as well, but a marker
+        // can be added to an agent that already holds one, and only this catches that.
+        if ($this instanceof ConversesWithCustomer) {
+            return null;
+        }
+
+        if ($tool->integrations_id === null) {
+            return null;
+        }
+
+        $candidates = $this->dependencyCandidates();
+
+        // Every connection belongs to one agent, which signs in with its own vendor account — so without
+        // the calling agent there is no credential to act with, and nothing to resolve.
+        $agent = $this->firstCandidateOfType($candidates, Agent::class);
+
+        if (! $agent instanceof Agent) {
+            return null;
+        }
+
+        $session = $this->firstCandidateOfType($candidates, Session::class);
+        $human = method_exists($this, 'requestingHuman') ? $this->requestingHuman() : null;
+
+        return new RemoteMcpToolkit(
+            agent: $agent,
+            tool: $tool,
+            session: $session instanceof Session ? $session : null,
+            human: $human instanceof Users ? $human : null,
+        );
     }
 
     protected function defaultRegisteredToolResolver(Tool $tool): ?object
@@ -101,14 +240,10 @@ trait MergesRegisteredTools
 
         $ctor = new ReflectionClass($tool->handler)->getConstructor();
         if ($ctor === null || $ctor->getNumberOfParameters() === 0) {
-            return $this->fillKanvasContext(new $tool->handler());
+            return $this->keepIfSystemAgent($this->keepIfConnected($this->fillKanvasContext(new $tool->handler())));
         }
 
-        // Hosts without a dependency context (non-agent trait users) fall back to
-        // resolving only all-optional-constructor tools — the historical behaviour.
-        $candidates = $this instanceof ProvidesToolDependencies
-            ? $this->toolDependencyCandidates()
-            : [];
+        $candidates = $this->dependencyCandidates();
 
         $args = [];
         foreach ($ctor->getParameters() as $param) {
@@ -126,7 +261,64 @@ trait MergesRegisteredTools
             }
         }
 
-        return $this->fillKanvasContext(new $tool->handler(...$args));
+        return $this->keepIfSystemAgent($this->keepIfConnected($this->fillKanvasContext(new $tool->handler(...$args))));
+    }
+
+    /**
+     * A tool marked `RequiresSystemAgent` runs code on our machines with the agent's git token, so it
+     * is withheld from anything that is not an internal system agent.
+     *
+     * Applied to the hardcoded baseline as well as the registry path — `keepIfConnected` covers only
+     * the latter, and the harness tools are hardcoded on `SelfHostedProgrammingAgent`, so a
+     * registry-only filter would never see them.
+     *
+     * **No agent means no tool**, matching `keepIfConnected`. Nothing legitimate reaches here without
+     * one — `SelfHostedProgrammingAgent::tools()` returns an empty set when its agent is null, and the
+     * registry path runs only after the null check above. So "we cannot tell who this is for" is a
+     * state that should withhold a shell, not hand one over.
+     */
+    private function keepIfSystemAgent(?object $tool, ?Agent $agent = null): ?object
+    {
+        if (! $tool instanceof RequiresSystemAgent) {
+            return $tool;
+        }
+
+        $agent ??= $this->firstCandidateOfType($this->dependencyCandidates(), Agent::class);
+
+        return $agent instanceof Agent && $agent->conversesWithUser() ? $tool : null;
+    }
+
+    /**
+     * A tool that works THROUGH an MCP server is only real while that server is connected — Kernel's file
+     * tools read a browser session over its `exec_command`. Offering one without the connection spends a
+     * round trip on an answer the model cannot act on.
+     */
+    private function keepIfConnected(object $tool): ?object
+    {
+        if (! $tool instanceof RequiresMcpConnection) {
+            return $tool;
+        }
+
+        // A native tool that works through a third-party server reaches the same vendor a toolkit does,
+        // so it is refused on a customer surface for the same reason — resolveRegisteredMcpTool covers
+        // only the toolkit, and this path bypasses it.
+        if ($this instanceof ConversesWithCustomer) {
+            return null;
+        }
+
+        $agent = $this->firstCandidateOfType($this->dependencyCandidates(), Agent::class);
+
+        if (! $agent instanceof Agent) {
+            return null;
+        }
+
+        /** @var Integrations|null $integration */
+        $integration = Integrations::query()
+            ->where('name', $tool->requiredMcpServer())
+            ->where('apps_id', 0)
+            ->first();
+
+        return $integration !== null && new McpConnectionService($agent, $integration)->isEnabled() ? $tool : null;
     }
 
     /**
@@ -137,23 +329,73 @@ trait MergesRegisteredTools
      */
     private function fillKanvasContext(object $tool): object
     {
-        if (! in_array(HasKanvasContext::class, class_uses_recursive($tool), true)) {
-            return $tool;
+        $uses = class_uses_recursive($tool);
+
+        if (in_array(HasKanvasContext::class, $uses, true)) {
+            $candidates = $this->dependencyCandidates();
+
+            $app = $this->firstCandidateOfType($candidates, Apps::class);
+            $company = $this->firstCandidateOfType($candidates, Companies::class);
+            $user = $this->firstCandidateOfType($candidates, Users::class);
+            $actingAgent = $this->firstCandidateOfType($candidates, Agent::class);
+
+            if ($app instanceof Apps && $company instanceof Companies && $user instanceof Users) {
+                $tool->withContext(
+                    $app,
+                    $company,
+                    $user,
+                    $actingAgent instanceof Agent ? $actingAgent : null,
+                );
+            }
         }
 
-        $candidates = $this instanceof ProvidesToolDependencies
-            ? $this->toolDependencyCandidates()
-            : [];
+        // An admin-guarded tool authorizes on the HUMAN in the conversation, which is never a
+        // toolDependencyCandidate — those carry actingUser(), i.e. the agent's own (usually admin)
+        // user. requestingHuman() prefers the identified person over the turn's actor, because on
+        // the @mention and channel surfaces the actor IS the agent's own user — passing that would
+        // let whoever mentions the agent inherit its admin rights.
+        if (in_array(GuardsAdminForTool::class, $uses, true)) {
+            $human = method_exists($this, 'requestingHuman')
+                ? $this->requestingHuman()
+                : (property_exists($this, 'user') ? $this->user : null);
 
-        $app = $this->firstCandidateOfType($candidates, Apps::class);
-        $company = $this->firstCandidateOfType($candidates, Companies::class);
-        $user = $this->firstCandidateOfType($candidates, Users::class);
+            if ($human instanceof Users) {
+                $tool->forRequestingUser($human);
+            }
+        }
 
-        if ($app instanceof Apps && $company instanceof Companies && $user instanceof Users) {
-            $tool->withContext($app, $company, $user);
+        // A self-service tool acts AS the caller, so it needs the same human the admin guard needs —
+        // withContext() above carried actingUser(), which on a SystemUserAgent is the agent itself.
+        if (in_array(RequiresHumanCaller::class, $uses, true)) {
+            $human = method_exists($this, 'requestingHuman')
+                ? $this->requestingHuman()
+                : (property_exists($this, 'user') ? $this->user : null);
+
+            if ($human instanceof Users) {
+                $tool->forConversationHuman($human);
+            }
+        }
+
+        // The record in scope can't come from toolDependencyCandidates() by type (Apps/Companies/Users
+        // all extend Model), so hand the agent's own $entity to tools that opt in via HasEntityContext.
+        if (in_array(HasEntityContext::class, $uses, true) && property_exists($this, 'entity')) {
+            $tool->withEntity($this->entity);
         }
 
         return $tool;
+    }
+
+    /**
+     * Hosts without a dependency context (non-agent trait users) contribute nothing, so every resolver
+     * falls back to the historical all-optional-constructor behaviour.
+     *
+     * @return list<object>
+     */
+    private function dependencyCandidates(): array
+    {
+        return $this instanceof ProvidesToolDependencies
+            ? $this->toolDependencyCandidates()
+            : [];
     }
 
     /**

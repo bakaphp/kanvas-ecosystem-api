@@ -8,6 +8,7 @@ use Baka\Casts\Json;
 use Illuminate\Database\Eloquent\Model as EloquentModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Kanvas\Scribe\Items\Models\Item;
+use Kanvas\Scribe\Ledger\Models\Account;
 
 /**
  * Invoice line. Immutable post-issue (caller responsibility — observer enforcement comes later).
@@ -16,6 +17,7 @@ use Kanvas\Scribe\Items\Models\Item;
  * @property int $invoice_id
  * @property int $sort_order
  * @property int|null $item_id
+ * @property int|null $account_id
  * @property string|null $sku
  * @property string|null $description
  * @property float $quantity
@@ -67,5 +69,10 @@ class InvoiceLine extends EloquentModel
     public function item(): BelongsTo
     {
         return $this->belongsTo(Item::class, 'item_id', 'id');
+    }
+
+    public function account(): BelongsTo
+    {
+        return $this->belongsTo(Account::class, 'account_id', 'id');
     }
 }

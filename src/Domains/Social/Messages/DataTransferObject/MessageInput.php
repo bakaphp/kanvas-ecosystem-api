@@ -9,6 +9,7 @@ use Baka\Contracts\CompanyInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\Validator;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\ValidParentMessage;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
@@ -35,10 +36,12 @@ class MessageInput extends Data
         public ?int $is_public = 1,
         public ?string $slug = null,
         public ?string $channel_slug = null,
+        public ?string $channel_uuid = null,
         public array $files = [],
         public array $categories = [],
         public int $is_locked = 0,
         public array $custom_fields = [],
+        public ?People $people = null,
     ) {
     }
 
@@ -82,6 +85,7 @@ class MessageInput extends Data
             $data['is_public'] ?? 1,
             $data['slug'] ?? null,
             $data['channel_slug'] ?? null,
+            $data['channel_uuid'] ?? null,
             $data['files'] ?? [],
             $data['categories'] ?? [],
             $data['is_locked'] ?? 0,

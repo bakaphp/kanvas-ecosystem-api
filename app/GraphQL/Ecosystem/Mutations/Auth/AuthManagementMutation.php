@@ -18,7 +18,7 @@ use Kanvas\Auth\Actions\SocialLoginAction;
 use Kanvas\Auth\DataTransferObject\LoginInput;
 use Kanvas\Auth\DataTransferObject\RegisterInput;
 use Kanvas\Auth\Services\AuthenticationService;
-use Kanvas\Auth\Services\EmailVerification as EmailVerificationService;
+use Kanvas\Auth\Services\EmailVerification;
 use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
 use Kanvas\Auth\Socialite\SocialManager;
 use Kanvas\Auth\Traits\AuthTrait;
@@ -30,7 +30,6 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Sessions\Models\Sessions;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Enums\UserConfigEnum;
-use Kanvas\Users\Repositories\UsersRepository;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Nuwave\Lighthouse\Exceptions\AuthorizationException;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
@@ -147,7 +146,9 @@ class AuthManagementMutation
         $request = request();
 
         $registeredUser = $user->execute();
-        $tokenResponse = $registeredUser->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
+        $tokenResponse = EmailVerification::isRequiredFor($app)
+            ? null
+            : $registeredUser->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
 
         return [
             'user' => $registeredUser,
@@ -155,16 +156,26 @@ class AuthManagementMutation
         ];
     }
 
-    /**
-     * resolve
-     */
     public function refreshToken(mixed $rootValue, array $req): array
     {
         $token = $this->decodeToken($req['refresh_token']);
+
+        if (! $this->validateJwtToken($token)) {
+            throw new AuthorizationException('Invalid Token');
+        }
+
         if ($token->isExpired(now())) {
             throw new AuthorizationException('Token Expired');
         }
-        $user = UsersRepository::getByEmail($token->claims()->get('email'));
+
+        $app = app(Apps::class);
+        $user = Sessions::getById($token->claims()->get('sessionId'), $app)->user;
+
+        if (! $user) {
+            throw new AuthorizationException('Invalid Token');
+        }
+
+        AuthenticationService::ensureCanAuthenticate($user->getAppProfile($app), $app);
 
         return $user->createToken(AppEnums::DEFAULT_APP_JWT_TOKEN_NAME->getValue())->toArray();
     }
@@ -248,7 +259,7 @@ class AuthManagementMutation
     {
         $app = app(Apps::class);
 
-        return new EmailVerificationService($app)->verify($request['token']);
+        return new EmailVerification($app)->verify($request['token']);
     }
 
     public function resendVerificationEmail(mixed $rootValue, array $request): bool
@@ -266,7 +277,7 @@ class AuthManagementMutation
 
         RateLimiter::hit($rateLimitKey, $decaySeconds);
 
-        return new EmailVerificationService($app)->send($user);
+        return new EmailVerification($app)->send($user);
     }
 
     protected function enforceRegistrationRateLimit(Apps $app): void

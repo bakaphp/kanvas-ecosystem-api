@@ -54,6 +54,17 @@ enum ProjectStatusEnum: string
     }
 
     /**
+     * The terminal statuses as raw string values — for `whereIn('status', ...)` filters and
+     * "is this project still live?" checks.
+     *
+     * @return array<int, string>
+     */
+    public static function terminalStatusValues(): array
+    {
+        return array_map(fn (self $status): string => $status->value, self::terminalStatuses());
+    }
+
+    /**
      * Like ::from() but tolerates common synonyms and case variations — agents and humans
      * naturally reach for these, so accept them rather than throw.
      */

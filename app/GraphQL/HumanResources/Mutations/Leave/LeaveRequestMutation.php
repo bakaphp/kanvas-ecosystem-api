@@ -69,7 +69,7 @@ class LeaveRequestMutation
 
         $approver = new EmployeeIdentityResolver()->fromUser($context->user, $context->company, $context->app);
 
-        if (! $context->user->isAdmin() && ! $this->canManage($approver, $leaveRequest->employee)) {
+        if (! $context->user->isAdmin() && ! $approver?->manages($leaveRequest->employee)) {
             throw new HumanResourcesException('You are not authorized to decide this leave request.');
         }
 
@@ -93,14 +93,5 @@ class LeaveRequestMutation
         }
 
         return new CancelLeaveRequestAction($leaveRequest)->execute();
-    }
-
-    private function canManage(?Employee $manager, Employee $target): bool
-    {
-        if ($manager === null) {
-            return false;
-        }
-
-        return $manager->descendants()->where('id', $target->getId())->exists();
     }
 }

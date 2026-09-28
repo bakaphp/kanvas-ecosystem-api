@@ -17,15 +17,17 @@ use Illuminate\Support\Carbon;
 use Kanvas\Intelligence\Agents\Contracts\HandlesAgentMention;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentSwarm;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Enums\LedgerConfigurationEnum;
 use Kanvas\NervousSystem\Ledger\Traits\EmitsLedgerEventsForEntity;
 use Kanvas\NervousSystem\Models\BaseModel;
+use Kanvas\NervousSystem\Plan\Concerns\TruncatesTitle;
+use Kanvas\NervousSystem\Plan\Enums\PlanBlockedNeedsEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanChangeTypeEnum;
 use Kanvas\NervousSystem\Plan\Enums\PlanStatusEnum;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
 use Kanvas\NervousSystem\Plan\Events\PlanBroadcast;
 use Kanvas\NervousSystem\Plan\Observers\PlanObserver;
-use Kanvas\NervousSystem\Plan\Traits\TruncatesTitleTrait;
 use Kanvas\NervousSystem\Project\Jobs\WakeAgentForProjectJob;
 use Kanvas\NervousSystem\Project\Models\Project;
 use Kanvas\NervousSystem\Project\Services\ProjectMentionTriggerService;
@@ -49,6 +51,7 @@ use Throwable;
  * @property int $apps_id
  * @property int $companies_id
  * @property int|null $agent_id
+ * @property int|null $created_by_agent_id
  * @property int|null $swarm_id
  * @property bool $is_swarm_mission
  * @property int|null $users_id
@@ -61,6 +64,7 @@ use Throwable;
  * @property string $title
  * @property string|null $description
  * @property string $status
+ * @property string|null $board_column_key
  * @property array|null $capability_declined_agent_ids
  * @property int $priority
  * @property \Illuminate\Support\Carbon|null $deadline_at
@@ -68,6 +72,8 @@ use Throwable;
  * @property array|null $input
  * @property array|null $output
  * @property string|null $confidence_score
+ * @property int|null $origin_session_id
+ * @property string|null $blocked_needs
  * @property bool $requires_human_approval
  * @property int|null $approved_by_user_id
  * @property \Illuminate\Support\Carbon|null $approved_at
@@ -89,7 +95,7 @@ class Plan extends BaseModel implements HandlesAgentMention
     use EmitsLedgerEventsForEntity;
     use HasLightHouseCache;
     use HasTagsTrait;
-    use TruncatesTitleTrait;
+    use TruncatesTitle;
     use UuidTrait;
 
     protected $cascadeDeletes = ['tasks', 'children'];
@@ -113,6 +119,7 @@ class Plan extends BaseModel implements HandlesAgentMention
             'apps_id' => 'integer',
             'companies_id' => 'integer',
             'agent_id' => 'integer',
+            'created_by_agent_id' => 'integer',
             'assigned_users_id' => 'integer',
             'swarm_id' => 'integer',
             'users_id' => 'integer',
@@ -162,6 +169,17 @@ class Plan extends BaseModel implements HandlesAgentMention
     public function agent(): BelongsTo
     {
         return $this->belongsTo(Agent::class, 'agent_id', 'id');
+    }
+
+    /**
+     * The agent that asked for this work, as opposed to `agent()`, which is whoever is doing it now.
+     *
+     * Set once at creation and never reassigned — that is the whole point: it is who to report back
+     * to when the plan lands, and delegation must not overwrite it.
+     */
+    public function createdByAgent(): BelongsTo
+    {
+        return $this->belongsTo(Agent::class, 'created_by_agent_id', 'id');
     }
 
     public function assignedUser(): BelongsTo
@@ -296,6 +314,37 @@ class Plan extends BaseModel implements HandlesAgentMention
         return (string) $this->id;
     }
 
+    /**
+     * The channel the plan was asked for in, when there was one.
+     *
+     * Distinct from `socialChannels`, which are the channels the plan OWNS. This one belongs to a
+     * conversation that existed first and outlives the plan — it is where a person is actually
+     * listening, so it is where the outcome has to be reported.
+     */
+    public function originChannel(): BelongsTo
+    {
+        return $this->belongsTo(Channel::class, 'origin_channel_id');
+    }
+
+    /**
+     * The conversation it was asked for in — narrower than `originChannel`, and what actually renders.
+     *
+     * A chat thread is session-scoped: every turn carries the session uuid and the `ai-chat` type, so a
+     * report posted to the channel without them sits outside the conversation and is never seen.
+     */
+    public function originSession(): BelongsTo
+    {
+        return $this->belongsTo(Session::class, 'origin_session_id');
+    }
+
+    /**
+     * Whether this plan is blocked on something only a person can resolve.
+     */
+    public function blockedNeedsAHuman(): bool
+    {
+        return PlanBlockedNeedsEnum::tryFrom((string) $this->blocked_needs)?->interruptsAPerson() ?? false;
+    }
+
     public function socialChannels(): HasMany
     {
         return $this->hasMany(Channel::class, 'entity_id', 'string_id')
@@ -338,6 +387,44 @@ class Plan extends BaseModel implements HandlesAgentMention
             ->where('entity_id', $entityId);
     }
 
+    public function needsApproval(): bool
+    {
+        return $this->requires_human_approval && $this->approved_at === null;
+    }
+
+    /**
+     * Takes a plan off the TODO column once its work actually begins. A plan still waiting on sign-off
+     * goes to awaiting_approval instead — starting a task is what asks for the approval, never what
+     * slips past it.
+     */
+    public function startWork(): void
+    {
+        if ($this->status !== PlanStatusEnum::DRAFT->value) {
+            return;
+        }
+
+        $previousStatus = $this->status;
+        $this->status = PlanStatusEnum::ACTIVE->heldForApproval($this->needsApproval())->value;
+
+        if ($this->status === PlanStatusEnum::ACTIVE->value) {
+            $this->started_at ??= Carbon::now();
+        }
+
+        $this->saveOrFail();
+        $this->announceUpdate($previousStatus);
+    }
+
+    public function announceUpdate(string $previousStatus, bool $fromSync = false): void
+    {
+        $this->emitLedgerEvent('plan.updated', payload: [
+            'status_from' => $previousStatus,
+            'status_to' => $this->status,
+            'completion_pct' => $this->completion_pct,
+        ]);
+
+        $this->broadcastChange(PlanChangeTypeEnum::UPDATED, previousStatus: $previousStatus, fromSync: $fromSync);
+    }
+
     public function broadcastChange(
         PlanChangeTypeEnum $changeType,
         ?Task $task = null,
@@ -378,10 +465,7 @@ class Plan extends BaseModel implements HandlesAgentMention
 
         $done = (int) $this->tasks()
             ->where('is_deleted', 0)
-            ->whereIn(
-                'status',
-                array_map(fn ($s) => $s->value, TaskStatusEnum::completedStatuses()),
-            )
+            ->whereIn('status', TaskStatusEnum::completedStatusValues())
             ->count();
 
         $pct = intdiv($done * 100, $total);

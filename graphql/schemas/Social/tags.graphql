@@ -10,7 +10,7 @@ type Tag {
     id: ID!
     parent_id: ID
     parent: Tag @belongsTo(relation: "parent")
-    user: User! @belongsTo(relation: "user")
+    user: User @belongsTo(relation: "user")
     name: String!
     slug: String
     description: String

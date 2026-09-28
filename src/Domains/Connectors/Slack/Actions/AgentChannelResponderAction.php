@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Slack\Actions;
 
 use Kanvas\Connectors\Slack\Client;
-use Kanvas\Connectors\Slack\Services\SlackMarkdownService;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\AttachmentPromptBuilder;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
+use Kanvas\Intelligence\Agents\Jobs\ContinueAgentTurnJob;
 use Override;
 use Throwable;
 
@@ -17,6 +17,7 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 {
     private const string WORKING = ':hourglass_flowing_sand: working on it…';
     private const string FAILED = ':warning: Something went wrong on my side. Try again.';
+    private const string REPLY_UNDELIVERABLE = ':white_check_mark: Done — but my reply was too long to post here.';
 
     protected string $messageTypeVerb = 'slack';
     protected string $communicationChannel = 'slack';
@@ -36,14 +37,22 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         // Files the user dropped in Slack were re-hosted on the message at ingest — split them into the
         // native image bucket and the audio/PDF/doc bucket so the agent can actually see them.
         ['images' => $imageUrls, 'documents' => $documentUrls] = $this->message->attachmentUrls();
-        $inboundText = AttachmentPromptBuilder::withAttachments($inboundText, $documentUrls);
+        $inboundText = AttachmentPromptBuilder::withFilesystemMarkers(
+            AttachmentPromptBuilder::withAttachments($inboundText, $documentUrls),
+            $this->message->files,
+        );
 
         // Slack was ack'd the moment the event arrived; a turn with tool calls runs 10-30s after
-        // that. Post a placeholder and edit it, so the thread shows the agent working, not silence.
-        $placeholderTs = $client->postMessage($slackChannelId, self::WORKING, $threadTs);
+        // that. Post a placeholder so the thread shows the agent working, not silence. The answer
+        // then replaces it as a fresh post — an edit would notify nobody.
+        $placeholderTs = $client->postMessage(
+            $slackChannelId,
+            self::WORKING,
+            $threadTs
+        );
 
         try {
-            $response = new AgentChatKernel(
+            $kernel = new AgentChatKernel(
                 agent: $this->agent,
                 session: $this->session,
                 message: $inboundText,
@@ -55,7 +64,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
                 sourceMessage: $this->message,
                 documents: $documentUrls,
                 persistConversation: false,
-            )->execute();
+            );
+            $response = $kernel->execute();
         } catch (Throwable $e) {
             $client->updateMessage($slackChannelId, $placeholderTs, self::FAILED);
 
@@ -70,13 +80,35 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             $this->channel
         );
 
+        $delivered = false;
+
         if (! $reply->is_locked) {
-            $client->updateMessageWithOverflow(
-                $slackChannelId,
-                $placeholderTs,
-                SlackMarkdownService::toMrkdwn($responseText),
-                $threadTs !== '' ? $threadTs : null,
-            );
+            try {
+                $client->replacePlaceholderWithReply(
+                    $slackChannelId,
+                    $placeholderTs,
+                    $responseText,
+                    $threadTs !== '' ? $threadTs : null,
+                );
+                $delivered = true;
+            } catch (Throwable $e) {
+                report($e);
+
+                try {
+                    $client->updateMessage(
+                        $slackChannelId,
+                        $placeholderTs,
+                        self::REPLY_UNDELIVERABLE
+                    );
+                } catch (Throwable) {
+                }
+            }
+        }
+
+        // Only once the reply is in the thread, so the follow-up lands after it — and never for a locked
+        // reply, since the follow-up is pushed straight to Slack and would get around the lock.
+        if ($delivered) {
+            ContinueAgentTurnJob::dispatchIfCutShort($kernel, $responseText);
         }
 
         return [

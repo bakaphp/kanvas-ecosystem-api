@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\GraphQL\NervousSystem\Mutations;
 
+use App\GraphQL\Concerns\ResolvesActingContext;
 use Illuminate\Support\Carbon;
-use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Intelligence\Agents\Actions\RebuildAgentToolInstructionsAction;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\NervousSystem\Capability\Actions\AttachToolToAgentTypeAction;
@@ -15,9 +14,8 @@ use Kanvas\NervousSystem\Capability\Actions\CreateSkillAction;
 use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
 use Kanvas\NervousSystem\Capability\Actions\DetachToolFromAgentTypeAction;
 use Kanvas\NervousSystem\Capability\Actions\GrantSkillToAgentAction;
-use Kanvas\NervousSystem\Capability\Actions\GrantToolToAgentAction;
 use Kanvas\NervousSystem\Capability\Actions\RevokeSkillFromAgentAction;
-use Kanvas\NervousSystem\Capability\Actions\RevokeToolFromAgentAction;
+use Kanvas\NervousSystem\Capability\Actions\SetAgentToolAction;
 use Kanvas\NervousSystem\Capability\Actions\UpdateSkillAction;
 use Kanvas\NervousSystem\Capability\Actions\UpdateToolAction;
 use Kanvas\NervousSystem\Capability\DataTransferObject\Skill as SkillData;
@@ -27,94 +25,84 @@ use Kanvas\NervousSystem\Capability\Models\AgentTool;
 use Kanvas\NervousSystem\Capability\Models\Skill;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 use Kanvas\NervousSystem\Capability\Models\ToolCategory;
-use Kanvas\Users\Models\Users;
 use RuntimeException;
 
 class CapabilityMutation
 {
+    use ResolvesActingContext;
+
     public function createSkill(mixed $rootValue, array $request): Skill
     {
-        $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
+        $ctx = $this->actingContext();
 
         return new CreateSkillAction(
-            SkillData::fromMultiple($app, $request['input']),
-            actorUserId: $user->getId(),
+            SkillData::fromMultiple($ctx->app, $request['input']),
+            actorUserId: $ctx->user->getId(),
         )->execute();
     }
 
     public function updateSkill(mixed $rootValue, array $request): Skill
     {
-        $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
+        $ctx = $this->actingContext();
 
         /** @var Skill $skill */
         $skill = Skill::query()
             ->where('id', (int) $request['id'])
-            ->fromApp($app)
+            ->fromApp($ctx->app)
             ->firstOrFail();
 
         return new UpdateSkillAction(
             $skill,
-            SkillData::forUpdate($skill, $app, $request['input']),
-            actorUserId: $user->getId(),
+            SkillData::forUpdate($skill, $ctx->app, $request['input']),
+            actorUserId: $ctx->user->getId(),
         )->execute();
     }
 
     public function createTool(mixed $rootValue, array $request): Tool
     {
-        $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
+        $ctx = $this->actingContext();
 
         return new CreateToolAction(
-            ToolData::fromMultiple($app, $request['input']),
-            actorUserId: $user->getId(),
+            ToolData::fromMultiple($ctx->app, $request['input']),
+            actorUserId: $ctx->user->getId(),
         )->execute();
     }
 
     public function updateTool(mixed $rootValue, array $request): Tool
     {
-        $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
+        $ctx = $this->actingContext();
 
         /** @var Tool $tool */
         $tool = Tool::query()
             ->where('id', (int) $request['id'])
-            ->fromApp($app)
+            ->fromApp($ctx->app)
             ->firstOrFail();
 
         return new UpdateToolAction(
             $tool,
-            ToolData::forUpdate($tool, $app, $request['input']),
-            actorUserId: $user->getId(),
+            ToolData::forUpdate($tool, $ctx->app, $request['input']),
+            actorUserId: $ctx->user->getId(),
         )->execute();
     }
 
     public function grantSkill(mixed $rootValue, array $request): AgentSkill
     {
-        $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $ctx = $this->actingContext();
         $input = $request['input'];
 
         /** @var Agent $agent */
-        $agent = Agent::getByIdFromCompanyApp((int) $input['agent_id'], $company, $app);
+        $agent = Agent::getByIdFromCompanyApp((int) $input['agent_id'], $ctx->company, $ctx->app);
 
         /** @var Skill $skill */
         $skill = Skill::query()
             ->where('id', (int) $request['skill_id'])
-            ->fromApp($app)
+            ->fromApp($ctx->app)
             ->firstOrFail();
 
         return new GrantSkillToAgentAction(
             agent: $agent,
             skill: $skill,
-            grantedByUserId: $user->getId(),
+            grantedByUserId: $ctx->user->getId(),
             expiresAt: isset($input['expires_at']) ? Carbon::parse((string) $input['expires_at']) : null,
             config: $input['config'] ?? null,
         )->execute();
@@ -122,53 +110,50 @@ class CapabilityMutation
 
     public function revokeSkill(mixed $rootValue, array $request): AgentSkill
     {
-        $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $ctx = $this->actingContext();
 
         /** @var AgentSkill $grant */
         $grant = AgentSkill::query()
             ->where('id', (int) $request['grant_id'])
-            ->fromApp($app)
-            ->fromCompany($company)
+            ->fromApp($ctx->app)
+            ->fromCompany($ctx->company)
             ->firstOrFail();
 
         return new RevokeSkillFromAgentAction(
             grant: $grant,
-            actorUserId: $user->getId(),
+            actorUserId: $ctx->user->getId(),
             reason: $request['reason'] ?? null,
         )->execute();
     }
 
     public function attachToolToAgentType(mixed $rootValue, array $request): Tool
     {
-        $app = app(Apps::class);
+        $ctx = $this->actingContext();
 
         /** @var Tool $tool */
         $tool = Tool::query()
             ->where('id', (int) $request['tool_id'])
-            ->fromAppOrGlobal($app)
+            ->fromAppOrGlobal($ctx->app)
             ->firstOrFail();
 
         /** @var AgentType $agentType */
-        $agentType = AgentType::getById((int) $request['agent_type_id'], $app);
+        $agentType = AgentType::getById((int) $request['agent_type_id'], $ctx->app);
 
         return new AttachToolToAgentTypeAction($tool, $agentType)->execute();
     }
 
     public function detachToolFromAgentType(mixed $rootValue, array $request): bool
     {
-        $app = app(Apps::class);
+        $ctx = $this->actingContext();
 
         /** @var Tool $tool */
         $tool = Tool::query()
             ->where('id', (int) $request['tool_id'])
-            ->fromAppOrGlobal($app)
+            ->fromAppOrGlobal($ctx->app)
             ->firstOrFail();
 
         /** @var AgentType $agentType */
-        $agentType = AgentType::getById((int) $request['agent_type_id'], $app);
+        $agentType = AgentType::getById((int) $request['agent_type_id'], $ctx->app);
 
         return new DetachToolFromAgentTypeAction($tool, $agentType)->execute();
     }
@@ -180,20 +165,17 @@ class CapabilityMutation
      */
     public function setAgentTool(mixed $rootValue, array $request): ?AgentTool
     {
-        $app = app(Apps::class);
-        /** @var Users $user */
-        $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $ctx = $this->actingContext();
         $enabled = (bool) $request['enabled'];
         $config = $request['config'] ?? null;
 
         /** @var Agent $agent */
-        $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $company, $app);
+        $agent = Agent::getByIdFromCompanyApp((int) $request['agent_id'], $ctx->company, $ctx->app);
 
         // ModelNotFoundException would surface as a generic "Internal server error" through Lighthouse.
         $tool = Tool::query()
             ->where('id', (int) $request['tool_id'])
-            ->fromAppOrGlobal($app)
+            ->fromAppOrGlobal($ctx->app)
             ->first();
         if ($tool === null) {
             throw new ValidationException(sprintf(
@@ -202,62 +184,22 @@ class CapabilityMutation
             ));
         }
 
-        // withTrashed so soft-deleted rows are visible: toggling off then on must reactivate the same row, not insert a duplicate.
-        $existing = AgentTool::query()
-            ->withTrashed()
-            ->where('agent_id', $agent->getId())
-            ->where('tool_id', $tool->getId())
-            ->first();
-
-        if ($enabled) {
-            $grant = new GrantToolToAgentAction(
-                agent: $agent,
-                tool: $tool,
-                grantedByUserId: $user->getId(),
-                config: $config,
-            )->execute();
-
-            $agent->selectedTools()->syncWithoutDetaching([$tool->getId()]);
-            new RebuildAgentToolInstructionsAction($agent, $app)->execute();
-
-            return $grant;
-        }
-
-        $agent->selectedTools()->detach($tool->getId());
-        new RebuildAgentToolInstructionsAction($agent, $app)->execute();
-
-        if ($existing !== null && $existing->is_deleted) {
-            return $existing;
-        }
-
-        if ($existing === null) {
-            // Tool was only "selected" via the agent type's defaults — persist an explicit revocation so the read query subtracts it.
-            return AgentTool::create([
-                'apps_id' => $agent->apps_id,
-                'companies_id' => $agent->companies_id,
-                'agent_id' => $agent->getId(),
-                'tool_id' => $tool->getId(),
-                'granted_by_users_id' => $user->getId(),
-                'granted_at' => Carbon::now(),
-                'is_active' => false,
-                'is_deleted' => true,
-                'config' => $config,
-            ]);
-        }
-
-        return new RevokeToolFromAgentAction(
-            grant: $existing,
-            actorUserId: $user->getId(),
+        return new SetAgentToolAction(
+            agent: $agent,
+            tool: $tool,
+            enabled: $enabled,
+            actor: $ctx->user,
+            config: $config,
         )->execute();
     }
 
     public function createToolCategory(mixed $rootValue, array $request): ToolCategory
     {
-        $app = app(Apps::class);
+        $ctx = $this->actingContext();
         $input = $request['input'];
 
         return ToolCategory::create([
-            'apps_id' => $app->getId(),
+            'apps_id' => $ctx->app->getId(),
             'slug' => (string) $input['slug'],
             'name' => (string) $input['name'],
             'description' => $input['description'] ?? null,
@@ -270,13 +212,13 @@ class CapabilityMutation
 
     public function updateToolCategory(mixed $rootValue, array $request): ToolCategory
     {
-        $app = app(Apps::class);
+        $ctx = $this->actingContext();
         $input = $request['input'];
 
         // App owns this row — platform globals (apps_id=0) are read-only.
         $category = ToolCategory::query()
             ->where('id', (int) $request['id'])
-            ->where('apps_id', $app->getId())
+            ->fromApp($ctx->app)
             ->firstOrFail();
 
         $category->update(array_filter([

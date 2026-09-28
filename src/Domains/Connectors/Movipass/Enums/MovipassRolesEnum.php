@@ -12,4 +12,7 @@ enum MovipassRolesEnum: string
     case OPERATOR = 'Operador';
     case RDVIAL_CONSULTANT = 'RdvialConsultant';
     case VIEWER = 'viewer';
+    case PARQUEAT = 'parqueat';
+    case PARKING_MANAGER = 'parking_manager';
+    case PARKING_OPERATOR = 'parking_operator';
 }

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Social\Messages\Observers;
 
+use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CheckMessagePostLimitAction;
+use Kanvas\Social\Messages\Enums\MessageSenderTypeEnum;
 use Kanvas\Social\Messages\Jobs\ProcessMessageMentionsJob;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\Messages\Validations\MessageSchemaValidator;
@@ -12,6 +14,14 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 
 class MessageObserver
 {
+    public function saving(Message $message): void
+    {
+        $payload = $message->message;
+        $message->sender_type = is_array($payload)
+            ? MessageSenderTypeEnum::fromPayload($payload)?->value
+            : null;
+    }
+
     public function creating(Message $message): void
     {
         //$messageData = is_array($message->message) ? $message->message : json_decode($message->message, true);
@@ -28,7 +38,7 @@ class MessageObserver
             ))->execute();
         } */
 
-        if ($message->app->get('validate-message-schema')) {
+        if ($message->app->get('validate-message-schema') && $message->messageType !== null) {
             $checkJson = new MessageSchemaValidator($message, $message->messageType);
             $checkJson->validate();
         }
@@ -36,7 +46,7 @@ class MessageObserver
 
     public function created(Message $message): void
     {
-        if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
+        if ($message->isIndexedMessageType()) {
             $message->searchable();
         }
 
@@ -61,30 +71,24 @@ class MessageObserver
         $message->fireWorkflow(WorkflowEnum::UPDATED->value, true, ['app' => $message->app]);
         $message->clearLightHouseCacheJob();
 
-        if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
+        if ($message->isIndexedMessageType()) {
             $message->searchableSync();
         }
     }
 
     public function deleted(Message $message): void
     {
-        // Check each channel this message belongs to
+        /** @var Channel $channel */
         foreach ($message->channels as $channel) {
-            $remainingMessagesCount = $channel->messages()
-                ->where('messages.id', '!=', $message->id)
-                ->count();
-
-            if ($remainingMessagesCount === 0) {
-                $channel->is_deleted = 1;
-                $channel->last_message_id = null;
-                $channel->saveOrFail();
-            } elseif ($channel->last_message_id === $message->id) {
-                $previousMessage = $channel->getPreviousMessage($message);
-                $channel->last_message_id = $previousMessage?->id;
-                $channel->saveOrFail();
+            if ((int) $channel->last_message_id !== $message->id) {
+                continue;
             }
+
+            $channel->last_message_id = $channel->getPreviousMessage($message)?->id;
+            $channel->saveOrFail();
         }
-        if ($message->messageType->verb === $message->app->get('index_message_by_type')) {
+
+        if ($message->isIndexedMessageType()) {
             $message->unsearchable();
         }
     }

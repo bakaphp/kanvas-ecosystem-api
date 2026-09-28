@@ -39,10 +39,10 @@ final class CustomerTest extends TestCase
                         'city_initialvalue' => 'Anytown',
                         'displaystate_initialvalue' => 'CA',
                         'zip_initialvalue' => '12345',
-                        'country_initialvalue' => 'US'
-                    ]
-                ]
-            ]
+                        'country_initialvalue' => 'US',
+                    ],
+                ],
+            ],
         ];
     }
 
@@ -64,8 +64,6 @@ final class CustomerTest extends TestCase
 
         $this->assertTrue($result);
     }
-
-
 
     public function testSynCompanyWithNetSuite()
     {

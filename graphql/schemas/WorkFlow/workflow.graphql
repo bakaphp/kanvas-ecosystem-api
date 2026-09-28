@@ -37,7 +37,7 @@ type WorkflowRule {
     company: Company @belongsTo
     apps_id: ID!
     created_at: DateTime!
-    updated_at: DateTime!
+    updated_at: DateTime
 }
 
 type WorkflowRuleType {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\NervousSystem;
 
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Kanvas\Apps\Models\Apps;
@@ -14,11 +15,26 @@ use Kanvas\NervousSystem\Ledger\DataTransferObject\Event as EventData;
 use Kanvas\NervousSystem\Ledger\Enums\EventStatusEnum;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\NervousSystem\Ledger\Models\EventArchive;
+use Mockery;
+use RuntimeException;
 use Tests\TestCase;
 
 class LedgerArchiveTest extends TestCase
 {
-    public function testArchiveWithZeroRetentionFlushesEligibleEvents(): void
+    /**
+     * The sweep is deliberately table-wide — no app, company or event-type scoping — so a cutoff
+     * anywhere near `now` deletes ledger rows a parallel test class is about to assert on, and the
+     * failure surfaces over there (PlanAgentWakeUpTest, BuildLeadFollowUpDailySummaryActionTest,
+     * EventAnalyticsServiceTest). Seed 5 years back, cut at 3: a window nothing else occupies.
+     */
+    private const int RETENTION_DAYS = 365 * 3;
+
+    private function ancientTimestamp(int $extraDaysBack = 0): Carbon
+    {
+        return Carbon::now()->subYears(5)->subDays($extraDaysBack);
+    }
+
+    public function testArchiveFlushesEventsOlderThanRetentionWindow(): void
     {
         Storage::fake('local');
 
@@ -37,7 +53,7 @@ class LedgerArchiveTest extends TestCase
                     eventType: $tag,
                     status: EventStatusEnum::INFO,
                     payload: ['n' => $i],
-                    occurredAt: Carbon::now()->subMinutes(2),
+                    occurredAt: $this->ancientTimestamp(),
                 ),
             )->execute();
         }
@@ -46,24 +62,107 @@ class LedgerArchiveTest extends TestCase
         $this->assertSame(3, $beforeArchive);
 
         $result = new ArchiveOldEventsAction(
-            retentionDaysOverride: 0,
+            retentionDaysOverride: self::RETENTION_DAYS,
             diskOverride: 'local',
         )->execute();
 
         $this->assertGreaterThanOrEqual(3, $result['event_count']);
-        $this->assertNotEmpty($result['s3_path']);
+        $this->assertNotEmpty($result['archives']);
         $this->assertGreaterThan(0, $result['size_bytes']);
 
         $afterArchive = Event::query()->where('event_type', $tag)->count();
         $this->assertSame(0, $afterArchive, 'Archived events must be removed from MySQL');
 
-        Storage::disk('local')->assertExists($result['s3_path']);
+        foreach ($result['archives'] as $entry) {
+            Storage::disk('local')->assertExists($entry['s3_path']);
 
-        $archive = EventArchive::find($result['archive_id']);
-        $this->assertNotNull($archive);
-        $this->assertSame($result['s3_path'], $archive->s3_path);
-        $this->assertSame('local', $archive->s3_disk);
-        $this->assertSame($result['event_count'], $archive->event_count);
+            $archive = EventArchive::find($entry['archive_id']);
+            $this->assertNotNull($archive);
+            $this->assertSame($entry['s3_path'], $archive->s3_path);
+            $this->assertSame('local', $archive->s3_disk);
+            $this->assertSame($entry['event_count'], $archive->event_count);
+        }
+    }
+
+    public function testArchiveSplitsBacklogIntoSegments(): void
+    {
+        Storage::fake('local');
+
+        $tag = 'archive-segment-' . uniqid();
+        $this->seedAncientEvents($tag, 5);
+
+        $result = new ArchiveOldEventsAction(
+            retentionDaysOverride: self::RETENTION_DAYS,
+            diskOverride: 'local',
+            segmentSizeOverride: 2,
+        )->execute();
+
+        $this->assertGreaterThanOrEqual(3, count($result['archives']));
+        foreach ($result['archives'] as $entry) {
+            $this->assertLessThanOrEqual(2, $entry['event_count']);
+            Storage::disk('local')->assertExists($entry['s3_path']);
+        }
+        $this->assertSame($result['event_count'], array_sum(array_column($result['archives'], 'event_count')));
+        $this->assertSame(0, Event::query()->where('event_type', $tag)->count());
+    }
+
+    public function testFailedUploadKeepsSegmentsAlreadyArchived(): void
+    {
+        $tag = 'archive-crash-' . uniqid();
+        $this->seedAncientEvents($tag, 4);
+
+        $sweepable = fn (): int => Event::query()
+            ->where('occurred_at', '<', Carbon::now()->subDays(self::RETENTION_DAYS))
+            ->whereNotIn('event_type', (array) config('nervous-system.ledger.preserve_event_types'))
+            ->count();
+        $before = $sweepable();
+        $lastArchiveId = (int) EventArchive::query()->max('id');
+
+        $uploads = 0;
+        $disk = Mockery::mock(Filesystem::class);
+        $disk->shouldReceive('writeStream')->andReturnUsing(function () use (&$uploads): bool {
+            if (++$uploads > 1) {
+                throw new RuntimeException('simulated upload failure');
+            }
+
+            return true;
+        });
+        Storage::shouldReceive('disk')->with('crash-disk')->andReturn($disk);
+
+        try {
+            new ArchiveOldEventsAction(
+                retentionDaysOverride: self::RETENTION_DAYS,
+                diskOverride: 'crash-disk',
+                segmentSizeOverride: 2,
+            )->execute();
+            $this->fail('The upload failure must propagate');
+        } catch (RuntimeException $e) {
+            $this->assertSame('simulated upload failure', $e->getMessage());
+        }
+
+        $archives = EventArchive::query()->where('id', '>', $lastArchiveId)->get();
+        $this->assertCount(1, $archives, 'Only the segment that uploaded is recorded');
+        $this->assertSame(2, $archives->first()->event_count);
+        $this->assertSame($before - 2, $sweepable(), 'The uploaded segment is deleted; the failed one is left in MySQL');
+    }
+
+    private function seedAncientEvents(string $eventType, int $count): void
+    {
+        $user = auth()->user();
+
+        for ($i = 0; $i < $count; $i++) {
+            new AppendEventAction(
+                new EventData(
+                    app: app(Apps::class),
+                    company: $user->getCurrentCompany(),
+                    sourceDomain: 'TestDomain',
+                    eventType: $eventType,
+                    status: EventStatusEnum::INFO,
+                    payload: ['n' => $i],
+                    occurredAt: $this->ancientTimestamp(),
+                ),
+            )->execute();
+        }
     }
 
     public function testArchiveSkipsRecentEventsInsideRetentionWindow(): void
@@ -88,7 +187,7 @@ class LedgerArchiveTest extends TestCase
         )->execute();
 
         new ArchiveOldEventsAction(
-            retentionDaysOverride: 7,
+            retentionDaysOverride: self::RETENTION_DAYS,
             diskOverride: 'local',
         )->execute();
 
@@ -106,7 +205,7 @@ class LedgerArchiveTest extends TestCase
         )->execute();
 
         $this->assertSame(0, $result['event_count']);
-        $this->assertArrayNotHasKey('archive_id', $result);
+        $this->assertSame([], $result['archives']);
     }
 
     public function testConsoleCommandRunsArchiveWithOverrides(): void
@@ -126,13 +225,13 @@ class LedgerArchiveTest extends TestCase
                 sourceDomain: 'TestDomain',
                 eventType: $tag,
                 status: EventStatusEnum::INFO,
-                occurredAt: Carbon::now()->subMinutes(5),
+                occurredAt: $this->ancientTimestamp(),
             ),
         )->execute();
 
         $exitCode = $this->artisan(
             'nervous-system:archive-old-ledger-events',
-            ['--retention-days' => 0, '--disk' => 'local'],
+            ['--retention-days' => self::RETENTION_DAYS, '--disk' => 'local'],
         )->run();
 
         $this->assertSame(0, $exitCode);
@@ -159,6 +258,15 @@ class LedgerArchiveTest extends TestCase
         );
     }
 
+    public function testConfigPreservesAgentKnowledgeSavedByDefault(): void
+    {
+        $this->assertContains(
+            'agent.knowledge.saved',
+            (array) config('nervous-system.ledger.preserve_event_types'),
+            'agent.knowledge.saved backs agent long-term memory (the remember tool) and must never be swept',
+        );
+    }
+
     public function testArchiveNeverSweepsPreservedEventTypes(): void
     {
         Storage::fake('local');
@@ -178,13 +286,13 @@ class LedgerArchiveTest extends TestCase
                     sourceDomain: 'TestDomain',
                     eventType: $tag,
                     status: EventStatusEnum::INFO,
-                    occurredAt: Carbon::now()->subMinutes(5),
+                    occurredAt: $this->ancientTimestamp(),
                 ),
             )->execute();
         }
 
         new ArchiveOldEventsAction(
-            retentionDaysOverride: 0,
+            retentionDaysOverride: self::RETENTION_DAYS,
             diskOverride: 'local',
             preserveEventTypesOverride: [$keepTag],
         )->execute();
@@ -226,7 +334,7 @@ class LedgerArchiveTest extends TestCase
                         'changes' => ['title' => ['from' => 'Old', 'to' => 'New']],
                         'changed_fields' => ['title'],
                     ],
-                    occurredAt: Carbon::now()->subMinutes(5),
+                    occurredAt: $this->ancientTimestamp(),
                 ),
             )->execute();
             $uuids[] = $event->uuid;
@@ -235,7 +343,7 @@ class LedgerArchiveTest extends TestCase
         // Force the sweep to flush people.enriched (empty preserve list) so we
         // reproduce the historical loss this restore path exists to undo.
         new ArchiveOldEventsAction(
-            retentionDaysOverride: 0,
+            retentionDaysOverride: self::RETENTION_DAYS,
             diskOverride: 'local',
             preserveEventTypesOverride: [],
         )->execute();
@@ -281,7 +389,9 @@ class LedgerArchiveTest extends TestCase
 
         $tag = 'people.enriched';
         $marker = 'daterange-' . uniqid();
-        $targetDay = Carbon::now()->subDays(30)->startOfDay()->addHours(9);
+        // A day of its own — the restore filter is day-granular, and the previous test leaves its
+        // own restored people.enriched rows sitting on the default ancient day.
+        $targetDay = $this->ancientTimestamp(30)->startOfDay()->addHours(9);
 
         $inRange = new AppendEventAction(
             new EventData(
@@ -308,7 +418,7 @@ class LedgerArchiveTest extends TestCase
         )->execute();
 
         new ArchiveOldEventsAction(
-            retentionDaysOverride: 0,
+            retentionDaysOverride: self::RETENTION_DAYS,
             diskOverride: 'local',
             preserveEventTypesOverride: [],
         )->execute();

@@ -30,6 +30,7 @@ use Kanvas\Inventory\Variants\Models\VariantsWarehouses as ModelsVariantsWarehou
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Inventory\Warehouses\Repositories\WarehouseRepository;
 use Kanvas\Inventory\Warehouses\Services\WarehouseService;
+use Kanvas\Social\Tags\Models\Tag;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Throwable;
 
@@ -38,8 +39,16 @@ class VariantService
     /**
      * Create a new product variants.
      */
-    public static function createVariantsFromArray(Products $product, array $variants, UserInterface $user): array
-    {
+    public static function createVariantsFromArray(
+        Products $product,
+        array $variants,
+        UserInterface $user,
+        bool $runWorkflow = true
+    ): array {
+        if (! $runWorkflow) {
+            $product->disableWorkflows();
+        }
+
         $variantsData = [];
 
         foreach ($variants as $variant) {
@@ -74,6 +83,18 @@ class VariantService
             if (isset($variant['attributes'])) {
                 $attributes = array_merge($attributes, $variant['attributes']); // to do: refactor for default attributes variant
                 $variantModel->addAttributes($user, $attributes);
+            }
+
+            $variantTags = Tag::normalizeNames($variant['tags'] ?? []);
+            if ($variantTags !== []) {
+                $variantModel->syncTags($variantTags);
+
+                // Attaching tags doesn't touch the variant row, so Scout's save
+                // hook never fires — re-index by hand or the tags never reach
+                // the variant document.
+                if ($variantModel->shouldBeSearchable()) {
+                    $variantModel->searchable();
+                }
             }
 
             if (isset($variant['status']['id'])) {
@@ -124,7 +145,7 @@ class VariantService
                     } else {
                         $warehouse = Warehouses::getDefault($company, $product->app);
                     }
-                    $channel = ChannelRepository::getById(
+                    $channel = ChannelRepository::getByIdOrGlobal(
                         (int) $variantChannel['channels_id'],
                         $company,
                         $product->app

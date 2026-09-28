@@ -14,7 +14,11 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'WooCommerce Pull Order',
+    description: 'Receiver that fetches the full order back from WooCommerce rather than trusting the payload, '
+        . 'then records any affiliate attribution on it. Use this one where affiliate credit matters.',
+)]
 class PullWooCommerceOrderWebhookJob extends ProcessWebhookJob
 {
     #[Override]

@@ -14,7 +14,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Match Pipeline By Intent',
+    description: 'Reads what the lead appears to want and moves it to the pipeline stage that matches. Routing '
+        . 'only; it contacts nobody.',
+)]
 class MatchPipelineByIntentActivity extends KanvasActivity
 {
     public function execute(Lead $lead, Apps $app, array $params): array

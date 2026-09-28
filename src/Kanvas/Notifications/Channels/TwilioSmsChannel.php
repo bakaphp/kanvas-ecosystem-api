@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Channels;
 
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum;
+use Twilio\Exceptions\RestException;
 
 class TwilioSmsChannel
 {
@@ -28,12 +30,25 @@ class TwilioSmsChannel
 
         $client = Client::getInstanceByCompany($company);
 
-        $client->messages->create(
-            $cellphone, // to
-            [
-                'from' => $fromPhone,
-                'body' => $content,
-            ]
-        );
+        try {
+            $client->messages->create(
+                $cellphone,
+                [
+                    'from' => $fromPhone,
+                    'body' => $content,
+                ]
+            );
+        } catch (RestException $exception) {
+            if ($exception->getStatusCode() !== 400) {
+                throw $exception;
+            }
+
+            Log::channel('single')->warning('Twilio SMS rejected with HTTP 400', [
+                'companies_id' => $company->getId(),
+                'notification' => $notification::class,
+                'twilio_code' => $exception->getCode(),
+                'message' => $exception->getMessage(),
+            ]);
+        }
     }
 }

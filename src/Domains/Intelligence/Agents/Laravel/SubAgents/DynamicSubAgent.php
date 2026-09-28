@@ -12,7 +12,7 @@ use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\NervousSystem\Capability\Models\Tool;
 
-#[AgentTool(name: 'Dynamic Sub Agent')]
+#[AgentTool(name: 'Dynamic Sub Agent', category: 'crm')]
 class DynamicSubAgent extends KanvasAgentAsTool
 {
     use MergesRegisteredTools;

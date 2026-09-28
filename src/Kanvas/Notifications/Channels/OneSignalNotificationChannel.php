@@ -5,15 +5,14 @@ declare(strict_types=1);
 namespace Kanvas\Notifications\Channels;
 
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Notifications\Services\OneSignalService;
 use Kanvas\Users\Models\Users;
+use Throwable;
 
 class OneSignalNotificationChannel
 {
-    /**
-     * Send the given notification.
-     */
     public function send(object $notifiable, Notification $notification): void
     {
         $oneSignalMessage = $notification->toOneSignal($notifiable);
@@ -22,9 +21,19 @@ class OneSignalNotificationChannel
             return;
         }
 
+        /** @var Apps $app */
         $app = Apps::getById($oneSignalMessage['apps_id']);
 
-        $oneSignalService = new OneSignalService($app);
+        try {
+            $oneSignalService = new OneSignalService($app);
+        } catch (Throwable $e) {
+            Log::warning('OneSignal push skipped: ' . $e->getMessage(), [
+                'apps_id' => $app->getId(),
+                'notification' => $notification::class,
+            ]);
+
+            return;
+        }
 
         $additionalData = $oneSignalMessage['data'] ?? [];
         unset($additionalData['apps_id'],

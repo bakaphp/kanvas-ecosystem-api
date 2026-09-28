@@ -15,9 +15,14 @@ class MercuryTransactionService extends MercuryApiService
     /** A runaway cursor would loop forever against a paginating API. Bound it. */
     private const int MAX_PAGES = 100;
 
+    /**
+     * SINGULAR `transaction/{id}` — the plural is the collection endpoint and 404s on an id, which made every
+     * webhook hydration fail. A real 404 is also legitimate here: Mercury fires the nudge before the record is
+     * readable, and a cancelled authorization disappears entirely — so absence returns null instead of throwing.
+     */
     public function find(string $transactionId): ?MercuryTransaction
     {
-        $response = $this->client->get("transactions/{$transactionId}");
+        $response = $this->client->getOrNull("transaction/{$transactionId}");
 
         return isset($response['id'])
             ? MercuryTransaction::fromApi($response)

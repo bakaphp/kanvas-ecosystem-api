@@ -24,7 +24,6 @@ type Bundle {
 }
 
 type BundleItem {
-    variant: Variant!
     quantity: Int!
     unit: String
     created_at: DateTime

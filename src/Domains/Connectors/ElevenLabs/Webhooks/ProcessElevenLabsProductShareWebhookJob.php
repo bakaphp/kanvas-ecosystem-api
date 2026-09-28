@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Kanvas\ActionEngine\Engagements\Actions\CreateEngagementAction;
 use Kanvas\ActionEngine\Engagements\DataTransferObject\Engagement as EngagementData;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -16,7 +17,13 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Override;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'ElevenLabs Share Product With Caller',
+    description: 'One of the endpoints an ElevenLabs VOICE agent calls back into Kanvas mid-call. These are '
+        . 'wired as that agent\'s server-side tools, not chosen as workflow steps — the caller on the '
+        . 'phone triggers them. This one TEXTS the caller a product link during the call and records '
+        . 'the engagement. It CONTACTS the customer, so it is the one to be careful with.',
+)]
 class ProcessElevenLabsProductShareWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]
@@ -88,12 +95,13 @@ class ProcessElevenLabsProductShareWebhookJob extends ProcessElevenLabsWebhookJo
 
         try {
             if ($fromPhone) {
-                $sendMessage->execute(
+                $providerResponse = $sendMessage->execute(
                     channel: 'sms',
                     message: $smsMessage,
                     from: (string) $fromPhone,
                     to: $phone,
                 );
+                new StoreMessageSidAction($engagement->message)->execute($providerResponse);
                 $smsSent = true;
             }
         } catch (Throwable $e) {

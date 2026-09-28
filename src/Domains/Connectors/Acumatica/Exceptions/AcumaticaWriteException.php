@@ -8,11 +8,7 @@ use GuzzleHttp\Exception\RequestException;
 use RuntimeException;
 use Throwable;
 
-/**
- * Raised when a write-back to Acumatica fails or is not permitted. On transport failures it surfaces
- * Acumatica's own error body (`exceptionMessage` / `message`) rather than a bare HTTP status, so the
- * operator sees why the ERP rejected the document.
- */
+/** Raised when a write-back to Acumatica fails or is not permitted; surfaces nested per-field errors (e.g. PostPeriod) over the generic top-level validation message. */
 class AcumaticaWriteException extends RuntimeException
 {
     public static function fromThrowable(Throwable $e, string $context): self
@@ -37,8 +33,51 @@ class AcumaticaWriteException extends RuntimeException
             return null;
         }
 
-        $message = $decoded['exceptionMessage'] ?? $decoded['message'] ?? null;
+        $fieldErrors = self::collectFieldErrors($decoded);
 
-        return is_string($message) && $message !== '' ? $message : null;
+        if ($fieldErrors !== []) {
+            return implode('; ', $fieldErrors);
+        }
+
+        $message = $decoded['exceptionMessage'] ?? $decoded['message'] ?? $decoded['error'] ?? null;
+
+        if (is_string($message) && $message !== '') {
+            return $message;
+        }
+
+        // Per-row validation errors nest their own 'error' field, e.g. {"id":..., "error": "..."}.
+        if (isset($decoded[0]['error']) && is_string($decoded[0]['error']) && $decoded[0]['error'] !== '') {
+            return $decoded[0]['error'];
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $record
+     *
+     * @return array<int, string>
+     */
+    private static function collectFieldErrors(array $record): array
+    {
+        $errors = [];
+
+        foreach ($record as $field => $value) {
+            if ($field === 'Details' && is_array($value)) {
+                foreach ($value as $line) {
+                    if (is_array($line)) {
+                        $errors = [...$errors, ...self::collectFieldErrors($line)];
+                    }
+                }
+
+                continue;
+            }
+
+            if (is_array($value) && isset($value['error']) && is_string($value['error']) && $value['error'] !== '') {
+                $errors[] = "{$field}: {$value['error']}";
+            }
+        }
+
+        return $errors;
     }
 }

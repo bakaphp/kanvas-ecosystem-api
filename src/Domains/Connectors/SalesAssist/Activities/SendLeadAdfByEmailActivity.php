@@ -15,7 +15,19 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Send Lead As ADF Email',
+    description: 'Emails the lead as an ADF XML document to a fixed address — the standard way to hand a lead '
+        . 'to a dealer system that ingests ADF. It CONTACTS whoever the address belongs to, which is a '
+        . 'partner rather than the customer. The recipient is configured on the rule, so check it '
+        . 'before attaching.',
+    integration: IntegrationsEnum::INTERNAL,
+    params: [
+        'to' => 'Email address that receives the ADF. Required — the step fails without it.',
+        'template_name' => 'Template used to render the email. Defaults to adf-email-template.',
+        'subject' => 'Subject line. Defaults to "New ADF Lead from Sales Assist".',
+    ],
+)]
 class SendLeadAdfByEmailActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

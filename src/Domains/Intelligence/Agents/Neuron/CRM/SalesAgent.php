@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
-use Kanvas\Intelligence\Agents\Neuron\BaseKanvasAgent;
+use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
 use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CalendarEventTool;
@@ -20,11 +20,14 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyIsHolidayTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompanyWorkHoursTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CompletionStatusTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ContactCheckerTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\EventConfigurationTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\HandOffTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadIntentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\LeadRefTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\PastOpportunitiesTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\RescheduleCalendarEventTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\SimilarVehiclesTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\StopContactTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\UserAvailabilityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\VehicleInterestTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\VehicleTradeInTool;
@@ -47,7 +50,7 @@ use Override;
     description: 'Conversational sales assistant for inbound prospect chat — qualifies leads, creates them when intent shows, schedules meetings, and recommends inventory using the CRM + inventory tool suite.',
     provider: 'neuron',
 )]
-class SalesAgent extends BaseKanvasAgent implements ConversesWithCustomer
+class SalesAgent extends BaseRagAgent implements ConversesWithCustomer
 {
     use HasCustomerPersona;
     use HasTemporalContext;
@@ -67,18 +70,18 @@ class SalesAgent extends BaseKanvasAgent implements ConversesWithCustomer
             entity: $this->entity,
             threadId: $this->threadId,
             currentLead: $this->currentLead,
+            contextWindow: $this->resolvedContextWindow(),
         );
     }
 
     #[Override]
     public function instructions(): string
     {
-        $role = $this->agent->role;
         $lead = $this->resolveLeadForTurn();
 
-        $background = Blade::render($role['background'], ['lead' => $lead]);
-        $steps = Blade::render($role['steps'], ['lead' => $lead]);
-        $output = Blade::render($role['output'], ['lead' => $lead]);
+        $background = Blade::render($this->agent->roleSection('background', "\n"), ['lead' => $lead]);
+        $steps = Blade::render($this->agent->roleSection('steps', "\n"), ['lead' => $lead]);
+        $output = Blade::render($this->agent->roleSection('output', "\n"), ['lead' => $lead]);
         $background = explode('\n', $background);
 
         $timezone = $lead?->company?->timezone
@@ -96,6 +99,18 @@ class SalesAgent extends BaseKanvasAgent implements ConversesWithCustomer
                 . 'use that returned lead_id for any subsequent lead-scoped tool calls (get_user_availability, '
                 . 'create_calendar_event, etc.) in the SAME turn. Never invent a lead_id.',
             ]);
+
+        // Scoped narrowly on purpose. Obvious opt-outs are applied deterministically before this agent
+        // is ever invoked, so repeating the full list here would only invite it to re-decide cases the
+        // inbound layer already settled — including the ones it deliberately declined to flag.
+        $contextLines[] = 'COMPLIANCE: clear opt-outs ("stop", "unsubscribe", "remove me from your list") are '
+            . 'already handled before you see the message, so you will rarely need to act on one. Call '
+            . 'stop_contact ONLY when someone asks to stop hearing from us in wording those checks would miss — '
+            . 'for example agreeing to it across turns ("yes, go ahead" after you offered to stop), or an '
+            . 'unusual phrasing like "I bought elsewhere, close my file". Pass their exact words as the reason, '
+            . 'then send ONE short acknowledgement and nothing further. '
+            . 'A request to be reached DIFFERENTLY is not an opt-out: "text me instead", "email me not phone", '
+            . '"do not call before 5pm" mean keep talking on their terms — never call stop_contact for those.';
 
         return new SystemPrompt(
             background: [
@@ -149,12 +164,15 @@ class SalesAgent extends BaseKanvasAgent implements ConversesWithCustomer
             new RescheduleCalendarEventTool(),
             new CancelCalendarEventTool(),
             new UserAvailabilityTool(),
+            new EventConfigurationTool(),
             new HandOffTool(),
             new LeadIntentTool(),
             new LeadRefTool(),
+            new PastOpportunitiesTool(),
             new SimilarVehiclesTool(),
             new VehicleInterestTool(),
             new VehicleTradeInTool(),
+            new StopContactTool(),
         ];
 
         if ($this->entity instanceof Message) {

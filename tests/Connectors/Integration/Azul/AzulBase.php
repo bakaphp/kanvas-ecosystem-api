@@ -28,7 +28,7 @@ class AzulBase extends TestCase
         }
 
         $certPath = env('TEST_AZUL_CERT_PATH') ?? env('AZUL_CERT_PATH');
-        $keyPath  = env('TEST_AZUL_KEY_PATH')  ?? env('AZUL_KEY_PATH');
+        $keyPath = env('TEST_AZUL_KEY_PATH') ?? env('AZUL_KEY_PATH');
 
         if (empty($certPath) || empty($keyPath)) {
             $this->markTestSkipped('Azul mTLS certificate paths not configured (TEST_AZUL_CERT_PATH / AZUL_CERT_PATH)');
@@ -51,19 +51,19 @@ class AzulBase extends TestCase
     protected function getCredentials(): array
     {
         return [
-            'auth1'      => env('TEST_AZUL_AUTH1')    ?? env('AZUL_AUTH1'),
-            'auth2'      => env('TEST_AZUL_AUTH2')    ?? env('AZUL_AUTH2'),
-            'store'      => env('TEST_AZUL_STORE')    ?? env('AZUL_STORE'),
-            'channel'    => env('TEST_AZUL_CHANNEL')  ?? env('AZUL_CHANNEL', 'EC'),
-            'cert_path'  => env('TEST_AZUL_CERT_PATH') ?? env('AZUL_CERT_PATH'),
-            'key_path'   => env('TEST_AZUL_KEY_PATH')  ?? env('AZUL_KEY_PATH'),
+            'auth1' => env('TEST_AZUL_AUTH1') ?? env('AZUL_AUTH1'),
+            'auth2' => env('TEST_AZUL_AUTH2') ?? env('AZUL_AUTH2'),
+            'store' => env('TEST_AZUL_STORE') ?? env('AZUL_STORE'),
+            'channel' => env('TEST_AZUL_CHANNEL') ?? env('AZUL_CHANNEL', 'EC'),
+            'cert_path' => env('TEST_AZUL_CERT_PATH') ?? env('AZUL_CERT_PATH'),
+            'key_path' => env('TEST_AZUL_KEY_PATH') ?? env('AZUL_KEY_PATH'),
             'verify_ssl' => false,
         ];
     }
 
     protected function getService(): AzulService
     {
-        $app     = app(Apps::class);
+        $app = app(Apps::class);
         $company = Companies::first();
 
         return new AzulService($app, $company, $this->getCredentials());
@@ -71,7 +71,7 @@ class AzulBase extends TestCase
 
     protected function buildSaleRequest(array $overrides = []): AzulPaymentRequest
     {
-        $credentials    = $this->getCredentials();
+        $credentials = $this->getCredentials();
         $dataVaultToken = $overrides['dataVaultToken'] ?? null;
 
         return new AzulPaymentRequest(

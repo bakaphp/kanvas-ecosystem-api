@@ -17,7 +17,7 @@ use Override;
  * Top customers by revenue over booked sales orders (excludes draft/canceled/failed), optionally
  * bounded by a date range. Read-only aggregation over Souk orders — no ERP calls.
  */
-#[AgentTool(name: 'Sales By Customer')]
+#[AgentTool(name: 'Sales By Customer', category: 'commerce')]
 class SalesByCustomerTool extends Tool
 {
     use HasKanvasContext;

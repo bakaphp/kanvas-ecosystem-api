@@ -4,17 +4,25 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\VinSolution\Workflow;
 
+use GuzzleHttp\Exception\ClientException;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdAction;
 use Kanvas\Connectors\VinSolution\Actions\PushLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
+use Kanvas\Connectors\VinSolution\Services\ContactRejectionService;
 use Kanvas\Guild\Leads\Models\LeadParticipant;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'VinSolution Push Co-Buyer',
+    description: 'Pushes a lead PARTICIPANT — the co-buyer — into VinSolutions alongside the main lead, and '
+        . 'runs ID verification on them. The verification can NOTIFY the person, so this is not purely '
+        . 'a CRM write.',
+    integration: IntegrationsEnum::VIN_SOLUTION,
+)]
 class PushCoBuyerActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -39,7 +47,22 @@ class PushCoBuyerActivity extends KanvasActivity
             integrationOperation: function ($entity, $app, $integrationCompany, $additionalParams) use ($people, $lead) {
                 $lead->reCacheCustomFields();
                 $pushLead = new PushLeadAction($lead);
-                $vinLead = $pushLead->execute();
+
+                try {
+                    $vinLead = $pushLead->execute();
+                } catch (ClientException $e) {
+                    if (! ContactRejectionService::isRecordRejection($e)) {
+                        throw $e;
+                    }
+
+                    return $this->failWorkflow([
+                        'error' => 'VinSolution rejected the co-buyer contact information',
+                        'reason' => ContactRejectionService::recordForLead($lead, $e),
+                        'lead_id' => $lead->getId(),
+                        'people_id' => $people->getId(),
+                        'company_id' => $lead->companies_id,
+                    ]);
+                }
 
                 $idVerification = null;
                 if ($people->get('intellicheckResponse')) {

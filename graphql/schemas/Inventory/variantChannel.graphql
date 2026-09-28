@@ -1,5 +1,5 @@
 type VariantChannel {
-    id: ID
+    id: ID!
     uuid: String!
     slug: String!
     name: String!
@@ -14,16 +14,20 @@ type VariantChannel {
     price: Money!
     ean: String
     files: [Filesystem]
+        @cacheRedis
         @paginate(
             defaultCount: 25
-            builder: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getFileByGraphType"
+            resolver: "App\\GraphQL\\Ecosystem\\Queries\\Filesystem\\FilesystemQuery@getPaginatedFileByGraphType"
         )
     interactions(visitor: VisitorEntityInput!): Interactions
         @method(name: "getEntitySocialInteractions")
     product: Product @belongsTo(relation: "product")
     warehouses: [WarehouseVariantRelationship!]!
+        @cacheRedis
         @hasMany(relation: "variantWarehouses")
-    attributes: [VariantsAttributes!]! @hasMany(relation: "attributes")
+    attributes: [VariantsAttributes!]!
+        @cacheRedis
+        @hasMany(relation: "attributes")
 }
 type ChannelsPricesHistoryRelationship {
     price: Money!

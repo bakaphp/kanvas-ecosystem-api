@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Acumatica\DataTransferObject;
 
+use Baka\Support\Str;
 use Kanvas\Connectors\Acumatica\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Enums\OrderFulfillmentStatusEnum;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
@@ -80,7 +81,7 @@ class AcumaticaImportOrder extends Data
                 price: (float) ($line['UnitPrice'] ?? 0),
                 discount: (float) ($line['DiscAmt'] ?? 0),
                 tax: 0.0,
-                warehouse: trim((string) ($line['warehouse'] ?? '')) ?: null,
+                warehouse: Str::trimToNull((string) ($line['warehouse'] ?? '')),
             );
         }
 
@@ -98,8 +99,8 @@ class AcumaticaImportOrder extends Data
             currency: trim((string) ($header['CuryID'] ?? '')) ?: 'USD',
             orderDate: ! empty($header['OrderDate']) ? (string) $header['OrderDate'] : null,
             shippedDate: ! empty($header['ShipDate']) ? (string) $header['ShipDate'] : null,
-            customerNote: trim((string) ($header['OrderDesc'] ?? '')) ?: null,
-            reference: trim((string) ($header['CustomerOrderNbr'] ?? '')) ?: null,
+            customerNote: Str::trimToNull((string) ($header['OrderDesc'] ?? '')),
+            reference: Str::trimToNull((string) ($header['CustomerOrderNbr'] ?? '')),
             customFields: [
                 CustomFieldEnum::ORDER_ID->value => $externalId,
                 CustomFieldEnum::ORDER_TYPE->value => $orderType,

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Twilio\Actions;
 
 use Baka\Support\Str;
-use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\Twilio\Client;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Leads\Actions\RecordLeadNoteAction;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
@@ -35,28 +35,10 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             throw new ValidationException('No entity found');
         }
 
-        $batchKey = $params['batchKey'] ?? null;
-        $batch = null;
-        if ($batchKey !== null && Cache::has($batchKey)) {
-            $batch = Cache::get($batchKey);
-
-            if (isset($batch['last_message_id']) && $batch['last_message_id'] !== $this->message->getId()) {
-                return [
-                    'message' => 'this is not the last message in the batch, skipping , we only respond to the last message',
-                    'batch' => $batch,
-                ];
-            }
-
-            Cache::forget($batchKey);
-        }
-
-        $messageConversation = $this->message->message['content'];
-        if ($batchKey !== null && $batch !== null) {
-            $messageConversation = '';
-            foreach ($batch['messages'] as $batchMessage) {
-                $messageConversation .= $batchMessage['body'] . "\n";
-            }
-        }
+        // The burst that closed is already one turn — FlushSmsBurstAction hands over every text in
+        // it as a single prompt, so the agent answers the flurry rather than its first line.
+        $messageConversation = Str::trimToNull($params['burst_text'] ?? null)
+            ?? $this->message->message['content'];
 
         $responseContent = new AgentChatKernel(
             agent: $this->agent,
@@ -70,6 +52,10 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         )->execute();
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent);
+
+        // A customer who texts us cold still gets the clause on our first reply. Applied
+        // before createMessage so the approval-hold branch stores the body it will ship.
+        $responseText = SmsOptOutNoticeService::appendIfFirstOutbound($this->channel, $responseText);
 
         $to = Str::toE164(Str::replace('twilio-', '', $this->channel->slug));
         $to = $this->hijackMessagePhone($to);
@@ -115,6 +101,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         if (! $entity instanceof Lead) {
             return;
         }
+
+        $entity->people?->optOutPhoneContacts();
 
         new RecordLeadNoteAction($entity)->execute(
             "SMS not delivered: {$to} has opted out of messages (replied STOP). Attempted reply: \"{$body}\"",

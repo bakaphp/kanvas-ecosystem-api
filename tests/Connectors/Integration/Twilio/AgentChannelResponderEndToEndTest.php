@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Services\SmsOptOutNoticeService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
@@ -149,5 +150,13 @@ class AgentChannelResponderEndToEndTest extends TestCase
         $this->assertNotNull($outbound, 'Agent reply must be persisted on the channel');
         $this->assertStringContainsString('Hola Mundo', (string) ($outbound->message['content'] ?? ''));
         $this->assertSame((string) $session->uuid, (string) ($outbound->message['session_id'] ?? ''));
+
+        // The channel already carried the customer's inbound message, so "first" has to be
+        // counted over outbound history — otherwise a cold inbound text eats the clause.
+        $this->assertStringContainsString(
+            SmsOptOutNoticeService::NOTICE,
+            (string) ($outbound->message['content'] ?? ''),
+            'our first reply on a customer-opened SMS conversation must carry the opt-out notice'
+        );
     }
 }

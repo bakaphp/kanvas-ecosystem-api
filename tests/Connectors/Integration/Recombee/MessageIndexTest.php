@@ -6,7 +6,6 @@ namespace Tests\Connectors\Integration\Recombee;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\PromptMine\Services\RecombeeIndexService;
-use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Recombee\Services\RecombeeInteractionService;
 use Kanvas\Connectors\Recombee\Services\RecombeeUserRecommendationService;
 use Kanvas\Social\Enums\InteractionEnum;
@@ -16,19 +15,27 @@ use Kanvas\Social\Interactions\DataTransferObject\Interaction;
 use Kanvas\Social\Interactions\DataTransferObject\UserInteraction;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
+use PHPUnit\Framework\Attributes\Group;
+use Tests\Connectors\Traits\HasRecombeeConfiguration;
 use Tests\TestCase;
 
+/**
+ * Serial: app settings are global to every paratest process, so a sibling Recombee test would read
+ * whatever this one last wrote. See `tests/CLAUDE.md`.
+ */
+#[Group('serial')]
 class MessageIndexTest extends TestCase
 {
+    use HasRecombeeConfiguration;
+
     protected ?Message $message = null;
 
     public function setUp(): void
     {
         parent::setUp();
+
         $app = app(Apps::class);
-        $app->set(ConfigurationEnum::RECOMBEE_DATABASE->value, getenv('TEST_RECOMBEE_DATABASE'));
-        $app->set(ConfigurationEnum::RECOMBEE_API_KEY->value, getenv('TEST_RECOMBEE_API_KEY'));
-        $app->set(ConfigurationEnum::RECOMBEE_REGION->value, getenv('TEST_RECOMBEE_REGIONTEST_RECOMBEE_REGION'));
+        $this->configureRecombeeOrSkip($app);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 

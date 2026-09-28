@@ -33,6 +33,13 @@ trait KanvasCompanyScopesTrait
     /**
      * Scope to return records owned by the current company OR app-global records (companies_id = 0).
      * Global entities are only included when the company has `use_global_inventory_entities` enabled.
+     *
+     * @todo This trait is shared by every model in the platform, but the gate below
+     *       (`ALLOW_CROSS_COMPANY_VARIANTS`) is a Souk-specific business flag — it doesn't belong in
+     *       something this general. A model whose "global" semantics differ from Souk's (e.g.
+     *       `Channels`, which overrides this scope to be unconditional) has no way to opt out short
+     *       of a full override. Move the flag check out of here into a Souk-owned scope/trait that
+     *       the relevant models opt into explicitly, and let this one just do the plain union.
      */
     public function scopeFromCompanyOrGlobal(Builder $query, mixed $company = null): Builder
     {

@@ -19,6 +19,7 @@ use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum
 use Kanvas\Intelligence\Enums\IntelligenceModeEnum;
 use Kanvas\Intelligence\Leads\Enums\AgentReachOutConfigEnum;
 use Kanvas\Intelligence\Services\LeadConfigurationService;
+use Kanvas\Social\Messages\Models\Message;
 use Kanvas\SystemModules\Models\SystemModules;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
@@ -284,6 +285,47 @@ class AgentReachOutActionTest extends TestCase
             [AgentReachOutConfigEnum::STATUS_SENT, AgentReachOutConfigEnum::STATUS_FAILED],
         );
         $this->assertNotEmpty($result['message']);
+    }
+
+    public function testSupportModeCreatesLockedDelayedFirstMessage(): void
+    {
+        $lead = $this->makeLeadWithCellphone();
+        $lead->set('ai_mode', IntelligenceModeEnum::SUPPORT->value);
+        $agent = $this->makeAgentWithStub();
+        $lead->company->set(
+            IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value,
+            auth()->user()->getId(),
+        );
+
+        $result = new AgentReachOutAction($lead, ['agent_id' => $agent->getId()])->execute();
+
+        $this->assertSame(AgentReachOutConfigEnum::STATUS_SCHEDULED, $result['status']);
+        $this->assertSame(
+            AgentReachOutConfigEnum::STATUS_SCHEDULED,
+            (string) $lead->fresh()->get(AgentReachOutConfigEnum::STATUS->value),
+        );
+
+        $draft = Message::fromApp($lead->app)
+            ->fromCompany($lead->company)
+            ->where('is_locked', 1)
+            ->latest('id')
+            ->firstOrFail();
+
+        $this->assertSame(0, (int) $draft->is_public);
+        $this->assertTrue($draft->hasTag(['first-message']));
+        $this->assertTrue($draft->hasTag(['agent-reach-out']));
+        $this->assertTrue($draft->hasTag(['agent-reach-out-delayed']));
+    }
+
+    public function testScheduledReachOutIsIdempotent(): void
+    {
+        $lead = $this->makeLeadWithCellphone();
+        $lead->set(AgentReachOutConfigEnum::STATUS->value, AgentReachOutConfigEnum::STATUS_SCHEDULED);
+
+        $result = new AgentReachOutAction($lead, ['agent_id' => 999])->execute();
+
+        $this->assertSame(AgentReachOutConfigEnum::STATUS_SCHEDULED, $result['status']);
+        $this->assertSame('Reach-out already scheduled', $result['message']);
     }
 
     // ─── helpers ──────────────────────────────────────────────────────────────

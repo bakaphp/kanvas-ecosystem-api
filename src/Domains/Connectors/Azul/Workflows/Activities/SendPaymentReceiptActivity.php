@@ -18,7 +18,13 @@ use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Azul Send Payment Receipt',
+    description: 'Emails the customer a receipt for a paid order — card brand, last four, authorization code, '
+        . 'date. This CONTACTS the customer. It only fires for an order with a paid payment and refuses '
+        . 'to send twice, so a re-run does not double-mail them.',
+    integration: IntegrationsEnum::AZUL,
+)]
 class SendPaymentReceiptActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     public const TEMPLATE = 'user-payment-received';

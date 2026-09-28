@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Enums\AppSettingsEnums;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Products\Traits\SearchProductWorkflowTrait;
@@ -47,7 +49,33 @@ class VariantChannelBuilder
         ->where($variantsChannel->getTable() . '.is_deleted', 0)
         ->where($variantsChannel->getTable() . '.is_published', 1);
 
+        // Batch the per-variant `files` query into one `entity_id IN (...)` load when the client
+        // actually selects files — kills the N+1 flagged on channelVariants (KANVAS-ECOSYSTEM-65Q).
+        if ($this->selectsVariantFiles($resolveInfo)) {
+            $app = app(Apps::class);
+            $scopeByCompany = ! $app->get(AppSettingsEnums::GLOBAL_APP_IMAGES->getValue());
+
+            $query->with([
+                'filesForGraphType' => function ($filesQuery) use ($channel, $scopeByCompany): void {
+                    if ($scopeByCompany) {
+                        $filesQuery->where('filesystem_entities.companies_id', $channel->companies_id);
+                    }
+                },
+            ]);
+        }
+
         return $query;
+    }
+
+    /**
+     * Whether the client selected the `files` field on the paginated variants, so we only pay for
+     * the extra eager-load query when files are actually requested.
+     */
+    private function selectsVariantFiles(ResolveInfo $resolveInfo): bool
+    {
+        $selection = $resolveInfo->getFieldSelection(2);
+
+        return ! empty($selection['data']['files']);
     }
 
     public function allVariantsPublishedInChannelFilterByAttributes(

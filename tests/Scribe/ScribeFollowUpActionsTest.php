@@ -224,6 +224,53 @@ class ScribeFollowUpActionsTest extends TestCase
         $this->assertEquals(0.0, (float) $parent->balance_due_native);
     }
 
+    public function test_issue_standalone_credit_note_with_no_parent_debits_the_lines_own_accounts(): void
+    {
+        $billable = $this->seedOrganization('Proshop');
+        $controlAccountId = $this->accountIdBySubType(AccountSubTypeEnum::TRAVEL_AND_MEALS);
+
+        $creditNote = new IssueCreditNoteAction(
+            parentInvoice: null,
+            data: new InvoiceData(
+                app: $this->kanvasApp,
+                company: $this->company,
+                billable: $billable,
+                lines: new DataCollection(InvoiceLineData::class, [
+                    new InvoiceLineData(
+                        description: 'Promotion Discount',
+                        quantity: 1,
+                        unit_price_native: 300.0,
+                        account_id: $controlAccountId,
+                    ),
+                ]),
+                currency: 'USD',
+                fx_rate_to_base: 1.0,
+                invoice_number: 'Proshop Superdays Sell-Out (22/05-07/06)',
+                issued_date: Carbon::parse('2026-06-20'),
+            ),
+            billable: $billable,
+            user: static::$cachedUser,
+        )->execute();
+
+        $this->assertSame(DocumentTypeEnum::CREDIT_NOTE, $creditNote->document_type);
+        $this->assertNull($creditNote->parent_invoice_id);
+        $this->assertSame('Proshop Superdays Sell-Out (22/05-07/06)', $creditNote->invoice_number);
+        $this->assertSame($billable->getId(), $creditNote->customer_organization_id);
+        $this->assertEquals(300.0, (float) $creditNote->total_native);
+
+        $creditJe = JournalEntry::query()
+            ->where('source_type', 'credit_note')
+            ->where('source_id', $creditNote->id)
+            ->first();
+        $this->assertNotNull($creditJe);
+        $creditJe->load('lines');
+        $this->assertEquals($creditJe->lines->sum('debit_base'), $creditJe->lines->sum('credit_base'));
+
+        $debitLine = $creditJe->lines->firstWhere('account_id', $controlAccountId);
+        $this->assertNotNull($debitLine, 'Expected the credit note JE to debit the line-level control account.');
+        $this->assertEquals(300.0, (float) $debitLine->debit_native);
+    }
+
     public function test_issue_credit_note_rejects_amount_exceeding_parent_total(): void
     {
         $billable = $this->seedOrganization();

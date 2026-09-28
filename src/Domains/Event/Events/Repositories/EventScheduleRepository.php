@@ -75,6 +75,32 @@ class EventScheduleRepository
     }
 
     /**
+     * @return Collection<int, object{user_id:int, start:Carbon, end:Carbon, event_id:int, event_version_id:int, event_name:string}>
+     */
+    public function getOverlappingForUser(
+        Apps $app,
+        Companies $company,
+        Users $user,
+        Carbon $start,
+        Carbon $end,
+        ?int $excludeEventId = null,
+    ): Collection {
+        $scheduled = $this->getScheduled(
+            $app,
+            $company,
+            $start,
+            $end,
+            $user
+        );
+
+        return $scheduled
+            ->filter(fn (object $busy): bool => $busy->event_id !== $excludeEventId
+                && $busy->start->lt($end)
+                && $busy->end->gt($start))
+            ->values();
+    }
+
+    /**
      * Compute available time slots for $user within [$from, $to], honoring
      * $workingHours and excluding any busy windows from getScheduled().
      *

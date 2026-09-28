@@ -1,0 +1,596 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Intelligence\Agents\CustomerSuccess;
+
+use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Http;
+use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Github\Enums\ConfigurationEnum;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Organizations\Actions\RecordOrganizationNoteAction;
+use Kanvas\Guild\Organizations\Models\Organization;
+use Kanvas\Intelligence\Agents\Actions\CustomerSuccess\DraftCustomerUpdateAction;
+use Kanvas\Intelligence\Agents\Enums\CustomerUpdateSkipEnum;
+use Kanvas\Intelligence\Agents\Enums\KanvasReleaseFeedEnum;
+use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\CustomerSuccess\CustomerUpdateAgent;
+use Kanvas\Social\Channels\Actions\CreateChannelAction;
+use Kanvas\Social\Channels\DataTransferObject\Channel as ChannelDto;
+use Kanvas\Social\Channels\Models\Channel;
+use Kanvas\Social\Messages\Models\Message;
+use RuntimeException;
+use Tests\TestCase;
+use Throwable;
+
+final class DraftCustomerUpdateActionTest extends TestCase
+{
+    use DatabaseTransactions;
+
+    protected array $connectionsToTransact = ['mysql', 'crm', 'intelligence', 'social', 'ecosystem'];
+
+    /** Distinctive enough that counting occurrences in the prompt means something. */
+    private const string NOTE_MARKER = 'pay through CardNet';
+
+    /**
+     * @param array<int, array<string, mixed>> $releases
+     */
+    private function fakeReleases(array $releases): void
+    {
+        Http::fake(['api.github.com/*' => Http::sequence()->push($releases)->push([])]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function release(string $tag, string $publishedAt): array
+    {
+        return [
+            'tag_name' => $tag,
+            'name' => $tag,
+            'body' => "## Product Search\n\nOperators on attribute filters.",
+            'published_at' => $publishedAt,
+            'draft' => false,
+            'prerelease' => false,
+            'html_url' => 'https://github.com/acme/api/releases/tag/' . $tag,
+        ];
+    }
+
+    /** A chat handler double: canned text, or throws, without reaching a provider. */
+    private function handler(string|Throwable $reply): object
+    {
+        return new class ($reply) {
+            public array $seen = [];
+
+            /** RunNeuronChatAction hands over a UserMessage object, not a string. */
+            private static function describe(mixed $value): string
+            {
+                if (is_array($value)) {
+                    return implode(' ', array_map(static fn ($item): string => self::describe($item), $value));
+                }
+
+                if (is_object($value) && method_exists($value, 'getContent')) {
+                    return (string) json_encode($value->getContent());
+                }
+
+                return is_scalar($value) ? (string) $value : (string) json_encode($value);
+            }
+
+            public function __construct(private readonly string|Throwable $reply)
+            {
+            }
+
+            public function chat(mixed $messages = []): mixed
+            {
+                $this->seen[] = self::describe($messages);
+
+                if ($this->reply instanceof Throwable) {
+                    throw $this->reply;
+                }
+
+                return new class ($this->reply) {
+                    public function __construct(private readonly string $text)
+                    {
+                    }
+
+                    public function getContent(): string
+                    {
+                        return $this->text;
+                    }
+
+                    public function __toString(): string
+                    {
+                        return $this->text;
+                    }
+                };
+            }
+        };
+    }
+
+    public function testNoReleasesInTheWindowSkipsTheTurnEntirely(): void
+    {
+        $this->fakeReleases([]);
+
+        $result = new DraftCustomerUpdateAction(
+            $this->seedOrganization(),
+            $this->seedAgent(),
+            $this->handler(new RuntimeException('the provider must never be reached')),
+        )->execute();
+
+        $this->assertFalse($result->hasDraft(), 'nothing shipped, so no LLM turn is paid for');
+        $this->assertSame(CustomerUpdateSkipEnum::NO_RELEASES, $result->skipped);
+    }
+
+    public function testNothingToSendSentinelYieldsNoDraft(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+
+        $result = new DraftCustomerUpdateAction(
+            $this->seedOrganization(),
+            $this->seedAgent(),
+            $this->handler(CustomerUpdateAgent::NOTHING_TO_SEND),
+        )->execute();
+
+        $this->assertFalse($result->hasDraft());
+        $this->assertSame(
+            CustomerUpdateSkipEnum::AGENT_DECLINED,
+            $result->skipped,
+            'declining after reading releases is not the same as nothing having shipped'
+        );
+        $this->assertSame(1, $result->releasesConsidered);
+    }
+
+    /**
+     * The whole reason this action passes fallbackOnFailure: false. With the default, a provider hiccup
+     * returns a friendly apology string — and this caller's output is emailed to a paying customer.
+     */
+    public function testAFailedTurnThrowsRatherThanReturningFallbackProse(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+
+        $this->expectException(RuntimeException::class);
+
+        new DraftCustomerUpdateAction(
+            $this->seedOrganization(),
+            $this->seedAgent(),
+            $this->handler(new RuntimeException('provider exploded')),
+        )->execute();
+    }
+
+    public function testASuccessfulDraftCarriesTheReleasesItCovered(): void
+    {
+        $this->fakeReleases([
+            $this->release('v1.0.1', now()->subDays(2)->toIso8601String()),
+            $this->release('v1.0.0', now()->subDays(9)->toIso8601String()),
+        ]);
+
+        $draft = new DraftCustomerUpdateAction(
+            $this->seedOrganization(),
+            $this->seedAgent(),
+            $this->handler('Product search now supports operators on attribute filters.'),
+        )->execute()->draft;
+
+        $this->assertNotNull($draft);
+        $this->assertStringContainsString('operators', $draft->body);
+        $this->assertEqualsCanonicalizing(['v1.0.0', 'v1.0.1'], $draft->releaseTags);
+        $this->assertNotNull($draft->coveredThrough, 'the watermark advances to what was actually read');
+    }
+
+    /**
+     * The whole feature is personalisation, so the notes must reach the model deterministically rather
+     * than depending on it choosing to call read_channel_window.
+     */
+    public function testTheAccountNotesAreHandedToTheModelNotLeftToAToolCall(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+        $organization = $this->seedOrganization();
+
+        new RecordOrganizationNoteAction($organization)->execute(
+            body: 'They bought the AR module and are piloting it for a Q3 launch.',
+            tag: 'note',
+            actingUser: auth()->user(),
+            fromIa: false,
+        );
+
+        $handler = $this->handler('Something about AR.');
+
+        new DraftCustomerUpdateAction($organization->refresh(), $this->seedAgent(), $handler)->execute();
+
+        $prompt = implode("\n", $handler->seen);
+        $this->assertStringContainsString('piloting it for a Q3 launch', $prompt);
+        $this->assertStringContainsString('[note', $prompt, 'each note is labelled by kind');
+    }
+
+    /**
+     * The account's history is not reliably in the channel called `Notes` — humans write it to
+     * `Activities`, while `Notes` fills up with what this action itself posted. Reading only `notes`
+     * fed the agent its own previous newsletters as the whole of "everything you know about them",
+     * and every draft came out a generic changelog.
+     */
+    public function testNotesOutsideTheNotesChannelStillReachTheModel(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+        $organization = $this->seedOrganization();
+        $note = $this->seedNote($organization);
+
+        // Exactly the production shape: the note lives on another channel on the same account, and
+        // the one named `Notes` does not hold it.
+        $organization->notes->messages()->detach($note->getId());
+        $this->seedActivityChannel($organization)->addMessage($note);
+
+        $handler = $this->handler('Something about cigars.');
+
+        new DraftCustomerUpdateAction($organization->refresh(), $this->seedAgent(), $handler)->execute();
+
+        $this->assertStringContainsString(self::NOTE_MARKER, implode("\n", $handler->seen));
+    }
+
+    /**
+     * A note attached to two channels on the same account is one note, not two. Reading every channel
+     * makes this reachable, and a model handed the same paragraph twice weights it twice.
+     */
+    public function testANoteOnTwoChannelsIsNotHandedToTheModelTwice(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+        $organization = $this->seedOrganization();
+
+        // Left on Notes AND attached to Activity, as a note ends up when someone reconciles the threads.
+        $this->seedActivityChannel($organization)->addMessage($this->seedNote($organization));
+
+        $handler = $this->handler('Something about cigars.');
+
+        new DraftCustomerUpdateAction($organization->refresh(), $this->seedAgent(), $handler)->execute();
+
+        $this->assertSame(
+            1,
+            substr_count(implode("\n", $handler->seen), self::NOTE_MARKER),
+            'the note is on two channels but must reach the model once'
+        );
+    }
+
+    private function seedNote(Organization $organization): Message
+    {
+        return new RecordOrganizationNoteAction($organization)->execute(
+            body: 'They run a luxury cigar retail chain and ' . self::NOTE_MARKER . '.',
+            tag: 'note',
+            actingUser: auth()->user(),
+            fromIa: false,
+        );
+    }
+
+    /** A second channel on the same account, standing in for the one humans actually write notes to. */
+    private function seedActivityChannel(Organization $organization): Channel
+    {
+        return new CreateChannelAction(
+            new ChannelDto(
+                apps: $organization->app,
+                companies: $organization->company,
+                users: auth()->user(),
+                entity_id: $organization->getId(),
+                entity_namespace: $organization::class,
+                name: 'Activity',
+                description: 'Organization activity channel.',
+                slug: 'organization-activity-' . $organization->getId(),
+            )
+        )->execute();
+    }
+
+    /**
+     * `coveredThrough` becomes the watermark next month skips from, so the agent must be handed the
+     * same releases the action counted. Left to `get_kanvas_release_updates`, the model picks its own
+     * `since` — defaulting to 30 days — and a widened window would mark releases covered that the email
+     * never described, with no second chance to tell them.
+     */
+    public function testEveryReleaseTheActionCountedIsHandedToTheModel(): void
+    {
+        $this->fakeReleases([
+            $this->release('v1.0.2', now()->subDays(3)->toIso8601String()),
+            $this->release('v1.0.1', now()->subDays(50)->toIso8601String()),
+        ]);
+
+        $handler = $this->handler('An update.');
+
+        $result = new DraftCustomerUpdateAction(
+            organization: $this->seedOrganization(),
+            agent: $this->seedAgent(),
+            handlerOverride: $handler,
+            windowDays: 60,
+        )->execute();
+
+        $prompt = implode("\n", $handler->seen);
+
+        foreach ($result->draft->releaseTags as $tag) {
+            $this->assertStringContainsString(
+                $tag,
+                $prompt,
+                'a release counted into coveredThrough but never shown to the agent is silently lost'
+            );
+        }
+
+        $this->assertStringContainsString('Operators on attribute filters', $prompt, 'the notes come verbatim');
+    }
+
+    public function testALongReleaseBodyIsCappedSoItCannotCrowdOutTheAccountNotes(): void
+    {
+        $release = $this->release('v1.0.0', now()->subDays(2)->toIso8601String());
+        $release['body'] = str_repeat('a', 5000) . 'TAIL_THAT_MUST_BE_CUT';
+        $this->fakeReleases([$release]);
+
+        $organization = $this->seedOrganization();
+        $this->seedNote($organization);
+
+        $handler = $this->handler('An update.');
+        new DraftCustomerUpdateAction($organization->refresh(), $this->seedAgent(), $handler)->execute();
+
+        $prompt = implode("\n", $handler->seen);
+        $this->assertStringNotContainsString('TAIL_THAT_MUST_BE_CUT', $prompt);
+        $this->assertStringContainsString(self::NOTE_MARKER, $prompt, 'the account notes survive a long changelog');
+    }
+
+    public function testSaysSoPlainlyWhenTheAccountHasNoNotes(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+        $organization = $this->seedOrganization();
+        $organization->notes?->forceDelete();
+
+        $handler = $this->handler('Short and generic.');
+
+        new DraftCustomerUpdateAction($organization->refresh(), $this->seedAgent(), $handler)->execute();
+
+        $this->assertStringContainsString('no notes on this account', implode("\n", $handler->seen));
+    }
+
+    /**
+     * A monthly newsletter covers the month. An account written to yesterday must still see the whole
+     * 30-day window — otherwise a second send in the same month shows almost nothing, and a skipped
+     * month disappears entirely. Not repeating is the agent's job, using the previous update in the
+     * thread; it is not the feed's job.
+     */
+    public function testTheWindowIsTheMonthNotTheGapSinceTheLastSend(): void
+    {
+        $this->fakeReleases([
+            $this->release('v1.0.2', now()->subDays(1)->toIso8601String()),
+            $this->release('v1.0.1', now()->subDays(20)->toIso8601String()),
+        ]);
+
+        $organization = $this->seedOrganization();
+        $organization->set(DraftCustomerUpdateAction::WATERMARK_FIELD, now()->subDays(2)->toIso8601String());
+
+        $result = new DraftCustomerUpdateAction(
+            $organization->refresh(),
+            $this->seedAgent(),
+            $this->handler('Covered both.'),
+        )->execute();
+
+        $this->assertEqualsCanonicalizing(
+            ['v1.0.1', 'v1.0.2'],
+            $result->draft->releaseTags,
+            'the release from 20 days ago is in the month, even though we wrote 2 days ago'
+        );
+    }
+
+    /**
+     * The catch-up case: an off-cycle run that has to cover more than the month the cron would.
+     */
+    public function testAWidenedWindowReachesReleasesTheMonthlyDefaultWouldMiss(): void
+    {
+        $this->fakeReleases([
+            $this->release('v1.0.2', now()->subDays(3)->toIso8601String()),
+            $this->release('v1.0.1', now()->subDays(50)->toIso8601String()),
+        ]);
+
+        $result = new DraftCustomerUpdateAction(
+            organization: $this->seedOrganization(),
+            agent: $this->seedAgent(),
+            handlerOverride: $this->handler('Two months of news.'),
+            windowDays: 60,
+        )->execute();
+
+        $this->assertEqualsCanonicalizing(
+            ['v1.0.1', 'v1.0.2'],
+            $result->draft->releaseTags,
+            'the 50-day-old release is outside the monthly window but inside the widened one'
+        );
+    }
+
+    public function testAWindowBeyondTheCapIsRefusedRatherThanQuietlyDigestingEverything(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        new DraftCustomerUpdateAction(
+            organization: $this->seedOrganization(),
+            agent: $this->seedAgent(),
+            handlerOverride: $this->handler('never reached'),
+            windowDays: DraftCustomerUpdateAction::MAX_WINDOW_DAYS + 1,
+        )->execute();
+    }
+
+    /**
+     * A first send is a cold email — without framing it reads as a marketing blast to a contact who
+     * never subscribed.
+     */
+    public function testTheFirstEverUpdateIsBriefedToIntroduceItself(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+
+        $handler = $this->handler('An update.');
+        new DraftCustomerUpdateAction($this->seedOrganization(), $this->seedAgent(), $handler)->execute();
+
+        $prompt = implode("\n", $handler->seen);
+        $this->assertStringContainsString('FIRST update this account will ever receive', $prompt);
+        $this->assertStringContainsString('replying is enough to stop these emails', $prompt);
+        $this->assertStringContainsString(
+            'SECOND block',
+            $prompt,
+            'the renderer assigns by position, so an orientation written first eats the masthead slot'
+        );
+    }
+
+    /**
+     * The orientation belongs on the first send only. Every later one has the previous update in the
+     * thread, so re-introducing the newsletter every month is noise.
+     */
+    public function testAnAccountWeHaveWrittenToIsNotBriefedToIntroduceItselfAgain(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+
+        $organization = $this->seedOrganization();
+        $organization->set(DraftCustomerUpdateAction::WATERMARK_FIELD, now()->subDays(30)->toIso8601String());
+
+        $handler = $this->handler('An update.');
+        new DraftCustomerUpdateAction($organization->refresh(), $this->seedAgent(), $handler)->execute();
+
+        $this->assertStringNotContainsString('FIRST update', implode("\n", $handler->seen));
+    }
+
+    /**
+     * `--ignore-watermark` is a re-draft aid, not a claim about the account. An established customer
+     * re-drafted with it must never be told to introduce the newsletter.
+     */
+    public function testIgnoringTheWatermarkDoesNotTurnAnEstablishedAccountIntoAFirstSend(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+
+        $organization = $this->seedOrganization();
+        $organization->set(DraftCustomerUpdateAction::WATERMARK_FIELD, now()->subDays(30)->toIso8601String());
+
+        $handler = $this->handler('An update.');
+
+        new DraftCustomerUpdateAction(
+            organization: $organization->refresh(),
+            agent: $this->seedAgent(),
+            handlerOverride: $handler,
+            ignoreWatermark: true,
+        )->execute();
+
+        $prompt = implode("\n", $handler->seen);
+        $this->assertStringNotContainsString('FIRST update', $prompt);
+        $this->assertStringNotContainsString('never written to them before', $prompt);
+        $this->assertStringContainsString('do NOT introduce the newsletter', $prompt);
+    }
+
+    public function testTheAgentIsToldWhenItLastWroteSoItDoesNotRepeatItself(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(3)->toIso8601String())]);
+
+        $organization = $this->seedOrganization();
+        $organization->set(DraftCustomerUpdateAction::WATERMARK_FIELD, now()->subDays(10)->toIso8601String());
+
+        $handler = $this->handler('An update.');
+        new DraftCustomerUpdateAction($organization->refresh(), $this->seedAgent(), $handler)->execute();
+
+        $prompt = implode("\n", $handler->seen);
+        $this->assertStringContainsString('We last wrote to them on', $prompt);
+        $this->assertStringContainsString('do not repeat it', $prompt);
+    }
+
+    public function testTheSubjectLineIsLiftedOutOfTheCompletion(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+
+        $draft = new DraftCustomerUpdateAction(
+            $this->seedOrganization(),
+            $this->seedAgent(),
+            $this->handler("Subject: Filtering by custom attributes\n\nYou can now filter by attribute."),
+        )->execute()->draft;
+
+        $this->assertSame('Filtering by custom attributes', $draft->subject);
+        $this->assertStringNotContainsString('Subject:', $draft->body, 'the label must never reach the reader');
+        $this->assertStringStartsWith('You can now', $draft->body);
+    }
+
+    /**
+     * A model that forgets the line should still produce something sendable rather than shipping the
+     * word "Subject:" into an inbox.
+     */
+    public function testAMissingSubjectFallsBackInsteadOfCorruptingTheBody(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+
+        $draft = new DraftCustomerUpdateAction(
+            $this->seedOrganization(),
+            $this->seedAgent(),
+            $this->handler('You can now filter by attribute.'),
+        )->execute()->draft;
+
+        $this->assertNotSame('', $draft->subject);
+        $this->assertSame('You can now filter by attribute.', $draft->body);
+    }
+
+    /**
+     * The gate that stops the monthly cron paying for a turn per account to be told what the dates
+     * already say. The handler throws if it is reached, so a spent turn fails this test.
+     *
+     * The watermark is the newest covered release's own published_at — that is exactly what
+     * CustomerUpdateApprovalHandler::markCovered() writes — so on every real re-run the release we
+     * already sent sits ON the watermark, not before it. That equality is why the comparison has to be
+     * strict: greaterThanOrEqualTo would re-draft the same release, at full price, every month.
+     */
+    public function testEverythingAlreadyCoveredSkipsWithoutSpendingATurn(): void
+    {
+        $coveredThrough = now()->subDays(20)->toIso8601String();
+
+        $this->fakeReleases([$this->release('v1.0.0', $coveredThrough)]);
+
+        $organization = $this->seedOrganization();
+        $organization->set(DraftCustomerUpdateAction::WATERMARK_FIELD, $coveredThrough);
+
+        $result = new DraftCustomerUpdateAction(
+            $organization->refresh(),
+            $this->seedAgent(),
+            $this->handler(new RuntimeException('the agent must not be asked')),
+        )->execute();
+
+        $this->assertFalse($result->hasDraft());
+        $this->assertSame(CustomerUpdateSkipEnum::ALREADY_COVERED, $result->skipped);
+        $this->assertFalse($result->skipped->costAnLlmTurn());
+    }
+
+    public function testAReleaseNewerThanTheWatermarkStillReachesTheAgent(): void
+    {
+        $this->fakeReleases([$this->release('v1.0.0', now()->subDays(2)->toIso8601String())]);
+
+        $organization = $this->seedOrganization();
+        $organization->set(DraftCustomerUpdateAction::WATERMARK_FIELD, now()->subDays(10)->toIso8601String());
+
+        $result = new DraftCustomerUpdateAction(
+            $organization->refresh(),
+            $this->seedAgent(),
+            $this->handler("Subject: Hello\n\nMasthead\n\nBody line."),
+        )->execute();
+
+        $this->assertTrue($result->hasDraft());
+    }
+
+    private function seedOrganization(): Organization
+    {
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $app->set(ConfigurationEnum::TOKEN->value, 'test-token');
+        $app->set(KanvasReleaseFeedEnum::REPOSITORIES->value, 'acme/api');
+
+        return Organization::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $user->getCurrentCompany()->getId(),
+            'users_id' => $user->getId(),
+            'name' => 'Draft Corp ' . uniqid(),
+            'address' => '',
+            'total_employees' => 0,
+        ]);
+    }
+
+    private function seedAgent(): Agent
+    {
+        $user = auth()->user();
+        $type = AgentType::query()->where('handler', CustomerUpdateAgent::class)->firstOrFail();
+
+        return Agent::factory()->create([
+            'apps_id' => app(Apps::class)->getId(),
+            'companies_id' => $user->getCurrentCompany()->getId(),
+            'user_id' => $user->getId(),
+            'agent_type_id' => $type->getId(),
+        ]);
+    }
+}

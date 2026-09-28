@@ -4,26 +4,106 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Twilio;
 
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Twilio\Actions\AgentChannelResponderAction;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
+use Override;
+use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
-use Throwable;
 
+/**
+ * What the agent is actually asked. The inbound burst closed before this runs, so the turn's prompt
+ * is the whole flurry — answering only the head is how a customer who sent two texts got an answer
+ * to the first one and a second reply for the rest.
+ */
 class AgentChannelResponderActionTest extends TestCase
 {
+    use DatabaseTransactions;
+
+    public function testAnswersTheWholeBurstWhenBurstTextIsSupplied(): void
+    {
+        ['message' => $message, 'channel' => $channel, 'agent' => $agent] = $this->setupLeadMessageChannelAgent();
+
+        $burst = "I am observing the Sabbath.\n\n(I am not receiving notifications.)";
+
+        $result = $this->respond(
+            $channel,
+            $message,
+            $agent,
+            ['from' => '+19876543210', 'burst_text' => $burst]
+        );
+
+        $this->assertSame($burst, $result['message']);
+    }
+
+    public function testFallsBackToTheMessageContentWhenThereIsNoBurst(): void
+    {
+        ['message' => $message, 'channel' => $channel, 'agent' => $agent] = $this->setupLeadMessageChannelAgent();
+
+        $result = $this->respond(
+            $channel,
+            $message,
+            $agent,
+            ['from' => '+19876543210']
+        );
+
+        $this->assertSame('test sms message', $result['message']);
+    }
+
+    /**
+     * A burst of nothing but media has no text to speak of; the head's own body is still the better
+     * prompt than an empty string, which the agent would answer as if nobody had said anything.
+     */
+    public function testBlankBurstTextFallsBackToTheMessageContent(): void
+    {
+        ['message' => $message, 'channel' => $channel, 'agent' => $agent] = $this->setupLeadMessageChannelAgent();
+
+        $result = $this->respond(
+            $channel,
+            $message,
+            $agent,
+            ['from' => '+19876543210', 'burst_text' => "  \n "]
+        );
+
+        $this->assertSame('test sms message', $result['message']);
+    }
+
+    private function respond(
+        Channel $channel,
+        Message $message,
+        Agent $agent,
+        array $params
+    ): array {
+        Http::fake();
+
+        // The outbound Twilio call is the only part that needs real credentials, and it is not what
+        // these assertions are about.
+        $action = new class ($channel, $message, $agent) extends AgentChannelResponderAction {
+            #[Override]
+            protected function dispatchMessage(string $to, string $from, string $body): void
+            {
+            }
+        };
+
+        return $action->execute($params);
+    }
+
     private function setupLeadMessageChannelAgent(): array
     {
         $app = app(Apps::class);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
+        $company->set(IntelligenceConfigurationEnum::AI_AGENT_USER_ID->value, $user->getId());
 
         $lead = Lead::factory()
             ->withAppAndCompany($app->getId(), $company->getId())
@@ -44,7 +124,7 @@ class AgentChannelResponderActionTest extends TestCase
             ->withCompanyId($company->getId())
             ->withMessageType($messageType)
             ->create([
-                'message' => ['content' => 'test sms message'],
+                'message' => ['content' => 'test sms message', 'from_me' => false],
                 'is_locked' => 0,
                 'is_un_response' => 0,
             ]);
@@ -66,131 +146,32 @@ class AgentChannelResponderActionTest extends TestCase
             [
                 'apps_id' => $app->getId(),
                 'companies_id' => $company->getId(),
-                'slug' => 'twilio-test-' . $lead->getId(),
+                'slug' => 'twilio-1' . fake()->unique()->numerify('##########'),
             ],
             [
                 'name' => 'Test Twilio Channel',
-                'description' => 'Test channel for batch logic',
+                'description' => 'Test channel for burst prompt assembly',
                 'users_id' => $user->getId(),
             ]
         );
 
+        $agentType = AgentType::factory()
+            ->withAppId($app->getId())
+            ->create([
+                'name' => 'Sales (Neuron Test)',
+                'provider' => 'neuron',
+                'handler' => SalesNeuronAgentStub::class,
+            ]);
+
         $agent = Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
-            ->create();
+            ->create([
+                'agent_type_id' => $agentType->getId(),
+                'instructions' => 'Always respond Hola Mundo',
+                'output_format' => 'plain text',
+            ]);
 
         return compact('lead', 'message', 'channel', 'agent');
-    }
-
-    public function testSkipsWhenNotLastMessageInBatch(): void
-    {
-        ['lead' => $lead, 'message' => $message, 'channel' => $channel, 'agent' => $agent] = $this->setupLeadMessageChannelAgent();
-
-        $batchKey = "message_batch:test_receiver:{$lead->getId()}";
-        $differentMessageId = $message->getId() + 999;
-
-        Cache::put($batchKey, [
-            'messages' => [
-                ['body' => 'first message', 'message_id' => $differentMessageId],
-                ['body' => 'second message', 'message_id' => $differentMessageId + 1],
-            ],
-            'last_message_id' => $differentMessageId + 1,
-            'phone_number' => '+11234567890',
-        ], now()->addMinutes(10));
-
-        $action = new AgentChannelResponderAction($channel, $message, $agent);
-        $result = $action->execute(['batchKey' => $batchKey]);
-
-        $this->assertStringContainsString('not the last message', $result['message']);
-        $this->assertArrayHasKey('batch', $result);
-        $this->assertEquals($differentMessageId + 1, $result['batch']['last_message_id']);
-
-        // Cache should NOT be cleared — it is still needed for the actual last message
-        $this->assertTrue(Cache::has($batchKey));
-    }
-
-    public function testClearsCacheWhenCurrentMessageIsLastInBatch(): void
-    {
-        ['lead' => $lead, 'message' => $message, 'channel' => $channel, 'agent' => $agent] = $this->setupLeadMessageChannelAgent();
-
-        $batchKey = "message_batch:test_receiver_last:{$lead->getId()}";
-
-        Cache::put($batchKey, [
-            'messages' => [
-                ['body' => 'the only message', 'message_id' => $message->getId()],
-            ],
-            'last_message_id' => $message->getId(),
-            'phone_number' => '+11234567890',
-        ], now()->addMinutes(10));
-
-        $this->assertTrue(Cache::has($batchKey));
-
-        try {
-            $action = new AgentChannelResponderAction($channel, $message, $agent);
-            $action->execute(['batchKey' => $batchKey, 'from' => '+19876543210']);
-        } catch (Throwable) {
-            // AI/Twilio external calls are expected to fail in test environment.
-            // We only care that Cache::forget was called before reaching those calls.
-        }
-
-        $this->assertFalse(
-            Cache::has($batchKey),
-            'Cache key must be cleared when the current message is the last in the batch'
-        );
-    }
-
-    public function testDoesNotCheckBatchWhenNoBatchKeyProvided(): void
-    {
-        ['message' => $message, 'channel' => $channel, 'agent' => $agent] = $this->setupLeadMessageChannelAgent();
-
-        $action = new AgentChannelResponderAction($channel, $message, $agent);
-
-        try {
-            $result = $action->execute([]);
-        } catch (Throwable) {
-            // Expected: no batchKey means batch check is skipped entirely,
-            // and execution continues to the AI agent which will fail in test env.
-            $result = null;
-        }
-
-        // If we got a result it must NOT be the batch-skip message
-        if ($result !== null) {
-            $this->assertArrayNotHasKey(
-                'batch',
-                $result,
-                'Result should not be the batch-skip payload when no batchKey is provided'
-            );
-        }
-
-        // Reaching this point confirms the batch check was not triggered
-        $this->assertTrue(true);
-    }
-
-    public function testDoesNotCheckBatchWhenBatchKeyNotInCache(): void
-    {
-        ['message' => $message, 'channel' => $channel, 'agent' => $agent] = $this->setupLeadMessageChannelAgent();
-
-        $batchKey = 'message_batch:nonexistent_key_xyz';
-        Cache::forget($batchKey);
-
-        $action = new AgentChannelResponderAction($channel, $message, $agent);
-
-        try {
-            $result = $action->execute(['batchKey' => $batchKey]);
-        } catch (Throwable) {
-            $result = null;
-        }
-
-        // If we got a result it must NOT be the batch-skip message
-        if ($result !== null) {
-            $this->assertArrayNotHasKey(
-                'batch',
-                $result,
-                'Result should not be the batch-skip payload when batchKey is not in cache'
-            );
-        }
-
-        $this->assertTrue(true);
     }
 }

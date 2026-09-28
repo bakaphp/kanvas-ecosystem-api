@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\FollowUp\Services;
 
 use Illuminate\Support\Collection;
+use Kanvas\Guild\Customers\Enums\ConsentConfigurationEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -37,6 +38,14 @@ final class LeadOutboundChannelResolver
     {
         $people = $lead->people;
         if ($people === null) {
+            return [];
+        }
+
+        // Contact-level opt-outs alone are not enough: a stop request flags the lead and the person,
+        // and a lead created after that request carries deliverable contacts it must not use.
+        if ((bool) $lead->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value)
+            || (bool) $people->get(ConsentConfigurationEnum::DO_NOT_CONTACT->value)
+        ) {
             return [];
         }
 

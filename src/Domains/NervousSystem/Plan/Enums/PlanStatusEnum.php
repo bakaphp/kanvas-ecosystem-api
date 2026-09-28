@@ -6,6 +6,13 @@ namespace Kanvas\NervousSystem\Plan\Enums;
 
 enum PlanStatusEnum: string
 {
+    /**
+     * The brief is still being agreed. A plan here is deliberately NOT executable: it exists so an
+     * unanswered request leaves a visible row that can be chased, rather than evaporating with the
+     * conversation that started it.
+     */
+    case INTAKE = 'intake';
+
     case DRAFT = 'draft';
     case ACTIVE = 'active';
     case BLOCKED = 'blocked';
@@ -20,7 +27,35 @@ enum PlanStatusEnum: string
      */
     public static function openStatuses(): array
     {
-        return [self::DRAFT, self::ACTIVE, self::BLOCKED, self::AWAITING_APPROVAL];
+        return [self::INTAKE, self::DRAFT, self::ACTIVE, self::BLOCKED, self::AWAITING_APPROVAL];
+    }
+
+    /**
+     * Statuses where no work may be dispatched, whatever the tasks say. Intake has no agreed goal
+     * yet and approval has not been given — dispatching against either would be acting on something
+     * nobody signed off.
+     *
+     * @return array<int, self>
+     */
+    public static function nonExecutableStatuses(): array
+    {
+        return [self::INTAKE, self::AWAITING_APPROVAL];
+    }
+
+    public function isExecutable(): bool
+    {
+        return ! in_array($this, self::nonExecutableStatuses(), true);
+    }
+
+    /**
+     * Draft is executable, so a plan still waiting on sign-off is held whether or not it has started —
+     * holding only an active one would let a draft be worked before anyone was asked.
+     */
+    public function heldForApproval(bool $needsApproval): self
+    {
+        return $needsApproval && in_array($this, [self::DRAFT, self::ACTIVE], true)
+            ? self::AWAITING_APPROVAL
+            : $this;
     }
 
     /**

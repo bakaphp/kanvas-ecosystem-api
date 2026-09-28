@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Locations\Models;
 
-use GeneaLabs\LaravelModelCaching\Traits\Cachable;
 use Kanvas\Models\BaseModel;
 
 /**
@@ -14,8 +13,6 @@ use Kanvas\Models\BaseModel;
  */
 class Locales extends BaseModel
 {
-    use Cachable;
-
     /**
      * The table associated with the model.
      *

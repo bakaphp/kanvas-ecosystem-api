@@ -10,7 +10,11 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'WooCommerce Order Receiver',
+    description: 'Receiver that turns an inbound WooCommerce order payload into a Kanvas order. Inbound only; '
+        . 'this is how orders ARRIVE from the store.',
+)]
 class OrderReceiverJob extends ProcessWebhookJob
 {
     #[Override]

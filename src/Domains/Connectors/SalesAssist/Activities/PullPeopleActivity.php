@@ -21,10 +21,16 @@ use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'SalesAssist Pull Person From CRM',
+    description: 'Brings a person\'s contact record INTO Kanvas from whichever CRM this company runs. Inbound; '
+        . 'dispatches on the company\'s configured CRM rather than naming one.',
+    integration: IntegrationsEnum::SALESASSIST,
+)]
 class PullPeopleActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     protected ?Companies $company = null;

@@ -9,10 +9,17 @@ use Kanvas\Connectors\EchoPay\Enums\CustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Models\Payments;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'EchoPay Payment Challenge Result',
+    description: 'Part of the EchoPay card-authentication flow, not something to attach by choice: EchoPay '
+        . 'POSTs the transaction id here once the cardholder clears the challenge, and this stores it '
+        . 'on the order so checkout can complete.',
+    integration: IntegrationsEnum::ECHO_PAY,
+)]
 class PullPaymentChallengeWebhookJob extends ProcessWebhookJob
 {
     #[Override]

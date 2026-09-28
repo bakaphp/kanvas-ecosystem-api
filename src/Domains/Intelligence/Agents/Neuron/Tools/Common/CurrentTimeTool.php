@@ -4,26 +4,25 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Common;
 
+use Baka\Support\DateHelper;
 use Carbon\Carbon;
-use DateTimeZone;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use Override;
-use Throwable;
 
-#[AgentTool(name: 'Current Time')]
+#[AgentTool(name: 'Current Time', category: 'ecosystem')]
 class CurrentTimeTool extends Tool
 {
-    public function __construct()
+    public function __construct(private readonly ?string $defaultTimezone = null)
     {
         parent::__construct(
             name: 'get_current_time',
             description: 'Get the current date and time. Use this to anchor any time-relative reasoning '
-                . '(e.g. interpreting "Sunday", "tomorrow", "yesterday" in the conversation history) '
-                . 'before deciding what to do. Pass an IANA timezone (e.g. "America/New_York") to get '
-                . 'time in a specific zone; defaults to UTC.',
+                . '("in 1 minute", "tomorrow at 3pm", "Sunday") before deciding what to do — the returned '
+                . 'time is already in the user\'s local timezone, so do your math in that same local time. '
+                . 'Pass an IANA timezone (e.g. "America/New_York") to override the zone.',
         );
     }
 
@@ -60,17 +59,9 @@ class CurrentTimeTool extends Tool
 
     private function resolveTimezone(?string $timezone): string
     {
-        $trimmed = $timezone !== null ? trim($timezone) : '';
-        if ($trimmed === '') {
-            return 'UTC';
-        }
+        $requested = trim((string) $timezone);
+        $candidate = $requested !== '' ? $requested : (string) $this->defaultTimezone;
 
-        try {
-            new DateTimeZone($trimmed);
-        } catch (Throwable) {
-            return 'UTC';
-        }
-
-        return $trimmed;
+        return DateHelper::validTimezone($candidate) ?? 'UTC';
     }
 }

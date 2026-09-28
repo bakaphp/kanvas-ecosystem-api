@@ -10,6 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Blade;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\Twilio\Enums\ConfigurationEnum as TwilioConfigurationEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
@@ -18,6 +19,7 @@ use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\DataTransferObject\AgentFollowUpResult;
@@ -162,6 +164,11 @@ final class FollowUpLeadAction
                 persistConversation: false,
             )->execute();
             $result = AgentFollowUpResult::fromKernelResponse($raw);
+        } catch (AgentReplySkippedException $e) {
+            // Caught ahead of Throwable: the wrap below reports a fresh RuntimeException, so the
+            // skip's ShouldntReport marker would be lost and every tick of a deactivated agent
+            // would post a 3000-char prompt dump to Sentry.
+            return $this->skip('agent_skipped: ' . $e->getMessage());
         } catch (Throwable $e) {
             // Wrap with lead/tenant/prompt context so Sentry has everything
             // needed to debug a bad LLM response without manual SQL.
@@ -204,8 +211,8 @@ final class FollowUpLeadAction
             );
 
             foreach ($targets as $target) {
-                $this->persistMessage($session, $target->channelType, $sentBody);
-                $this->dispatchOutbound($target->channelType, $sentBody, $target->contact);
+                $message = $this->persistMessage($session, $target->channelType, $sentBody);
+                $this->dispatchOutbound($target->channelType, $sentBody, $target->contact, $message);
                 $channelsForBump[] = $target->channelType;
             }
 
@@ -611,18 +618,24 @@ final class FollowUpLeadAction
         return $message;
     }
 
-    private function dispatchOutbound(string $channelType, string $body, Contact $outboundContact): void
-    {
+    private function dispatchOutbound(
+        string $channelType,
+        string $body,
+        Contact $outboundContact,
+        Message $message,
+    ): void {
         $twilioFrom = (string) $this->company->get(TwilioConfigurationEnum::TWILIO_PHONE_NUMBER->value);
 
         try {
-            new SendMessageToLeadAction($this->lead)->execute(
+            $providerResponse = new SendMessageToLeadAction($this->lead)->execute(
                 channel: $channelType,
                 message: $body,
                 from: $twilioFrom,
                 title: $this->resolveEmailTitle(),
                 to: (string) $outboundContact->value,
+                fromAgent: $this->agent,
             );
+            new StoreMessageSidAction($message)->execute($providerResponse);
         } catch (Throwable $e) {
             // Outbound failure does NOT roll back the persisted message — the
             // record of attempt is the audit truth; the queue layer retries.

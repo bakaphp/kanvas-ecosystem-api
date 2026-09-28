@@ -22,6 +22,7 @@ class EntityIntegrationHistory extends BaseModel
         'integrations_company_id',
         'integrations_id',
         'status_id',
+        'input',
         'response',
         'exception',
         'workflow_id',
@@ -29,6 +30,7 @@ class EntityIntegrationHistory extends BaseModel
     ];
 
     protected $casts = [
+        'input' => Json::class,
         'response' => Json::class,
         'exception' => Json::class,
         'is_deleted' => 'boolean',

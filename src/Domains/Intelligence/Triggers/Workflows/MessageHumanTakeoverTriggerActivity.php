@@ -6,8 +6,6 @@ namespace Kanvas\Intelligence\Triggers\Workflows;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\Services\LeadConfigurationService;
-use Kanvas\Intelligence\Support\UnrespondedLeadAgentMessageCache;
 use Kanvas\Intelligence\Triggers\Enums\TriggersEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -19,7 +17,11 @@ use Kanvas\Workflow\KanvasActivity;
  * Activity that triggers a human takeover workflow when a message
  * has from_human flag set to true and the entity is a Lead.
  */
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Message Human Takeover Trigger',
+    description: 'Detects that a human has stepped into a conversation and turns the agent off for it, so the '
+        . 'agent stops replying over the top of a colleague.',
+)]
 class MessageHumanTakeoverTriggerActivity extends KanvasActivity
 {
     public $tries = 3;
@@ -57,13 +59,6 @@ class MessageHumanTakeoverTriggerActivity extends KanvasActivity
                         'message' => 'Message entity is not a Lead',
                         'entity' => null,
                     ];
-                }
-
-                if (! (new LeadConfigurationService())->isV2Enabled($lead->company)) {
-                    $channel = $message->channels()->first();
-                    if ($channel && ! $channel->isNoteChannel()) {
-                        UnrespondedLeadAgentMessageCache::clear($lead, $channel);
-                    }
                 }
 
                 $lead->fireWorkflow(

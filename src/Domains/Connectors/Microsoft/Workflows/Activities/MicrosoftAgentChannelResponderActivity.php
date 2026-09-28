@@ -16,7 +16,17 @@ use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Microsoft Agent Email Responder',
+    description: 'Has an agent read an inbound Microsoft/Outlook email and reply back on the same thread. Use '
+        . 'it for inbound mail on a connected Microsoft mailbox. Do NOT use it when the agent should '
+        . 'read and act elsewhere — it replies to the sender.',
+    integration: IntegrationsEnum::MICROSOFT,
+    params: [
+        'agent_id' => 'Which agent answers. Falls back to the rule\'s configured agent.',
+        'message' => 'Supplied by the trigger — the inbound email. Not something you set.',
+    ],
+)]
 class MicrosoftAgentChannelResponderActivity extends KanvasActivity
 {
     use HandlesSupportModeDelayedResponseTrait;

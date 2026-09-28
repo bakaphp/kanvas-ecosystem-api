@@ -4,15 +4,110 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Slack\Services;
 
-/**
- * Slack's mrkdwn is not Markdown: `*bold*` (not `**bold**`), `_italic_`, `~strike~`, and links are
- * `<url|text>`. An agent writes Markdown, so its reply renders with literal asterisks unless it
- * goes through here first.
- *
- * https://api.slack.com/reference/surfaces/formatting
- */
+use InvalidArgumentException;
+use League\CommonMark\Environment\Environment;
+use League\CommonMark\Extension\CommonMark\CommonMarkCoreExtension;
+use League\CommonMark\Extension\CommonMark\Node\Block\FencedCode;
+use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
+use League\CommonMark\Parser\MarkdownParser;
+
 class SlackMarkdownService
 {
+    /** @return list<string> */
+    public static function split(string $markdown, int $limit = 3000): array
+    {
+        if ($limit < 32) {
+            throw new InvalidArgumentException('Slack Markdown chunks must allow at least 32 bytes.');
+        }
+
+        if (strlen($markdown) <= $limit) {
+            return [$markdown];
+        }
+
+        $environment = new Environment();
+        $environment->addExtension(new CommonMarkCoreExtension());
+        $environment->addExtension(new GithubFlavoredMarkdownExtension());
+        $document = new MarkdownParser($environment)->parse($markdown);
+        $lines = preg_split('/(?<=\n)/', $markdown);
+        $chunks = [];
+        $current = '';
+        $offset = 0;
+
+        foreach ($document->children() as $block) {
+            $end = $block->getEndLine();
+            $text = implode('', array_slice($lines, $offset, $end - $offset));
+            $offset = $end;
+
+            if (strlen($current) + strlen($text) <= $limit) {
+                $current .= $text;
+
+                continue;
+            }
+
+            if ($current !== '') {
+                $chunks[] = $current;
+                $current = '';
+            }
+
+            if (strlen($text) <= $limit) {
+                $current = $text;
+
+                continue;
+            }
+
+            $parts = $block instanceof FencedCode ? self::splitCodeBlock($block, $limit) : null;
+            array_push($chunks, ...($parts ?? self::splitVerbatim($text, $limit)));
+        }
+
+        $current .= implode('', array_slice($lines, $offset));
+
+        return array_merge($chunks, self::splitVerbatim($current, $limit));
+    }
+
+    /** @return list<string>|null */
+    private static function splitCodeBlock(FencedCode $block, int $limit): ?array
+    {
+        $fence = str_repeat($block->getChar(), $block->getLength());
+        $opening = $fence . ($block->getInfo() ?? '') . "\n";
+        $closing = "\n" . $fence;
+        $budget = $limit - strlen($opening . $closing);
+
+        if ($budget < 4) {
+            return null;
+        }
+
+        // Each message is parsed independently, so code fences must be reopened.
+        $chunks = [];
+        foreach (self::splitVerbatim($block->getLiteral(), $budget) as $part) {
+            $chunks[] = $opening . $part . $closing;
+        }
+
+        return $chunks;
+    }
+
+    /** @return list<string> */
+    private static function splitVerbatim(string $text, int $limit): array
+    {
+        $chunks = [];
+
+        while (strlen($text) > $limit) {
+            $chunk = mb_strcut($text, 0, $limit, 'UTF-8');
+            $newline = strrpos($chunk, "\n");
+            if ($newline !== false) {
+                $chunk = substr($chunk, 0, $newline + 1);
+            }
+
+            $chunks[] = $chunk;
+            $text = substr($text, strlen($chunk));
+        }
+
+        if ($text !== '') {
+            $chunks[] = $text;
+        }
+
+        return $chunks;
+    }
+
     public static function fromMrkdwn(string $mrkdwn): string
     {
         // <#C123|general> → #general   (fall back to the id when Slack omits the name)

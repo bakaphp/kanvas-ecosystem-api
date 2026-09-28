@@ -33,6 +33,7 @@ class EventTimeSlotValidator
 
         if ($timeSlotId) {
             self::validateAgainstTimeSlot($timeSlotId, $companiesId, $appsId, $excludeEventId);
+
             return;
         }
 
@@ -75,12 +76,12 @@ class EventTimeSlotValidator
 
             if ($bookingsCount >= $timeSlot->initial_capacity) {
                 throw new ValidationException(
-                    "Time slot is fully booked. No capacity remaining."
+                    'Time slot is fully booked. No capacity remaining.'
                 );
             }
         } elseif ($timeSlot->isFullyBooked()) {
             throw new ValidationException(
-                "Time slot is fully booked. No capacity remaining."
+                'Time slot is fully booked. No capacity remaining.'
             );
         }
     }
@@ -110,8 +111,11 @@ class EventTimeSlotValidator
                       ->where('evd.end_time', '>', $startTime);
                 });
             })
-            ->whereNull('e.deleted_at')
-            ->whereNull('ev.deleted_at');
+            // Event models soft-delete through is_deleted, not deleted_at, so a cancelled or moved
+            // booking's dates would otherwise keep blocking the slot.
+            ->where('e.is_deleted', 0)
+            ->where('ev.is_deleted', 0)
+            ->where('evd.is_deleted', 0);
 
         if ($excludeEventId) {
             $query->where('e.id', '!=', $excludeEventId);
@@ -145,7 +149,7 @@ class EventTimeSlotValidator
 
         if ($conflictingHold) {
             throw new ValidationException(
-                "Time slot is currently held by another user and will be available after the hold expires."
+                'Time slot is currently held by another user and will be available after the hold expires.'
             );
         }
     }

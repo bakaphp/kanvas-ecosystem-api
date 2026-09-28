@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Zoho\DataTransferObject;
 
-use Carbon\Carbon;
-use Exception;
 use Illuminate\Support\Str;
 use Kanvas\Connectors\Zoho\Enums\CustomFieldEnum;
+use Kanvas\Connectors\Zoho\Services\ZohoFieldTypeService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Override;
 use Spatie\LaravelData\Data;
@@ -89,16 +88,15 @@ class ZohoLead extends Data
         foreach ($map as $key => $name) {
             $value = $entity[$key] ?? null;
             if (is_array($name)) {
-                if ($name['type'] !== 'date') {
-                    settype($value, $name['type']);
-                } else {
-                    try {
-                        $date = Carbon::parse($value);
-                        $value = $date->format('Y-m-d');
-                    } catch (Exception $e) {
-                        $value = null;
-                    }
-                }
+                $type = (string) $name['type'];
+
+                // settype('$50,000', 'double') is 0.0 and Carbon::parse(null) is today — both send
+                // Zoho a value that is wrong rather than absent, so numbers and dates go through the
+                // caster, which yields null when the value can't be trusted and the field is skipped.
+                $value = $type === 'date' || ZohoFieldTypeService::isNumericType($type)
+                    ? ZohoFieldTypeService::cast($value, $type)
+                    : self::castScalar($value, $type);
+
                 $name = $name['name'];
             }
             if (strtolower($key) == 'credit_score' && $value != null) {
@@ -126,6 +124,13 @@ class ZohoLead extends Data
                 $data[$name] = $value;
             }
         }
+    }
+
+    private static function castScalar(mixed $value, string $type): mixed
+    {
+        settype($value, $type);
+
+        return $value;
     }
 
     public function hasMemberNumber(): bool

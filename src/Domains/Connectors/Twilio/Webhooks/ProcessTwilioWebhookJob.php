@@ -7,23 +7,31 @@ namespace Kanvas\Connectors\Twilio\Webhooks;
 use Baka\Support\Str;
 use Exception;
 use Illuminate\Contracts\Database\Query\Builder;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Connectors\Twilio\Actions\DownloadMessageFileAction;
+use Kanvas\Connectors\Twilio\Actions\FlushSmsBurstAction;
+use Kanvas\Connectors\Twilio\Enums\BurstConfigEnum;
+use Kanvas\Connectors\Twilio\Services\WebhookSignatureValidator;
 use Kanvas\Guild\Customers\Actions\CreatePeopleAction;
+use Kanvas\Guild\Customers\Actions\ProcessInboundConsentAction;
 use Kanvas\Guild\Customers\Actions\UpdatePeopleAction;
 use Kanvas\Guild\Customers\DataTransferObject\Address;
 use Kanvas\Guild\Customers\DataTransferObject\Contact;
 use Kanvas\Guild\Customers\DataTransferObject\People as PeopleDto;
+use Kanvas\Guild\Customers\Enums\ConsentSignalEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Customers\Models\People as PeopleModel;
 use Kanvas\Guild\Customers\Repositories\PeoplesRepository;
+use Kanvas\Guild\Customers\Services\ConsentKeywordService;
 use Kanvas\Guild\Leads\Actions\CreateLeadAction;
 use Kanvas\Guild\Leads\Actions\CreateLeadReceiverAction;
+use Kanvas\Guild\Leads\Actions\SendOptOutConfirmationAction;
 use Kanvas\Guild\Leads\DataTransferObject\Lead as DataTransferObjectLead;
 use Kanvas\Guild\Leads\DataTransferObject\LeadReceiver;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
+use Kanvas\Guild\Leads\Enums\LeadCommunicationChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadType;
 use Kanvas\Guild\Leads\Repositories\LeadsRepository;
@@ -33,29 +41,48 @@ use Kanvas\Guild\LeadSources\DataTransferObject\LeadSource;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Actions\CreateMessageAction;
+use Kanvas\Social\Messages\Concerns\ChainsInboundBursts;
 use Kanvas\Social\Messages\DataTransferObject\AiChatMessagePayload;
+use Kanvas\Social\Messages\DataTransferObject\BurstPolicy;
 use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Enums\WorkflowEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
+use Kanvas\Workflow\Models\ReceiverWebhook;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Twilio Inbound SMS Webhook',
+    description: 'Receiver for inbound Twilio SMS and MMS: finds or creates the person and their lead, files '
+        . 'the message and any attachments, and notifies the lead\'s stakeholders. This is how texts '
+        . 'ARRIVE — it does not reply. Pair it with the SMS responder step if an agent should answer.',
+    integration: IntegrationsEnum::TWILIO,
+)]
 class ProcessTwilioWebhookJob extends ProcessWebhookJob
 {
+    use ChainsInboundBursts;
+
     protected bool $hijackSession = false;
-    protected int $batchDelaySeconds = 3; // Configurable delay
+
+    #[Override]
+    public static function authenticateRequest(Request $request, ReceiverWebhook $receiver): bool
+    {
+        return WebhookSignatureValidator::validate(
+            request: $request,
+            company: $receiver->company,
+            expectedUrl: $receiver->getUrl(),
+        );
+    }
 
     #[Override]
     public function execute(array $params = []): array
     {
         $request = $this->webhookRequest->payload;
-
-        $this->batchDelaySeconds = $this->receiver->company->get('twilio_batch_delay_seconds', 3) ?? 3;
 
         if ($this->receiver->company->get('allow_session_hijack', false)
             && $this->receiver->company->get('overwrite_phone_number') !== null
@@ -70,19 +97,28 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             }
         }
         $phoneNumber = $request['From'];
-        $batchKey = "message_batch:{$this->receiver->getId()}:{$phoneNumber}";
 
         $isFromMe = $request['From'] === $request['To'];
-        $batch = Cache::get($batchKey, [
-                        'messages' => [],
-                        'first_message_time' => now(),
-                        'phone_number' => $phoneNumber,
-                    ]);
+        $consentType = $this->consentType($request);
+        $consentOutcome = null;
+        $lead = null;
 
         if (! $isFromMe) {
             $people = $this->processContactFromMessage($request);
+
             $lead = $this->createLeadFromPeople($people);
             $lead->set(LeadsEnumsConfigurationEnum::IS_ENGAGEMENT->value, true);
+
+            // After the lead exists: a stop request is person-wide and every outbound guard reads
+            // the lead, so the lead has to be there for the flag to land anywhere useful.
+            $consentOutcome = new ProcessInboundConsentAction(
+                people: $people,
+                sourceChannel: LeadCommunicationChannelEnum::SMS->value,
+                body: $request['Body'] ?? null,
+                lead: $lead,
+                contactValue: (string) $request['From'],
+                detectedSignal: $consentType,
+            )->execute();
         }
 
         $messageSlug = $this->createMessageSlug($request['SmsMessageSid'], $request['From']);
@@ -93,7 +129,6 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             ->where('companies_id', $this->receiver->company->getId())
             ->where('apps_id', $this->receiver->app->getId())
             ->first();
-        $lastMessage = $channel->getLastMessage();
 
         if ($existingMessage) {
             $message = $existingMessage;
@@ -128,26 +163,9 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
 
             $createMessageAction = new CreateMessageAction($messageInput);
             $message = $createMessageAction->execute();
-
-            if (! $isFromMe) {
-                $this->cancelPendingWorkflow($batchKey);
-                // Add current message to batch
-                $batch['messages'][] = [
-                    'body' => $request['Body'] ?? '', //photos or media may not have body
-                    'message_sid' => $request['SmsMessageSid'],
-                    'timestamp' => now(),
-                    'raw_data' => $request,
-                    'message_id' => $message->getId(),
-                ];
-
-                $batch['last_message_time'] = now();
-                $batch['last_message_id'] = $message->getId();
-
-                Cache::put($batchKey, $batch, now()->addMinutes(10));
-            }
         }
 
-        if (isset($lead) && $lead instanceof Lead) {
+        if ($lead instanceof Lead) {
             $message->addEntity($lead);
             // Polymorphic People attach so People-keyed history loaders (Neuron's
             // SalesAssistKanvasMessageHistory) find this turn. Harmless for ADK.
@@ -158,6 +176,41 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
         }
 
         $channel->addMessage($message);
+
+        // Tag on any recognised keyword, but suppress the agent only for a real stop. A bare "YES"
+        // matches Twilio's START set and used to cancel the turn for everyone — including a prospect
+        // answering "yes, book me in", who then got silence back.
+        if ($consentType !== null) {
+            $message->addTag('twilio-consent');
+            $message->addTag($consentType->value);
+        }
+
+        // HELP rides along with the stop case: Twilio answers it itself with the carrier advisory,
+        // so an agent turn on top is a second message nobody asked for. START is deliberately NOT
+        // here — someone asking to hear from us again should get a real reply.
+        $carrierAnswersItself = $consentOutcome?->signal === ConsentSignalEnum::HELP;
+
+        if ($consentOutcome?->shouldHaltAgentTurn() === true || $carrierAnswersItself) {
+            if ($lead !== null && $consentOutcome->applied) {
+                new SendOptOutConfirmationAction($lead, LeadCommunicationChannelEnum::SMS->value)->execute();
+            }
+
+            return [array_merge([
+                'message_id' => $message->getId(),
+                'uuid' => $message->uuid,
+                'channel_id' => $channel->getId(),
+                'chat_jid' => $request['From'],
+                'text' => $request['Body'] ?? '',
+                'is_from_me' => false,
+                'type' => $message->messageType->name,
+                // From the outcome, not $consentType: a phrase-tier stop is recognised inside
+                // ProcessInboundConsentAction and leaves the keyword matcher's result null.
+                // Uppercase is the shape this payload has always had; the enum is lowercase because
+                // it also has to match Twilio's own OptOutType casing on the way in.
+                'consent_type' => strtoupper((string) $consentOutcome->signal?->value),
+                'automated_response_suppressed' => true,
+            ], $consentOutcome->toArray())];
+        }
 
         for ($i = 0; isset($request["MediaUrl{$i}"]); $i++) {
             try {
@@ -171,7 +224,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                     $filesystem['media']->name
                 );
 
-                if (isset($lead)) {
+                if ($lead !== null) {
                     $lead->addFile(
                         $filesystem['media'],
                         $filesystem['media']->name
@@ -181,29 +234,54 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                 report($e);
             }
         }
-        $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
+
+        if ($lead !== null) {
+            $lead->set(LeadsEnumsConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
+        }
 
         if (! $isFromMe) {
             new NotifyLeadStakeholdersService($lead)->onCustomerEngagement($message);
         }
 
-        $workflowJobKey = "workflow_job:{$batchKey}";
+        $this->announceMessage(
+            $channel,
+            $message,
+            $isFromMe,
+            $phoneNumber
+        );
 
-        // Clear any cancellation flag
-        Cache::forget($workflowJobKey . ':cancelled');
+        return [
+            array_merge([
+                'message_id' => $message->getId(),
+                'uuid' => $message->uuid,
+                'channel_id' => $channel->getId(),
+                'chat_jid' => $request['From'],
+                'text' => $request['Body'],
+                'is_from_me' => $request['From'] === $request['To'],
+                'type' => $message->messageType->name,
+                // A recognised keyword that did not stop the conversation — START, HELP, or a "YES"
+                // from someone who was never opted out. Reported, but the agent still answers.
+                'consent_type' => $consentOutcome?->signal !== null
+                    ? strtoupper($consentOutcome->signal->value)
+                    : null,
+                'automated_response_suppressed' => false,
+            ], $consentOutcome?->toArray() ?? []),
+        ];
+    }
 
-        dispatch(function () use ($message, $channel, $request, $batchKey, $workflowJobKey) {
-            // Check if this job was cancelled
-            if (Cache::has($workflowJobKey . ':cancelled')) {
-                return; // Job was cancelled by newer message
-            }
-
-            // Verify this is still the last message in the batch
-            $currentBatch = Cache::get($batchKey);
-            if (! $currentBatch || $currentBatch['last_message_id'] !== $message->getId()) {
-                return; // Not the last message anymore
-            }
-
+    /**
+     * Inbound texts are collected into a burst and announced once when the sender goes quiet, so
+     * someone who sends three lines in a row gets one answer rather than three. Outbound is
+     * announced immediately: it has no flurry to collapse, and rules listening for the company's
+     * own messages expect them without a delay.
+     */
+    protected function announceMessage(
+        Channel $channel,
+        Message $message,
+        bool $isFromMe,
+        string $phoneNumber
+    ): void {
+        if ($isFromMe) {
             $channel->fireWorkflow(
                 WorkflowEnum::AFTER_ADDING_MESSAGE_TO_CHANNEL->value,
                 true,
@@ -212,33 +290,52 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
                     'user' => $message->user,
                     'app' => $message->app,
                     'company' => $message->company,
-                    'text' => $request['Body'],
+                    'text' => $message->message['content'] ?? '',
                     'communication_channel' => 'sms',
-                    'batchKey' => $batchKey,
                 ]
             );
-        })->delay(now()->addSeconds($this->batchDelaySeconds));
 
-        return [
-            [
-                'message_id' => $message->getId(),
-                'uuid' => $message->uuid,
-                'channel_id' => $channel->getId(),
-                'chat_jid' => $request['From'],
-                'text' => $request['Body'],
-                'is_from_me' => $request['From'] === $request['To'],
-                'type' => $messageTypeModel->name,
-            ],
-        ];
+            return;
+        }
+
+        $this->fileIntoBurst(
+            $this->receiver->app,
+            $channel,
+            $message,
+            $this->burstPolicy($phoneNumber),
+            FlushSmsBurstAction::class
+        );
     }
 
-    protected function cancelPendingWorkflow(string $batchKey): void
+    /**
+     * One burst per sender per channel. SMS has no album id or thread id to key on, so the number
+     * that sent it is the whole correlation.
+     */
+    protected function burstPolicy(string $phoneNumber): BurstPolicy
     {
-        $workflowJobKey = "workflow_job:{$batchKey}";
+        $company = $this->receiver->company;
+        $idle = BurstConfigEnum::BURST_IDLE_SECONDS->getInt($company);
 
-        // If you're using a queue that supports job cancellation, cancel here
-        // For now, we'll use a flag approach
-        Cache::put($workflowJobKey . ':cancelled', true, now()->addMinutes(15));
+        return new BurstPolicy(
+            correlationKeys: ['sms:' . Str::normalizePhoneNumber($phoneNumber)],
+            chainIdleSeconds: $idle,
+            closeIdleSeconds: $idle,
+            maxSeconds: BurstConfigEnum::BURST_MAX_SECONDS->getInt($company),
+            jitterSeconds: BurstConfigEnum::BURST_JITTER_SECONDS->getInt($company),
+        );
+    }
+
+    /**
+     * Twilio's own classification wins when present — it reflects what the carrier actually did to
+     * the number. Otherwise fall through to the shared matcher, which is the same keyword set every
+     * other inbound channel uses.
+     */
+    protected function consentType(array $request): ?ConsentSignalEnum
+    {
+        $optOutType = strtolower(trim((string) ($request['OptOutType'] ?? '')));
+        $providerSignal = ConsentSignalEnum::tryFrom($optOutType);
+
+        return $providerSignal ?? ConsentKeywordService::detect($request['Body'] ?? null);
     }
 
     public function createLeadFromPeople(PeopleModel $people): Lead
@@ -369,11 +466,13 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             custom_fields: [
                 'twilio_jid' => $phoneNumber,
             ],
-            tags: ['sms', 'twilio']
+            tags: ['sms', 'twilio'],
+            // We only know the number the SMS came from — anything else the person has
+            // (email, other phones) must survive the update.
+            mergeContacts: true
         );
 
         if ($existingCustomer) {
-            //$peopleDto->id = $existingCustomer->getId();
             return new UpdatePeopleAction($existingCustomer, $peopleDto)->execute();
         }
 
@@ -399,6 +498,7 @@ class ProcessTwilioWebhookJob extends ProcessWebhookJob
             $channel = Channel::where('slug', $slug)
                         ->where('companies_id', $this->receiver->company->getId())
                         ->where('apps_id', $this->receiver->app->getId())
+                        ->orderByDesc('last_message_id')
                         ->lockForUpdate()
                         ->first();
             if (! $channel) {

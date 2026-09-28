@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\VinSolution\DataTransferObject;
 
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
+use GuzzleHttp\Exception\ClientException;
 use Illuminate\Support\Facades\Cache;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\VinSolution\Dealers\Dealer;
@@ -145,6 +146,12 @@ class Lead extends DataTransferObjectLead
                 )
             )->execute();
             $localLeadSource->set(CustomFieldEnum::LEADS_SOURCE_ID->value, (int) $data['LeadSource']);
+        } catch (ClientException $e) {
+            if ($e->getResponse()?->getStatusCode() !== 404) {
+                report($e);
+            }
+
+            $localLeadSource = null;
         } catch (Throwable $e) {
             report($e);
             $localLeadSource = null;

@@ -16,6 +16,8 @@ use Override;
 
 class RedisAgentChatHistory extends AbstractChatHistory
 {
+    use RebuildsTrimmedHistory;
+
     protected string $entityNamespace;
     protected int|string $entityId;
     protected ?string $externalReferenceId = null;
@@ -69,7 +71,7 @@ class RedisAgentChatHistory extends AbstractChatHistory
             $messages = $this->sanitizeAlternation($messages);
 
             if (! empty($messages)) {
-                $this->history = $this->deserializeMessages($messages);
+                $this->applyLoadedHistory($this->deserializeMessages($messages));
             }
         }
     }

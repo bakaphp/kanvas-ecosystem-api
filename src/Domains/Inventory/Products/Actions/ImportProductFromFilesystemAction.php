@@ -10,17 +10,29 @@ use Illuminate\Support\Str;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Filesystem\Models\FilesystemImports;
+use Kanvas\Filesystem\Services\CsvReaderService;
+use Kanvas\Filesystem\Services\FilesystemRowMapper;
 use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Inventory\Importer\Jobs\ProductImporterJob;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Models\ProductsTypes;
 use Kanvas\Inventory\ProductsTypes\Repositories\ProductsTypesRepository;
-use League\Csv\Reader;
+use Kanvas\Social\Tags\Models\Tag;
 use RuntimeException;
 use Throwable;
 
 class ImportProductFromFilesystemAction
 {
+    /**
+     * Mapper keys that live on a CSV row but mean something different once the
+     * row becomes a variant — `variant_name` is the variant's `name`, and
+     * `variant_tags` its `tags` (product-level tags come from `product_tags`).
+     */
+    private const array VARIANT_KEY_ALIASES = [
+        'variant_name' => 'name',
+        'variant_tags' => 'tags',
+    ];
+
     public function __construct(
         public FilesystemImports $filesystemImports,
         protected ?FilesystemServices $filesystemService = null,
@@ -90,7 +102,7 @@ class ImportProductFromFilesystemAction
         string $jsonlPath,
         ?ProductsTypes $productType = null
     ): void {
-        $reader = Reader::from($csvPath);
+        $reader = CsvReaderService::fromPath($csvPath);
         $reader->setHeaderOffset(0);
         $headers = array_map('trim', $reader->getHeader());
 
@@ -105,7 +117,9 @@ class ImportProductFromFilesystemAction
         $configuration = is_array($this->filesystemImports->filesystemMapper->configuration)
             ? $this->filesystemImports->filesystemMapper->configuration
             : [];
-        $channelsId = $configuration['channels_id'] ?? null;
+        $extra = is_array($this->filesystemImports->extra) ? $this->filesystemImports->extra : [];
+        // A scheduled import passes its own channel per run, so one mapper can serve many rooftops.
+        $channelsId = $extra['channels_id'] ?? $configuration['channels_id'] ?? null;
         $productType ??= $this->resolveProductType($configuration);
 
         try {
@@ -118,12 +132,20 @@ class ImportProductFromFilesystemAction
                 $variant = $this->mapper($mapping, $record);
 
                 if ($channelsId !== null) {
+                    // Without warehouses_id the channel lands on the company's default warehouse, and
+                    // without is_published a re-import unpublishes the row. Both are only sent when the
+                    // mapping sets them, so older mappings keep producing the same row.
                     $variant['channels'] = [
-                        [
-                            'channels_id' => $channelsId,
-                            'price' => $this->cleanPrice($variant['price'] ?? 0.0),
-                            'discounted_price' => $this->cleanPrice($variant['discounted_price'] ?? 0.0),
-                        ],
+                        array_filter(
+                            [
+                                'channels_id' => $channelsId,
+                                'warehouses_id' => $variant['warehouses'][0]['id'] ?? null,
+                                'price' => $this->cleanPrice($variant['price'] ?? 0.0),
+                                'discounted_price' => $this->cleanPrice($variant['discounted_price'] ?? 0.0),
+                                'is_published' => $variant['is_published'] ?? null,
+                            ],
+                            fn ($value) => $value !== null
+                        ),
                     ];
                 }
 
@@ -187,7 +209,22 @@ class ImportProductFromFilesystemAction
     private function buildProductFromVariants(array $variants, ProductsTypes $productType): array
     {
         $productAttributes = [];
+        $productTags = [];
+        $productFiles = [];
         foreach ($variants as $variant) {
+            // Union rather than reading row 0 only: a tag set is order-free, so
+            // this also covers CSVs that repeat the product columns on every
+            // variant row, and collapses to row 0 when they don't.
+            foreach (Tag::normalizeNames($variant['product_tags'] ?? []) as $tag) {
+                $productTags[(string) $tag] = $tag;
+            }
+
+            // Keyed by url so a CSV that repeats the photo column on every variant row
+            // doesn't download the same image once per row.
+            foreach ($this->fileList($variant['product_files'] ?? null) as $file) {
+                $productFiles[$file['url']] = $file;
+            }
+
             if (! isset($variant['attributes']) || ! is_array($variant['attributes'])) {
                 continue;
             }
@@ -207,6 +244,8 @@ class ImportProductFromFilesystemAction
             'status' => $variants[0]['status'] ?? null,
             'customFields' => [],
             'categories' => $variants[0]['categories'] ?? [],
+            'tags' => array_values($productTags),
+            'files' => array_values($productFiles),
             'variants' => $variants,
             'attributes' => $productAttributes,
             'price' => 0.0,
@@ -216,6 +255,27 @@ class ImportProductFromFilesystemAction
                 'weight' => $productType->weight,
             ],
         ];
+    }
+
+    /**
+     * A mapped file column is already `[{url, name}, ...]`; anything without a url is dropped.
+     *
+     * @return list<array{url: string, name: string}>
+     */
+    private function fileList(mixed $files): array
+    {
+        if (! is_array($files)) {
+            return [];
+        }
+
+        $valid = [];
+        foreach ($files as $file) {
+            if (is_array($file) && ! empty($file['url'])) {
+                $valid[] = ['url' => (string) $file['url'], 'name' => (string) ($file['name'] ?? '')];
+            }
+        }
+
+        return $valid;
     }
 
     /**
@@ -282,7 +342,7 @@ class ImportProductFromFilesystemAction
         $result = [];
 
         foreach ($template as $key => $value) {
-            $targetKey = ($key === 'variant_name') ? 'name' : $key;
+            $targetKey = self::VARIANT_KEY_ALIASES[$key] ?? $key;
 
             if ($key === 'attributes' && is_array($value)) {
                 $result[$targetKey] = $this->mapAttributes($value, $data);
@@ -290,22 +350,19 @@ class ImportProductFromFilesystemAction
                 continue;
             }
 
-            if (is_array($value)) {
+            if (is_array($value) && ! FilesystemRowMapper::isExpression($value)) {
                 $result[$targetKey] = $this->mapper($value, $data);
 
                 continue;
             }
 
-            $result[$targetKey] = match (true) {
-                is_string($value) && str_starts_with($value, '_') => substr($value, 1),
-                is_string($value) && str_starts_with($value, 'date_') => Date::createFromFormat($data[substr($value, 5)] ?? ''),
-                is_string($value) => $data[$value] ?? null,
-                default => $value,
-            };
+            $result[$targetKey] = FilesystemRowMapper::resolve($value, $data);
 
             if ($targetKey === 'categories' && is_string($result[$targetKey]) && $result[$targetKey] !== '') {
                 $result[$targetKey] = $this->mapCategories($result[$targetKey]);
-            } elseif ($targetKey === 'files' && is_string($result[$targetKey]) && $result[$targetKey] !== '') {
+            } elseif ($targetKey === 'tags' || $targetKey === 'product_tags') {
+                $result[$targetKey] = Tag::normalizeNames($result[$targetKey]);
+            } elseif (($targetKey === 'files' || $targetKey === 'product_files') && is_string($result[$targetKey]) && $result[$targetKey] !== '') {
                 $result[$targetKey] = Date::explodeFileStringBasedOnDelimiter($result[$targetKey]);
             } elseif (is_string($result[$targetKey]) && Date::isValidDate($result[$targetKey])) {
                 $result[$targetKey] = Date::createFromFormat($result[$targetKey]);

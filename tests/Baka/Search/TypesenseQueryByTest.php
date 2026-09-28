@@ -42,7 +42,7 @@ final class TypesenseQueryByTest extends TestCase
             'templates' => [Templates::class, 'name,subject,title'],
             'agent' => [Agent::class, 'name,slug,description'],
             'order' => [Order::class, 'order_number_text,user_email,user_phone,tracking_client_id,customer_name,products_text,metadata_text'],
-            'variants' => [Variants::class, 'name,sku,ean,barcode,description,short_description'],
+            'variants' => [Variants::class, 'name,sku,ean,barcode,description,short_description,tags'],
             'message' => [Message::class, 'message_text'],
             'role' => [Role::class, 'name,title'],
         ];

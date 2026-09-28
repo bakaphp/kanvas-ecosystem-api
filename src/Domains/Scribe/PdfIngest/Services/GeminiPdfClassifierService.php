@@ -7,10 +7,12 @@ namespace Kanvas\Scribe\PdfIngest\Services;
 use Baka\Http\SafeUrlFetcher;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Filesystem\Models\Filesystem;
+use Kanvas\Filesystem\Services\FilesystemServices;
 use Kanvas\Intelligence\Enums\ConfigurationEnum;
 use Kanvas\Scribe\PdfIngest\Contracts\PdfClassifierServiceInterface;
 use Kanvas\Scribe\PdfIngest\DataTransferObject\PdfClassificationResult;
 use Kanvas\Scribe\PdfIngest\Enums\PdfIngestDocumentTypeEnum;
+use Kanvas\Scribe\PdfIngest\Exceptions\UnsupportedDocumentTypeException;
 use Laravel\Ai\Enums\Lab;
 use Laravel\Ai\Exceptions\AiException;
 use Laravel\Ai\Files\Document;
@@ -30,8 +32,10 @@ use function Laravel\Ai\agent;
  *   - JSON-schema enforcement on the response (returns a typed array via `$response->structured`)
  *
  * Flow:
- *   1. Fetch PDF bytes via SafeUrlFetcher (SSRF-guarded per the root CLAUDE.md rule)
- *   2. Base64-encode + wrap as `Document::fromBase64()` so the package can send `inline_data`
+ *   1. Fetch the bytes via SafeUrlFetcher (SSRF-guarded per the root CLAUDE.md rule)
+ *   2. Detect the type from the bytes and refuse anything outside SUPPORTED_MIME_TYPES, then
+ *      base64-encode + wrap as `Document::fromBase64()` so the package can send `inline_data` — a
+ *      receipt photo and a PDF invoice both arrive here
  *   3. Call agent(schema)->prompt() — package serializes/deserializes; our schema definition
  *      mirrors the JSON shape the prompt describes
  *   4. Map the validated dict to PdfClassificationResult
@@ -44,6 +48,15 @@ class GeminiPdfClassifierService implements PdfClassifierServiceInterface
 {
     public const DEFAULT_MODEL = 'gemini-2.5-flash';
 
+    public const array SUPPORTED_MIME_TYPES = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'image/heic',
+        'image/heif',
+    ];
+
     public function __construct(
         protected readonly ?string $modelOverride = null,
         protected readonly int $timeoutSeconds = 60,
@@ -54,6 +67,8 @@ class GeminiPdfClassifierService implements PdfClassifierServiceInterface
     public function classify(Filesystem $pdf, array $hints = []): PdfClassificationResult
     {
         $bytes = $this->fetchPdfBytes($pdf);
+        $mimeType = $this->resolveMimeType($bytes);
+        $sent = sprintf('%s, %d bytes', $mimeType, strlen($bytes));
         $prompt = self::buildPrompt($hints);
         $model = $this->resolveModel();
 
@@ -96,19 +111,19 @@ class GeminiPdfClassifierService implements PdfClassifierServiceInterface
                 ],
             )->prompt(
                 $prompt,
-                attachments: [Document::fromBase64(base64_encode($bytes), 'application/pdf')],
+                attachments: [Document::fromBase64(base64_encode($bytes), $mimeType)],
                 provider: Lab::Gemini,
                 model: $model,
                 timeout: $this->timeoutSeconds,
             );
         } catch (AiException $e) {
             throw new RuntimeException(
-                "Gemini structured-classification call failed: {$e->getMessage()}",
+                "Gemini structured-classification call failed ({$sent}): {$e->getMessage()}",
                 previous: $e,
             );
         } catch (Throwable $e) {
             throw new RuntimeException(
-                "Gemini structured-classification call failed (non-AI): {$e->getMessage()}",
+                "Gemini structured-classification call failed (non-AI, {$sent}): {$e->getMessage()}",
                 previous: $e,
             );
         }
@@ -138,7 +153,10 @@ class GeminiPdfClassifierService implements PdfClassifierServiceInterface
         return <<<PROMPT
 You are a strict accounting document classifier and extractor for a small business in the US and/or Dominican Republic.
 
-Analyze the attached PDF and return a structured result matching the response schema.
+Analyze the attached document and return a structured result matching the response schema. It may be a
+PDF or a photo of a paper receipt — a phone picture is expected and readable, so extract from it the
+same way. Do not lower confidence merely because the image is a photo rather than a clean scan; lower
+it only when a field is genuinely illegible.
 
 Allowed document_type values: expense_receipt | vendor_invoice | vendor_quote | our_invoice | our_quote | unknown
 Default currency when none stated: {$defaultCurrency}
@@ -210,6 +228,22 @@ PROMPT;
         }
 
         return self::DEFAULT_MODEL;
+    }
+
+    /**
+     * What Gemini is told the bytes are, read from the bytes. `file_type` is not evidence: a file
+     * attached by URL — every email attachment — takes it from the URL's extension, and Gemini answers
+     * a mislabelled document with a bare 400 INVALID_ARGUMENT (KANVAS-ECOSYSTEM-6CH).
+     */
+    protected function resolveMimeType(string $bytes): string
+    {
+        $mimeType = FilesystemServices::detectMimeTypeFromBytes($bytes);
+
+        if (! in_array($mimeType, self::SUPPORTED_MIME_TYPES, true)) {
+            throw new UnsupportedDocumentTypeException($mimeType);
+        }
+
+        return $mimeType;
     }
 
     protected function fetchPdfBytes(Filesystem $pdf): string

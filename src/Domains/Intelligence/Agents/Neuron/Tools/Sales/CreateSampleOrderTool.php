@@ -18,9 +18,11 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Orders\Actions\CreateSampleOrderAction;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
@@ -30,10 +32,11 @@ use Spatie\LaravelData\DataCollection;
  * the workflow pushes it to Acumatica. The customer is resolved by email (created if new); the SKU
  * must already be synced as a product.
  */
-#[AgentTool(name: 'Create Sample Order')]
-class CreateSampleOrderTool extends Tool
+#[AgentTool(name: 'Create Sample Order', category: 'commerce')]
+class CreateSampleOrderTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
 
     public function __construct()
     {

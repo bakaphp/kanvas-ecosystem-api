@@ -120,17 +120,16 @@ class EventVersion extends BaseModel
 
     public function addParticipant(Participant $participant): EventVersionParticipant
     {
-        $defaultParticipantType = ParticipantType::fromApp($this->app)->first();
-
-        $participantType = ParticipantType::fromApp($this->app)
-            ->fromCompany($this->company)
-            ->firstOrCreate(
-                ['name' => 'Attendee'],
-                [
-                    'name' => 'Attendee',
-                    'users_id' => $defaultParticipantType->users_id,
-                ]
-            );
+        $participantType = ParticipantType::firstOrCreate(
+            [
+                'name' => 'Attendee',
+                'apps_id' => $this->apps_id,
+                'companies_id' => $this->companies_id,
+            ],
+            [
+                'users_id' => $this->users_id,
+            ]
+        );
 
         $eventVersionParticipant = EventVersionParticipant::withTrashed() // includes soft-deleted records
             ->where('event_version_id', $this->getId())
@@ -241,12 +240,13 @@ class EventVersion extends BaseModel
     public function toSearchableArray(): array
     {
         return [
-            'objectID' => $this->id,
+            'objectID' => (string) $this->id,
             'id' => (string) $this->id,
             'uuid' => $this->uuid,
             'name' => $this->name,
             'slug' => $this->slug,
             'description' => $this->description,
+            'config' => $this->metadata,
             'apps_id' => $this->apps_id,
             'companies_id' => $this->companies_id,
         ];
@@ -284,6 +284,11 @@ class EventVersion extends BaseModel
                     'optional' => true,
                 ],
                 [
+                    'name' => 'config',
+                    'type' => 'object',
+                    'optional' => true,
+                ],
+                [
                     'name' => 'apps_id',
                     'type' => 'int64',
                 ],
@@ -293,6 +298,7 @@ class EventVersion extends BaseModel
                     'facet' => true,
                 ],
             ],
+            'enable_nested_fields' => true,
         ];
     }
 

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Social\Channels\Repositories;
 
 use Baka\Contracts\AppInterface;
+use Baka\Contracts\CompanyInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
@@ -16,23 +18,40 @@ class ChannelRepository
     public static function getById(
         int $id,
         Users $user,
-        ?AppInterface $app = null
+        ?AppInterface $app = null,
+        ?CompanyInterface $company = null
     ): Channel {
-        return self::getByIdBuilder($user, $app)->findOrFail($id);
+        return self::getByIdBuilder($user, $app, $company)->findOrFail($id);
     }
 
     public static function getByIdBuilder(
         Users $user,
-        ?AppInterface $app = null
+        ?AppInterface $app = null,
+        ?CompanyInterface $company = null
     ): Builder {
         $app = $app ?? app(Apps::class);
         $databaseSocial = config('database.connections.social.database', 'social');
-        $builder = Channel::join($databaseSocial . '.channel_users', 'channel_users.channel_id', '=', 'channels.id')
-            ->where('channel_users.users_id', $user->getId())
+        $isMember = fn (QueryBuilder $query): QueryBuilder => $query
+            ->from($databaseSocial . '.channel_users')
+            ->whereColumn('channel_users.channel_id', 'channels.id')
+            ->where('channel_users.users_id', $user->getId());
+
+        $builder = Channel::query()
+            ->select('channels.*')
             ->where('channels.apps_id', $app->getId())
             ->where('channels.is_deleted', 0);
 
-        return $builder;
+        if (! $user->isAdmin()) {
+            return $builder->whereExists($isMember);
+        }
+
+        $companyId = ($company ?? $user->getCurrentCompany())->getId();
+
+        return $builder->where(
+            fn (Builder $query): Builder => $query
+                ->where('channels.companies_id', $companyId)
+                ->orWhereExists($isMember)
+        );
     }
 
     public static function getChannelMessagesByVerb(Channel $channel, string $verb): Builder

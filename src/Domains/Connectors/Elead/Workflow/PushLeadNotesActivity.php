@@ -18,6 +18,7 @@ use Kanvas\Connectors\Elead\Actions\ProcessDriversLicenseAction;
 use Kanvas\Connectors\Elead\Actions\SyncLeadAction;
 use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\DataTransferObject\Address as AddressDto;
+use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\AddressType;
 use Kanvas\Guild\Customers\Models\People;
@@ -28,7 +29,13 @@ use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Throwable;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Elead Push Lead Notes',
+    description: 'Copies a message into the lead\'s notes in Elead, so the CRM record shows the conversation. '
+        . 'Writes a note only — it sends nothing to the customer. Pick the version matching the CRM '
+        . 'this company runs; several connectors ship a near-identical step.',
+    integration: IntegrationsEnum::ELEAD,
+)]
 class PushLeadNotesActivity extends KanvasActivity
 {
     public $tries = 1;
@@ -204,7 +211,7 @@ class PushLeadNotesActivity extends KanvasActivity
         ]));
 
         if (isset($result['data']['previousAddressStreet']) && ! empty($result['data']['previousAddressStreet'])) {
-            $previousHomeType = AddressType::getByName('Previous Home');
+            $previousHomeType = AddressType::getByName(AddressTypeEnum::PREVIOUS_HOME->value);
 
             $people->addAddress(AddressDto::from([
                 'address' => $result['data']['previousAddressStreet'],
@@ -212,6 +219,7 @@ class PushLeadNotesActivity extends KanvasActivity
                 'state' => $messageData['data']['form']['housing']['previous_state']['code'] ?? '',
                 'zip' => $result['data']['previousAddressZipCode'],
                 'address_type_id' => $previousHomeType->getId(),
+                'is_default' => false,
             ]));
         }
     }

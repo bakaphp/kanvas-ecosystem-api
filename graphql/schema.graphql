@@ -27,12 +27,14 @@ scalar Money @scalar(class: "App\\GraphQL\\Scalars\\MoneyScalar")
 #import schemas/Inventory/*.graphql
 #import schemas/Connector/*.graphql
 #import schemas/Inventory/Admin/*.graphql
+#import schemas/Approvals/*.graphql
 #import schemas/Guild/*.graphql
 #import schemas/Social/*.graphql
 #import schemas/ContentEngine/*.graphql
 #import schemas/Souk/*.graphql
 #import schemas/Souk/Payments/*.graphql
 #import schemas/Souk/Discounts/*.graphql
+#import schemas/Insurance/*.graphql
 #import schemas/ActionEngine/*.graphql
 #import schemas/Ecosystem/Admin/*.graphql
 #import schemas/WorkFlow/*.graphql

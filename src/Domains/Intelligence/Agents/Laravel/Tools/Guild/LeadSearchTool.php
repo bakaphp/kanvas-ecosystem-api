@@ -13,7 +13,7 @@ use Laravel\Ai\Tools\Request;
 use Override;
 use Stringable;
 
-#[AgentTool(name: 'Lead Search')]
+#[AgentTool(name: 'Lead Search', category: 'crm')]
 class LeadSearchTool implements KanvasToolInterface
 {
     use HasKanvasContext;

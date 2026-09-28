@@ -66,10 +66,22 @@ class SearchEngineResolver
 
     protected function createAlgoliaEngine(array $searchSettings): AlgoliaEngine
     {
-        $appId = $searchSettings['algolia_app_id'] ?? config('scout.algolia.id');
-        $apiKey = $searchSettings['algolia_api_key'] ?? config('scout.algolia.secret');
+        $credentials = self::algoliaCredentialsFromSettings($searchSettings);
 
-        return new KanvasAlgoliaEngine(SearchClient::create($appId, $apiKey));
+        return new KanvasAlgoliaEngine(SearchClient::create($credentials['app_id'], $credentials['api_key']));
+    }
+
+    /**
+     * Shared with anything that needs a raw Algolia SearchClient outside Scout's single-index
+     * flow (e.g. writing a record into a secondary index) — same per-tenant credential source
+     * `createAlgoliaEngine()` uses, so the two never drift.
+     */
+    public static function algoliaCredentialsFromSettings(array $searchSettings): array
+    {
+        return [
+            'app_id' => $searchSettings['algolia_app_id'] ?? config('scout.algolia.id'),
+            'api_key' => $searchSettings['algolia_api_key'] ?? config('scout.algolia.secret'),
+        ];
     }
 
     protected function createTypesenseEngine(array $searchSettings): EnginesTypesenseEngine

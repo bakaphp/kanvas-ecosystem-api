@@ -89,17 +89,30 @@ class ProcessWebhookAttemptAction
 
     protected function fileCaptureEnabled(): bool
     {
-        return (bool) ($this->receiver->configuration['capture_files'] ?? false);
+        $jobClass = $this->jobClass();
+
+        return (bool) ($this->receiver->configuration['capture_files'] ?? false)
+            || ($jobClass !== null && $jobClass::capturesFiles());
     }
 
     protected function requestIsAuthentic(): bool
     {
-        $jobClass = $this->receiver->action?->model_name;
+        $jobClass = $this->jobClass();
 
-        if (! is_string($jobClass) || ! is_a($jobClass, ProcessWebhookJob::class, true)) {
+        if ($jobClass === null) {
             return true;
         }
 
         return $jobClass::authenticateRequest($this->request, $this->receiver);
+    }
+
+    /**
+     * @return class-string<ProcessWebhookJob>|null
+     */
+    private function jobClass(): ?string
+    {
+        $jobClass = $this->receiver->action?->model_name;
+
+        return is_string($jobClass) && is_a($jobClass, ProcessWebhookJob::class, true) ? $jobClass : null;
     }
 }

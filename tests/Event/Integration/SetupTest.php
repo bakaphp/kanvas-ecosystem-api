@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Event\Integration;
 
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventClass;
 use Kanvas\Event\Events\Models\EventType;
@@ -32,7 +33,9 @@ final class SetupTest extends TestCase
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        // fresh company: the shared test company is seeded by other Event tests,
+        // which would make the exact counts below non-deterministic
+        $company = Companies::factory()->create();
 
         $setup = new Setup($app, $user, $company, EventSetupTypeEnum::STANDARD);
         $this->assertTrue($setup->run());
@@ -44,6 +47,7 @@ final class SetupTest extends TestCase
 
         $this->assertEquals('Business', Theme::fromApp($app)->fromCompany($company)->first()->name);
         $this->assertEquals('Appointment', EventType::fromApp($app)->fromCompany($company)->first()->name);
+        $this->assertSame(1, (int) EventType::fromApp($app)->fromCompany($company)->first()->is_default);
         $this->assertEquals('Free', EventClass::fromApp($app)->fromCompany($company)->first()->name);
     }
 
@@ -51,7 +55,7 @@ final class SetupTest extends TestCase
     {
         $app = app(Apps::class);
         $user = auth()->user();
-        $company = $user->getCurrentCompany();
+        $company = Companies::factory()->create();
 
         $setup = new Setup($app, $user, $company, EventSetupTypeEnum::FULL);
         $this->assertTrue($setup->run());

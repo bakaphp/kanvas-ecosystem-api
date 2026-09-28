@@ -11,6 +11,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\DealerSocket\DataTransferObject\People as DataTransferObjectPeople;
 use Kanvas\Connectors\DealerSocket\Enums\CustomFieldEnum;
 use Kanvas\Connectors\DealerSocket\Services\DealerSocketCustomerService;
+use Kanvas\Exceptions\ModelNotFoundException;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Customers\Models\People;
 
@@ -25,7 +26,7 @@ class PullPeopleAction
 
     public function execute(
         string|int|null $customerId = null,
-        ?String $email = null,
+        ?string $email = null,
         ?string $phoneNumber = null
     ): People {
         if ($customerId === null && $email === null && $phoneNumber === null) {
@@ -40,12 +41,6 @@ class PullPeopleAction
             $customerData = $customerService->searchCustomerByPhone($phoneNumber);
         }
 
-        /*         elseif ($email !== null) {
-                    /* $customerService = new DealerSocketCustomerService($this->app, $this->company);
-                    $customerData = $customerService->searchCustomerByEmail($email);
-                    throw new InvalidArgumentException('Search by email not implemented yet');
-                } */
-
         if (isset($customerData['entityId'])) {
             $people = People::getByCustomField(
                 CustomFieldEnum::DEALER_SOCKET_CUSTOMER_ID->value,
@@ -55,7 +50,7 @@ class PullPeopleAction
         }
 
         if (empty($customerData) || empty($customerData['firstName']) || empty($customerData['emails'])) {
-            throw new InvalidArgumentException('No customer data found in DealerSocket');
+            throw new ModelNotFoundException('No customer data found in DealerSocket');
         }
 
         if ($people === null) {

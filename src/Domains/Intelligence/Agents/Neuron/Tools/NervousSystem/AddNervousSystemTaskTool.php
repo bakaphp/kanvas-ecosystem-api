@@ -11,9 +11,11 @@ use Kanvas\NervousSystem\Plan\Actions\AddTaskAction;
 use Kanvas\NervousSystem\Plan\DataTransferObject\Task as TaskData;
 use Kanvas\NervousSystem\Plan\Models\Plan;
 use Kanvas\NervousSystem\Plan\Models\Task;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
@@ -21,10 +23,11 @@ use Override;
  * AddTaskAction (recomputes plan completion, emits ledger events) so an agent-created task is a
  * first-class task like any other.
  */
-#[AgentTool(name: 'Add Task')]
-class AddNervousSystemTaskTool extends Tool
+#[AgentTool(name: 'Add Task', category: 'nervous_system')]
+class AddNervousSystemTaskTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use TrackByInputs;
     use ResolvesPlanForTool;
 
     public function __construct()
@@ -64,7 +67,12 @@ class AddNervousSystemTaskTool extends Tool
             new ToolProperty(
                 name: 'sequence',
                 type: PropertyType::INTEGER,
-                description: 'Optional ordering position within the plan.',
+                description: 'Ordering position, and also what runs in parallel: tasks sharing a sequence '
+                    . 'number are worked AT THE SAME TIME, and a higher number waits until every lower one is '
+                    . 'finished. Give the same number to tasks that are independent of each other (chasing '
+                    . 'twelve different invoices), and increasing numbers when one task needs another\'s output '
+                    . '(write the client, then write the tests). Omit only when you genuinely do not know — the '
+                    . 'default makes every task wait for the one before it.',
                 required: false,
             ),
         ];

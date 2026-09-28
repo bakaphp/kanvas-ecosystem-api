@@ -7,8 +7,10 @@ namespace Kanvas\Connectors\Microsoft\Actions;
 use Kanvas\Connectors\Microsoft\Client as MicrosoftClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Actions\BaseAgentChannelReplyAction;
+use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use Kanvas\Notifications\Support\MarkdownEmailRenderer;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Chat\Messages\UserMessage;
 use Override;
@@ -78,7 +80,13 @@ class MicrosoftAgentChannelResponderAction extends BaseAgentChannelReplyAction
 
     private function resolveRecipient(): string
     {
-        return $this->hijackMessagePhone($this->message->message['from_email']);
+        $fromEmail = trim((string) ($this->message->message['from_email'] ?? ''));
+
+        if ($fromEmail === '') {
+            throw new AgentReplySkippedException('Inbound message has no from_email, not an email message');
+        }
+
+        return $this->hijackMessagePhone($fromEmail);
     }
 
     /**
@@ -118,6 +126,7 @@ class MicrosoftAgentChannelResponderAction extends BaseAgentChannelReplyAction
         $accessToken = MicrosoftClient::getValidAccessToken($message->app, $message->company);
         $graphMessageId = $message->message['message_id'] ?? '';
         $subject = $message->message['subject'] ?? 'No subject';
+        $body = MarkdownEmailRenderer::toEmailHtml($body, allowHtml: false);
 
         if ($graphMessageId !== '' && $graphMessageId !== '--') {
             MicrosoftClient::replyToMessage($accessToken, $graphMessageId, $body);

@@ -28,7 +28,7 @@ class SegmentSignalAction
 
     public function __construct(
         private readonly InboundSignal $signal,
-        private readonly string $model = 'gemini-2.5-pro',
+        private readonly string $model = 'gemini-3.1-flash-lite',
     ) {
     }
 
@@ -104,8 +104,8 @@ class SegmentSignalAction
     {
         return "Split this inbound {$this->signal->kind->value} into the DISTINCT topics it covers, so each "
             . "can be routed to the project it belongs to.\n\n"
-            . "A signal about ONE thing yields ONE segment (return it whole). Split into several ONLY when "
-            . "clearly separate initiatives/workstreams are discussed — e.g. a leadership sync covering three "
+            . 'A signal about ONE thing yields ONE segment (return it whole). Split into several ONLY when '
+            . 'clearly separate initiatives/workstreams are discussed — e.g. a leadership sync covering three '
             . "different projects. NEVER fragment a single topic into pieces.\n\n"
             . "SIGNAL\n"
             . "Title: {$this->signal->title}\n"

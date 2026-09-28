@@ -56,6 +56,11 @@ class ForgotPassword
         }
 
         $recoverUser = $query->firstOrFail()->user;
+
+        if (! $recoverUser instanceof Users) {
+            throw new ExceptionsModelNotFoundException('No user found with the given email.');
+        }
+
         $recoverUser->generateForgotHash($this->app);
 
         try {
@@ -69,7 +74,6 @@ class ForgotPassword
                 ]
             ));
         } catch (ModelNotFoundException $e) {
-            //throw $th;
         }
 
         return $recoverUser;
@@ -81,8 +85,12 @@ class ForgotPassword
     public function reset(string $newPassword, string $hashKey): bool
     {
         try {
+            // Tokens consumed before we started nulling them were left as '',
+            // so without this an empty hash_key matches every one of those users.
             $recoverUser = UsersAssociatedApps::fromApp($this->app)
                 ->notDeleted()
+                ->whereNotNull('user_activation_forgot')
+                ->where('user_activation_forgot', '!=', '')
                 ->where([
                     'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
                     'user_activation_forgot' => $hashKey,

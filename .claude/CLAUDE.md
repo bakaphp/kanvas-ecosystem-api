@@ -8,12 +8,13 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
 - **Domain-driven design**: Code is organized by domain under `src/Domains/{DomainName}/`
 - **GraphQL API**: Uses Lighthouse PHP framework with schema files in `graphql/schemas/`
 - **PHP 8.4**: Use modern syntax (e.g., `new Foo(...)->execute()` not `(new Foo(...))->execute()`)
-- **Method call formatting**: When a method call has 4 or more arguments, format vertically with one argument per line:
+- **Method formatting — the rule of 4**: When a method **call** or **signature** has **4 or more** arguments/parameters, format vertically with one per line. 3 or fewer stays inline. Applies to our own methods; native functions (`str_replace`, `preg_replace`, ...) stay inline regardless.
   ```php
-  // 3 or fewer args — inline is fine
-  $this->doSomething($a, $b, $c);
+  // 3 or fewer — inline is fine
+  $this->doSomething($a, $b);
+  $this->fetchPeopleCandidates($app, $company, $terms);
 
-  // 4+ args — always vertical
+  // 4+ — always vertical, calls and signatures alike
   $this->uploadImageToEntity(
       $company,
       app(Apps::class),
@@ -21,6 +22,13 @@ Guidelines for working with the Kanvas Ecosystem API codebase.
       $request['file'],
       'photo'
   );
+
+  protected function assembleBulkResults(
+      array $terms,
+      array $candidates,
+      int $maxMatches,
+      callable $present
+  ): array {
   ```
 - **Use PHP 8+ named arguments to skip optional positional `null`s.** When you would otherwise pass `null` for an optional middle parameter just to reach a later one, switch to named arguments instead. The positional `null` is a readability and refactor-safety footgun (rename a parameter or add a new optional in between, every caller silently breaks).
   ```php
@@ -56,13 +64,22 @@ Big task-shaped recipes have been moved to skills under `.claude/skills/`. They 
 - **`kanvas-crud`** — Build a new domain CRUD (DTO + Create/Update Actions + GraphQL Mutation + schema + tests). Use when scaffolding a new entity under `src/Domains/{Domain}/{Entity}/`.
 - **`kanvas-connector`** — Build a new external-service integration under `src/Domains/Connectors/{ConnectorName}/` (Handler + Client + DTO + Enums + Webhook job + Workflow activity + GraphQL setup mutation + `integrations` row). Use when adding/editing any connector. Includes the Octane "never cache SDK in static" rule and the "AgentRuntime is a primary domain not a connector" foot-guns.
 - **`kanvas-search`** — Add `@search` to a list query with proper multi-tenant `search()` override. Use when adding `search: String @search`, choosing between `DatabaseSearchableTrait` and `DynamicSearchableTrait`, or auditing tenant scoping.
+- **`kanvas-backend-review`** — Pre-PR cleanup pass: duplicated methods, overly complex logic, unnecessary comments, and violations of the conventions on this page (rule of 4, named arguments, no inline FQCNs, `overwriteAppService`). Fixes what it finds and reports the diff. Use before pushing, or when asked to review/clean up backend code.
 
 Sub-directory `CLAUDE.md` files load additively when work touches their tree:
 - `tests/CLAUDE.md` — Docker test commands, `RefreshDatabase` ban, Bouncer setup, AppKey-guarded test pattern.
 - `src/Domains/Connectors/CLAUDE.md` — connector-tree-specific gotchas (Octane SDK rule, Activities/ folder, AgentRuntime caveat).
 - `graphql/schemas/CLAUDE.md` — directive conventions, FK-id-vs-relation rule, schema folder rule.
 - `src/Domains/Intelligence/FollowUp/CLAUDE.md` — generic-core vs per-entity-executor split for the agent-driven follow-up engine. Recipe for adopting follow-up on a new entity (Deal, Order, etc.).
+- `src/Domains/Intelligence/AgentRuntime/Harness/CLAUDE.md` — Kanvas-owned coding agents: the `AgentHarness` contract vs the deployment-shaped `AgentRuntimeProvider`, Plan+Task as the record with `agent_task_sessions` as runtime state, the silent model-substitution guard, why cost is computed here, and the opencode API as it actually is (not as its docs site says).
+- `src/Domains/Guild/Customers/CLAUDE.md` — consent & do-not-contact: why a STOP on one channel silences all of them person-wide, the keyword-vs-agent split, every guard that enforces it, and why `do_not_contact` must never be renamed.
+- `src/Domains/Guild/Leads/CLAUDE.md` — receiver → lead → email flow: why the email template comes from the **rotation config** (not the job/receiver), the `user-`/`lead-` template-name prefixing, the `notification_mode`/`notification_user_mode` knobs, and how company onboarding differs from the `kanvas:sa-setup-receivers` default.
 - `src/Domains/Inventory/CLAUDE.md` — product search engine (dynamic per-tenant Algolia/Typesense/Meilisearch resolution + precedence), index naming, `shouldBeSearchable` gating, the tenant-aware reindex command, and Typesense Natural Language Search config for the recommendation agent.
+- `app/Console/Commands/Inventory/CLAUDE.md` — what each inventory command does and the order the discovery ones must run in (enrich → index → search → score).
+- `src/Kanvas/Companies/CorporateApplications/CLAUDE.md` — a corporate application is a Lead (no model); manual approval and `is_corporate` as the only privilege switch; the two request paths, the receiver `approval_mode` precedence, required/copied field lists configured as custom fields on the receiver, the post-approval workflow rule that must exist per app, the legacy-key fallback, and the Bouncer-scope / app-scope / cross-connection traps.
+- `src/Kanvas/Imports/CLAUDE.md` — scheduled FTP/SFTP imports into the existing mapper pipeline: why all mapping lives in the `FilesystemMapper` and never in PHP, the template-`version` trap (editing a template does not update mappers already made from it), why a mapped value must satisfy the target model's PHP types, the header-row delimiter detection, the "never unpublish on a partial feed" invariant, and what a second entity type needs.
+- `src/Kanvas/Approvals/CLAUDE.md` — generic cross-domain approval gating (policies, resolvers, the sync-handler vs workflow lanes, the transitional entity-fired event, and the `ecosystem` connection test trap).
+- `src/Domains/Insurance/CLAUDE.md` — provider-agnostic insurance layer (quote → policy). Why it is a top-level domain rather than Souk/Inventory/a connector, why only 2 direct queries exist and everything else is a workflow activity, and the hybrid generic-vs-connector custom-field split.
 
 ### Where to put new conventions (don't bloat this file)
 
@@ -145,17 +162,23 @@ class Foo extends BaseModel
 
 ### Required on the Observer
 
+Most models need nothing but the invalidation, so attach the shared observer instead of writing one:
+
 ```php
-class FooObserver
-{
-    public function updating(Foo $foo): void
-    {
-        $foo->clearLightHouseCache(withKanvasConfiguration: false);
-    }
-}
+use Baka\Observers\ClearsLightHouseCacheObserver;
+
+#[ObservedBy([ClearsLightHouseCacheObserver::class])]
+class Foo extends BaseModel
 ```
 
-- Use `updating()` (fires before the save) so the cache is gone before any listener reads it post-save.
+A model that also needs its own lifecycle work keeps its own observer and calls
+`clearLightHouseCache(withKanvasConfiguration: false)` from a `saved()` hook.
+
+- Use `saved()`, not `updating()`. Clearing *before* the write leaves a window where a concurrent
+  read re-warms the cache from the uncommitted row, and that stale entry then survives until the next
+  write. `saved()` also covers inserts — a no-op for a brand-new id, which has no cache key yet, but
+  it means one hook instead of two. (Observers still on `updating()` predate this and are not yet
+  migrated; don't copy them.)
 - `withKanvasConfiguration: false` is the right default — file-relation regeneration is handled automatically by `AttachFilesystemAction` when files are attached. `true` eagerly regenerates custom_fields/files cache inside the observer, which is usually overkill and creates extra Redis writes.
 
 ### How file uploads trigger invalidation
@@ -173,11 +196,82 @@ So any `addMultipleFilesFromUrl()` / `addFileFromUrl()` call automatically inval
 - [ ] `HasLightHouseCache` trait on the model
 - [ ] `getGraphTypeName()` returning the GraphQL type name
 - [ ] `HasFilesystemTrait` (usually inherited from `BaseModel`)
-- [ ] Observer `updating()` hook calling `clearLightHouseCache(withKanvasConfiguration: false)`
+- [ ] `#[ObservedBy([ClearsLightHouseCacheObserver::class])]` on the model — or, if it needs its own observer, a `saved()` hook calling `clearLightHouseCache(withKanvasConfiguration: false)`
 - [ ] GraphQL type uses `files: [Filesystem!]! @cacheRedis @paginate(...)` with the shared `FilesystemQuery@getFileByGraphType` builder (so the cache key shape matches what `generateFilesLighthouseCache()` writes)
 - [ ] Smoke test: upload a file via `updateX(files: [...])`, query `x.files` in the same or next request, confirm the new file appears without a manual cache flush
 
 ## Key Conventions
+
+### Never Ship a Duplicate Method — Encapsulate It or Flag It
+
+**A second copy of the same logic is not acceptable, ever.** This codebase is large and still
+growing; every copy that ships is a place a future fix will be applied to one site and missed at the
+others. That is not hypothetical — the copies always drift, and the drift is always found late.
+
+Before writing a helper, **search for it first**. If the logic already exists anywhere:
+
+- **It belongs in a shared home** — `Baka\Support\Str`, an existing trait, a base class, a Service,
+  an enum method. Put it there and repoint every call site, don't add a second private copy beside it.
+- **The framework or Baka may already have it.** Reimplementing something Laravel/Baka provides is
+  the most common form of this in our code.
+- **If you genuinely cannot unify it** — the shapes differ enough that merging would be contrived, or
+  it is deliberately per-domain — **say so out loud** in the PR/report, with where the copies live.
+  A flagged duplicate is a decision; a silent one is a bug waiting.
+
+The escape hatch is narrow and it is about *intent*, not convenience: keep a separate implementation
+only when it **should** be specific and overridable — a per-domain lookup, an entity-specific rule,
+a deliberate override point. "Cheaper to copy right now" is never the reason.
+
+```php
+// WRONG — a third private copy of trim-to-null, drifting quietly across the platform
+private function clean(?string $value): ?string
+{
+    $value = trim((string) $value);
+
+    return $value === '' ? null : $value;
+}
+
+// WRONG — the popular inline idiom, which is also subtly broken: "0" is falsy, so it becomes null
+$title = trim((string) $title) ?: null;
+
+// CORRECT — one implementation, one place, one behaviour
+use Baka\Support\Str;
+
+$title = Str::trimToNull($title);
+```
+
+Real case: `trim → null if empty` existed as **7 private copies plus 13 inline `?: null`** sites
+across connectors, agent tools and DTOs. The inline form silently dropped the string `"0"`. It is now
+`Str::trimToNull()`, one implementation with one test.
+
+The same applies to duplicated *resolvers*, *observers* and *model relations* — if two classes need
+the same three methods, that is a trait (`HasNotesChannelTrait`) or a Concern
+(`App\GraphQL\Concerns\RecordsEntityNotes`), not copy-paste.
+
+### Trait Naming — `Traits/` is a Baka-only word
+
+**A new trait goes in a `Concerns/` folder next to the classes that use it, with a bare name and no
+`Trait` suffix.** That is what Laravel does (`Illuminate\...\Concerns\HasUuids`, `SoftDeletes`,
+`InteractsWithQueue` — zero `*Trait` in the framework), it is what 62% of this repo already does, and
+`Concerns/` is 15-for-15 consistent. The suffix is Hungarian notation: the `use` line already says it
+is a trait.
+
+| Trait contributes | Name it | Examples |
+|---|---|---|
+| State or accessors | `Has*` / `Is*` | `HasLegacyCorporateKey`, `HasFollowUpState`, `HasLightHouseCache` |
+| An action | third-person verb | `SendsApplicationEmail`, `ResolvesActingContext`, `UpsertsByExternalId` |
+| — | never a bare noun | `AddressTraitRelationship` is the outlier, don't copy it |
+
+Do **not** split `Traits/` vs `Concerns/` by "is this state or behaviour" — that is a judgment call
+people get wrong in both directions, and Laravel keeps model mixins in `Concerns/` too. One folder,
+one rule.
+
+**`src/Baka/Traits/` is frozen and stays suffixed.** `KanvasJobsTrait` alone is referenced by 346
+files and the 80 suffixed traits by 813; renaming them is a merge-conflict generator for zero
+functional gain, and a framework layer naming a capability slot (`KanvasModelTrait`, `UuidTrait`)
+reads fine. Existing suffixed traits under `src/Domains/` and `app/` migrate opportunistically — only
+when you are already editing that file and it has few call sites, never as a rename-only PR. Backlog
+and burn-down: `docs/PENDING_TODO.md` item 7.
 
 ### Don't Pass a Model AND Its Own Relationships
 
@@ -815,6 +909,57 @@ type Filesystem {
 
 Same rule for `@belongsTo(relation: "company")`, `@hasOne(relation: "primaryAddress")`, `@belongsToMany(relation: "roles")`, and `@method(name: "createdAt")`.
 
+### Workflow Activities — Don't Throw/Report Expected Skips; Return `failWorkflow`
+
+A `KanvasActivity` (anything running through `executeIntegration`) MUST NOT throw an exception or `report()` to Sentry for an **expected business condition** — an empty inbound message, "AI mode off", "already responded", "nothing to sync", a record that legitimately isn't there. Those aren't faults; they're normal control-flow outcomes. `executeIntegration`'s `catch` calls `report($exception)`, so letting an expected skip bubble up floods Sentry with non-actionable noise (real incident: `Message has no content...` threw a `ValidationException` 457×, KANVAS-ECOSYSTEM-5XF).
+
+**Reserve throwing / `report()` for genuinely system-critical faults** — a DB write that failed, a downstream API that errored unexpectedly, a corrupt-state invariant. Those you *want* in Sentry.
+
+For an expected skip, catch it inside the `integrationOperation` closure and **return `$this->failWorkflow([...])`** instead. `failWorkflow` sets the activity's status to `FAILED` and returns your message array — so it's flagged FAILED in the workflow/integration-history UI for humans and future agents to see, *without* an exception or a Sentry report.
+
+```php
+// WRONG — expected skip bubbles to executeIntegration's report() → Sentry flood
+$reply = new InternalAgentChannelResponderAction($agent, $message, $entity)->execute();
+
+// CORRECT — catch the expected condition, flag FAILED in the UI, no Sentry
+try {
+    $reply = new InternalAgentChannelResponderAction($agent, $message, $entity)->execute();
+} catch (ValidationException $e) {
+    return $this->failWorkflow([
+        'message' => $e->getMessage(),
+        'entity' => null,
+    ]);
+}
+```
+
+A plain non-fail early `return ['message' => ..., 'entity' => null]` (status stays CONNECTED) is fine for a benign no-op that isn't even worth flagging (e.g. "message is from the agent side, skipping"). Use `failWorkflow` when you want it visibly marked FAILED; use a plain return for a silent skip. Either way — **not** an uncaught throw.
+
+`SilentWorkflowException` (records FAILED, skips `report()`) still exists for the case where the skip signal must originate *deep* in a call stack you don't want to unwind by hand — but prefer the local `try/catch → failWorkflow` in the activity when the throw site is one call away.
+
+### Broadcast Channel Names Built From User Data Must Be Sanitized
+
+Pusher rejects a channel name containing anything outside `[A-Za-z0-9_\-=@,.;]`, or longer than 164
+chars, with `PusherException: Invalid channel name` — thrown at broadcast time, inside the queue
+worker or mid-request. A name built purely from ids is always safe; one that interpolates a **slug,
+email, or any other user-controlled string** is not. `Str::sanitizeEmail()` only rewrites `@` and `.`,
+so a plus-addressed sender (`ap+caf_=x@example.com`) reaches the broadcaster with its `+` intact.
+
+```php
+use Baka\Support\Str;
+
+// WRONG — an email-derived channel slug throws at broadcast time
+new Channel('app-' . $channel->apps_id . '-new-message-channel-' . $channel->slug);
+
+// CORRECT
+new Channel(Str::sanitizeChannelName('app-' . $channel->apps_id . '-new-message-channel-' . $channel->slug));
+```
+
+Sanitize where the name is **assembled**, not at the broadcast — when a helper hands the same name to
+clients (`AgentChatBroadcastChannel::nameFor()` feeds both `broadcastOn()` and the `broadcast_channel`
+the `userChat` mutation returns), sanitizing anywhere else desyncs publisher from subscriber. Never fix
+this in the slug generator itself: channel slugs are dedup keys for Sessions and Social channels, so
+changing them forks every existing conversation.
+
 ### Code Style
 - **No section separator comments** — do not add `// --- SectionName ---`, `# --- SectionName ---`, or similar decorative dividers in code, tests, or schema files. Test methods and code sections are self-documenting by their names. If a file grows too large, split it into separate files instead.
 - **Comment why, not what.** Class/method docblocks and inline comments exist to capture decisions a reader can't recover from the code itself — gotchas, "why this weird approach", invariants, external constraints. Code that's self-evident from the names + body should carry no doc. If you find yourself paraphrasing the signature ("Fetch the X from Y" on a method called `fetchXFromY`), delete the comment and let the names do the work. The first design instinct should be to make the code clear enough not to need a comment; reach for the comment only when the design can't be simplified further.
@@ -854,7 +999,7 @@ Two coupled rules for anything that accepts or decodes uploaded images:
 
 1. **Derive an image's stored `file_type` from magic bytes, never the client filename.** `CreateFilesystemAction::resolveFileType()` runs `finfo` on the real upload and, for `image/*`, stores the content-derived extension. This is what stops a file named `evil.heic` but carrying crafted TIFF/MVG bytes from steering the decoder (e.g. `ConvertHeicToJpgActivity` branches on `file_type`). When you validate an **image-only** upload, gate on `$file->extension()` (Symfony's magic-byte guess), not `getClientOriginalExtension()`. Do NOT apply magic-byte validation to the `WORK_FILES` allow-list — `.docx`/`.xlsx` are ZIP containers that finfo reports as `application/zip`, so client-extension validation stays for those.
 
-2. **ImageMagick is hardened by [`docker/imagemagick-policy.xml`](../docker/imagemagick-policy.xml)** (installed into `/etc/ImageMagick-{7,6}/policy.xml` by both Dockerfiles). It disables the RCE/SSRF coders+delegates the app never uses (MSL, MVG, URL/HTTP(S)/FTP, PS/PDF/EPS, the Ghostscript delegate, SVG) and caps resources against decompression bombs. The image coders the app *does* convert (JPEG, PNG, WEBP, GIF, HEIC, HEIF, AVIF, TIFF, BMP) stay enabled. **If you add support for a new image format, whitelist its coder here or conversions will fail with "not authorized by the security policy".** Verify a policy change against the live `imagick` extension (`new Imagick(...)`), not the `convert` CLI — the CLI isn't installed in the image.
+2. **ImageMagick is hardened by [`docker/imagemagick-policy.xml`](../docker/imagemagick-policy.xml)** (installed into `/etc/ImageMagick-{7,6}/policy.xml` by both Dockerfiles). It disables the RCE/SSRF coders+delegates the app never uses (MSL, MVG, URL/HTTP(S)/FTP, PS/PDF/EPS, the Ghostscript delegate, SVG) and caps resources against decompression bombs. The image coders the app *does* convert (JPEG, PNG, WEBP, GIF, TIFF, BMP) stay enabled. **HEIC, HEIF and AVIF are disabled until the image ships a pinned libheif build** — until then those uploads cannot be converted (`ConvertHeicToJpgActivity`, `ImageConversionService`) and fail with "not authorized by the security policy"; re-enable them in the same change that pins libheif. **If you add support for a new image format, whitelist its coder here or conversions will fail with that same error.** Verify a policy change against the live `imagick` extension (`new Imagick(...)`), not the `convert` CLI — the CLI isn't installed in the image.
 
 ## Queue Workers
 
@@ -938,6 +1083,21 @@ Forgetting step 1 → "Trait/Class not found" at runtime even though the file ex
 ## Testing
 
 For docker test commands, suites, `RefreshDatabase` ban, AppKey-guarded patterns, and Bouncer setup, see `tests/CLAUDE.md` (loads automatically when work touches `tests/`).
+
+### Type-check is part of "done"
+
+Before declaring any PHP change done, run PHPStan on the trees you touched — it is the only check
+here that crosses file boundaries, and CI runs it at `level: 0` on every push:
+
+```bash
+docker exec phpkanvas-ecosystem bash -c "cd /var/www/html && vendor/bin/phpstan analyse \
+  --configuration=phpstan.neon.dist --no-progress src/Domains/YourTree"
+```
+
+`php -l` parses one file in isolation and php-cs-fixer only reformats, so **neither can see a call
+site that no longer matches the signature it calls** — including a stale named argument, which is a
+fatal at runtime. Level 0 catches it in seconds. Command, cost and the `??` test-seam trap that hides
+these from PHPUnit: [`tests/CLAUDE.md`](../tests/CLAUDE.md).
 
 ### Tests are part of "done"
 

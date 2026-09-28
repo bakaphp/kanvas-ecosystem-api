@@ -18,6 +18,8 @@ class InvoiceLine extends Data
         public readonly ?int $item_id = null,
         public readonly ?string $sku = null,
         public readonly ?int $sort_order = null,
+        /** Overrides the account this line's JE debit/credit hits (e.g. a rebate's Control Acct#); null falls back to the document default. */
+        public readonly ?int $account_id = null,
         public readonly ?float $discount_rate = null,
         public readonly float $discount_amount_native = 0.0,
         public readonly ?float $tax_rate = null,

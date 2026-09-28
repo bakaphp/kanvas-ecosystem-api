@@ -10,10 +10,17 @@ use Kanvas\Social\Messages\DataTransferObject\MessageInput;
 use Kanvas\Social\MessagesTypes\Actions\CreateMessageTypeAction;
 use Kanvas\Social\MessagesTypes\DataTransferObject\MessageTypeInput;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Shopify Compliance Webhook',
+    description: 'Receiver for Shopify\'s mandatory GDPR compliance callbacks (customer data request, customer '
+        . 'redact, shop redact). It records the request so there is a signed audit trail; it does not '
+        . 'action the erasure itself. Required by Shopify for app listing — wire it and leave it alone.',
+    integration: IntegrationsEnum::SHOPIFY,
+)]
 class ShopifyComplianceWebhookJob extends ProcessWebhookJob
 {
     use ShopifyWebhookValidation;

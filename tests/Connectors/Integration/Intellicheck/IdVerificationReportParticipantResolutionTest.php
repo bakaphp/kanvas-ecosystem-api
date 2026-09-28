@@ -26,7 +26,7 @@ final class IdVerificationReportParticipantResolutionTest extends TestCase
         $activity = new ReflectionClass(IdVerificationReportActivity::class)->newInstanceWithoutConstructor();
         $method = new ReflectionMethod(IdVerificationReportActivity::class, 'resolveVerifiedPeople');
 
-        return $method->invoke($activity, $lead, $params, app(Apps::class));
+        return $method->invoke($activity, $lead, $params);
     }
 
     public function testResolvesParticipantVsMainFromPayload(): void

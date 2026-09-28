@@ -8,7 +8,6 @@ use Awobaz\Compoships\Compoships;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Enums\StateEnums;
-use Baka\Support\Arr;
 use Baka\Support\Str;
 use Baka\Traits\DynamicSearchableTrait;
 use Baka\Traits\HasLightHouseCache;
@@ -25,19 +24,22 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Redis;
 use Kanvas\Activities\Contracts\ActivityLogInterface;
 use Kanvas\Activities\Models\Activity;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Shopify\Traits\HasShopifyCustomField;
-use Kanvas\Inventory\Attributes\Actions\CreateAttribute;
-use Kanvas\Inventory\Attributes\DataTransferObject\Attributes as AttributesDto;
-use Kanvas\Inventory\Attributes\Models\Attributes;
+use Kanvas\Inventory\Bundles\Models\BundleItem;
 use Kanvas\Inventory\Channels\Models\Channels;
 use Kanvas\Inventory\Enums\AppEnums;
 use Kanvas\Inventory\Models\BaseModel;
 use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Inventory\ProductsTypes\Services\ProductTypeService;
 use Kanvas\Inventory\Status\Models\Status;
+use Kanvas\Inventory\Traits\HasLeadReceiversTrait;
+use Kanvas\Inventory\Traits\ResolvesAttributesTrait;
 use Kanvas\Inventory\Variants\Actions\AddAttributeAction;
 use Kanvas\Inventory\Variants\Actions\AddToWarehouseAction;
 use Kanvas\Inventory\Variants\Actions\AddVariantToChannelAction;
@@ -48,11 +50,14 @@ use Kanvas\Inventory\Variants\Observers\VariantObserver;
 use Kanvas\Inventory\Warehouses\Models\Warehouses;
 use Kanvas\Languages\Traits\HasTranslationsDefaultFallback;
 use Kanvas\Social\Interactions\Traits\SocialInteractionsTrait;
+use Kanvas\Social\Tags\Models\Tag;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Social\UsersRatings\Traits\HasRating;
 use Kanvas\Workflow\Contracts\EntityIntegrationInterface;
 use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Kanvas\Workflow\Traits\IntegrationEntityTrait;
 use Laravel\Scout\Searchable;
+use Nuwave\Lighthouse\Cache\CacheKeyAndTagsGenerator;
 use Override;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
@@ -80,11 +85,15 @@ use Spatie\Activitylog\Support\LogOptions;
 #[ObservedBy(VariantObserver::class)]
 class Variants extends BaseModel implements EntityIntegrationInterface, ProductInterface, ActivityLogInterface
 {
+    use HasAdminLink;
     use SlugTrait;
     use UuidTrait;
     use SocialInteractionsTrait;
     use HasShopifyCustomField;
-    use HasLightHouseCache;
+    use HasTagsTrait;
+    use HasLightHouseCache {
+        clearLightHouseCache as protected clearLightHouseCacheBase;
+    }
     use IntegrationEntityTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
@@ -97,12 +106,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     use HasTranslationsDefaultFallback;
     use HasWallet;
     use LogsActivity;
+    use HasLeadReceiversTrait;
+    use ResolvesAttributesTrait;
 
-    protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes'];
+    protected $cascadeDeletes = ['variantChannels', 'variantWarehouses', 'variantAttributes', 'bundleItems'];
     public $translatable = ['name','description','short_description','html_description'];
 
     protected $table = 'products_variants';
-    protected $touches = ['attributes'];
     protected $fillable = [
         'users_id',
         'products_id',
@@ -138,9 +148,58 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         return 'Variant';
     }
 
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::PRODUCT_VARIANT;
+    }
+
+    public function bundleItems(): HasMany
+    {
+        return $this->hasMany(BundleItem::class, 'variant_id');
+    }
+
     public static function searchableIndex(): string
     {
         return AppEnums::PRODUCT_VARIANTS_SEARCH_INDEX->getValue();
+    }
+
+    /**
+     * Reads the loaded variantAttributes relation, unlike searchableAttributes() which queries per call —
+     * so a batch of eager-loaded variants costs no extra queries.
+     *
+     * @return Collection<int, array{name: string, value: string}>
+     */
+    public function loadedSearchableAttributes(): Collection
+    {
+        return $this->variantAttributes
+            ->filter(fn (VariantsAttributes $value): bool => ! $value->is_deleted && (bool) $value->attribute?->is_searchable)
+            ->map(fn (VariantsAttributes $value): array => [
+                'name' => (string) $value->attribute?->name,
+                'value' => $this->flattenAttributeValue($value->value),
+            ])
+            ->filter(fn (array $attribute): bool => $attribute['name'] !== '' && $attribute['value'] !== '')
+            ->values();
+    }
+
+    public function defaultChannelPrice(): ?float
+    {
+        $price = $this->channels
+            ->first(fn ($channel): bool => (bool) $channel->is_default && (bool) $channel->pivot?->is_published)
+            ?->pivot?->price;
+
+        return $price !== null ? (float) $price : null;
+    }
+
+    private function flattenAttributeValue(mixed $value): string
+    {
+        if (is_scalar($value)) {
+            return trim((string) $value);
+        }
+
+        return is_array($value)
+            ? collect($value)->flatten()->filter(fn (mixed $item): bool => is_scalar($item))->implode(', ')
+            : '';
     }
 
     #[Override]
@@ -242,13 +301,21 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     }
 
     /**
-     * @todo add integration and graph test
+     * Eager-loadable version of the visible-attributes query.
      */
+    public function visibleAttributesRelation(): HasMany
+    {
+        return $this->buildAttributesQuery(['is_visible' => true]);
+    }
+
     public function visibleAttributes(): array
     {
-        return $this->mapAttributes(
-            $this->buildAttributesQuery(['is_visible' => true])->get()
-        );
+        /** @var Collection $attributes */
+        $attributes = $this->relationLoaded('visibleAttributesRelation')
+            ? $this->getRelation('visibleAttributesRelation')
+            : $this->buildAttributesQuery(['is_visible' => true])->get();
+
+        return $this->mapAttributes($attributes);
     }
 
     /**
@@ -371,44 +438,47 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
      */
     public function addAttributes(UserInterface $user, array $attributes): void
     {
+        /**
+         * Resolve every attribute first and write in ascending attribute id, so concurrent
+         * importers take the locks on the shared `attributes` rows in the same order and
+         * can't deadlock against each other.
+         */
+        $resolvedAttributes = [];
+
         foreach ($attributes as $attribute) {
-            if (! isset($attribute['value']) || $attribute['name'] === null) {
+            if (! isset($attribute['value']) || ($attribute['name'] ?? null) === null) {
                 continue;
             }
 
-            if (isset($attribute['id'])) {
-                $attributeModel = Attributes::getById((int) $attribute['id'], $this->app);
-            } elseif (! empty($attribute['name'])) {
-                $attributesDto = AttributesDto::from([
-                    'app' => app(Apps::class),
-                    'user' => $user,
-                    'company' => $this->company,
-                    'name' => $attribute['name'],
-                    'value' => $attribute['value'],
-                    'isVisible' => true,
-                    'isSearchable' => true,
-                    'isFiltrable' => true,
-                    'slug' => Str::slug($attribute['name']),
-                ]);
-                $attributeModel = (new CreateAttribute($attributesDto, $user))->execute();
+            $attributeModel = $this->resolveAttribute($user, $attribute);
+
+            if ($attributeModel === null) {
+                continue;
             }
 
-            if ($attributeModel) {
-                (new AddAttributeAction($this, $attributeModel, $attribute['value']))->execute();
+            $resolvedAttributes[$attributeModel->getId()] = [
+                'model' => $attributeModel,
+                'value' => $attribute['value'],
+            ];
+        }
 
-                if ($this->product?->productsType) {
-                    ProductTypeService::addAttributes(
-                        $this->product->productsType,
-                        $this->user,
+        ksort($resolvedAttributes);
+
+        foreach ($resolvedAttributes as $resolvedAttribute) {
+            new AddAttributeAction($this, $resolvedAttribute['model'], $resolvedAttribute['value'])->execute();
+
+            if ($this->product?->productsType) {
+                ProductTypeService::addAttributes(
+                    $this->product->productsType,
+                    $this->user,
+                    [
                         [
-                            [
-                                'id' => $attributeModel->getId(),
-                                'value' => $attribute['value'],
-                            ],
+                            'id' => $resolvedAttribute['model']->getId(),
+                            'value' => $resolvedAttribute['value'],
                         ],
-                        toVariant: true
-                    );
-                }
+                    ],
+                    toVariant: true
+                );
             }
         }
     }
@@ -444,7 +514,6 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                     'url' => $files->url,
                     'size' => $files->size,
                     'field_name' => $files->field_name,
-                    'attributes' => $files->attributes,
                 ];
             }),
             'company' => [
@@ -483,7 +552,9 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
             'description' => null, //$this->description,
             'short_description' => null, //$this->short_description,
             'attributes' => [],
+            'tags' => $this->searchableTags(),
             'apps_id' => $this->apps_id,
+            'created_at' => $this->created_at?->timestamp ?? 0,
             'rating' => (float) $this->rating,
         ];
         $attributes = $this->searchableAttributes();
@@ -514,27 +585,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
      */
     protected function fitWithinAlgoliaRecordLimit(array $variant): array
     {
-        $limit = 9500; // headroom under Algolia's 10,000-byte hard limit
-
-        if (Arr::sizeInBytes($variant) <= $limit) {
-            return $variant;
-        }
-
-        // Warehouse breakdown is internal stock detail, never shown in search.
-        $variant['warehouses'] = [];
-        if (Arr::sizeInBytes($variant) <= $limit) {
-            return $variant;
-        }
-
-        $variant['attributes'] = [];
-        if (Arr::sizeInBytes($variant) <= $limit) {
-            return $variant;
-        }
-
-        // Last resort: give up the images.
-        $variant['files'] = [];
-
-        return $variant;
+        return $this->trimToAlgoliaLimit($variant)
+            // Warehouse breakdown is internal stock detail, never shown in search.
+            ->trim(fn (array $v) => [...$v, 'warehouses' => []])
+            ->trim(fn (array $v) => [...$v, 'attributes' => []])
+            // Last resort: give up the images.
+            ->trim(fn (array $v) => [...$v, 'files' => []])
+            ->get();
     }
 
     public function toSearchableArraySummary(): array
@@ -560,6 +617,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 ];
             }),
             'attributes' => [],
+            'tags' => $this->searchableTags(),
         ];
         $attributes = $this->attributes()->get();
         foreach ($attributes as $attribute) {
@@ -571,6 +629,20 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
         }
 
         return $variant;
+    }
+
+    /**
+     * Flat list of tag names — Typesense types the field as string[] so it can be
+     * faceted / filtered on directly, which a nested object[] can't.
+     */
+    protected function searchableTags(): array
+    {
+        return $this->tags
+            ->map(fn (Tag $tag) => trim((string) $tag->name))
+            ->filter(fn (string $name) => $name !== '')
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function searchableAs(): string
@@ -593,7 +665,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
 
         if ($query->model->isTypesense()) {
             $query->options([
-                'query_by' => 'name,sku,ean,barcode,description,short_description',
+                'query_by' => 'name,sku,ean,barcode,description,short_description,tags',
             ]);
         }
 
@@ -605,7 +677,8 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
      */
     protected function makeAllSearchableUsing(Builder $query): Builder
     {
-        return $query->whereRelation('warehouses', 'warehouses.is_deleted', 0);
+        return $query->with('tags')
+            ->whereRelation('warehouses', 'warehouses.is_deleted', 0);
     }
 
     /**
@@ -761,6 +834,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 [
                     'name' => 'files',
                     'type' => 'object[]',
+                    'optional' => true,
                 ],
                 [
                     'name' => 'company',
@@ -783,11 +857,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                     'name' => 'ean',
                     'type' => 'string',
                     'facet' => true,
+                    'optional' => true,
                 ],
                 [
                     'name' => 'barcode',
                     'type' => 'string',
                     'facet' => true,
+                    'optional' => true,
                 ],
                 [
                     'name' => 'status',
@@ -805,6 +881,16 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                     'optional' => true,
                 ],
                 [
+                    'name' => 'warehouses.price',
+                    'type' => 'float[]',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'channels.price',
+                    'type' => 'float[]',
+                    'optional' => true,
+                ],
+                [
                     'name' => 'description',
                     'type' => 'string',
                     'optional' => true,
@@ -817,6 +903,13 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 [
                     'name' => 'attributes',
                     'type' => 'object',
+                    'optional' => true,
+                ],
+                [
+                    'name' => 'tags',
+                    'type' => 'string[]',
+                    'facet' => true,
+                    'optional' => true,
                 ],
                 [
                     'name' => 'apps_id',
@@ -840,7 +933,7 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
                 ],
             ],
             'default_sorting_field' => 'created_at',
-            'enable_nested_fields' => true,  // Enable nested fields support for complex objects
+            'enable_nested_fields' => true,
         ];
     }
 
@@ -1008,5 +1101,22 @@ class Variants extends BaseModel implements EntityIntegrationInterface, ProductI
     public static function newFactory(): VariantFactory
     {
         return new VariantFactory();
+    }
+
+    /**
+     * override the clearLightHouseCache to also clear the VariantChannel namespace in Redis.
+     */
+    public function clearLightHouseCache(
+        bool $withKanvasConfiguration = true,
+        bool $cleanGlobalKey = false
+    ): void {
+        $this->clearLightHouseCacheBase(
+            $withKanvasConfiguration,
+            $cleanGlobalKey
+        );
+
+        Redis::connection('graph-cache')->del(
+            CacheKeyAndTagsGenerator::PREFIX . ":VariantChannel:{$this->getId()}"
+        );
     }
 }

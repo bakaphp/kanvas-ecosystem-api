@@ -24,13 +24,20 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\AccessControlList\Traits\HasPermissions;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
+use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
+use Kanvas\AdminLinks\Traits\HasAdminLink;
+use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\AppKey;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Filesystem\Traits\HasFilesystemTrait;
+use Kanvas\Guild\Customers\Models\People;
+use Kanvas\Guild\Deals\Models\Deal;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Categories\Traits\HasCategoriesTrait;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Enums\ChannelCategoryEnum;
+use Kanvas\Social\Messages\Enums\MessageSenderTypeEnum;
 use Kanvas\Social\Messages\Factories\MessageFactory;
 use Kanvas\Social\Messages\Observers\MessageObserver;
 use Kanvas\Social\MessagesComments\Models\MessageComment;
@@ -55,8 +62,10 @@ use Override;
  *  @property int $apps_id
  *  @property int $companies_id
  *  @property int $users_id
+ *  @property int|null $people_id
  *  @property int $message_types_id
  *  @property string|array $message
+ *  @property string|null $sender_type
  *  @property string $slug
  *  @property int $reactions_count
  *  @property int $comments_count
@@ -77,6 +86,7 @@ use Override;
 #[ObservedBy([MessageObserver::class])]
 class Message extends BaseModel
 {
+    use HasAdminLink;
     use UuidTrait;
     use DynamicSearchableTrait {
         search as public traitSearch;
@@ -91,6 +101,7 @@ class Message extends BaseModel
     use HasLightHouseCache;
     use HasFilesystemTrait;
     use HasCategoriesTrait;
+    use HasApprovals;
 
     protected $table = 'messages';
 
@@ -101,6 +112,7 @@ class Message extends BaseModel
     protected $casts = [
         'message' => Json::class,
         'message_types_id' => 'integer',
+        'people_id' => 'integer',
         'is_public' => 'integer',
         'is_deleted' => 'boolean',
         'is_un_response' => 'boolean',
@@ -111,6 +123,22 @@ class Message extends BaseModel
     public function getGraphTypeName(): string
     {
         return 'Message';
+    }
+
+    /**
+     * Messages are gated explicitly by RequestMessageApprovalAction, never by their own lifecycle.
+     * This is the highest-write table on the platform and every save would otherwise cost an
+     * approval_policies lookup to learn there is no on-create policy.
+     */
+    protected static function approvalUsesLifecycleTriggers(): bool
+    {
+        return false;
+    }
+
+    #[Override]
+    public function adminLinkSection(): AdminLinkSectionEnum
+    {
+        return AdminLinkSectionEnum::MESSAGE;
     }
 
     protected $cascadeDeletes = ['comments'];
@@ -131,6 +159,11 @@ class Message extends BaseModel
     public function messageType(): BelongsTo
     {
         return $this->belongsTo(MessageType::class, 'message_types_id');
+    }
+
+    public function people(): BelongsTo
+    {
+        return $this->belongsTo(People::class, 'people_id', 'id');
     }
 
     public function isCommunicationMessage(): bool
@@ -246,6 +279,29 @@ class Message extends BaseModel
         return ['images' => $images, 'documents' => $documents];
     }
 
+    /**
+     * The name each attachment was uploaded under, keyed by the url `attachmentUrls()` returns.
+     * Storage urls end in an opaque hash, so anything copying a file elsewhere needs this to keep
+     * a readable name.
+     *
+     * @return array<string, string>
+     */
+    public function fileNamesByUrl(): array
+    {
+        $names = [];
+
+        foreach ($this->files as $file) {
+            $url = (string) $file->url;
+            $name = trim((string) $file->name);
+
+            if ($url !== '' && $name !== '') {
+                $names[$url] = $name;
+            }
+        }
+
+        return $names;
+    }
+
     public function addMessage(array $message): void
     {
         $this->message = array_merge($this->getMessage(), $message);
@@ -261,6 +317,58 @@ class Message extends BaseModel
             'companies_id' => $this->companies_id,
             'system_modules' => get_class($entity),
         ]);
+
+        $this->attachPersonFromEntity($entity);
+    }
+
+    /**
+     * Only real SMS/email/WhatsApp/voice conversations carry a person. The in-app assistant
+     * (ai-chat / ai-control) also writes from_me, so the sender type alone is not enough.
+     */
+    public static function isCustomerCommunication(mixed $payload, ?string $verb): bool
+    {
+        return is_array($payload)
+            && MessageSenderTypeEnum::fromPayload($payload) !== null
+            && ChannelCategoryEnum::isCommunicationVerb($verb);
+    }
+
+    public static function peopleIdForEntity(string $entityClass, int $entityId): ?int
+    {
+        $peopleId = match ($entityClass) {
+            People::class => $entityId,
+            Lead::class => Lead::query()->where('id', $entityId)->value('people_id'),
+            Deal::class => Deal::query()->where('id', $entityId)->value('people_id'),
+            default => null,
+        };
+
+        return $peopleId !== null ? (int) $peopleId : null;
+    }
+
+    /**
+     * Most connectors create the message first and attach the lead afterwards, so this is where
+     * their people_id lands. Same precedence as the backfill: a People link is the precise answer
+     * and overwrites, a Lead/Deal only fills a gap.
+     *
+     * Saved quietly: a regular save would fire the UPDATED workflow on every inbound message.
+     */
+    private function attachPersonFromEntity(Model $entity): void
+    {
+        if ($entity::class !== People::class && $this->people_id !== null) {
+            return;
+        }
+
+        if ($this->sender_type === null || ! $this->isCommunicationMessage()) {
+            return;
+        }
+
+        $peopleId = self::peopleIdForEntity($entity::class, (int) $entity->getId());
+
+        if ($peopleId === null || $peopleId === $this->people_id) {
+            return;
+        }
+
+        $this->people_id = $peopleId;
+        $this->saveQuietly();
     }
 
     public function entity(): ?Model
@@ -351,9 +459,18 @@ class Message extends BaseModel
             return false;
         }
 
+        return ! $this->app->get('index_message_by_type') || $this->isIndexedMessageType();
+    }
+
+    /**
+     * `message_types_id` carries no foreign key, so the relation can resolve to null — and the
+     * observers calling this run inside the write, where a fatal takes the whole save down.
+     */
+    public function isIndexedMessageType(): bool
+    {
         $filterByMessageType = $this->app->get('index_message_by_type');
 
-        return ! $filterByMessageType || $this->messageType->verb === $filterByMessageType;
+        return (bool) $filterByMessageType && $this->messageType?->verb === $filterByMessageType;
     }
 
     public function isPublic(): bool
@@ -486,6 +603,7 @@ class Message extends BaseModel
             'objectID' => $this->uuid,
             ...$this->toArray(),
             'id' => (string) $this->id, // Typesense requires the document id to be a string
+            'message' => $this->normalizeMessageForSearch(), // schema declares `message` as object; legacy string/list bodies get rejected otherwise
             'message_text' => $this->contentText(),
             'user' => [
                 'id' => $this->users_id,
@@ -520,7 +638,32 @@ class Message extends BaseModel
             $data['has_children'] = $this->total_children > 0;
         }
 
+        if ($this->isAlgolia()) {
+            $data = $this->fitWithinAlgoliaRecordLimit($data);
+        }
+
         return $data;
+    }
+
+    /**
+     * A message body can be an entire LLM answer, and Algolia rejects the whole batch over one
+     * oversized record (Sentry KANVAS-ECOSYSTEM-5TG), so trim instead of losing the batch.
+     * Thread previews go first; the body shrinks in stages after that — a shortened body still
+     * matches searches, and the full text is read from the DB on display anyway.
+     */
+    protected function fitWithinAlgoliaRecordLimit(array $message): array
+    {
+        return $this->trimToAlgoliaLimit($message)
+            ->truncateStrings('children', [500, 200])
+            ->forget('children')
+            // `message` duplicates `message_text`; shrink the object copy first since search
+            // matches on the text field.
+            ->truncateStrings('message', [2000, 500, 200])
+            ->limitString('message_text', 10000, 2000, 500)
+            // Whatever is left is a relation toArray() serialized in — never leave the record
+            // over budget, the batch it rides in carries other messages.
+            ->truncateEverything(500, 200, 100)
+            ->get();
     }
 
     private function getSearchableChildrenSummary(): array
@@ -534,7 +677,7 @@ class Message extends BaseModel
             ->map(fn ($child) => [
                 'id' => $child->id,
                 'uuid' => $child->uuid,
-                'message' => $child->message,
+                'message' => $child->normalizeMessageForSearch(),
                 'created_at' => $child->created_at->toIso8601String(),
                 'user' => [
                     'id' => $child->users_id,
@@ -542,6 +685,32 @@ class Message extends BaseModel
                     'displayname' => $child->user->displayname,
                 ],
             ])->toArray();
+    }
+
+    /**
+     * Bodies are inconsistent (plain string, list, or object — see getMessage()) and Typesense
+     * rejects the batch on any shape its collection doesn't hold, so match the collection: the
+     * declared object, or flat text on collections that auto-typed `message` as a string
+     * (Sentry KANVAS-ECOSYSTEM-628). stdClass so an empty body encodes as `{}`, not `[]`.
+     */
+    private function normalizeMessageForSearch(): object|string
+    {
+        $message = $this->getMessage();
+
+        if (array_is_list($message)) {
+            $text = $this->contentText();
+            $message = $text !== '' ? ['content' => $text] : [];
+        }
+
+        // Typesense derives the nested types of an `object` from the first document it indexes, so
+        // a reply whose envelope is a LIST of records collides with the scalar types a single-record
+        // reply established and the import is rejected. Nothing searches it; `message_text` already
+        // carries the prose.
+        unset($message['response_json']);
+
+        return $this->searchIndexRejectsObjectField('message')
+            ? $this->contentText()
+            : (object) $message;
     }
 
     /**

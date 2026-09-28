@@ -22,22 +22,35 @@ class AddAttributeAction
         if ($this->value === null || $this->value === '') {
             return $this->product;
         }
-        //Avoid to use sync method on models that can be translatable even pivot tables.
-        $productAttribute = ProductsAttributes::where('products_id', $this->product->getId())
-                            ->where('attributes_id', $this->attribute->getId())
-                            ->first();
 
-        if ($productAttribute) {
-            $productAttribute->value = $this->value;
-            $productAttribute->update();
-        } else {
-            $productAttribute = new ProductsAttributes();
-            $productAttribute->products_id = $this->product->getId();
-            $productAttribute->attributes_id = $this->attribute->getId();
-            $productAttribute->value = $this->value; //is_array($this->value) ? json_encode($this->value) : $this->value;
-            $productAttribute->save();
-        }
+        /**
+         * Single atomic statement on purpose: a select-then-insert leaves a window where
+         * two importer workers both miss and collide on the composite PK, which deadlocks
+         * against the FK lock every insert holds on the shared `attributes` row.
+         */
+        ProductsAttributes::upsert(
+            [$this->attributesToPersist()],
+            ['products_id', 'attributes_id'],
+            ['value']
+        );
+
+        //upsert() bypasses model events, so ProductsAttributesObserver never runs
+        $this->product->clearLightHouseCache(withKanvasConfiguration: false, cleanGlobalKey: true);
 
         return $this->product;
+    }
+
+    /**
+     * Build the row through the model so the translatable + JSON casts encode `value`
+     * exactly the way a normal save would.
+     */
+    private function attributesToPersist(): array
+    {
+        $productAttribute = new ProductsAttributes();
+        $productAttribute->products_id = $this->product->getId();
+        $productAttribute->attributes_id = $this->attribute->getId();
+        $productAttribute->value = $this->value;
+
+        return $productAttribute->getAttributes();
     }
 }

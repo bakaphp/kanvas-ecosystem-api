@@ -97,4 +97,69 @@ final class RegionDefaultGlobalFallbackTest extends TestCase
         $this->assertSame($companyRegion->getId(), $default->getId());
         $this->assertSame($company->getId(), (int) $default->companies_id);
     }
+
+    public function testCreatingACompanyDefaultDoesNotDemoteTheGlobalDefault(): void
+    {
+        $this->currentApp->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, 1);
+        $global = $this->createGlobalDefaultRegion();
+        $company = $this->createCompanyWithoutRegions();
+
+        Regions::create([
+            'companies_id' => $company->getId(),
+            'apps_id' => $this->currentApp->getId(),
+            'currency_id' => 1,
+            'name' => fake()->unique()->city() . ' Company Region',
+            'is_default' => 1,
+            'is_deleted' => 0,
+        ]);
+
+        $this->assertSame(1, (int) $global->refresh()->is_default);
+    }
+
+    public function testUpdatingACompanyRegionToDefaultDoesNotDemoteTheGlobalDefault(): void
+    {
+        $this->currentApp->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, 1);
+        $global = $this->createGlobalDefaultRegion();
+        $company = $this->createCompanyWithoutRegions();
+
+        $companyRegion = Regions::create([
+            'companies_id' => $company->getId(),
+            'apps_id' => $this->currentApp->getId(),
+            'currency_id' => 1,
+            'name' => fake()->unique()->city() . ' Company Region',
+            'is_default' => 0,
+            'is_deleted' => 0,
+        ]);
+
+        $companyRegion->is_default = 1;
+        $companyRegion->save();
+
+        $this->assertSame(1, (int) $global->refresh()->is_default);
+    }
+
+    public function testACompanyDefaultIsStillDemotedByAnotherCompanyDefault(): void
+    {
+        $this->currentApp->set(SoukConfigurationEnum::ALLOW_CROSS_COMPANY_VARIANTS->value, 1);
+        $company = $this->createCompanyWithoutRegions();
+
+        $first = Regions::create([
+            'companies_id' => $company->getId(),
+            'apps_id' => $this->currentApp->getId(),
+            'currency_id' => 1,
+            'name' => fake()->unique()->city() . ' First Region',
+            'is_default' => 1,
+            'is_deleted' => 0,
+        ]);
+
+        Regions::create([
+            'companies_id' => $company->getId(),
+            'apps_id' => $this->currentApp->getId(),
+            'currency_id' => 1,
+            'name' => fake()->unique()->city() . ' Second Region',
+            'is_default' => 1,
+            'is_deleted' => 0,
+        ]);
+
+        $this->assertSame(0, (int) $first->refresh()->is_default);
+    }
 }

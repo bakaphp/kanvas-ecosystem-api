@@ -97,7 +97,12 @@ class CreateProductAction
             }
 
             if ($this->productDto->variants) {
-                VariantService::createVariantsFromArray($products, $this->productDto->variants, $this->user);
+                VariantService::createVariantsFromArray(
+                    $products,
+                    $this->productDto->variants,
+                    $this->user,
+                    $this->runWorkflow
+                );
             } else {
                 VariantService::createDefaultVariant($products, $this->user, $this->productDto);
             }

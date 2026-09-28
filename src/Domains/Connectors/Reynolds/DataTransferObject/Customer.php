@@ -13,7 +13,6 @@ class Customer extends Data
 {
     use ScalarCoercionTrait;
 
-
     public function __construct(
         public readonly bool $isBusiness,
         public readonly ?string $nameRecId,
@@ -114,7 +113,7 @@ class Customer extends Data
 
     private static function buildAddress(People $people): array
     {
-        $address = $people->address()->first();
+        $address = $people->getDefaultAddress();
 
         if ($address === null) {
             return [];

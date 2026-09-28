@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Sessions\Actions;
 
+use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -16,6 +17,7 @@ use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Notifications\AgentReplyNotification;
+use Kanvas\Intelligence\Sessions\Jobs\GenerateChannelTitleJob;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Social\Channels\Actions\CreateChannelAction;
@@ -38,6 +40,13 @@ use Throwable;
 class PersistChatTurnToSocialAction
 {
     protected string $messageTypeVerb = 'ai-chat';
+
+    /**
+     * Message count (user + assistant turns) at which we re-title the channel one final time from the
+     * fuller conversation. Grows by 2 per turn, so 6 == the 3rd exchange — enough context to sharpen
+     * the rough opening-line title without waiting so long the label feels stale.
+     */
+    protected const int REFINE_TITLE_AT_MESSAGE_COUNT = 6;
 
     /**
      * @param list<string> $images
@@ -97,7 +106,7 @@ class PersistChatTurnToSocialAction
             $filenames[] = $name;
 
             if (! isset($uploadedNamesByUrl[$url])) {
-                $incoming->addFileFromUrl($url, $name !== '' ? $name : $this->fileTagFromUrl($url), $this->app);
+                $incoming->addFileFromUrl($url, $name !== '' ? $name : Str::fileNameFromUrl($url, 'attachment-' . md5($url)), $this->app);
             }
         }
 
@@ -135,6 +144,8 @@ class PersistChatTurnToSocialAction
 
         $channel->addMessage($incoming, $this->user);
         $channel->addMessage($reply, $aiUser);
+
+        $this->maybeGenerateChannelTitle($channel);
 
         // Internal system agents never post into the lead timeline (chat stays on the
         // user↔agent channel). Others fall back to the People's active Lead so a mid-turn
@@ -182,6 +193,46 @@ class PersistChatTurnToSocialAction
         );
 
         return $reply;
+    }
+
+    /**
+     * ChatGPT-style two-pass auto-titling, both dispatched async so the LLM round-trip never delays
+     * the reply:
+     *   1. After the opening exchange, rename the still-default channel to a rough title distilled
+     *      from that single turn — gives the conversation a label immediately.
+     *   2. Once the chat has enough turns (REFINE_TITLE_AT_MESSAGE_COUNT), re-title it one final time
+     *      from the fuller conversation, then lock it. This also catches up channels that never got a
+     *      first title (predate the feature, or their first-pass job failed) — as long as they still
+     *      carry a system-default name. A human rename in between wins and cancels the refine
+     *      (GenerateChannelTitleAction::canTitle checks the name is still ours or a default).
+     *
+     * @todo Extend auto-titling to connector channels (Slack/WhatsApp/email) — those persist via
+     *       BaseAgentChannelReplyAction and skip this action, so they never get titled today.
+     */
+    protected function maybeGenerateChannelTitle(Channel $channel): void
+    {
+        $messageCount = $channel->messages()->count();
+        $hasDefaultName = GenerateChannelTitleAction::hasDefaultName($channel);
+
+        if ($messageCount >= self::REFINE_TITLE_AT_MESSAGE_COUNT
+            && (GenerateChannelTitleAction::canRefine($channel) || $hasDefaultName)) {
+            GenerateChannelTitleJob::dispatch(
+                $channel,
+                $this->userMessage,
+                $this->assistantResponse,
+                refine: true,
+            );
+
+            return;
+        }
+
+        if ($hasDefaultName && $messageCount <= 2) {
+            GenerateChannelTitleJob::dispatch(
+                $channel,
+                $this->userMessage,
+                $this->assistantResponse,
+            );
+        }
     }
 
     protected function resolveEntity(): ?Model
@@ -237,14 +288,6 @@ class PersistChatTurnToSocialAction
             ->first();
 
         return $filesystem !== null ? (string) $filesystem->name : '';
-    }
-
-    private function fileTagFromUrl(string $url): string
-    {
-        $path = parse_url($url, PHP_URL_PATH);
-        $basename = is_string($path) && $path !== '' ? basename($path) : '';
-
-        return $basename !== '' ? $basename : 'attachment-' . md5($url);
     }
 
     /**

@@ -17,7 +17,17 @@ use Stripe\Account;
 use Stripe\AccountLink;
 use Stripe\Stripe;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Stripe Connect Onboarding Link',
+    description: 'Creates the user\'s Stripe Connect account if they have none and returns the onboarding link '
+        . 'they must complete before they can be paid. For marketplace sellers. Needs the signer\'s IP '
+        . 'address — it is part of Stripe\'s account-creation terms and the step errors without it.',
+    integration: IntegrationsEnum::STRIPE,
+    params: [
+        'ip' => 'The user\'s IP address, required by Stripe when creating the account. Required.',
+        'company' => 'Company the account belongs to. Defaults to the app company.',
+    ],
+)]
 class GenerateStripeSignupLinkForUserActivity extends KanvasActivity
 {
     //public $tries = 5;

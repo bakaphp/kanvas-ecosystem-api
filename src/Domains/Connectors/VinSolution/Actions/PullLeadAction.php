@@ -8,7 +8,11 @@ use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use GuzzleHttp\Exception\ClientException;
+use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\ServerException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Kanvas\ActionEngine\Tasks\Models\TaskList;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
@@ -18,13 +22,16 @@ use Kanvas\Connectors\VinSolution\Dealers\Dealer;
 use Kanvas\Connectors\VinSolution\Dealers\User;
 use Kanvas\Connectors\VinSolution\Enums\ConfigurationEnum;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum;
+use Kanvas\Connectors\VinSolution\Exceptions\ContactNotFoundException;
 use Kanvas\Connectors\VinSolution\Exceptions\VinSolutionException;
 use Kanvas\Connectors\VinSolution\Leads\Contact;
 use Kanvas\Connectors\VinSolution\Leads\Lead;
+use Kanvas\Connectors\VinSolution\Services\ContactRejectionService;
 use Kanvas\Connectors\VinSolution\Vehicles\Interest;
 use Kanvas\Connectors\VinSolution\Vehicles\TradeIn;
 use Kanvas\Guild\Customers\Actions\SyncPeopleByThirdPartyCustomFieldAction;
 use Kanvas\Guild\Leads\Actions\SyncLeadByThirdPartyCustomFieldAction;
+use Kanvas\Guild\Leads\DataTransferObject\LeadCandidate;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Enums\LeadGroupStatusEnum;
 use Kanvas\Guild\Leads\Models\Lead as ModelsLead;
@@ -125,22 +132,7 @@ class PullLeadAction
                 $lead->refresh();
 
                 return [
-                    [
-                        'id' => $lead->id,
-                        'uuid' => $lead->uuid,
-                        'people_id' => $lead->people->id,
-                        'firstname' => $lead->people->firstname,
-                        'middlename' => $lead->people->middlename,
-                        'lastname' => $lead->people->lastname,
-                        'email' => $lead->people?->getEmails()->first()?->value,
-                        'phone' => $lead->people?->getPhones()->first()?->value,
-                        'status' => $lead->status()?->first()?->name,
-                        'lead_type' => $lead->type?->name,
-                        'owner' => $lead->owner?->name ,
-                        'owner_id' => $lead->leads_owner_id,
-                        'custom_fields' => $lead->getAllCustomFields(),
-                        'rank' => 1,
-                    ],
+                    new LeadCandidate($lead)->toArray(),
                 ];
             }
 
@@ -242,6 +234,24 @@ class PullLeadAction
                 $lead->addCoBuyerParticipant($coBuyerPeople);
             }
             //$lead->co_buyer_id = $coBuyerPeople->getId();
+        } catch (ContactNotFoundException) {
+            // The co-buyer VinSolutions points at is gone or belongs to another dealer;
+            // the lead itself is still valid, so there is nothing to report.
+        } catch (ClientException $e) {
+            if (! ContactRejectionService::isUnreachableContact($e)) {
+                report($e);
+
+                return;
+            }
+
+            Log::warning('VinSolutions co-buyer contact unreachable, skipped', [
+                'lead_id' => $lead->getId(),
+                'vin_lead_id' => $currentLead['LeadId'] ?? null,
+                'dealer_id' => $vinCompany->id,
+                'user_id' => $user->id,
+                'status' => $e->getResponse()?->getStatusCode(),
+                'reason' => ContactRejectionService::reason($e),
+            ]);
         } catch (Throwable $e) {
             report($e);
         }
@@ -310,7 +320,12 @@ class PullLeadAction
                 ]);
             }
         } catch (Throwable $e) {
-            report($e);
+            $this->reportUnlessVinSolutionIsDown(
+                $e,
+                $lead,
+                '/vehicles/interest',
+                $currentLead
+            );
         }
     }
 
@@ -340,9 +355,57 @@ class PullLeadAction
                 && str_contains($message, '`404 Not Found` response');
 
             if (! $isIgnoredTradeInNotFound) {
-                report($e);
+                $this->reportUnlessVinSolutionIsDown(
+                    $e,
+                    $lead,
+                    '/vehicles/trade',
+                    $currentLead
+                );
             }
         }
+    }
+
+    /**
+     * VinSolutions' vehicle endpoints answer 500 for hours at a time whenever their cache
+     * tier drops ("No connection is available to service this operation: EVAL" is a Redis
+     * connection error from their side, not a response about this lead). This pull hits
+     * both endpoints once per lead across thousands of leads, so reporting each failure
+     * cost ~4k Sentry events per outage (KANVAS-ECOSYSTEM-6FF/6FG/6FH/4QE) for something
+     * we cannot fix from here.
+     *
+     * So: local log only, once per lead per day — the repeat attempts for a lead we already
+     * know about add nothing. Kept below the sentry_logs threshold (warning) so an outage
+     * costs no Sentry quota.
+     *
+     * Temporary, pending a VinSolutions fix. While it stands, a genuinely new fault on these
+     * two endpoints is invisible in Sentry — check laravel.log for this message before
+     * concluding the endpoints are healthy.
+     */
+    private function reportUnlessVinSolutionIsDown(
+        Throwable $e,
+        ModelsLead $lead,
+        string $endpoint,
+        array $currentLead
+    ): void {
+        if (! $e instanceof ServerException && ! $e instanceof ConnectException) {
+            report($e);
+
+            return;
+        }
+
+        $vinLeadId = isset($currentLead['LeadId']) ? (int) $currentLead['LeadId'] : null;
+
+        if (! Cache::add('vinsolution:vehicle-unavailable:' . ($vinLeadId ?? 'lead-' . $lead->getId()), true, 86400)) {
+            return;
+        }
+
+        Log::info('VinSolutions vehicle endpoint unavailable, skipped', [
+            'endpoint' => $endpoint,
+            'lead_id' => $lead->getId(),
+            'vin_lead_id' => $vinLeadId,
+            'status' => $e instanceof ServerException ? $e->getResponse()?->getStatusCode() : null,
+            'error' => $e->getMessage(),
+        ]);
     }
 
     private function findLatestNonEmptyTradeIn(array $items): ?array

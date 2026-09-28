@@ -11,9 +11,11 @@ use Kanvas\Intelligence\Agents\Laravel\KanvasGenericLaravelAgent;
 use Kanvas\Intelligence\Agents\Laravel\Tools\Common\CurrentTimeTool as LaravelCurrentTimeTool;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
+use Kanvas\Intelligence\Agents\Neuron\Accounting\AccountsReceivableAgent;
 use Kanvas\Intelligence\Agents\Neuron\Accounting\CFOAgent;
 use Kanvas\Intelligence\Agents\Neuron\KanvasGenericNeuronAgent;
 use Kanvas\Intelligence\Agents\Neuron\SystemUserAgent;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Acumatica\CreateArInvoiceTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\CurrentTimeTool as NeuronCurrentTimeTool;
 use Kanvas\NervousSystem\Capability\Actions\CreateToolAction;
 use Kanvas\NervousSystem\Capability\Actions\GrantToolToAgentAction;
@@ -78,6 +80,38 @@ final class UniversalAgentToolsTest extends TestCase
         $this->assertSame(
             1,
             count(array_filter($names, fn (string $name): bool => $name === 'get_current_time')),
+        );
+    }
+
+    /**
+     * Reproduces the Gemini "Duplicate function declaration found: create_ar_invoice" crash: an
+     * operator toggles create_ar_invoice on for an AR agent in the admin UI (a registry grant),
+     * which collides with the same tool AccountsReceivableAgent already hardcodes in tools(). The
+     * registry merge inside SystemUserAgent::tools() runs before the subclass appends its hardcoded
+     * tools, so it can't see the collision coming — getTools()'s final dedupe pass must catch it.
+     */
+    public function testGrantingAHardcodedAgentToolNameDoesNotRegisterItTwice(): void
+    {
+        $agent = $this->makeAgent('neuron');
+
+        $tool = new CreateToolAction(new ToolData(
+            app: app(Apps::class),
+            name: 'create-ar-invoice-' . uniqid(),
+            frameworks: ['neuron'],
+            toolType: ToolTypeEnum::CUSTOM,
+            handler: CreateArInvoiceTool::class,
+        ))->execute();
+
+        new GrantToolToAgentAction($agent, $tool)->execute();
+
+        $handler = new AccountsReceivableAgent();
+        $handler->setConfiguration($agent, user: auth()->user());
+
+        $names = $this->neuronToolNames($handler->getTools());
+
+        $this->assertSame(
+            1,
+            count(array_filter($names, fn (string $name): bool => $name === 'create_ar_invoice')),
         );
     }
 

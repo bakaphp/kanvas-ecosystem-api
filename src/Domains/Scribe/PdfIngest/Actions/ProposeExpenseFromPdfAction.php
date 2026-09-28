@@ -18,7 +18,9 @@ use Kanvas\Scribe\Expenses\DataTransferObject\ExpenseLine as ExpenseLineData;
 use Kanvas\Scribe\Expenses\Enums\ExpensePaidByEnum;
 use Kanvas\Scribe\Expenses\Models\Expense;
 use Kanvas\Scribe\PdfIngest\Traits\ExtractsPdfPayloadValuesTrait;
+use Kanvas\Users\Repositories\UsersRepository;
 use Spatie\LaravelData\DataCollection;
+use Throwable;
 
 /**
  * Writes a DRAFT Expense from the LLM-extracted PDF payload, attaches the PDF as a receipt, and
@@ -28,7 +30,8 @@ use Spatie\LaravelData\DataCollection;
  *   - status=DRAFT (user reviews + approves through the normal Expenses dashboard flow)
  *   - source='parsed_pdf'
  *   - external_id=<filesystem_uuid> (idempotency-friendly cross-system reference)
- *   - paid_by inferred from the LLM's `payment_method_hint`; default COMPANY_CARD when unsure
+ *   - paid_by from the LLM's `payment_method_hint`; with no hint, EMPLOYEE_PERSONAL when the sender
+ *     resolves to a user of this app + company, else COMPANY_CARD
  *   - notes prefixed with "Imported from PDF" + LLM notes
  *   - metadata.ingest = the raw LLM payload (preserved verbatim for audit / re-classification)
  *   - one ExpenseLine per line_item in extraction (or one summary line when LLM didn't break it down)
@@ -75,7 +78,9 @@ class ProposeExpenseFromPdfAction
 
         $expenseDate = $this->parseIso($this->extracted['issue_date'] ?? null) ?? Carbon::today();
         $currency = $this->trimOrDefault($this->extracted['currency'] ?? null, 'USD');
-        $paidBy = $this->mapPaymentMethodHint($this->extracted['payment_method_hint'] ?? null);
+        $paymentHint = $this->trimOrDefault($this->extracted['payment_method_hint'] ?? null, null);
+        $senderEmployee = $this->resolveSenderEmployee();
+        $paidBy = $this->mapPaymentMethodHint($paymentHint, $senderEmployee !== null);
         $vendorDisplayName = $this->trimOrDefault(
             $this->extracted['vendor_name'] ?? null,
             $this->fromEmail !== null ? "Vendor ({$this->fromEmail})" : 'Unknown vendor',
@@ -95,7 +100,7 @@ class ProposeExpenseFromPdfAction
             fx_rate_to_base: 1.0,
             paid_by: $paidBy,
             paid_by_users_id: $paidBy === ExpensePaidByEnum::EMPLOYEE_PERSONAL
-                ? $this->user?->getId()
+                ? $senderEmployee?->getId()
                 : null,
             notes: $notes,
             tax_metadata: $this->extracted['tax_metadata'] ?? null,
@@ -107,6 +112,12 @@ class ProposeExpenseFromPdfAction
                     'vendor_tax_id' => $this->extracted['vendor_tax_id'] ?? null,
                     'vendor_email' => $this->extracted['vendor_email'] ?? $this->fromEmail,
                     'extracted' => $this->extracted,
+                ],
+                // Whether paid_by came off the receipt or was inferred from who sent it, so a reviewer
+                // can tell an asserted payer from a guessed one before approving.
+                'paid_by' => [
+                    'payment_method_hint' => $paymentHint,
+                    'inferred_from_sender' => $paymentHint === null && $senderEmployee !== null,
                 ],
             ],
             source: 'parsed_pdf',
@@ -218,14 +229,47 @@ class ProposeExpenseFromPdfAction
         return $out;
     }
 
-    private function mapPaymentMethodHint(?string $hint): ExpensePaidByEnum
+    /**
+     * A receipt rarely states who ultimately bore the cost, so the hint is often absent. Defaulting
+     * such a receipt to COMPANY_CARD is not neutral: it skips the Due to Employees credit entirely,
+     * so an employee who forwarded their own receipt is silently never reimbursed and nothing on the
+     * books says they are owed. When the sender is a known employee of this company, their own
+     * mailbox is the better signal — a person forwards their own receipt to get paid back.
+     */
+    private function mapPaymentMethodHint(?string $hint, bool $senderIsEmployee): ExpensePaidByEnum
     {
         return match ($hint) {
             'credit_card' => ExpensePaidByEnum::COMPANY_CARD,
             'bank_transfer' => ExpensePaidByEnum::COMPANY_BANK_TRANSFER,
             'cash' => ExpensePaidByEnum::COMPANY_CASH,
             'employee_personal' => ExpensePaidByEnum::EMPLOYEE_PERSONAL,
-            default => ExpensePaidByEnum::COMPANY_CARD,
+            default => $senderIsEmployee
+                ? ExpensePaidByEnum::EMPLOYEE_PERSONAL
+                : ExpensePaidByEnum::COMPANY_CARD,
         };
+    }
+
+    /**
+     * The queued ingest path carries no acting user — only the sender's address — so an employee-paid
+     * receipt has nobody to owe until the address is resolved back to a user of this app + company.
+     */
+    private function resolveSenderEmployee(): ?UserInterface
+    {
+        if ($this->user !== null) {
+            return $this->user;
+        }
+
+        if ($this->fromEmail === null) {
+            return null;
+        }
+
+        try {
+            $sender = UsersRepository::getUserOfAppByEmail($this->fromEmail, $this->app);
+            UsersRepository::belongsToCompany($sender, $this->company);
+
+            return $sender;
+        } catch (Throwable) {
+            return null;
+        }
     }
 }

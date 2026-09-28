@@ -6,7 +6,11 @@ namespace Tests\GraphQL\Ecosystem;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Auth\DataTransferObject\LoginInput;
+use Kanvas\Auth\Services\ForgotPassword as ForgotPasswordService;
+use Kanvas\Enums\AppEnums;
+use Kanvas\Exceptions\ModelNotFoundException as ExceptionsModelNotFoundException;
 use Kanvas\Users\Models\Users;
+use Kanvas\Users\Models\UsersAssociatedApps;
 use Tests\TestCase;
 
 class AuthTest extends TestCase
@@ -285,6 +289,45 @@ class AuthTest extends TestCase
         )
         ->assertSuccessful()
         ->assertSee('resetPassword');
+    }
+
+    /**
+     * An association row whose users_id points at a missing users record must not
+     * fatal with "Call to a member function generateForgotHash() on null" — it
+     * should surface a clean not-found instead (Sentry KANVAS-ECOSYSTEM-660).
+     */
+    public function testForgotPasswordWithOrphanedAssociationThrowsNotFound(): void
+    {
+        $app = app(Apps::class);
+        $email = fake()->unique()->safeEmail();
+        $orphanUserId = 999999999;
+
+        // This test doesn't run inside a transaction, so scrub any row a prior run
+        // leaked — the unique key is (users_id, apps_id, companies_id).
+        UsersAssociatedApps::where('users_id', $orphanUserId)
+            ->where('apps_id', $app->getId())
+            ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+            ->delete();
+
+        UsersAssociatedApps::create([
+            'users_id' => $orphanUserId,
+            'apps_id' => $app->getId(),
+            'companies_id' => AppEnums::GLOBAL_COMPANY_ID->getValue(),
+            'email' => $email,
+            'displayname' => $email,
+            'password' => '',
+        ]);
+
+        try {
+            $this->expectException(ExceptionsModelNotFoundException::class);
+
+            new ForgotPasswordService($app)->forgot($email);
+        } finally {
+            UsersAssociatedApps::where('users_id', $orphanUserId)
+                ->where('apps_id', $app->getId())
+                ->where('companies_id', AppEnums::GLOBAL_COMPANY_ID->getValue())
+                ->delete();
+        }
     }
 
     public function testForgotPasswordDisplayname(): void

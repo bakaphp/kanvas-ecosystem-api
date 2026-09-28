@@ -14,9 +14,9 @@ namespace Kanvas\Guild\Organizations\Services;
  * case-insensitive (utf8_general_ci) and we want to keep a readable display name.
  *
  * Suffix list is conservative and Dominican-Republic-aware (SRL, S.A., SAS, EIRL,
- * C. por A.) plus common international forms. Matching is dot/space/case insensitive,
- * and a name that is ENTIRELY a suffix (no separator before it) is left untouched so
- * we never blank a name.
+ * C. por A.) plus common international and German forms. Matching is dot/space/case
+ * insensitive, and a name that is ENTIRELY a suffix (no separator before it) is left
+ * untouched so we never blank a name.
  */
 class OrganizationNameNormalizerService
 {
@@ -38,6 +38,17 @@ class OrganizationNameNormalizerService
         'CORP(?:ORATION)?',                              // CORP / CORPORATION
         'INC(?:ORPORATED)?',                             // INC
         '&?\s?CO',                                       // CO / & CO
+        'GMBH\s?&\s?CO\.?\s?KG',                         // GmbH & Co. KG
+        'PARTG\s?MBB',                                   // Partnerschaftsgesellschaft mbB
+        'MBB',                                           // mbB (professional-liability partnership)
+        'GMBH',                                          // GmbH
+        'GBR',                                           // GbR
+        'OHG',                                           // OHG
+        'KG',                                            // KG
+        'UG\s?\(?HAFTUNGSBESCHR[ÄA]NKT\)?',              // UG (haftungsbeschränkt)
+        'UG',                                            // UG
+        'AG',                                            // AG
+        'E\.?\s?V',                                      // e.V.
     ];
 
     public static function normalize(string $name): string

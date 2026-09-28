@@ -6,7 +6,9 @@ namespace App\Console\Commands\Connectors\ESim;
 
 use Baka\Traits\KanvasJobsTrait;
 use Exception;
+use GuzzleHttp\Exception\ServerException;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Airalo\Services\AiraloService;
@@ -137,8 +139,16 @@ class SyncOrdersWithProviderCommand extends Command
     {
         try {
             $response = $eSimService->getAppliedBundleStatus($iccid, $bundle);
+        } catch (ServerException $e) {
+            Log::warning('eSIM Go transient provider error while checking bundle status', [
+                'order_id' => $order->id,
+                'iccid' => $iccid,
+                'bundle' => $bundle,
+                'message' => $e->getMessage(),
+            ]);
+
+            return;
         } catch (Exception $e) {
-            report($e);
             $this->info("Order ID: {$order->id} does not have an ICCID.");
 
             $cancelCounter = $order->get('cancel_counter', 0);

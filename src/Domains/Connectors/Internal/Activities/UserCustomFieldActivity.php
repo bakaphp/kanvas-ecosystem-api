@@ -9,10 +9,19 @@ use Exception;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\KanvasActivity;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'Set User Custom Fields',
+    description: 'Writes custom fields onto a user from values configured on the rule. Does nothing if no '
+        . 'fields are configured, so it is inert until you supply them.',
+    integration: IntegrationsEnum::INTERNAL,
+    params: [
+        'customField' => 'A map of field name to {value, is_public}. Without it the step is a no-op.',
+    ],
+)]
 class UserCustomFieldActivity extends KanvasActivity implements WorkflowActivityInterface
 {
     #[Override]

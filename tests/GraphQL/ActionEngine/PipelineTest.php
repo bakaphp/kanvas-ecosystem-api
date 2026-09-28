@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\GraphQL\ActionEngine;
 
+use Kanvas\ActionEngine\Pipelines\Models\Pipeline;
 use Tests\TestCase;
 
 class PipelineTest extends TestCase
@@ -25,6 +26,7 @@ class PipelineTest extends TestCase
                     stages {
                         id
                         name
+                        slug
                         weight
                     }
                 }
@@ -98,6 +100,41 @@ class PipelineTest extends TestCase
         ]);
     }
 
+    public function testGetActionPipelinesWithNullUpdatedAt(): void
+    {
+        $pipeline = $this->createPipeline();
+
+        // Legacy rows predate Eloquent timestamps, so pipelines.updated_at is nullable and NULL in prod.
+        Pipeline::query()
+            ->where('id', (int) $pipeline['id'])
+            ->toBase()
+            ->update(['updated_at' => null]);
+
+        $this->graphQL('
+            query($id: Mixed!) {
+                actionPipelines(where: { column: ID, operator: EQ, value: $id }) {
+                    data {
+                        id
+                        updated_at
+                    }
+                }
+            }
+        ', ['id' => (int) $pipeline['id']])
+        ->assertSuccessful()
+        ->assertJson([
+            'data' => [
+                'actionPipelines' => [
+                    'data' => [
+                        [
+                            'id' => $pipeline['id'],
+                            'updated_at' => null,
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+    }
+
     public function testCreateActionPipeline(): void
     {
         $pipeline = $this->createPipeline();
@@ -105,6 +142,22 @@ class PipelineTest extends TestCase
         $this->assertNotEmpty($pipeline['name']);
         $this->assertNotEmpty($pipeline['slug']);
         $this->assertCount(3, $pipeline['stages']);
+    }
+
+    public function testCreateActionPipelineUsesDefaultStages(): void
+    {
+        $pipeline = $this->createPipeline();
+
+        $stages = collect($pipeline['stages'])->sortBy('weight')->values();
+
+        $this->assertSame(
+            [
+                ['name' => 'shared', 'slug' => 'sent'],
+                ['name' => 'read', 'slug' => 'opened'],
+                ['name' => 'submitted', 'slug' => 'submitted'],
+            ],
+            $stages->map(fn (array $stage) => ['name' => $stage['name'], 'slug' => $stage['slug']])->all()
+        );
     }
 
     public function testUpdateActionPipeline(): void

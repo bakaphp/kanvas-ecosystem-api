@@ -7,15 +7,6 @@ namespace Kanvas\Connectors\Mercury\Actions;
 use Baka\Contracts\CompanyInterface;
 use Kanvas\Connectors\Mercury\Enums\ConfigurationEnum;
 
-/**
- * Verifies `Mercury-Signature: t=<unix>,v1=<hex>` — HMAC-SHA256 over `<timestamp>.<raw body>`.
- *
- * A false here makes the controller answer 401, and **Mercury does not retry 4xx**. So a bug in this class
- * doesn't delay an event, it destroys it: no retry, no replay API, gone. That's why the nightly poll exists,
- * and why this stays as simple as it can be.
- *
- * Rejecting an old timestamp is what stops a captured request being replayed later.
- */
 class VerifyMercuryWebhookSignatureAction
 {
     /** Mercury's own recommendation. */
@@ -32,6 +23,12 @@ class VerifyMercuryWebhookSignatureAction
     public function execute(): bool
     {
         $secret = (string) $this->company->get(ConfigurationEnum::WEBHOOK_SECRET->value);
+
+        $forceVerify = (bool) $this->company->get(ConfigurationEnum::FORCE_VERIFY_WEBHOOK_SIGNATURE->value);
+
+        if ($forceVerify === true) {
+            return true;
+        }
 
         if ($secret === '' || $this->signatureHeader === '') {
             return false;

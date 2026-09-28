@@ -7,10 +7,18 @@ namespace Kanvas\Intelligence\Agents\Neuron;
 use Illuminate\Database\Eloquent\Model;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\HumanResources\Employees\Services\EmployeeBriefService;
 use Kanvas\Intelligence\AgentRuntime\Enums\AgentChannelTokenEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
+use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Neuron\History\ChannelMessageHistory;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleReminderTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadEntityContextTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadMyLedgerTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\ReadUserActivityTool;
@@ -46,11 +54,17 @@ use Override;
     soul: 'You are a capable Kanvas system agent acting as a member of the team. You act through your tools and are accountable for what you do.',
     outputFormat: 'Plain text. Short paragraphs; lists only when enumerating distinct items.',
 )]
-class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
+class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
 {
     use MergesRegisteredTools;
 
     private ?Channel $mentionChannel = null;
+
+    #[Override]
+    protected function usesOrganizationWideKnowledge(): bool
+    {
+        return true;
+    }
 
     /**
      * Answering an @mention: read the WHOLE channel this turn, not the per-session store.
@@ -83,6 +97,7 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
                 entity: $this->entity,
                 includeInternal: true,
                 currentLead: $this->currentLead,
+                contextWindow: $this->resolvedContextWindow(),
             );
         }
 
@@ -95,6 +110,8 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
             agent: $this->agent,
             turnMedia: $this->turnMedia,
             model: $this->resolvedModelName(),
+            privateUserTurn: $this->privateUserTurn,
+            contextWindow: $this->resolvedContextWindow(),
         );
     }
 
@@ -127,6 +144,11 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
     {
         $instructions = $this->selfIdentityBlock() . parent::instructions();
 
+        $human = $this->conversationHumanBlock();
+        if ($human !== '') {
+            $instructions .= "\n\n" . $human;
+        }
+
         $subject = $this->subjectEntity();
         if ($subject !== null) {
             $instructions .= "\n\n## Who you're helping with right now\n"
@@ -154,13 +176,12 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
 
         $user = $agent->user;
         if ($user !== null) {
-            $fullName = trim($user->firstname . ' ' . $user->lastname);
             $handle = $user->getAppDisplayName();
 
             $lines[] = sprintf(
                 'You ARE a Kanvas user: %s (email %s, user id %d). You act as this user — every record and ledger '
                 . 'event you create is stamped under this identity. When asked which user you are, this is the answer.',
-                $fullName !== '' ? $fullName : $handle,
+                $this->displayNameFor($user),
                 (string) $user->email,
                 $user->getId(),
             );
@@ -172,9 +193,77 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
                     $handle,
                 );
             }
+
+            $hr = $this->hrLine($user);
+            if ($hr !== null) {
+                $lines[] = 'Your seat on the org chart: ' . $hr . '. Stay inside that remit — when a request '
+                    . 'belongs to another role, say so and point at whoever holds it.';
+            }
         }
 
         return implode("\n", $lines) . "\n\n";
+    }
+
+    /**
+     * The human on the other side of this turn, with their place in the org chart. Deterministic —
+     * the agent knows the person's title and reporting line without them having to say it, and knows
+     * when there is no HR record instead of inventing a role.
+     */
+    private function conversationHumanBlock(): string
+    {
+        $company = $this->company;
+        $human = $this->entity instanceof Users ? $this->entity : $this->requestingHuman();
+
+        if ($company === null || $human === null) {
+            return '';
+        }
+
+        // On the @mention and channel surfaces $this->user IS the agent's own user — describing it
+        // here would tell the agent it is talking to itself.
+        if ($human->getId() === (int) ($this->agent?->user_id ?? 0)) {
+            return '';
+        }
+
+        $handle = $human->getAppDisplayName();
+
+        $lines = [
+            "## Who you're talking to",
+            sprintf(
+                'You are talking to %s (email %s, user id %d)%s.',
+                $this->displayNameFor($human),
+                (string) $human->email,
+                $human->getId(),
+                $handle !== '' ? ', @mention handle @' . $handle : '',
+            ),
+        ];
+
+        $hr = $this->hrLine($human);
+        $lines[] = $hr !== null
+            ? sprintf('Their seat on the org chart at %s: %s. Pitch your answer to that role — respect what it '
+                . 'covers and what it does not.', $company->name, $hr)
+            : sprintf('They have no HR employee record at %s, so their role is unknown — ask rather than assume '
+                . 'a title or a reporting line.', $company->name);
+
+        return implode("\n", $lines);
+    }
+
+    private function displayNameFor(Users $user): string
+    {
+        $fullName = trim($user->firstname . ' ' . $user->lastname);
+
+        return $fullName !== '' ? $fullName : $user->getAppDisplayName();
+    }
+
+    private function hrLine(Users $user): ?string
+    {
+        $app = $this->app;
+        $company = $this->company;
+
+        if ($app === null || $company === null) {
+            return null;
+        }
+
+        return new EmployeeBriefService()->renderTextForUser($user, $company, $app);
     }
 
     /**
@@ -201,6 +290,15 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
 
         $core[] = new SendEmailToUserTool($agent);
 
+        // The schedule tools key on the human, not the agent: "remind me" must land on the person
+        // who asked. On an @mention surface $this->user IS the agent's own user, so an explicit
+        // conversation human (set by the caller) wins over it.
+        $contextUser = $this->conversationHuman ?? $this->user ?? $agent->user;
+        $core[] = new ScheduleReminderTool($agent, $this->session)->withContext($app, $company, $contextUser);
+        $core[] = new ScheduleAgentTaskTool($agent, $this->session)->withContext($app, $company, $contextUser);
+        $core[] = new ListScheduledActionsTool($this->session)->withContext($app, $company, $contextUser);
+        $core[] = new CancelScheduledActionTool($this->session)->withContext($app, $company, $contextUser);
+
         if ((string) ($agent->get(AgentChannelTokenEnum::SLACK_BOT_TOKEN->value) ?? '') !== '') {
             $core[] = new SendSlackDirectMessageTool($agent);
         }
@@ -213,9 +311,14 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
     }
 
     /**
-     * Identity/memory tools for an internal-teammate agent: who it's talking to + its own ledger
-     * memory. Exposed so subclasses (e.g. the PM, whose entity is a Project not a person) reuse it.
+     * The baseline every internal-teammate agent gets: who it's talking to, its own ledger memory,
+     * and the ability to open a file the company owns. Exposed so subclasses (e.g. the PM, whose
+     * entity is a Project not a person) reuse it rather than re-listing it.
      * who_is_user targets the session entity when that's a Users, else the authenticated human.
+     *
+     * read_file resolves any filesystem_id in the tenant, so it is baseline HERE and nowhere wider:
+     * this class is internal by construction (ConversesWithUser), while a customer surface holding it
+     * would hand a prospect the whole company drive one coaxed id away.
      *
      * @return list<object>
      */
@@ -229,7 +332,7 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
             return [];
         }
 
-        return [
+        $tools = [
             new ReadMyLedgerTool($app, $company, $agent),
             new WhoIsUserTool(
                 $app,
@@ -237,6 +340,18 @@ class SystemUserAgent extends BaseKanvasAgent implements ConversesWithUser
                 $this->entity instanceof Users ? $this->entity : $this->user
             ),
         ];
+
+        $user = $this->actingUser();
+
+        if ($user !== null && ! $this instanceof ConversesWithCustomer) {
+            $tools[] = new ReadFileTool()->withContext($app, $company, $user);
+        }
+
+        if ($this->rendersArtifacts) {
+            $tools[] = new RenderArtifactTool();
+        }
+
+        return $tools;
     }
 
     /**

@@ -7,8 +7,18 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Carbon\Carbon;
 use Kanvas\Event\Events\Actions\CreateEventAction;
 use Kanvas\Event\Events\DataTransferObject\Event as EventData;
+use Kanvas\Event\Events\Models\EventCategory;
+use Kanvas\Event\Events\Models\EventClass;
+use Kanvas\Event\Events\Models\EventStatus;
+use Kanvas\Event\Events\Models\EventType;
+use Kanvas\Event\Themes\Models\Theme;
+use Kanvas\Event\Themes\Models\ThemeArea;
+use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
+use Kanvas\Intelligence\Agents\Enums\ToolOutcomeEnum;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\GuardsOwnerCalendarForTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
@@ -17,9 +27,10 @@ use NeuronAI\Tools\ToolProperty;
 use Override;
 use Throwable;
 
-#[AgentTool(name: 'Calendar Event')]
+#[AgentTool(name: 'Calendar Event', category: 'crm')]
 class CalendarEventTool extends Tool
 {
+    use GuardsOwnerCalendarForTool;
     use ResolvesLeadForTool;
 
     public function __construct()
@@ -27,8 +38,10 @@ class CalendarEventTool extends Tool
         parent::__construct(
             name: 'create_calendar_event',
             description: 'Create a NEW internal calendar event (appointment / demo) for the lead owner in the Kanvas Event domain. '
+                . 'Call get_event_configuration first and pass all six company-scoped configuration IDs returned by it. '
                 . 'Use this once the prospect has agreed on a specific date and time. '
-                . 'The event will appear in subsequent availability checks so the same slot cannot be double-booked. '
+                . 'A time that overlaps the owner\'s calendar is refused, so check get_user_availability first. '
+                . 'When the result has lead_notified: true the lead was already emailed a confirmation — do not send your own. '
                 . 'IMPORTANT: if the lead ALREADY has an upcoming appointment (see get_lead_ref appointments.upcoming), '
                 . 'do NOT call this to move it — use reschedule_calendar_event (to change the time) or '
                 . 'cancel_calendar_event (to cancel). Calling create for an existing meeting double-books the lead.',
@@ -53,7 +66,7 @@ class CalendarEventTool extends Tool
             ),
             new ArrayProperty(
                 name: 'attendee_emails',
-                description: 'List of attendee emails for the event (stored on the event description for now).',
+                description: 'Additional attendee emails for the event. The lead email is added automatically.',
                 required: true,
                 items: new ToolProperty(
                     name: 'email',
@@ -86,6 +99,42 @@ class CalendarEventTool extends Tool
                 description: 'Optional meeting URL (Zoom / Meet / etc.) to attach to the event.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'theme_id',
+                type: PropertyType::INTEGER,
+                description: 'Theme ID returned by get_event_configuration.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'theme_area_id',
+                type: PropertyType::INTEGER,
+                description: 'Theme area ID returned by get_event_configuration.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'status_id',
+                type: PropertyType::INTEGER,
+                description: 'Event status ID returned by get_event_configuration.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'type_id',
+                type: PropertyType::INTEGER,
+                description: 'Event type ID returned by get_event_configuration.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'class_id',
+                type: PropertyType::INTEGER,
+                description: 'Event class ID returned by get_event_configuration.',
+                required: true,
+            ),
+            new ToolProperty(
+                name: 'category_id',
+                type: PropertyType::INTEGER,
+                description: 'Event category ID returned by get_event_configuration.',
+                required: true,
+            ),
         ];
     }
 
@@ -97,6 +146,12 @@ class CalendarEventTool extends Tool
         string $end_datetime,
         ?string $description = null,
         ?string $meeting_link = null,
+        ?int $theme_id = null,
+        ?int $theme_area_id = null,
+        ?int $status_id = null,
+        ?int $type_id = null,
+        ?int $class_id = null,
+        ?int $category_id = null,
     ): array {
         $result = $this->resolveLeadOrError($lead_id);
         if (is_array($result)) {
@@ -106,6 +161,8 @@ class CalendarEventTool extends Tool
 
         $company = $lead->company;
         $owner = $lead->owner;
+
+        $attendee_emails = $this->resolveAttendeeEmails($lead, $attendee_emails);
 
         if ($owner === null) {
             return [
@@ -133,60 +190,195 @@ class CalendarEventTool extends Tool
             ];
         }
 
-        $attendeeBlock = $attendee_emails === [] ? '' : "\nAttendees: " . implode(', ', $attendee_emails);
-        $fullDescription = trim(($description ?? '') . $attendeeBlock);
-
-        try {
-            $eventData = EventData::from(
-                $lead->app,
-                $owner,
-                $company,
-                [
-                    'name' => $title,
-                    'description' => $fullDescription !== '' ? $fullDescription : null,
-                    'meeting_link' => $meeting_link,
-                    'dates' => [
-                        [
-                            'date' => $start->format('Y-m-d'),
-                            'start_time' => $start->format('H:i'),
-                            'end_time' => $end->format('H:i'),
-                        ],
-                    ],
-                    'resources' => [
-                        [
-                            'resources_id' => $lead->getId(),
-                            'resources_type' => 'lead',
-                        ],
-                    ],
-                ]
-            );
-
-            $event = new CreateEventAction($eventData)->disableWorkflow()->execute();
-            $event->resources_id = $lead->getId();
-            $event->resources_type = Lead::class;
-            $event->saveQuietly();
-        } catch (Throwable $e) {
+        if (! $start->isSameDay($end)) {
             return [
                 'status' => 'error',
-                'message' => 'Failed to create event: ' . $e->getMessage(),
-                'hint' => 'The Event domain may need default Theme/ThemeArea/EventStatus/EventType/EventCategory/EventClass rows configured for this company.',
+                'message' => 'Appointments must start and end on the same local calendar date.',
             ];
         }
 
-        return [
-            'status' => 'success',
-            'lead_id' => $lead_id,
-            'event' => [
-                'id' => $event->getId(),
-                'uuid' => $event->uuid,
-                'name' => $event->name,
-                'start_local' => $start->toIso8601String(),
-                'end_local' => $end->toIso8601String(),
-                'company_timezone' => $tz,
-                'owner_user_id' => $owner->getId(),
-                'attendees' => $attendee_emails,
-                'meeting_link' => $meeting_link,
+        $configurationIds = [
+            'theme_id' => $theme_id,
+            'theme_area_id' => $theme_area_id,
+            'status_id' => $status_id,
+            'type_id' => $type_id,
+            'class_id' => $class_id,
+            'category_id' => $category_id,
+        ];
+        $providedConfigurationIds = array_filter($configurationIds, static fn (?int $id): bool => $id !== null);
+
+        // Keep the legacy all-default path temporarily, but never allow a partially specified configuration.
+        if ($providedConfigurationIds !== [] && count($providedConfigurationIds) !== count($configurationIds)) {
+            return [
+                'status' => 'error',
+                'message' => 'Incomplete Event configuration. Call get_event_configuration and pass theme_id, '
+                    . 'theme_area_id, status_id, type_id, class_id, and category_id.',
+            ];
+        }
+
+        if ($providedConfigurationIds !== []) {
+            $models = [
+                'theme_id' => Theme::class,
+                'theme_area_id' => ThemeArea::class,
+                'status_id' => EventStatus::class,
+                'type_id' => EventType::class,
+                'class_id' => EventClass::class,
+                'category_id' => EventCategory::class,
+            ];
+
+            foreach ($models as $field => $modelClass) {
+                $exists = $modelClass::query()
+                    ->where('id', $configurationIds[$field])
+                    ->where('apps_id', $lead->apps_id)
+                    ->where('companies_id', $company->getId())
+                    ->where('is_deleted', 0)
+                    ->exists();
+
+                if (! $exists) {
+                    return [
+                        'status' => 'error',
+                        'message' => "Invalid {$field}. Use an ID returned by get_event_configuration for this lead.",
+                    ];
+                }
+            }
+
+            $category = EventCategory::getById((int) $category_id);
+            if ((int) $category->event_type_id !== $type_id || (int) $category->event_class_id !== $class_id) {
+                return [
+                    'status' => 'error',
+                    'message' => 'The selected category does not belong to the selected event type and class. '
+                        . 'Use the event_type_id and event_class_id returned with the category.',
+                ];
+            }
+        }
+
+        $attendeeBlock = $attendee_emails === [] ? '' : "\nAttendees: " . implode(', ', $attendee_emails);
+        $fullDescription = trim(($description ?? '') . $attendeeBlock);
+
+        $eventInput = [
+            'name' => $title,
+            'description' => $fullDescription !== '' ? $fullDescription : null,
+            'meeting_link' => $meeting_link,
+            'theme_id' => $theme_id,
+            'theme_area_id' => $theme_area_id,
+            'status_id' => $status_id,
+            'type_id' => $type_id,
+            'class_id' => $class_id,
+            'category_id' => $category_id,
+            'resource' => $lead,
+            'participants' => $this->leadParticipants($lead),
+            'start_at' => $start,
+            'end_at' => $end,
+            'dates' => [
+                [
+                    'date' => $start->format('Y-m-d'),
+                    'start_time' => $start->format('H:i'),
+                    'end_time' => $end->format('H:i'),
+                ],
+            ],
+            'resources' => [
+                [
+                    'resources_id' => $lead->getId(),
+                    'resources_type' => 'lead',
+                ],
             ],
         ];
+
+        return $this->writeIfOwnerIsFree(
+            lead: $lead,
+            owner: $owner,
+            start: $start,
+            end: $end,
+            write: function () use ($lead, $owner, $company, $eventInput, $attendee_emails, $start, $end, $tz): array {
+                try {
+                    $event = new CreateEventAction(
+                        EventData::from(
+                            $lead->app,
+                            $owner,
+                            $company,
+                            $eventInput
+                        ),
+                        [
+                            'google_calendar' => [
+                                'attendee_emails' => array_values(array_unique($attendee_emails)),
+                            ],
+                        ]
+                    )->execute();
+                } catch (ValidationException $e) {
+                    return $this->withOutcome(ToolOutcomeEnum::INVALID_ARGS, [
+                        'status' => 'error',
+                        'message' => 'Nothing was booked: ' . $e->getMessage(),
+                    ]);
+                } catch (Throwable $e) {
+                    report($e);
+
+                    return $this->withOutcome(ToolOutcomeEnum::PROVIDER_ERROR, [
+                        'status' => 'error',
+                        'message' => 'Failed to create event: ' . $e->getMessage(),
+                        'hint' => 'The Event domain may need default Theme/ThemeArea/EventStatus/EventType/EventCategory/EventClass rows configured for this company.',
+                    ]);
+                }
+
+                return $this->appointmentSaved([
+                    'status' => 'success',
+                    'lead_id' => $lead->getId(),
+                    'event' => [
+                        'id' => $event->getId(),
+                        'uuid' => $event->uuid,
+                        'name' => $event->name,
+                        'start_local' => $start->toIso8601String(),
+                        'end_local' => $end->toIso8601String(),
+                        'company_timezone' => $tz,
+                        'owner_user_id' => $owner->getId(),
+                        'attendees' => $attendee_emails,
+                        'meeting_link' => $event->meeting_link,
+                    ],
+                ], $event->versions()->first());
+            },
+        );
+    }
+
+    /**
+     * Only the lead: making the extra attendees participants would create a CRM People record for
+     * every colleague the agent copies in.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function leadParticipants(Lead $lead): array
+    {
+        $email = $this->resolveAttendeeEmails($lead, [])[0] ?? null;
+
+        if ($email === null || $lead->company->defaultBranch === null) {
+            return [];
+        }
+
+        return [
+            [
+                'firstname' => $lead->people?->firstname ?? $lead->firstname,
+                'lastname' => $lead->people?->lastname ?? $lead->lastname,
+                'contacts' => [
+                    [
+                        'contacts_types_id' => ContactTypeEnum::EMAIL->value,
+                        'value' => $email,
+                    ],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Always invite the lead without relying on the agent to repeat contact data.
+     *
+     * @param array<int, mixed> $additionalEmails
+     * @return array<int, string>
+     */
+    protected function resolveAttendeeEmails(Lead $lead, array $additionalEmails): array
+    {
+        return collect([$lead->email, ...$additionalEmails])
+            ->filter(fn (mixed $email): bool => is_string($email) && filter_var(trim($email), FILTER_VALIDATE_EMAIL) !== false)
+            ->map(fn (string $email): string => strtolower(trim($email)))
+            ->unique()
+            ->values()
+            ->all();
     }
 }

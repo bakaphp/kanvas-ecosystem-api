@@ -13,6 +13,8 @@ use Kanvas\Souk\Orders\Actions\GetOrderCommissionStatsAction;
 use Kanvas\Souk\Orders\Actions\GetOrderPaymentStatsAction;
 use Kanvas\Souk\Orders\Actions\GetOrderStatsAction;
 use Kanvas\Souk\Orders\DataTransferObject\CommissionStats;
+use Kanvas\Souk\Orders\Enums\OrderStatsExcludeModeEnum;
+use Kanvas\Souk\Orders\Services\OrderProviderScopeService;
 use Kanvas\Users\Models\Users;
 use Nuwave\Lighthouse\Support\Contracts\GraphQLContext;
 
@@ -29,34 +31,40 @@ class OrderStatsQuery
         $productTypeSlugs = $input['productTypeSlugs'] ?? [];
         $orderTypeNames = $input['orderTypeNames'] ?? [];
         $productId = isset($input['productId']) ? (int) $input['productId'] : null;
+        $variantId = isset($input['variantId']) ? (int) $input['variantId'] : null;
         $date = $input['date'] ?? null;
         $startDate = $input['startDate'] ?? null;
         $endDate = $input['endDate'] ?? null;
         $timezone = $input['timezone'] ?? 'UTC';
         $baseDate = $input['baseDate'] ?? null;
         $groupBy = strtolower($input['groupBy'] ?? 'DAY');
-        $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
+        $providerCompanyIds = $this->resolveProviderCompanyIds($app, $input);
         $providers = $input['providers'] ?? [];
         $userEmail = $input['user_email'] ?? null;
+        $excludeStates = $input['excludeStates'] ?? [];
+        $excludeMode = OrderStatsExcludeModeEnum::from(strtolower($input['excludeMode'] ?? 'current'));
 
         $orderStats = new GetOrderStatsAction(
-            $app,
-            $initialStates,
-            $finalStates,
-            $currentCountStates,
-            $productTypeSlugs,
-            $orderTypeNames,
-            $productId,
-            $providerCompanyIds,
-            $providers,
-            $userEmail
+            app: $app,
+            initialStates: $initialStates,
+            finalStates: $finalStates,
+            currentCountStates: $currentCountStates,
+            productTypeSlugs: $productTypeSlugs,
+            orderTypeNames: $orderTypeNames,
+            productId: $productId,
+            variantId: $variantId,
+            providerCompanyIds: $providerCompanyIds,
+            providers: $providers,
+            userEmail: $userEmail,
+            excludeStates: $excludeStates,
+            excludeMode: $excludeMode,
         )->execute(
-            $date,
-            $startDate,
-            $endDate,
-            $baseDate,
-            $timezone,
-            $groupBy
+            date: $date,
+            startDate: $startDate,
+            endDate: $endDate,
+            baseDate: $baseDate,
+            timezone: $timezone,
+            groupBy: $groupBy,
         );
 
         return $orderStats;
@@ -80,7 +88,7 @@ class OrderStatsQuery
         $baseDate = $input['baseDate'] ?? null;
         $groupPeriods    = $input['groupPeriods'] ?? null;
         $periodBreakdown = $input['periodBreakdown'] ?? 'MONTH';
-        $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
+        $providerCompanyIds = $this->resolveProviderCompanyIds($app, $input);
         $userEmail = $input['user_email'] ?? null;
         $metadataFilter = $input['metadata'] ?? null;
         $reference = $input['reference'] ?? null;
@@ -117,7 +125,7 @@ class OrderStatsQuery
         $app = app(Apps::class);
         $input = $request['input'];
 
-        $providerCompanyIds = array_map('intval', $input['provider_company_id'] ?? []);
+        $providerCompanyIds = $this->resolveProviderCompanyIds($app, $input);
 
         $company = isset($input['company_id'])
             ? Companies::getByIdFromCompanyApp((int) $input['company_id'], $user->getCurrentCompany(), $app)
@@ -152,9 +160,25 @@ class OrderStatsQuery
             fieldMapper: isset($input['fieldMapper']) ? (array) $input['fieldMapper'] : null,
             language: $input['language'] ?? 'en',
             userEmail: $input['user_email'] ?? null,
-            providerCompanyIds: array_map('intval', $input['provider_company_id'] ?? []),
+            providerCompanyIds: $this->resolveProviderCompanyIds($app, $input),
             metadata: $args['metadata'] ?? [],
             includeSummary: $input['includeSummary'] ?? true,
         )->execute();
+    }
+
+    /**
+     * @return array<int, int>
+     */
+    private function resolveProviderCompanyIds(Apps $app, array $input): array
+    {
+        /** @var Users $user */
+        $user = auth()->user();
+
+        return OrderProviderScopeService::resolve(
+            app: $app,
+            company: $user->getCurrentCompany(),
+            isAppOwner: $user->isAppOwner(),
+            requested: $input['provider_company_id'] ?? [],
+        );
     }
 }

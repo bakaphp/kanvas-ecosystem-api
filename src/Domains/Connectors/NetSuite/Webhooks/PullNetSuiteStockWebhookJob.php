@@ -10,10 +10,17 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\NetSuite\Actions\PullNetSuiteProductStockAction;
 use Kanvas\Users\Actions\SendUserNotificationAction;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Jobs\ProcessWebhookJob;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'NetSuite Pull Stock Levels',
+    description: 'Receiver that refreshes product stock from NetSuite, then emails a summary to the configured '
+        . 'recipient. Inbound for the data, outbound for the report — it does mail a person when it '
+        . 'finishes.',
+    integration: IntegrationsEnum::NETSUITE,
+)]
 class PullNetSuiteStockWebhookJob extends ProcessWebhookJob
 {
     #[Override]

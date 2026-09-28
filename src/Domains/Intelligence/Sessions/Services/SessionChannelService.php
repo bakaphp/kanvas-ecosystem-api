@@ -21,6 +21,9 @@ class SessionChannelService
 
         return match ($channel) {
             'whatsapp' => $normalizedId . '@s.whatsapp.net',
+            // Already a full group JID (`<owner>-<created_at>@g.us`). Not normalized: it is not a
+            // phone number and normalizePhoneNumber() would strip it to digits.
+            'whatsapp-group' => $id,
             'sms' => '+' . $normalizedId,
             'email' => $id,
             'respondio' => '+' . $normalizedId,
@@ -37,6 +40,9 @@ class SessionChannelService
 
         return match ($channel) {
             'whatsapp' => 'wa-chat-' . $normalizedId . '-at-swhatsappnet',
+            // Kept byte-for-byte compatible with the slug the WaSender webhook has always written
+            // for groups, so existing channels keep resolving.
+            'whatsapp-group' => 'wa-group-' . Str::slug($id),
             'sms' => 'twilio-' . $normalizedId,
             'email' => 'email-' . Str::sanitizeEmail($id),
             'respondio' => 'respondio-' . $normalizedId,

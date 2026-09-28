@@ -10,7 +10,14 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Override;
 
-#[WorkflowAction]
+#[WorkflowAction(
+    name: 'ElevenLabs Look Up Staff Phone By Name',
+    description: 'One of the endpoints an ElevenLabs VOICE agent calls back into Kanvas mid-call. These are '
+        . 'wired as that agent\'s server-side tools, not chosen as workflow steps — the caller on the '
+        . 'phone triggers them. This one resolves a spoken name to a colleague\'s phone number, so the '
+        . 'voice agent can transfer a caller who asked for someone in particular. Read-only, and scoped '
+        . 'to this company\'s own staff.',
+)]
 class ProcessElevenLabsLookupUserPhoneByNameWebhookJob extends ProcessElevenLabsWebhookJob
 {
     #[Override]

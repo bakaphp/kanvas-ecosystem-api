@@ -6,28 +6,30 @@ namespace Tests\Connectors\Integration\Recombee;
 
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Recombee\Actions\GenerateWhoToFollowRecommendationsAction;
-use Kanvas\Connectors\Recombee\Enums\ConfigurationEnum;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\Users\Models\Users;
+use PHPUnit\Framework\Attributes\Group;
+use Tests\Connectors\Traits\HasRecombeeConfiguration;
 use Tests\TestCase;
 
+/**
+ * Serial: app settings are global to every paratest process, so a sibling Recombee test would read
+ * whatever this one last wrote. See `tests/CLAUDE.md`.
+ */
+#[Group('serial')]
 class UserRecommendationTest extends TestCase
 {
+    use HasRecombeeConfiguration;
+
     protected ?Message $message = null;
 
     public function setUp(): void
     {
         parent::setUp();
 
-        if (empty(getenv('TEST_RECOMBEE_DATABASE')) || empty(getenv('TEST_RECOMBEE_API_KEY')) || empty(getenv('TEST_RECOMBEE_REGION'))) {
-            $this->markTestSkipped('Recombee test credentials not set.');
-        }
-
         $app = app(Apps::class);
-        $app->set(ConfigurationEnum::RECOMBEE_DATABASE->value, getenv('TEST_RECOMBEE_DATABASE'));
-        $app->set(ConfigurationEnum::RECOMBEE_API_KEY->value, getenv('TEST_RECOMBEE_API_KEY'));
-        $app->set(ConfigurationEnum::RECOMBEE_REGION->value, getenv('TEST_RECOMBEE_REGION'));
+        $this->configureRecombeeOrSkip($app);
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
@@ -85,7 +87,7 @@ class UserRecommendationTest extends TestCase
     public function testGetUserToFollow(): void
     {
         $app = app(Apps::class);
-        $user = Users::getById(2); // auth()->user();
+        $user = Users::getById(2);
         $company = $user->getCurrentCompany();
 
         $whoToFollow = new GenerateWhoToFollowRecommendationsAction(
