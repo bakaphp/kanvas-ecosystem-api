@@ -9,25 +9,20 @@ use stdClass;
 class RegistrationMapper
 {
     /**
-     * Map SIPGO inscription_type_id to Kanvas ParticipantType slug.
+     * SIPGO's de facto "attended" definition, used by every legacy report except
+     * participants_profiles — which uses IN (1,2,7,8,6,9), dropping 11 and 14. That inconsistency
+     * is why this lives in one place: the flatten step writes it to `rpt_inscripcion.es_asistente`
+     * so the UI, the agent and every report share one answer.
+     *
+     * Ids are legacy `inscriptions_types.id`, matched against the value stored on each synced
+     * ParticipantType.
      */
-    public static function inscriptionTypeToSlug(int $inscriptionTypeId): string
+    public const array ATTENDING_INSCRIPTION_TYPE_IDS = [1, 2, 6, 7, 8, 9, 11, 14];
+
+    public static function isAttending(?int $inscriptionTypeId): bool
     {
-        return match ($inscriptionTypeId) {
-            1 => 'confirmed',
-            2 => 'confirmed-plan',
-            3 => 'cancelled',
-            4 => 'interested',
-            5 => 'reserved',
-            6 => 'employee',
-            7 => 'exchange',
-            8 => 'courtesy',
-            9 => 'credit',
-            10 => 'interested-event',
-            11 => 'program',
-            14 => 'sponsor-guest',
-            default => 'confirmed',
-        };
+        return $inscriptionTypeId !== null
+            && in_array($inscriptionTypeId, self::ATTENDING_INSCRIPTION_TYPE_IDS, true);
     }
 
     public static function fromIntras(stdClass $row): array

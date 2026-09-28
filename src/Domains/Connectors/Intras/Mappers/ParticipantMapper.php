@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Intras\Mappers;
 
+use Baka\Support\Str;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use stdClass;
 
@@ -34,6 +35,20 @@ class ParticipantMapper
     public const array EXTRA_CUSTOM_FIELD_MAP = [
         'ext_1' => 'intras_ext_1',
         'ext_2' => 'intras_ext_2',
+        'sexo' => 'sexo',
+        // Distinct from pa_code: the Gestor has two fields labelled "Código". The grid's is
+        // participants.id; this one is The Conference's own code, in participants_custom_fields.
+        'tccode' => 'tc_code',
+        'tcporcent' => 'tc_porcentaje',
+        'certificado_primer_nombre' => 'certificado_primer_nombre',
+        'certificado_segundo_nombre' => 'certificado_segundo_nombre',
+        'certificado_primer_apellido' => 'certificado_primer_apellido',
+        'certificado_segundo_apellido' => 'certificado_segundo_apellido',
+        // SIPGO stores the birthday month/day as their own custom fields rather than deriving them
+        // from dob, and the Gestor filters on the stored values — which can disagree with dob. We
+        // import what is stored instead of recomputing.
+        'dobmoth' => 'dob_mes',
+        'dobdate' => 'dob_dia',
     ];
 
     /**
@@ -46,7 +61,21 @@ class ParticipantMapper
     public const array LOOKUP_FIELD_MAP = [
         'participants_levels_id' => ['table' => 'participants_levels', 'custom_field' => 'nivel'],
         'themes_areas_id' => ['table' => 'themes_areas', 'custom_field' => 'area'],
-        'departments_id' => ['table' => 'departments', 'custom_field' => 'department'],
+        'participants_statuses_id' => ['table' => 'participants_statuses', 'custom_field' => 'estatus'],
+        'professions_id' => ['table' => 'professions', 'custom_field' => 'profesion'],
+        'gifts_id' => ['table' => 'gifts', 'custom_field' => 'tipo_regalo'],
+    ];
+
+    /**
+     * `participants` column → People custom field, stored verbatim.
+     *
+     * `departments_id` is named like an FK but the legacy column is VARCHAR(254) free text — the
+     * `belongsTo` is commented out in the SIPGO model and the Gestor filters it with LIKE. It used
+     * to sit in LOOKUP_FIELD_MAP, where the (int) cast turned every value into 0 and the field was
+     * silently never set.
+     */
+    public const array DIRECT_FIELD_MAP = [
+        'departments_id' => 'department',
     ];
 
     /**
@@ -59,15 +88,95 @@ class ParticipantMapper
         return [
             'firstname' => trim($row->first_name),
             'lastname' => trim($row->last_name),
+            // A real People column, so it is returned alongside the name rather than as a custom
+            // field. dob_mes / dob_dia are separate stored values — see EXTRA_CUSTOM_FIELD_MAP.
+            'dob' => Str::trimToNull((string) ($row->dob ?? '')),
+            // array_filter's default callback drops false and 0 as well as null, which silently
+            // erased `intras_is_prospect => false` — the CLIENTE half of the Gestor's Relación
+            // Comercial filter. Only nulls may be dropped here.
             'custom_fields' => array_filter([
+                // participants.id IS the PA — SIPGO has no separate code column and the grid's
+                // "Código" is literally the id. Stored unprefixed; the PA##### rendering lives
+                // outside both legacy repos, so the display format is the UI's business.
+                'pa_code' => isset($row->id) ? (string) $row->id : null,
                 'position' => $row->position ?? null,
                 'identification' => $row->identification ?? null,
                 'intras_is_prospect' => (bool) ($row->is_prospect ?? false),
                 'intras_classification' => $row->classification ?? null,
+                'potencialidad' => $row->potentiality ?? null,
+                // Imported verbatim and never recomputed: the evaluations engine behind it is not
+                // being ported, so this scalar is the only satisfaction figure that will exist.
+                'satisfaccion' => $row->events_satisfaction ?? null,
+                'descuento' => $row->conference_discount ?? null,
+                // Booleans, so they depend on the array_filter callback below keeping false.
+                'contacto_clave_axis' => isset($row->is_axis_participant)
+                    ? (bool) $row->is_axis_participant
+                    : null,
+                'representante_general' => isset($row->general_representative)
+                    ? (bool) $row->general_representative
+                    : null,
                 ...self::profileFields($row, $contactRows, $lookupNames),
-            ]),
+            ], fn ($value) => $value !== null),
             'contacts' => self::contactsFromCustomFields($contactRows),
         ];
+    }
+
+    /**
+     * `companies_offices` FK → [legacy catalog, output key].
+     *
+     * The only address in the whole of SIPGO: `participants` has no address columns, so the Gestor
+     * reaches dirección / país / ciudad / sector through the participant's office.
+     */
+    public const array OFFICE_LOOKUP_FIELD_MAP = [
+        'countries_id' => ['table' => 'countries', 'key' => 'country'],
+        'cities_id' => ['table' => 'cities', 'key' => 'city'],
+        'districts_id' => ['table' => 'districts', 'key' => 'sector'],
+    ];
+
+    /**
+     * @return list<string>
+     */
+    public static function officeLookupTables(): array
+    {
+        return array_values(array_unique(array_column(self::OFFICE_LOOKUP_FIELD_MAP, 'table')));
+    }
+
+    /**
+     * Flatten a `companies_offices` row into the shape the importer writes to People.
+     *
+     * `sector` (legacy `districts`) is returned alongside the address rather than inside it:
+     * `peoples_address` has no slot for it, and forcing it into `state` would misfile a Dominican
+     * sector as a province. The importer stores it as a custom field.
+     *
+     * @param array<string, array<int, string>> $lookupNames catalog => [id => name]
+     *
+     * @return array{address: ?string, city: ?string, country: ?string, sector: ?string}|null
+     */
+    public static function addressFromOffice(?stdClass $office, array $lookupNames = []): ?array
+    {
+        if ($office === null) {
+            return null;
+        }
+
+        $resolved = [];
+
+        foreach (self::OFFICE_LOOKUP_FIELD_MAP as $column => $spec) {
+            $id = $office->{$column} ?? null;
+            $resolved[$spec['key']] = $id === null
+                ? null
+                : Str::trimToNull((string) ($lookupNames[$spec['table']][(int) $id] ?? ''));
+        }
+
+        $address = [
+            'address' => Str::trimToNull((string) ($office->address ?? '')),
+            'city' => $resolved['city'] ?? null,
+            'country' => $resolved['country'] ?? null,
+            'sector' => $resolved['sector'] ?? null,
+        ];
+
+        return array_filter($address, fn ($value) => $value !== null) === []
+            ? null
+            : $address;
     }
 
     /**
@@ -129,6 +238,13 @@ class ParticipantMapper
             $name = trim($lookupNames[$spec['table']][(int) $id] ?? '');
             if ($name !== '') {
                 $fields[$spec['custom_field']] = $name;
+            }
+        }
+
+        foreach (self::DIRECT_FIELD_MAP as $column => $kanvasName) {
+            $value = Str::trimToNull((string) ($row->{$column} ?? ''));
+            if ($value !== null) {
+                $fields[$kanvasName] = $value;
             }
         }
 

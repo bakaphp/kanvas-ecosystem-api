@@ -62,6 +62,14 @@ services:
     queue:
         <<: *common-queue-settings
         container_name: queue
+    reporting-queue:
+        <<: *common-queue-settings
+        container_name: reporting-queue
+        command:
+            - "sh"
+            - "-c"
+            - "php artisan config:cache && php artisan queue:work
+              --queue=reporting --tries=3 --timeout=3750"
     imports-queue:
         <<: *common-queue-settings
         container_name: imports-queue
