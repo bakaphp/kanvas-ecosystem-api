@@ -26,24 +26,10 @@ final class RoadsideProviderStateMapper
             new RoadsideProviderCatalogService($this->app)->states(),
         );
 
-        if ($entries === []) {
-            return null;
-        }
-
-        $override = $this->overrideFor($internalStatusSlug);
-
-        if ($override !== null) {
-            foreach ($entries as $entry) {
-                if ($entry->matches($override)) {
-                    return $entry;
-                }
-            }
-
-            return null;
-        }
+        $needle = $this->overrideFor($internalStatusSlug) ?? $internalStatusSlug;
 
         foreach ($entries as $entry) {
-            if ($entry->matches($internalStatusSlug)) {
+            if ($entry->matches($needle)) {
                 return $entry;
             }
         }

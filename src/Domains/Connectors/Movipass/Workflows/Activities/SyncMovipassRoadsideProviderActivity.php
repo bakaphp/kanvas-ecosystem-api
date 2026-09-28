@@ -10,6 +10,7 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Actions\CreateRoadsideProviderCaseAction;
 use Kanvas\Connectors\Movipass\Actions\PushRoadsideProviderStateAction;
 use Kanvas\Connectors\Movipass\Actions\RegisterRoadsideProviderContactAction;
+use Kanvas\Connectors\Movipass\Concerns\InteractsWithAssistanceCase;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
 use Kanvas\Connectors\Movipass\Jobs\PollRoadsideProviderCaseJob;
 use Kanvas\Connectors\Movipass\Support\RoadsideProviderCaseNumber;
@@ -29,6 +30,8 @@ use Override;
 #[WorkflowAction]
 class SyncMovipassRoadsideProviderActivity extends KanvasActivity implements WorkflowActivityInterface
 {
+    use InteractsWithAssistanceCase;
+
     #[Override]
     public function execute(Model $order, AppInterface $app, array $params = []): array
     {
@@ -68,7 +71,7 @@ class SyncMovipassRoadsideProviderActivity extends KanvasActivity implements Wor
 
     private function registerCase($order, AppInterface $app): array
     {
-        $payload = $this->assistanceCase($order)['provider_payload'] ?? null;
+        $payload = $this->assistanceCaseFrom($order)['provider_payload'] ?? null;
 
         // Until the provider's create-call field list is confirmed the payload is supplied by the
         // caller. A case without one is not an error: the local case is valid and can be registered
@@ -143,7 +146,7 @@ class SyncMovipassRoadsideProviderActivity extends KanvasActivity implements Wor
      */
     private function pushAssignedContact($order): array
     {
-        $contact = $this->assistanceCase($order)['provider_contact'] ?? null;
+        $contact = $this->assistanceCaseFrom($order)['provider_contact'] ?? null;
 
         if (! is_array($contact) || $contact === [] || RoadsideProviderCaseNumber::for($order) === null) {
             return [
@@ -189,12 +192,5 @@ class SyncMovipassRoadsideProviderActivity extends KanvasActivity implements Wor
             $order,
             $terminalStatuses,
         );
-    }
-
-    private function assistanceCase($order): array
-    {
-        $metadata = $order->metadata ?? [];
-
-        return $metadata['assistance_case'] ?? ($metadata['data']['assistance_case'] ?? []);
     }
 }

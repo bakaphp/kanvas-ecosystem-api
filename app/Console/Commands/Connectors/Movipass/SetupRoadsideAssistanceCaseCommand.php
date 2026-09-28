@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands\Connectors\Movipass;
 
+use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
@@ -12,6 +13,8 @@ use Kanvas\Souk\Orders\Actions\CreateOrderStatusesAction;
 
 class SetupRoadsideAssistanceCaseCommand extends Command
 {
+    use KanvasJobsTrait;
+
     protected $signature = 'kanvas:movipass-setup-roadside-assistance {app_id?}';
 
     protected $description = 'Setup Movipass roadside assistance order type and statuses';
@@ -20,6 +23,7 @@ class SetupRoadsideAssistanceCaseCommand extends Command
     {
         $appId = $this->argument('app_id');
         $app = $appId ? Apps::getById((int) $appId) : app(Apps::class);
+        $this->overwriteAppService($app);
 
         $cancelled = MovipassOrderStatusEnum::SERVICE_CANCELLED->value;
         $requestSubmitted = MovipassOrderStatusEnum::REQUEST_SUBMITTED->value;

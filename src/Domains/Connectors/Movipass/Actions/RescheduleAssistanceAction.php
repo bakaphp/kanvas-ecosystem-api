@@ -111,18 +111,20 @@ class RescheduleAssistanceAction
             ),
         );
 
+        $cancelledMechanicIds = $this->assistanceCaseFrom($this->order)['cancelled_mechanic_ids'] ?? [];
+
         try {
             new NotifyAvailableMechanicsAction(
                 $this->order,
                 $this->order->app,
                 $this->requestedBy,
-                $this->order->metadata['assistance_case']['cancelled_mechanic_ids'] ?? [],
+                $cancelledMechanicIds,
             )->execute();
         } catch (ValidationException) {
             RetryNotifyMechanicsJob::dispatch(
                 $this->order,
                 $this->requestedBy,
-                $this->order->metadata['assistance_case']['cancelled_mechanic_ids'] ?? [],
+                $cancelledMechanicIds,
                 attempt: 1,
                 maxAttempts: 3,
                 retryDelayMinutes: 1,

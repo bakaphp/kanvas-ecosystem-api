@@ -101,8 +101,7 @@ class PrepareRoadsideAssistanceCaseAction
 
     /**
      * Intake answers are only validated when the client sends an `intake` block, which is how a
-     * caller opts into the questionnaire. Legacy callers that send none keep the old behaviour
-     * rather than having every in-flight case rejected the day this shipped.
+     * caller opts into the questionnaire; callers that send none are not rejected.
      */
     protected function resolveIntake(array $assistanceCase, ?RoadsideServiceTypeEnum $serviceType, array $photos): ?array
     {

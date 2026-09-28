@@ -24,8 +24,12 @@ final class RoadsideIntakeField
     ) {
     }
 
-    public static function text(string $key, string $label, bool $required = true, ?string $hint = null): self
-    {
+    public static function text(
+        string $key,
+        string $label,
+        bool $required = true,
+        ?string $hint = null,
+    ): self {
         return new self(key: $key, label: $label, required: $required, hint: $hint);
     }
 
@@ -39,8 +43,12 @@ final class RoadsideIntakeField
         );
     }
 
-    public static function number(string $key, string $label, bool $required = true, ?string $hint = null): self
-    {
+    public static function number(
+        string $key,
+        string $label,
+        bool $required = true,
+        ?string $hint = null,
+    ): self {
         return new self(
             key: $key,
             label: $label,
@@ -50,8 +58,12 @@ final class RoadsideIntakeField
         );
     }
 
-    public static function choice(string $key, string $label, array $options, bool $required = true): self
-    {
+    public static function choice(
+        string $key,
+        string $label,
+        array $options,
+        bool $required = true,
+    ): self {
         return new self(
             key: $key,
             label: $label,
