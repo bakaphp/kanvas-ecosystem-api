@@ -27,16 +27,45 @@ final class ReportFilter
         }
     }
 
+    /** Operators whose value is a list, however the caller spelled it. */
+    private const array LIST_OPERATORS = ['IN', 'NOT IN', 'BETWEEN'];
+
     /**
      * @param array<string, mixed> $input
      */
     public static function fromArray(array $input): self
     {
+        $operator = strtoupper(trim((string) ($input['operator'] ?? '=')));
+
         return new self(
             column: (string) ($input['column'] ?? ''),
-            operator: strtoupper(trim((string) ($input['operator'] ?? '='))),
-            value: $input['value'] ?? null,
+            operator: $operator,
+            value: self::normalizeValue($operator, $input['value'] ?? null),
         );
+    }
+
+    /**
+     * A list operator handed a plain string is read as comma-separated.
+     *
+     * Tool schemas have to declare `value` as a scalar: Gemini rejects a union type outright, and
+     * an array-of-anything is the shape that already broke a whole turn's tool list once. So an
+     * LLM calling `run_report` sends `IN` values as `"CONFIRMADO, PROGRAMA"`, and without this
+     * they would reach the query builder as one string and match nothing — silently, since that
+     * is a legitimately empty result rather than an error.
+     *
+     * Only list operators split, so a value that legitimately contains a comma ("Banco, S.A."
+     * under `=`) is never cut in half.
+     */
+    private static function normalizeValue(string $operator, mixed $value): mixed
+    {
+        if (! is_string($value) || ! in_array($operator, self::LIST_OPERATORS, true)) {
+            return $value;
+        }
+
+        return array_values(array_filter(
+            array_map(trim(...), explode(',', $value)),
+            static fn (string $part): bool => $part !== ''
+        ));
     }
 
     public function needsValue(): bool

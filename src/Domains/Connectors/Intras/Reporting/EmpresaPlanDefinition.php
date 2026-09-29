@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Intras\Reporting;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Support\Facades\DB;
+use Kanvas\Analytics\Reporting\Concerns\ReadsFlatReportTables;
 use Kanvas\Analytics\Reporting\Contracts\RefreshableReportInterface;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportColumn;
 use Kanvas\Analytics\Reporting\Enums\ReportGrainEnum;
@@ -26,6 +27,8 @@ use Override;
  */
 class EmpresaPlanDefinition implements RefreshableReportInterface
 {
+    use ReadsFlatReportTables;
+
     private const int CHUNK = 500;
 
     public function __construct(private readonly int $appId = 0)
@@ -102,7 +105,7 @@ class EmpresaPlanDefinition implements RefreshableReportInterface
         foreach ($query->orderBy('entity_id')->cursor()->chunk(self::CHUNK) as $chunk) {
             $rows = $chunk->all();
             $organizationIds = array_map(fn ($r) => (int) $r->entity_id, $rows);
-            $organizations = $this->flatOrganizations($organizationIds);
+            $organizations = $this->flatRows('empresa', 'organizations_id', $organizationIds, $company);
             $today = date('Y-m-d');
 
             foreach ($rows as $row) {
@@ -175,34 +178,6 @@ class EmpresaPlanDefinition implements RefreshableReportInterface
                 ((int) $organization->getId() * 1000) + 49
             ),
         ];
-    }
-
-    /**
-     * @param array<int, int> $organizationIds
-     *
-     * @return array<int, object>
-     */
-    protected function flatOrganizations(array $organizationIds): array
-    {
-        $table = sprintf('rpt_empresa_app%d', $this->appId);
-        $connection = DB::connection('reporting');
-
-        if ($organizationIds === [] || ! $connection->getSchemaBuilder()->hasTable($table)) {
-            return [];
-        }
-
-        $map = [];
-
-        $rows = $connection->table($table)
-            ->whereIn('organizations_id', $organizationIds)
-            ->select('organizations_id', 'nombre', 'sector')
-            ->get();
-
-        foreach ($rows as $row) {
-            $map[(int) $row->organizations_id] = $row;
-        }
-
-        return $map;
     }
 
     /**

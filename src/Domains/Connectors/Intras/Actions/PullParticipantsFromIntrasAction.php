@@ -276,6 +276,11 @@ class PullParticipantsFromIntrasAction
                 continue;
             }
 
+            // `is_opt_out` is deliberately absent: it is consent, not imported data. An opt-out
+            // sets it to 1 on every Contact the person has, and `updateOrCreate` applies its
+            // second argument on update as well as create — so listing it here re-enabled
+            // outreach to anyone who had opted out, every time the importer ran. The column
+            // defaults to 0, so a genuinely new contact still lands opted in.
             Contact::updateOrCreate(
                 [
                     'peoples_id' => $people->getId(),
@@ -284,7 +289,6 @@ class PullParticipantsFromIntrasAction
                 ],
                 [
                     'weight' => $contact['weight'],
-                    'is_opt_out' => 0,
                 ]
             );
         }

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Cache;
 use Kanvas\Connectors\OpenCode\Concerns\PreparesHostDirectory;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
+use Kanvas\Connectors\OpenCode\Services\CodingModelResolver;
 use Kanvas\Connectors\OpenCode\SshClient;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineNetworkModeEnum;
@@ -210,9 +211,18 @@ class EnsureAgentCodingContainerAction
      * Identifies the key without storing or logging it — a label is readable by anyone who can run
      * `docker inspect` on that host.
      */
+    /**
+     * The variable name is part of it: an agent moved to a provider that reads its key from a different
+     * variable needs a new container even when the key itself is unchanged.
+     */
     private function keyFingerprint(): string
     {
-        return mb_substr(hash('sha256', $this->resolveApiKey()), 0, 16);
+        return mb_substr(hash('sha256', $this->resolver()->envVar() . "\0" . $this->resolveApiKey()), 0, 16);
+    }
+
+    private function resolver(): CodingModelResolver
+    {
+        return new CodingModelResolver($this->app, $this->agent);
     }
 
     private function runCommand(
@@ -222,7 +232,7 @@ class EnsureAgentCodingContainerAction
         ?int $port,
         string $hostIdentity
     ): string {
-        $apiKeyEnv = (string) ($this->app->get(ConfigurationEnum::PROVIDER_ENV_VAR->value) ?? 'OPENAI_API_KEY');
+        $apiKeyEnv = $this->resolver()->envVar();
         $apiKey = $this->resolveApiKey();
         $image = Str::trimToNull((string) $this->app->get(ConfigurationEnum::IMAGE->value));
 
@@ -341,6 +351,17 @@ class EnsureAgentCodingContainerAction
             }
 
             return $key;
+        }
+
+        // The tenant key was issued by the tenant's provider. Handing it to a different one leaks it to a
+        // third party and fails authentication anyway.
+        if ($this->resolver()->hasOwnProvider()) {
+            throw new ValidationException(
+                'Agent ' . $this->agent->name . ' has its own provider ('
+                . AgentCustomFieldEnum::PROVIDER_ID->value . ') but no key of its own. Set '
+                . AgentCustomFieldEnum::PROVIDER_API_KEY->value . ' or '
+                . AgentCustomFieldEnum::PROVIDER_KEY_NAME->value . ' on the agent.'
+            );
         }
 
         return (string) ($company?->get(ConfigurationEnum::PROVIDER_API_KEY->value)

@@ -183,7 +183,9 @@ session provisions, the turn runs, and the model answers from opencode's own hos
 | `CODING_MACHINE_ID` | no | Tenant-scoped. Without it provisioning takes any active machine for the company — fine with one, arbitrary with several. |
 | `CODING_GIT_TOKEN` | **yes** | The only agent field you must set. Per agent, and it **is** the permission boundary — the agent's reach is exactly this token's reach, with no allow-list behind it. Unset, git falls back to the machine's own access, so a private clone and every push fail. |
 | `CODING_MODEL` | no | Overrides the app model for this agent. |
-| `CODING_PROVIDER_API_KEY` / `CODING_PROVIDER_KEY_NAME` | no | Agent's own key instead of the app's. Rotating it changes `kanvas.keyfp` and forces a container rebuild. |
+| `CODING_PROVIDER_ID` | no | The agent's own provider (e.g. a frontend agent on OpenRouter). **All-or-nothing**: once set, the app's base URL, npm and env var are ignored and the agent must carry its own key — the app's key is never sent to another provider. Resolved in `CodingModelResolver` only. |
+| `CODING_PROVIDER_BASE_URL` / `_NPM` / `_ENV_VAR` | with `CODING_PROVIDER_ID` | The agent's transport. Base URL is required on the compatible npm (the default). Changing the env var rebuilds the container. |
+| `CODING_PROVIDER_API_KEY` / `CODING_PROVIDER_KEY_NAME` | no | Agent's own key instead of the app's. Rotating it changes `kanvas.keyfp` and forces a container rebuild. Required with `CODING_PROVIDER_ID`. |
 | `CODING_ALLOWED_REPOS` | no | Settings (base branch, rules, protected paths), **not** a gate — the token is the gate. |
 | `CODING_ALLOW_TRUNK_PUSH` | no | Off by default. The only way a push reaches main/master/develop/... |
 | `CODING_SYSTEM_PROMPT` | no | Appended to the agent document. |

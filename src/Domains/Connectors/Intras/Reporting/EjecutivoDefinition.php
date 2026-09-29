@@ -29,6 +29,14 @@ class EjecutivoDefinition implements RefreshableReportInterface
     private const int CHUNK = 500;
 
     /**
+     * Kanvas's own person taxonomy for this company — Participant / Key Contact / Facilitator.
+     * Loaded once per run in rowsFor().
+     *
+     * @var array<int, string>
+     */
+    protected array $peopleTypeNames = [];
+
+    /**
      * Definitions take the app id so the registry can construct them uniformly; the physical
      * table is per-app, and `inscripcion` reads this one back by name.
      */
@@ -104,15 +112,24 @@ class EjecutivoDefinition implements RefreshableReportInterface
             ReportColumn::string('empresa_rnc', 32, 'RNC'),
             ReportColumn::string('empresa_estatus', 64, 'Estatus de empresa'),
             ReportColumn::string('empresa_telefono', 64),
-            ReportColumn::string('sector', 64, 'Sector', indexed: true),
-            ReportColumn::string('tamano', 16, 'Tamaño'),
+            ReportColumn::string('sector', 64, 'Sector empresarial', indexed: true),
+            ReportColumn::string('tamano', 16, 'Tamaño de la empresa'),
             ReportColumn::string('actividad', 64, 'Actividad empresarial'),
             ReportColumn::string('vinculacion', 255, 'Vinculación empresarial'),
 
             ReportColumn::string('direccion', 255, 'Dirección'),
             ReportColumn::string('pais', 64, 'País', indexed: true),
             ReportColumn::string('ciudad', 64, 'Ciudad', indexed: true),
-            ReportColumn::string('distrito', 64, 'Sector'),
+            // Labelled distinctly on purpose: this is the barrio, and calling it "Sector"
+            // alongside the business sector is how the two got confused in the first place.
+            ReportColumn::string('distrito', 64, 'Sector geográfico (barrio)'),
+
+            // The grain is "person in this company", and a company's people are not all
+            // ejecutivos — facilitators are People too, and so is anyone imported by an earlier
+            // generation. Without this the table looks like a participant list while 1,672 of
+            // agency 1's rows are facilitators, and `COUNT(*)` over-reports every headcount.
+            // `pa_code` is null for them because a PA is a participant's code, not a person's.
+            ReportColumn::string('tipo_persona', 64, 'Tipo de persona', indexed: true),
 
             ReportColumn::string('estatus', 64, 'Estatus', indexed: true),
             // Deleted in SIPGO but kept here, flagged. Dropping the row instead would take the
@@ -186,6 +203,14 @@ class EjecutivoDefinition implements RefreshableReportInterface
         if ($ids !== null) {
             $query->whereIn('id', $ids);
         }
+
+        // Five rows per company, so it loads once for the whole run rather than per chunk.
+        $this->peopleTypeNames = DB::connection('crm')
+            ->table('people_types')
+            ->where('companies_id', $company->getId())
+            ->pluck('name', 'id')
+            ->map(fn ($name): string => (string) $name)
+            ->all();
 
         // Generator + chunking: a full rebuild is 65k people per agency and must not
         // materialise in memory.
@@ -290,6 +315,54 @@ class EjecutivoDefinition implements RefreshableReportInterface
         foreach ($rows as $row) {
             // A person can sit in several organizations; the Gestor treats the first as theirs.
             $map[(int) $row->peoples_id] ??= $row;
+        }
+
+        $business = $this->businessAttributesFor(array_map(
+            static fn (object $row): int => (int) $row->id,
+            array_values($map)
+        ));
+
+        foreach ($map as $row) {
+            $row->business = $business[(int) $row->id] ?? [];
+        }
+
+        return $map;
+    }
+
+    /**
+     * Sector, size and activity belong to the **company**, not the person.
+     *
+     * The person carries a custom field literally called `sector`, and in SIPGO it is the Santo
+     * Domingo neighbourhood — PIANTINI, NACO, GAZCUE. Reading it as the business sector matched
+     * the company's own value on 3 of 24,301 rows, and produced confident nonsense everywhere it
+     * was grouped on. The barrio is not lost: it stays in `distrito`.
+     *
+     * `tamano` and `actividad` had the same mistake with a louder symptom — no person carries
+     * either field, so both columns were empty on all 123,813 rows.
+     *
+     * @param array<int, int> $organizationIds
+     *
+     * @return array<int, array<string, string>>
+     */
+    protected function businessAttributesFor(array $organizationIds): array
+    {
+        if ($organizationIds === []) {
+            return [];
+        }
+
+        $rows = DB::connection('ecosystem')
+            ->table('apps_custom_fields')
+            ->where('model_name', Organization::class)
+            ->whereIn('entity_id', array_values(array_unique($organizationIds)))
+            ->whereIn('name', ['sector', 'tamano', 'actividad'])
+            ->where('is_deleted', 0)
+            ->select('entity_id', 'name', 'value')
+            ->get();
+
+        $map = [];
+
+        foreach ($rows as $row) {
+            $map[(int) $row->entity_id][(string) $row->name] = (string) $row->value;
         }
 
         return $map;
@@ -464,9 +537,11 @@ class EjecutivoDefinition implements RefreshableReportInterface
             'empresa_rnc' => $cf('empresa_rnc'),
             'empresa_estatus' => $cf('empresa_estatus'),
             'empresa_telefono' => $cf('empresa_telefono'),
-            'sector' => $cf('sector'),
-            'tamano' => $cf('tamano'),
-            'actividad' => $cf('actividad'),
+            // From the company, not the person — see businessAttributesFor(). The person's own
+            // `sector` custom field is the barrio and lives in `distrito` below.
+            'sector' => $organization?->business['sector'] ?? null,
+            'tamano' => $organization?->business['tamano'] ?? null,
+            'actividad' => $organization?->business['actividad'] ?? null,
             'vinculacion' => $cf('vinculacion'),
 
             'direccion' => $address?->address,
@@ -474,6 +549,8 @@ class EjecutivoDefinition implements RefreshableReportInterface
             'pais' => $cf('pais') ?? $address?->country,
             'ciudad' => $address?->city,
             'distrito' => $cf('sector_geografico') ?? $cf('sector'),
+
+            'tipo_persona' => $this->peopleTypeNames[(int) $person->people_types_id] ?? null,
 
             'estatus' => $cf('estatus'),
             'esta_borrado' => (int) (bool) $person->is_deleted,

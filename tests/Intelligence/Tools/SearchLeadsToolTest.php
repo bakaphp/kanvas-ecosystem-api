@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Intelligence\Tools;
 
+use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
@@ -175,6 +176,127 @@ class SearchLeadsToolTest extends TestCase
 
         $this->assertSame(0, $result['total_matching']);
         $this->assertArrayHasKey('error', $result);
+    }
+
+    public function testUpdatedSinceTodayExcludesLeadsUntouchedToday(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $token = 'Freshlead' . uniqid();
+        $fresh = $this->leadWithContacts($token, []);
+        $stale = $this->leadWithContacts('Stalelead' . uniqid(), []);
+        $this->forceUpdatedAt($stale, Carbon::now()->subDays(5));
+
+        $result = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(status: 'all', updated_since: 'today', limit: 100);
+
+        $ids = array_column($result['leads'], 'lead_id');
+        $this->assertContains($fresh->getId(), $ids);
+        $this->assertNotContains($stale->getId(), $ids);
+    }
+
+    /**
+     * The bug this fixes: `updated_at` is stored UTC, so a UTC-day filter files the 10pm work of a
+     * UTC-4 rep under the next day. Yesterday is where that actually bites — local yesterday 10pm is
+     * already today in UTC, so the naive filter drops it out of "yesterday" and the rep's evening
+     * simply disappears from the report.
+     */
+    public function testYesterdayIsTheCompanysDayNotTheUtcOne(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $original = $company->timezone;
+        $company->timezone = 'America/Santo_Domingo';
+        $company->saveQuietly();
+
+        try {
+            $lateLocal = Carbon::now('America/Santo_Domingo')->subDay()->startOfDay()->addHours(22);
+            $utc = $lateLocal->copy()->utc();
+
+            $this->assertNotSame(
+                $lateLocal->toDateString(),
+                $utc->toDateString(),
+                'The fixture must straddle the UTC date boundary or it proves nothing.',
+            );
+
+            $lead = $this->leadWithContacts('Eveninglead' . uniqid(), []);
+            $this->forceUpdatedAt($lead, $utc);
+
+            $result = new SearchLeadsTool()
+                ->withContext($app, $company, $user)
+                ->__invoke(status: 'all', updated_since: 'yesterday', limit: 100);
+
+            $this->assertContains($lead->getId(), array_column($result['leads'], 'lead_id'));
+        } finally {
+            $company->timezone = $original;
+            $company->saveQuietly();
+        }
+    }
+
+    /** "which leads did <rep> touch today" was refused outright before the date filter existed. */
+    public function testOwnerAloneIsAnAcceptableFilter(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $mine = $this->leadWithContacts('Ownedlead' . uniqid(), []);
+        $mine->leads_owner_id = $user->getId();
+        $mine->saveQuietly();
+
+        $result = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(status: 'all', owner: $user->email, limit: 100);
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertContains($mine->getId(), array_column($result['leads'], 'lead_id'));
+    }
+
+    public function testAnUnparseableUpdatedSinceIsRejectedWithTheAllowedForms(): void
+    {
+        $result = new SearchLeadsTool()
+            ->withContext(app(Apps::class), auth()->user()->getCurrentCompany(), auth()->user())
+            ->__invoke(updated_since: 'last tuesday');
+
+        $this->assertStringContainsString('updated_since', $result['error']);
+        $this->assertStringContainsString('today', $result['error']);
+    }
+
+    public function testUpdatedUntilIsInclusiveOfTheWholeDay(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $timezone = $company->getTimezone() ?? 'UTC';
+        $day = Carbon::now($timezone)->subDays(3);
+
+        $lead = $this->leadWithContacts('Boundedlead' . uniqid(), []);
+        $this->forceUpdatedAt($lead, $day->copy()->startOfDay()->addHours(23)->addMinutes(59)->utc());
+
+        $result = new SearchLeadsTool()
+            ->withContext($app, $company, $user)
+            ->__invoke(
+                status: 'all',
+                updated_since: $day->format('Y-m-d'),
+                updated_until: $day->format('Y-m-d'),
+                limit: 100,
+            );
+
+        $this->assertContains($lead->getId(), array_column($result['leads'], 'lead_id'));
+    }
+
+    /**
+     * `updated_at` is managed by Eloquent, so a save would stamp now over whatever the test needs.
+     */
+    private function forceUpdatedAt(Lead $lead, Carbon $moment): void
+    {
+        Lead::query()->where('id', $lead->getId())->update(['updated_at' => $moment->utc()]);
     }
 
     /**

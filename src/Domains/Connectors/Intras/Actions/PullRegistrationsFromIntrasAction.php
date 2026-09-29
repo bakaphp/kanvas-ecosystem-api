@@ -18,6 +18,7 @@ use Kanvas\Event\Participants\Models\Participant;
 use Kanvas\Event\Participants\Models\ParticipantType;
 use Kanvas\Event\Themes\Models\ThemeArea;
 use Kanvas\Guild\Customers\Models\People;
+use Throwable;
 
 class PullRegistrationsFromIntrasAction
 {
@@ -66,6 +67,7 @@ class PullRegistrationsFromIntrasAction
         // per row with O(1) array lookups. For 69k registrations that's ~208k SQL
         // queries collapsed into 3.
         $this->preloadMaps();
+        $lookups = $this->loadRegistrationLookups($client);
 
         $defaultThemeArea = ThemeArea::where('apps_id', $this->app->getId())
             ->where('companies_id', $this->company->getId())
@@ -73,7 +75,7 @@ class PullRegistrationsFromIntrasAction
 
         $count = 0;
 
-        $query->orderBy('evp.id')->chunk(500, function ($rows) use (&$count, $client, $defaultThemeArea) {
+        $query->orderBy('evp.id')->chunk(500, function ($rows) use (&$count, $client, $defaultThemeArea, $lookups) {
             $participantIds = array_values(array_unique(array_map(
                 fn ($r) => (int) $r->participants_id,
                 $rows->all()
@@ -110,7 +112,12 @@ class PullRegistrationsFromIntrasAction
                     ? ($this->participantTypeIdMap[$row->inscriptions_types_id] ?? null)
                     : null;
 
-                $mapped = RegistrationMapper::fromIntras($row);
+                $mapped = RegistrationMapper::fromIntras(
+                    $row,
+                    $lookups['channels'],
+                    $lookups['plans'],
+                    $lookups['sponsors'],
+                );
 
                 // Identified by the legacy row id, not (version, participant): SIPGO lets the same
                 // person hold two registrations for one version — a courtesy seat plus a paid one,
@@ -182,8 +189,8 @@ class PullRegistrationsFromIntrasAction
         //
         // Deliberately NOT company-scoped: EventVersionParticipant carries
         // NoCompanyRelationshipTrait, so its custom fields are written with companies_id = 0.
-        // Filtering on the importing company finds nothing and every run creates a second copy
-        // of every registration — which is exactly what happened before this was fixed.
+        // Filtering on the importing company finds nothing, and every run then creates a second
+        // copy of every registration.
         $this->registrationIdMap = $this->loadIntrasMap(
             null,
             EventVersionParticipant::class,
@@ -256,7 +263,7 @@ class PullRegistrationsFromIntrasAction
             $existing = EventVersionParticipant::withTrashed()->find($existingId);
 
             if ($existing !== null) {
-                return $existing;
+                return $this->applyChanges($existing, $attributes);
             }
         }
 
@@ -267,6 +274,112 @@ class PullRegistrationsFromIntrasAction
         $this->registrationIdMap[$legacyId] = $evp->getId();
 
         return $evp;
+    }
+
+    /**
+     * Write back only what actually differs.
+     *
+     * A blind `update()` on every row would rewrite 133k rows on each run and bump every
+     * `updated_at`, which is the column the incremental `--since` mode filters on — so a
+     * full run would make the next incremental run pull everything back.
+     *
+     * @param array<string, mixed> $attributes
+     */
+    protected function applyChanges(EventVersionParticipant $registration, array $attributes): EventVersionParticipant
+    {
+        $changes = [];
+
+        foreach ($attributes as $column => $value) {
+            if ($this->differs($column, $registration->getAttribute($column), $value)) {
+                $changes[$column] = $value;
+            }
+        }
+
+        if ($changes !== []) {
+            $registration->forceFill($changes)->saveQuietly();
+        }
+
+        return $registration;
+    }
+
+    /**
+     * Compare by the column's own type, never by string.
+     *
+     * SIPGO and Kanvas spell the same value differently: `investment` comes back as `0.00`
+     * against a stored `0`, and `invoice_date` is a DATETIME against a DATE column. A string
+     * comparison calls both of those a change, which rewrites all 133k registrations on every run
+     * and bumps `updated_at` on each — the column the incremental `--since` mode filters on.
+     */
+    protected function differs(string $column, mixed $current, mixed $value): bool
+    {
+        if ($column === 'metadata') {
+            return (array) $current != (array) $value;
+        }
+
+        if (in_array($column, ['ticket_price', 'discount'], true)) {
+            return abs((float) $current - (float) $value) > 0.00001;
+        }
+
+        if ($current === null || $value === null) {
+            return $current !== $value;
+        }
+
+        return (string) $current !== (string) $value;
+    }
+
+    /**
+     * The catalogs the mapper needs to turn SIPGO's foreign keys into names.
+     *
+     * All three are small (22 channels, 153 plans, and only 843 registrations carry a sponsor),
+     * so they load once per run rather than per chunk.
+     *
+     * @return array{channels: array<int, string>, plans: array<int, string>, sponsors: array<int, string>}
+     */
+    protected function loadRegistrationLookups(Client $client): array
+    {
+        return [
+            'channels' => $this->nameMap($client, 'channels'),
+            'plans' => $this->planNames($client),
+            'sponsors' => $this->nameMap($client, 'companies'),
+        ];
+    }
+
+    /**
+     * `companies_plans` holds the tenant's entitlement row; the readable name is on `plans`.
+     *
+     * @return array<int, string>
+     */
+    protected function planNames(Client $client): array
+    {
+        try {
+            return $client->table('companies_plans as cp')
+                ->leftJoin('plans as p', 'p.id', '=', 'cp.plans_id')
+                ->select('cp.id')
+                ->selectRaw('p.name as name')
+                ->pluck('name', 'id')
+                ->filter()
+                ->map(fn ($name): string => trim((string) $name))
+                ->all();
+        } catch (Throwable) {
+            return [];
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function nameMap(Client $client, string $table): array
+    {
+        try {
+            return $client->table($table)
+                ->pluck('name', 'id')
+                ->filter()
+                ->map(fn ($name): string => trim((string) $name))
+                ->all();
+        } catch (Throwable) {
+            // A catalog missing on an agency's install drops that one name, not the run.
+            return [];
+        }
     }
 
     /**

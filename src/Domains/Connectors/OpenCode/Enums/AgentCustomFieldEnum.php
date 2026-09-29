@@ -58,9 +58,21 @@ enum AgentCustomFieldEnum: string
      *
      * Per agent because agents are not interchangeable: a refactoring agent on a large codebase and one
      * that writes small fixes have different needs, and paying the expensive model for both is how a
-     * coding budget disappears. The provider still comes from the app — this picks a model within it.
+     * coding budget disappears. Without PROVIDER_ID below it picks a model within the app's provider.
      */
     case MODEL = 'CODING_MODEL';
+
+    /**
+     * A provider of this agent's own — a frontend agent on OpenRouter while the rest of the app stays on
+     * OpenAI. Setting it switches the whole provider block to the agent: the app's base URL, npm package
+     * and env var are ignored, and the agent must carry its own key (PROVIDER_API_KEY or
+     * PROVIDER_KEY_NAME), so the app's key is never sent to a provider it was not issued by.
+     */
+    case PROVIDER_ID = 'CODING_PROVIDER_ID';
+
+    case PROVIDER_BASE_URL = 'CODING_PROVIDER_BASE_URL';
+    case PROVIDER_NPM = 'CODING_PROVIDER_NPM';
+    case PROVIDER_ENV_VAR = 'CODING_PROVIDER_ENV_VAR';
 
     /** The port this agent's container listens on. One box, many agents, one port each. */
     case CONTAINER_PORT = 'CODING_CONTAINER_PORT';

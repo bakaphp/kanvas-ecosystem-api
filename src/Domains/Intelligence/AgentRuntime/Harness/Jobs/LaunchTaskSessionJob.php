@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\AgentRuntime\Harness\Jobs;
 
+use Baka\Contracts\CompanyInterface;
 use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,8 +15,10 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenCode\Actions\ProvisionCodingSessionAction;
 use Kanvas\Connectors\OpenCode\Actions\StopCodingSessionRuntimeAction;
 use Kanvas\Connectors\OpenCode\DataTransferObject\CodingRepository;
+use Kanvas\Connectors\OpenCode\DataTransferObject\SessionAttachment;
 use Kanvas\Connectors\OpenCode\Services\CodingPolicy;
 use Kanvas\Connectors\OpenCode\Services\RepoAllowListService;
+use Kanvas\Connectors\OpenCode\Services\SessionAttachmentService;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPrompt;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
@@ -38,7 +41,10 @@ class LaunchTaskSessionJob implements ShouldQueue
     use Queueable;
     use SerializesModels;
 
-    /** @param list<string> $referenceSlugs Slugs, not DTOs: a Spatie Data object does not survive the queue. */
+    /**
+     * @param list<string> $referenceSlugs Slugs, not DTOs: a Spatie Data object does not survive the queue.
+     * @param list<int> $attachmentIds Ids, not bytes: a design file does not belong in a Redis payload.
+     */
     public function __construct(
         public readonly Apps $app,
         public readonly int $sessionId,
@@ -46,6 +52,7 @@ class LaunchTaskSessionJob implements ShouldQueue
         public readonly ?string $repoSlug = null,
         public readonly ?string $persona = null,
         public readonly array $referenceSlugs = [],
+        public readonly array $attachmentIds = [],
     ) {
         $this->onQueue('agent-runtime');
     }
@@ -74,13 +81,15 @@ class LaunchTaskSessionJob implements ShouldQueue
             // Inside the try: resolving asks GitHub whether the token can open the repository, and a
             // refusal there has to land on the session row like any other launch failure.
             $repository = $this->resolveRepository();
+            $attachments = $this->loadAttachments($company);
 
             new ProvisionCodingSessionAction(
-                $session,
-                $this->app,
-                $company,
-                $repository,
-                $this->resolveReferences($agent, $repository),
+                session: $session,
+                app: $this->app,
+                company: $company,
+                repository: $repository,
+                references: $this->resolveReferences($agent, $repository),
+                attachments: $attachments,
             )->execute();
 
             // No memories here: the launch path writes them into the workspace as `.kanvas/context.md`,
@@ -90,6 +99,7 @@ class LaunchTaskSessionJob implements ShouldQueue
                 policy: CodingPolicy::BLOCK,
                 repoRules: $repository?->rules,
                 persona: $this->persona,
+                attachments: SessionAttachmentService::promptBlock($attachments),
             ));
         } catch (Throwable $e) {
             $this->fail($session, $e->getMessage());
@@ -127,6 +137,19 @@ class LaunchTaskSessionJob implements ShouldQueue
         }
 
         return array_values($resolved);
+    }
+
+    /**
+     * `??` for the same reason as the references: a job queued before this property existed comes back
+     * with it uninitialized.
+     *
+     * @return list<SessionAttachment>
+     */
+    private function loadAttachments(CompanyInterface $company): array
+    {
+        $service = new SessionAttachmentService($this->app, $company);
+
+        return $service->load($service->resolve($this->attachmentIds ?? []));
     }
 
     private function resolveRepository(): ?CodingRepository

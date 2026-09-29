@@ -102,7 +102,9 @@ class InscripcionDefinition implements RefreshableReportInterface
             ReportColumn::string('estatus_ejecutivo', 64, 'Estatus del ejecutivo'),
             ReportColumn::integer('empresa_id', 'Empresa (id)', indexed: true),
             ReportColumn::string('empresa', 255, 'Empresa'),
-            ReportColumn::string('sector', 64, 'Sector'),
+            // The company's business sector, copied from `ejecutivo`. Not the barrio — that is
+            // `distrito` there and is deliberately not carried onto the registration grain.
+            ReportColumn::string('sector', 64, 'Sector empresarial'),
         ];
     }
 
@@ -206,6 +208,12 @@ class InscripcionDefinition implements RefreshableReportInterface
             ->leftJoin('event_statuses as es', 'es.id', '=', 'ev.event_status_id')
             ->leftJoin('theme_areas as ta', 'ta.id', '=', 'e.theme_area_id')
             ->leftJoin('themes as th', 'th.id', '=', 'e.theme_id')
+            ->leftJoin(
+                DB::connection('ecosystem')->getDatabaseName() . '.currencies as cur',
+                'cur.id',
+                '=',
+                'ev.currency_id'
+            )
             ->where('evp.is_deleted', 0)
             ->where('pt.apps_id', $app->getId())
             ->where('pt.companies_id', $company->getId())
@@ -223,6 +231,7 @@ class InscripcionDefinition implements RefreshableReportInterface
                 'ev.start_at',
                 'ev.end_at',
                 'ev.currency_id',
+                'cur.code as moneda',
                 'e.id as evento_id',
                 'e.name as evento',
                 'e.slug as evento_slug',
@@ -541,14 +550,20 @@ class InscripcionDefinition implements RefreshableReportInterface
             // reserved_tickets ?: 1 — seats, not headcount.
             'cupos' => max(1, (int) ($metadata['reserved_tickets'] ?? 1)),
 
-            'canal' => $registrationFields['canal'] ?? null,
+            // These four come from `metadata`, not from custom fields. `canal` alone applies to
+            // 54,089 registrations — as a custom field that is 54k extra rows in
+            // `apps_custom_fields` for a value read once per rebuild, so the importer writes the
+            // resolved name into the registration's own metadata column instead.
+            'canal' => $metadata['canal'] ?? $registrationFields['canal'] ?? null,
+            // No source: SIPGO has no "how did you hear about us" field on a registration.
             'como_se_entero' => $registrationFields['como_se_entero'] ?? null,
-            'sponsor' => $registrationFields['sponsor'] ?? null,
+            'sponsor' => $metadata['sponsor'] ?? $registrationFields['sponsor'] ?? null,
             'precio' => $row->ticket_price,
             'descuento' => $row->discount,
-            'moneda' => null,
-            'plan_id' => null,
-            'plan' => $registrationFields['plan'] ?? null,
+            // A registration has no currency of its own; it is priced in the version's.
+            'moneda' => $row->moneda ?? null,
+            'plan_id' => isset($metadata['plan_id']) ? (int) $metadata['plan_id'] : null,
+            'plan' => $metadata['plan'] ?? $registrationFields['plan'] ?? null,
             'fecha_factura' => $this->dateOnly($row->invoice_date),
         ];
     }

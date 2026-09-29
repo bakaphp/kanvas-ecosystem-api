@@ -9,9 +9,13 @@ use Kanvas\Analytics\Reporting\Services\ReportQueryService;
 use Kanvas\Analytics\Reporting\Support\ReportRegistry;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use NeuronAI\Tools\ArrayProperty;
+use NeuronAI\Tools\ObjectProperty;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 use Throwable;
 
@@ -26,8 +30,9 @@ use Throwable;
  * different questions — counting rows counts registrations, not people.
  */
 #[AgentTool(name: 'Run Report', category: 'reporting')]
-class RunReportTool extends Tool
+class RunReportTool extends Tool implements HasRunKey
 {
+    use TrackByInputs;
     use HasKanvasContext;
 
     public function __construct()
@@ -54,13 +59,41 @@ class RunReportTool extends Tool
                 description: 'Model name from describe_report_model, e.g. "ejecutivo".',
                 required: true,
             ),
-            new ToolProperty(
+            // ArrayProperty, not a bare PropertyType::ARRAY: Gemini requires `items` on every
+            // array and rejects the whole tool list without it — one malformed declaration takes
+            // down every other tool in the turn, not just this one.
+            new ArrayProperty(
                 name: 'filters',
-                type: PropertyType::ARRAY,
-                description: 'Conditions, ANDed. Each is {"column":"nivel","operator":"=","value":"Gerencial"}. '
-                    . 'Operators: =, !=, >, >=, <, <=, LIKE, IN, NOT IN, BETWEEN, IS NULL, IS NOT NULL, '
-                    . 'MEMBER OF (arrays only — check multi_valued in describe_report_model).',
+                description: 'Conditions, ANDed.',
                 required: false,
+                items: new ObjectProperty(
+                    name: 'filter',
+                    description: 'One condition, e.g. {"column":"nivel","operator":"=","value":"Gerencial"}.',
+                    properties: [
+                        new ToolProperty(
+                            name: 'column',
+                            type: PropertyType::STRING,
+                            description: 'Column name exactly as describe_report_model lists it.',
+                            required: true,
+                        ),
+                        new ToolProperty(
+                            name: 'operator',
+                            type: PropertyType::STRING,
+                            description: 'MEMBER OF works on multi-valued columns only — check '
+                                . 'multi_valued in describe_report_model.',
+                            required: true,
+                            enum: ReportFilter::OPERATORS,
+                        ),
+                        new ToolProperty(
+                            name: 'value',
+                            type: PropertyType::STRING,
+                            description: 'What to compare against. Omit for IS NULL / IS NOT NULL. For '
+                                . 'IN, NOT IN and BETWEEN pass a comma-separated list, e.g. '
+                                . '"CONFIRMADO, PROGRAMA" or "2025-01-01, 2025-12-31".',
+                            required: false,
+                        ),
+                    ],
+                ),
             ),
             new ToolProperty(
                 name: 'distinct_column',

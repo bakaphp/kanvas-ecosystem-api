@@ -221,6 +221,26 @@ class FacilitadorDefinition implements RefreshableReportInterface
      *
      * @return array<int, array<int, string>>
      */
+    /**
+     * A custom field holding a JSON array comes back as a string; anything else is not a list.
+     *
+     * @return list<string>
+     */
+    protected function decodeList(mixed $value): array
+    {
+        if (is_array($value)) {
+            return array_values(array_filter($value, 'is_string'));
+        }
+
+        if (! is_string($value) || $value === '') {
+            return [];
+        }
+
+        $decoded = json_decode($value, true);
+
+        return is_array($decoded) ? array_values(array_filter($decoded, 'is_string')) : [];
+    }
+
     protected function tagsFor(array $peopleIds): array
     {
         $rows = DB::connection('social')
@@ -312,8 +332,13 @@ class FacilitadorDefinition implements RefreshableReportInterface
             'telefono' => $contacts['phone'] ?? $contacts['work_phone'] ?? null,
             'celular' => $contacts['cellphone'] ?? null,
 
-            'temas' => $tags,
-            'idiomas' => [],
+            // Kanvas tags plus SIPGO's own expertise tables — `facilitators_themes_areas`
+            // (7,145 rows) and `facilitators_keywords` (1,817), merged by the importer into one
+            // `temas` custom field because the Gestor treats them as one filter. Tags alone left
+            // this null on all 1,672 rows, so "¿qué facilitador puede impartir el tema X?" had
+            // nothing to match.
+            'temas' => array_values(array_unique(array_merge($tags, $this->decodeList($ff('temas') ?? $pf('temas'))))),
+            'idiomas' => $this->decodeList($ff('idiomas') ?? $pf('idiomas')),
 
             'creado_por' => $pf('creado_por'),
             'creado_en' => $pf('creado_en'),

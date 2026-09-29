@@ -15,8 +15,10 @@ use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
 use Kanvas\Connectors\OpenCode\Services\CodingModelResolver;
 use Kanvas\Connectors\OpenCode\Services\CodingPolicy;
 use Kanvas\Connectors\OpenCode\Services\RepoAllowListService;
+use Kanvas\Connectors\OpenCode\Services\SessionAttachmentService;
 use Kanvas\Connectors\OpenCode\Services\SessionContextBuilder;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessPrompt;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
@@ -64,6 +66,12 @@ class DispatchHarnessTaskAction
          * @var list<string>
          */
         private readonly array $referenceSlugs = [],
+        /**
+         * Filesystem ids of files handed to the session beside the repository — a design, a screenshot.
+         *
+         * @var list<int>
+         */
+        private readonly array $attachmentIds = [],
     ) {
     }
 
@@ -78,18 +86,20 @@ class DispatchHarnessTaskAction
         $this->assertCapacity();
 
         $repository = $this->resolveRepository();
-        $task = $this->recordAsTask($brief);
+        $attachmentIds = $this->resolveAttachmentIds();
+        $task = $this->recordAsTask($brief, $attachmentIds);
         $session = $this->newSession($task);
 
         if ($this->launchesItsOwnContainer()) {
             // Provisioning here would mean a `git clone` inside the caller's turn.
             LaunchTaskSessionJob::dispatch(
-                $this->agent->app,
-                $session->getId(),
-                $brief,
-                $this->repoSlug(),
-                Str::trimToNull((string) $this->agent->get(AgentCustomFieldEnum::SYSTEM_PROMPT->value)),
-                $this->referenceSlugs,
+                app: $this->agent->app,
+                sessionId: $session->getId(),
+                brief: $brief,
+                repoSlug: $this->repoSlug(),
+                persona: Str::trimToNull((string) $this->agent->get(AgentCustomFieldEnum::SYSTEM_PROMPT->value)),
+                referenceSlugs: $this->referenceSlugs,
+                attachmentIds: $attachmentIds,
             );
 
             return $task;
@@ -134,7 +144,36 @@ class DispatchHarnessTaskAction
         }
     }
 
-    private function recordAsTask(string $brief): Task
+    /**
+     * Checked before anything is recorded, so a wrong id fails the tool call the model can still correct
+     * instead of a launch nobody is watching. The launch job reads the bytes; this only proves the files
+     * exist in this tenant.
+     *
+     * @return list<int>
+     */
+    private function resolveAttachmentIds(): array
+    {
+        if ($this->attachmentIds === []) {
+            return [];
+        }
+
+        // Attach mode points at a server whose disk Kanvas does not control, so there is nowhere to put them.
+        if (! $this->launchesItsOwnContainer()) {
+            throw new ValidationException(
+                'Attachments need a launched coding workspace; this app attaches to a static endpoint.'
+            );
+        }
+
+        $files = new SessionAttachmentService($this->agent->app, $this->agent->company)
+            ->resolve($this->attachmentIds);
+
+        return array_map(static fn (Filesystem $file): int => $file->getId(), $files);
+    }
+
+    /**
+     * @param list<int> $attachmentIds
+     */
+    private function recordAsTask(string $brief, array $attachmentIds): Task
     {
         return new CreateAgentRunPlanAction(
             agent: $this->agent,
@@ -144,6 +183,7 @@ class DispatchHarnessTaskAction
             input: array_filter([
                 'repo_slug' => $this->repoSlug(),
                 'harness' => $this->harness->value,
+                'attachment_ids' => $attachmentIds,
             ]),
             // Carries where this was asked for, so the outcome is reported back into that conversation
             // rather than only onto a plan board nobody is subscribed to.
@@ -166,8 +206,9 @@ class DispatchHarnessTaskAction
         $session->harness = $this->harness->value;
         $session->repo_slug = $this->repoSlug();
         $session->status = HarnessStatusEnum::STARTING->value;
-        $session->provider = Str::trimToNull((string) $app->get(ConfigurationEnum::PROVIDER_ID->value));
-        $session->model = new CodingModelResolver($app, $this->agent)->model();
+        $resolver = new CodingModelResolver($app, $this->agent);
+        $session->provider = $resolver->provider();
+        $session->model = $resolver->model();
 
         if ($this->continues !== null) {
             $session->branch = $this->continues->branch;

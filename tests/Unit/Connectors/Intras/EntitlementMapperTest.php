@@ -23,10 +23,14 @@ class EntitlementMapperTest extends TestCase
     }
 
     /**
-     * The legacy "ACTIVO" status is expiration_date in the future AND tickets remaining, computed
-     * in the Vue layer. The raw numbers are stored so the flatten step derives it once.
+     * `tickets` is what was contracted, so it has to include what has already been spent.
+     *
+     * `available_tickets` is SIPGO's *remaining* counter — it decrements as passes are consumed.
+     * Treating it as the total and then subtracting `used` again double-counted consumption and
+     * produced impossible rows: Banco Popular reported 2 cupos against 168 usados. This test
+     * previously asserted that behaviour (20 + 5 = 25) and was wrong with it.
      */
-    public function testSumsBaseAndAdditionalTicketsAndKeepsTheUsedCount(): void
+    public function testTicketsIsTheContractedTotalIncludingWhatHasBeenUsed(): void
     {
         $plan = EntitlementMapper::planFromIntras($this->planRow([
             'available_tickets' => 20,
@@ -34,8 +38,13 @@ class EntitlementMapperTest extends TestCase
             'used_tickets' => 13,
         ]));
 
-        $this->assertSame(25, $plan['tickets']);
+        $this->assertSame(38, $plan['tickets'], '20 remaining + 5 additional + 13 already used');
         $this->assertSame(13, $plan['used']);
+        $this->assertSame(
+            25,
+            $plan['tickets'] - $plan['used'],
+            'what is left must still be the remaining plus additional'
+        );
     }
 
     public function testKeepsAFullyConsumedPlanWithZeroRemaining(): void

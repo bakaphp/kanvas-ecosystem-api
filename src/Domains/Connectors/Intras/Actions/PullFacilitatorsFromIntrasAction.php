@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Intras\Actions;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
@@ -63,6 +63,7 @@ class PullFacilitatorsFromIntrasAction
         $query->orderBy('id')->chunk(500, function ($rows) use (&$count, $client, $facilitatorType, $lookupNames) {
             $legacyIds = array_map(fn ($r) => (int) $r->id, $rows->all());
             $contactMap = self::loadFacilitatorContacts($client, $legacyIds);
+            $expertise = self::loadFacilitatorExpertise($client, $legacyIds);
 
             foreach ($rows as $row) {
                 $mapped = FacilitatorMapper::fromIntras(
@@ -84,7 +85,16 @@ class PullFacilitatorsFromIntrasAction
                 // A Facilitator row and the event_version_facilitators pivot are what the Gestor's
                 // whole facilitator filter set runs on. Only People were being created, so both
                 // stayed empty and no event version ever had a facilitator.
-                $this->resolveFacilitator($row, $people, $mapped);
+                $facilitator = $this->resolveFacilitator($row, $people, $mapped);
+
+                // What the facilitator can actually teach. `facilitators_themes_areas` (7,145
+                // rows), `facilitators_keywords` (1,817) and `facilitators_languages` (472) were
+                // never read, so "¿qué facilitador podría impartir un seminario del tema X?" had
+                // nothing to match against — `temas` was null on all 1,672 rows.
+                foreach (['temas', 'idiomas'] as $key) {
+                    $facilitator->set($key, $expertise[$key][(int) $row->id] ?? []);
+                    $people->set($key, $expertise[$key][(int) $row->id] ?? []);
+                }
 
                 $count++;
             }
@@ -190,6 +200,83 @@ class PullFacilitatorsFromIntrasAction
     /**
      * @return array<string, array<int, string>>
      */
+    /**
+     * Themes, keywords and languages a facilitator is qualified for.
+     *
+     * Themes and keywords are merged into one `temas` set: the Gestor treats them as one filter,
+     * and `facilitators_themes_areas.name` and `facilitators_keywords.name` hold the same kind
+     * of value.
+     *
+     * @param list<int> $facilitatorIds
+     *
+     * @return array{temas: array<int, list<string>>, idiomas: array<int, list<string>>}
+     */
+    public static function loadFacilitatorExpertise(Client $client, array $facilitatorIds): array
+    {
+        if ($facilitatorIds === []) {
+            return ['temas' => [], 'idiomas' => []];
+        }
+
+        $temas = self::groupNames($client, 'facilitators_themes_areas', $facilitatorIds, 'name');
+
+        foreach (self::groupNames($client, 'facilitators_keywords', $facilitatorIds, 'name') as $id => $names) {
+            $temas[$id] = array_values(array_unique(array_merge($temas[$id] ?? [], $names)));
+        }
+
+        return [
+            'temas' => $temas,
+            'idiomas' => self::groupNames(
+                $client,
+                'facilitators_languages',
+                $facilitatorIds,
+                'l.name',
+                ['languages as l', 'l.id', 'f.languages_id']
+            ),
+        ];
+    }
+
+    /**
+     * @param list<int>                              $facilitatorIds
+     * @param array{0: string, 1: string, 2: string}|null $join catalog table alias, its key, the local key
+     *
+     * @return array<int, list<string>>
+     */
+    protected static function groupNames(
+        Client $client,
+        string $table,
+        array $facilitatorIds,
+        string $nameColumn,
+        ?array $join = null
+    ): array {
+        $grouped = [];
+
+        try {
+            $query = $client->table($table . ' as f')
+                ->whereIn('f.facilitators_id', $facilitatorIds)
+                ->where('f.is_deleted', 0);
+
+            if ($join !== null) {
+                [$catalog, $catalogKey, $localKey] = $join;
+                $query->leftJoin($catalog, $catalogKey, '=', $localKey);
+            }
+
+            $rows = $query->select('f.facilitators_id')->selectRaw($nameColumn . ' as name')->get();
+        } catch (Throwable) {
+            // A catalog missing on an agency's install drops that one set, not the run.
+            return [];
+        }
+
+        foreach ($rows as $row) {
+            $name = Str::trimToNull((string) ($row->name ?? ''));
+
+            if ($name !== null) {
+                $grouped[(int) $row->facilitators_id][$name] = true;
+            }
+        }
+
+        return array_map(fn (array $names): array => array_keys($names), $grouped);
+    }
+
     public static function loadLookupNames(Client $client): array
     {
         $names = [];

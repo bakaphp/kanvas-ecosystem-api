@@ -34,6 +34,7 @@ use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
+use Kanvas\Guild\Customers\Observers\PeopleObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -72,7 +73,7 @@ use Override;
  * @property string|null $instagram_contact_id
  * @property string|null $apple_contact_id
  */
-#[ObservedBy([ReportSourceObserver::class])]
+#[ObservedBy([PeopleObserver::class, ReportSourceObserver::class])]
 class People extends BaseModel
 {
     use HasAdminLink;

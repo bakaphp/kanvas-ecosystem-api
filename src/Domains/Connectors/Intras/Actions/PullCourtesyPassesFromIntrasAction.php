@@ -7,7 +7,6 @@ namespace Kanvas\Connectors\Intras\Actions;
 use Baka\Contracts\AppInterface;
 use Baka\Users\Contracts\UserInterface;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;

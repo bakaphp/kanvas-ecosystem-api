@@ -20,6 +20,7 @@ class HarnessPrompt extends Data
         public readonly ?string $memories = null,
         public readonly ?string $handoff = null,
         public readonly array $permissions = [],
+        public readonly ?string $attachments = null,
     ) {
     }
 
@@ -35,6 +36,7 @@ class HarnessPrompt extends Data
             $this->memories,
             $this->handoff,
             $this->persona,
+            $this->attachments,
             $this->task,
         ], static fn (?string $block): bool => $block !== null && trim($block) !== '');
 

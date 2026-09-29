@@ -25,8 +25,12 @@ class EntitlementMapper
      */
     public static function planFromIntras(stdClass $row, array $planNames = [], array $tierNames = []): array
     {
-        $available = (int) ($row->available_tickets ?? 0);
-        $additional = (int) ($row->additional_tickets ?? 0);
+        // `available_tickets` is what is *left*, not what was contracted — SIPGO decrements it
+        // as passes are consumed. Storing it as the total and then subtracting `used` again
+        // double-counted the consumption: Banco Popular came out with 2 cupos and 168 usados.
+        // The contracted figure is the three columns added together.
+        $remaining = (int) ($row->available_tickets ?? 0) + (int) ($row->additional_tickets ?? 0);
+        $used = (int) ($row->used_tickets ?? 0);
 
         return array_filter([
             'plan' => Str::trimToNull((string) ($planNames[(int) ($row->plans_id ?? 0)] ?? '')),
@@ -34,8 +38,8 @@ class EntitlementMapper
             // The legacy "ACTIVO" status is expiration_date in the future AND tickets left, which
             // the Gestor recomputes in JS. Stored as the raw numbers so the flatten step derives
             // it once instead of every caller guessing.
-            'tickets' => $available + $additional,
-            'used' => (int) ($row->used_tickets ?? 0),
+            'tickets' => $remaining + $used,
+            'used' => $used,
             'issued' => self::date($row->issued_date ?? null),
             'expires' => self::date($row->expiration_date ?? null),
             'consumed' => (bool) ($row->was_consumed ?? false),

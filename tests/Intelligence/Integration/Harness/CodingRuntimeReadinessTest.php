@@ -61,6 +61,18 @@ class CodingRuntimeReadinessTest extends TestCase
         $this->assertStringContainsString('ModelUnavailableError', $problems[0]);
     }
 
+    /**
+     * Naming the compatible adapter explicitly is not the same as naming one that knows its endpoint —
+     * `SessionConfigBuilder` refuses this pair, so the checklist must too.
+     */
+    public function testTheCompatibleAdapterNamedExplicitlyStillNeedsABaseUrl(): void
+    {
+        $problems = $this->problems([ConfigurationEnum::PROVIDER_NPM->value => '@ai-sdk/openai-compatible']);
+
+        $this->assertCount(1, $problems);
+        $this->assertStringContainsString(ConfigurationEnum::PROVIDER_BASE_URL->value, $problems[0]);
+    }
+
     public function testABaseUrlAloneIsEnough(): void
     {
         $this->assertSame([], $this->problems([

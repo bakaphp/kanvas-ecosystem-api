@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Intras\Reporting;
 
 use Baka\Contracts\AppInterface;
+use Baka\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Analytics\Reporting\Contracts\RefreshableReportInterface;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportColumn;
@@ -35,10 +36,13 @@ class CotizacionDefinition implements RefreshableReportInterface
     private const int CHUNK = 500;
 
     /**
-     * The legacy stage slugs that mean the proposal was accepted. `LeadMapper` maps GANADA and
-     * GANADA PLAN onto these, and the classification sheet counts exactly those as "aprobadas".
+     * The legacy status names that mean the proposal was accepted — "Aprobada" and
+     * "APROBADO PLAN", which is what the EMPRESA classification sheet counts as aprobadas.
+     *
+     * Matched on a normalised prefix because the catalog mixes casing and gender across the two
+     * ("Aprobada" vs "APROBADO PLAN") and an exact list would silently miss a third spelling.
      */
-    private const array WON_STAGES = ['won', 'won-plan'];
+    private const string WON_PREFIX = 'aprobad';
 
     public function __construct(private readonly int $appId = 0)
     {
@@ -87,8 +91,8 @@ class CotizacionDefinition implements RefreshableReportInterface
             ReportColumn::string('pa_code', 16, 'PA'),
             ReportColumn::string('ejecutivo', 256, 'Ejecutivo'),
 
-            ReportColumn::string('etapa', 64, 'Etapa', indexed: true),
-            ReportColumn::boolean('es_ganada', 'Aprobada', indexed: true),
+            ReportColumn::string('estatus', 64, 'Estatus', indexed: true),
+            ReportColumn::boolean('es_aprobada', 'Aprobada', indexed: true),
 
             ReportColumn::string('area', 64, 'Área', indexed: true),
             ReportColumn::string('potencialidad', 32, 'Potencialidad'),
@@ -146,7 +150,6 @@ class CotizacionDefinition implements RefreshableReportInterface
             $leadIds = array_map(fn (Lead $lead): int => (int) $lead->getId(), $leads);
 
             $fields = $this->customFields($leadIds);
-            $stages = $this->stageNames($leads);
             $organizations = $this->flatOrganizations($leads);
             $people = $this->flatPeople($leads);
 
@@ -164,7 +167,7 @@ class CotizacionDefinition implements RefreshableReportInterface
 
                 $organization = $organizations[(int) $lead->organization_id] ?? null;
                 $person = $people[(int) $lead->people_id] ?? null;
-                $stage = $stages[(int) $lead->pipeline_stage_id] ?? null;
+                $estatus = $cf('estatus');
 
                 yield [
                     'cotizacion_id' => $leadId,
@@ -182,8 +185,11 @@ class CotizacionDefinition implements RefreshableReportInterface
                     'pa_code' => $person?->pa_code,
                     'ejecutivo' => $person?->nombre_completo,
 
-                    'etapa' => $stage,
-                    'es_ganada' => in_array((string) $stage, self::WON_STAGES, true) ? 1 : 0,
+                    'estatus' => $estatus,
+                    'es_aprobada' => str_starts_with(
+                        mb_strtolower(Str::trimToNull($estatus) ?? ''),
+                        self::WON_PREFIX
+                    ) ? 1 : 0,
 
                     'area' => $cf('area'),
                     'potencialidad' => $cf('potencialidad'),
@@ -260,29 +266,6 @@ class CotizacionDefinition implements RefreshableReportInterface
         }
 
         return $pivoted;
-    }
-
-    /**
-     * @param array<int, Lead> $leads
-     *
-     * @return array<int, string>
-     */
-    protected function stageNames(array $leads): array
-    {
-        $stageIds = array_values(array_unique(array_filter(
-            array_map(fn (Lead $lead): int => (int) $lead->pipeline_stage_id, $leads)
-        )));
-
-        if ($stageIds === []) {
-            return [];
-        }
-
-        return DB::connection('crm')
-            ->table('pipelines_stages')
-            ->whereIn('id', $stageIds)
-            ->pluck('name', 'id')
-            ->map(fn ($name): string => (string) $name)
-            ->all();
     }
 
     /**

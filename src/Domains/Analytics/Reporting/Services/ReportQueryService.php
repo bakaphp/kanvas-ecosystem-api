@@ -8,6 +8,7 @@ use Baka\Contracts\AppInterface;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Analytics\Reporting\Contracts\ReportDefinitionInterface;
+use Kanvas\Analytics\Reporting\DataTransferObject\AggregateRequest;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportColumn;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportFilter;
 use Kanvas\Companies\Models\Companies;
@@ -151,6 +152,73 @@ class ReportQueryService
         }
 
         return $query->select($select)->get()->map(fn ($row) => (array) $row)->all();
+    }
+
+    /**
+     * Rank and total — the two things `count()` and `breakdown()` cannot do.
+     *
+     * "Top 5 eventos por participantes", "promedio de participantes por evento" and every
+     * numeric input to the classification sheets need an aggregate and an ordering, and without
+     * them a caller has to pull rows and add them up in PHP. Column names are validated exactly
+     * as in `apply()`, and the function name is matched against a fixed list, so nothing here
+     * widens what caller input can reach.
+     *
+     * @param array<int, ReportFilter> $filters
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function aggregate(
+        ReportDefinitionInterface $definition,
+        AppInterface $app,
+        Companies $company,
+        AggregateRequest $request,
+        array $filters = []
+    ): array {
+        $columns = $this->columnsByName($definition);
+        $query = $this->builder($definition, $app, $company, $filters);
+
+        $select = [];
+
+        foreach ($request->groupBy as $groupColumn) {
+            $this->assertColumn($groupColumn, $columns);
+            $query->groupBy($groupColumn);
+            $select[] = $groupColumn;
+        }
+
+        foreach ($request->aggregates as $alias => $spec) {
+            [$function, $column] = $spec;
+
+            // COUNT(*) is the one aggregate with no column to validate.
+            if ($column !== null) {
+                $this->assertColumn($column, $columns);
+            }
+
+            $select[] = DB::raw(match (true) {
+                $function === 'COUNT_DISTINCT' => sprintf('COUNT(DISTINCT `%s`) as `%s`', $column, $alias),
+                $column === null => sprintf('COUNT(*) as `%s`', $alias),
+                default => sprintf('%s(`%s`) as `%s`', $function, $column, $alias),
+            });
+        }
+
+        if ($select === []) {
+            throw new ValidationException('An aggregate query needs at least one grouping or aggregate.');
+        }
+
+        if ($request->orderBy !== null) {
+            // Ordering by an alias is the whole point — "top 5 by total" — so an alias is
+            // accepted, and anything else has to be a declared column.
+            if (! array_key_exists($request->orderBy, $request->aggregates)) {
+                $this->assertColumn($request->orderBy, $columns);
+            }
+
+            $query->orderBy($request->orderBy, $request->descending ? 'desc' : 'asc');
+        }
+
+        return $query->select($select)
+            ->limit(min($request->limit, self::MAX_LIMIT))
+            ->get()
+            ->map(fn ($row) => (array) $row)
+            ->all();
     }
 
     /**

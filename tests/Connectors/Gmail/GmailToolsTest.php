@@ -59,6 +59,32 @@ class GmailToolsTest extends TestCase
         $this->assertSame('list_failed', $result['reason']);
     }
 
+    /** KANVAS-ECOSYSTEM-6GW: one search re-run verbatim until NeuronAI's run cap killed the turn. */
+    public function test_rerunning_the_same_search_in_a_turn_tells_the_model_to_stop(): void
+    {
+        [$app, $company] = $this->context();
+
+        $registered = new ListEmailsTool()->withContext($app, $company, static::$cachedUser);
+
+        $first = (clone $registered)->__invoke(query: 'to:vendor@example.com');
+        $second = (clone $registered)->__invoke(query: ' to:vendor@example.com ');
+        $other = (clone $registered)->__invoke(query: 'from:vendor@example.com');
+
+        $this->assertArrayNotHasKey('repeat_call', $first);
+        $this->assertTrue($second['repeat_call']);
+        $this->assertSame('list_failed', $second['reason']);
+        $this->assertArrayNotHasKey('repeat_call', $other);
+    }
+
+    public function test_list_emails_budgets_runs_per_query_not_per_tool(): void
+    {
+        $first = new ListEmailsTool()->setInputs(['query' => 'to:a@example.com']);
+        $other = new ListEmailsTool()->setInputs(['query' => 'to:b@example.com']);
+
+        $this->assertNotSame($first->getRunKey(), $other->getRunKey());
+        $this->assertSame(3, $first->getMaxRuns());
+    }
+
     public function test_read_email_details_surfaces_a_humanized_error_when_gmail_is_not_configured(): void
     {
         [$app, $company] = $this->context();

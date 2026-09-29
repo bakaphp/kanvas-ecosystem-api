@@ -82,9 +82,8 @@ class PullLeadsFromIntrasAction
                     ->first();
 
                 $mapped = LeadMapper::fromIntras($row, $quoteLookupNames);
-                $stageName = LeadMapper::stageForStatusName(
-                    $quoteStatusNames[(int) $row->quotes_statuses_id] ?? null
-                );
+                $legacyStatus = $quoteStatusNames[(int) $row->quotes_statuses_id] ?? null;
+                $stageName = LeadMapper::stageForStatusName($legacyStatus);
 
                 $stage = $pipeline ? PipelineStage::where('pipelines_id', $pipeline->getId())
                     ->where('name', $stageName)
@@ -133,6 +132,15 @@ class PullLeadsFromIntrasAction
                     if ($value !== null) {
                         $lead->set($key, $value);
                     }
+                }
+
+                // The legacy status verbatim. `stageForStatusName()` maps a vocabulary this
+                // install does not use — it expects GANADA / PERDIDA, the data says Aprobada /
+                // Rechazada — so every quote lands in the default pipeline stage and the stage
+                // cannot be used to tell an approved proposal from a rejected one. Reporting
+                // reads this instead; the stage mapping is a separate problem.
+                if ($legacyStatus !== null) {
+                    $lead->set('estatus', $legacyStatus);
                 }
 
                 foreach (['facilitadores', 'eventos_solicitados', 'temas'] as $key) {
