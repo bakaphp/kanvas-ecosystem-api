@@ -65,7 +65,27 @@ class KanvasGemini extends Gemini
             $result['candidates'][0]['content']['parts'] = [];
         }
 
-        return parent::processChatResult($result);
+        return parent::processChatResult($this->withPromptTokenCount($result));
+    }
+
+    /**
+     * Gemini can omit `promptTokenCount` from `usageMetadata`, and Neuron reads it unguarded
+     * (KANVAS-ECOSYSTEM-6HD). Derive it from the total so usage and cost stay accurate.
+     */
+    private function withPromptTokenCount(array $result): array
+    {
+        $usage = $result['usageMetadata'] ?? null;
+
+        if ($usage === null || isset($usage['promptTokenCount'])) {
+            return $result;
+        }
+
+        $result['usageMetadata']['promptTokenCount'] = max(
+            0,
+            ($usage['totalTokenCount'] ?? 0) - ($usage['candidatesTokenCount'] ?? 0) - ($usage['thoughtsTokenCount'] ?? 0),
+        );
+
+        return $result;
     }
 
     /**
