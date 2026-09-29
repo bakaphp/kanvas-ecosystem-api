@@ -61,10 +61,18 @@ class UpdatePlanAction
                 ? null
                 : new ProjectBoardColumns()->resolveForPlan($this->data->project, $this->data->boardColumnKey);
             $columnChanged = $column !== null && $column['key'] !== $this->plan->board_column_key;
-            $this->plan->board_column_key = $column['key'] ?? null;
             $newStatus = $columnChanged ? $column['plan_status'] : $this->data->status->value;
 
             $newStatus = PlanStatusEnum::from($newStatus)->heldForApproval($this->plan->needsApproval())->value;
+
+            // A plan refiled into another project arrives without a column (see PlanData::forUpdate) —
+            // place it by status on the new board rather than letting a column rewrite its status.
+            $refiledWithoutColumn = $column === null
+                && $this->data->project !== null
+                && $this->plan->isDirty('project_id');
+            $this->plan->board_column_key = $refiledWithoutColumn
+                ? new ProjectBoardColumns()->keyForStatus($this->data->project, $newStatus)
+                : ($column['key'] ?? null);
 
             if ($newStatus === 'active' && $this->plan->started_at === null) {
                 $this->plan->started_at = Carbon::now();

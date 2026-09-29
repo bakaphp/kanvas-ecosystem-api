@@ -15,6 +15,9 @@ use Kanvas\Intelligence\Agents\Contracts\ConversesWithUser;
 use Kanvas\Intelligence\Agents\Neuron\History\ChannelMessageHistory;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\ReadFileTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadLeadActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadOrganizationActivityTool;
+use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ReadPersonActivityTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\CancelScheduledActionTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ListScheduledActionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\NervousSystem\ScheduleAgentTaskTool;
@@ -290,6 +293,13 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
 
         $core[] = new SendEmailToUserTool($agent);
 
+        $actingUser = $this->internalActingUser();
+        if ($actingUser !== null) {
+            $core[] = new ReadLeadActivityTool()->withContext($app, $company, $actingUser, $agent);
+            $core[] = new ReadPersonActivityTool()->withContext($app, $company, $actingUser, $agent);
+            $core[] = new ReadOrganizationActivityTool()->withContext($app, $company, $actingUser, $agent);
+        }
+
         // The schedule tools key on the human, not the agent: "remind me" must land on the person
         // who asked. On an @mention surface $this->user IS the agent's own user, so an explicit
         // conversation human (set by the caller) wins over it.
@@ -341,9 +351,9 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
             ),
         ];
 
-        $user = $this->actingUser();
+        $user = $this->internalActingUser();
 
-        if ($user !== null && ! $this instanceof ConversesWithCustomer) {
+        if ($user !== null) {
             $tools[] = new ReadFileTool()->withContext($app, $company, $user);
         }
 
@@ -363,6 +373,14 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
     protected function actingUser(): ?Users
     {
         return $this->agent?->user ?? $this->user;
+    }
+
+    /**
+     * The acting user for tools that read internal company data, null on a customer surface.
+     */
+    private function internalActingUser(): ?Users
+    {
+        return $this instanceof ConversesWithCustomer ? null : $this->actingUser();
     }
 
     private function usesEntityRollup(): bool

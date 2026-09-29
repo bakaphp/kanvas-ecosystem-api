@@ -172,9 +172,11 @@ class Plan extends Data
             blockedNeeds: array_key_exists('blocked_needs', $data)
                 ? PlanBlockedNeedsEnum::tryFrom((string) $data['blocked_needs'])
                 : PlanBlockedNeedsEnum::tryFrom((string) $plan->blocked_needs),
+            // A column key only means something on its own project's board — carried across a move it
+            // names a column the destination may not have.
             boardColumnKey: array_key_exists('board_column_key', $data)
                 ? ($data['board_column_key'] !== null ? (string) $data['board_column_key'] : null)
-                : $plan->board_column_key,
+                : ((int) $project?->getId() === (int) $plan->project_id ? $plan->board_column_key : null),
         );
     }
 }
