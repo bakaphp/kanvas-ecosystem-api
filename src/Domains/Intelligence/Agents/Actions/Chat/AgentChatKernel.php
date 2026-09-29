@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Actions\Chat;
 
 use Baka\Support\Str;
-use Kanvas\Connectors\SalesAssist\PriceDisclosure\Services\PriceDisclosureReplyGate;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -104,17 +103,6 @@ class AgentChatKernel
 
         $durationMs = (microtime(true) - $startTime) * 1000.0;
         $this->trackUsage($response, $durationMs, $sessionId);
-
-        // After the provider call and outside its try, so the skip keeps its silent markers. A tool
-        // can only ask for the turn to be dropped; this is where the drop actually happens.
-        if ($this->currentLead !== null) {
-            new PriceDisclosureReplyGate()->assertReplyAllowed(
-                $this->currentLead,
-                $response,
-                $this->executedToolCalls(),
-                inboundText: $this->sourceMessage !== null ? $this->message : null,
-            );
-        }
 
         if ($this->persistConversation) {
             $this->persistConversationToSocial($response);

@@ -9,6 +9,7 @@ use Kanvas\Connectors\SalesAssist\PriceDisclosure\Actions\RenderPriceDisclosureA
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Actions\SuppressAgentReplyAction;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureChannelEnum;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureReasonEnum;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Services\PriceDisclosureReplyGate;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Services\VehiclePriceService;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -32,12 +33,13 @@ class VehiclePriceDisclosureTool extends Tool implements HasRunKey
 
     private const string DEFAULT_LANGUAGE = 'en';
 
-    public function __construct()
-    {
+    public function __construct(
+        private readonly PriceDisclosureReplyGate $gate = new PriceDisclosureReplyGate(),
+    ) {
         parent::__construct(
             name: self::NAME,
             description: 'Returns the dealer-approved, legally required price disclosure message for a specific vehicle. '
-                . 'You MUST call this tool before stating, quoting, estimating, or discussing any vehicle price, MSRP, fee, or discount. '
+                . 'You MUST call this tool before stating, quoting, estimating, or discussing any vehicle price, MSRP, fee, discount, monthly payment, or add-on. '
                 . 'When the result has suppress=false, send the returned "message" text VERBATIM as your reply: never paraphrase, '
                 . 'translate, round, reorder, or omit any amount or sentence, and never add a different price. '
                 . 'When the result has suppress=true, do NOT mention any price and do NOT promise to check it later; '
@@ -93,6 +95,11 @@ class VehiclePriceDisclosureTool extends Tool implements HasRunKey
         $disclosureChannel = PriceDisclosureChannelEnum::tryFrom(strtolower(trim($channel)));
         if ($disclosureChannel === null) {
             return $this->invalidArgs('Unsupported channel. Allowed values are "sms" or "email".');
+        }
+
+        $controlledTopic = $this->gate->evaluate($lead);
+        if ($controlledTopic !== null) {
+            return $this->suppress($lead, $controlledTopic['reason'], $controlledTopic['detail']);
         }
 
         $language = strtolower(Str::trimToNull($language) ?? self::DEFAULT_LANGUAGE);

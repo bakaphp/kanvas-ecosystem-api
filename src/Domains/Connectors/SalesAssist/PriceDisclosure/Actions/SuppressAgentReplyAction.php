@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\PriceDisclosure\Actions;
 
-use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureReasonEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Actions\HandOffAction;
@@ -12,7 +11,7 @@ use Kanvas\Intelligence\Enums\HandOffTypeEnum;
 
 /**
  * Fail closed: the disclosure is mandatory, so a missing input hands the lead to a human with a
- * machine-readable reason and marks the turn so the reply gate drops whatever the model wrote.
+ * machine-readable reason instead of letting the model improvise.
  */
 class SuppressAgentReplyAction
 {
@@ -25,7 +24,7 @@ class SuppressAgentReplyAction
 
     public function execute(): array
     {
-        $handoff = new HandOffAction(
+        return new HandOffAction(
             lead: $this->lead,
             app: $this->lead->app,
             params: [
@@ -34,9 +33,5 @@ class SuppressAgentReplyAction
                 'conversation_summary' => 'Price disclosure suppressed: ' . $this->detail,
             ],
         )->execute();
-
-        $this->lead->set(PriceDisclosureConfigurationEnum::REPLY_SUPPRESSED->value, $this->reason->value);
-
-        return $handoff;
     }
 }
