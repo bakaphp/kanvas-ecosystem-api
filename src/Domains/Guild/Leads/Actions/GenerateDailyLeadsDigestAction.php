@@ -30,20 +30,21 @@ class GenerateDailyLeadsDigestAction
     public function execute(bool $dryRun = false): array
     {
         $hours = max(1, $this->hours ?? (int) $this->setting(ConfigurationEnum::DAILY_LEADS_DIGEST_HOURS, self::DEFAULT_HOURS));
-        $periodStart = now()->subHours($hours);
+        $now = now();
+        $cutoff = $now->copy()->subHours($hours);
         $leads = Lead::query()
             ->with([
                 'company',
-                'people',
-                'receiver.branch',
+                'people.emails',
+                'people.phones',
+                'receiver',
                 'source',
                 'branch',
-                'variantInterests.variant.product',
             ])
             ->where('apps_id', $this->app->getId())
             ->where('companies_id', $this->company->getId())
             ->where('is_deleted', 0)
-            ->where('created_at', '>=', $periodStart)
+            ->where('created_at', '>=', $cutoff)
             ->orderByDesc('created_at')
             ->get();
 
@@ -56,7 +57,7 @@ class GenerateDailyLeadsDigestAction
                 return true;
             }
 
-            $email = strtolower(trim((string) ($lead->email ?: $lead->people?->email)));
+            $email = strtolower(trim((string) ($lead->people?->emails->first()?->value ?? $lead->email)));
             if ($this->isExcludedEmail($email, $excludedEmails)) {
                 $suspiciousEmailsCount++;
 
@@ -68,20 +69,17 @@ class GenerateDailyLeadsDigestAction
 
         $formattedLeads = $validLeads->map(fn (Lead $lead): array => $this->formatLead($lead));
         $total = $validLeads->count();
-        $noVehicleCount = $formattedLeads->filter(fn (array $lead): bool => $lead['vehicle_of_interest'] === null)->count();
 
         $digest = [
             'app' => $this->app,
             'company' => $this->company,
             'hours' => $hours,
-            'period_start' => $periodStart,
-            'period_end' => now(),
+            'period_start' => $cutoff,
+            'period_end' => $now,
             'total' => $total,
-            'no_vehicle_count' => $noVehicleCount,
-            'no_vehicle_pct' => $total > 0 ? round(($noVehicleCount / $total) * 100, 1) : 0,
             'suspicious_emails_count' => $suspiciousEmailsCount,
-            'top_dealers' => $this->topCounts($formattedLeads, 'dealer'),
-            'top_vehicles' => $this->topCounts($formattedLeads, 'vehicle_of_interest'),
+            'top_sources' => $this->topCounts($formattedLeads, 'source'),
+            'top_branches' => $this->topCounts($formattedLeads, 'branch'),
             'by_day' => $formattedLeads
                 ->groupBy(fn (array $lead): string => $lead['created_at']->toDateString())
                 ->map(fn (Collection $items, string $day): array => ['date' => $day, 'count' => $items->count()])
@@ -162,43 +160,17 @@ class GenerateDailyLeadsDigestAction
     /** @return array<string, mixed> */
     private function formatLead(Lead $lead): array
     {
-        $vehicle = $this->vehicleOfInterest($lead);
-        $branch = $lead->branch ?? $lead->receiver?->branch;
         $createdAt = $lead->created_at;
 
         return [
-            'name' => trim((string) ($lead->firstname . ' ' . $lead->lastname)) ?: (string) ($lead->people?->name ?? 'Unknown'),
-            'email' => (string) ($lead->email ?: $lead->people?->email),
-            'phone' => (string) $lead->phone,
-            'vehicle_of_interest' => $vehicle,
-            'dealer' => (string) ($branch?->name ?? $lead->company?->name ?? '—'),
-            'source' => (string) ($lead->source?->name ?? $lead->receiver?->source_name ?? '—'),
+            'name' => $lead->people?->name ?? $lead->firstname . ' ' . $lead->lastname,
+            'email' => $lead->people?->emails->first()?->value ?? $lead->email,
+            'phone' => $lead->people?->phones->first()?->value ?? $lead->phone ?? null,
+            'source' => $lead->source?->name ?? $lead->receiver?->source_name ?? '—',
+            'branch' => $lead->branch?->name ?? 'Default',
             'created_at' => $createdAt,
+            'custom_fields' => $lead->getAllCustomFields(),
         ];
-    }
-
-    private function vehicleOfInterest(Lead $lead): ?string
-    {
-        $customFields = $lead->getAllCustomFields();
-        $customVehicle = $customFields['vehicle_of_interest'] ?? null;
-        if (is_array($customVehicle)) {
-            $customVehicle = $customVehicle['value'] ?? $customVehicle['data'] ?? null;
-        }
-
-        if (is_string($customVehicle) && trim($customVehicle) !== '') {
-            return trim($customVehicle);
-        }
-
-        $interest = $lead->variantInterests
-            ->first(fn ($item): bool => $item->is_active && ! $item->is_deleted);
-        if ($interest?->variant === null) {
-            return null;
-        }
-
-        $productName = trim((string) $interest->variant->product?->name);
-        $variantName = trim((string) $interest->variant->name);
-
-        return $productName !== '' ? $productName : ($variantName !== '' ? $variantName : null);
     }
 
     /** @param Collection<int, array<string, mixed>> $leads

@@ -13,8 +13,8 @@
                 </td>
                 <td style="width: 8px;"></td>
                 <td style="width: 33.33%; padding: 16px; background: #f4f7fb; border-radius: 6px;">
-                    <div style="font-size: 12px; color: #667085;">No vehicle selected</div>
-                    <strong style="display: block; margin-top: 5px; font-size: 25px;">{{ $no_vehicle_count }} <span style="font-size: 14px; color: #667085;">({{ $no_vehicle_pct }}%)</span></strong>
+                    <div style="font-size: 12px; color: #667085;">Top source</div>
+                    <strong style="display: block; margin-top: 5px; font-size: 25px;">{{ $top_sources[0]['name'] ?? count($top_sources) }}</strong>
                 </td>
                 <td style="width: 8px;"></td>
                 <td style="width: 33.33%; padding: 16px; background: #f4f7fb; border-radius: 6px;">
@@ -27,19 +27,19 @@
         <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-collapse: collapse; margin-bottom: 22px;">
             <tr>
                 <td style="width: 50%; padding-right: 12px; vertical-align: top;">
-                    <h2 style="margin: 0 0 8px; font-size: 16px;">Top dealers / rooftops</h2>
-                    @forelse ($top_dealers as $dealer)
-                        <p style="margin: 5px 0; font-size: 13px;">{{ $dealer['name'] }} <span style="color: #667085;">({{ $dealer['count'] }})</span></p>
+                    <h2 style="margin: 0 0 8px; font-size: 16px;">Top sources</h2>
+                    @forelse ($top_sources as $source)
+                        <p style="margin: 5px 0; font-size: 13px;">{{ $source['name'] }} <span style="color: #667085;">({{ $source['count'] }})</span></p>
                     @empty
-                        <p style="margin: 5px 0; color: #667085; font-size: 13px;">No dealer data</p>
+                        <p style="margin: 5px 0; color: #667085; font-size: 13px;">No source data</p>
                     @endforelse
                 </td>
                 <td style="width: 50%; padding-left: 12px; vertical-align: top;">
-                    <h2 style="margin: 0 0 8px; font-size: 16px;">Most requested vehicles</h2>
-                    @forelse ($top_vehicles as $vehicle)
-                        <p style="margin: 5px 0; font-size: 13px;">{{ $vehicle['name'] }} <span style="color: #667085;">({{ $vehicle['count'] }})</span></p>
+                    <h2 style="margin: 0 0 8px; font-size: 16px;">Top branches / locations</h2>
+                    @forelse ($top_branches as $branch)
+                        <p style="margin: 5px 0; font-size: 13px;">{{ $branch['name'] }} <span style="color: #667085;">({{ $branch['count'] }})</span></p>
                     @empty
-                        <p style="margin: 5px 0; color: #667085; font-size: 13px;">No vehicle interests recorded</p>
+                        <p style="margin: 5px 0; color: #667085; font-size: 13px;">No branch data</p>
                     @endforelse
                 </td>
             </tr>
@@ -60,9 +60,8 @@
                 <thead>
                     <tr>
                         <th style="padding: 9px 6px; text-align: left; border-bottom: 1px solid #d9e0e7;">Lead</th>
-                        <th style="padding: 9px 6px; text-align: left; border-bottom: 1px solid #d9e0e7;">Vehicle</th>
-                        <th style="padding: 9px 6px; text-align: left; border-bottom: 1px solid #d9e0e7;">Dealer</th>
                         <th style="padding: 9px 6px; text-align: left; border-bottom: 1px solid #d9e0e7;">Source</th>
+                        <th style="padding: 9px 6px; text-align: left; border-bottom: 1px solid #d9e0e7;">Branch / Location</th>
                         <th style="padding: 9px 6px; text-align: left; border-bottom: 1px solid #d9e0e7;">Received</th>
                     </tr>
                 </thead>
@@ -72,15 +71,17 @@
                             <td style="padding: 9px 6px; border-bottom: 1px solid #edf0f2;">
                                 <strong>{{ $lead['name'] }}</strong><br>
                                 <span style="color: #667085;">{{ $lead['email'] }}</span>
+                                @if ($lead['phone'])
+                                    <br><span style="color: #667085;">{{ $lead['phone'] }}</span>
+                                @endif
                             </td>
-                            <td style="padding: 9px 6px; border-bottom: 1px solid #edf0f2;">{{ $lead['vehicle_of_interest'] ?? '—' }}</td>
-                            <td style="padding: 9px 6px; border-bottom: 1px solid #edf0f2;">{{ $lead['dealer'] }}</td>
                             <td style="padding: 9px 6px; border-bottom: 1px solid #edf0f2;">{{ $lead['source'] }}</td>
+                            <td style="padding: 9px 6px; border-bottom: 1px solid #edf0f2;">{{ $lead['branch'] }}</td>
                             <td style="padding: 9px 6px; border-bottom: 1px solid #edf0f2;">{{ $lead['created_at']->format('M j, g:i A') }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" style="padding: 14px 6px; color: #667085;">No leads in this reporting window.</td>
+                            <td colspan="4" style="padding: 14px 6px; color: #667085;">No leads in this reporting window.</td>
                         </tr>
                     @endforelse
                 </tbody>
