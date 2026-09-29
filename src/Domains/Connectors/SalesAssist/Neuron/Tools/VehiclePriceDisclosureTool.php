@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
+namespace Kanvas\Connectors\SalesAssist\Neuron\Tools;
 
 use Baka\Support\Str;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Actions\RenderPriceDisclosureAction;
