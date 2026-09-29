@@ -32,6 +32,46 @@ class ArtifactBlockService
     }
 
     /**
+     * Drop any `kanvas-artifact` block in a reply that the client would refuse to draw.
+     *
+     * Validating inside `render_artifact` only covers blocks the tool produced. Nothing stops a
+     * model writing the fence by hand, and when it does every check here is bypassed — a reply
+     * shipped an `actions` block whose third item was the assistant's own closing question
+     * ("¿Deseas profundizar en alguna de estas empresas…") sitting where a button label goes. The
+     * client rejected the artifact, so the person lost the whole card rather than the bad item.
+     *
+     * A malformed block is removed and its prose kept, which is the failure the reader can still
+     * use. Repairing it is deliberately not attempted: truncating that question to 40 characters
+     * produces a button that reads like a glitch, and silently dropping list entries would edit
+     * the data a chart or table is asserting.
+     */
+    public function stripInvalidBlocks(string $reply): string
+    {
+        $pattern = '/```' . preg_quote(self::FENCE, '/') . '\s*\n(.*?)\n?```/s';
+
+        return (string) preg_replace_callback(
+            $pattern,
+            function (array $match): string {
+                $decoded = json_decode(trim($match[1]), true);
+
+                if (! is_array($decoded)) {
+                    return '';
+                }
+
+                $component = ArtifactComponentEnum::tryFrom((string) ($decoded['component'] ?? ''));
+                $props = $decoded['props'] ?? null;
+
+                if ($component === null || ! is_array($props)) {
+                    return '';
+                }
+
+                return $this->errors($component, $props) === [] ? $match[0] : '';
+            },
+            $reply
+        ) ?: $reply;
+    }
+
+    /**
      * @param array<string, mixed> $props
      */
     public function render(ArtifactComponentEnum $component, ?string $title, array $props): string
@@ -91,7 +131,7 @@ class ArtifactBlockService
     private function checkValue(mixed $value, array $rule, string $path): array
     {
         return match ($rule['type']) {
-            'string' => is_string($value) && $this->hasNoFence($value) ? [] : [$path . ' must be a string without ```'],
+            'string' => $this->checkString($value, $rule, $path),
             'number' => is_int($value) || is_float($value) ? [] : [$path . ' must be a number'],
             'bool' => is_bool($value) ? [] : [$path . ' must be true or false'],
             'id' => is_int($value) || (is_string($value) && trim($value) !== '' && $this->hasNoFence($value))
@@ -122,12 +162,49 @@ class ArtifactBlockService
     }
 
     /**
+     * A `maxLength` here is a rendering contract, not a preference.
+     *
+     * The client validates the same block with its own schema and refuses to draw it if a field
+     * is over — an action label at 42 characters came back as
+     * `items.0.label: Too big: expected string to have <=40 characters`, and the whole artifact
+     * was dropped after the agent had already spent the turn building it. Checking it here turns
+     * a dead render into an error the model can act on while it still has the turn, and the
+     * limit is repeated in the component's `usage()` so it usually never gets this far.
+     *
+     * @param array<string, mixed> $rule
+     * @return list<string>
+     */
+    private function checkString(mixed $value, array $rule, string $path): array
+    {
+        if (! is_string($value) || ! $this->hasNoFence($value)) {
+            return [$path . ' must be a string without ```'];
+        }
+
+        $max = $rule['maxLength'] ?? null;
+
+        if ($max !== null && mb_strlen($value) > $max) {
+            return [sprintf(
+                '%s is %d characters; the renderer caps it at %d — shorten it, do not drop the entry',
+                $path,
+                mb_strlen($value),
+                $max
+            )];
+        }
+
+        return [];
+    }
+
+    /**
      * @param array<string, mixed> $rule
      * @param callable(mixed, string): list<string> $checkItem
      * @return list<string>
      */
-    private function checkList(mixed $value, array $rule, string $path, callable $checkItem): array
-    {
+    private function checkList(
+        mixed $value,
+        array $rule,
+        string $path,
+        callable $checkItem
+    ): array {
         if (! is_array($value) || ! array_is_list($value)) {
             return [$path . ' must be an array'];
         }

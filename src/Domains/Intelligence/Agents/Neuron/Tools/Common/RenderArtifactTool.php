@@ -9,20 +9,26 @@ use Kanvas\Intelligence\Agents\Enums\ArtifactComponentEnum;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\DecodesJsonObjectParam;
 use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
 use Kanvas\Intelligence\Tools\Traits\ReportsToolOutcome;
+use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
+use NeuronAI\Tools\TrackByInputs;
 use Override;
 
 /**
  * Only useful where the reply renders `kanvas-artifact` blocks (the admin userChat) — anywhere else the
  * reader gets raw JSON. HasKanvasAgentBehavior::getTools() drops it off those surfaces, catalog grant or not.
+ *
+ * Budgeted per inputs: a rich reply (a quarterly report) renders more than 10 distinct blocks, and a
+ * per-name budget aborted the whole turn on the 11th (KANVAS-ECOSYSTEM-6H4).
  */
 #[AgentTool(name: 'Render Artifact', category: 'ecosystem')]
-class RenderArtifactTool extends Tool
+class RenderArtifactTool extends Tool implements HasRunKey
 {
     use DecodesJsonObjectParam;
     use ReportsToolOutcome;
+    use TrackByInputs;
 
     public function __construct()
     {

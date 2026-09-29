@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\OpenCode\Services;
 
+use BackedEnum;
 use Baka\Contracts\AppInterface;
 use Baka\Contracts\CompanyInterface;
 use Baka\Contracts\HashTableInterface;
 use Baka\Support\Str;
+use Closure;
 use Kanvas\Connectors\OpenCode\Concerns\PreparesHostDirectory;
 use Kanvas\Connectors\OpenCode\Concerns\ResolvesAgentMachine;
 use Kanvas\Connectors\OpenCode\DataTransferObject\CodingSetupCheck;
@@ -201,25 +203,49 @@ class CodingRuntimeReadinessService
     private function appChecks(AppInterface $app, ?Agent $agent, ?CompanyInterface $company): array
     {
         $checks = [];
+        $ownProvider = $agent !== null && new CodingModelResolver($app, $agent)->hasOwnProvider();
 
-        foreach ([ConfigurationEnum::IMAGE, ConfigurationEnum::PROVIDER_ID] as $setting) {
-            $checks[] = $this->settingOf($app, $setting) === null
-                ? $this->runSetup($app, $setting)
-                : CodingSetupCheck::pass($setting->value, 'app');
+        $checks[] = $this->settingOf($app, ConfigurationEnum::IMAGE) === null
+            ? $this->runSetup($app, ConfigurationEnum::IMAGE)
+            : CodingSetupCheck::pass(ConfigurationEnum::IMAGE->value, 'app');
+
+        if ($ownProvider) {
+            $checks[] = CodingSetupCheck::pass(AgentCustomFieldEnum::PROVIDER_ID->value, 'agent');
+        } else {
+            $checks[] = $this->settingOf($app, ConfigurationEnum::PROVIDER_ID) === null
+                ? $this->runSetup($app, ConfigurationEnum::PROVIDER_ID)
+                : CodingSetupCheck::pass(ConfigurationEnum::PROVIDER_ID->value, 'app');
         }
 
         $checks[] = $this->modelCheck($app, $agent);
         $checks[] = $this->keyCheck($app, $agent, $company);
-        $checks = [...$checks, ...$this->transportChecks($app)];
+        $checks = [
+            ...$checks,
+            ...($ownProvider
+                ? $this->transportChecks(
+                    'agent',
+                    [
+                        AgentCustomFieldEnum::PROVIDER_NPM,
+                        AgentCustomFieldEnum::PROVIDER_BASE_URL,
+                        AgentCustomFieldEnum::PROVIDER_ENV_VAR,
+                    ],
+                    fn (AgentCustomFieldEnum $field): ?string => $this->agentSetting($agent, $field),
+                )
+                : $this->transportChecks(
+                    'app',
+                    [
+                        ConfigurationEnum::PROVIDER_NPM,
+                        ConfigurationEnum::PROVIDER_BASE_URL,
+                        ConfigurationEnum::PROVIDER_ENV_VAR,
+                    ],
+                    fn (ConfigurationEnum $setting): ?string => $this->settingOf($app, $setting),
+                )),
+        ];
 
-        foreach ([
-            [ConfigurationEnum::PROVIDER_ENV_VAR, 'OPENAI_API_KEY'],
-            [ConfigurationEnum::WORKSPACE_ROOT, self::DEFAULT_WORKSPACE_ROOT],
-        ] as [$setting, $default]) {
-            $checks[] = $this->settingOf($app, $setting) === null
-                ? CodingSetupCheck::usingDefault($setting->value, 'app', $default)
-                : CodingSetupCheck::pass($setting->value, 'app');
-        }
+        $root = ConfigurationEnum::WORKSPACE_ROOT;
+        $checks[] = $this->settingOf($app, $root) === null
+            ? CodingSetupCheck::usingDefault($root->value, 'app', self::DEFAULT_WORKSPACE_ROOT)
+            : CodingSetupCheck::pass($root->value, 'app');
 
         return $checks;
     }
@@ -247,6 +273,20 @@ class CodingRuntimeReadinessService
     private function keyCheck(AppInterface $app, ?Agent $agent, ?CompanyInterface $company): CodingSetupCheck
     {
         $key = ConfigurationEnum::PROVIDER_API_KEY->value;
+
+        if ($agent !== null && new CodingModelResolver($app, $agent)->hasOwnProvider()) {
+            return $this->agentHasOwnKey($agent)
+                ? CodingSetupCheck::pass(AgentCustomFieldEnum::PROVIDER_API_KEY->value, 'agent')
+                : CodingSetupCheck::needsAdmin(
+                    AgentCustomFieldEnum::PROVIDER_API_KEY->value,
+                    'agent',
+                    'This agent has its own provider but no key of its own, and the tenant key is never '
+                        . 'sent to a provider it was not issued by.',
+                    'Set ' . AgentCustomFieldEnum::PROVIDER_API_KEY->value . ' or '
+                        . AgentCustomFieldEnum::PROVIDER_KEY_NAME->value . ' on the agent.',
+                );
+        }
+
         $scope = $this->resolvedKey($app, $agent, $company);
 
         return $scope === null
@@ -262,48 +302,45 @@ class CodingRuntimeReadinessService
     }
 
     /**
-     * How opencode reaches the provider. The compatible adapter has to be told where to talk;
-     * `@ai-sdk/openai` already knows. With neither, `SessionConfigBuilder` cannot declare the provider
-     * and refuses to write the config — so the pair fails as one item rather than twice.
+     * How opencode reaches the provider — the app's settings, or an agent's own. The compatible adapter
+     * has to be told where to talk; `@ai-sdk/openai` already knows. Without a base URL on the compatible
+     * adapter, `SessionConfigBuilder` cannot declare the provider and refuses to write the config.
      *
+     * @param array{0: BackedEnum, 1: BackedEnum, 2: BackedEnum} $fields npm, base URL, env var
+     * @param Closure(BackedEnum): ?string $read
      * @return list<CodingSetupCheck>
      */
-    private function transportChecks(AppInterface $app): array
+    private function transportChecks(string $scope, array $fields, Closure $read): array
     {
-        $npm = ConfigurationEnum::PROVIDER_NPM;
-        $base = ConfigurationEnum::PROVIDER_BASE_URL;
-        $npmValue = $this->settingOf($app, $npm);
-        $baseValue = $this->settingOf($app, $base);
-
-        if ($npmValue === null && $baseValue === null) {
-            return [
-                CodingSetupCheck::needsCommand(
-                    $npm->value . ' or ' . $base->value,
-                    'app',
-                    'Neither ' . $npm->value . ' nor ' . $base->value . ' is set, so the provider cannot be '
-                        . 'declared and every turn fails with ModelUnavailableError.',
-                    'Set ' . $npm->value . ' to @ai-sdk/openai — its Responses API is what codex and '
-                        . 'gpt-6-luna tool calls need. Or set ' . $base->value
-                        . ' to https://api.openai.com/v1 to keep the compatible adapter.',
-                ),
-            ];
-        }
+        [$npm, $base, $envVar] = $fields;
+        $npmValue = $read($npm);
+        $baseValue = $read($base);
+        $compatible = $npmValue === null || $npmValue === CodingModelResolver::DEFAULT_NPM;
 
         return [
             $npmValue !== null
-                ? CodingSetupCheck::pass($npm->value, 'app')
-                : CodingSetupCheck::usingDefault(
-                    $npm->value,
-                    'app',
-                    '@ai-sdk/openai-compatible, pointed at ' . $baseValue,
-                ),
-            $baseValue !== null
-                ? CodingSetupCheck::pass($base->value, 'app')
-                : CodingSetupCheck::usingDefault(
+                ? CodingSetupCheck::pass($npm->value, $scope)
+                : CodingSetupCheck::usingDefault($npm->value, $scope, CodingModelResolver::DEFAULT_NPM),
+            match (true) {
+                $baseValue !== null => CodingSetupCheck::pass($base->value, $scope),
+                $compatible => CodingSetupCheck::needsCommand(
                     $base->value,
-                    'app',
+                    $scope,
+                    'No base URL for ' . CodingModelResolver::DEFAULT_NPM . ', so the provider cannot be '
+                        . 'declared and every turn fails with ModelUnavailableError.',
+                    'Set ' . $base->value . ' (https://api.openai.com/v1, https://openrouter.ai/api/v1, ...), or '
+                        . $npm->value . ' to @ai-sdk/openai — its Responses API is what codex and gpt-6-luna '
+                        . 'tool calls need.',
+                ),
+                default => CodingSetupCheck::usingDefault(
+                    $base->value,
+                    $scope,
                     'none needed — ' . $npmValue . ' carries its own endpoint',
                 ),
+            },
+            $read($envVar) !== null
+                ? CodingSetupCheck::pass($envVar->value, $scope)
+                : CodingSetupCheck::usingDefault($envVar->value, $scope, CodingModelResolver::DEFAULT_ENV_VAR),
         ];
     }
 
@@ -328,9 +365,15 @@ class CodingRuntimeReadinessService
         return Str::trimToNull((string) $holder->get($setting->value));
     }
 
+    private function agentHasOwnKey(Agent $agent): bool
+    {
+        return $this->agentSetting($agent, AgentCustomFieldEnum::PROVIDER_API_KEY) !== null
+            || $this->agentSetting($agent, AgentCustomFieldEnum::PROVIDER_KEY_NAME) !== null;
+    }
+
     private function resolvedKey(AppInterface $app, ?Agent $agent, ?CompanyInterface $company): ?string
     {
-        if ($agent !== null && $this->agentSetting($agent, AgentCustomFieldEnum::PROVIDER_API_KEY) !== null) {
+        if ($agent !== null && $this->agentHasOwnKey($agent)) {
             return 'agent';
         }
 

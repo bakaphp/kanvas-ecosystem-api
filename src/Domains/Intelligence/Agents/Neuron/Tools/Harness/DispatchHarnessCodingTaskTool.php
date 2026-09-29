@@ -84,14 +84,29 @@ class DispatchHarnessCodingTaskTool extends Tool implements HasRunKey, RequiresS
                     . 'known file.',
                 required: false,
             ),
+            new ToolProperty(
+                name: 'attachments',
+                type: PropertyType::STRING,
+                description: 'Files to hand the coding agent, as comma-separated filesystem_ids — take them '
+                    . 'from the "[Attached file ... filesystem_id: N]" notes on the messages you were sent. '
+                    . 'Use it for designs, mockups, screenshots and documents the work has to follow: the '
+                    . 'coding agent cannot see anything you only describe in words. The files are placed '
+                    . 'beside the repository, never committed. Mention them in the task, e.g. "match the '
+                    . 'attached design".',
+                required: false,
+            ),
         ];
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function __invoke(string $task, ?string $repository = null, ?string $references = null): array
-    {
+    public function __invoke(
+        string $task,
+        ?string $repository = null,
+        ?string $references = null,
+        ?string $attachments = null
+    ): array {
         try {
             $record = new DispatchHarnessTaskAction(
                 agent: $this->agent,
@@ -100,6 +115,7 @@ class DispatchHarnessCodingTaskTool extends Tool implements HasRunKey, RequiresS
                 requestedBy: $this->requestedBy,
                 session: $this->session,
                 referenceSlugs: $this->splitReferenceSlugs($references),
+                attachmentIds: $this->splitAttachmentIds($attachments),
             )->execute();
         } catch (Throwable $e) {
             // Spelling out the wrong move, because the model reliably finds it: told it cannot touch a
@@ -126,5 +142,15 @@ class DispatchHarnessCodingTaskTool extends Tool implements HasRunKey, RequiresS
             guidance: 'The job is running in the background. Use check_self_hosted_coding_job with this '
                 . 'job_id; it advances between turns, so checking twice in one turn tells you nothing new.'
         );
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function splitAttachmentIds(?string $attachments): array
+    {
+        preg_match_all('/\d+/', (string) $attachments, $matches);
+
+        return array_map('intval', $matches[0]);
     }
 }

@@ -42,6 +42,30 @@ a third CRM connector lands and makes it three copies.
 
 ## Hard rules specific to this tree
 
+### An external-id lookup must use `withTrashed()` — dropping `notDeleted()` does nothing
+
+Models like `People` use `Baka\Traits\SoftDeletesTrait`, which registers a **global scope** that
+appends `is_deleted = 0` to every query. So an importer that resolves "legacy id X is this Kanvas
+row" cannot reach a row it previously imported flagged deleted:
+
+```php
+// WRONG — the global scope re-adds `is_deleted = 0`, the lookup returns null,
+// and the importer creates ANOTHER row. Once per run, forever.
+$existing = People::where('id', $peopleId)->fromApp($app)->fromCompany($company)->first();
+
+// CORRECT
+$existing = People::withTrashed()->where('id', $peopleId)->fromApp($app)->fromCompany($company)->first();
+```
+
+Removing an explicit `->notDeleted()` is **not** a fix, and a comment saying it is will outlive the
+person who wrote it. Real incident: the Intras importer reached 74 People rows for 24 soft-deleted
+participants in one agency, and the bug was invisible at the aggregate level because 718 live
+participants mapped 1:1. See `ParticipantDedupByLegacyIdTest`.
+
+The rule generalises: **if an importer can write a row in a soft-deleted state, every lookup that
+must find that row again needs `withTrashed()`** — otherwise the external-id map silently degrades
+into "create a duplicate".
+
 ### An inbound channel that answers must debounce — use the shared burst layer
 
 A connector that runs an agent on inbound messages **must not** answer once per message. People send

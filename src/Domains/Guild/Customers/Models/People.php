@@ -11,6 +11,7 @@ use Baka\Traits\UuidTrait;
 use Baka\Users\Contracts\UserInterface;
 use Carbon\Carbon;
 use Dyrynda\Database\Support\CascadeSoftDeletes;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Notifications\Notifiable;
 use Kanvas\AdminLinks\Enums\AdminLinkSectionEnum;
 use Kanvas\AdminLinks\Traits\HasAdminLink;
+use Kanvas\Analytics\Reporting\Observers\ReportSourceObserver;
 use Kanvas\Approvals\Traits\HasApprovals;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
@@ -32,6 +34,7 @@ use Kanvas\Guild\Customers\DataTransferObject\DriverLicense;
 use Kanvas\Guild\Customers\Enums\AddressTypeEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Factories\PeopleFactory;
+use Kanvas\Guild\Customers\Observers\PeopleObserver;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Models\BaseModel;
 use Kanvas\Guild\Organizations\Models\Organization;
@@ -70,6 +73,7 @@ use Override;
  * @property string|null $instagram_contact_id
  * @property string|null $apple_contact_id
  */
+#[ObservedBy([PeopleObserver::class, ReportSourceObserver::class])]
 class People extends BaseModel
 {
     use HasAdminLink;

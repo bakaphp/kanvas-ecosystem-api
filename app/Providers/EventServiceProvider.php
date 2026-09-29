@@ -130,7 +130,7 @@ class EventServiceProvider extends ServiceProvider
         ProductsTypes::observe(ProductsTypesObserver::class);
         VariantsChannels::observe(VariantsChannelObserver::class);
         PeopleEmploymentHistory::observe(PeopleEmploymentHistoryObserver::class);
-        People::observe(PeopleObserver::class);
+        #People::observe(PeopleObserver::class);
         AppsStripeCustomer::observe(AppsStripeCustomerObserver::class);
     }
 

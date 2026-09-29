@@ -39,7 +39,7 @@ trait ResolvesCodingRepositoryForTool
             $repository = new RepoAllowListService($agent)->resolveOrFail(trim($identifier));
         } catch (Throwable $e) {
             return $this->notFound(
-                $e->getMessage(),
+                ['error' => $e->getMessage()],
                 guidance: 'Nothing was read. Do not guess at another repository name.'
             );
         }

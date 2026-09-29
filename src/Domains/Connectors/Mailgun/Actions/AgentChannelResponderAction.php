@@ -71,6 +71,10 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
             sourceChannel: $this->channel,
             sourceMessage: $this->message,
             persistConversation: false,
+            // The fallback is written for staff ("narrow it down — an exact name, email, or date range"),
+            // and here it would be emailed to whoever wrote in — a vendor got it (KANVAS-ECOSYSTEM-6GW).
+            // A failed turn sends nothing; the webhook call is marked failed and reported instead.
+            fallbackOnFailure: false,
         )->execute();
 
         $responseText = ChatHelper::extractTextFromResponse($responseContent);

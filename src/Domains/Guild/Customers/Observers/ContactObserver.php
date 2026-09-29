@@ -38,7 +38,10 @@ class ContactObserver
 
     private function runWorkflow(Contact $contact): void
     {
-        if (! $contact->people->company->isAIEnabled()) {
+        // `people` resolves to null when the person is soft-deleted, which happens on import of
+        // historical records that were deleted at the source. A contact with no reachable person
+        // has no workflow context, so there is nothing to fire.
+        if ($contact->people?->company?->isAIEnabled() !== true) {
             return;
         }
 
