@@ -6,6 +6,6 @@ namespace Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums;
 
 enum PriceDisclosureConfigurationEnum: string
 {
-    /** Company setting: the dealer is under the controlled-topic regime, so payment and add-on questions hand off. */
+    /** Company setting: turns the vehicle_price_disclosure tool on for the dealer. Off, the tool is a no-op. */
     case ENABLED = 'price_disclosure_enabled';
 }

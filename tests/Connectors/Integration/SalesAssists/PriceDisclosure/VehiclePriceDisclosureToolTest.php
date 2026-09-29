@@ -57,6 +57,7 @@ final class VehiclePriceDisclosureToolTest extends TestCase
         $this->company = $this->user->getCurrentCompany();
 
         new InventorySetup($this->kanvasApp, $this->user, $this->company)->run();
+        $this->company->set(PriceDisclosureConfigurationEnum::ENABLED->value, 1);
     }
 
     /**
@@ -179,7 +180,6 @@ final class VehiclePriceDisclosureToolTest extends TestCase
 
     public function testAMonthlyPaymentQuestionIsSuppressedBeforeAnyPriceIsRendered(): void
     {
-        $this->company->set(PriceDisclosureConfigurationEnum::ENABLED->value, 1);
         $variant = $this->makePricedVariant(25000.0);
         $lead = $this->makeLead($variant->sku);
         $this->makeTemplate(PriceDisclosureChannelEnum::SMS, 'en');
@@ -192,7 +192,6 @@ final class VehiclePriceDisclosureToolTest extends TestCase
 
     public function testAnAddOnQuestionIsSuppressed(): void
     {
-        $this->company->set(PriceDisclosureConfigurationEnum::ENABLED->value, 1);
         $variant = $this->makePricedVariant(25000.0);
         $lead = $this->makeLead($variant->sku);
         $this->makeTemplate(PriceDisclosureChannelEnum::SMS, 'en');
@@ -205,7 +204,6 @@ final class VehiclePriceDisclosureToolTest extends TestCase
 
     public function testAPriceQuestionStillRendersTheDisclosure(): void
     {
-        $this->company->set(PriceDisclosureConfigurationEnum::ENABLED->value, 1);
         $variant = $this->makePricedVariant(25000.0);
         $lead = $this->makeLead($variant->sku);
         $this->makeTemplate(PriceDisclosureChannelEnum::SMS, 'en');
@@ -217,21 +215,23 @@ final class VehiclePriceDisclosureToolTest extends TestCase
         $this->assertStringContainsString('$25,000.00', $result['message']);
     }
 
-    public function testInboundIntentIsIgnoredForADealerOutsideTheRegime(): void
+    public function testTheToolIsANoOpForADealerWithoutTheFlag(): void
     {
+        $this->company->del(PriceDisclosureConfigurationEnum::ENABLED->value);
         $variant = $this->makePricedVariant(25000.0);
         $lead = $this->makeLead($variant->sku);
-        $this->makeTemplate(PriceDisclosureChannelEnum::SMS, 'en');
         $this->makeInboundMessage($lead, '¿En cuánto me queda al mes?');
 
         $result = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms');
 
-        $this->assertTrue($result['success']);
+        $this->assertSame('noop', $result['outcome']);
+        $this->assertFalse($result['enabled']);
+        $this->assertArrayNotHasKey('message', $result);
+        $this->assertSame(0, LeadHandOffNotification::query()->where('leads_id', $lead->getId())->count());
     }
 
     public function testTheAgentsOwnLastMessageIsNotReadAsCustomerIntent(): void
     {
-        $this->company->set(PriceDisclosureConfigurationEnum::ENABLED->value, 1);
         $variant = $this->makePricedVariant(25000.0);
         $lead = $this->makeLead($variant->sku);
         $this->makeTemplate(PriceDisclosureChannelEnum::SMS, 'en');

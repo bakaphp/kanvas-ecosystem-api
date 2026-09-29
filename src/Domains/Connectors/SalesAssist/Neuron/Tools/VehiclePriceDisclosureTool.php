@@ -8,6 +8,7 @@ use Baka\Support\Str;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Actions\RenderPriceDisclosureAction;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Actions\SuppressAgentReplyAction;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureChannelEnum;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureReasonEnum;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Services\PriceDisclosureReplyGate;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Services\VehiclePriceService;
@@ -91,6 +92,13 @@ class VehiclePriceDisclosureTool extends Tool implements HasRunKey
             return $result;
         }
         $lead = $result;
+
+        if (! (bool) $lead->company->get(PriceDisclosureConfigurationEnum::ENABLED->value)) {
+            return $this->noop(
+                ['enabled' => false],
+                guidance: 'Price disclosure is not enabled for this dealer. Answer the customer as you normally would.',
+            );
+        }
 
         $disclosureChannel = PriceDisclosureChannelEnum::tryFrom(strtolower(trim($channel)));
         if ($disclosureChannel === null) {

@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\SalesAssist\PriceDisclosure\Services;
 
 use Baka\Support\Str;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\MessageIntentEnum;
-use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureReasonEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Social\Messages\Repositories\MessagesRepository;
@@ -29,10 +28,6 @@ class PriceDisclosureReplyGate
      */
     public function evaluate(Lead $lead): ?array
     {
-        if (! (bool) $lead->company->get(PriceDisclosureConfigurationEnum::ENABLED->value)) {
-            return null;
-        }
-
         $inbound = $this->lastCustomerMessage($lead);
         if ($inbound === null) {
             return null;
