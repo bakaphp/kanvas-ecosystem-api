@@ -450,6 +450,7 @@ ansible-playbook playbooks/development-deploy.yaml \
 ```
 
 ## Working with kanvas
+- [Website](https://kanvas.dev)
 - [Coding guideline](https://github.com/bakaphp/kanvas-ecosystem-api/wiki/Coding-Guidelines)
 - [Wiki](https://github.com/alexeymezenin/laravel-best-practices#follow-laravel-naming-conventions)
 - [TypeScript SDK](https://github.com/bakaphp/kanvas-core-js)
