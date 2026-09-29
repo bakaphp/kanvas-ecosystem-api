@@ -9,9 +9,9 @@ use Kanvas\Analytics\Reporting\DataTransferObject\ReportColumn;
 use Kanvas\Analytics\Reporting\Enums\ReportGrainEnum;
 use Kanvas\Analytics\Reporting\Services\ReportSchemaService;
 use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Intras\Reporting\IntrasReportDefinitionProvider;
 use Kanvas\Connectors\Intras\Reporting\EjecutivoDefinition;
 use Kanvas\Connectors\Intras\Reporting\InscripcionDefinition;
+use Kanvas\Connectors\Intras\Reporting\IntrasReportDefinitionProvider;
 use PHPUnit\Framework\TestCase;
 
 class ReportSchemaServiceTest extends TestCase

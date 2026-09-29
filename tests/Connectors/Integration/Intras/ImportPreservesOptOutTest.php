@@ -7,8 +7,8 @@ namespace Tests\Connectors\Integration\Intras;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Intras\Actions\PullParticipantsFromIntrasAction;
-use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\People;
 use Tests\TestCase;
 

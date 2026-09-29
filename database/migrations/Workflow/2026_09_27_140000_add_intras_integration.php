@@ -6,19 +6,9 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-/**
- * Register the Intras/SIPGO connector so it can be configured from the UI.
- *
- * `apps_id = 0` makes it a platform-wide integration any app can enable, which is how every
- * other connector here is registered — the per-app credentials live on the company's
- * integration row, not on this one.
- *
- * The `config` shape is what the setup form renders from. These four keys are exactly what
- * `Intras\Client` reads, and it refuses to open a connection without host and database, so those
- * two are required and the credentials are not — a legacy database reachable without them is
- * unusual but valid.
- */
 return new class () extends Migration {
+    protected $connection = 'workflow';
+
     private const string NAME = 'intras';
     private const string HANDLER = 'Kanvas\\Connectors\\Intras\\Handlers\\IntrasHandler';
 

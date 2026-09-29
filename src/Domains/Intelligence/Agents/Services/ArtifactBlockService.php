@@ -32,9 +32,6 @@ class ArtifactBlockService
     }
 
     /**
-     * @param array<string, mixed> $props
-     */
-    /**
      * Drop any `kanvas-artifact` block in a reply that the client would refuse to draw.
      *
      * Validating inside `render_artifact` only covers blocks the tool produced. Nothing stops a
@@ -74,6 +71,9 @@ class ArtifactBlockService
         ) ?: $reply;
     }
 
+    /**
+     * @param array<string, mixed> $props
+     */
     public function render(ArtifactComponentEnum $component, ?string $title, array $props): string
     {
         $block = ['version' => 1, 'component' => $component->value];

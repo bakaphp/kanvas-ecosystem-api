@@ -66,8 +66,7 @@ class ReportSchemaService
         int $appId,
         bool $prune = false,
         bool $allowNarrowing = false
-    ): array
-    {
+    ): array {
         $table = $this->tableFor($definition, $appId);
 
         if (! $this->tableExists($table)) {
