@@ -188,6 +188,7 @@ session provisions, the turn runs, and the model answers from opencode's own hos
 | `CODING_PROVIDER_API_KEY` / `CODING_PROVIDER_KEY_NAME` | no | Agent's own key instead of the app's. Rotating it changes `kanvas.keyfp` and forces a container rebuild. Required with `CODING_PROVIDER_ID`. |
 | `CODING_ALLOWED_REPOS` | no | Settings (base branch, rules, protected paths), **not** a gate — the token is the gate. |
 | `CODING_ALLOW_TRUNK_PUSH` | no | Off by default. The only way a push reaches main/master/develop/... |
+| `CODING_GIT_AUTHOR_NAME` / `_EMAIL` | no | Commit author + committer; default `{agent name} <agent@kanvas.dev>`. Set when a deploy platform (Vercel) blocks commits from an email no team member owns: any email via the admin command `kanvas:coding:git-identity`, or the agent's `set_coding_commit_identity` tool, which can only pick the requesting human (`requestingHuman()`, never the agent's own user) or reset — it deliberately takes no email input. The host's `git config` is never consulted — the push passes `-c user.*` on every commit. |
 | `CODING_SYSTEM_PROMPT` | no | Appended to the agent document. |
 | `CODING_CONTAINER_PORT` / `_PASSWORD` | never set by hand | Written by the provisioner. |
 
