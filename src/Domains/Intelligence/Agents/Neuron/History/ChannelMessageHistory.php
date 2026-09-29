@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\History;
 
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
+use Kanvas\Intelligence\Agents\ChatHistory\KanvasTokenCounter;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message as SocialMessage;
 use Kanvas\Users\Models\Users;
@@ -32,7 +33,7 @@ class ChannelMessageHistory extends AbstractChatHistory
         private readonly Channel $channel,
         int $contextWindow = 50000,
     ) {
-        parent::__construct($contextWindow);
+        parent::__construct($contextWindow, KanvasTokenCounter::trimmer());
         $this->load();
     }
 

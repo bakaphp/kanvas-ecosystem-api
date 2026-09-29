@@ -33,7 +33,7 @@ class RedisAgentChatHistory extends AbstractChatHistory
         $this->entityId = $entity->getKey();
         $this->externalReferenceId = $externalReferenceId;
 
-        parent::__construct($contextWindow);
+        parent::__construct($contextWindow, KanvasTokenCounter::trimmer());
         $this->loadFromDatabase();
     }
 

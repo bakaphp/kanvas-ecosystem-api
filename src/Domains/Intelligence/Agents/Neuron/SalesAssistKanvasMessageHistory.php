@@ -13,6 +13,7 @@ use Kanvas\Guild\Customers\Services\PeopleChannelService;
 use Kanvas\Guild\Leads\Enums\LeadMessageTypeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Services\LeadChannelService;
+use Kanvas\Intelligence\Agents\ChatHistory\KanvasTokenCounter;
 use Kanvas\Intelligence\Agents\ChatHistory\RebuildsTrimmedHistory;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Agents\Services\ModelContextWindowService;
@@ -71,7 +72,7 @@ class SalesAssistKanvasMessageHistory extends AbstractChatHistory
         private readonly ?Lead $currentLead = null,
         int $contextWindow = ModelContextWindowService::MIN_HISTORY_TOKENS,
     ) {
-        parent::__construct($contextWindow);
+        parent::__construct($contextWindow, KanvasTokenCounter::trimmer());
         $this->load();
     }
 
