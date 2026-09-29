@@ -192,6 +192,8 @@ class FacilitadorDefinition implements RefreshableReportInterface
     }
 
     /**
+     * @param array<int, int> $peopleIds
+     *
      * @return array<int, array<string, string>>
      */
     protected function contactsFor(array $peopleIds): array
@@ -214,11 +216,6 @@ class FacilitadorDefinition implements RefreshableReportInterface
         return $map;
     }
 
-    /**
-     * @param array<int, int> $peopleIds
-     *
-     * @return array<int, array<int, string>>
-     */
     /**
      * A custom field holding a JSON array comes back as a string; anything else is not a list.
      *
