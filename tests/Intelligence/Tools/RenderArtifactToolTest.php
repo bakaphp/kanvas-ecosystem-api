@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Intelligence\Tools;
 
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
+use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
 use Tests\TestCase;
 
 final class RenderArtifactToolTest extends TestCase
@@ -163,5 +164,110 @@ final class RenderArtifactToolTest extends TestCase
         $this->assertFalse($missing['success']);
         $this->assertStringContainsString('props.id is required', $missing['error']);
         $this->assertFalse($fenced['success'], 'A fence in the id would close the block early');
+    }
+
+    /**
+     * The client validates the rendered block against its own schema and drops the whole
+     * artifact if a label is over 40 characters — "Ver eventos en riesgo (próximas 5 semanas)"
+     * is 42, and the agent lost a turn's work to `items.0.label: Too big`. The server used to
+     * pass it, so the two schemas disagreed and only the client said so, too late to fix.
+     */
+    public function testAnActionLabelOverTheRendererLimitIsRejectedHere(): void
+    {
+        $result = new RenderArtifactTool()(
+            component: 'actions',
+            props: json_encode(['items' => [
+                ['label' => 'Ver eventos en riesgo (próximas 5 semanas)', 'message' => 'Eventos en riesgo'],
+            ]]),
+        );
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContainsString('props.items[0].label is 42 characters', $result['error']);
+        $this->assertStringContainsString('caps it at 40', $result['error']);
+        $this->assertStringContainsString('shorten it', $result['error'], 'the fix must be actionable');
+    }
+
+    public function testAnActionLabelAtTheLimitStillRenders(): void
+    {
+        $result = new RenderArtifactTool()(
+            component: 'actions',
+            props: json_encode(['items' => [
+                ['label' => str_repeat('a', 40), 'message' => 'exactly at the cap'],
+                ['label' => 'Eventos en riesgo (5 semanas)', 'message' => 'well under it'],
+            ]]),
+        );
+
+        $this->assertTrue($result['success']);
+    }
+
+    /**
+     * `render_artifact` validates what it produces, but nothing stops the model writing the
+     * fence by hand — and it does. A reply shipped an `actions` block whose third item was the
+     * assistant's own closing question where a label goes; the client refused the artifact and
+     * the reader lost the whole card instead of the one bad item.
+     *
+     * The block goes, the prose stays. That is the version of the answer still worth reading.
+     */
+    public function testAHandWrittenBlockTheClientWouldRejectIsStrippedFromTheReply(): void
+    {
+        $block = json_encode([
+            'version' => 1,
+            'component' => 'actions',
+            'props' => ['items' => [
+                ['label' => 'Ver cotizaciones pendientes de la banca', 'message' => 'a'],
+                [
+                    'label' => '¿Deseas profundizar en alguna de estas empresas o enfocar el plan de acción'
+                        . ' en alguno de los tres frentes',
+                    'message' => 'b',
+                ],
+            ]],
+        ], JSON_UNESCAPED_UNICODE);
+
+        $reply = "Aquí está el análisis.\n\n```kanvas-artifact\n{$block}\n```\n\n¿Deseas profundizar?";
+        $stripped = new ArtifactBlockService()->stripInvalidBlocks($reply);
+
+        $this->assertStringNotContainsString('kanvas-artifact', $stripped);
+        $this->assertStringContainsString('Aquí está el análisis.', $stripped);
+        $this->assertStringContainsString('¿Deseas profundizar?', $stripped);
+    }
+
+    public function testAValidHandWrittenBlockSurvivesUntouched(): void
+    {
+        $block = json_encode([
+            'version' => 1,
+            'component' => 'actions',
+            'props' => ['items' => [['label' => 'Ver cotizaciones', 'message' => 'a']]],
+        ], JSON_UNESCAPED_UNICODE);
+
+        $reply = "Texto.\n\n```kanvas-artifact\n{$block}\n```\n\nFin.";
+
+        $this->assertSame($reply, new ArtifactBlockService()->stripInvalidBlocks($reply));
+    }
+
+    /**
+     * Only this fence is ours. A ```json block in an answer about code must survive.
+     */
+    public function testOtherFencedBlocksAreNotTouched(): void
+    {
+        $reply = "Mira:\n\n```json\n{\"a\": 1}\n```\n\nEso es todo.";
+
+        $this->assertSame($reply, new ArtifactBlockService()->stripInvalidBlocks($reply));
+    }
+
+    /**
+     * Counted in characters, not bytes — the labels are Spanish and an accent must not cost two.
+     */
+    public function testTheLimitCountsCharactersNotBytes(): void
+    {
+        $label = str_repeat('á', 40);
+
+        $this->assertSame(80, strlen($label), 'the fixture has to be multi-byte for this to mean anything');
+
+        $result = new RenderArtifactTool()(
+            component: 'actions',
+            props: json_encode(['items' => [['label' => $label, 'message' => 'accented']]]),
+        );
+
+        $this->assertTrue($result['success']);
     }
 }

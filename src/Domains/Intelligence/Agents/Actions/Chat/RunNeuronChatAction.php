@@ -17,6 +17,7 @@ use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Neuron\Middleware\BoundToolResultsMiddleware;
+use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
 use Kanvas\Intelligence\Agents\Services\AttachmentBudgetService;
 use Kanvas\Intelligence\Agents\Services\AttachmentDescriptionService;
 use Kanvas\Intelligence\Agents\Services\AttachmentFetchService;
@@ -180,7 +181,10 @@ class RunNeuronChatAction
             return $fallback;
         }
 
-        $content = $responseMessage->getContent() ?? '';
+        // A block the client cannot draw costs the reader the whole card, so it is removed here
+        // and the prose around it kept. `render_artifact` validates what it produces, but the
+        // model is free to write the fence by hand and routinely does — see stripInvalidBlocks().
+        $content = new ArtifactBlockService()->stripInvalidBlocks($responseMessage->getContent() ?? '');
 
         if (! $selfRecords) {
             // Record the model the agent resolved to so the daily rollup can price the

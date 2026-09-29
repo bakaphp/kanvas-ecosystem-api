@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Kanvas\Analytics\Reporting\Observers\ReportSourceObserver;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Currencies\Models\Currencies;
@@ -32,7 +33,7 @@ use Kanvas\Workflow\Traits\CanUseWorkflow;
 use Override;
 use Spatie\LaravelData\DataCollection;
 
-#[ObservedBy([EventVersionObserver::class])]
+#[ObservedBy([EventVersionObserver::class, ReportSourceObserver::class])]
 class EventVersion extends BaseModel
 {
     use CanUseWorkflow;

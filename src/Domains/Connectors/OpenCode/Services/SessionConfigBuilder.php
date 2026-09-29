@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\OpenCode\Services;
 
 use Baka\Contracts\AppInterface;
-use Baka\Support\Str;
 use Kanvas\Connectors\OpenCode\DataTransferObject\CodingRepository;
+use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\Agents\Models\Agent;
@@ -33,12 +33,6 @@ use Kanvas\Intelligence\Agents\Models\Agent;
  */
 class SessionConfigBuilder
 {
-    /**
-     * Chat completions, and anything OpenAI-shaped. `@ai-sdk/openai` is the other option and is
-     * required for the codex models, which only exist behind the Responses API.
-     */
-    private const string DEFAULT_PROVIDER_NPM = '@ai-sdk/openai-compatible';
-
     /**
      * Deny by default. Everything allowed here is either read-only or the repository's own toolchain —
      * the agent gets to run the tests it wrote, and nothing else.
@@ -96,8 +90,9 @@ class SessionConfigBuilder
         if ($model !== null && $provider === null) {
             throw new ValidationException(
                 'Cannot pin ' . $model . ': the provider cannot be declared. With '
-                . self::DEFAULT_PROVIDER_NPM . ' you must also set '
-                . ConfigurationEnum::PROVIDER_BASE_URL->value . ' (for OpenAI, https://api.openai.com/v1).'
+                . CodingModelResolver::DEFAULT_NPM . ' you must also set '
+                . ConfigurationEnum::PROVIDER_BASE_URL->value . ' (or ' . AgentCustomFieldEnum::PROVIDER_BASE_URL->value
+                . ' on an agent with its own provider; for OpenAI, https://api.openai.com/v1).'
             );
         }
 
@@ -123,9 +118,9 @@ class SessionConfigBuilder
     }
 
     /**
-     * The provider block, declared openai-compatible against whatever base URL the app configured.
-     * `env` names the variable holding the key — the key itself never enters this file, only the
-     * container's environment.
+     * The provider block, declared against whatever base URL the agent or app configured. `env` names
+     * the variable holding the key — the key itself never enters this file, only the container's
+     * environment.
      *
      * @return array<string, mixed>|null
      */
@@ -134,15 +129,12 @@ class SessionConfigBuilder
         $resolver = new CodingModelResolver($this->app, $this->agent);
         $id = $resolver->provider();
         $model = $resolver->model();
-        $baseUrl = Str::trimToNull((string) $this->app->get(ConfigurationEnum::PROVIDER_BASE_URL->value));
-        $envVar = Str::trimToNull((string) $this->app->get(ConfigurationEnum::PROVIDER_ENV_VAR->value))
-            ?? 'OPENAI_API_KEY';
-        $npm = Str::trimToNull((string) $this->app->get(ConfigurationEnum::PROVIDER_NPM->value))
-            ?? self::DEFAULT_PROVIDER_NPM;
+        $baseUrl = $resolver->baseUrl();
+        $npm = $resolver->npm();
 
         // Only the compatible adapter needs to be told where to talk: OpenAI's own package knows, and
         // pinning a baseURL on it is how you end up sending Responses API calls somewhere that has none.
-        $needsBaseUrl = $npm === self::DEFAULT_PROVIDER_NPM;
+        $needsBaseUrl = $npm === CodingModelResolver::DEFAULT_NPM;
 
         if ($id === null || $model === null || ($needsBaseUrl && $baseUrl === null)) {
             return null;
@@ -151,7 +143,7 @@ class SessionConfigBuilder
         $provider = [
             'name' => $id,
             'npm' => $npm,
-            'env' => [$envVar],
+            'env' => [$resolver->envVar()],
             'models' => [$model => ['name' => $model]],
         ];
 
@@ -188,7 +180,7 @@ class SessionConfigBuilder
 
     /**
      * A hard stop on the substitution problem rather than a check after the fact: every provider is
-     * denied except the one this app pinned, so a misconfigured session cannot quietly answer from
+     * denied except the one this agent pinned, so a misconfigured session cannot quietly answer from
      * opencode's own hosted model with the tenant's code in the prompt. The poller's `model.id`
      * assertion stays as the backstop — this is the lock, that is the alarm.
      *
@@ -196,7 +188,7 @@ class SessionConfigBuilder
      */
     private function providerPolicies(): array
     {
-        $provider = Str::trimToNull((string) $this->app->get(ConfigurationEnum::PROVIDER_ID->value));
+        $provider = new CodingModelResolver($this->app, $this->agent)->provider();
 
         if ($provider === null) {
             return [];

@@ -6,12 +6,16 @@ namespace Tests\Intelligence\Integration\Harness;
 
 use Baka\Contracts\CompanyInterface;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Facades\Queue;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\OpenCode\Enums\ConfigurationEnum;
+use Kanvas\Connectors\OpenCode\Services\SessionAttachmentService;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Filesystem\Models\Filesystem;
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\DispatchHarnessTaskAction;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Exceptions\HarnessTransportException;
+use Kanvas\Intelligence\AgentRuntime\Harness\Jobs\LaunchTaskSessionJob;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\NervousSystem\Plan\Enums\TaskStatusEnum;
@@ -147,6 +151,114 @@ class DispatchHarnessTaskActionTest extends TestCase
         new DispatchHarnessTaskAction(agent: $agent, task: "   \n ")->execute();
     }
 
+    public function testLaunchRecordsTheAttachmentsAndHandsTheirIdsToTheLaunchJob(): void
+    {
+        Queue::fake();
+
+        [$app, $company, $user] = $this->context();
+        $app->del(ConfigurationEnum::STATIC_ENDPOINT->value);
+
+        $agent = $this->makeAgent($app, $company, $user);
+        $design = $this->makeFilesystem($app, $company, $user);
+
+        $task = new DispatchHarnessTaskAction(
+            agent: $agent,
+            task: 'Implement the attached checkout design',
+            attachmentIds: [$design->getId()],
+        )->execute();
+
+        $this->assertSame([$design->getId()], $task->plan->input['attachment_ids'] ?? null);
+
+        Queue::assertPushed(
+            LaunchTaskSessionJob::class,
+            fn (LaunchTaskSessionJob $job): bool => $job->attachmentIds === [$design->getId()]
+        );
+    }
+
+    public function testAnUnknownAttachmentFailsTheDispatchBeforeAnythingIsRecorded(): void
+    {
+        Queue::fake();
+
+        [$app, $company, $user] = $this->context();
+        $app->del(ConfigurationEnum::STATIC_ENDPOINT->value);
+
+        $agent = $this->makeAgent($app, $company, $user);
+
+        try {
+            new DispatchHarnessTaskAction(
+                agent: $agent,
+                task: 'Implement a design that does not exist',
+                attachmentIds: [PHP_INT_MAX],
+            )->execute();
+            $this->fail('Expected an unknown attachment to be refused');
+        } catch (ValidationException $e) {
+            $this->assertStringContainsString('were not found in this company', $e->getMessage());
+        }
+
+        $this->assertSame(0, Plan::query()->where('agent_id', $agent->getId())->count());
+        Queue::assertNotPushed(LaunchTaskSessionJob::class);
+    }
+
+    public function testAnotherCompanysFileCannotBeAttached(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $foreign = $this->makeFilesystem(
+            $app,
+            $company,
+            $user,
+            companyId: $company->getId() + 1_000_000
+        );
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('were not found in this company');
+
+        new SessionAttachmentService($app, $company)->resolve([$foreign->getId()]);
+    }
+
+    public function testAnAttachmentThatCannotBeDownloadedFailsInsteadOfBeingSkipped(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $unreachable = $this->makeFilesystem($app, $company, $user);
+        // Private address: the SSRF guard refuses it before any connection is made.
+        $unreachable->url = 'http://10.0.0.1/checkout-design.png';
+        $unreachable->saveOrFail();
+
+        $service = new SessionAttachmentService($app, $company);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('could not be downloaded');
+
+        $service->load($service->resolve([$unreachable->getId()]));
+    }
+
+    public function testAttachmentsAreRefusedInAttachModeWhereThereIsNoWorkspaceToWriteThem(): void
+    {
+        [$app, $company, $user] = $this->context();
+        $app->set(ConfigurationEnum::STATIC_ENDPOINT->value, self::UNROUTABLE_ENDPOINT);
+
+        $agent = $this->makeAgent($app, $company, $user);
+        $design = $this->makeFilesystem($app, $company, $user);
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('Attachments need a launched coding workspace');
+
+        new DispatchHarnessTaskAction(
+            agent: $agent,
+            task: 'Implement the attached design',
+            attachmentIds: [$design->getId()],
+        )->execute();
+    }
+
+    public function testAttachingMoreThanTheLimitIsRefused(): void
+    {
+        [$app, $company] = $this->context();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('at most ' . SessionAttachmentService::MAX_FILES . ' attachments');
+
+        new SessionAttachmentService($app, $company)->resolve(range(1, SessionAttachmentService::MAX_FILES + 1));
+    }
+
     public function testTerminalSessionsDoNotCountTowardsTheCap(): void
     {
         [$app, $company, $user] = $this->context();
@@ -192,6 +304,27 @@ class DispatchHarnessTaskActionTest extends TestCase
         $session->saveOrFail();
 
         return $session;
+    }
+
+    private function makeFilesystem(
+        Apps $app,
+        CompanyInterface $company,
+        Users $user,
+        ?int $companyId = null
+    ): Filesystem {
+        $filesystem = new Filesystem();
+        $filesystem->apps_id = $app->getId();
+        $filesystem->companies_id = $companyId ?? $company->getId();
+        $filesystem->users_id = $user->getId();
+        $filesystem->name = 'checkout-design.png';
+        $filesystem->path = 'files/designs/' . uniqid() . '-checkout-design.png';
+        $filesystem->url = 'https://cdn.salesassist.io/files/designs/' . uniqid() . '-checkout-design.png';
+        $filesystem->file_type = 'png';
+        $filesystem->size = '1024';
+        $filesystem->is_deleted = 0;
+        $filesystem->saveOrFail();
+
+        return $filesystem;
     }
 
     private function makeAgent(Apps $app, CompanyInterface $company, Users $user): Agent

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Kanvas\Filesystem\Services;
 
-use Baka\Http\SafeUrlFetcher;
 use Baka\Support\Str;
 use Kanvas\Filesystem\Models\Filesystem;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
@@ -187,7 +186,7 @@ final class FileTextExtractor
             return '';
         }
 
-        return $this->extractFromBytes($this->readBytes($file));
+        return $this->extractFromBytes(FilesystemServices::readBytes($file));
     }
 
     /**
@@ -202,28 +201,6 @@ final class FileTextExtractor
             ?? $this->containerFormat($bytes);
 
         return $format === null ? '' : $this->extractFrom($bytes, $format);
-    }
-
-    /**
-     * Files already managed by Kanvas should be read through the app's configured storage client.
-     * Besides avoiding a second public HTTP hop, this keeps local/private S3 endpoints compatible
-     * with the SSRF guard, which correctly rejects RFC1918 and container-only hostnames.
-     */
-    private function readBytes(Filesystem $file): string
-    {
-        try {
-            $storage = new FilesystemServices($file->app, $file->company);
-            $bytes = $storage->getStorageByDisk()->get($file->path);
-
-            if ($bytes !== '') {
-                return $bytes;
-            }
-        } catch (Throwable) {
-            // Legacy/external Filesystem rows may not belong to the configured bucket. Their public
-            // URL remains supported, with the same SSRF validation and response-size cap as before.
-        }
-
-        return SafeUrlFetcher::fetch($file->url);
     }
 
     /** Split from {@see extract()} so the per-format parsing is reachable without a network fetch. */
