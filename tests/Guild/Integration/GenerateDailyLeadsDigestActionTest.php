@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Guild\Integration;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Leads\Actions\GenerateDailyLeadsDigestAction;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -46,5 +48,24 @@ final class GenerateDailyLeadsDigestActionTest extends TestCase
         $this->assertSame([], $result['top_vehicles']);
         $this->assertSame($recentLead->created_at->toDateString(), $result['by_day'][0]['date']);
         $this->assertFalse($result['sent']);
+    }
+
+    public function testItDoesNotSendDigestWhenThereAreNoLeadsInThePeriod(): void
+    {
+        Notification::fake();
+
+        $app = app(Apps::class);
+        $company = auth()->user()->getCurrentCompany();
+
+        Carbon::setTestNow(now()->addYears(10));
+        try {
+            $result = new GenerateDailyLeadsDigestAction($app, $company, 1)->execute();
+
+            $this->assertSame(0, $result['total']);
+            $this->assertFalse($result['sent']);
+            Notification::assertNothingSent();
+        } finally {
+            Carbon::setTestNow();
+        }
     }
 }

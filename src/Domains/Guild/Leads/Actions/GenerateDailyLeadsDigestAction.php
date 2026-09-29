@@ -91,7 +91,7 @@ class GenerateDailyLeadsDigestAction
             'sent' => false,
         ];
 
-        if (! $dryRun) {
+        if (! $dryRun && $total > 0) {
             $digest['sent'] = $this->sendDigest($digest);
         }
 
@@ -220,6 +220,10 @@ class GenerateDailyLeadsDigestAction
     /** @param array<string, mixed> $digest */
     private function sendDigest(array $digest): bool
     {
+        if (($digest['total'] ?? 0) === 0) {
+            return false;
+        }
+
         $recipients = array_values(array_filter(
             $this->settingList(ConfigurationEnum::DAILY_LEADS_DIGEST_RECIPIENTS),
             static fn (string $email): bool => filter_var($email, FILTER_VALIDATE_EMAIL) !== false

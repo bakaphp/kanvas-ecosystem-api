@@ -8,7 +8,7 @@ use Tests\TestCase;
 
 final class GuildDailyLeadsDigestCommandTest extends TestCase
 {
-    public function testItIgnoresUnknownAppAndCompanyFilters(): void
+    public function testItExecutesWithoutSymfonyCommandMethodCollision(): void
     {
         $this->artisan('kanvas-guild:daily-leads-digest', [
             '--app_id' => 2147483647,

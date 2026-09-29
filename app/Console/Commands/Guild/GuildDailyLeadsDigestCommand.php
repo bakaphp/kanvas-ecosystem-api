@@ -53,7 +53,7 @@ class GuildDailyLeadsDigestCommand extends Command
 
                 $enabled = $company->get(ConfigurationEnum::DAILY_LEADS_DIGEST_ENABLED->value)
                     ?? $app->get(ConfigurationEnum::DAILY_LEADS_DIGEST_ENABLED->value);
-                if (! $this->isEnabled($enabled)) {
+                if (! $this->isDigestEnabled($enabled)) {
                     continue;
                 }
 
@@ -69,9 +69,11 @@ class GuildDailyLeadsDigestCommand extends Command
                     $digest = new GenerateDailyLeadsDigestAction($app, $company, $hours);
                     $result = $digest->execute($dryRun);
                     $processed++;
-                    $deliveryStatus = $dryRun
-                        ? ' dry-run (delivery skipped)'
-                        : ($result['sent'] ? ' sent' : ' not sent (no recipients configured)');
+                    $deliveryStatus = $result['total'] === 0
+                        ? ' not sent (0 leads)'
+                        : ($dryRun
+                            ? ' dry-run (delivery skipped)'
+                            : ($result['sent'] ? ' sent' : ' not sent (no recipients configured)'));
                     $this->info(sprintf(
                         '%s app=%d company=%d leads=%d suspicious_emails=%d%s',
                         $dryRun ? 'Would send' : 'Processed',
@@ -99,7 +101,7 @@ class GuildDailyLeadsDigestCommand extends Command
         return $failures > 0 ? self::FAILURE : self::SUCCESS;
     }
 
-    private function isEnabled(mixed $value): bool
+    private function isDigestEnabled(mixed $value): bool
     {
         return is_scalar($value) && filter_var((string) $value, FILTER_VALIDATE_BOOLEAN);
     }
