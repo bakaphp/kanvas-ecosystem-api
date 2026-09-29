@@ -112,7 +112,9 @@ class EventVersionFacilitatorLinkTest extends TestCase
         $people->firstname = 'Facilitator';
         $people->lastname = 'Link ' . uniqid();
         $people->name = $people->firstname . ' ' . $people->lastname;
-        $people->saveQuietly();
+        // saveQuietly() skips UuidTrait's creating hook, and the column is NOT NULL with no
+        // default — a local database that has drifted a default hides this until CI.
+        $people->generateUuidIfMissing()->saveQuietly();
 
         /** @var Facilitator $facilitator */
         $facilitator = Facilitator::firstOrCreate([

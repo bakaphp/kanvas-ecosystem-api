@@ -42,6 +42,7 @@ class KanvasStatusCommand extends Command
         'scribe-aging',
         'scribe-pdf-ingest',
         'lead_follow_ups',
+        'reporting',
     ];
 
     private const array DATABASE_CONNECTIONS = [

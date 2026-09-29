@@ -158,7 +158,9 @@ class ReportFanOutTest extends TestCase
         $person->firstname = 'FanOut';
         $person->lastname = 'Target ' . uniqid();
         $person->name = $person->firstname . ' ' . $person->lastname;
-        $person->saveQuietly();
+        // saveQuietly() skips UuidTrait's creating hook, and the column is NOT NULL with no
+        // default — a local database that has drifted a default hides this until CI.
+        $person->generateUuidIfMissing()->saveQuietly();
 
         return $person;
     }
@@ -170,7 +172,9 @@ class ReportFanOutTest extends TestCase
         $organization->companies_id = $this->company->getId();
         $organization->users_id = static::$cachedUser->getId();
         $organization->name = 'FanOut Org ' . uniqid();
-        $organization->saveQuietly();
+        // saveQuietly() skips UuidTrait's creating hook, and the column is NOT NULL with no
+        // default — a local database that has drifted a default hides this until CI.
+        $organization->generateUuidIfMissing()->saveQuietly();
 
         return $organization;
     }

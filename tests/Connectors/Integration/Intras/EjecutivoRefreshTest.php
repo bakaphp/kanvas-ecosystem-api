@@ -146,7 +146,9 @@ class EjecutivoRefreshTest extends TestCase
         $person->firstname = 'Refresh';
         $person->lastname = 'Target ' . uniqid();
         $person->name = $person->firstname . ' ' . $person->lastname;
-        $person->saveQuietly();
+        // saveQuietly() skips UuidTrait's creating hook, and the column is NOT NULL with no
+        // default — a local database that has drifted a default hides this until CI.
+        $person->generateUuidIfMissing()->saveQuietly();
 
         $person->set('pa_code', '40123');
         $person->set('nivel', 'Gerencial');
