@@ -44,6 +44,44 @@ final class IdVerificationEngagementReuseTest extends TestCase
         $this->assertSame($first->getId(), $resolved->getId(), 'a second engagement would be a second folder');
     }
 
+    public function testGenerateIdVerificationFilesEveryScanAsANewSubmittedEngagement(): void
+    {
+        $lead = $this->makeLead();
+        $coBuyer = $this->makePerson($lead);
+
+        $existing = $this->createEngagement($lead, $coBuyer);
+        $this->assertNotNull($existing);
+
+        $first = $this->alwaysCreate($lead, $coBuyer);
+        $second = $this->alwaysCreate($lead, $coBuyer);
+
+        $this->assertNotNull($first);
+        $this->assertNotNull($second);
+        $this->assertNotContains($first->getId(), [$existing->getId(), $second->getId()], 'a scan must never reuse an engagement');
+
+        foreach ([$first, $second] as $engagement) {
+            $this->assertNull($engagement->message->parent_id, 'without eid it is a root, its own folder');
+            $this->assertSame(ConfigurationEnum::ID_VERIFICATION->value, $engagement->slug);
+            $this->assertSame(ActionStatusEnum::SUBMITTED->value, $engagement->stage->slug);
+            $this->assertSame($coBuyer->getId(), (int) $engagement->people_id);
+        }
+    }
+
+    public function testAlwaysCreatingStillThreadsUnderAnExplicitParent(): void
+    {
+        $lead = $this->makeLead();
+        $parent = $this->createEngagement($lead, $lead->people);
+        $this->assertNotNull($parent);
+
+        $child = new VerifyPeopleIdAction($lead->people, $lead)->resolveEngagement(
+            parentEngagement: $parent,
+            reuseExistingEngagement: true,
+            alwaysCreateEngagement: true,
+        );
+
+        $this->assertSame($parent->message_id, $child?->message->parent_id);
+    }
+
     public function testThreadingUnderAParentKeepsTheReportInTheSameFolder(): void
     {
         $lead = $this->makeLead();
@@ -379,6 +417,14 @@ final class IdVerificationEngagementReuseTest extends TestCase
 
         return new ReflectionMethod(VerifyPeopleIdAction::class, 'resolveEngagement')
             ->invoke($action, $parent, $reuse);
+    }
+
+    private function alwaysCreate(Lead $lead, People $people): ?Engagement
+    {
+        return new VerifyPeopleIdAction($people, $lead)->resolveEngagement(
+            reuseExistingEngagement: true,
+            alwaysCreateEngagement: true,
+        );
     }
 
     private function findForPeople(Lead $lead, People $people): ?Engagement

@@ -48,7 +48,7 @@ Auth is the receiver uuid in the path plus the presence of the three query param
 
 `intellicheck` must arrive **unwrapped** — `IdVerificationService` reads `idcheck.data` / `ipqs.*` at the top level. The receiver strips `private_data.result` because the bot posts the raw envelope; a GraphQL caller does it itself.
 
-**`eid` is optional and that is deliberate.** With it, the report threads under that engagement's message. Without it, `VerifyPeopleIdAction::resolveEngagement()` falls back to the person's newest submitted `id-verification` engagement, and only creates one if there is none. Mobile depends on that fallback. But an `eid` that is *present and does not resolve* — wrong tenant, another lead — is a caller bug and fails the activity rather than silently falling back.
+**`eid` is optional and that is deliberate.** With it, the report threads under that engagement's message. Without it, every run files a **new root `submitted` engagement** of its own — `GenerateIdVerificationActivity` passes `alwaysCreateEngagement`, so `VerifyPeopleIdAction::resolveEngagement()` never reuses the person's previous one. Each scan is its own folder, on purpose: a reused engagement piles every rescan's PDF into one message, and on legacy data a person's engagement can share its message with another person's (the old two-people-one-folder bug), which drags the report into the wrong folder. But an `eid` that is *present and does not resolve* — wrong tenant, another lead — is a caller bug and fails the activity rather than silently falling back.
 
 **`images` maps to message field names, and each side has its own fallback** (`VerifyPeopleIdAction::resolveImageFields()`):
 
@@ -86,7 +86,7 @@ Intellicheck activities pass. `IdVerificationReportActivity` is a thin wrapper o
 
 | `reuseExistingEngagement` | engagement | `driver_license_images` |
 |---|---|---|
-| `true` (both Intellicheck activities) | reuse this person's submitted engagement, or thread under `parentEngagement` | never read by the action |
+| `true` (both Intellicheck activities) | reuse this person's submitted engagement, or thread under `parentEngagement` — unless `alwaysCreateEngagement` (only `GenerateIdVerificationActivity`), which creates a new one instead | never read by the action |
 | `false` (default) | always create a root, as before the folder fix | read as a last resort |
 
 They travel together deliberately: a caller that threads into an existing folder is the new path, which
@@ -137,6 +137,8 @@ Downstream consumers (CRM push, frontend, checklist) read these:
 - **Filesystem:** `id_verify`, `id_expired`, `id_verification_status`, `id_verification_msg`
 - **Message:** `engagement_status`, `hashtagVisited`, `text`, `source`
 - **`field_name`:** `drivers_license_front`, `drivers_license_back`, `drivers_license_combined`, `face_image`, `id-verification`
+
+`get_docs_drivers_license` comes from `IdVerificationService::toDriverLicenseScan()`: the barcode (`idcheck.data`) wins field by field and the front OCR (`OCR.data`) fills the rest. A rejected barcode (`DocumentBadDevice`) carries only `processResult`, so reading the barcode alone emptied the whole payload. It is `null` only when neither side has a license number or a name.
 
 `intellicheck_workflow_response` diverges between the legacy (raw report value) and `VerifyPeopleIdAction` (`'passed'` where the status is `'green'`). Confirm with consumers before changing either.
 
