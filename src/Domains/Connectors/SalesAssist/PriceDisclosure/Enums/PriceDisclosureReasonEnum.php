@@ -11,4 +11,5 @@ enum PriceDisclosureReasonEnum: string
     case TEMPLATE_MISSING = 'template_missing';
     case PAYMENT_UNSUPPORTED = 'payment_unsupported';
     case ADD_ON_DISCLOSURE_MISSING = 'add_on_disclosure_missing';
+    case OUT_THE_DOOR_UNSUPPORTED = 'out_the_door_unsupported';
 }

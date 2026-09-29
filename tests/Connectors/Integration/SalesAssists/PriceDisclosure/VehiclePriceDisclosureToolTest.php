@@ -37,10 +37,11 @@ final class VehiclePriceDisclosureToolTest extends TestCase
 
     protected $connectionsToTransact = [null, 'ecosystem', 'inventory', 'crm', 'social'];
 
-    private const string SMS_TEMPLATE = 'Hi {{ $first_name }}, Sally here with {{ $dealership }}. '
-        . 'Vehicle total price: ${{ $ca_cars_total_price }}. '
-        . 'Actual price before government-required taxes and fees: ${{ $ftc_actual_price }}. '
-        . 'This actual price includes ${{ $mandatory_dealer_fees }} in dealer-required fees. Stock {{ $stock_number }}.';
+    private const string SMS_TEMPLATE = 'Vehicle total price: ${{ $ca_cars_total_price }}. '
+        . 'Actual price before government-required charges: ${{ $ftc_actual_price }}. '
+        . 'This price includes all dealer-required fees. Stock {{ $stock_number }}, {{ $first_name }}.';
+
+    private const float DEALER_FEE = 85.0;
 
     private Apps $kanvasApp;
     private Companies $company;
@@ -58,6 +59,7 @@ final class VehiclePriceDisclosureToolTest extends TestCase
 
         new InventorySetup($this->kanvasApp, $this->user, $this->company)->run();
         $this->company->set(PriceDisclosureConfigurationEnum::ENABLED->value, 1);
+        $this->company->set(PriceDisclosureConfigurationEnum::DEALER_FEE->value, self::DEALER_FEE);
     }
 
     /**
@@ -67,6 +69,7 @@ final class VehiclePriceDisclosureToolTest extends TestCase
     protected function tearDown(): void
     {
         $this->company->del(PriceDisclosureConfigurationEnum::ENABLED->value);
+        $this->company->del(PriceDisclosureConfigurationEnum::DEALER_FEE->value);
 
         parent::tearDown();
     }
@@ -82,16 +85,93 @@ final class VehiclePriceDisclosureToolTest extends TestCase
         $this->assertTrue($result['success']);
         $this->assertSame('ok', $result['outcome']);
         $this->assertFalse($result['suppress']);
-        $this->assertSame('full_message', $result['mode']);
-        $this->assertStringContainsString('Vehicle total price: $25,000.00.', $result['message']);
-        $this->assertStringContainsString('taxes and fees: $25,000.00.', $result['message']);
-        $this->assertStringContainsString('includes $0.00 in dealer-required fees', $result['message']);
+        $this->assertSame(VehiclePriceDisclosureTool::MODE_INSERT_BLOCK, $result['mode']);
+        $this->assertStringContainsString('Vehicle total price: $25,085.00.', $result['message']);
+        $this->assertStringContainsString('government-required charges: $25,000.00.', $result['message']);
         $this->assertStringContainsString('Stock ' . $variant->sku, $result['message']);
         $this->assertStringContainsString("O'Brien", $result['message']);
         $this->assertSame($variant->sku, $result['vehicle_key']);
         $this->assertSame(hash('sha256', $result['message']), $result['content_hash']);
+        $this->assertSame(25085.0, $result['price']['ca_cars_total_price']);
+        $this->assertSame(25000.0, $result['price']['ftc_actual_price']);
+        $this->assertSame(85.0, $result['price']['mandatory_dealer_fees_total']);
+        $this->assertNull($result['disclosed_at']);
+    }
+
+    public function testWithoutADealerFeeTheTotalEqualsTheActualPrice(): void
+    {
+        $this->company->del(PriceDisclosureConfigurationEnum::DEALER_FEE->value);
+        $variant = $this->makePricedVariant(25000.0);
+        $lead = $this->makeLead($variant->sku);
+        $this->makeTemplate(PriceDisclosureChannelEnum::SMS, 'en');
+
+        $result = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms');
+
         $this->assertSame(25000.0, $result['price']['ca_cars_total_price']);
         $this->assertSame(25000.0, $result['price']['ftc_actual_price']);
+        $this->assertSame(0.0, $result['price']['mandatory_dealer_fees_total']);
+    }
+
+    public function testTheSameVinIsNotDisclosedTwiceButANewVinIs(): void
+    {
+        $first = $this->makePricedVariant(25000.0);
+        $second = $this->makePricedVariant(31500.0);
+        $lead = $this->makeLead($first->sku);
+        $this->makeTemplate(PriceDisclosureChannelEnum::SMS, 'en');
+
+        $initial = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms');
+        $repeat = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms');
+        $switched = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms', vin: $second->sku);
+
+        $this->assertSame(VehiclePriceDisclosureTool::MODE_INSERT_BLOCK, $initial['mode']);
+        $this->assertSame(VehiclePriceDisclosureTool::MODE_ALREADY_DISCLOSED, $repeat['mode']);
+        $this->assertNotNull($repeat['disclosed_at']);
+        $this->assertSame($initial['message'], $repeat['message']);
+        $this->assertSame(VehiclePriceDisclosureTool::MODE_INSERT_BLOCK, $switched['mode']);
+
+        $ledger = $lead->get(PriceDisclosureConfigurationEnum::DISCLOSURES->value);
+        $this->assertSame([$first->sku, $second->sku], array_keys($ledger));
+        $this->assertSame($initial['content_hash'], $ledger[$first->sku]['content_hash']);
+    }
+
+    public function testNoVehicleInScopeIsANoOpWithoutHandoff(): void
+    {
+        $lead = $this->makeLead(null);
+        $this->makeTemplate(PriceDisclosureChannelEnum::SMS, 'en');
+        $this->makeInboundMessage($lead, 'Do you have any Sierras?');
+
+        $result = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms');
+
+        $this->assertSame('noop', $result['outcome']);
+        $this->assertFalse($result['vehicle_in_scope']);
+        $this->assertArrayNotHasKey('message', $result);
+        $this->assertSame(0, LeadHandOffNotification::query()->where('leads_id', $lead->getId())->count());
+    }
+
+    public function testAnOutTheDoorRequestAcknowledgesAndHandsOff(): void
+    {
+        $variant = $this->makePricedVariant(25000.0);
+        $lead = $this->makeLead($variant->sku);
+        $this->makeTemplate(PriceDisclosureChannelEnum::SMS, 'en');
+        $this->makeInboundMessage($lead, 'What is the out the door price?');
+
+        $result = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms');
+
+        $this->assertSuppressedWithHandoff($result, 'out_the_door_unsupported', $lead, expectsMessage: true);
+        $this->assertSame("Thank you. I'm getting the complete out-the-door breakdown prepared for you now.", $result['message']);
+        $this->assertStringNotContainsString('25,000', $result['message']);
+    }
+
+    public function testAnOutTheDoorRequestInSpanishUsesTheSpanishAcknowledgment(): void
+    {
+        $variant = $this->makePricedVariant(25000.0);
+        $lead = $this->makeLead($variant->sku);
+        $this->makeInboundMessage($lead, '¿Cuál es el precio final con impuestos?');
+
+        $result = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms', language: 'es');
+
+        $this->assertSame('out_the_door_unsupported', $result['reason_code']);
+        $this->assertStringStartsWith('Gracias.', $result['message']);
     }
 
     public function testAnExplicitVinOverridesTheLeadVehicleOfInterest(): void
@@ -118,7 +198,7 @@ final class VehiclePriceDisclosureToolTest extends TestCase
 
         $this->assertTrue($result['success']);
         $this->assertSame(RenderPriceDisclosureAction::templateName(PriceDisclosureChannelEnum::EMAIL, 'es'), $result['template']);
-        $this->assertSame('Precio total del vehículo: $25,000.00.', $result['message']);
+        $this->assertSame('Precio total del vehículo: $25,085.00.', $result['message']);
     }
 
     public function testSuppressesAndHandsOffWhenTheDealerHasNoApprovedTemplate(): void
@@ -242,12 +322,16 @@ final class VehiclePriceDisclosureToolTest extends TestCase
         $this->assertTrue($result['success']);
     }
 
-    private function assertSuppressedWithHandoff(array $result, string $reason, Lead $lead): void
-    {
+    private function assertSuppressedWithHandoff(
+        array $result,
+        string $reason,
+        Lead $lead,
+        bool $expectsMessage = false,
+    ): void {
         $this->assertFalse($result['success']);
         $this->assertSame('denied', $result['outcome']);
         $this->assertTrue($result['suppress']);
-        $this->assertArrayNotHasKey('message', $result);
+        $this->assertSame($expectsMessage, array_key_exists('message', $result));
         $this->assertSame($reason, $result['reason_code']);
         $this->assertArrayNotHasKey('price', $result);
         $this->assertTrue($result['handoff']['success']);
@@ -259,7 +343,7 @@ final class VehiclePriceDisclosureToolTest extends TestCase
         return new VehiclePriceDisclosureTool()->withContext($this->kanvasApp, $this->company, $this->user);
     }
 
-    private function makeLead(string $vin): Lead
+    private function makeLead(?string $vin): Lead
     {
         /** @var Lead $lead */
         $lead = Lead::factory()
@@ -270,14 +354,14 @@ final class VehiclePriceDisclosureToolTest extends TestCase
         $lead->people->firstname = "O'Brien";
         $lead->people->saveOrFail();
 
-        $lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, [
+        $lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, array_filter([
             'isNew' => true,
             'yearFrom' => 2025,
             'make' => 'GMC',
             'model' => 'Sierra',
             'vin' => $vin,
             'isPrimary' => true,
-        ]);
+        ], static fn (mixed $value): bool => $value !== null));
 
         return $lead->refresh();
     }
