@@ -192,8 +192,6 @@ class FacilitadorDefinition implements RefreshableReportInterface
     }
 
     /**
-     * @param array<int, int> $peopleIds
-     *
      * @return array<int, array<string, string>>
      */
     protected function contactsFor(array $peopleIds): array
