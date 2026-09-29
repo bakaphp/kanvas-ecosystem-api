@@ -10,16 +10,18 @@ use Kanvas\Approvals\Enums\ApprovalTriggerEnum;
 use Kanvas\Approvals\Models\ApprovalPolicy;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
-use Kanvas\Connectors\Salesforce\Enums\PeopleApprovalTypeEnum;
+use Kanvas\Connectors\Salesforce\Enums\PeopleSalesforceSyncApprovalTypeEnum;
+use Kanvas\Guild\Customers\Enums\PeopleApprovalTypeEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\SystemModules\Repositories\SystemModulesRepository;
 
 /**
- * Seeds the three approval_type policies that gate a People on its way to Salesforce:
- * - `approve_people` — generic review of the People's own content in Kanvas.
+ * Seeds the three approval_type policies split across two independent Activities:
+ * - `approve_people` — generic review of the People's own content in Kanvas
+ *   (Guild\Customers\Activities\RequestPeopleContentApprovalActivity).
  * - `approve_people_salesforce_create` / `approve_people_salesforce_update` — gates the Salesforce
- *   push specifically (RequestPeopleApprovalActivity opens whichever one applies;
- *   PushApprovedPeopleActivity's Rule listens on these two, not on `approve_people`).
+ *   push specifically (Connectors\Salesforce\Activities\RequestPeopleApprovalActivity opens whichever
+ *   one applies; PushApprovedPeopleActivity's Rule listens on these two, not on `approve_people`).
  *
  * All three are independent — approving one is not a prerequisite for the others. Trigger is MANUAL
  * on purpose: the Activity calls requestApproval() explicitly, so turning this on does not change
@@ -43,12 +45,17 @@ class SeedPeopleApprovalPolicyCommand extends Command
         $company = Companies::getById((int) $this->argument('company_id'));
         $systemModule = SystemModulesRepository::getByModelName(People::class, $app);
 
-        foreach (PeopleApprovalTypeEnum::cases() as $approvalType) {
+        $approvalTypes = [
+            ...array_column(PeopleApprovalTypeEnum::cases(), 'value'),
+            ...array_column(PeopleSalesforceSyncApprovalTypeEnum::cases(), 'value'),
+        ];
+
+        foreach ($approvalTypes as $approvalType) {
             $policy = ApprovalPolicy::firstOrCreate([
                 'apps_id' => $app->getId(),
                 'companies_id' => $company->getId(),
                 'system_modules_id' => $systemModule->getId(),
-                'approval_type' => $approvalType->value,
+                'approval_type' => $approvalType,
             ], [
                 'steps' => [[
                     'step' => 1,
@@ -66,7 +73,7 @@ class SeedPeopleApprovalPolicyCommand extends Command
 
             $this->info(sprintf(
                 '%s policy %s (id %d) for company %d.',
-                $approvalType->value,
+                $approvalType,
                 $policy->wasRecentlyCreated ? 'created' : 'already existed',
                 $policy->getId(),
                 $company->getId(),
