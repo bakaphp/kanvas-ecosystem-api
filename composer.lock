@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "f5e0fe4ff096e3a3898759a313843418",
+    "content-hash": "71b8890965d3f3012a034172aa8996e9",
     "packages": [
         {
             "name": "algolia/algoliasearch-client-php",
@@ -4282,20 +4282,19 @@
         },
         {
             "name": "laravel/ai",
-            "version": "v0.11.2",
+            "version": "v1.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laravel/ai.git",
-                "reference": "ee2c5162838d440c4e2e629ea93c8c87e838eaed"
+                "reference": "101c7ea33cd8569d82570f753fbf38e48b7d3d95"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laravel/ai/zipball/ee2c5162838d440c4e2e629ea93c8c87e838eaed",
-                "reference": "ee2c5162838d440c4e2e629ea93c8c87e838eaed",
+                "url": "https://api.github.com/repos/laravel/ai/zipball/101c7ea33cd8569d82570f753fbf38e48b7d3d95",
+                "reference": "101c7ea33cd8569d82570f753fbf38e48b7d3d95",
                 "shasum": ""
             },
             "require": {
-                "aws/aws-sdk-php": "^3.369.1",
                 "illuminate/console": "^12.0|^13.0",
                 "illuminate/container": "^12.0|^13.0",
                 "illuminate/contracts": "^12.0|^13.0",
@@ -4307,9 +4306,14 @@
                 "laravel/serializable-closure": "^2.0",
                 "php": "^8.3"
             },
+            "conflict": {
+                "aws/aws-sdk-php": "<3.369.1",
+                "laravel/mcp": "<1.0"
+            },
             "require-dev": {
+                "aws/aws-sdk-php": "^3.369.1",
                 "driftingly/rector-laravel": "^2.5",
-                "laravel/mcp": "^0.8",
+                "laravel/mcp": "^1.0",
                 "laravel/pint": "^1.26",
                 "mockery/mockery": "^1.6.12",
                 "orchestra/testbench": "^10.6|^11.0",
@@ -4319,6 +4323,7 @@
                 "rector/rector": "^2.5"
             },
             "suggest": {
+                "aws/aws-sdk-php": "Required to use the Bedrock provider.",
                 "laravel/mcp": "Required to use MCP client tools or MCP server tools with Laravel AI agents."
             },
             "type": "library",
@@ -4354,7 +4359,7 @@
                 "issues": "https://github.com/laravel/ai/issues",
                 "source": "https://github.com/laravel/ai"
             },
-            "time": "2026-09-03T09:04:44+00:00"
+            "time": "2026-09-23T06:31:17+00:00"
         },
         {
             "name": "laravel/cashier",
@@ -7330,16 +7335,16 @@
         },
         {
             "name": "nesbot/carbon",
-            "version": "3.14.0",
+            "version": "3.14.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/CarbonPHP/carbon.git",
-                "reference": "0023eaa2c9110e47446dd512a263c69c40cd41f2"
+                "reference": "34e9109535165bf1d7ff17a610492372ae73a896"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/0023eaa2c9110e47446dd512a263c69c40cd41f2",
-                "reference": "0023eaa2c9110e47446dd512a263c69c40cd41f2",
+                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/34e9109535165bf1d7ff17a610492372ae73a896",
+                "reference": "34e9109535165bf1d7ff17a610492372ae73a896",
                 "shasum": ""
             },
             "require": {
@@ -7431,7 +7436,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-12T20:45:19+00:00"
+            "time": "2026-09-27T12:07:26+00:00"
         },
         {
             "name": "nette/schema",
