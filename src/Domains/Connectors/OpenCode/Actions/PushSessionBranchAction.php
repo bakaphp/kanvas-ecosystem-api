@@ -7,6 +7,7 @@ namespace Kanvas\Connectors\OpenCode\Actions;
 use Baka\Support\Str;
 use Kanvas\Connectors\OpenCode\Concerns\RunsCheckedSshCommands;
 use Kanvas\Connectors\OpenCode\Concerns\UsesGitCredential;
+use Kanvas\Connectors\OpenCode\DataTransferObject\GitIdentity;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Connectors\OpenCode\SshClient;
 use Kanvas\Exceptions\ValidationException;
@@ -211,9 +212,7 @@ class PushSessionBranchAction
 
     private function commit(SshClient $client, string $workspace): void
     {
-        // Authored by the agent, so `git log` attributes the work honestly rather than to whoever's
-        // identity happens to be configured on the machine.
-        $author = escapeshellarg(($this->session->agent?->name ?? 'Kanvas agent') . ' <agent@kanvas.dev>');
+        $identity = GitIdentity::forAgent($this->session->agent);
 
         $this->runChecked(
             $client,
@@ -232,9 +231,9 @@ class PushSessionBranchAction
         $this->runChecked(
             $client,
             'git -C ' . escapeshellarg($workspace)
-            . ' -c user.name=' . escapeshellarg($this->session->agent?->name ?? 'Kanvas agent')
-            . ' -c user.email=agent@kanvas.dev'
-            . ' commit --author=' . $author
+            . ' -c user.name=' . escapeshellarg($identity->name)
+            . ' -c user.email=' . escapeshellarg($identity->email)
+            . ' commit --author=' . escapeshellarg((string) $identity)
             . ' -m ' . escapeshellarg($this->commitMessage),
             'commit the changes'
         );
