@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
+use Kanvas\Intelligence\Agents\ChatHistory\KanvasTokenCounter;
 use Kanvas\Intelligence\Agents\ChatHistory\RebuildsTrimmedHistory;
 use Kanvas\Intelligence\Agents\Enums\CaptionTargetEnum;
 use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
@@ -61,7 +62,7 @@ class KanvasMessageHistory extends AbstractChatHistory
         private readonly ?string $model = null,
         private readonly bool $privateUserTurn = false,
     ) {
-        parent::__construct($contextWindow);
+        parent::__construct($contextWindow, KanvasTokenCounter::trimmer());
 
         // Key the conversation on the session (one thread per session+agent), not "latest by user"
         // which can glom onto an unrelated conversation. Falls back to latest only when there's no
