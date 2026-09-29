@@ -16,6 +16,7 @@ use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Contracts\BehavesAsKanvasAgent;
 use Kanvas\Intelligence\Agents\Types\ADKAgent;
+use Kanvas\Intelligence\PriceDisclosure\Services\PriceDisclosureReplyGate;
 use Kanvas\Intelligence\Sessions\Actions\PersistChatTurnToSocialAction;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
@@ -103,6 +104,17 @@ class AgentChatKernel
 
         $durationMs = (microtime(true) - $startTime) * 1000.0;
         $this->trackUsage($response, $durationMs, $sessionId);
+
+        // After the provider call and outside its try, so the skip keeps its silent markers. A tool
+        // can only ask for the turn to be dropped; this is where the drop actually happens.
+        if ($this->currentLead !== null) {
+            new PriceDisclosureReplyGate()->assertReplyAllowed(
+                $this->currentLead,
+                $response,
+                $this->executedToolCalls(),
+                inboundText: $this->sourceMessage !== null ? $this->message : null,
+            );
+        }
 
         if ($this->persistConversation) {
             $this->persistConversationToSocial($response);
