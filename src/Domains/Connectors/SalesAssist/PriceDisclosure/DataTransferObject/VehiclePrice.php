@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\PriceDisclosure\DataTransferObject;
+namespace Kanvas\Connectors\SalesAssist\PriceDisclosure\DataTransferObject;
 
 use Kanvas\Inventory\Variants\Models\Variants;
 use Spatie\LaravelData\Data;

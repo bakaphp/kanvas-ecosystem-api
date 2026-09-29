@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\PriceDisclosure\Services;
+namespace Kanvas\Connectors\SalesAssist\PriceDisclosure\Services;
 
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\DataTransferObject\VehiclePrice;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\PriceDisclosure\DataTransferObject\VehiclePrice;
 use Kanvas\Inventory\Variants\Models\Variants;
 
 class VehiclePriceService

@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Tests\Intelligence\PriceDisclosure;
+namespace Tests\Connectors\Integration\SalesAssists\PriceDisclosure;
 
-use Kanvas\Intelligence\PriceDisclosure\Enums\MessageIntentEnum;
-use Kanvas\Intelligence\PriceDisclosure\Services\MessageIntentDetector;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\MessageIntentEnum;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Services\MessageIntentDetector;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

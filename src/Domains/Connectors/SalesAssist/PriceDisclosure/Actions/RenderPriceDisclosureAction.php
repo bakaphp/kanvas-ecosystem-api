@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\PriceDisclosure\Actions;
+namespace Kanvas\Connectors\SalesAssist\PriceDisclosure\Actions;
 
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\DataTransferObject\VehiclePrice;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureChannelEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\PriceDisclosure\DataTransferObject\VehiclePrice;
-use Kanvas\Intelligence\PriceDisclosure\Enums\PriceDisclosureChannelEnum;
 use Kanvas\Templates\Actions\RenderTemplateAction;
 use Kanvas\Templates\Models\Templates;
 

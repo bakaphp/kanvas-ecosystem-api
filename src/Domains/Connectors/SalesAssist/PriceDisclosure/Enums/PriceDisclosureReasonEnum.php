@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\PriceDisclosure\Enums;
+namespace Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums;
 
 enum PriceDisclosureReasonEnum: string
 {

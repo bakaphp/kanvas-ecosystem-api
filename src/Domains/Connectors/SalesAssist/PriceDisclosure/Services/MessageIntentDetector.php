@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\PriceDisclosure\Services;
+namespace Kanvas\Connectors\SalesAssist\PriceDisclosure\Services;
 
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\MessageIntentEnum;
 use Kanvas\Guild\Leads\Models\Lead;
-use Kanvas\Intelligence\PriceDisclosure\Enums\MessageIntentEnum;
 
 /**
  * Keyword classifier for the controlled topics, in English and Spanish. Deterministic on purpose:

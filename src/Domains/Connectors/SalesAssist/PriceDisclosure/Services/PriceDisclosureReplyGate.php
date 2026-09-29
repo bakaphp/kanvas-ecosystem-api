@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\PriceDisclosure\Services;
+namespace Kanvas\Connectors\SalesAssist\PriceDisclosure\Services;
 
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Actions\SuppressAgentReplyAction;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\MessageIntentEnum;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureReasonEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\VehiclePriceDisclosureTool;
-use Kanvas\Intelligence\PriceDisclosure\Actions\SuppressAgentReplyAction;
-use Kanvas\Intelligence\PriceDisclosure\Enums\MessageIntentEnum;
-use Kanvas\Intelligence\PriceDisclosure\Enums\PriceDisclosureConfigurationEnum;
-use Kanvas\Intelligence\PriceDisclosure\Enums\PriceDisclosureReasonEnum;
 
 /**
  * Deterministic last check between the model's draft and the send. The prompt tells the model to

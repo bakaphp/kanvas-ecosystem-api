@@ -2,13 +2,15 @@
 
 declare(strict_types=1);
 
-namespace Tests\Intelligence\PriceDisclosure;
+namespace Tests\Connectors\Integration\SalesAssists\PriceDisclosure;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Notification;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Services\PriceDisclosureReplyGate;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadHandOffNotification;
 use Kanvas\Intelligence\Agents\Actions\Chat\AgentChatKernel;
@@ -16,8 +18,6 @@ use Kanvas\Intelligence\Agents\Exceptions\AgentReplySkippedException;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentType;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\VehiclePriceDisclosureTool;
-use Kanvas\Intelligence\PriceDisclosure\Enums\PriceDisclosureConfigurationEnum;
-use Kanvas\Intelligence\PriceDisclosure\Services\PriceDisclosureReplyGate;
 use Tests\Stubs\Intelligence\PricedReplyNeuronAgentStub;
 use Tests\TestCase;
 

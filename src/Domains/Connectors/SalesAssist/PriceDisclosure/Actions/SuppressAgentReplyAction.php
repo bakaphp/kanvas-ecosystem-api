@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Kanvas\Intelligence\PriceDisclosure\Actions;
+namespace Kanvas\Connectors\SalesAssist\PriceDisclosure\Actions;
 
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureReasonEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Actions\HandOffAction;
 use Kanvas\Intelligence\Enums\HandOffTypeEnum;
-use Kanvas\Intelligence\PriceDisclosure\Enums\PriceDisclosureConfigurationEnum;
-use Kanvas\Intelligence\PriceDisclosure\Enums\PriceDisclosureReasonEnum;
 
 /**
  * Fail closed: the disclosure is mandatory, so a missing input hands the lead to a human with a
