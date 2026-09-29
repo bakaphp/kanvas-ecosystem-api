@@ -10,6 +10,7 @@ use Kanvas\Connectors\OpenCode\DataTransferObject\GitIdentity;
 use Kanvas\Connectors\OpenCode\Enums\AgentCustomFieldEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Harness\SetHarnessCommitIdentityTool;
+use Kanvas\Users\Models\Users;
 use Tests\TestCase;
 
 /**
@@ -97,7 +98,7 @@ class CodingGitIdentityTest extends TestCase
     public function testTheToolCommitsAsThePersonTalkingToTheAgent(): void
     {
         $agent = $this->agent();
-        $human = auth()->user();
+        $human = $this->human();
 
         $result = new SetHarnessCommitIdentityTool($agent, $human)(commit_as: 'me', relaying_human_instruction: true);
 
@@ -133,7 +134,7 @@ class CodingGitIdentityTest extends TestCase
         $agent = $this->agent();
         $agent->set(AgentCustomFieldEnum::GIT_AUTHOR_NAME->value, 'Somebody Else');
 
-        $human = clone auth()->user();
+        $human = $this->human();
         $human->firstname = '';
         $human->lastname = '';
         $human->displayname = '';
@@ -147,7 +148,7 @@ class CodingGitIdentityTest extends TestCase
     {
         $agent = $this->agent();
 
-        $result = new SetHarnessCommitIdentityTool($agent, auth()->user())(commit_as: 'me', relaying_human_instruction: false);
+        $result = new SetHarnessCommitIdentityTool($agent, $this->human())(commit_as: 'me', relaying_human_instruction: false);
 
         $this->assertSame('denied', $result['outcome']);
         $this->assertTrue(GitIdentity::forAgent($agent->refresh())->isDefaultEmail());
@@ -158,10 +159,19 @@ class CodingGitIdentityTest extends TestCase
         $agent = $this->agent();
         $agent->set(AgentCustomFieldEnum::GIT_AUTHOR_EMAIL->value, 'jenn@example.com');
 
-        $result = new SetHarnessCommitIdentityTool($agent, auth()->user())(commit_as: 'default', relaying_human_instruction: true);
+        $result = new SetHarnessCommitIdentityTool($agent, $this->human())(commit_as: 'default', relaying_human_instruction: true);
 
         $this->assertSame('ok', $result['outcome']);
         $this->assertTrue(GitIdentity::forAgent($agent->refresh())->isDefaultEmail());
+    }
+
+    /**
+     * Not auth()->user(): other suites set the shared test company's AI_AGENT_USER_ID to that user and
+     * company settings are not rolled back, so it may legitimately be refused as an agent account.
+     */
+    private function human(): Users
+    {
+        return Users::factory()->create();
     }
 
     private function agent(): Agent
