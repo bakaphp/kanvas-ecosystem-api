@@ -14,6 +14,7 @@ use Kanvas\Connectors\Intras\Enums\ConfigurationEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Organizations\Models\Organization;
 use Kanvas\Guild\Organizations\Models\OrganizationPeople;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
 /**
@@ -24,7 +25,14 @@ use Tests\TestCase;
  * is not. The cost is that a break in the fan-out is completely silent: no exception, no log, the
  * save succeeds, and the flat tables quietly drift until the nightly rebuild. Nothing else covers
  * it — every other test writes with `saveQuietly()`, which skips observers altogether.
+ *
+ * Serial because `setUp()` writes the connector's enablement settings onto the app and
+ * `tearDown()` deletes them. `HashTableTrait::set()` goes to Redis first, which is shared by
+ * every paratest process and never rolls back — so a sibling worker's teardown removes
+ * INTRAS_DB_HOST while this one is mid-test, the registry then returns no definitions, and the
+ * fan-out this class exists to prove silently dispatches nothing.
  */
+#[Group('serial')]
 class ReportFanOutTest extends TestCase
 {
     use DatabaseTransactions;

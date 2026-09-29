@@ -385,16 +385,16 @@
         },
         {
             "name": "aws/aws-sdk-php",
-            "version": "3.398.1",
+            "version": "3.398.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/aws/aws-sdk-php.git",
-                "reference": "42abd470c300c143972e27778b3bbb0ce7402e41"
+                "reference": "46b99f035965af7769750dd0a46a2f8a0b8880d9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/42abd470c300c143972e27778b3bbb0ce7402e41",
-                "reference": "42abd470c300c143972e27778b3bbb0ce7402e41",
+                "url": "https://api.github.com/repos/aws/aws-sdk-php/zipball/46b99f035965af7769750dd0a46a2f8a0b8880d9",
+                "reference": "46b99f035965af7769750dd0a46a2f8a0b8880d9",
                 "shasum": ""
             },
             "require": {
@@ -476,9 +476,9 @@
             "support": {
                 "forum": "https://github.com/aws/aws-sdk-php/discussions",
                 "issues": "https://github.com/aws/aws-sdk-php/issues",
-                "source": "https://github.com/aws/aws-sdk-php/tree/3.398.1"
+                "source": "https://github.com/aws/aws-sdk-php/tree/3.398.2"
             },
-            "time": "2026-09-25T18:11:40+00:00"
+            "time": "2026-09-28T18:18:23+00:00"
         },
         {
             "name": "azuyalabs/yasumi",
@@ -2056,16 +2056,16 @@
         },
         {
             "name": "firebase/php-jwt",
-            "version": "v7.2.0",
+            "version": "v7.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/php-jwt.git",
-                "reference": "f502cdbf279cd7532060b041f7c22a05208c0b93"
+                "reference": "0501f5729b9e2448516674aff07c7d1727869b8e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/php-jwt/zipball/f502cdbf279cd7532060b041f7c22a05208c0b93",
-                "reference": "f502cdbf279cd7532060b041f7c22a05208c0b93",
+                "url": "https://api.github.com/repos/googleapis/php-jwt/zipball/0501f5729b9e2448516674aff07c7d1727869b8e",
+                "reference": "0501f5729b9e2448516674aff07c7d1727869b8e",
                 "shasum": ""
             },
             "require": {
@@ -2124,9 +2124,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/php-jwt/issues",
-                "source": "https://github.com/googleapis/php-jwt/tree/v7.2.0"
+                "source": "https://github.com/googleapis/php-jwt/tree/v7.2.1"
             },
-            "time": "2026-09-21T19:29:58+00:00"
+            "time": "2026-09-28T17:51:46+00:00"
         },
         {
             "name": "fruitcake/php-cors",
@@ -2316,16 +2316,16 @@
         },
         {
             "name": "google/auth",
-            "version": "v1.55.0",
+            "version": "v1.55.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-auth-library-php.git",
-                "reference": "cccb71f824ed63d5d7e139a838850e78de855386"
+                "reference": "ef1b92cb42470b09b3caaf23bb9b4bb9a2dc787e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-auth-library-php/zipball/cccb71f824ed63d5d7e139a838850e78de855386",
-                "reference": "cccb71f824ed63d5d7e139a838850e78de855386",
+                "url": "https://api.github.com/repos/googleapis/google-auth-library-php/zipball/ef1b92cb42470b09b3caaf23bb9b4bb9a2dc787e",
+                "reference": "ef1b92cb42470b09b3caaf23bb9b4bb9a2dc787e",
                 "shasum": ""
             },
             "require": {
@@ -2381,22 +2381,22 @@
             "support": {
                 "docs": "https://cloud.google.com/php/docs/reference/auth/latest",
                 "issues": "https://github.com/googleapis/google-auth-library-php/issues",
-                "source": "https://github.com/googleapis/google-auth-library-php/tree/v1.55.0"
+                "source": "https://github.com/googleapis/google-auth-library-php/tree/v1.55.1"
             },
-            "time": "2026-09-21T19:29:58+00:00"
+            "time": "2026-09-28T17:51:46+00:00"
         },
         {
             "name": "google/cloud-core",
-            "version": "v1.73.4",
+            "version": "v1.73.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-core.git",
-                "reference": "ca2ca55a9be8e8a71f8d6d71cbbc9cbff6c8231d"
+                "reference": "122a803b8ecb9c1cd4ea53330798572484eb7a3f"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/ca2ca55a9be8e8a71f8d6d71cbbc9cbff6c8231d",
-                "reference": "ca2ca55a9be8e8a71f8d6d71cbbc9cbff6c8231d",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-core/zipball/122a803b8ecb9c1cd4ea53330798572484eb7a3f",
+                "reference": "122a803b8ecb9c1cd4ea53330798572484eb7a3f",
                 "shasum": ""
             },
             "require": {
@@ -2448,22 +2448,22 @@
             ],
             "description": "Google Cloud PHP shared dependency, providing functionality useful to all components.",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.73.4"
+                "source": "https://github.com/googleapis/google-cloud-php-core/tree/v1.73.5"
             },
-            "time": "2026-09-21T19:29:58+00:00"
+            "time": "2026-09-28T17:51:46+00:00"
         },
         {
             "name": "google/cloud-discoveryengine",
-            "version": "v1.15.0",
+            "version": "v1.15.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-discoveryengine.git",
-                "reference": "be47b03597cacbaeb2e42427ca1341e89a679ba2"
+                "reference": "7a22968d85b226754c62c4ac1e42e18066bc9201"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/be47b03597cacbaeb2e42427ca1341e89a679ba2",
-                "reference": "be47b03597cacbaeb2e42427ca1341e89a679ba2",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-discoveryengine/zipball/7a22968d85b226754c62c4ac1e42e18066bc9201",
+                "reference": "7a22968d85b226754c62c4ac1e42e18066bc9201",
                 "shasum": ""
             },
             "require": {
@@ -2497,22 +2497,22 @@
             ],
             "description": "Google Cloud Discovery Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.15.0"
+                "source": "https://github.com/googleapis/google-cloud-php-discoveryengine/tree/v1.15.1"
             },
-            "time": "2026-09-21T19:29:58+00:00"
+            "time": "2026-09-28T17:51:46+00:00"
         },
         {
             "name": "google/cloud-recommendations-ai",
-            "version": "v0.10.2",
+            "version": "v0.10.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-recommendations-ai.git",
-                "reference": "7b7e7fba421c4247ebb6d8c041245fc829a9bf0a"
+                "reference": "eb9c7ae789c1a3afacf3601b5c19c7135e8baca9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-recommendations-ai/zipball/7b7e7fba421c4247ebb6d8c041245fc829a9bf0a",
-                "reference": "7b7e7fba421c4247ebb6d8c041245fc829a9bf0a",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-recommendations-ai/zipball/eb9c7ae789c1a3afacf3601b5c19c7135e8baca9",
+                "reference": "eb9c7ae789c1a3afacf3601b5c19c7135e8baca9",
                 "shasum": ""
             },
             "require": {
@@ -2547,22 +2547,22 @@
             ],
             "description": "Google Cloud Recommendation Engine Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-recommendations-ai/tree/v0.10.2"
+                "source": "https://github.com/googleapis/google-cloud-php-recommendations-ai/tree/v0.10.3"
             },
-            "time": "2026-09-14T18:27:51+00:00"
+            "time": "2026-09-28T17:51:46+00:00"
         },
         {
             "name": "google/cloud-storage",
-            "version": "v2.5.4",
+            "version": "v2.5.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/google-cloud-php-storage.git",
-                "reference": "cd0817f35b006b18a34b8836fee984e1b5eb1471"
+                "reference": "d3ff3e5fe9bac09968b3c552d6ffe852c641fb71"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/cd0817f35b006b18a34b8836fee984e1b5eb1471",
-                "reference": "cd0817f35b006b18a34b8836fee984e1b5eb1471",
+                "url": "https://api.github.com/repos/googleapis/google-cloud-php-storage/zipball/d3ff3e5fe9bac09968b3c552d6ffe852c641fb71",
+                "reference": "d3ff3e5fe9bac09968b3c552d6ffe852c641fb71",
                 "shasum": ""
             },
             "require": {
@@ -2605,9 +2605,9 @@
             ],
             "description": "Cloud Storage Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v2.5.4"
+                "source": "https://github.com/googleapis/google-cloud-php-storage/tree/v2.5.5"
             },
-            "time": "2026-09-21T19:29:58+00:00"
+            "time": "2026-09-28T17:51:46+00:00"
         },
         {
             "name": "google/common-protos",
@@ -2670,16 +2670,16 @@
         },
         {
             "name": "google/gax",
-            "version": "v1.50.0",
+            "version": "v1.51.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/gax-php.git",
-                "reference": "8828323023d618c11ec84ab7f1ae8298b6ebb6b3"
+                "reference": "4cad310c5b520be80fd89f76b54261f28f10ab54"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/gax-php/zipball/8828323023d618c11ec84ab7f1ae8298b6ebb6b3",
-                "reference": "8828323023d618c11ec84ab7f1ae8298b6ebb6b3",
+                "url": "https://api.github.com/repos/googleapis/gax-php/zipball/4cad310c5b520be80fd89f76b54261f28f10ab54",
+                "reference": "4cad310c5b520be80fd89f76b54261f28f10ab54",
                 "shasum": ""
             },
             "require": {
@@ -2729,9 +2729,9 @@
             ],
             "support": {
                 "issues": "https://github.com/googleapis/gax-php/issues",
-                "source": "https://github.com/googleapis/gax-php/tree/v1.50.0"
+                "source": "https://github.com/googleapis/gax-php/tree/v1.51.0"
             },
-            "time": "2026-09-21T19:29:58+00:00"
+            "time": "2026-09-28T17:51:46+00:00"
         },
         {
             "name": "google/grpc-gcp",
@@ -2780,16 +2780,16 @@
         },
         {
             "name": "google/longrunning",
-            "version": "0.8.4",
+            "version": "0.8.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/googleapis/php-longrunning.git",
-                "reference": "a60c8e2407eab5b2e4c8f36c40cd9c0eeb47d327"
+                "reference": "ca83fbce2e20556f9abdb939efce14f642336acd"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/googleapis/php-longrunning/zipball/a60c8e2407eab5b2e4c8f36c40cd9c0eeb47d327",
-                "reference": "a60c8e2407eab5b2e4c8f36c40cd9c0eeb47d327",
+                "url": "https://api.github.com/repos/googleapis/php-longrunning/zipball/ca83fbce2e20556f9abdb939efce14f642336acd",
+                "reference": "ca83fbce2e20556f9abdb939efce14f642336acd",
                 "shasum": ""
             },
             "require-dev": {
@@ -2818,9 +2818,9 @@
             ],
             "description": "Google LongRunning Client for PHP",
             "support": {
-                "source": "https://github.com/googleapis/php-longrunning/tree/v0.8.4"
+                "source": "https://github.com/googleapis/php-longrunning/tree/v0.8.5"
             },
-            "time": "2026-09-14T18:27:51+00:00"
+            "time": "2026-09-28T17:51:46+00:00"
         },
         {
             "name": "google/protobuf",
@@ -7330,16 +7330,16 @@
         },
         {
             "name": "nesbot/carbon",
-            "version": "3.14.0",
+            "version": "3.14.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/CarbonPHP/carbon.git",
-                "reference": "0023eaa2c9110e47446dd512a263c69c40cd41f2"
+                "reference": "34e9109535165bf1d7ff17a610492372ae73a896"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/0023eaa2c9110e47446dd512a263c69c40cd41f2",
-                "reference": "0023eaa2c9110e47446dd512a263c69c40cd41f2",
+                "url": "https://api.github.com/repos/CarbonPHP/carbon/zipball/34e9109535165bf1d7ff17a610492372ae73a896",
+                "reference": "34e9109535165bf1d7ff17a610492372ae73a896",
                 "shasum": ""
             },
             "require": {
@@ -7431,7 +7431,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-09-12T20:45:19+00:00"
+            "time": "2026-09-27T12:07:26+00:00"
         },
         {
             "name": "nette/schema",
@@ -7929,16 +7929,16 @@
         },
         {
             "name": "nuwave/lighthouse",
-            "version": "v6.70.1",
+            "version": "v6.71.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nuwave/lighthouse.git",
-                "reference": "d4d0c8eeebbf0eb92f8a776e6556159a48f0a7e9"
+                "reference": "0dc7b93596132f5e0e17b88538e873f00aa6b820"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/d4d0c8eeebbf0eb92f8a776e6556159a48f0a7e9",
-                "reference": "d4d0c8eeebbf0eb92f8a776e6556159a48f0a7e9",
+                "url": "https://api.github.com/repos/nuwave/lighthouse/zipball/0dc7b93596132f5e0e17b88538e873f00aa6b820",
+                "reference": "0dc7b93596132f5e0e17b88538e873f00aa6b820",
                 "shasum": ""
             },
             "require": {
@@ -8056,7 +8056,7 @@
                     "type": "patreon"
                 }
             ],
-            "time": "2026-09-02T12:48:27+00:00"
+            "time": "2026-09-27T10:10:22+00:00"
         },
         {
             "name": "nyholm/psr7",
@@ -8909,20 +8909,25 @@
         },
         {
             "name": "phpdocumentor/reflection-common",
-            "version": "2.2.0",
+            "version": "2.2.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpDocumentor/ReflectionCommon.git",
-                "reference": "1d01c49d4ed62f25aa84a747ad35d5a16924662b"
+                "reference": "ee15a5a2022c8383906b225055e9496a6a5e6e3b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpDocumentor/ReflectionCommon/zipball/1d01c49d4ed62f25aa84a747ad35d5a16924662b",
-                "reference": "1d01c49d4ed62f25aa84a747ad35d5a16924662b",
+                "url": "https://api.github.com/repos/phpDocumentor/ReflectionCommon/zipball/ee15a5a2022c8383906b225055e9496a6a5e6e3b",
+                "reference": "ee15a5a2022c8383906b225055e9496a6a5e6e3b",
                 "shasum": ""
             },
             "require": {
-                "php": "^7.2 || ^8.0"
+                "php": "^7.4 || ^8.0"
+            },
+            "require-dev": {
+                "phpstan/phpstan": "^1.8",
+                "phpunit/phpunit": "^9.5",
+                "vimeo/psalm": "^4.25"
             },
             "type": "library",
             "extra": {
@@ -8946,7 +8951,7 @@
                 }
             ],
             "description": "Common reflection classes used by phpdocumentor to reflect the code structure",
-            "homepage": "http://www.phpdoc.org",
+            "homepage": "https://www.phpdoc.org",
             "keywords": [
                 "FQSEN",
                 "phpDocumentor",
@@ -8956,9 +8961,9 @@
             ],
             "support": {
                 "issues": "https://github.com/phpDocumentor/ReflectionCommon/issues",
-                "source": "https://github.com/phpDocumentor/ReflectionCommon/tree/2.x"
+                "source": "https://github.com/phpDocumentor/ReflectionCommon/tree/2.2.1"
             },
-            "time": "2020-06-27T09:03:43+00:00"
+            "time": "2025-11-10T21:21:55+00:00"
         },
         {
             "name": "phpdocumentor/reflection-docblock",
@@ -9027,16 +9032,16 @@
         },
         {
             "name": "phpdocumentor/type-resolver",
-            "version": "2.0.0",
+            "version": "2.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpDocumentor/TypeResolver.git",
-                "reference": "327a05bbee54120d4786a0dc67aad30226ad4cf9"
+                "reference": "dbe2133bb23e2e33a6834f4ed417f24a1b167769"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpDocumentor/TypeResolver/zipball/327a05bbee54120d4786a0dc67aad30226ad4cf9",
-                "reference": "327a05bbee54120d4786a0dc67aad30226ad4cf9",
+                "url": "https://api.github.com/repos/phpDocumentor/TypeResolver/zipball/dbe2133bb23e2e33a6834f4ed417f24a1b167769",
+                "reference": "dbe2133bb23e2e33a6834f4ed417f24a1b167769",
                 "shasum": ""
             },
             "require": {
@@ -9079,9 +9084,9 @@
             "description": "A PSR-5 based resolver of Class names, Types and Structural Element Names",
             "support": {
                 "issues": "https://github.com/phpDocumentor/TypeResolver/issues",
-                "source": "https://github.com/phpDocumentor/TypeResolver/tree/2.0.0"
+                "source": "https://github.com/phpDocumentor/TypeResolver/tree/2.1.0"
             },
-            "time": "2026-01-06T21:53:42+00:00"
+            "time": "2026-09-27T19:32:54+00:00"
         },
         {
             "name": "phpoffice/common",
@@ -9197,12 +9202,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHPOffice/PHPPresentation.git",
-                "reference": "13e07254f73c6fd6da03f4e5ef2754130058c489"
+                "reference": "448189f1b2a92afa9b0dcb210897aca9195289ad"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHPOffice/PHPPresentation/zipball/13e07254f73c6fd6da03f4e5ef2754130058c489",
-                "reference": "13e07254f73c6fd6da03f4e5ef2754130058c489",
+                "url": "https://api.github.com/repos/PHPOffice/PHPPresentation/zipball/448189f1b2a92afa9b0dcb210897aca9195289ad",
+                "reference": "448189f1b2a92afa9b0dcb210897aca9195289ad",
                 "shasum": ""
             },
             "require": {
@@ -9260,7 +9265,7 @@
                 "issues": "https://github.com/PHPOffice/PHPPresentation/issues",
                 "source": "https://github.com/PHPOffice/PHPPresentation/tree/master"
             },
-            "time": "2026-09-25T05:04:04+00:00"
+            "time": "2026-09-28T12:31:52+00:00"
         },
         {
             "name": "phpoffice/phpspreadsheet",
@@ -9678,16 +9683,16 @@
         },
         {
             "name": "phpstan/phpdoc-parser",
-            "version": "2.3.5",
+            "version": "2.3.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpdoc-parser.git",
-                "reference": "148cefffaf0233e4c08cc13db8a195a56dd6dfe9"
+                "reference": "1427af4647235b4a73b13940b1f1258d3584f36e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpdoc-parser/zipball/148cefffaf0233e4c08cc13db8a195a56dd6dfe9",
-                "reference": "148cefffaf0233e4c08cc13db8a195a56dd6dfe9",
+                "url": "https://api.github.com/repos/phpstan/phpdoc-parser/zipball/1427af4647235b4a73b13940b1f1258d3584f36e",
+                "reference": "1427af4647235b4a73b13940b1f1258d3584f36e",
                 "shasum": ""
             },
             "require": {
@@ -9719,9 +9724,9 @@
             "description": "PHPDoc parser with support for nullable, intersection and generic types",
             "support": {
                 "issues": "https://github.com/phpstan/phpdoc-parser/issues",
-                "source": "https://github.com/phpstan/phpdoc-parser/tree/2.3.5"
+                "source": "https://github.com/phpstan/phpdoc-parser/tree/2.3.6"
             },
-            "time": "2026-08-31T16:05:28+00:00"
+            "time": "2026-09-27T20:07:45+00:00"
         },
         {
             "name": "powersync/authorizenet-sdk-php",
@@ -12694,16 +12699,16 @@
         },
         {
             "name": "spatie/laravel-package-tools",
-            "version": "1.93.2",
+            "version": "1.93.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/spatie/laravel-package-tools.git",
-                "reference": "e927d5b5b05e9fecae098e559e51918aa608ad02"
+                "reference": "7aeef26bd8d4909bec744dbf47aee7d1395588c1"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/e927d5b5b05e9fecae098e559e51918aa608ad02",
-                "reference": "e927d5b5b05e9fecae098e559e51918aa608ad02",
+                "url": "https://api.github.com/repos/spatie/laravel-package-tools/zipball/7aeef26bd8d4909bec744dbf47aee7d1395588c1",
+                "reference": "7aeef26bd8d4909bec744dbf47aee7d1395588c1",
                 "shasum": ""
             },
             "require": {
@@ -12743,7 +12748,7 @@
             ],
             "support": {
                 "issues": "https://github.com/spatie/laravel-package-tools/issues",
-                "source": "https://github.com/spatie/laravel-package-tools/tree/1.93.2"
+                "source": "https://github.com/spatie/laravel-package-tools/tree/1.93.3"
             },
             "funding": [
                 {
@@ -12751,7 +12756,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-08-26T09:13:25+00:00"
+            "time": "2026-09-28T07:16:50+00:00"
         },
         {
             "name": "spatie/laravel-queueable-action",
@@ -17439,16 +17444,16 @@
         },
         {
             "name": "twilio/sdk",
-            "version": "8.12.1",
+            "version": "8.12.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/twilio/twilio-php",
-                "reference": "1446cb97fc7cf0daef94389c2bad465e3b7df64b"
+                "reference": "f7c4bfca157c8a2de71cb1670dff9c999c469a00"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/1446cb97fc7cf0daef94389c2bad465e3b7df64b",
-                "reference": "1446cb97fc7cf0daef94389c2bad465e3b7df64b",
+                "url": "https://api.github.com/repos/twilio/twilio-php/zipball/f7c4bfca157c8a2de71cb1670dff9c999c469a00",
+                "reference": "f7c4bfca157c8a2de71cb1670dff9c999c469a00",
                 "shasum": ""
             },
             "require": {
@@ -17485,7 +17490,7 @@
                 "sms",
                 "twilio"
             ],
-            "time": "2026-09-09T12:37:32+00:00"
+            "time": "2026-09-28T08:43:54+00:00"
         },
         {
             "name": "typesense/typesense-php",
@@ -18272,23 +18277,23 @@
         },
         {
             "name": "fidry/cpu-core-counter",
-            "version": "1.3.0",
+            "version": "1.4.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/theofidry/cpu-core-counter.git",
-                "reference": "db9508f7b1474469d9d3c53b86f817e344732678"
+                "reference": "7cbeb03e286fa81b2bbe0e6bd6b8a27c71a3144d"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/theofidry/cpu-core-counter/zipball/db9508f7b1474469d9d3c53b86f817e344732678",
-                "reference": "db9508f7b1474469d9d3c53b86f817e344732678",
+                "url": "https://api.github.com/repos/theofidry/cpu-core-counter/zipball/7cbeb03e286fa81b2bbe0e6bd6b8a27c71a3144d",
+                "reference": "7cbeb03e286fa81b2bbe0e6bd6b8a27c71a3144d",
                 "shasum": ""
             },
             "require": {
                 "php": "^7.2 || ^8.0"
             },
             "require-dev": {
-                "fidry/makefile": "^0.2.0",
+                "fidry/makefile": "^0.2.0 || ^1.1.2",
                 "fidry/php-cs-fixer-config": "^1.1.2",
                 "phpstan/extension-installer": "^1.2.0",
                 "phpstan/phpstan": "^2.0",
@@ -18296,6 +18301,7 @@
                 "phpstan/phpstan-phpunit": "^2.0",
                 "phpstan/phpstan-strict-rules": "^2.0",
                 "phpunit/phpunit": "^8.5.31 || ^9.5.26",
+                "symfony/polyfill-mbstring": "^1.33",
                 "webmozarts/strict-phpunit": "^7.5"
             },
             "type": "library",
@@ -18321,7 +18327,7 @@
             ],
             "support": {
                 "issues": "https://github.com/theofidry/cpu-core-counter/issues",
-                "source": "https://github.com/theofidry/cpu-core-counter/tree/1.3.0"
+                "source": "https://github.com/theofidry/cpu-core-counter/tree/1.4.0"
             },
             "funding": [
                 {
@@ -18329,7 +18335,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-08-14T07:29:31+00:00"
+            "time": "2026-09-27T17:40:20+00:00"
         },
         {
             "name": "filp/whoops",

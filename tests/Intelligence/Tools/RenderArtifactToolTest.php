@@ -6,6 +6,7 @@ namespace Tests\Intelligence\Tools;
 
 use Kanvas\Intelligence\Agents\Neuron\Tools\Common\RenderArtifactTool;
 use Kanvas\Intelligence\Agents\Services\ArtifactBlockService;
+use NeuronAI\Tools\HasRunKey;
 use Tests\TestCase;
 
 final class RenderArtifactToolTest extends TestCase
@@ -25,6 +26,31 @@ final class RenderArtifactToolTest extends TestCase
             . "\n```",
             $result['block']
         );
+    }
+
+    /**
+     * A Q3 report rendered 10 distinct blocks, then the 11th (a "Next steps" actions block) aborted
+     * the turn with ToolRunsExceededException (KANVAS-ECOSYSTEM-6H4).
+     */
+    public function testDistinctBlocksDoNotShareARunBudget(): void
+    {
+        $tool = new RenderArtifactTool();
+        $this->assertInstanceOf(HasRunKey::class, $tool);
+
+        $stats = [
+            'component' => 'stats',
+            'props' => '{"items":[{"label":"Revenue","value":10}]}',
+        ];
+        $actions = [
+            'component' => 'actions',
+            'title' => 'Next steps',
+            'props' => '{"items":[{"label":"Compare vs Q2","message":"Compare Q2 and Q3"}]}',
+        ];
+
+        $statsKey = $tool->setInputs($stats)->getRunKey();
+
+        $this->assertNotSame($statsKey, $tool->setInputs($actions)->getRunKey());
+        $this->assertSame($statsKey, $tool->setInputs($stats)->getRunKey());
     }
 
     public function testTheTitleIsOptional(): void
