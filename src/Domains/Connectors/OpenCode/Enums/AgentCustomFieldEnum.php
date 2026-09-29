@@ -54,6 +54,16 @@ enum AgentCustomFieldEnum: string
     case ALLOW_TRUNK_PUSH = 'CODING_ALLOW_TRUNK_PUSH';
 
     /**
+     * The identity this agent's commits are authored under, overriding `Agent name <agent@kanvas.dev>`.
+     *
+     * Deploy platforms (Vercel, Netlify) refuse to build a commit whose author email maps to no member
+     * of the team, so an agent pushing to such a repository needs an email the platform recognises.
+     * Admin-set, never by the agent: whoever controls this chooses whose name the work goes out under.
+     */
+    case GIT_AUTHOR_NAME = 'CODING_GIT_AUTHOR_NAME';
+    case GIT_AUTHOR_EMAIL = 'CODING_GIT_AUTHOR_EMAIL';
+
+    /**
      * The model this agent codes with, overriding the app's default.
      *
      * Per agent because agents are not interchangeable: a refactoring agent on a large codebase and one
