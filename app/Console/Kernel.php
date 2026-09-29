@@ -17,6 +17,7 @@ use App\Console\Commands\Ecosystem\PruneModelCacheTagsCommand;
 use App\Console\Commands\Ecosystem\Users\DeleteUsersRequestedCommand;
 use App\Console\Commands\Ecosystem\Users\DetectSignupAnomalyCommand;
 use App\Console\Commands\Event\GenerateUpcomingTimeSlotsCommand;
+use App\Console\Commands\Guild\GuildDailyLeadsDigestCommand;
 use App\Console\Commands\ImportPromptsFromDocsCommand;
 use App\Console\Commands\Lead\Schedules\LeadFollowUpSchedule;
 use App\Console\Commands\NervousSystem\Agents\Coding\ReapCodingAgentRuntimeCommand;
@@ -85,6 +86,9 @@ class Kernel extends ConsoleKernel
         // Event — roll the booking window forward daily so active schedule rules always
         // have slots up to their app's horizon, and refresh price snapshots on unsold ones.
         $schedule->command(GenerateUpcomingTimeSlotsCommand::class, ['--prune'])->dailyAt('01:30')->withoutOverlapping();
+
+        // Guild daily lead summaries are opt-in per active app/company pair.
+        $schedule->command(GuildDailyLeadsDigestCommand::class)->dailyAt('08:00')->withoutOverlapping()->onOneServer();
 
         // Scheduled imports (FTP/SFTP → mapper → importer). Each source has its own cron + timezone;
         // this tick only queues the ones that are due.
