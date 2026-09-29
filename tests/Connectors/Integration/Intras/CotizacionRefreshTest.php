@@ -147,6 +147,13 @@ class CotizacionRefreshTest extends TestCase
         $lead->pipeline_id = 0;
         $lead->pipeline_stage_id = 0;
         $lead->leads_status_id = 0;
+        // Every remaining NOT NULL column, set explicitly rather than leaned on. A local database
+        // that has drifted a default fills these silently, so the omission only ever surfaces on
+        // CI's freshly migrated schema — one column per run.
+        $lead->leads_receivers_id = 0;
+        $lead->is_duplicated = 0;
+        $lead->third_party_sync_status = 1;
+        $lead->is_published = 1;
         $lead->disableWorkflows();
         // saveQuietly() skips UuidTrait's creating hook — Lead has a NOT NULL uuid.
         $lead->generateUuidIfMissing()->saveQuietly();
