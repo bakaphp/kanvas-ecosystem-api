@@ -341,9 +341,9 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
             ),
         ];
 
-        $user = $this->actingUser();
+        $user = $this->internalActingUser();
 
-        if ($user !== null && ! $this instanceof ConversesWithCustomer) {
+        if ($user !== null) {
             $tools[] = new ReadFileTool()->withContext($app, $company, $user);
         }
 
@@ -363,6 +363,14 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
     protected function actingUser(): ?Users
     {
         return $this->agent?->user ?? $this->user;
+    }
+
+    /**
+     * The acting user for tools that read internal company data, null on a customer surface.
+     */
+    private function internalActingUser(): ?Users
+    {
+        return $this instanceof ConversesWithCustomer ? null : $this->actingUser();
     }
 
     private function usesEntityRollup(): bool
