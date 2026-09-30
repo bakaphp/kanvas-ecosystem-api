@@ -92,7 +92,7 @@ class ShippingQuoteTest extends ShippingOrderBase
         $this->addToCart()->assertSuccessful();
         $this->applyShippingQuote()->assertSuccessful();
 
-        $this->setVariantWeight(999999);
+        $this->setVariantWeight(999.99);
         $this->updateCartQuantity(2)->assertSuccessful();
 
         $this->assertNull($this->cartShipping());

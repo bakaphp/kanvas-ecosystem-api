@@ -80,7 +80,7 @@ class GetShippingQuotesAction
     {
         $parcels = $request->parcels->toCollection()->map(
             fn (Parcel $parcel): string => implode('x', [
-                $parcel->grams,
+                $parcel->weight,
                 $parcel->lengthCm,
                 $parcel->widthCm,
                 $parcel->heightCm,
@@ -97,7 +97,7 @@ class GetShippingQuotesAction
             $request->originCountry?->code,
             $request->originCity,
             $request->originPostalCode,
-            $request->totalGrams(),
+            $request->totalWeight(),
             $parcels,
             $request->shipDate?->toDateString(),
         ]));

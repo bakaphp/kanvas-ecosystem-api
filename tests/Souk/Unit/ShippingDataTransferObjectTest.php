@@ -13,32 +13,32 @@ use Tests\TestCaseUnit;
 
 final class ShippingDataTransferObjectTest extends TestCaseUnit
 {
-    public function testTotalGramsSumsEveryParcelInTheRequest(): void
+    public function testTotalWeightSumsEveryParcelInTheRequest(): void
     {
         $request = new ShipmentRequest(
             destinationCountry: new Countries(['code' => 'US']),
             parcels: Parcel::collect(
                 [
-                    new Parcel(grams: 500),
-                    new Parcel(grams: 250, lengthCm: 20.5, widthCm: 15.0, heightCm: 10.0),
+                    new Parcel(weight: 0.5),
+                    new Parcel(weight: 0.25, lengthCm: 20.5, widthCm: 15.0, heightCm: 10.0),
                 ],
                 DataCollection::class
             ),
         );
 
-        $this->assertSame(750, $request->totalGrams());
+        $this->assertSame(0.75, $request->totalWeight());
     }
 
-    public function testTotalGramsWithASingleParcel(): void
+    public function testTotalWeightWithASingleParcel(): void
     {
         $request = new ShipmentRequest(
             destinationCountry: new Countries(['code' => 'ES']),
-            parcels: Parcel::collect([new Parcel(grams: 1200)], DataCollection::class),
+            parcels: Parcel::collect([new Parcel(weight: 1.2)], DataCollection::class),
             destinationCity: 'Madrid',
             destinationPostalCode: '28001',
         );
 
-        $this->assertSame(1200, $request->totalGrams());
+        $this->assertSame(1.2, $request->totalWeight());
     }
 
     public function testShippingQuoteConstructionKeepsProviderAndServiceIdentity(): void

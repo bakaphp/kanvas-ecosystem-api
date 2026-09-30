@@ -26,6 +26,7 @@ class RateCard extends BaseModel
         'service_code',
         'name',
         'currency',
+        'weight_unit',
         'fixed_charge',
     ];
 

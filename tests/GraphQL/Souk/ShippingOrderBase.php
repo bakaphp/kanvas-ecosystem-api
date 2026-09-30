@@ -6,7 +6,6 @@ namespace Tests\GraphQL\Souk;
 
 use Baka\Support\Str;
 use Illuminate\Testing\TestResponse;
-use Kanvas\Inventory\Variants\Enums\ConfigurationEnum as VariantConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Souk\Orders\Models\Order;
@@ -48,7 +47,7 @@ abstract class ShippingOrderBase extends OrderBase
         $this->cartIdentifier = (string) Str::uuid();
         Countries::firstOrCreate(['code' => 'us'], ['name' => 'United States']);
         $this->configureRateCards();
-        $this->setVariantWeight(400);
+        $this->setVariantWeight(0.4);
     }
 
     protected function configureRateCards(?callable $mutate = null): void
@@ -66,9 +65,11 @@ abstract class ShippingOrderBase extends OrderBase
         new ImportRateCardsAction($this->apps, $this->company, $mutate ? $mutate($cards) : $cards)->execute();
     }
 
-    protected function setVariantWeight(int $grams): void
+    protected function setVariantWeight(float $weight): void
     {
-        Variants::findOrFail($this->variantId)->addAttribute(VariantConfigurationEnum::WEIGHT_UNIT->value, $grams);
+        $variant = Variants::findOrFail($this->variantId);
+        $variant->weight = $weight;
+        $variant->saveOrFail();
     }
 
     protected function cartHeaders(): array

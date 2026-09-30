@@ -41,9 +41,9 @@ class RateCardShippingProvider implements ShippingRateProviderInterface
 
     public function quote(ShipmentRequest $request): array
     {
-        $totalGrams = $request->totalGrams();
+        $totalWeight = $request->totalWeight();
 
-        if ($totalGrams <= 0) {
+        if ($totalWeight <= 0) {
             return [];
         }
 
@@ -62,8 +62,8 @@ class RateCardShippingProvider implements ShippingRateProviderInterface
             ->with(['rates' => fn (Relation $query) => $query
                 ->notDeleted()
                 ->where('zone', $zone)
-                ->where('max_grams', '>=', $totalGrams)
-                ->orderBy('max_grams')])
+                ->where('max_weight', '>=', $totalWeight)
+                ->orderBy('max_weight')])
             ->get();
 
         foreach ($cards as $card) {
@@ -99,7 +99,8 @@ class RateCardShippingProvider implements ShippingRateProviderInterface
             transitMaxDays: $rate->transit_max_days,
             meta: [
                 'zone' => $zone,
-                'max_grams' => $rate->max_grams,
+                'max_weight' => (float) $rate->max_weight,
+                'weight_unit' => $card->weight_unit,
             ],
         );
     }
