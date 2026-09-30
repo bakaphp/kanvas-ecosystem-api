@@ -13,6 +13,7 @@ use Kanvas\Connectors\Movipass\Actions\CapturePaymentAction;
 use Kanvas\Connectors\Movipass\Actions\ProcessPaymentAction;
 use Kanvas\Connectors\Movipass\Actions\ValidatePaymentAction;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Souk\Enums\ConfigurationEnum;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Souk\Payments\Actions\CreatePaymentAction;
 use Kanvas\Souk\Payments\Actions\EnforceCardVelocityLimitAction;
@@ -127,8 +128,21 @@ class PaymentMutation
             ];
         }
 
+        $amountDue = $order->getTotalDueAmount();
+
+        if (
+            $app->get(ConfigurationEnum::ENFORCE_EXACT_PAYMENT_AMOUNT->value)
+            && isset($formData['amount'])
+            && round((float) $formData['amount'], 2) !== round($amountDue, 2)
+        ) {
+            return [
+                'status' => 'error',
+                'message' => 'Payment amount does not match the order amount due',
+            ];
+        }
+
         try {
-            $formData['amount'] = $formData['amount'] ?? $order->getTotalDueAmount();
+            $formData['amount'] = $formData['amount'] ?? $amountDue;
             $formData['payment_method_type'] = $paymentMethodType;
 
             if ($paymentMethodType === PaymentMethodTypesEnum::CASH->value) {
