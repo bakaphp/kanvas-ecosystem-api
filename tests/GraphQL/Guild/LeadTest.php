@@ -9,6 +9,8 @@ use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Enums\FlagEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Models\LeadVariantInterest;
+use Kanvas\Inventory\Products\Models\Products;
 use Kanvas\Locations\Models\Cities;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Locations\Models\States;
@@ -1279,5 +1281,53 @@ class LeadTest extends TestCase
             $channel->messages()->where('messages.id', $messageId)->exists(),
             'Message was not attached to the specified channel',
         );
+    }
+
+    public function testLeadExposesItsVariantInterests(): void
+    {
+        $app = app(Apps::class);
+        $user = auth()->user();
+        $company = $user->getCurrentCompany();
+
+        $lead = $this->createLeadAndGetResponse();
+        $leadId = (int) $lead['data']['createLead']['id'];
+
+        $product = Products::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
+        $variant = $product->variants()->first();
+
+        LeadVariantInterest::create([
+            'apps_id' => $app->getId(),
+            'companies_id' => $company->getId(),
+            'leads_id' => $leadId,
+            'variants_id' => $variant->getId(),
+            'users_id' => $user->getId(),
+            'is_active' => true,
+        ]);
+
+        $this->graphQL('
+            query($id: Mixed) {
+                leads(where: { column: ID, operator: EQ, value: $id }) {
+                    data {
+                        id
+                        variantInterests {
+                            is_active
+                            variant { id name }
+                        }
+                    }
+                }
+            }
+        ', ['id' => $leadId])->assertJson([
+            'data' => [
+                'leads' => [
+                    'data' => [[
+                        'id' => (string) $leadId,
+                        'variantInterests' => [[
+                            'is_active' => true,
+                            'variant' => ['id' => (string) $variant->getId(), 'name' => $variant->name],
+                        ]],
+                    ]],
+                ],
+            ],
+        ]);
     }
 }
