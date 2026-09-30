@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Souk\Orders\Actions;
 
-use Kanvas\Companies\Models\Companies;
+use Illuminate\Support\Facades\Log;
+use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
+use Kanvas\Connectors\PasoRapido\Enums\CustomFieldEnum as PasoRapidoCustomFieldEnum;
 use Kanvas\Souk\Orders\Models\Order;
-use Kanvas\Users\Models\Users;
-use Kanvas\Users\Repositories\UsersRepository;
-use Throwable;
+use Kanvas\Souk\Payments\Enums\PaymentStatusEnum;
 
 class AssignCorporateOrderOwnerAction
 {
     public const ACTOR_METADATA_KEY = 'corporate_actor_user_id';
-    public const CREATOR_METADATA_KEY = 'created_by_user_id';
+    public const CREATOR_METADATA_KEY = ResolveCorporateOrderCreatorAction::CREATOR_METADATA_KEY;
 
     public function __construct(
         protected Order $order
@@ -22,21 +22,30 @@ class AssignCorporateOrderOwnerAction
 
     public function execute(): ?Order
     {
+        $resolver = new ResolveCorporateOrderCreatorAction($this->order);
+        $rawCompanyId = $resolver->metadataValue(ResolveCorporateOrderCreatorAction::COMPANY_METADATA_KEY);
+
+        if ($rawCompanyId === null || ! $this->isProcessed()) {
+            return null;
+        }
+
+        $creator = $resolver->execute();
+
+        if ($creator === null) {
+            Log::warning('Corporate order creator rejected, users_id left unchanged', [
+                'order_id' => $this->order->getId(),
+                'created_by_user_id' => $resolver->metadataValue(self::CREATOR_METADATA_KEY),
+                'user_company_id' => $rawCompanyId,
+            ]);
+
+            return null;
+        }
+
+        if ((int) $this->order->users_id === $creator->getId()) {
+            return null;
+        }
+
         $metadata = $this->order->metadata ?? [];
-
-        // user_company_id lives under metadata.data for corporate orders; top-level is the
-        // legacy fallback (both paths are the convention — see SyncOrderProvidersAction).
-        $companyId = (int) ($metadata['data']['user_company_id'] ?? $metadata['user_company_id'] ?? 0);
-        if (! $companyId) {
-            return null;
-        }
-
-        $company = Companies::getById($companyId);
-        $targetUser = $this->resolveTargetUser($company, $metadata);
-
-        if ($targetUser === null || (int) $this->order->users_id === $targetUser->getId()) {
-            return null;
-        }
 
         $this->order->metadata = [
             ...$metadata,
@@ -46,34 +55,25 @@ class AssignCorporateOrderOwnerAction
                 self::ACTOR_METADATA_KEY => $metadata['data'][self::ACTOR_METADATA_KEY] ?? (int) $this->order->users_id,
             ],
         ];
-        $this->order->users_id = $targetUser->getId();
+        $this->order->users_id = $creator->getId();
         $this->order->saveQuietly();
+        $this->order->searchable();
 
         return $this->order;
     }
 
-    private function resolveTargetUser(Companies $company, array $metadata): ?Users
+    private function isProcessed(): bool
     {
-        $creatorId = (int) ($metadata['data'][self::CREATOR_METADATA_KEY] ?? $metadata[self::CREATOR_METADATA_KEY] ?? 0);
-
-        if ($creatorId) {
-            $creator = Users::find($creatorId);
-            if ($creator !== null && $this->belongsToCompanyApp($creator, $company)) {
-                return $creator;
-            }
-        }
-
-        return $company->user;
-    }
-
-    private function belongsToCompanyApp(Users $user, Companies $company): bool
-    {
-        try {
-            UsersRepository::belongsToThisApp($user, $this->order->app, $company);
-
+        if ($this->order->orderType?->name !== OrderTypeEnum::PASO_RAPIDO->value) {
             return true;
-        } catch (Throwable) {
-            return false;
         }
+
+        if (($this->order->metadata['data']['is_bulk_recharge'] ?? false) === true) {
+            return collect($this->order->metadata['corporate_recharge_results'] ?? [])
+                ->contains(fn (array $result) => ($result['status'] ?? null) === 'success');
+        }
+
+        return $this->order->payment_status === PaymentStatusEnum::PAID->value
+            && $this->order->get(PasoRapidoCustomFieldEnum::PASO_RAPIDO_PAYMENT_STATUS->value) === PaymentStatusEnum::PAID->value;
     }
 }
