@@ -43,6 +43,7 @@ use Override;
  * @property string|null $pull_request_url
  * @property int|null $continues_session_id
  * @property string|null $last_cursor
+ * @property int $turn_offset
  * @property int|null $last_message_at
  * @property string|null $provider
  * @property string|null $model
@@ -52,6 +53,7 @@ use Override;
  * @property int $cache_read_tokens
  * @property int $cache_write_tokens
  * @property string $estimated_cost
+ * @property int $limit_extensions
  * @property string|null $handoff
  * @property string|null $error_message
  * @property int $agent_steer_count

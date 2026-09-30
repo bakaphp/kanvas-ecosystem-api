@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Harness;
 
 use Kanvas\Intelligence\AgentRuntime\Harness\Actions\FinalizeHarnessSessionAction;
+use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\HarnessFactory;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
@@ -17,7 +18,6 @@ use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
-use Throwable;
 
 /**
  * Stops a running coding job.
@@ -92,21 +92,21 @@ class CancelHarnessCodingJobTool extends Tool implements HasRunKey, RequiresSyst
             );
         }
 
-        try {
-            // Interrupt first, so the runtime stops mid-turn rather than being finalised underneath a
-            // turn that is still writing files.
-            HarnessFactory::forSession($session)->stop($session);
-        } catch (Throwable $e) {
-            // An unreachable runtime is often WHY someone is cancelling. Record the cancellation anyway.
-            report($e);
-        }
+        // Interrupt first, so the runtime stops mid-turn rather than being finalised underneath a turn
+        // that is still writing files.
+        HarnessFactory::interrupt($session);
 
-        new FinalizeHarnessSessionAction(
-            $session,
-            failureReason: $reason !== null && trim($reason) !== ''
-                ? 'Cancelled: ' . trim($reason)
-                : 'Cancelled before it finished.'
-        )->execute();
+        $failureReason = $reason !== null && trim($reason) !== ''
+            ? 'Cancelled: ' . trim($reason)
+            : 'Cancelled before it finished.';
+
+        // Terminal before finalising: FinalizeHarnessSessionAction keeps a terminal status it finds and
+        // reads anything else as FAILED — a deliberate cancel would be announced as a failed job.
+        $session->status = HarnessStatusEnum::CANCELLED->value;
+        $session->error_message = $failureReason;
+        $session->saveOrFail();
+
+        new FinalizeHarnessSessionAction($session, failureReason: $failureReason)->execute();
 
         return $this->ok(
             ['job_id' => $job_id, 'branch' => $session->branch],

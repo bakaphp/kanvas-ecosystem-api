@@ -28,7 +28,7 @@ class LeadUpdateEvent implements ShouldBroadcast
             'id' => $this->lead->id,
             'title' => $this->lead->title,
             'people' => [
-                'name' => $this->lead->people->name,
+                'name' => $this->lead->people?->name,
             ],
         ];
     }

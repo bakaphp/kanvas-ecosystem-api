@@ -165,6 +165,75 @@ class OpenCodeHarnessTest extends TestCase
         $this->assertSame('the run ended as "aborted"', $tick->error);
     }
 
+    /**
+     * The endpoint caps a page at 100. One page misses a long run's closing `idle` — so it can only end
+     * at the time limit — and every token after message 100.
+     */
+    public function testPollFollowsEveryPageSoALongRunStillFinishes(): void
+    {
+        $firstPage = array_map(
+            fn (int $i): array => $this->assistantMessage(createdAt: 1000 + $i, text: 'step ' . $i),
+            range(1, 100)
+        );
+
+        $harness = new OpenCodeHarness(new Client($this->pagedTransport([
+            '' => ['data' => $firstPage, 'cursor' => ['next' => 'cur_2']],
+            'cur_2' => [
+                'data' => [
+                    $this->assistantMessage(createdAt: 2000, text: 'done'),
+                    ['type' => 'idle', 'time' => ['created' => 2100], 'outcome' => 'succeeded'],
+                ],
+                'cursor' => ['next' => 'cur_3'],
+            ],
+        ])));
+
+        $tick = $harness->poll($this->taskSession());
+
+        $this->assertSame(HarnessStatusEnum::IDLE, $tick->status);
+        $this->assertSame(1010, $tick->usage->inputTokens);
+        $this->assertSame('cur_3', $tick->cursor);
+    }
+
+    /**
+     * Pausing at a limit aborts the turn. Once resumed, that old `aborted` idle must not be read as the
+     * outcome of the new turn, or the run is failed on the first tick after it was told to continue.
+     */
+    public function testAResumedSessionIgnoresTheTurnItsPauseAborted(): void
+    {
+        $session = $this->taskSession();
+        $session->turn_offset = 1;
+
+        $tick = $this->harness([
+            'message' => $this->page([
+                $this->assistantMessage(createdAt: 1000, text: 'working'),
+                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'aborted'],
+                $this->assistantMessage(createdAt: 2000, text: 'picking up where I stopped'),
+            ], idle: null),
+        ])->poll($session);
+
+        $this->assertSame(HarnessStatusEnum::RUNNING, $tick->status);
+        $this->assertNull($tick->error);
+        $this->assertSame(1, $tick->closedTurns);
+        $this->assertSame('picking up where I stopped', $tick->lastSaid);
+    }
+
+    public function testAResumedTurnThatClosesIsIdle(): void
+    {
+        $session = $this->taskSession();
+        $session->turn_offset = 1;
+
+        $tick = $this->harness([
+            'message' => $this->page([
+                $this->assistantMessage(createdAt: 1000, text: 'working'),
+                ['type' => 'idle', 'time' => ['created' => 1100], 'outcome' => 'aborted'],
+                $this->assistantMessage(createdAt: 2000, text: 'finished'),
+            ]),
+        ])->poll($session);
+
+        $this->assertSame(HarnessStatusEnum::IDLE, $tick->status);
+        $this->assertSame(2, $tick->closedTurns);
+    }
+
     public function testModelsObservedListsEveryDistinctModelThatSpoke(): void
     {
         $tick = $this->harness([
@@ -273,6 +342,40 @@ class OpenCodeHarnessTest extends TestCase
                 }
 
                 return [];
+            }
+        };
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $pages message pages keyed by the cursor requested ('' for the first)
+     */
+    private function pagedTransport(array $pages): HarnessTransport
+    {
+        return new class ($pages) implements HarnessTransport {
+            /**
+             * @param array<string, array<string, mixed>> $pages
+             */
+            public function __construct(
+                private readonly array $pages,
+            ) {
+            }
+
+            #[Override]
+            public function request(
+                string $method,
+                string $path,
+                ?array $body = null,
+                int $timeout = 30
+            ): array {
+                [$route, $query] = array_pad(explode('?', $path, 2), 2, '');
+
+                if (! str_ends_with($route, '/message')) {
+                    return ['data' => []];
+                }
+
+                parse_str($query, $params);
+
+                return $this->pages[(string) ($params['cursor'] ?? '')] ?? ['data' => []];
             }
         };
     }

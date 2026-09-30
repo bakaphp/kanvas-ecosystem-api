@@ -53,6 +53,21 @@ which can be queried from Task custom fields, and custom fields live on a differ
   but never the plan's status, and `saveQuietly()` fires no events — hence the explicit
   `broadcastChange()` in `FinalizeHarnessSessionAction`, without which the board shows a done task under
   an active plan.
+- **Limits: the poller owns them, nothing else may.** Time is counted in *active* poll ticks (parked on
+  a question/permission doesn't count), cost is Kanvas's own estimate, and both scale by
+  `1 + limit_extensions`. The sweeper reaps silence (stale heartbeat) only — a wall-clock ceiling there
+  would override all three rules.
+- **Hitting a limit is a question when the tenant has a `coding_extension` policy.**
+  `RequestSessionExtensionAction` parks the session as `awaiting_extension` *before* interrupting
+  opencode, opens the approval with a post-mortem (`SessionPostMortemService`: stuck-vs-busy, files,
+  last words), and the poller keeps ticking without touching the runtime. Approve →
+  `CodingExtensionApprovalHandler` sets `turn_offset`, bumps `limit_extensions`, prompts "continue";
+  reject, no answer in 30 min, or approved-but-not-resumed → the run stops with the post-mortem. No
+  policy → the run stops at the limit, post-mortem included. Policy:
+  `kanvas:coding:setup-push-policy --type=extension`.
+- **`turn_offset` is what makes a second turn readable.** `idle` messages stay in history forever; the
+  harness judges status and errors from the idles after the offset only. Without it the `aborted` idle
+  the pause produced is read as the resumed turn's outcome.
 - **`from_ia => true` on every plan post.** Otherwise an @mention inside the agent's own narration wakes
   the agent it names and two agents talk until the budget is gone.
 
@@ -94,6 +109,8 @@ where they explain a decision.
   per-agent container could not work there: every session ran in the server's own working directory.
 - Prompting is async and the body is flat `{text}`; it was `{prompt: {text}}`. `delivery: "steer"` joins
   the running turn, `"queue"` waits for it.
+- **`/message` pages cap at 100.** `poll()` follows the cursor to the end; one page loses the closing
+  `idle` and every token past message 100 on any long run.
 - **`/session/{id}/history` is gone.** It was the durable, seq-numbered log the poller resumed from.
   `/message` replaces it with cursor pagination, so the session stores an opaque `last_cursor` string
   instead of an integer `last_seq`. Store the cursor; never parse or compare it.
@@ -173,7 +190,8 @@ session provisions, the turn runs, and the model answers from opencode's own hos
 | `opencode_workspace_root` | no | Defaults `/srv/kanvas`. Mirrors, worktrees and `.home` all live under it. |
 | `opencode_container_cpus` / `_memory` | no | Default memory is 2g. Larger than the box's free RAM is how MySQL gets OOM-killed. |
 | `coding_max_concurrent_sessions` | no | Per app. |
-| `coding_max_session_cost_usd` | no | Per session ceiling. |
+| `coding_max_session_cost_usd` | no | Per session ceiling; default $10. `0` = uncapped. |
+| `coding_max_session_minutes` | no | Active minutes before the poller interrupts the run; default 180 (3h). Company wins over app. Ticks spent waiting on a human answer/permission don't count. |
 | `opencode_static_endpoint` / `_password` | no | Attach mode only. Leave unset for the real path, or provisioning attaches instead of launching. |
 
 **Agent-level** (custom fields, `AgentCustomFieldEnum`):
