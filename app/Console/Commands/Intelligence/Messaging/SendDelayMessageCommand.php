@@ -22,9 +22,11 @@ use Kanvas\Connectors\Elead\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Twilio\Actions\StoreMessageSidAction;
 use Kanvas\Connectors\VinSolution\Actions\PushNoteToLeadAction;
 use Kanvas\Connectors\VinSolution\Enums\CustomFieldEnum as EnumsCustomFieldEnum;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Actions\SendMessageToLeadAction;
 use Kanvas\Guild\Leads\Enums\ConfigurationEnum as LeadsEnumsConfigurationEnum;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Guild\Leads\Repositories\LeadsRepository;
 use Kanvas\Intelligence\Leads\Enums\AgentReachOutConfigEnum;
 use Kanvas\Intelligence\Sessions\Services\SessionChannelService;
 use Kanvas\Services\DailyReportService;
@@ -106,7 +108,7 @@ class SendDelayMessageCommand extends Command
     protected function processMessage(Companies $company, Message $message, int $delayMinutes): void
     {
         try {
-            $lead = $message->entity();
+            $lead = $this->resolveLead($message);
         } catch (Throwable $e) {
             report($e);
             $this->error('Message ID ' . $message->getId() . ' has an invalid Lead entity. Skipping.');
@@ -116,7 +118,7 @@ class SendDelayMessageCommand extends Command
         }
 
         if (! $lead instanceof Lead) {
-            $this->info('Message ID ' . $message->getId() . ' is not linked to a Lead entity. Skipping.');
+            $this->info('Message ID ' . $message->getId() . ' is not linked to a Lead or People entity. Skipping.');
             $message->setUnlock();
 
             return;
@@ -171,6 +173,29 @@ class SendDelayMessageCommand extends Command
         }
 
         $this->sendDelayedMessage($lead, $message, $messageContent);
+    }
+
+    /**
+     * A reach-out draft is linked to both the People and the Lead, and Message::entity()
+     * only returns the first link (the People). Prefer the Lead link; when only the People
+     * is there (or a legacy Lead namespace), fall back to the person's latest lead or the
+     * plain entity.
+     */
+    protected function resolveLead(Message $message): ?Lead
+    {
+        $lead = $message->entityOfClass(Lead::class);
+        if ($lead instanceof Lead) {
+            return $lead;
+        }
+
+        $people = $message->entityOfClass(People::class);
+        if ($people instanceof People) {
+            return LeadsRepository::getPeopleLastLead($people);
+        }
+
+        $entity = $message->entity();
+
+        return $entity instanceof Lead ? $entity : null;
     }
 
     protected function hasBeenContactedBySalesAgent(Lead $lead, Companies $company): bool
