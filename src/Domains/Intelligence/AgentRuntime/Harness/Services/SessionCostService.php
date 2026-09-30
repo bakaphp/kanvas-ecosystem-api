@@ -16,7 +16,8 @@ use Kanvas\Intelligence\Agents\Services\ModelPricingCalculator;
  */
 class SessionCostService
 {
-    private const float DEFAULT_CAP_USD = 5.0;
+    private const float DEFAULT_CAP_USD = 10.0;
+    private const int DEFAULT_MAX_ACTIVE_MINUTES = 180;
 
     public function costFor(AgentTaskSession $session, HarnessUsage $usage): float
     {
@@ -36,18 +37,30 @@ class SessionCostService
      */
     public function capFor(AgentTaskSession $session): ?float
     {
-        $company = $session->company;
-        $app = $session->app;
+        $cap = (float) ($this->setting($session, ConfigurationEnum::MAX_SESSION_COST_USD) ?? self::DEFAULT_CAP_USD);
 
-        $configured = $company?->get(ConfigurationEnum::MAX_SESSION_COST_USD->value)
-            ?? $app?->get(ConfigurationEnum::MAX_SESSION_COST_USD->value);
+        return $cap > 0 ? $cap * $this->blocks($session) : null;
+    }
 
-        if ($configured === null) {
-            return self::DEFAULT_CAP_USD;
-        }
+    /**
+     * Minutes of work, not wall clock: time parked on a person's answer is not counted, or a question
+     * asked at minute 30 and answered an hour later would come back to a session already killed. The
+     * cost cap is what bounds spend; this only catches a run that is busy without ever finishing.
+     */
+    public function maxActiveMinutesFor(AgentTaskSession $session): int
+    {
+        $minutes = (int) ($this->setting($session, ConfigurationEnum::MAX_SESSION_MINUTES) ?? 0);
 
-        $cap = (float) $configured;
+        return ($minutes > 0 ? $minutes : self::DEFAULT_MAX_ACTIVE_MINUTES) * $this->blocks($session);
+    }
 
-        return $cap > 0 ? $cap : null;
+    private function blocks(AgentTaskSession $session): int
+    {
+        return 1 + (int) $session->limit_extensions;
+    }
+
+    private function setting(AgentTaskSession $session, ConfigurationEnum $key): mixed
+    {
+        return $session->company?->get($key->value) ?? $session->app?->get($key->value);
     }
 }

@@ -21,31 +21,31 @@ use Throwable;
  * error event, no message and nothing the API will admit to — so a session with no activity is treated
  * as dead rather than patiently waited on. Without this, a stuck run holds a tenant's concurrency slot
  * and a container forever.
+ *
+ * Deliberately no wall-clock ceiling: the poller owns the time limit, which is per tenant, excludes
+ * time parked on a human, and can be extended by approval. A fixed ceiling here would override all three.
  */
 class SweepCodingSessionsCommand extends Command
 {
     use KanvasJobsTrait;
 
     private const int STALE_MINUTES = 10;
-    private const int MAX_SESSION_MINUTES = 45;
 
     protected $signature = 'kanvas:coding:sweep-sessions
         {--dry-run : List what would be swept without touching anything}';
 
-    protected $description = 'Interrupt and close coding sessions that have gone quiet or overrun.';
+    protected $description = 'Interrupt and close coding sessions that have gone quiet.';
 
     public function handle(): int
     {
         $staleBefore = Carbon::now()->subMinutes(self::STALE_MINUTES);
-        $startedBefore = Carbon::now()->subMinutes(self::MAX_SESSION_MINUTES);
         $dryRun = (bool) $this->option('dry-run');
 
         $sessions = AgentTaskSession::query()
             ->notDeleted()
             ->live()
-            ->where(function ($query) use ($staleBefore, $startedBefore): void {
+            ->where(function ($query) use ($staleBefore): void {
                 $query->where('heartbeat_at', '<', $staleBefore)
-                    ->orWhere('started_at', '<', $startedBefore)
                     // A row that died before it was ever provisioned has NULL timestamps, and
                     // `NULL < x` is NULL in SQL — without this it is invisible to the sweeper forever
                     // while still counting against the tenant's concurrency limit.
@@ -62,13 +62,9 @@ class SweepCodingSessionsCommand extends Command
         }
 
         foreach ($sessions as $session) {
-            $reason = match (true) {
-                $session->heartbeat_at === null => 'The session never started — it was cleaned up.',
-                $session->heartbeat_at->lt($staleBefore) => 'No activity for ' . self::STALE_MINUTES
-                    . ' minutes — the session was interrupted.',
-                default => 'The session ran past ' . self::MAX_SESSION_MINUTES
-                    . ' minutes and was interrupted.',
-            };
+            $reason = $session->heartbeat_at === null
+                ? 'The session never started — it was cleaned up.'
+                : 'No activity for ' . self::STALE_MINUTES . ' minutes — the session was interrupted.';
 
             $this->line(($dryRun ? '[dry-run] ' : '') . $session->uuid . ' · ' . $session->status . ' · ' . $reason);
 
@@ -95,12 +91,7 @@ class SweepCodingSessionsCommand extends Command
         // tenants otherwise, and this loop legitimately crosses apps.
         $this->overwriteAppService($app);
 
-        try {
-            HarnessFactory::forSession($session)->stop($session);
-        } catch (Throwable $e) {
-            // Unreachable is the expected case here — the whole reason it is being swept.
-            report($e);
-        }
+        HarnessFactory::interrupt($session);
 
         $session->status = HarnessStatusEnum::CANCELLED->value;
         $session->error_message = $reason;

@@ -38,4 +38,5 @@ enum ConfigurationEnum: string
     case STATIC_PASSWORD = 'opencode_static_password';
     case MAX_CONCURRENT_SESSIONS = 'coding_max_concurrent_sessions';
     case MAX_SESSION_COST_USD = 'coding_max_session_cost_usd';
+    case MAX_SESSION_MINUTES = 'coding_max_session_minutes';
 }
