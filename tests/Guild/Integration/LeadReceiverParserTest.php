@@ -562,4 +562,118 @@ final class LeadReceiverParserTest extends TestCase
         $this->assertArrayHasKey('member', $leadStructure['custom_fields']);
         $this->assertEquals('lpr2230', $leadStructure['custom_fields']['member']);
     }
+
+    public function testConcatMappingJoinsPresentFieldsForCustomAndStandardTargets(): void
+    {
+        $action = new ConvertJsonTemplateToLeadStructureAction(
+            [
+                'notes' => [
+                    'name' => 'agent_notes',
+                    'type' => 'concat',
+                    'fields' => ['business.years', 'business.empty', 'business.funding'],
+                    'separator' => ' | ',
+                ],
+                'description' => [
+                    'name' => 'description',
+                    'type' => 'concat',
+                    'fields' => ['business.years', 'business.funding'],
+                    'separator' => "\n",
+                    'target_type' => 'string',
+                ],
+            ],
+            [
+                'business' => [
+                    'years' => '10 years',
+                    'empty' => '',
+                    'funding' => '$50,000',
+                ],
+            ]
+        );
+
+        $result = $action->execute();
+
+        $this->assertSame('10 years | $50,000', $result['custom_fields']['agent_notes']);
+        $this->assertSame("10 years\n$50,000", $result['description']);
+    }
+
+    public function testTemplateMappingResolvesSingleAndDoubleBracePlaceholders(): void
+    {
+        $action = new ConvertJsonTemplateToLeadStructureAction(
+            [
+                'notes' => [
+                    'name' => 'agent_notes',
+                    'type' => 'template',
+                    'template' => '{business.name} | {{ business.region }} | {missing.value}',
+                ],
+            ],
+            ['business' => ['name' => 'Acme', 'region' => 'West']]
+        );
+
+        $result = $action->execute();
+
+        $this->assertSame('Acme | West | ', $result['custom_fields']['agent_notes']);
+    }
+
+    public function testAppendCombinesMappingsThatShareADestination(): void
+    {
+        $action = new ConvertJsonTemplateToLeadStructureAction(
+            [
+                'first_note' => [
+                    'name' => 'agent_notes',
+                    'type' => 'concat',
+                    'fields' => ['first'],
+                ],
+                'second_note' => [
+                    'name' => 'agent_notes',
+                    'type' => 'concat',
+                    'fields' => ['second'],
+                    'append' => true,
+                    'separator' => ' / ',
+                ],
+                'first_description' => [
+                    'name' => 'description',
+                    'type' => 'template',
+                    'template' => '{first}',
+                    'target_type' => 'string',
+                ],
+                'second_description' => [
+                    'name' => 'description',
+                    'type' => 'template',
+                    'template' => '{second}',
+                    'target_type' => 'string',
+                    'append' => true,
+                    'separator' => ' + ',
+                ],
+            ],
+            ['first' => 'First', 'second' => 'Second']
+        );
+
+        $result = $action->execute();
+
+        $this->assertSame('First / Second', $result['custom_fields']['agent_notes']);
+        $this->assertSame('First + Second', $result['description']);
+    }
+
+    public function testExistingMappingTypesRemainUnchanged(): void
+    {
+        $action = new ConvertJsonTemplateToLeadStructureAction(
+            [
+                'first_name' => ['name' => 'firstname', 'type' => 'string'],
+                'raw_custom' => ['name' => 'raw_custom', 'type' => 'customField'],
+                'reference' => ['name' => 'reference_id', 'type' => 'regex', 'pattern' => '/^prefix-(.+)$/'],
+            ],
+            [
+                'first_name' => 'Ada',
+                'raw_custom' => 'raw value',
+                'reference' => 'prefix-12345',
+            ]
+        );
+
+        $result = $action->execute();
+
+        $this->assertSame('Ada', $result['people']['firstname']);
+        $this->assertSame('Ada', $result['firstname']);
+        $this->assertSame('raw value', $result['custom_fields']['raw_custom']);
+        $this->assertSame('12345', $result['reference_id']);
+    }
 }
