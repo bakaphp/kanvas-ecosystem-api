@@ -7,9 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Kanvas\Connectors\Movipass\Enums\MovipassOrderStatusEnum;
 use Kanvas\Connectors\Movipass\Enums\OrderTypeEnum;
-use Kanvas\Connectors\Movipass\Jobs\GeneratePdfVoucherJob;
 use Kanvas\Souk\Orders\Actions\CalculateOrderCommissionAction;
 use Kanvas\Souk\Orders\Enums\OrderStatusEnum;
+use Kanvas\Souk\Orders\Jobs\GenerateOrderReceiptPdfJob;
 use Kanvas\Souk\Orders\Models\Order;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -98,14 +98,8 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
                             ],
                         ];
                         $order->saveQuietly();
-                        $vehiclePlate = $order->metadata['data']['vehiclePlate'] ?? '';
-                        $vehicleBrand = $order->metadata['data']['vehicleBrand'] ?? '';
-                        $serviceName = $order->orderType->name ?? '';
-                        $paymentDate = $order->metadata['data']['payment_date'] ?? '';
 
-                        $filename = "{$order->order_number}_{$serviceName}_{$vehiclePlate}_{$vehicleBrand}";
-
-                        return $this->generatePdfVoucher($order, $filename);
+                        return $this->generatePdfVoucher($order);
                     }
                 }
 
@@ -134,20 +128,16 @@ class SyncMovipassImpoundActivity extends KanvasActivity implements WorkflowActi
         return $start;
     }
 
-    private function generatePdfVoucher(Order $order, string $filename, array $metaData = []): array
+    private function generatePdfVoucher(Order $order): array
     {
-        GeneratePdfVoucherJob::dispatch(
-            $order,
-            $order->user,
-            'order-release-voucher',
-            $filename,
-            []
-        );
+        $receipt = OrderTypeEnum::IMPOUND_LOT->pdfReceipt();
+
+        GenerateOrderReceiptPdfJob::dispatch($order, $order->user, $receipt);
 
         return [
             'status' => 'processing',
             'download_url' => null,
-            'file_name' => "{$filename}.pdf",
+            'file_name' => $receipt->filenameFor($order) . '.pdf',
             'file_path' => null,
             'message' => 'PDF generation started. You will receive an email with the download link when ready.',
         ];

@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\Models\CompaniesBranches;
 use Kanvas\Souk\Models\BaseModel;
+use Kanvas\Souk\Orders\DataTransferObject\OrderReceipt;
 use Kanvas\Souk\Traits\DefaultTrait;
 
 /**
@@ -48,6 +49,11 @@ class OrderTypes extends BaseModel
     public function cardVelocityLimit(string $key): int
     {
         return (int) ($this->config['card_velocity'][$key] ?? 0);
+    }
+
+    public function pdfReceipt(): ?OrderReceipt
+    {
+        return OrderReceipt::fromConfig((array) ($this->config[OrderReceipt::CONFIG_KEY] ?? []));
     }
 
     public function orders(): HasMany
