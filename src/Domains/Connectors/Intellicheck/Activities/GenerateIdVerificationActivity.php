@@ -7,7 +7,7 @@ namespace Kanvas\Connectors\Intellicheck\Activities;
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
 use Kanvas\ActionEngine\Engagements\Models\Engagement;
-use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdAction;
+use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdInNewEngagementAction;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Workflow\Attributes\WorkflowAction;
@@ -71,12 +71,11 @@ class GenerateIdVerificationActivity extends KanvasActivity
                     return $this->failWorkflow(['message' => 'No person to attach the verification to']);
                 }
 
-                return new VerifyPeopleIdAction($people, $lead)->execute(
+                return new VerifyPeopleIdInNewEngagementAction($people, $lead)->execute(
                     verificationData: $verificationData,
                     parentEngagement: $engagement,
                     images: $this->resolveImages($params),
                     reuseExistingEngagement: true,
-                    alwaysCreateEngagement: true,
                 );
             },
             company: $lead->company,

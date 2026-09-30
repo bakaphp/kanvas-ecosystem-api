@@ -263,8 +263,7 @@ final class GenerateIdVerificationFromMessageActivityTest extends TestCase
                 ?Engagement $parentEngagement,
                 ?array $images,
                 bool $reuseExistingEngagement,
-                ?Engagement $engagement = null,
-                bool $alwaysCreateEngagement = false
+                ?Engagement $engagement = null
             ): ?Engagement {
                 $this->capturedEngagement = $engagement;
 

@@ -44,8 +44,7 @@ class VerifyPeopleIdAction
         ?array $images = null,
         bool $reuseExistingEngagement = false,
         ?Engagement $engagement = null,
-        bool $sendEmail = true,
-        bool $alwaysCreateEngagement = false
+        bool $sendEmail = true
     ): array {
         // An in-store scan carries no IPQS block; the fraud rules only apply to remote ones.
         $isShowRoom = ! isset($verificationData['ipqs']);
@@ -124,8 +123,7 @@ class VerifyPeopleIdAction
                 images: $images,
                 reuseExistingEngagement: $reuseExistingEngagement,
                 engagement: $engagement,
-                sendEmail: $sendEmail,
-                alwaysCreateEngagement: $alwaysCreateEngagement
+                sendEmail: $sendEmail
             );
         }
 
@@ -152,8 +150,7 @@ class VerifyPeopleIdAction
         ?array $images,
         bool $reuseExistingEngagement,
         ?Engagement $engagement = null,
-        bool $sendEmail = true,
-        bool $alwaysCreateEngagement = false
+        bool $sendEmail = true
     ): ?Engagement {
         $cacheKey = 'intellicheck_report_' . $this->lead->getId() . '_' . $this->people->getId();
 
@@ -185,8 +182,7 @@ class VerifyPeopleIdAction
             parentEngagement: $parentEngagement,
             images: $images,
             reuseExistingEngagement: $reuseExistingEngagement,
-            engagement: $engagement,
-            alwaysCreateEngagement: $alwaysCreateEngagement
+            engagement: $engagement
         );
     }
 
@@ -196,8 +192,7 @@ class VerifyPeopleIdAction
         ?Engagement $parentEngagement,
         ?array $images,
         bool $reuseExistingEngagement,
-        ?Engagement $engagement = null,
-        bool $alwaysCreateEngagement = false
+        ?Engagement $engagement = null
     ): ?Engagement {
         try {
             $pdfReport = PdfService::generatePdfFromTemplate(
@@ -208,7 +203,7 @@ class VerifyPeopleIdAction
                 $this->templateData($reportData, $isShowRoom)
             );
 
-            $engagement ??= $this->resolveEngagement($parentEngagement, $reuseExistingEngagement, $alwaysCreateEngagement);
+            $engagement ??= $this->resolveEngagement($parentEngagement, $reuseExistingEngagement);
 
             if ($engagement === null) {
                 return null;
@@ -254,19 +249,15 @@ class VerifyPeopleIdAction
     /**
      * A report that creates its own root message renders as a second folder, so it threads under the
      * scan's engagement or reuses this person's. Reuse is opt-in because it moves where the legacy
-     * callers' files land — see `Connectors/Intellicheck/CLAUDE.md`. `generate-id-verification` files every
-     * scan as its own engagement, so it skips the reuse while keeping the rest of that flag's behaviour.
+     * callers' files land — see `Connectors/Intellicheck/CLAUDE.md`.
      */
-    public function resolveEngagement(
-        ?Engagement $parentEngagement = null,
-        bool $reuseExistingEngagement = false,
-        bool $alwaysCreateEngagement = false
-    ): ?Engagement {
+    public function resolveEngagement(?Engagement $parentEngagement = null, bool $reuseExistingEngagement = false): ?Engagement
+    {
         if ($parentEngagement !== null) {
             return $this->createEngagement($parentEngagement);
         }
 
-        if (! $reuseExistingEngagement || $alwaysCreateEngagement) {
+        if (! $reuseExistingEngagement) {
             return $this->createEngagement();
         }
 

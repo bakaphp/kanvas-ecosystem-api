@@ -11,6 +11,7 @@ use Kanvas\ActionEngine\Engagements\Repositories\EngagementRepository;
 use Kanvas\ActionEngine\Enums\ActionStatusEnum;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdAction;
+use Kanvas\Connectors\Intellicheck\Actions\VerifyPeopleIdInNewEngagementAction;
 use Kanvas\Connectors\Intellicheck\Activities\GenerateIdVerificationActivity;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Filesystem\Models\Filesystem;
@@ -73,11 +74,7 @@ final class IdVerificationEngagementReuseTest extends TestCase
         $parent = $this->createEngagement($lead, $lead->people);
         $this->assertNotNull($parent);
 
-        $child = new VerifyPeopleIdAction($lead->people, $lead)->resolveEngagement(
-            parentEngagement: $parent,
-            reuseExistingEngagement: true,
-            alwaysCreateEngagement: true,
-        );
+        $child = new VerifyPeopleIdInNewEngagementAction($lead->people, $lead)->resolveEngagement($parent, true);
 
         $this->assertSame($parent->message_id, $child?->message->parent_id);
     }
@@ -421,10 +418,7 @@ final class IdVerificationEngagementReuseTest extends TestCase
 
     private function alwaysCreate(Lead $lead, People $people): ?Engagement
     {
-        return new VerifyPeopleIdAction($people, $lead)->resolveEngagement(
-            reuseExistingEngagement: true,
-            alwaysCreateEngagement: true,
-        );
+        return new VerifyPeopleIdInNewEngagementAction($people, $lead)->resolveEngagement(reuseExistingEngagement: true);
     }
 
     private function findForPeople(Lead $lead, People $people): ?Engagement
