@@ -10,11 +10,13 @@ use Kanvas\Exceptions\ValidationException;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\AgentHarness;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\CodingHarness;
 use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\HarnessTransport;
+use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\MachineNetworkModeEnum;
 use Kanvas\Intelligence\AgentRuntime\Harness\Models\AgentTaskSession;
 use Kanvas\Intelligence\AgentRuntime\Harness\Transports\HttpHarnessTransport;
 use Kanvas\Intelligence\AgentRuntime\Harness\Transports\SshExecHarnessTransport;
+use Throwable;
 
 /**
  * Resolves the harness for a session. Built fresh every time — a transport holds an HTTP client, and
@@ -34,6 +36,37 @@ class HarnessFactory
                 . 'use its own connector actions.'
             ),
         };
+    }
+
+    /**
+     * Best-effort interrupt. Every caller is already stopping the run for its own reason, and an
+     * unreachable runtime is often that reason — so a failure is reported, never allowed to block
+     * the row being closed.
+     */
+    public static function interrupt(AgentTaskSession $session): void
+    {
+        try {
+            self::forSession($session)->stop($session);
+        } catch (Throwable $e) {
+            report($e);
+        }
+    }
+
+    /**
+     * Best-effort diff: empty when the harness cannot report one or the runtime is unreachable. Its
+     * callers are closing or describing a run, and neither may fail because the diff could not be read.
+     */
+    public static function diffOrEmpty(AgentTaskSession $session): HarnessDiff
+    {
+        try {
+            $harness = self::forSession($session);
+
+            return $harness instanceof CodingHarness ? $harness->diff($session) : new HarnessDiff();
+        } catch (Throwable $e) {
+            report($e);
+
+            return new HarnessDiff();
+        }
     }
 
     public static function codingHarnessForSession(

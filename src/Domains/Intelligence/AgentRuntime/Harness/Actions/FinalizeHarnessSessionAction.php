@@ -8,7 +8,6 @@ use Illuminate\Support\Carbon;
 use Kanvas\Approvals\Models\ApprovalRequest;
 use Kanvas\Connectors\OpenCode\Services\CodingPolicy;
 use Kanvas\Intelligence\AgentRuntime\Harness\Concerns\PostsSessionActivity;
-use Kanvas\Intelligence\AgentRuntime\Harness\Contracts\CodingHarness;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessDiff;
 use Kanvas\Intelligence\AgentRuntime\Harness\DataTransferObject\HarnessTick;
 use Kanvas\Intelligence\AgentRuntime\Harness\Enums\HarnessStatusEnum;
@@ -50,7 +49,7 @@ class FinalizeHarnessSessionAction
     public function execute(): AgentTaskSession
     {
         $status = $this->resolveStatus();
-        $diff = $this->collectDiff();
+        $diff = HarnessFactory::diffOrEmpty($this->session);
 
         if ($status === HarnessStatusEnum::COMPLETED) {
             $this->captureHandoff();
@@ -158,19 +157,6 @@ class FinalizeHarnessSessionAction
             HarnessStatusEnum::CANCELLED => HarnessStatusEnum::CANCELLED,
             default => HarnessStatusEnum::FAILED,
         };
-    }
-
-    private function collectDiff(): HarnessDiff
-    {
-        try {
-            $harness = HarnessFactory::forSession($this->session);
-
-            return $harness instanceof CodingHarness ? $harness->diff($this->session) : new HarnessDiff();
-        } catch (Throwable $e) {
-            report($e);
-
-            return new HarnessDiff();
-        }
     }
 
     /**

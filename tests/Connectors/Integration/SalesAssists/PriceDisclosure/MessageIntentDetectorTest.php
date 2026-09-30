@@ -17,7 +17,11 @@ final class MessageIntentDetectorTest extends TestCase
     public static function messages(): iterable
     {
         yield 'price en' => ['How much is the Sierra?', [MessageIntentEnum::PRICE]];
-        yield 'price out the door' => ['what is the out-the-door price', [MessageIntentEnum::PRICE]];
+        yield 'otd en' => ['what is the out-the-door price', [MessageIntentEnum::PRICE, MessageIntentEnum::OUT_THE_DOOR]];
+        yield 'otd abbreviation' => ['can you send me the OTD?', [MessageIntentEnum::OUT_THE_DOOR]];
+        yield 'otd with taxes' => ['what is the total with taxes and fees', [MessageIntentEnum::PRICE, MessageIntentEnum::OUT_THE_DOOR]];
+        yield 'otd es' => ['¿cuál es el precio final con impuestos?', [MessageIntentEnum::PRICE, MessageIntentEnum::OUT_THE_DOOR]];
+        yield 'otd es todo incluido' => ['me lo das con todo incluido?', [MessageIntentEnum::OUT_THE_DOOR]];
         yield 'price msrp' => ['Is the MSRP negotiable?', [MessageIntentEnum::PRICE]];
         yield 'price es' => ['¿Cuánto cuesta la Yukon?', [MessageIntentEnum::PRICE]];
         yield 'price es unaccented' => ['cuanto vale la camioneta', [MessageIntentEnum::PRICE]];

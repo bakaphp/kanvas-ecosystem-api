@@ -35,6 +35,13 @@ class PriceDisclosureReplyGate
 
         $intents = $this->intents->detect($inbound);
 
+        if (in_array(MessageIntentEnum::OUT_THE_DOOR, $intents, true)) {
+            return [
+                'reason' => PriceDisclosureReasonEnum::OUT_THE_DOOR_UNSUPPORTED,
+                'detail' => 'The customer asked for an out-the-door price and no approved calculator is connected.',
+            ];
+        }
+
         if (in_array(MessageIntentEnum::PAYMENT, $intents, true) || in_array(MessageIntentEnum::COMPARISON, $intents, true)) {
             return [
                 'reason' => PriceDisclosureReasonEnum::PAYMENT_UNSUPPORTED,

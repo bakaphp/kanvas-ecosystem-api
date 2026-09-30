@@ -20,6 +20,9 @@ use Override;
 
 class OpenCodeHarness implements CodingHarness
 {
+    private const int MESSAGE_PAGE_SIZE = 100;
+    private const int MAX_MESSAGE_PAGES = 50;
+
     public function __construct(
         private readonly Client $client,
     ) {
@@ -78,16 +81,17 @@ class OpenCodeHarness implements CodingHarness
         // over the WHOLE conversation, and a page starting mid-way would report a fraction of the
         // tokens as the total. The cursor is carried so the runtime can tell us where the page ended,
         // and `narrationSince` is what avoids repeating lines already posted.
-        $page = $this->client->messages($sessionId);
+        $page = $this->allMessages($sessionId);
         $permissions = $this->client->pendingPermissions($sessionId);
         $forms = $this->client->pendingForms($sessionId);
 
         $assistant = $this->ofType($page['messages'], 'assistant');
         $idle = $this->ofType($page['messages'], 'idle');
+        $currentTurnIdle = array_slice($idle, (int) $session->turn_offset);
         $questions = $this->mapForms($forms);
 
         return new HarnessTick(
-            status: $this->resolveStatus($assistant, $idle, $permissions, $questions),
+            status: $this->resolveStatus($assistant, $currentTurnIdle, $permissions, $questions),
             usage: $this->sumUsage($assistant),
             narration: $this->narrationSince($assistant, $session->last_message_at),
             permissions: $this->mapPermissions($permissions),
@@ -95,8 +99,52 @@ class OpenCodeHarness implements CodingHarness
             modelsObserved: $this->modelsObserved($assistant),
             cursor: $page['cursor'],
             lastMessageAt: $this->newestMessageAt($assistant),
-            error: $this->lastError($idle),
+            error: $this->lastError($currentTurnIdle),
+            closedTurns: count($idle),
+            lastSaid: $this->lastSaid($assistant),
         );
+    }
+
+    /**
+     * Every page, not the first. The endpoint caps a page at 100 messages and a long run passes that
+     * well before it finishes; one page loses the turn's closing `idle` and every token after message
+     * 100, so the session could only ever end at the time limit.
+     *
+     * @return array{messages: list<array<string, mixed>>, cursor: string|null}
+     */
+    private function allMessages(string $sessionId): array
+    {
+        $messages = [];
+        $cursor = null;
+
+        for ($pages = 0; $pages < self::MAX_MESSAGE_PAGES; $pages++) {
+            $page = $this->client->messages($sessionId, $cursor, self::MESSAGE_PAGE_SIZE);
+            $messages = [...$messages, ...$page['messages']];
+
+            if (count($page['messages']) < self::MESSAGE_PAGE_SIZE || $page['cursor'] === $cursor) {
+                return ['messages' => $messages, 'cursor' => $page['cursor']];
+            }
+
+            $cursor = $page['cursor'];
+        }
+
+        return ['messages' => $messages, 'cursor' => $cursor];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $assistant
+     */
+    private function lastSaid(array $assistant): ?string
+    {
+        foreach (array_reverse($assistant) as $message) {
+            $text = $this->textOf($message);
+
+            if ($text !== '') {
+                return $text;
+            }
+        }
+
+        return null;
     }
 
     /**

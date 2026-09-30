@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\SalesAssist\PriceDisclosure\Services;
 
-use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\MessageIntentEnum;
-use Kanvas\Guild\Leads\Models\Lead;
 
 /**
  * Keyword classifier for the controlled topics, in English and Spanish. Deterministic on purpose:
@@ -15,10 +13,6 @@ use Kanvas\Guild\Leads\Models\Lead;
  */
 class MessageIntentDetector
 {
-    private const string VIN_PATTERN = '/\b[A-HJ-NPR-Z0-9]{17}\b/i';
-
-    private const string STOCK_PATTERN = '/\b(?:stock|stk|inventario)\s*(?:#|no\.?|number|n[uú]mero)?\s*[:\-]?\s*[A-Z0-9\-]{3,}/iu';
-
     /** @var array<string, list<string>> */
     private const array PATTERNS = [
         MessageIntentEnum::PRICE->value => [
@@ -26,8 +20,6 @@ class MessageIntentDetector
             '\bpricing\b',
             '\bcosts?\b',
             '\bhow much (?:is|for|does|would|are|will)\b',
-            '\bout[\s\-]the[\s\-]door\b',
-            '\botd\b',
             '\bmsrp\b',
             '\bsticker\b',
             '\bdiscounts?\b',
@@ -40,6 +32,15 @@ class MessageIntentDetector
             '\bdescuentos?\b',
             '\brebajas?\b',
             '\bcargos?\b',
+        ],
+        MessageIntentEnum::OUT_THE_DOOR->value => [
+            '\bout[\s\-]the[\s\-]door\b',
+            '\botd\b',
+            '\b(?:total|final|all[\s\-]in) (?:price|cost) with (?:tax|taxes|fees|everything)\b',
+            '\b(?:with|including|incl\.?) (?:tax|taxes|title|registration|everything)\b',
+            '\bprecio (?:final|total) con (?:impuestos|todo)\b',
+            '\bcon (?:impuestos|placas|todo incluido)\b',
+            '\btodo incluido\b',
         ],
         MessageIntentEnum::PAYMENT->value => [
             '\bmonthly\b',
@@ -105,20 +106,5 @@ class MessageIntentDetector
         }
 
         return $intents;
-    }
-
-    /**
-     * A message is about a specific unit when it names one, or when the lead already carries one:
-     * an inquiry lead asking "how much is it?" means the vehicle it came in on.
-     */
-    public function referencesVehicle(string $text, Lead $lead): bool
-    {
-        if (preg_match(self::VIN_PATTERN, $text) === 1 || preg_match(self::STOCK_PATTERN, $text) === 1) {
-            return true;
-        }
-
-        $vehicleInterest = (array) ($lead->get(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value) ?? []);
-
-        return ! empty($vehicleInterest['vin']) || ! empty($vehicleInterest['stockNumber']);
     }
 }
