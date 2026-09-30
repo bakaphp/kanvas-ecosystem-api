@@ -7,6 +7,7 @@ namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Social\Tags\Models\Tag;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
@@ -64,10 +65,7 @@ class TagPersonTool extends Tool
      */
     public function __invoke(int $person_id, array $tags, ?bool $remove = null): array
     {
-        $tags = array_values(array_filter(array_map(
-            fn (string $tag): string => trim($tag),
-            $tags,
-        ), fn (string $tag): bool => $tag !== ''));
+        $tags = Tag::normalizeNames($tags);
 
         if ($tags === []) {
             return ['error' => 'Provide at least one tag name.'];

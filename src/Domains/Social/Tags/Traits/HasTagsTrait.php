@@ -25,6 +25,14 @@ trait HasTagsTrait
         return $query;
     }
 
+    /**
+     * The key tags_entities.entity_id holds — not getId(), which a composite-key model overrides.
+     */
+    protected function taggableKey(): mixed
+    {
+        return $this->{$this->tags()->getParentKeyName()};
+    }
+
     public function hasTag(array $tags): bool
     {
         if (empty($tags)) {
@@ -55,19 +63,22 @@ trait HasTagsTrait
         $user = $this->user ?? $user;
         $company = $company ?? $this->company;
 
-        $tag = (new CreateTagAction(
+        $tag = new CreateTagAction(
             new Tag(
                 $app,
                 $user,
                 $company,
                 $tag
             )
-        ))->execute();
+        )->execute();
 
-        // Check if the tag is already attached before syncing
+        // Not attach(): a custom pivot inherits the PARENT's connection, while tags() reads and
+        // removeTags() deletes on social — the insert would land in a different transaction.
         if (! $this->tags()->wherePivot('tags_id', $tag->getId())->exists()) {
-            $this->tags()->attach($this->getId(), [
+            TagEntity::create([
                 'tags_id' => $tag->getId(),
+                'entity_id' => $this->taggableKey(),
+                'taggable_type' => $this->getMorphClass(),
                 'users_id' => $user->getId(),
                 'is_deleted' => 0,
             ]);
@@ -93,9 +104,9 @@ trait HasTagsTrait
         $tagModel = ModelsTag::fromApp($this->app)->where('name', $tag)->first();
 
         if ($tagModel) {
-            TagEntity::where('entity_id', $this->getId())
+            TagEntity::where('entity_id', $this->taggableKey())
             ->where('tags_id', $tagModel->getId())
-            ->where('taggable_type', static::class)
+            ->where('taggable_type', $this->getMorphClass())
             ->delete();
         }
     }
@@ -105,9 +116,9 @@ trait HasTagsTrait
         $tagIds = ModelsTag::fromApp($this->app)->whereIn('name', $tags)->pluck('id');
 
         if ($tagIds->isNotEmpty()) {
-            TagEntity::where('entity_id', $this->getId())
+            TagEntity::where('entity_id', $this->taggableKey())
                 ->whereIn('tags_id', $tagIds)
-                ->where('taggable_type', static::class)
+                ->where('taggable_type', $this->getMorphClass())
                 ->delete();
         }
     }
