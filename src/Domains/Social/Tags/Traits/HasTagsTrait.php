@@ -72,8 +72,8 @@ trait HasTagsTrait
             )
         )->execute();
 
-        // Not attach(): a custom pivot inherits the PARENT's connection, while tags() reads and
-        // removeTags() deletes on social — the insert would land in a different transaction.
+        // Never attach()/detach(): a custom pivot inherits the PARENT's connection, so the write lands
+        // in a different transaction than every other TagEntity write on social — and lock-waits on it.
         if (! $this->tags()->wherePivot('tags_id', $tag->getId())->exists()) {
             TagEntity::create([
                 'tags_id' => $tag->getId(),
@@ -125,7 +125,10 @@ trait HasTagsTrait
 
     public function syncTags(array $tags): void
     {
-        $this->tags()->detach();
+        TagEntity::where('entity_id', $this->taggableKey())
+            ->where('taggable_type', $this->getMorphClass())
+            ->delete();
+
         $this->addTags(ModelsTag::normalizeNames($tags));
     }
 }
