@@ -216,6 +216,34 @@ class ChatHelperTest extends TestCase
         $this->assertSame($prose, ChatHelper::extractTextFromResponse($prose));
     }
 
+    /**
+     * An agent asked to merge a receiver mapping answered with an explanation and the config in a code
+     * block. Every config value is an object, so the field scan returned '' and the reply was dropped.
+     */
+    public function testProseAroundAJsonConfigIsTheReplyNotAnEnvelope(): void
+    {
+        $reply = "Here is the updated mapping:\n\n```json\n" . json_encode([
+            'Best Time to Contact' => ['name' => 'agent_notes', 'type' => 'customField'],
+            'Time Funds Needed' => ['name' => 'agent_notes', 'type' => 'customField'],
+        ], JSON_PRETTY_PRINT) . "\n```\n\nBoth now land in agent notes.";
+
+        $this->assertSame($reply, ChatHelper::extractTextFromResponse($reply));
+    }
+
+    public function testProseAroundAFlatJsonObjectIsNotReducedToItsLongestValue(): void
+    {
+        $reply = "Use this:\n\n```json\n{\"First Name\": \"firstname\", \"Business Name\": \"Company\"}\n```";
+
+        $this->assertSame($reply, ChatHelper::extractTextFromResponse($reply));
+    }
+
+    public function testProseAroundAFencedEnvelopeStillPicksTheResponseField(): void
+    {
+        $reply = "Sure:\n\n```json\n" . json_encode(['response' => 'Hi Alan, here are three slots.']) . "\n```";
+
+        $this->assertSame('Hi Alan, here are three slots.', ChatHelper::extractTextFromResponse($reply));
+    }
+
     private function twoArticles(bool $fenced): string
     {
         $json = json_encode(
