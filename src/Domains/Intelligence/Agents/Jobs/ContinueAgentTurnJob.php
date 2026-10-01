@@ -67,12 +67,12 @@ class ContinueAgentTurnJob implements ShouldQueue
      * follow-up must land after it. Internal agents only: on a customer surface a stranger could turn one
      * message into several paid turns.
      */
-    public static function dispatchIfCutShort(AgentChatKernel $kernel, string $reply): void
+    public static function dispatchIfCutShort(AgentChatKernel $kernel, string $reply): bool
     {
         $session = $kernel->session();
 
         if ($session === null || ! $kernel->endedOnToolBudget() || ! $kernel->agent()->conversesWithUser()) {
-            return;
+            return false;
         }
 
         self::dispatch(
@@ -84,6 +84,8 @@ class ContinueAgentTurnJob implements ShouldQueue
             executedCalls: $kernel->executedToolCalls(),
             since: now()->toIso8601String(),
         );
+
+        return true;
     }
 
     public function handle(): void
