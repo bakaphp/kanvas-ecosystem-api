@@ -110,21 +110,18 @@ class ConvertJsonTemplateToLeadStructureAction
                     $info,
                     $value
                 );
-                $processFields[$name] = $value;
+            } else {
+                $value = $this->getValueFromPath($request, $path);
+                $value = ! empty($value) ? $value : ($info['default'] ?? null);
 
-                continue;
+                match ($type) {
+                    'string' => $this->mapStringType($peopleStructure, $parsedData, $name, $value),
+                    'customField' => $this->mapCustomField($customFields, $name, $value, $pattern),
+                    'function' => $this->mapFunctionType($parsedData, $request, $info, $name),
+                    'regex' => $this->mapRegexType($parsedData, $name, $value, $pattern),
+                    default => null
+                };
             }
-
-            $value = $this->getValueFromPath($request, $path);
-            $value = ! empty($value) ? $value : ($info['default'] ?? null);
-
-            match ($type) {
-                'string' => $this->mapStringType($peopleStructure, $parsedData, $name, $value),
-                'customField' => $this->mapCustomField($customFields, $name, $value, $pattern),
-                'function' => $this->mapFunctionType($parsedData, $request, $info, $name),
-                'regex' => $this->mapRegexType($parsedData, $name, $value, $pattern),
-                default => null
-            };
 
             $processFields[$name] = $value;
         }
