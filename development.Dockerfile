@@ -1,4 +1,4 @@
-FROM php:8.5.10-cli
+FROM php:8.5.11-cli
 
 # Add docker PHP extension installer
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
@@ -6,6 +6,12 @@ ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/do
 # Install PHP extensions
 RUN chmod +x /usr/local/bin/install-php-extensions && \
     install-php-extensions mbstring pdo_mysql pdo_sqlsrv zip exif pcntl gd memcached redis swoole opcache curl readline sqlite3 msgpack igbinary pcov sockets bcmath soap imagick ftp
+
+# libheif arrives indirectly via imagick; upgrade it from trixie-security and fail the build if a cached layer keeps an older one
+RUN apt-get update && \
+    apt-get install -y --only-upgrade $(dpkg-query -W -f='${binary:Package}\n' 'libheif*' | cut -d: -f1) && \
+    dpkg --compare-versions "$(dpkg-query -W -f='${Version}' libheif1)" ge 1.23.4 && \
+    rm -rf /var/lib/apt/lists/*
 
 # Harden ImageMagick against malicious-image RCE (disable dangerous coders/delegates + resource caps)
 COPY docker/imagemagick-policy.xml /tmp/imagemagick-policy.xml
