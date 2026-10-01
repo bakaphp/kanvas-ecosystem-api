@@ -15,9 +15,7 @@ use Kanvas\Companies\Models\Companies;
 use Kanvas\Currencies\Models\Currencies;
 use Kanvas\Guild\Customers\Models\Address;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Inventory\Variants\Enums\ConfigurationEnum as VariantConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
-use Kanvas\Inventory\Variants\Models\VariantsAttributes;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Regions\Models\Regions;
 use Kanvas\Souk\Shipping\Actions\BuildShipmentRequestAction;
@@ -72,7 +70,7 @@ final class GetShippingQuotesActionTest extends TestCase
         self::$quotesByProvider['fake-b'] = [$this->quote('fake-b', 40.0), $this->quote('fake-b', 120.0)];
         $this->importRateCards($company, $this->rateCards());
 
-        $quotes = $this->quotesFor($company, 500);
+        $quotes = $this->quotesFor($company, 0.5);
 
         $this->assertSame([40.0, 90.0, 100.0, 120.0], array_map(fn (ShippingQuote $q) => $q->amount, $quotes));
         $this->assertSame(
@@ -86,7 +84,7 @@ final class GetShippingQuotesActionTest extends TestCase
         $company = $this->companyWithApiIntegration();
         self::$quotesByProvider['fake-a'] = [$this->quote('fake-a', 90.0)];
 
-        $quotes = $this->quotesFor($company, 500);
+        $quotes = $this->quotesFor($company, 0.5);
 
         $this->assertCount(1, $quotes);
         $this->assertSame('fake-a', $quotes[0]->provider);
@@ -98,7 +96,7 @@ final class GetShippingQuotesActionTest extends TestCase
         self::$quotesByProvider['fake-a'] = [$this->quote('fake-a', 90.0, 'USD')];
         self::$quotesByProvider['fake-b'] = [$this->quote('fake-b', 40.0, 'DOP')];
 
-        $quotes = $this->quotesFor($company, 500);
+        $quotes = $this->quotesFor($company, 0.5);
 
         $this->assertCount(1, $quotes);
         $this->assertSame('fake-b', $quotes[0]->provider);
@@ -109,7 +107,7 @@ final class GetShippingQuotesActionTest extends TestCase
         $company = $this->companyWithApiIntegration();
         self::$quotesByProvider['fake-a'] = [$this->quote('fake-a', 90.0, 'DOP')];
 
-        $request = $this->buildRequest([[1, 500, 1]], new ShippingDestination(countryCode: 'us'));
+        $request = $this->buildRequest([[1, 0.5, 1]], new ShippingDestination(countryCode: 'us'));
         $quotes = $this->runAction($company, $request, 'DOP ');
 
         $this->assertCount(1, $quotes);
@@ -121,7 +119,7 @@ final class GetShippingQuotesActionTest extends TestCase
         $company = $this->companyWithApiIntegration();
         self::$quotesByProvider['fake-a'] = [$this->quote('fake-a', 90.0)];
 
-        $request = $this->buildRequest([[1, 500, 1], [2, 0, 1]], new ShippingDestination(countryCode: 'us'));
+        $request = $this->buildRequest([[1, 0.5, 1], [2, 0, 1]], new ShippingDestination(countryCode: 'us'));
         $quotes = $this->runAction($company, $request);
 
         $this->assertNull($request);
@@ -129,9 +127,23 @@ final class GetShippingQuotesActionTest extends TestCase
         $this->assertSame([], self::$callsByCompany);
     }
 
+    public function testVariantWeightIsReadInKilograms(): void
+    {
+        $request = $this->buildRequest([[1, 0.17, 1]], new ShippingDestination(countryCode: 'us'));
+
+        $this->assertSame(0.17, $request->totalWeight());
+    }
+
+    public function testANullWeightYieldsNoRequest(): void
+    {
+        $request = $this->buildRequest([[1, null, 1]], new ShippingDestination(countryCode: 'us'));
+
+        $this->assertNull($request);
+    }
+
     public function testAnUnknownDestinationCountryYieldsNoRequest(): void
     {
-        $request = $this->buildRequest([[1, 500, 1]], new ShippingDestination(countryCode: 'zz-unknown'));
+        $request = $this->buildRequest([[1, 0.5, 1]], new ShippingDestination(countryCode: 'zz-unknown'));
 
         $this->assertNull($request);
     }
@@ -145,16 +157,16 @@ final class GetShippingQuotesActionTest extends TestCase
             default => null,
         });
 
-        $request = $this->buildRequest([[1, 250, 2]], null, $app);
+        $request = $this->buildRequest([[1, 0.25, 2]], null, $app);
 
         $this->assertSame('us', $request->destinationCountry->code);
-        $this->assertSame(500, $request->totalGrams());
+        $this->assertSame(0.5, $request->totalWeight());
         $this->assertSame(30.0, $request->parcels->toCollection()->first()->lengthCm);
     }
 
     public function testAnUppercaseExplicitCountryCodeResolvesTheCountry(): void
     {
-        $request = $this->buildRequest([[1, 500, 1]], new ShippingDestination(countryCode: ' US '));
+        $request = $this->buildRequest([[1, 0.5, 1]], new ShippingDestination(countryCode: ' US '));
 
         $this->assertSame('us', $request->destinationCountry->code);
     }
@@ -169,7 +181,7 @@ final class GetShippingQuotesActionTest extends TestCase
         $people = Mockery::mock(People::class)->makePartial();
         $people->shouldReceive('getDefaultAddress')->andReturn($address);
 
-        $request = $this->buildRequest([[1, 500, 1]], null, people: $people);
+        $request = $this->buildRequest([[1, 0.5, 1]], null, people: $people);
         $quotes = $this->runAction($this->companyWithApiIntegration(), $request);
 
         $this->assertSame('us', $request->destinationCountry->code);
@@ -183,9 +195,9 @@ final class GetShippingQuotesActionTest extends TestCase
         $companyB = $this->companyWithApiIntegration();
         self::$quotesByProvider['fake-a'] = [$this->quote('fake-a', 90.0)];
 
-        $this->quotesFor($companyA, 500);
-        $this->quotesFor($companyA, 500);
-        $this->quotesFor($companyB, 500);
+        $this->quotesFor($companyA, 0.5);
+        $this->quotesFor($companyA, 0.5);
+        $this->quotesFor($companyB, 0.5);
 
         $this->assertSame(1, self::$callsByCompany[$companyA->getId()]);
         $this->assertSame(1, self::$callsByCompany[$companyB->getId()]);
@@ -196,15 +208,15 @@ final class GetShippingQuotesActionTest extends TestCase
         $company = $this->companyWithApiIntegration();
         self::$quotesByProvider['fake-a'] = [$this->quote('fake-a', 90.0)];
 
-        $this->quotesFor($company, 500);
-        $this->quotesFor($company, 800);
+        $this->quotesFor($company, 0.5);
+        $this->quotesFor($company, 0.8);
 
         $this->assertSame(2, self::$callsByCompany[$company->getId()]);
     }
 
-    private function quotesFor(Companies $company, int $grams): array
+    private function quotesFor(Companies $company, float $weight): array
     {
-        $request = $this->buildRequest([[1, $grams, 1]], new ShippingDestination(countryCode: 'us'));
+        $request = $this->buildRequest([[1, $weight, 1]], new ShippingDestination(countryCode: 'us'));
 
         return $this->runAction($company, $request);
     }
@@ -238,9 +250,9 @@ final class GetShippingQuotesActionTest extends TestCase
         );
         $weights = [];
 
-        foreach ($lines as [$variantId, $grams, $quantity]) {
+        foreach ($lines as [$variantId, $weight, $quantity]) {
             $cart->add($variantId, "Variant {$variantId}", 10.0, $quantity);
-            $weights[$variantId] = $grams;
+            $weights[$variantId] = $weight;
         }
 
         $action = new class (
@@ -267,12 +279,8 @@ final class GetShippingQuotesActionTest extends TestCase
 
             protected function findVariant(int|string $id): Variants
             {
-                $attribute = new VariantsAttributes();
-                $attribute->value = $this->weights[$id] ?: null;
-                $variant = Mockery::mock(Variants::class)->makePartial();
-                $variant->shouldReceive('getAttributeByName')
-                    ->with(VariantConfigurationEnum::WEIGHT_UNIT->value)
-                    ->andReturn($attribute);
+                $variant = new Variants();
+                $variant->weight = $this->weights[$id] ?: null;
 
                 return $variant;
             }
@@ -313,12 +321,13 @@ final class GetShippingQuotesActionTest extends TestCase
                     'ems' => [
                         'name' => 'EMS',
                         'currency' => 'DOP',
+                        'weight_unit' => 'kg',
                         'fixed_charge' => 0,
                         'zones' => [
                             'z1' => [
                                 'transit_min_days' => 3,
                                 'transit_max_days' => 7,
-                                'rates' => [['max_grams' => 1000, 'amount' => 100]],
+                                'rates' => [['max_weight' => 1, 'amount' => 100]],
                             ],
                         ],
                     ],

@@ -40,6 +40,19 @@ final class ImportRateCardsActionTest extends TestCase
         $this->assertSame(3, $this->rawRateCount($company));
     }
 
+    public function testImportStoresTheWeightUnitTrimmedAndLowercased(): void
+    {
+        $company = Companies::factory()->create();
+        $cards = $this->rateCards();
+        $cards['inposdom']['services']['ems']['weight_unit'] = ' KG ';
+
+        $this->importRateCards($company, $cards);
+
+        $card = RateCard::query()->fromCompany($company)->where('service_code', 'ems')->firstOrFail();
+
+        $this->assertSame('kg', $card->weight_unit);
+    }
+
     public function testImportStoresCountryCodesUppercasedAndTransitOnTheRate(): void
     {
         $company = Companies::factory()->create();
@@ -49,7 +62,7 @@ final class ImportRateCardsActionTest extends TestCase
         $this->importRateCards($company, $cards);
 
         $country = RateCardCountry::query()->fromCompany($company)->firstOrFail();
-        $rate = RateCard::query()->fromCompany($company)->where('service_code', 'ems')->firstOrFail()->rates()->where('max_grams', 500)->firstOrFail();
+        $rate = RateCard::query()->fromCompany($company)->where('service_code', 'ems')->firstOrFail()->rates()->where('max_weight', 0.5)->firstOrFail();
 
         $this->assertSame('US', $country->country_code);
         $this->assertSame([3, 7], [$rate->transit_min_days, $rate->transit_max_days]);
@@ -81,7 +94,7 @@ final class ImportRateCardsActionTest extends TestCase
 
         $card = RateCard::query()->fromCompany($company)->where('service_code', 'ems')->firstOrFail();
         $this->assertSame('80.00', $card->fixed_charge);
-        $this->assertSame('111.00', $card->rates()->where('max_grams', 500)->firstOrFail()->amount);
+        $this->assertSame('111.00', $card->rates()->where('max_weight', 0.5)->firstOrFail()->amount);
         $this->assertSame(2, $this->rawCount('shipping_rate_cards', $company));
     }
 
@@ -222,21 +235,26 @@ final class ImportRateCardsActionTest extends TestCase
             'service not an object' => ['inposdom' => ['zones' => [], 'services' => ['ems' => 'oops']]],
             'service without name' => $this->withService(['name' => null]),
             'bad currency' => $this->withService(['currency' => 'PESOS']),
+            'missing weight unit' => $this->withService(['weight_unit' => null]),
+            'blank weight unit' => $this->withService(['weight_unit' => '  ']),
+            'overlong weight unit' => $this->withService(['weight_unit' => 'kilograms']),
             'negative fixed charge' => $this->withService(['fixed_charge' => -1]),
             'non numeric fixed charge' => $this->withService(['fixed_charge' => 'free']),
             'zone entry not an object' => $this->withService(['zones' => ['z1' => 'oops']]),
             'zone entry without rates' => $this->withService(['zones' => ['z1' => ['transit_min_days' => 1]]]),
             'empty rates' => $this->withService(['zones' => ['z1' => ['rates' => []]]]),
-            'rate without amount' => $this->withService(['zones' => ['z1' => ['rates' => [['max_grams' => 500]]]]]),
-            'rate non numeric amount' => $this->withService(['zones' => ['z1' => ['rates' => [['max_grams' => 500, 'amount' => 'free']]]]]),
-            'rate zero max grams' => $this->withService(['zones' => ['z1' => ['rates' => [['max_grams' => 0, 'amount' => 1]]]]]),
-            'duplicate max grams' => $this->withService(['zones' => ['z1' => ['rates' => [
-                ['max_grams' => 500, 'amount' => 1],
-                ['max_grams' => 500, 'amount' => 2],
+            'rate without amount' => $this->withService(['zones' => ['z1' => ['rates' => [['max_weight' => 0.5]]]]]),
+            'rate non numeric amount' => $this->withService(['zones' => ['z1' => ['rates' => [['max_weight' => 0.5, 'amount' => 'free']]]]]),
+            'rate zero max weight' => $this->withService(['zones' => ['z1' => ['rates' => [['max_weight' => 0, 'amount' => 1]]]]]),
+            'rate max weight rounding to zero' => $this->withService(['zones' => ['z1' => ['rates' => [['max_weight' => 0.0004, 'amount' => 1]]]]]),
+            'rate max weight overflowing the column' => $this->withService(['zones' => ['z1' => ['rates' => [['max_weight' => 10000000, 'amount' => 1]]]]]),
+            'duplicate max weight' => $this->withService(['zones' => ['z1' => ['rates' => [
+                ['max_weight' => 0.5, 'amount' => 1],
+                ['max_weight' => 0.5, 'amount' => 2],
             ]]]]),
             'non numeric transit' => $this->withService(['zones' => ['z1' => [
                 'transit_min_days' => 'soon',
-                'rates' => [['max_grams' => 500, 'amount' => 1]],
+                'rates' => [['max_weight' => 0.5, 'amount' => 1]],
             ]]]),
         ];
     }
@@ -257,14 +275,15 @@ final class ImportRateCardsActionTest extends TestCase
                     'ems' => [
                         'name' => 'EMS',
                         'currency' => 'DOP',
+                        'weight_unit' => 'kg',
                         'fixed_charge' => 50,
                         'zones' => [
                             'z1' => [
                                 'transit_min_days' => 3,
                                 'transit_max_days' => 7,
                                 'rates' => [
-                                    ['max_grams' => 500, 'amount' => 100],
-                                    ['max_grams' => 1000, 'amount' => 150],
+                                    ['max_weight' => 0.5, 'amount' => 100],
+                                    ['max_weight' => 1, 'amount' => 150],
                                 ],
                             ],
                         ],
@@ -272,10 +291,11 @@ final class ImportRateCardsActionTest extends TestCase
                     'correo_certificado' => [
                         'name' => 'Correo Certificado',
                         'currency' => 'DOP',
+                        'weight_unit' => 'kg',
                         'fixed_charge' => 0,
                         'zones' => [
                             'z2' => [
-                                'rates' => [['max_grams' => 500, 'amount' => 60]],
+                                'rates' => [['max_weight' => 0.5, 'amount' => 60]],
                             ],
                         ],
                     ],

@@ -25,8 +25,8 @@ class ShipmentRequest extends Data
     ) {
     }
 
-    public function totalGrams(): int
+    public function totalWeight(): float
     {
-        return (int) $this->parcels->toCollection()->sum(fn (Parcel $parcel) => $parcel->grams);
+        return round((float) $this->parcels->toCollection()->sum(fn (Parcel $parcel) => $parcel->weight), 3);
     }
 }

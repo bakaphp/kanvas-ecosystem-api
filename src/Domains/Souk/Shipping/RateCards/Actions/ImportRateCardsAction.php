@@ -72,6 +72,7 @@ class ImportRateCardsAction
             $this->persist($card, [
                 'name' => $service['name'],
                 'currency' => strtoupper(trim($service['currency'])),
+                'weight_unit' => strtolower(trim($service['weight_unit'])),
                 'fixed_charge' => $service['fixed_charge'] ?? 0,
             ]);
             $counts['cards_upserted']++;
@@ -101,17 +102,17 @@ class ImportRateCardsAction
             ->withoutGlobalScopes()
             ->where('rate_card_id', $card->getId())
             ->get()
-            ->keyBy(fn (RateCardRate $rate) => $this->rateKey($rate->zone, $rate->max_grams));
+            ->keyBy(fn (RateCardRate $rate) => $this->rateKey($rate->zone, $rate->max_weight));
 
         foreach ($zones as $zone => $zoneEntry) {
             foreach ($zoneEntry['rates'] as $rate) {
-                $key = $this->rateKey((string) $zone, $rate['max_grams']);
+                $key = $this->rateKey((string) $zone, $rate['max_weight']);
                 $keptKeys[] = $key;
 
                 $model = $existingRates->get($key) ?? new RateCardRate([
                     'rate_card_id' => $card->getId(),
                     'zone' => (string) $zone,
-                    'max_grams' => $rate['max_grams'],
+                    'max_weight' => $rate['max_weight'],
                 ]);
 
                 $this->persist($model, [
@@ -184,9 +185,9 @@ class ImportRateCardsAction
         return (int) $model->getRawOriginal('is_deleted') === 0;
     }
 
-    private function rateKey(string $zone, int $maxGrams): string
+    private function rateKey(string $zone, float|int|string $maxWeight): string
     {
-        return $zone . '|' . $maxGrams;
+        return $zone . '|' . number_format((float) $maxWeight, 3, '.', '');
     }
 
     private function assertValidPayload(): void
@@ -242,6 +243,12 @@ class ImportRateCardsAction
             "{$label} must have a 3-letter currency."
         );
         $this->ensure(
+            is_string($service['weight_unit'] ?? null)
+                && trim($service['weight_unit']) !== ''
+                && strlen(trim($service['weight_unit'])) <= 8,
+            "{$label} must have a weight_unit of at most 8 characters."
+        );
+        $this->ensure(
             ! isset($service['fixed_charge']) || (is_numeric($service['fixed_charge']) && $service['fixed_charge'] >= 0),
             "{$label} has an invalid fixed_charge."
         );
@@ -266,19 +273,23 @@ class ImportRateCardsAction
             $this->ensure($days === null || (is_int($days) && $days >= 0 && $days <= 65535), "{$label} has an invalid {$field}.");
         }
 
-        $seenMaxGrams = [];
+        $seenMaxWeights = [];
 
         foreach ($zoneEntry['rates'] as $rate) {
             $this->ensure(
-                is_array($rate) && is_int($rate['max_grams'] ?? null) && $rate['max_grams'] > 0,
-                "{$label} has a rate with an invalid max_grams."
+                is_array($rate)
+                    && is_numeric($rate['max_weight'] ?? null)
+                    && round((float) $rate['max_weight'], 3) > 0
+                    && $rate['max_weight'] < 10000000,
+                "{$label} has a rate with an invalid max_weight."
             );
             $this->ensure(
                 is_numeric($rate['amount'] ?? null) && $rate['amount'] >= 0,
                 "{$label} has a rate with an invalid amount."
             );
-            $this->ensure(! isset($seenMaxGrams[$rate['max_grams']]), "{$label} repeats the max_grams {$rate['max_grams']}.");
-            $seenMaxGrams[$rate['max_grams']] = true;
+            $weightKey = $this->rateKey($zone, $rate['max_weight']);
+            $this->ensure(! isset($seenMaxWeights[$weightKey]), "{$label} repeats the max_weight {$rate['max_weight']}.");
+            $seenMaxWeights[$weightKey] = true;
         }
     }
 

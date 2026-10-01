@@ -7,7 +7,6 @@ namespace Kanvas\Souk\Shipping\Actions;
 use Baka\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Guild\Customers\Models\People;
-use Kanvas\Inventory\Variants\Enums\ConfigurationEnum as VariantConfigurationEnum;
 use Kanvas\Inventory\Variants\Models\Variants;
 use Kanvas\Locations\Models\Countries;
 use Kanvas\Souk\Shipping\DataTransferObject\Parcel;
@@ -29,10 +28,10 @@ class BuildShipmentRequestAction
 
     public function execute(): ?ShipmentRequest
     {
-        $grams = $this->totalGrams();
+        $weight = $this->totalWeight();
         $resolved = $this->resolveDestination();
 
-        if ($grams === null || $resolved === null) {
+        if ($weight === null || $resolved === null) {
             return null;
         }
 
@@ -40,7 +39,7 @@ class BuildShipmentRequestAction
 
         return new ShipmentRequest(
             destinationCountry: $country,
-            parcels: new DataCollection(Parcel::class, [$this->buildParcel($grams)]),
+            parcels: new DataCollection(Parcel::class, [$this->buildParcel($weight)]),
             destinationCity: $destination->city,
             destinationPostalCode: $destination->postalCode,
         );
@@ -51,7 +50,7 @@ class BuildShipmentRequestAction
         return Variants::getById($id, $this->app);
     }
 
-    private function totalGrams(): ?int
+    private function totalWeight(): ?float
     {
         $items = $this->cart->getContent();
 
@@ -62,17 +61,16 @@ class BuildShipmentRequestAction
         $total = 0.0;
 
         foreach ($items as $item) {
-            $unitGrams = (float) $this->findVariant($item['id'])
-                ->getAttributeByName(VariantConfigurationEnum::WEIGHT_UNIT->value)?->value;
+            $weight = (float) $this->findVariant($item['id'])->weight;
 
-            if ($unitGrams <= 0) {
+            if ($weight <= 0) {
                 return null;
             }
 
-            $total += $unitGrams * (float) $item['quantity'];
+            $total += $weight * (float) $item['quantity'];
         }
 
-        return (int) ceil($total);
+        return round($total, 3);
     }
 
     private function resolveDestination(): ?array
@@ -118,16 +116,16 @@ class BuildShipmentRequestAction
         return $country === null ? null : [$destination, $country];
     }
 
-    private function buildParcel(int $grams): Parcel
+    private function buildParcel(float $weight): Parcel
     {
         $box = $this->app->get(ConfigurationEnum::DEFAULT_BOX_CM->value);
 
         if (! is_array($box)) {
-            return new Parcel(grams: $grams);
+            return new Parcel(weight: $weight);
         }
 
         return new Parcel(
-            grams: $grams,
+            weight: $weight,
             lengthCm: isset($box['length']) ? (float) $box['length'] : null,
             widthCm: isset($box['width']) ? (float) $box['width'] : null,
             heightCm: isset($box['height']) ? (float) $box['height'] : null,

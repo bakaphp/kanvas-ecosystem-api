@@ -22,7 +22,7 @@ class RateCardRate extends BaseModel
     protected $fillable = [
         'rate_card_id',
         'zone',
-        'max_grams',
+        'max_weight',
         'amount',
         'transit_min_days',
         'transit_max_days',
@@ -32,7 +32,7 @@ class RateCardRate extends BaseModel
     protected function casts(): array
     {
         return [
-            'max_grams' => 'integer',
+            'max_weight' => 'decimal:3',
             'amount' => 'decimal:2',
             'transit_min_days' => 'integer',
             'transit_max_days' => 'integer',

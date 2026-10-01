@@ -32,20 +32,20 @@ final class RateCardShippingProviderTest extends TestCase
     {
         $provider = $this->providerFor($this->companyWithRateCards($this->rateCards()));
 
-        $quotes = $provider->quote($this->request('US', 500));
+        $quotes = $provider->quote($this->request('US', 0.5));
 
-        $this->assertTrue($provider->supports($this->request('US', 500)));
+        $this->assertTrue($provider->supports($this->request('US', 0.5)));
         $this->assertCount(1, $quotes);
         $this->assertSame(150.0, $quotes[0]->amount);
         $this->assertSame('DOP', $quotes[0]->currency);
         $this->assertSame('EMS', $quotes[0]->serviceName);
     }
 
-    public function testQuoteOneGramOverTheEdgeRollsToTheNextBracket(): void
+    public function testQuoteJustOverTheEdgeRollsToTheNextBracket(): void
     {
         $provider = $this->providerFor($this->companyWithRateCards($this->rateCards()));
 
-        $quotes = $provider->quote($this->request('US', 501));
+        $quotes = $provider->quote($this->request('US', 0.501));
 
         $this->assertCount(1, $quotes);
         $this->assertSame(200.0, $quotes[0]->amount);
@@ -54,7 +54,7 @@ final class RateCardShippingProviderTest extends TestCase
     public function testQuoteOverTheMaxBracketIsUnsupported(): void
     {
         $provider = $this->providerFor($this->companyWithRateCards($this->rateCards()));
-        $request = $this->request('US', 1001);
+        $request = $this->request('US', 1.001);
 
         $this->assertFalse($provider->supports($request));
         $this->assertSame([], $provider->quote($request));
@@ -63,7 +63,7 @@ final class RateCardShippingProviderTest extends TestCase
     public function testQuoteForAnUnmappedCountryIsUnsupported(): void
     {
         $provider = $this->providerFor($this->companyWithRateCards($this->rateCards()));
-        $request = $this->request('ES', 500);
+        $request = $this->request('ES', 0.5);
 
         $this->assertFalse($provider->supports($request));
         $this->assertSame([], $provider->quote($request));
@@ -79,7 +79,7 @@ final class RateCardShippingProviderTest extends TestCase
     public function testQuoteWithNoRateCardsIsUnsupported(): void
     {
         $provider = $this->providerFor(Companies::factory()->create());
-        $request = $this->request('US', 500);
+        $request = $this->request('US', 0.5);
 
         $this->assertFalse($provider->supports($request));
         $this->assertSame([], $provider->quote($request));
@@ -89,11 +89,11 @@ final class RateCardShippingProviderTest extends TestCase
     {
         $cards = $this->rateCards();
         $cards['inposdom']['services']['correo_certificado'] = $this->service('Correo Certificado', 10, [
-            'z1' => $this->zoneEntry([['max_grams' => 500, 'amount' => 60]]),
+            'z1' => $this->zoneEntry([['max_weight' => 0.5, 'amount' => 60]]),
         ]);
         $provider = $this->providerFor($this->companyWithRateCards($cards));
 
-        $quotes = $provider->quote($this->request('US', 500));
+        $quotes = $provider->quote($this->request('US', 0.5));
 
         $this->assertCount(2, $quotes);
         $this->assertEqualsCanonicalizing(
@@ -108,7 +108,7 @@ final class RateCardShippingProviderTest extends TestCase
         $cards['inposdom']['zones'] = ['us' => 'z1'];
         $provider = $this->providerFor($this->companyWithRateCards($cards));
 
-        $quotes = $provider->quote($this->request('US', 500));
+        $quotes = $provider->quote($this->request('US', 0.5));
 
         $this->assertCount(1, $quotes);
         $this->assertSame(150.0, $quotes[0]->amount);
@@ -118,7 +118,7 @@ final class RateCardShippingProviderTest extends TestCase
     {
         $provider = $this->providerFor($this->companyWithRateCards($this->rateCards()));
 
-        $quotes = $provider->quote($this->request('US', 500));
+        $quotes = $provider->quote($this->request('US', 0.5));
 
         $this->assertCount(1, $quotes);
     }
@@ -128,7 +128,7 @@ final class RateCardShippingProviderTest extends TestCase
         $companyA = Companies::factory()->create();
         $this->companyWithRateCards($this->rateCards());
         $provider = $this->providerFor($companyA);
-        $request = $this->request('US', 500);
+        $request = $this->request('US', 0.5);
 
         $this->assertFalse($provider->supports($request));
         $this->assertSame([], $provider->quote($request));
@@ -140,22 +140,22 @@ final class RateCardShippingProviderTest extends TestCase
         $cards['inposdom']['zones']['ES'] = 'z2';
         $cards['inposdom']['services']['ems']['zones']['z1'] = $this->zoneEntry(
             [
-                ['max_grams' => 500, 'amount' => 100],
-                ['max_grams' => 1000, 'amount' => 150],
+                ['max_weight' => 0.5, 'amount' => 100],
+                ['max_weight' => 1, 'amount' => 150],
             ],
             7,
             10
         );
         $cards['inposdom']['services']['ems']['zones']['z2'] = $this->zoneEntry(
-            [['max_grams' => 500, 'amount' => 120]],
+            [['max_weight' => 0.5, 'amount' => 120]],
             9,
             12
         );
         $provider = $this->providerFor($this->companyWithRateCards($cards));
 
-        $us500 = $provider->quote($this->request('US', 500))[0];
-        $us501 = $provider->quote($this->request('US', 501))[0];
-        $es500 = $provider->quote($this->request('ES', 500))[0];
+        $us500 = $provider->quote($this->request('US', 0.5))[0];
+        $us501 = $provider->quote($this->request('US', 0.501))[0];
+        $es500 = $provider->quote($this->request('ES', 0.5))[0];
 
         $this->assertSame([7, 10], [$us500->transitMinDays, $us500->transitMaxDays]);
         $this->assertSame([7, 10], [$us501->transitMinDays, $us501->transitMaxDays]);
@@ -166,13 +166,13 @@ final class RateCardShippingProviderTest extends TestCase
     {
         $cards = $this->rateCards();
         $cards['inposdom']['services']['ems']['zones']['z1'] = $this->zoneEntry([
-            ['max_grams' => 2000, 'amount' => 300],
-            ['max_grams' => 500, 'amount' => 100],
-            ['max_grams' => 1000, 'amount' => 150],
+            ['max_weight' => 2, 'amount' => 300],
+            ['max_weight' => 0.5, 'amount' => 100],
+            ['max_weight' => 1, 'amount' => 150],
         ]);
         $provider = $this->providerFor($this->companyWithRateCards($cards));
 
-        $quotes = $provider->quote($this->request('US', 400));
+        $quotes = $provider->quote($this->request('US', 0.4));
 
         $this->assertSame(150.0, $quotes[0]->amount);
     }
@@ -196,13 +196,13 @@ final class RateCardShippingProviderTest extends TestCase
     {
         $company = $this->companyWithRateCards($this->rateCards());
         $card = RateCard::query()->fromCompany($company)->firstOrFail();
-        $card->rates()->where('max_grams', 500)->firstOrFail()->delete();
+        $card->rates()->where('max_weight', 0.5)->firstOrFail()->delete();
         $provider = $this->providerFor($company);
 
-        $quotes = $provider->quote($this->request('US', 500));
+        $quotes = $provider->quote($this->request('US', 0.5));
 
         $this->assertSame(200.0, $quotes[0]->amount);
-        $this->assertSame(1000, $quotes[0]->meta['max_grams']);
+        $this->assertSame(1.0, $quotes[0]->meta['max_weight']);
     }
 
     public function testQuoteExcludesASoftDeletedCardAndItsCountryMapping(): void
@@ -211,21 +211,21 @@ final class RateCardShippingProviderTest extends TestCase
         RateCard::query()->fromCompany($company)->firstOrFail()->delete();
         $provider = $this->providerFor($company);
 
-        $this->assertSame([], $provider->quote($this->request('US', 500)));
+        $this->assertSame([], $provider->quote($this->request('US', 0.5)));
         $this->assertSame([], ShippingProviderFactory::forCompany(app(Apps::class), $company));
 
         RateCardCountry::query()->fromCompany($company)->firstOrFail()->delete();
 
-        $this->assertSame([], $provider->quote($this->request('US', 500)));
+        $this->assertSame([], $provider->quote($this->request('US', 0.5)));
     }
 
     public function testQuoteExposesTheZoneAndMatchedBracketInMeta(): void
     {
         $provider = $this->providerFor($this->companyWithRateCards($this->rateCards()));
 
-        $quote = $provider->quote($this->request('US', 501))[0];
+        $quote = $provider->quote($this->request('US', 0.501))[0];
 
-        $this->assertSame(['zone' => 'z1', 'max_grams' => 1000], $quote->meta);
+        $this->assertSame(['zone' => 'z1', 'max_weight' => 1.0, 'weight_unit' => 'kg'], $quote->meta);
     }
 
     public function testAnAppKeyContextWithoutABranchNeverLeaksAnotherCompanysCardsZonesOrPrices(): void
@@ -244,18 +244,18 @@ final class RateCardShippingProviderTest extends TestCase
         $providerA = $this->providerFor($companyA);
 
         $this->assertSame(['inposdom'], array_map(fn ($provider) => $provider->name(), $providersA));
-        $this->assertSame(150.0, $providerA->quote($this->request('US', 500))[0]->amount);
-        $this->assertSame([], $providerA->quote($this->request('ES', 500)));
+        $this->assertSame(150.0, $providerA->quote($this->request('US', 0.5))[0]->amount);
+        $this->assertSame([], $providerA->quote($this->request('ES', 0.5)));
     }
 
     public function testTheSeededInposdomRateCardQuotesEmsAndCorreoCertificado(): void
     {
         $provider = $this->providerFor($this->companyWithRateCards($this->inposdomRateCardsFromJson()));
 
-        $ems = $this->quoteFor($provider->quote($this->request('US', 500)), 'ems');
-        $certificado = $this->quoteFor($provider->quote($this->request('ES', 300)), 'correo_certificado');
-        $lightCertificado = $this->quoteFor($provider->quote($this->request('US', 50)), 'correo_certificado');
-        $heavyResto = $this->quoteFor($provider->quote($this->request('CN', 12500)), 'ems');
+        $ems = $this->quoteFor($provider->quote($this->request('US', 0.5)), 'ems');
+        $certificado = $this->quoteFor($provider->quote($this->request('ES', 0.3)), 'correo_certificado');
+        $lightCertificado = $this->quoteFor($provider->quote($this->request('US', 0.05)), 'correo_certificado');
+        $heavyResto = $this->quoteFor($provider->quote($this->request('CN', 12.5)), 'ems');
 
         $this->assertSame(2820.0, $ems->amount);
         $this->assertSame([7, 10], [$ems->transitMinDays, $ems->transitMaxDays]);
@@ -264,6 +264,22 @@ final class RateCardShippingProviderTest extends TestCase
         $this->assertSame(375.0, $lightCertificado->amount);
         $this->assertSame(11720.0, $heavyResto->amount);
         $this->assertSame([10, 15], [$heavyResto->transitMinDays, $heavyResto->transitMaxDays]);
+    }
+
+    public function testTheSeededEmsAmericaBracketsFollowTheWeightWithoutConversion(): void
+    {
+        $provider = $this->providerFor($this->companyWithRateCards($this->inposdomRateCardsFromJson()));
+
+        $light = $this->quoteFor($provider->quote($this->request('US', 0.17)), 'ems');
+        $edge = $this->quoteFor($provider->quote($this->request('US', 0.5)), 'ems');
+        $over = $this->quoteFor($provider->quote($this->request('US', 0.501)), 'ems');
+
+        $this->assertSame(2820.0, $light->amount);
+        $this->assertSame(0.5, $light->meta['max_weight']);
+        $this->assertSame(2820.0, $edge->amount);
+        $this->assertSame(0.5, $edge->meta['max_weight']);
+        $this->assertSame(3070.0, $over->amount);
+        $this->assertSame(1.0, $over->meta['max_weight']);
     }
 
     private function quoteFor(array $quotes, string $serviceCode): ShippingQuote
@@ -286,8 +302,8 @@ final class RateCardShippingProviderTest extends TestCase
                 'services' => [
                     'ems' => $this->service('EMS', 50, [
                         'z1' => $this->zoneEntry([
-                            ['max_grams' => 500, 'amount' => 100],
-                            ['max_grams' => 1000, 'amount' => 150],
+                            ['max_weight' => 0.5, 'amount' => 100],
+                            ['max_weight' => 1, 'amount' => 150],
                         ]),
                     ]),
                 ],
@@ -300,6 +316,7 @@ final class RateCardShippingProviderTest extends TestCase
         return [
             'name' => $name,
             'currency' => 'DOP',
+            'weight_unit' => 'kg',
             'fixed_charge' => $fixedCharge,
             'zones' => $zones,
         ];
@@ -327,13 +344,13 @@ final class RateCardShippingProviderTest extends TestCase
         return $company;
     }
 
-    private function request(string $countryCode, int $grams): ShipmentRequest
+    private function request(string $countryCode, float $weight): ShipmentRequest
     {
         $country = Countries::firstOrCreate(['code' => $countryCode], ['name' => $countryCode]);
 
         return new ShipmentRequest(
             destinationCountry: $country,
-            parcels: Parcel::collect([new Parcel(grams: $grams)], DataCollection::class),
+            parcels: Parcel::collect([new Parcel(weight: $weight)], DataCollection::class),
         );
     }
 }

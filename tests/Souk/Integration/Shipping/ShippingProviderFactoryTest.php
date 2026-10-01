@@ -105,7 +105,8 @@ final class ShippingProviderFactoryTest extends TestCase
                     'ems' => [
                         'name' => 'EMS',
                         'currency' => 'DOP',
-                        'zones' => ['z1' => ['rates' => [['max_grams' => 1000, 'amount' => 100]]]],
+                        'weight_unit' => 'kg',
+                        'zones' => ['z1' => ['rates' => [['max_weight' => 1, 'amount' => 100]]]],
                     ],
                 ],
             ],

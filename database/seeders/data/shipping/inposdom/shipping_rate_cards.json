@@ -50,6 +50,7 @@
       "ems": {
         "name": "EMS",
         "currency": "DOP",
+        "weight_unit": "kg",
         "fixed_charge": 320,
         "zones": {
           "america": {
@@ -57,243 +58,243 @@
             "transit_max_days": 10,
             "rates": [
               {
-                "max_grams": 500,
+                "max_weight": 0.5,
                 "amount": 2500
               },
               {
-                "max_grams": 1000,
+                "max_weight": 1,
                 "amount": 2750
               },
               {
-                "max_grams": 1500,
+                "max_weight": 1.5,
                 "amount": 3000
               },
               {
-                "max_grams": 2000,
+                "max_weight": 2,
                 "amount": 3250
               },
               {
-                "max_grams": 2500,
+                "max_weight": 2.5,
                 "amount": 3500
               },
               {
-                "max_grams": 3000,
+                "max_weight": 3,
                 "amount": 3750
               },
               {
-                "max_grams": 3500,
+                "max_weight": 3.5,
                 "amount": 3900
               },
               {
-                "max_grams": 4000,
+                "max_weight": 4,
                 "amount": 4100
               },
               {
-                "max_grams": 4500,
+                "max_weight": 4.5,
                 "amount": 4400
               },
               {
-                "max_grams": 5000,
+                "max_weight": 5,
                 "amount": 4650
               },
               {
-                "max_grams": 5500,
+                "max_weight": 5.5,
                 "amount": 4900
               },
               {
-                "max_grams": 6000,
+                "max_weight": 6,
                 "amount": 5050
               },
               {
-                "max_grams": 6500,
+                "max_weight": 6.5,
                 "amount": 5250
               },
               {
-                "max_grams": 7000,
+                "max_weight": 7,
                 "amount": 5500
               },
               {
-                "max_grams": 7500,
+                "max_weight": 7.5,
                 "amount": 5750
               },
               {
-                "max_grams": 8000,
+                "max_weight": 8,
                 "amount": 5950
               },
               {
-                "max_grams": 8500,
+                "max_weight": 8.5,
                 "amount": 6200
               },
               {
-                "max_grams": 9000,
+                "max_weight": 9,
                 "amount": 6400
               },
               {
-                "max_grams": 9500,
+                "max_weight": 9.5,
                 "amount": 6600
               },
               {
-                "max_grams": 10000,
+                "max_weight": 10,
                 "amount": 6900
               },
               {
-                "max_grams": 10500,
+                "max_weight": 10.5,
                 "amount": 7100
               },
               {
-                "max_grams": 11000,
+                "max_weight": 11,
                 "amount": 7300
               },
               {
-                "max_grams": 11500,
+                "max_weight": 11.5,
                 "amount": 7550
               },
               {
-                "max_grams": 12000,
+                "max_weight": 12,
                 "amount": 7750
               },
               {
-                "max_grams": 12500,
+                "max_weight": 12.5,
                 "amount": 8000
               },
               {
-                "max_grams": 13000,
+                "max_weight": 13,
                 "amount": 8250
               },
               {
-                "max_grams": 13500,
+                "max_weight": 13.5,
                 "amount": 8450
               },
               {
-                "max_grams": 14000,
+                "max_weight": 14,
                 "amount": 8700
               },
               {
-                "max_grams": 14500,
+                "max_weight": 14.5,
                 "amount": 8950
               },
               {
-                "max_grams": 15000,
+                "max_weight": 15,
                 "amount": 9100
               },
               {
-                "max_grams": 15500,
+                "max_weight": 15.5,
                 "amount": 9400
               },
               {
-                "max_grams": 16000,
+                "max_weight": 16,
                 "amount": 9600
               },
               {
-                "max_grams": 16500,
+                "max_weight": 16.5,
                 "amount": 9800
               },
               {
-                "max_grams": 17000,
+                "max_weight": 17,
                 "amount": 10000
               },
               {
-                "max_grams": 17500,
+                "max_weight": 17.5,
                 "amount": 10250
               },
               {
-                "max_grams": 18000,
+                "max_weight": 18,
                 "amount": 10500
               },
               {
-                "max_grams": 18500,
+                "max_weight": 18.5,
                 "amount": 10700
               },
               {
-                "max_grams": 19000,
+                "max_weight": 19,
                 "amount": 10900
               },
               {
-                "max_grams": 19500,
+                "max_weight": 19.5,
                 "amount": 11100
               },
               {
-                "max_grams": 20000,
+                "max_weight": 20,
                 "amount": 11300
               },
               {
-                "max_grams": 20500,
+                "max_weight": 20.5,
                 "amount": 11600
               },
               {
-                "max_grams": 21000,
+                "max_weight": 21,
                 "amount": 11750
               },
               {
-                "max_grams": 21500,
+                "max_weight": 21.5,
                 "amount": 12000
               },
               {
-                "max_grams": 22000,
+                "max_weight": 22,
                 "amount": 12250
               },
               {
-                "max_grams": 22500,
+                "max_weight": 22.5,
                 "amount": 12450
               },
               {
-                "max_grams": 23000,
+                "max_weight": 23,
                 "amount": 12600
               },
               {
-                "max_grams": 23500,
+                "max_weight": 23.5,
                 "amount": 12900
               },
               {
-                "max_grams": 24000,
+                "max_weight": 24,
                 "amount": 13100
               },
               {
-                "max_grams": 24500,
+                "max_weight": 24.5,
                 "amount": 13300
               },
               {
-                "max_grams": 25000,
+                "max_weight": 25,
                 "amount": 13500
               },
               {
-                "max_grams": 25500,
+                "max_weight": 25.5,
                 "amount": 13750
               },
               {
-                "max_grams": 26000,
+                "max_weight": 26,
                 "amount": 14000
               },
               {
-                "max_grams": 26500,
+                "max_weight": 26.5,
                 "amount": 14200
               },
               {
-                "max_grams": 27000,
+                "max_weight": 27,
                 "amount": 14400
               },
               {
-                "max_grams": 27500,
+                "max_weight": 27.5,
                 "amount": 14600
               },
               {
-                "max_grams": 28000,
+                "max_weight": 28,
                 "amount": 15000
               },
               {
-                "max_grams": 28500,
+                "max_weight": 28.5,
                 "amount": 15150
               },
               {
-                "max_grams": 29000,
+                "max_weight": 29,
                 "amount": 15250
               },
               {
-                "max_grams": 29500,
+                "max_weight": 29.5,
                 "amount": 15500
               },
               {
-                "max_grams": 30000,
+                "max_weight": 30,
                 "amount": 15750
               }
             ]
@@ -303,243 +304,243 @@
             "transit_max_days": 12,
             "rates": [
               {
-                "max_grams": 500,
+                "max_weight": 0.5,
                 "amount": 2900
               },
               {
-                "max_grams": 1000,
+                "max_weight": 1,
                 "amount": 3450
               },
               {
-                "max_grams": 1500,
+                "max_weight": 1.5,
                 "amount": 3750
               },
               {
-                "max_grams": 2000,
+                "max_weight": 2,
                 "amount": 4000
               },
               {
-                "max_grams": 2500,
+                "max_weight": 2.5,
                 "amount": 4300
               },
               {
-                "max_grams": 3000,
+                "max_weight": 3,
                 "amount": 4600
               },
               {
-                "max_grams": 3500,
+                "max_weight": 3.5,
                 "amount": 4900
               },
               {
-                "max_grams": 4000,
+                "max_weight": 4,
                 "amount": 5200
               },
               {
-                "max_grams": 4500,
+                "max_weight": 4.5,
                 "amount": 5500
               },
               {
-                "max_grams": 5000,
+                "max_weight": 5,
                 "amount": 5750
               },
               {
-                "max_grams": 5500,
+                "max_weight": 5.5,
                 "amount": 6100
               },
               {
-                "max_grams": 6000,
+                "max_weight": 6,
                 "amount": 6350
               },
               {
-                "max_grams": 6500,
+                "max_weight": 6.5,
                 "amount": 6650
               },
               {
-                "max_grams": 7000,
+                "max_weight": 7,
                 "amount": 6950
               },
               {
-                "max_grams": 7500,
+                "max_weight": 7.5,
                 "amount": 7250
               },
               {
-                "max_grams": 8000,
+                "max_weight": 8,
                 "amount": 7550
               },
               {
-                "max_grams": 8500,
+                "max_weight": 8.5,
                 "amount": 7800
               },
               {
-                "max_grams": 9000,
+                "max_weight": 9,
                 "amount": 8100
               },
               {
-                "max_grams": 9500,
+                "max_weight": 9.5,
                 "amount": 8400
               },
               {
-                "max_grams": 10000,
+                "max_weight": 10,
                 "amount": 8700
               },
               {
-                "max_grams": 10500,
+                "max_weight": 10.5,
                 "amount": 9000
               },
               {
-                "max_grams": 11000,
+                "max_weight": 11,
                 "amount": 9300
               },
               {
-                "max_grams": 11500,
+                "max_weight": 11.5,
                 "amount": 9600
               },
               {
-                "max_grams": 12000,
+                "max_weight": 12,
                 "amount": 9900
               },
               {
-                "max_grams": 12500,
+                "max_weight": 12.5,
                 "amount": 10150
               },
               {
-                "max_grams": 13000,
+                "max_weight": 13,
                 "amount": 10450
               },
               {
-                "max_grams": 13500,
+                "max_weight": 13.5,
                 "amount": 10750
               },
               {
-                "max_grams": 14000,
+                "max_weight": 14,
                 "amount": 11050
               },
               {
-                "max_grams": 14500,
+                "max_weight": 14.5,
                 "amount": 11350
               },
               {
-                "max_grams": 15000,
+                "max_weight": 15,
                 "amount": 11600
               },
               {
-                "max_grams": 15500,
+                "max_weight": 15.5,
                 "amount": 11900
               },
               {
-                "max_grams": 16000,
+                "max_weight": 16,
                 "amount": 12150
               },
               {
-                "max_grams": 16500,
+                "max_weight": 16.5,
                 "amount": 12400
               },
               {
-                "max_grams": 17000,
+                "max_weight": 17,
                 "amount": 12650
               },
               {
-                "max_grams": 17500,
+                "max_weight": 17.5,
                 "amount": 12900
               },
               {
-                "max_grams": 18000,
+                "max_weight": 18,
                 "amount": 13200
               },
               {
-                "max_grams": 18500,
+                "max_weight": 18.5,
                 "amount": 13450
               },
               {
-                "max_grams": 19000,
+                "max_weight": 19,
                 "amount": 13700
               },
               {
-                "max_grams": 19500,
+                "max_weight": 19.5,
                 "amount": 14000
               },
               {
-                "max_grams": 20000,
+                "max_weight": 20,
                 "amount": 14250
               },
               {
-                "max_grams": 20500,
+                "max_weight": 20.5,
                 "amount": 14500
               },
               {
-                "max_grams": 21000,
+                "max_weight": 21,
                 "amount": 14750
               },
               {
-                "max_grams": 21500,
+                "max_weight": 21.5,
                 "amount": 15000
               },
               {
-                "max_grams": 22000,
+                "max_weight": 22,
                 "amount": 15300
               },
               {
-                "max_grams": 22500,
+                "max_weight": 22.5,
                 "amount": 15500
               },
               {
-                "max_grams": 23000,
+                "max_weight": 23,
                 "amount": 15800
               },
               {
-                "max_grams": 23500,
+                "max_weight": 23.5,
                 "amount": 16000
               },
               {
-                "max_grams": 24000,
+                "max_weight": 24,
                 "amount": 16300
               },
               {
-                "max_grams": 24500,
+                "max_weight": 24.5,
                 "amount": 16600
               },
               {
-                "max_grams": 25000,
+                "max_weight": 25,
                 "amount": 16800
               },
               {
-                "max_grams": 25500,
+                "max_weight": 25.5,
                 "amount": 17100
               },
               {
-                "max_grams": 26000,
+                "max_weight": 26,
                 "amount": 17350
               },
               {
-                "max_grams": 26500,
+                "max_weight": 26.5,
                 "amount": 17600
               },
               {
-                "max_grams": 27000,
+                "max_weight": 27,
                 "amount": 17900
               },
               {
-                "max_grams": 27500,
+                "max_weight": 27.5,
                 "amount": 18100
               },
               {
-                "max_grams": 28000,
+                "max_weight": 28,
                 "amount": 18350
               },
               {
-                "max_grams": 28500,
+                "max_weight": 28.5,
                 "amount": 18650
               },
               {
-                "max_grams": 29000,
+                "max_weight": 29,
                 "amount": 18900
               },
               {
-                "max_grams": 29500,
+                "max_weight": 29.5,
                 "amount": 19200
               },
               {
-                "max_grams": 30000,
+                "max_weight": 30,
                 "amount": 19450
               }
             ]
@@ -549,243 +550,243 @@
             "transit_max_days": 15,
             "rates": [
               {
-                "max_grams": 500,
+                "max_weight": 0.5,
                 "amount": 3500
               },
               {
-                "max_grams": 1000,
+                "max_weight": 1,
                 "amount": 3750
               },
               {
-                "max_grams": 1500,
+                "max_weight": 1.5,
                 "amount": 4150
               },
               {
-                "max_grams": 2000,
+                "max_weight": 2,
                 "amount": 4500
               },
               {
-                "max_grams": 2500,
+                "max_weight": 2.5,
                 "amount": 4750
               },
               {
-                "max_grams": 3000,
+                "max_weight": 3,
                 "amount": 5150
               },
               {
-                "max_grams": 3500,
+                "max_weight": 3.5,
                 "amount": 5500
               },
               {
-                "max_grams": 4000,
+                "max_weight": 4,
                 "amount": 5850
               },
               {
-                "max_grams": 4500,
+                "max_weight": 4.5,
                 "amount": 6250
               },
               {
-                "max_grams": 5000,
+                "max_weight": 5,
                 "amount": 6500
               },
               {
-                "max_grams": 5500,
+                "max_weight": 5.5,
                 "amount": 6900
               },
               {
-                "max_grams": 6000,
+                "max_weight": 6,
                 "amount": 7250
               },
               {
-                "max_grams": 6500,
+                "max_weight": 6.5,
                 "amount": 7500
               },
               {
-                "max_grams": 7000,
+                "max_weight": 7,
                 "amount": 7900
               },
               {
-                "max_grams": 7500,
+                "max_weight": 7.5,
                 "amount": 8250
               },
               {
-                "max_grams": 8000,
+                "max_weight": 8,
                 "amount": 8600
               },
               {
-                "max_grams": 8500,
+                "max_weight": 8.5,
                 "amount": 9000
               },
               {
-                "max_grams": 9000,
+                "max_weight": 9,
                 "amount": 9250
               },
               {
-                "max_grams": 9500,
+                "max_weight": 9.5,
                 "amount": 9600
               },
               {
-                "max_grams": 10000,
+                "max_weight": 10,
                 "amount": 10000
               },
               {
-                "max_grams": 10500,
+                "max_weight": 10.5,
                 "amount": 10400
               },
               {
-                "max_grams": 11000,
+                "max_weight": 11,
                 "amount": 10750
               },
               {
-                "max_grams": 11500,
+                "max_weight": 11.5,
                 "amount": 11000
               },
               {
-                "max_grams": 12000,
+                "max_weight": 12,
                 "amount": 11350
               },
               {
-                "max_grams": 12500,
+                "max_weight": 12.5,
                 "amount": 11400
               },
               {
-                "max_grams": 13000,
+                "max_weight": 13,
                 "amount": 12100
               },
               {
-                "max_grams": 13500,
+                "max_weight": 13.5,
                 "amount": 12350
               },
               {
-                "max_grams": 14000,
+                "max_weight": 14,
                 "amount": 12750
               },
               {
-                "max_grams": 14500,
+                "max_weight": 14.5,
                 "amount": 13150
               },
               {
-                "max_grams": 15000,
+                "max_weight": 15,
                 "amount": 13500
               },
               {
-                "max_grams": 15500,
+                "max_weight": 15.5,
                 "amount": 13750
               },
               {
-                "max_grams": 16000,
+                "max_weight": 16,
                 "amount": 14150
               },
               {
-                "max_grams": 16500,
+                "max_weight": 16.5,
                 "amount": 14400
               },
               {
-                "max_grams": 17000,
+                "max_weight": 17,
                 "amount": 14600
               },
               {
-                "max_grams": 17500,
+                "max_weight": 17.5,
                 "amount": 15100
               },
               {
-                "max_grams": 18000,
+                "max_weight": 18,
                 "amount": 15350
               },
               {
-                "max_grams": 18500,
+                "max_weight": 18.5,
                 "amount": 15600
               },
               {
-                "max_grams": 19000,
+                "max_weight": 19,
                 "amount": 15900
               },
               {
-                "max_grams": 19500,
+                "max_weight": 19.5,
                 "amount": 16250
               },
               {
-                "max_grams": 20000,
+                "max_weight": 20,
                 "amount": 16500
               },
               {
-                "max_grams": 20500,
+                "max_weight": 20.5,
                 "amount": 16900
               },
               {
-                "max_grams": 21000,
+                "max_weight": 21,
                 "amount": 17100
               },
               {
-                "max_grams": 21500,
+                "max_weight": 21.5,
                 "amount": 17400
               },
               {
-                "max_grams": 22000,
+                "max_weight": 22,
                 "amount": 17750
               },
               {
-                "max_grams": 22500,
+                "max_weight": 22.5,
                 "amount": 18000
               },
               {
-                "max_grams": 23000,
+                "max_weight": 23,
                 "amount": 18350
               },
               {
-                "max_grams": 23500,
+                "max_weight": 23.5,
                 "amount": 18500
               },
               {
-                "max_grams": 24000,
+                "max_weight": 24,
                 "amount": 19000
               },
               {
-                "max_grams": 24500,
+                "max_weight": 24.5,
                 "amount": 19250
               },
               {
-                "max_grams": 25000,
+                "max_weight": 25,
                 "amount": 19500
               },
               {
-                "max_grams": 25500,
+                "max_weight": 25.5,
                 "amount": 19850
               },
               {
-                "max_grams": 26000,
+                "max_weight": 26,
                 "amount": 20100
               },
               {
-                "max_grams": 26500,
+                "max_weight": 26.5,
                 "amount": 20500
               },
               {
-                "max_grams": 27000,
+                "max_weight": 27,
                 "amount": 20750
               },
               {
-                "max_grams": 27500,
+                "max_weight": 27.5,
                 "amount": 21000
               },
               {
-                "max_grams": 28000,
+                "max_weight": 28,
                 "amount": 21350
               },
               {
-                "max_grams": 28500,
+                "max_weight": 28.5,
                 "amount": 21650
               },
               {
-                "max_grams": 29000,
+                "max_weight": 29,
                 "amount": 21900
               },
               {
-                "max_grams": 29500,
+                "max_weight": 29.5,
                 "amount": 22250
               },
               {
-                "max_grams": 30000,
+                "max_weight": 30,
                 "amount": 22650
               }
             ]
@@ -795,6 +796,7 @@
       "correo_certificado": {
         "name": "Correo Certificado",
         "currency": "DOP",
+        "weight_unit": "kg",
         "fixed_charge": 100,
         "zones": {
           "america": {
@@ -802,19 +804,19 @@
             "transit_max_days": 12,
             "rates": [
               {
-                "max_grams": 300,
+                "max_weight": 0.3,
                 "amount": 275
               },
               {
-                "max_grams": 500,
+                "max_weight": 0.5,
                 "amount": 535
               },
               {
-                "max_grams": 1000,
+                "max_weight": 1,
                 "amount": 860
               },
               {
-                "max_grams": 2000,
+                "max_weight": 2,
                 "amount": 1410
               }
             ]
@@ -824,19 +826,19 @@
             "transit_max_days": 14,
             "rates": [
               {
-                "max_grams": 300,
+                "max_weight": 0.3,
                 "amount": 350
               },
               {
-                "max_grams": 500,
+                "max_weight": 0.5,
                 "amount": 700
               },
               {
-                "max_grams": 1000,
+                "max_weight": 1,
                 "amount": 1000
               },
               {
-                "max_grams": 2000,
+                "max_weight": 2,
                 "amount": 1700
               }
             ]
@@ -846,19 +848,19 @@
             "transit_max_days": 18,
             "rates": [
               {
-                "max_grams": 300,
+                "max_weight": 0.3,
                 "amount": 400
               },
               {
-                "max_grams": 500,
+                "max_weight": 0.5,
                 "amount": 775
               },
               {
-                "max_grams": 1000,
+                "max_weight": 1,
                 "amount": 1300
               },
               {
-                "max_grams": 2000,
+                "max_weight": 2,
                 "amount": 2500
               }
             ]

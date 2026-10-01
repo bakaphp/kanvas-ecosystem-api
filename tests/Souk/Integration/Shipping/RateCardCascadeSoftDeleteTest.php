@@ -27,10 +27,11 @@ final class RateCardCascadeSoftDeleteTest extends TestCase
             'service_code' => 'ems',
             'name' => 'EMS',
             'currency' => 'DOP',
+            'weight_unit' => 'kg',
         ]);
         $rates = [
-            RateCardRate::create(['rate_card_id' => $rateCard->getId(), 'zone' => 'z1', 'max_grams' => 500, 'amount' => 850]),
-            RateCardRate::create(['rate_card_id' => $rateCard->getId(), 'zone' => 'z1', 'max_grams' => 1000, 'amount' => 1200]),
+            RateCardRate::create(['rate_card_id' => $rateCard->getId(), 'zone' => 'z1', 'max_weight' => 0.5, 'amount' => 850]),
+            RateCardRate::create(['rate_card_id' => $rateCard->getId(), 'zone' => 'z1', 'max_weight' => 1, 'amount' => 1200]),
         ];
 
         $rateCard->delete();
