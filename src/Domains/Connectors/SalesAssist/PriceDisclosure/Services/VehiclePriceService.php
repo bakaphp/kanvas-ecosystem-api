@@ -9,14 +9,21 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\DataTransferObject\VehiclePrice;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureFeeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Inventory\Variants\Models\Variants;
+use Kanvas\Inventory\Variants\Models\VariantsChannels;
 
 class VehiclePriceService
 {
-    private const string SOURCE_SYSTEM = 'variant_channel';
+    private const string SOURCE_ATTRIBUTES = 'variant_attributes';
 
-    private const string DEALER_FEE_TYPE = 'dealer_fee';
+    private const string SOURCE_CHANNEL = 'variant_channel';
+
+    /** Slug of the advertised price attribute; Str::slug turns "internet_price" into "internet-price". */
+    private const array INTERNET_PRICE_SLUGS = ['internet-price', 'internet_price'];
+
+    private const array MSRP_SLUGS = ['msrp'];
 
     public function __construct(
         private readonly Lead $lead,
@@ -48,40 +55,88 @@ class VehiclePriceService
     }
 
     /**
-     * The stored channel price is the actual price before government-required charges; the
-     * dealer-required fee comes from the company setting and is the only addition to the total.
-     * Swapping in the dealer pricing feed later only touches this method.
+     * The advertised price is the variant's internet_price attribute, falling back to the stored
+     * channel price for inventories that have not been enriched yet. The MSRP attribute feeds the
+     * CA CARS total and falls back to the advertised price when the unit has none.
      */
     public function priceFor(Variants $variant): ?VehiclePrice
     {
-        try {
-            $channelInfo = $variant->getChannelInfo();
-        } catch (ModelNotFoundException) {
+        $internetPrice = $this->attributeAmount($variant, self::INTERNET_PRICE_SLUGS);
+        $channelInfo = $internetPrice === null ? $this->channelInfo($variant) : null;
+        $internetPrice ??= self::amount($channelInfo?->price);
+
+        if ($internetPrice === null) {
             return null;
         }
 
-        $actualPrice = (float) ($channelInfo?->price ?? 0);
-
-        if ($actualPrice <= 0) {
-            return null;
-        }
-
-        $dealerFee = $this->dealerFee();
+        $msrp = $this->attributeAmount($variant, self::MSRP_SLUGS) ?? $internetPrice;
+        $fees = $this->fees();
+        $feesTotal = array_sum(array_column($fees, 'amount'));
 
         return new VehiclePrice(
             variant: $variant,
             vehicleKey: (string) $variant->sku,
-            caCarsTotalPrice: round($actualPrice + $dealerFee, 2),
-            ftcActualPrice: $actualPrice,
-            mandatoryDealerFees: $dealerFee > 0 ? [['type' => self::DEALER_FEE_TYPE, 'amount' => $dealerFee]] : [],
-            sourceSystem: self::SOURCE_SYSTEM,
-            sourceVersion: (string) $channelInfo->channels_id,
+            caCarsTotalPrice: $msrp,
+            preRebateSellingPrice: round($msrp + $feesTotal, 2),
+            ftcActualPrice: round($internetPrice + $feesTotal, 2),
+            mandatoryDealerFees: $fees,
+            sourceSystem: $channelInfo === null ? self::SOURCE_ATTRIBUTES : self::SOURCE_CHANNEL,
+            sourceVersion: $channelInfo === null ? null : (string) $channelInfo->channels_id,
         );
     }
 
-    private function dealerFee(): float
+    /**
+     * @return array<int, array{type: string, amount: float}>
+     */
+    private function fees(): array
     {
-        return max(0.0, (float) ($this->lead->company->get(PriceDisclosureConfigurationEnum::DEALER_FEE->value) ?? 0));
+        $configured = Str::jsonToArray($this->lead->company->get(PriceDisclosureConfigurationEnum::FEES->value));
+        $configured = is_array($configured) ? $configured : [];
+
+        return array_map(
+            fn (PriceDisclosureFeeEnum $fee): array => [
+                'type' => $fee->value,
+                'amount' => max(0.0, (float) ($configured[$fee->value] ?? 0)),
+            ],
+            PriceDisclosureFeeEnum::cases()
+        );
+    }
+
+    private function attributeAmount(Variants $variant, array $slugs): ?float
+    {
+        foreach ([$variant, $variant->product] as $entity) {
+            $amount = self::amount($entity?->attributes()->whereIn('attributes.slug', $slugs)->first()?->value);
+
+            if ($amount !== null) {
+                return $amount;
+            }
+        }
+
+        return null;
+    }
+
+    private function channelInfo(Variants $variant): ?VariantsChannels
+    {
+        try {
+            return $variant->getChannelInfo();
+        } catch (ModelNotFoundException) {
+            return null;
+        }
+    }
+
+    /**
+     * Feed values arrive as "27,500" or "$27500.00" as often as plain numbers; anything that is not a
+     * positive amount after normalizing counts as missing.
+     */
+    private static function amount(mixed $value): ?float
+    {
+        if ($value === null || is_array($value)) {
+            return null;
+        }
+
+        $normalized = str_replace(['$', ','], '', trim((string) $value));
+
+        return is_numeric($normalized) && (float) $normalized > 0 ? (float) $normalized : null;
     }
 
     private function leadVehicleVin(): ?string
