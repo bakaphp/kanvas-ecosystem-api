@@ -17,6 +17,8 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
 {
     private const string WORKING = ':hourglass_flowing_sand: working on it…';
     private const string FAILED = ':warning: Something went wrong on my side. Try again.';
+    private const string EMPTY_REPLY = ':warning: I came back without an answer on that one. Try asking again, or break it into smaller steps.';
+    private const string CONTINUING = ':hourglass_flowing_sand: That took more steps than one pass allows — still working, I\'ll post here when done.';
     private const string REPLY_UNDELIVERABLE = ':white_check_mark: Done — but my reply was too long to post here.';
 
     protected string $messageTypeVerb = 'slack';
@@ -73,6 +75,24 @@ class AgentChannelResponderAction extends BaseAgentChannelReplyAction
         }
 
         $responseText = ChatHelper::extractTextFromResponse($response);
+
+        // createMessage() refuses an empty reply, stranding the placeholder. A turn that spent its whole
+        // tool budget often ends with no text; the continuation posts the answer on its own.
+        if (trim($responseText) === '') {
+            $continued = ContinueAgentTurnJob::dispatchIfCutShort($kernel, $responseText);
+
+            $client->updateMessage(
+                $slackChannelId,
+                $placeholderTs,
+                $continued ? self::CONTINUING : self::EMPTY_REPLY
+            );
+
+            return [
+                'message' => 'Agent returned an empty reply',
+                'continued' => $continued,
+            ];
+        }
+
         $reply = $this->createMessage(
             $responseText,
             $slackChannelId,

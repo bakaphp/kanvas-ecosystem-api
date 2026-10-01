@@ -22,6 +22,7 @@ use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Actions\ProcessWebhookAttemptAction;
 use Kanvas\Workflow\Models\ReceiverWebhook;
 use Kanvas\Workflow\Models\WorkflowAction;
+use Tests\Stubs\Intelligence\EmptyReplyNeuronAgentStub;
 use Tests\Stubs\Intelligence\SalesNeuronAgentStub;
 use Tests\TestCase;
 
@@ -115,6 +116,28 @@ final class ProcessSlackWebhookJobTest extends TestCase
         $this->assertSlackReplyWasPosted();
         // A DM reads like a normal chat — the reply posts at the top level, not in a thread.
         $this->assertSlackPostThreadTs(null);
+    }
+
+    public function testEmptyAgentReplyReplacesThePlaceholderInsteadOfFailing(): void
+    {
+        $this->fakeSlackApi();
+        $this->agent->type->update(['handler' => EmptyReplyNeuronAgentStub::class]);
+
+        $result = $this->dispatch($this->messageEvent([
+            'channel' => self::DM_CHANNEL,
+            'channel_type' => 'im',
+            'text' => 'merge the receiver json configs',
+        ]));
+
+        $this->assertSame('Agent returned an empty reply', $result['message']);
+        $this->assertFalse($result['continued']);
+
+        // The "working on it" placeholder must not be left hanging in the thread.
+        Http::assertSent(fn ($request) => str_contains($request->url(), 'chat.update')
+            && str_contains((string) ($request['text'] ?? ''), 'without an answer'));
+
+        // Only the inbound message is stored — no empty outbound row.
+        $this->assertCount(1, $this->messagesOn(self::DM_CHANNEL));
     }
 
     public function testChannelMentionIsAnsweredAndBoundToTheChannel(): void
