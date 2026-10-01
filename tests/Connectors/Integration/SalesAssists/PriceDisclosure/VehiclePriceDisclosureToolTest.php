@@ -14,6 +14,7 @@ use Kanvas\Connectors\SalesAssist\Neuron\Tools\VehiclePriceDisclosureTool;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Actions\RenderPriceDisclosureAction;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureChannelEnum;
 use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureConfigurationEnum;
+use Kanvas\Connectors\SalesAssist\PriceDisclosure\Enums\PriceDisclosureFeeEnum;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Guild\Leads\Models\LeadHandOffNotification;
 use Kanvas\Inventory\Channels\Models\Channels;
@@ -38,10 +39,13 @@ final class VehiclePriceDisclosureToolTest extends TestCase
     protected $connectionsToTransact = [null, 'ecosystem', 'inventory', 'crm', 'social'];
 
     private const string SMS_TEMPLATE = 'Vehicle total price: ${{ $ca_cars_total_price }}. '
+        . 'Selling price: ${{ $pre_rebate_selling_price }}. '
         . 'Actual price before government-required charges: ${{ $ftc_actual_price }}. '
-        . 'This price includes all dealer-required fees. Stock {{ $stock_number }}, {{ $first_name }}.';
+        . 'Fees: ${{ $documentation_fee }} doc, ${{ $electronic_filing_charge }} filing. Stock {{ $stock_number }}, {{ $first_name }}.';
 
-    private const float DEALER_FEE = 85.0;
+    private const float DOCUMENTATION_FEE = 85.0;
+
+    private const float ELECTRONIC_FILING_CHARGE = 33.0;
 
     private Apps $kanvasApp;
     private Companies $company;
@@ -59,7 +63,10 @@ final class VehiclePriceDisclosureToolTest extends TestCase
 
         new InventorySetup($this->kanvasApp, $this->user, $this->company)->run();
         $this->company->set(PriceDisclosureConfigurationEnum::ENABLED->value, 1);
-        $this->company->set(PriceDisclosureConfigurationEnum::DEALER_FEE->value, self::DEALER_FEE);
+        $this->company->set(PriceDisclosureConfigurationEnum::FEES->value, [
+            PriceDisclosureFeeEnum::DOCUMENTATION_FEE->value => self::DOCUMENTATION_FEE,
+            PriceDisclosureFeeEnum::ELECTRONIC_FILING_CHARGE->value => self::ELECTRONIC_FILING_CHARGE,
+        ]);
     }
 
     /**
@@ -69,14 +76,14 @@ final class VehiclePriceDisclosureToolTest extends TestCase
     protected function tearDown(): void
     {
         $this->company->del(PriceDisclosureConfigurationEnum::ENABLED->value);
-        $this->company->del(PriceDisclosureConfigurationEnum::DEALER_FEE->value);
+        $this->company->del(PriceDisclosureConfigurationEnum::FEES->value);
 
         parent::tearDown();
     }
 
-    public function testRendersTheApprovedTemplateWithTheChannelPriceVerbatim(): void
+    public function testRendersTheApprovedTemplateWithTheVariantPricesVerbatim(): void
     {
-        $variant = $this->makePricedVariant(25000.0);
+        $variant = $this->makePricedVariant(25000.0, msrp: 27000.0);
         $lead = $this->makeLead($variant->sku);
         $this->makeTemplate(PriceDisclosureChannelEnum::SMS, 'en');
 
@@ -86,30 +93,76 @@ final class VehiclePriceDisclosureToolTest extends TestCase
         $this->assertSame('ok', $result['outcome']);
         $this->assertFalse($result['suppress']);
         $this->assertSame(VehiclePriceDisclosureTool::MODE_INSERT_BLOCK, $result['mode']);
-        $this->assertStringContainsString('Vehicle total price: $25,085.00.', $result['message']);
-        $this->assertStringContainsString('government-required charges: $25,000.00.', $result['message']);
+        $this->assertStringContainsString('Vehicle total price: $27,000.00.', $result['message']);
+        $this->assertStringContainsString('Selling price: $27,118.00.', $result['message']);
+        $this->assertStringContainsString('government-required charges: $25,118.00.', $result['message']);
+        $this->assertStringContainsString('Fees: $85.00 doc, $33.00 filing.', $result['message']);
         $this->assertStringContainsString('Stock ' . $variant->sku, $result['message']);
         $this->assertStringContainsString("O'Brien", $result['message']);
         $this->assertSame($variant->sku, $result['vehicle_key']);
         $this->assertSame(hash('sha256', $result['message']), $result['content_hash']);
-        $this->assertSame(25085.0, $result['price']['ca_cars_total_price']);
-        $this->assertSame(25000.0, $result['price']['ftc_actual_price']);
-        $this->assertSame(85.0, $result['price']['mandatory_dealer_fees_total']);
+        $this->assertSame(27000.0, $result['price']['ca_cars_total_price']);
+        $this->assertSame(27118.0, $result['price']['pre_rebate_selling_price']);
+        $this->assertSame(25118.0, $result['price']['ftc_actual_price']);
+        $this->assertSame(118.0, $result['price']['mandatory_dealer_fees_total']);
+        $this->assertSame(
+            ['documentation_fee' => 85.0, 'electronic_filing_charge' => 33.0],
+            $result['price']['mandatory_dealer_fees'],
+        );
+        $this->assertSame('variant_attributes', $result['price']['source_system']);
         $this->assertNull($result['disclosed_at']);
     }
 
-    public function testWithoutADealerFeeTheTotalEqualsTheActualPrice(): void
+    public function testRendersTheDefaultTemplateWhenTheDealerHasNone(): void
     {
-        $this->company->del(PriceDisclosureConfigurationEnum::DEALER_FEE->value);
-        $variant = $this->makePricedVariant(25000.0);
+        $variant = $this->makePricedVariant(25000.0, msrp: 27000.0);
+        $lead = $this->makeLead($variant->sku);
+
+        $result = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms');
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(VehiclePriceDisclosureTool::MODE_INSERT_BLOCK, $result['mode']);
+        $this->assertSame(RenderPriceDisclosureAction::DEFAULT_TEMPLATE_NAME, $result['template']);
+        $this->assertSame(
+            'The vehicle total price before rebates or incentives is $27,000.00. '
+            . 'Including the $85.00 documentation fee and $33.00, the selling price is $27,118.00. '
+            . 'The current advertised sale price is $25,118.00, before government-required taxes and registration charges.',
+            $result['message'],
+        );
+        $this->assertSame(0, LeadHandOffNotification::query()->where('leads_id', $lead->getId())->count());
+
+        $ledger = $lead->get(PriceDisclosureConfigurationEnum::DISCLOSURES->value);
+        $this->assertSame(RenderPriceDisclosureAction::DEFAULT_TEMPLATE_NAME, $ledger[$variant->sku]['template']);
+        $this->assertNull($ledger[$variant->sku]['template_id']);
+    }
+
+    public function testWithoutConfiguredFeesTheSellingPricesEqualTheBasePrices(): void
+    {
+        $this->company->del(PriceDisclosureConfigurationEnum::FEES->value);
+        $variant = $this->makePricedVariant(25000.0, msrp: 27000.0);
+        $lead = $this->makeLead($variant->sku);
+        $this->makeTemplate(PriceDisclosureChannelEnum::SMS, 'en');
+
+        $result = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms');
+
+        $this->assertSame(27000.0, $result['price']['ca_cars_total_price']);
+        $this->assertSame(27000.0, $result['price']['pre_rebate_selling_price']);
+        $this->assertSame(25000.0, $result['price']['ftc_actual_price']);
+        $this->assertSame(0.0, $result['price']['mandatory_dealer_fees_total']);
+    }
+
+    public function testFallsBackToTheChannelPriceWhenTheVariantHasNoPriceAttributes(): void
+    {
+        $variant = $this->makePricedVariant(25000.0, asAttributes: false);
         $lead = $this->makeLead($variant->sku);
         $this->makeTemplate(PriceDisclosureChannelEnum::SMS, 'en');
 
         $result = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms');
 
         $this->assertSame(25000.0, $result['price']['ca_cars_total_price']);
-        $this->assertSame(25000.0, $result['price']['ftc_actual_price']);
-        $this->assertSame(0.0, $result['price']['mandatory_dealer_fees_total']);
+        $this->assertSame(25118.0, $result['price']['pre_rebate_selling_price']);
+        $this->assertSame(25118.0, $result['price']['ftc_actual_price']);
+        $this->assertSame('variant_channel', $result['price']['source_system']);
     }
 
     public function testTheSameVinIsNotDisclosedTwiceButANewVinIs(): void
@@ -198,18 +251,7 @@ final class VehiclePriceDisclosureToolTest extends TestCase
 
         $this->assertTrue($result['success']);
         $this->assertSame(RenderPriceDisclosureAction::templateName(PriceDisclosureChannelEnum::EMAIL, 'es'), $result['template']);
-        $this->assertSame('Precio total del vehículo: $25,085.00.', $result['message']);
-    }
-
-    public function testSuppressesAndHandsOffWhenTheDealerHasNoApprovedTemplate(): void
-    {
-        $variant = $this->makePricedVariant(25000.0);
-        $lead = $this->makeLead($variant->sku);
-
-        $result = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms');
-
-        $this->assertSuppressedWithHandoff($result, 'template_missing', $lead);
-        $this->assertStringNotContainsString('25,000', $result['error']);
+        $this->assertSame('Precio total del vehículo: $25,000.00.', $result['message']);
     }
 
     public function testSuppressesAndHandsOffWhenTheVehicleHasNoPrice(): void
@@ -400,7 +442,7 @@ final class VehiclePriceDisclosureToolTest extends TestCase
         ]);
     }
 
-    private function makePricedVariant(float $price): Variants
+    private function makePricedVariant(float $price, ?float $msrp = null, bool $asAttributes = true): Variants
     {
         /** @var Products $product */
         $product = Products::withoutSyncingToSearch(fn () => Products::factory()
@@ -443,6 +485,13 @@ final class VehiclePriceDisclosureToolTest extends TestCase
                 'is_published' => 1,
             ],
         );
+
+        if ($asAttributes) {
+            $variant->addAttributes($this->user, array_filter([
+                ['name' => 'internet_price', 'value' => $price],
+                $msrp === null ? null : ['name' => 'msrp', 'value' => $msrp],
+            ]));
+        }
 
         return $variant;
     }

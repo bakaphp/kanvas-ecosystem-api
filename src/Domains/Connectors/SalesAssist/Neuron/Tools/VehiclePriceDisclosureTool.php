@@ -163,17 +163,6 @@ class VehiclePriceDisclosureTool extends Tool implements HasRunKey
             $disclosureChannel,
             $language,
         )->execute();
-        if ($rendered === null) {
-            return $this->suppress(
-                $lead,
-                PriceDisclosureReasonEnum::TEMPLATE_MISSING,
-                sprintf(
-                    'No approved price disclosure template "%s" exists for this dealer.',
-                    RenderPriceDisclosureAction::templateName($disclosureChannel, $language),
-                ),
-                $language,
-            );
-        }
 
         $previous = $this->disclosures($lead)[$price->vehicleKey] ?? null;
         $alreadyDisclosed = $previous !== null;
@@ -194,7 +183,9 @@ class VehiclePriceDisclosureTool extends Tool implements HasRunKey
             'disclosed_at' => $previous['disclosed_at'] ?? null,
             'price' => [
                 'ca_cars_total_price' => $price->caCarsTotalPrice,
+                'pre_rebate_selling_price' => $price->preRebateSellingPrice,
                 'ftc_actual_price' => $price->ftcActualPrice,
+                'mandatory_dealer_fees' => array_column($price->mandatoryDealerFees, 'amount', 'type'),
                 'mandatory_dealer_fees_total' => $price->mandatoryDealerFeesTotal(),
                 'currency' => $price->currency,
                 'source_system' => $price->sourceSystem,
@@ -249,7 +240,7 @@ class VehiclePriceDisclosureTool extends Tool implements HasRunKey
      * the send. The spec accepts a duplicate disclosure but never a missing one, so the gap errs
      * toward repeating.
      *
-     * @param array{template: string, template_id: int, message: string, content_hash: string} $rendered
+     * @param array{template: string, template_id: int|null, message: string, content_hash: string} $rendered
      */
     private function recordDisclosure(
         Lead $lead,
