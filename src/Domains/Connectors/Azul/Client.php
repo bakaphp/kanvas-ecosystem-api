@@ -110,7 +110,9 @@ class Client
             return null;
         }
 
-        return str_replace($this->baseUrl, $failoverBase, $endpoint);
+        $failover = str_replace($this->baseUrl, $failoverBase, $endpoint);
+
+        return $failover === $endpoint ? null : $failover;
     }
 
     private function isSafeToRetry(ConnectException $e): bool
