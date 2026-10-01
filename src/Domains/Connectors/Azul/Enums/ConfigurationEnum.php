@@ -13,12 +13,14 @@ enum ConfigurationEnum: string
     case AZUL_CHANNEL = 'AZUL_CHANNEL';
     case AZUL_BASE_URL = 'AZUL_BASE_URL';
     case AZUL_FAILOVER_URL = 'AZUL_FAILOVER_URL';
-    case AZUL_CERT_PATH = 'AZUL_CERT_PATH'; // Path to client certificate file (mTLS)
-    case AZUL_KEY_PATH = 'AZUL_KEY_PATH';   // Path to private key file (mTLS)
-    case AZUL_PFX_PATH = 'AZUL_PFX_PATH';   // Path to PKCS#12 file (preferred over cert/key)
-    case AZUL_PFX_PASSWORD = 'AZUL_PFX_PASSWORD'; // Password for PFX file
+    case AZUL_CERT = 'AZUL_CERT';
+    case AZUL_KEY = 'AZUL_KEY';
+    case AZUL_CA = 'AZUL_CA';
     case AZUL_KEY_PASSWORD = 'AZUL_KEY_PASSWORD'; // Password for private key (optional)
-    case AZUL_CA_PATH = 'AZUL_CA_PATH';     // Path to CA certificate for server verification
+
+    case AZUL_CERT_PATH = 'AZUL_CERT_PATH';
+    case AZUL_KEY_PATH = 'AZUL_KEY_PATH';
+    case AZUL_CA_PATH = 'AZUL_CA_PATH';
     case AZUL_VERIFY_SSL = 'AZUL_VERIFY_SSL'; // Whether to verify SSL (true/false)
     case AZUL_USE_HOLD = 'AZUL_USE_HOLD';     // Use Hold+Post (two-step) instead of immediate Sale
     case AZUL_DEBUG_LOG = 'AZUL_DEBUG_LOG';   // Enable detailed API request/response logging

@@ -6,7 +6,9 @@ namespace Kanvas\Connectors\Azul\Handlers;
 
 use Kanvas\Connectors\Azul\Client;
 use Kanvas\Connectors\Azul\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Azul\Services\AzulCertificate;
 use Kanvas\Connectors\Contracts\BaseIntegration;
+use Kanvas\Exceptions\ValidationException;
 use Override;
 
 class AzulHandler extends BaseIntegration
@@ -14,11 +16,11 @@ class AzulHandler extends BaseIntegration
     #[Override]
     public function setup(): bool
     {
-        $auth1       = $this->data['auth1'] ?? null;
-        $auth2       = $this->data['auth2'] ?? null;
-        $store       = $this->data['store'] ?? null;
-        $channel     = $this->data['channel'] ?? null;
-        $baseUrl     = $this->data['base_url'] ?? null;
+        $auth1 = $this->data['auth1'] ?? null;
+        $auth2 = $this->data['auth2'] ?? null;
+        $store = $this->data['store'] ?? null;
+        $channel = $this->data['channel'] ?? null;
+        $baseUrl = $this->data['base_url'] ?? null;
         $failoverUrl = $this->data['failover_url'] ?? null;
 
         if (empty($auth1) || empty($auth2) || empty($store) || empty($channel)) {
@@ -38,8 +40,27 @@ class AzulHandler extends BaseIntegration
             $this->app->set(ConfigurationEnum::AZUL_FAILOVER_URL->value, $failoverUrl);
         }
 
+        $this->storeCertificate(ConfigurationEnum::AZUL_CERT, $this->data['cert'] ?? null);
+        $this->storeCertificate(ConfigurationEnum::AZUL_KEY, $this->data['key'] ?? null);
+        $this->storeCertificate(ConfigurationEnum::AZUL_CA, $this->data['ca'] ?? null);
+
         new Client($this->app, $this->company);
 
         return true;
+    }
+
+    private function storeCertificate(ConfigurationEnum $key, ?string $value): void
+    {
+        if (empty($value)) {
+            return;
+        }
+
+        $pem = AzulCertificate::decodePem($value);
+
+        if ($pem === null) {
+            throw new ValidationException($key->value . ' must be PEM content or its base64 encoding.');
+        }
+
+        $this->app->setEncrypted($key->value, $pem);
     }
 }
