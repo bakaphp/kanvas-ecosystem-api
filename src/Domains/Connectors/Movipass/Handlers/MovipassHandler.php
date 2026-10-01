@@ -37,6 +37,33 @@ class MovipassHandler extends BaseIntegration
         $this->app->set(ConfigurationEnum::LOW_BALANCE_EMAIL_TEMPLATE_FIELD->value, $lowBalanceEmailTemplate);
         $this->app->set(ConfigurationEnum::GRACE_PERIOD_DAYS->value, $gracePeriodDays);
 
+        $this->setupRoadsideAssistanceProvider();
+
         return true;
+    }
+
+    /**
+     * The external roadside assistance provider is optional: only companies that dispatch through
+     * it send these keys, so an absent value must leave the existing setting alone rather than
+     * blanking a working configuration.
+     */
+    private function setupRoadsideAssistanceProvider(): void
+    {
+        $settings = [
+            ConfigurationEnum::ROADSIDE_PROVIDER_BASE_URL->value => $this->data['roadsideProviderBaseUrl'] ?? null,
+            ConfigurationEnum::ROADSIDE_PROVIDER_API_TOKEN->value => $this->data['roadsideProviderApiToken'] ?? null,
+            ConfigurationEnum::ROADSIDE_PROVIDER_AUTH_HEADER->value => $this->data['roadsideProviderAuthHeader'] ?? null,
+            ConfigurationEnum::ROADSIDE_PROVIDER_AUTH_SCHEME->value => $this->data['roadsideProviderAuthScheme'] ?? null,
+            ConfigurationEnum::ROADSIDE_PROVIDER_CATALOG_CACHE_TTL->value => $this->data['roadsideProviderCatalogCacheTtl'] ?? null,
+            ConfigurationEnum::ROADSIDE_PROVIDER_POLL_INTERVAL->value => $this->data['roadsideProviderPollIntervalSeconds'] ?? null,
+            ConfigurationEnum::ROADSIDE_PROVIDER_STATE_MAP->value => $this->data['roadsideProviderStateMap'] ?? null,
+            ConfigurationEnum::ROADSIDE_MAX_RESCHEDULES->value => $this->data['roadsideMaxReschedules'] ?? null,
+        ];
+
+        foreach ($settings as $key => $value) {
+            if ($value !== null && $value !== '') {
+                $this->app->set($key, $value);
+            }
+        }
     }
 }
