@@ -6,6 +6,23 @@ namespace Kanvas\Intelligence\Agents\Helpers;
 
 class ChatHelper
 {
+    private const array CONTENT_KEYS = [
+        'response',
+        'content',
+        'message',
+        'text',
+        'body',
+        'reply',
+        'answer',
+        'output',
+    ];
+
+    private const string FENCED_JSON = '/```(?:json)?\s*(.*?)\s*```/s';
+
+    // `[` as well as `{`: a list of records is an envelope too, and anchoring on `{` alone left a fenced
+    // array unparsed, so the caller published the model's raw JSON as its own body.
+    private const string BARE_JSON = '/[\{\[].*[\}\]]/s';
+
     public static function extractTextFromResponse(string $response): string
     {
         return self::collapseDuplicatedBody(self::resolveResponseText($response));
@@ -15,6 +32,12 @@ class ChatHelper
     {
         $data = self::extractJsonEnvelope($response);
         if ($data !== null) {
+            // An answer that shows JSON beside its prose (a config, a payload) is not an envelope. Picking a
+            // field from it drops the explanation, and returns '' when every value is an object.
+            if (self::hasProseOutsideJson($response) && self::knownContentField($data) === null) {
+                return $response;
+            }
+
             return self::pickResponseField($data);
         }
 
@@ -107,13 +130,11 @@ class ChatHelper
     {
         $candidates = [$response];
 
-        if (preg_match('/```(?:json)?\s*(.*?)\s*```/s', $response, $matches)) {
+        if (preg_match(self::FENCED_JSON, $response, $matches)) {
             $candidates[] = $matches[1];
         }
 
-        // `[` as well as `{`: a list of records is an envelope too, and anchoring on `{` alone left
-        // a fenced array unparsed, so the caller published the model's raw JSON as its own body.
-        if (preg_match('/[\{\[].*[\}\]]/s', $response, $matches)) {
+        if (preg_match(self::BARE_JSON, $response, $matches)) {
             $candidates[] = $matches[0];
         }
 
@@ -159,6 +180,29 @@ class ChatHelper
     }
 
     /**
+     * @param array<array-key, mixed> $data
+     */
+    private static function knownContentField(array $data): ?string
+    {
+        $record = self::firstRecord($data) ?? [];
+
+        foreach (self::CONTENT_KEYS as $key) {
+            if (isset($record[$key]) && is_string($record[$key]) && trim($record[$key]) !== '') {
+                return $record[$key];
+            }
+        }
+
+        return null;
+    }
+
+    private static function hasProseOutsideJson(string $response): bool
+    {
+        $outside = preg_replace([self::FENCED_JSON, self::BARE_JSON], '', $response);
+
+        return trim((string) $outside) !== '';
+    }
+
+    /**
      * Pull the single reply field out of a decoded agent JSON envelope.
      *
      * Critically this SELECTS one field — it never concatenates. The old behavior
@@ -181,10 +225,9 @@ class ChatHelper
             return $record !== null ? self::pickResponseField($record) : '';
         }
 
-        foreach (['response', 'content', 'message', 'text', 'body', 'reply', 'answer', 'output'] as $key) {
-            if (isset($data[$key]) && is_string($data[$key]) && trim($data[$key]) !== '') {
-                return $data[$key];
-            }
+        $known = self::knownContentField($data);
+        if ($known !== null) {
+            return $known;
         }
 
         $strings = array_values(array_filter($data, 'is_string'));
