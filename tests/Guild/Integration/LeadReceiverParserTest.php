@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Guild\Integration;
 
+use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Leads\Actions\ConvertJsonTemplateToLeadStructureAction;
 use Tests\TestCase;
 
@@ -614,37 +615,6 @@ final class LeadReceiverParserTest extends TestCase
         $this->assertSame('Acme | West | ', $result['custom_fields']['agent_notes']);
     }
 
-    public function testCombinesKeysWithSpacesIntoAgentNotes(): void
-    {
-        $request = [
-            'Best Time to Contact' => 'Morning (6 AM-12 PM EST)',
-            'Time Funds Needed' => 'Within 7 days',
-        ];
-
-        $result = new ConvertJsonTemplateToLeadStructureAction(
-            [
-                'agent_notes' => [
-                    'name' => 'agent_notes',
-                    'type' => 'template',
-                    'template' => 'Best Time to Contact: {Best Time to Contact} | Time Funds Needed: {Time Funds Needed}',
-                ],
-                'description' => [
-                    'name' => 'description',
-                    'type' => 'concat',
-                    'fields' => ['Best Time to Contact', 'Time Funds Needed'],
-                    'separator' => "\n",
-                ],
-            ],
-            $request
-        )->execute();
-
-        $this->assertSame(
-            'Best Time to Contact: Morning (6 AM-12 PM EST) | Time Funds Needed: Within 7 days',
-            $result['custom_fields']['agent_notes']
-        );
-        $this->assertSame("Morning (6 AM-12 PM EST)\nWithin 7 days", $result['description']);
-    }
-
     public function testTargetOverridesTheInferredDestination(): void
     {
         $result = new ConvertJsonTemplateToLeadStructureAction(
@@ -692,5 +662,149 @@ final class LeadReceiverParserTest extends TestCase
         $this->assertSame('Ada', $result['firstname']);
         $this->assertSame('raw value', $result['custom_fields']['raw_custom']);
         $this->assertSame('12345', $result['reference_id']);
+    }
+
+    public function testReceiverMappingWithMultipleConcatAndTemplateFields(): void
+    {
+        $leadTemplate = '
+        {
+            "First Name": {
+                "name": "firstname",
+                "type": "string"
+            },
+            "Last Name": {
+                "name": "lastname",
+                "type": "string"
+            },
+            "Email": {
+                "name": "email",
+                "type": "string"
+            },
+            "Phone": {
+                "name": "phone",
+                "type": "string"
+            },
+            "Business Name": {
+                "name": "Company",
+                "type": "customField"
+            },
+            "City": {
+                "name": "city",
+                "type": "customField"
+            },
+            "State": {
+                "name": "state",
+                "type": "customField"
+            },
+            "Industry": {
+                "name": "industry",
+                "type": "customField"
+            },
+            "Credit Score": {
+                "name": "Credit_Score",
+                "type": "customField"
+            },
+            "Member": {
+                "name": "member",
+                "type": "customField",
+                "default": "99999"
+            },
+            "Lead Source": {
+                "name": "Lead_Source",
+                "type": "customField",
+                "default": "our website"
+            },
+            "Agent Notes": {
+                "name": "agent_notes",
+                "type": "template",
+                "template": "Best Time to Contact: {Best Time to Contact} | Time Funds Needed: {Time Funds Needed} | Amount: {{ Amount Requested }}"
+            },
+            "Lead Description": {
+                "name": "description",
+                "type": "template",
+                "template": "{Business Name} ({Industry}) - Credit: {Credit Score}"
+            },
+            "Lead Title": {
+                "name": "title",
+                "type": "template",
+                "target": "string",
+                "template": "{Business Name} - {Amount Requested}"
+            },
+            "Full Name": {
+                "name": "full_name",
+                "type": "concat",
+                "fields": ["First Name", "Middle Name", "Last Name"]
+            },
+            "Location": {
+                "name": "location",
+                "type": "concat",
+                "fields": ["City", "State", "Zip Code"],
+                "separator": ", "
+            },
+            "Owner Summary": {
+                "name": "owner_summary",
+                "type": "template",
+                "template": "{owner.title}, owns {owner.ownership}%"
+            },
+            "Empty Concat": {
+                "name": "empty_concat",
+                "type": "concat",
+                "fields": ["Missing One", "Missing Two"],
+                "separator": " | "
+            }
+        }';
+
+        $leadReceived = [
+            'First Name' => 'Jane',
+            'Last Name' => 'Doe',
+            'Email' => 'jane@acme.test',
+            'Phone' => '8095551234',
+            'Business Name' => 'Acme, LLC',
+            'City' => 'Philadelphia',
+            'State' => 'PA',
+            'Industry' => 'real_estate',
+            'Credit Score' => 'Excellent (720+)',
+            'Best Time to Contact' => 'Morning (6 AM-12 PM EST)',
+            'Time Funds Needed' => 'Within 7 days',
+            'Amount Requested' => '150000',
+            'owner' => ['title' => 'CEO', 'ownership' => 60],
+        ];
+
+        $leadStructure = new ConvertJsonTemplateToLeadStructureAction(
+            json_decode($leadTemplate, true),
+            $leadReceived
+        )->execute();
+        $customFields = $leadStructure['custom_fields'];
+
+        $this->assertSame('Jane', $leadStructure['people']['firstname']);
+        $this->assertSame('Doe', $leadStructure['people']['lastname']);
+        $this->assertSame(
+            [
+                ['contacts_types_id' => ContactTypeEnum::EMAIL->value, 'value' => 'jane@acme.test'],
+                ['contacts_types_id' => ContactTypeEnum::PHONE->value, 'value' => '8095551234'],
+            ],
+            $leadStructure['people']['contacts']
+        );
+
+        $this->assertSame('Acme, LLC', $customFields['Company']);
+        $this->assertSame('Philadelphia', $customFields['city']);
+        $this->assertSame('PA', $customFields['state']);
+        $this->assertSame('real_estate', $customFields['industry']);
+        $this->assertSame('Excellent (720+)', $customFields['Credit_Score']);
+        $this->assertSame('99999', $customFields['member']);
+        $this->assertSame('our website', $customFields['Lead_Source']);
+
+        $this->assertSame(
+            'Best Time to Contact: Morning (6 AM-12 PM EST) | Time Funds Needed: Within 7 days | Amount: 150000',
+            $customFields['agent_notes']
+        );
+        $this->assertSame('Acme, LLC (real_estate) - Credit: Excellent (720+)', $leadStructure['description']);
+        $this->assertArrayNotHasKey('description', $customFields);
+        $this->assertSame('Acme, LLC - 150000', $leadStructure['title']);
+        $this->assertArrayNotHasKey('title', $customFields);
+        $this->assertSame('Jane Doe', $customFields['full_name']);
+        $this->assertSame('Philadelphia, PA', $customFields['location']);
+        $this->assertSame('CEO, owns 60%', $customFields['owner_summary']);
+        $this->assertSame('', $customFields['empty_concat']);
     }
 }
