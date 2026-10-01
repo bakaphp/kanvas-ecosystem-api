@@ -26,7 +26,7 @@ class EnforceCardVelocityLimitAction
     {
         $order = $this->payment->payable;
         $orderType = $order instanceof Order ? $order->orderType : null;
-        $card = $this->cardKey($this->payment->payment_method_brand, $this->payment->payment_method_last_four);
+        $card = Payments::cardKey($this->payment->payment_method_brand, $this->payment->payment_method_last_four);
 
         if (! $orderType || $card === null) {
             return;
@@ -66,27 +66,18 @@ class EnforceCardVelocityLimitAction
             ->where('payable_type', Order::class)
             ->whereIn('payable_id', Order::query()->select('id')->where('order_types_id', $orderType->getId()))
             ->get(['payment_method_brand', 'payment_method_last_four'])
-            ->map(fn (Payments $payment) => $this->cardKey($payment->payment_method_brand, $payment->payment_method_last_four))
+            ->map(fn (Payments $payment) => Payments::cardKey($payment->payment_method_brand, $payment->payment_method_last_four))
             ->filter()
             ->unique()
             ->values()
             ->all();
     }
 
-    private function cardKey(?string $brand, ?string $lastFour): ?string
-    {
-        if (! $brand || ! $lastFour) {
-            return null;
-        }
-
-        return strtolower($brand) . ':' . $lastFour;
-    }
-
     private function reject(OrderTypes $orderType, int $cards, bool $ban): void
     {
         $this->payment->status = PaymentStatusEnum::FAILED->value;
         $this->payment->saveOrFail();
-        $this->payment->addLog('payment_card_velocity_blocked', [
+        $this->payment->addLog(Payments::CARD_VELOCITY_BLOCKED_EVENT, [
             'order_type' => $orderType->name,
             'cards' => $cards,
             'banned' => $ban,

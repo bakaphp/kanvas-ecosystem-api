@@ -25,9 +25,11 @@ use Kanvas\Connectors\PasoRapido\DataTransferObject\VerifyCustomerResponse;
 use Kanvas\Connectors\PasoRapido\DataTransferObject\VerifyPaymentResponse;
 use Kanvas\Connectors\PasoRapido\Enums\CompanySettingsEnum;
 use Kanvas\Connectors\PasoRapido\Enums\ConfigurationEnum;
+use Kanvas\Connectors\PasoRapido\Enums\TagVerificationBlockReasonEnum;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Inventory\Products\Repositories\ProductsRepository;
 use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
+use Throwable;
 
 class PasoRapidoService
 {
@@ -37,8 +39,12 @@ class PasoRapidoService
     public const int VERIFY_ERROR_BLOCK_THRESHOLD = 20;
     private const int VERIFY_ERROR_BLOCK_WINDOW_SECONDS = 300;
     private const int VERIFY_ERROR_BLOCK_TTL_SECONDS = 3600;
+    private const int BLOCKED_VERIFICATION_LOG_DEDUPE_TTL_SECONDS = 3600;
+    public const string VERIFY_LOG_DESCRIPTION = 'PasoRapido tag verification';
+    public const string VERIFY_BLOCKED_LOG_DESCRIPTION = 'PasoRapido tag verification blocked';
 
     protected Client $client;
+    private ?bool $verifyIsCorporate = null;
 
     public function __construct(
         protected AppInterface $app,
@@ -60,24 +66,27 @@ class PasoRapidoService
         $appId = $this->app->getId();
 
         $clientIp = IPInfo::getClientIp();
+        $this->verifyIsCorporate = null;
 
-        $this->assertIpNotAutoBlocked($clientIp);
+        $this->assertIpNotAutoBlocked($clientIp, $tag, $user);
 
         if ($this->app->get(ConfigurationEnum::VERIFY_REQUIRE_VERIFIED_ACCOUNT->value) && $user && ! $user->getAppIsVerified()) {
             $email = $user->email ?? 'unknown';
             report(new ValidationException("PasoRapido unverified account attempt - user:{$userId} email:{$email} ip:{$clientIp} app:{$appId} tag:{$tag}"));
+            $this->logBlockedVerification($user, $tag, TagVerificationBlockReasonEnum::UNVERIFIED_ACCOUNT);
 
             throw new ValidationException('Account not verified.');
         }
 
         $corporateCompany = $this->resolveCorporateCompany($user);
+        $this->verifyIsCorporate = $corporateCompany !== null;
 
-        $this->assertCompanyNotBlocked($this->company);
+        $this->assertCompanyNotBlocked($this->company, $tag, $user);
 
         // A corporate user's current company is not necessarily the corporate one,
         // so a block on either side has to stop the request.
         if ($corporateCompany && $corporateCompany->getId() !== $this->company->getId()) {
-            $this->assertCompanyNotBlocked($corporateCompany);
+            $this->assertCompanyNotBlocked($corporateCompany, $tag, $user);
         }
 
         $tagAttributeSlug = $this->app->get(ConfigurationEnum::VERIFY_TAG_ATTRIBUTE_SLUG->value);
@@ -85,11 +94,12 @@ class PasoRapidoService
         if ($tagAttributeSlug && ! $this->userCanAccessTag($user, $tagAttributeSlug, $tag)) {
             $email = $user?->email ?? 'unknown';
             report(new ValidationException("PasoRapido unauthorized tag lookup - user:{$userId} email:{$email} ip:{$clientIp} app:{$appId} tag:{$tag}"));
+            $this->logBlockedVerification($user, $tag, TagVerificationBlockReasonEnum::TAG_NOT_OWNED);
 
             throw new ValidationException('Tag not associated with your account.');
         }
 
-        $isCorporate = $corporateCompany !== null;
+        $isCorporate = $this->verifyIsCorporate;
         $limits = $this->resolveLimits($isCorporate, $corporateCompany ?? $this->company);
         $context = "user:{$userId} app:{$appId} corporate:" . ($isCorporate ? '1' : '0');
 
@@ -111,6 +121,7 @@ class PasoRapidoService
                 report(new TooManyRequestsHttpException(
                     message: "PasoRapido account farming detected - ip:{$clientIp} users:" . implode(',', $ipUsers) . " {$context}"
                 ));
+                $this->logBlockedVerification($user, $tag, TagVerificationBlockReasonEnum::IP_MAX_USERS);
 
                 throw new TooManyRequestsHttpException(
                     message: 'Suspicious activity detected. Access temporarily restricted.'
@@ -123,6 +134,7 @@ class PasoRapidoService
                 report(new TooManyRequestsHttpException(
                     message: "PasoRapido IP daily limit exceeded - ip:{$clientIp} {$context}"
                 ));
+                $this->logBlockedVerification($user, $tag, TagVerificationBlockReasonEnum::IP_MAX_DAILY);
 
                 throw new TooManyRequestsHttpException(
                     message: 'Too many requests from this network. Please try again later.'
@@ -137,6 +149,7 @@ class PasoRapidoService
                 report(new TooManyRequestsHttpException(
                     message: "PasoRapido daily limit exceeded - {$context} max:{$limits['daily']}"
                 ));
+                $this->logBlockedVerification($user, $tag, TagVerificationBlockReasonEnum::USER_MAX_DAILY);
 
                 throw new TooManyRequestsHttpException(
                     message: 'Daily tag verification limit reached.'
@@ -157,6 +170,7 @@ class PasoRapidoService
                 ));
                 RateLimiter::hit($dailyKey, self::DAILY_WINDOW_SECONDS);
                 Cache::forget($recentTagsKey);
+                $this->logBlockedVerification($user, $tag, TagVerificationBlockReasonEnum::SEQUENTIAL_SCAN);
 
                 throw new TooManyRequestsHttpException(
                     message: 'Suspicious activity detected. Access temporarily restricted.'
@@ -171,6 +185,7 @@ class PasoRapidoService
                 report(new TooManyRequestsHttpException(
                     message: "PasoRapido per-minute limit exceeded - {$context}"
                 ));
+                $this->logBlockedVerification($user, $tag, TagVerificationBlockReasonEnum::USER_MAX_ATTEMPTS);
 
                 throw new TooManyRequestsHttpException(
                     message: 'Too many tag verification requests. Please try again later.'
@@ -180,13 +195,18 @@ class PasoRapidoService
             RateLimiter::hit($minuteKey, self::MINUTE_WINDOW_SECONDS);
         }
 
-        $this->logTagVerification($user, $tag);
-
         try {
             $response = $this->client->post(ConfigurationEnum::VERIFY_PATH->value . '?referencia=' . $tag, []);
         } catch (ClientException $e) {
-            $this->handleVerifyClientException($e, $tag, $context);
+            $this->handleVerifyClientException(
+                $e,
+                $tag,
+                $context,
+                $user,
+            );
         }
+
+        $this->logTagVerification($user, $tag);
 
         return VerifyCustomerResponse::from([
             'username' => $response['nombreUsuario'] ?? '',
@@ -202,8 +222,12 @@ class PasoRapidoService
         ]);
     }
 
-    private function handleVerifyClientException(ClientException $e, string $tag, string $context): never
-    {
+    private function handleVerifyClientException(
+        ClientException $e,
+        string $tag,
+        string $context,
+        ?UserInterface $user,
+    ): never {
         $response = $e->getResponse();
         $statusCode = $response->getStatusCode();
         $decoded = json_decode((string) $response->getBody(), true);
@@ -216,7 +240,9 @@ class PasoRapidoService
         $this->registerFailedLookup(
             $statusCode,
             $clientIp,
-            $context
+            $context,
+            $tag,
+            $user,
         );
 
         Log::warning('PasoRapido tag verification failed', [
@@ -235,11 +261,13 @@ class PasoRapidoService
      * Reject requests from an IP that has been auto-blocked for repeated failed
      * lookups — checked before any DB/API work so a probing IP is cut off at the door.
      */
-    private function assertIpNotAutoBlocked(string $clientIp): void
+    private function assertIpNotAutoBlocked(string $clientIp, string $tag, ?UserInterface $user): void
     {
         if (! Cache::get($this->autoBlockKey($clientIp))) {
             return;
         }
+
+        $this->logBlockedVerification($user, $tag, TagVerificationBlockReasonEnum::IP_AUTO_BLOCKED);
 
         throw new TooManyRequestsHttpException(
             message: 'Suspicious activity detected. Access temporarily restricted.'
@@ -251,8 +279,13 @@ class PasoRapidoService
      * threshold is crossed. 401 is our own auth problem (the client retries it),
      * and 5xx is the upstream being down — neither counts as tag probing.
      */
-    private function registerFailedLookup(int $statusCode, string $clientIp, string $context): void
-    {
+    private function registerFailedLookup(
+        int $statusCode,
+        string $clientIp,
+        string $context,
+        string $tag,
+        ?UserInterface $user,
+    ): void {
         if ($statusCode === 401 || $statusCode < 400 || $statusCode >= 500) {
             return;
         }
@@ -270,6 +303,7 @@ class PasoRapidoService
         // re-flood Sentry, the very thing this whole path exists to prevent.
         if (! Cache::get($blockKey)) {
             Cache::put($blockKey, true, self::VERIFY_ERROR_BLOCK_TTL_SECONDS);
+            $this->logBlockedVerification($user, $tag, TagVerificationBlockReasonEnum::IP_AUTO_BLOCKED);
             report(new TooManyRequestsHttpException(
                 message: "PasoRapido auto-blocked IP after repeated failed lookups - ip:{$clientIp} {$context}"
             ));
@@ -421,17 +455,18 @@ class PasoRapidoService
         });
     }
 
-    private function assertCompanyNotBlocked(CompanyInterface $company): void
+    private function assertCompanyNotBlocked(CompanyInterface $company, string $tag, ?UserInterface $user): void
     {
         if (! filter_var($company->get(CompanySettingsEnum::VERIFY_BLOCKED->value), FILTER_VALIDATE_BOOLEAN)) {
             return;
         }
 
         $companyId = $company->getId();
-        $userId = auth()->id() ?? 0;
+        $userId = $user?->getId() ?? 0;
         report(new ValidationException(
             "PasoRapido company blocked - company:{$companyId} user:{$userId} app:{$this->app->getId()}"
         ));
+        $this->logBlockedVerification($user, $tag, TagVerificationBlockReasonEnum::COMPANY_BLOCKED);
 
         throw new ValidationException(
             (string) ($company->get(CompanySettingsEnum::VERIFY_BLOCKED_REASON->value)
@@ -522,16 +557,50 @@ class PasoRapidoService
             ->exists();
     }
 
+    public static function verifyLogName(AppInterface $app): string
+    {
+        return 'paso-rapido-verify-' . $app->getId();
+    }
+
     private function logTagVerification(UserInterface $user, string $tag): void
     {
         activity()
+            ->useLog(self::verifyLogName($this->app))
             ->causedBy($user)
             ->withProperties([
                 'tag' => $tag,
                 'app_id' => $this->app->getId(),
                 'ip' => IPInfo::getClientIp(),
             ])
-            ->log('PasoRapido tag verification');
+            ->log(self::VERIFY_LOG_DESCRIPTION);
+    }
+
+    private function logBlockedVerification(?UserInterface $user, string $tag, TagVerificationBlockReasonEnum $reason): void
+    {
+        try {
+            $appId = $this->app->getId();
+            $clientIp = IPInfo::getClientIp();
+            $dedupeSubject = $user?->getId() ?? $clientIp;
+            $dedupeKey = "paso-rapido-verify-blocked-log:{$appId}:{$reason->value}:{$dedupeSubject}";
+
+            if (! Cache::add($dedupeKey, true, self::BLOCKED_VERIFICATION_LOG_DEDUPE_TTL_SECONDS)) {
+                return;
+            }
+
+            activity()
+                ->useLog(self::verifyLogName($this->app))
+                ->causedBy($user)
+                ->withProperties([
+                    'tag' => $tag,
+                    'app_id' => $appId,
+                    'ip' => $clientIp,
+                    'reason' => $reason->value,
+                    'is_corporate' => $this->verifyIsCorporate,
+                ])
+                ->log(self::VERIFY_BLOCKED_LOG_DESCRIPTION);
+        } catch (Throwable $e) {
+            report($e);
+        }
     }
 
     /**
