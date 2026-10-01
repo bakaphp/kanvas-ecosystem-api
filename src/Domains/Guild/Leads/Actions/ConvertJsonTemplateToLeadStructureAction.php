@@ -10,6 +10,9 @@ use Kanvas\Guild\Leads\Models\Lead;
 
 class ConvertJsonTemplateToLeadStructureAction
 {
+    // Keep in sync with the names mapStringType() routes.
+    private const STANDARD_FIELDS = ['firstname', 'lastname', 'description', 'email', 'phone'];
+
     public function __construct(
         protected array $template,
         protected array $data
@@ -96,17 +99,17 @@ class ConvertJsonTemplateToLeadStructureAction
             $type = $info['type'];
             $pattern = $info['pattern'] ?? null; // Optional regex pattern
 
-            if ($type === 'concat') {
-                $value = $this->concatFields($request, $info['fields'] ?? [], $info['separator'] ?? ' ');
-                $this->mapCombinedType($peopleStructure, $parsedData, $customFields, $name, $value, $info);
-                $processFields[$name] = $value;
-
-                continue;
-            }
-
-            if ($type === 'template') {
-                $value = $this->renderTemplate($request, $info['template'] ?? '');
-                $this->mapCombinedType($peopleStructure, $parsedData, $customFields, $name, $value, $info);
+            if ($type === 'concat' || $type === 'template') {
+                $value = $type === 'concat'
+                    ? $this->concatFields($request, $info['fields'] ?? [], $info['separator'] ?? ' ')
+                    : $this->renderTemplate($request, $info['template'] ?? '');
+                $this->mapCombinedType(
+                    $peopleStructure,
+                    $parsedData,
+                    $customFields,
+                    $info,
+                    $value
+                );
                 $processFields[$name] = $value;
 
                 continue;
@@ -158,32 +161,29 @@ class ConvertJsonTemplateToLeadStructureAction
 
     private function renderTemplate(array $request, string $template): string
     {
+        // (?| resets group numbering so both {{ x }} and { x } capture into $1.
         return preg_replace_callback(
-            '/\{\{\s*([^{}]+?)\s*\}\}|\{\s*([^{}]+?)\s*\}/',
-            fn (array $matches): string => $this->getValueFromPath($request, trim(($matches[1] ?? '') !== '' ? $matches[1] : ($matches[2] ?? ''))),
+            '/(?|\{\{\s*([^{}]+?)\s*\}\}|\{\s*([^{}]+?)\s*\})/',
+            fn (array $matches): string => $this->getValueFromPath($request, $matches[1]),
             $template
         ) ?? $template;
     }
 
-    private function mapCombinedType(array &$peopleStructure, array &$parsedData, array &$customFields, string $name, string $value, array $info): void
-    {
-        $target = $info['target_type'] ?? $info['field_type'] ?? $info['target'] ?? null;
-        $target = match ($target) {
-            'string' => 'string',
-            'customField', 'custom_field' => 'customField',
-            default => in_array($name, ['firstname', 'lastname', 'description', 'email', 'phone'], true) ? 'string' : 'customField',
+    private function mapCombinedType(
+        array &$peopleStructure,
+        array &$parsedData,
+        array &$customFields,
+        array $info,
+        string $value
+    ): void {
+        $name = $info['name'];
+        $isStandardField = match ($info['target'] ?? null) {
+            'string' => true,
+            'customField' => false,
+            default => in_array($name, self::STANDARD_FIELDS, true),
         };
 
-        $append = ($info['append'] ?? false) === true;
-        $separator = $info['separator'] ?? ' ';
-        $existing = $target === 'string' ? ($parsedData[$name] ?? null) : ($customFields[$name] ?? null);
-        if ($append && is_string($existing) && $existing !== '' && $value !== '') {
-            $value = $existing . $separator . $value;
-        } elseif ($append && $value === '' && is_string($existing)) {
-            $value = $existing;
-        }
-
-        if ($target === 'string') {
+        if ($isStandardField) {
             $this->mapStringType($peopleStructure, $parsedData, $name, $value);
 
             return;

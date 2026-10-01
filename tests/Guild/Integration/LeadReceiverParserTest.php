@@ -578,7 +578,7 @@ final class LeadReceiverParserTest extends TestCase
                     'type' => 'concat',
                     'fields' => ['business.years', 'business.funding'],
                     'separator' => "\n",
-                    'target_type' => 'string',
+                    'target' => 'string',
                 ],
             ],
             [
@@ -614,44 +614,61 @@ final class LeadReceiverParserTest extends TestCase
         $this->assertSame('Acme | West | ', $result['custom_fields']['agent_notes']);
     }
 
-    public function testAppendCombinesMappingsThatShareADestination(): void
+    public function testCombinesKeysWithSpacesIntoAgentNotes(): void
     {
-        $action = new ConvertJsonTemplateToLeadStructureAction(
+        $request = [
+            'Best Time to Contact' => 'Morning (6 AM-12 PM EST)',
+            'Time Funds Needed' => 'Within 7 days',
+        ];
+
+        $result = new ConvertJsonTemplateToLeadStructureAction(
             [
-                'first_note' => [
+                'agent_notes' => [
                     'name' => 'agent_notes',
-                    'type' => 'concat',
-                    'fields' => ['first'],
-                ],
-                'second_note' => [
-                    'name' => 'agent_notes',
-                    'type' => 'concat',
-                    'fields' => ['second'],
-                    'append' => true,
-                    'separator' => ' / ',
-                ],
-                'first_description' => [
-                    'name' => 'description',
                     'type' => 'template',
-                    'template' => '{first}',
-                    'target_type' => 'string',
+                    'template' => 'Best Time to Contact: {Best Time to Contact} | Time Funds Needed: {Time Funds Needed}',
                 ],
-                'second_description' => [
+                'description' => [
                     'name' => 'description',
-                    'type' => 'template',
-                    'template' => '{second}',
-                    'target_type' => 'string',
-                    'append' => true,
-                    'separator' => ' + ',
+                    'type' => 'concat',
+                    'fields' => ['Best Time to Contact', 'Time Funds Needed'],
+                    'separator' => "\n",
                 ],
             ],
-            ['first' => 'First', 'second' => 'Second']
+            $request
+        )->execute();
+
+        $this->assertSame(
+            'Best Time to Contact: Morning (6 AM-12 PM EST) | Time Funds Needed: Within 7 days',
+            $result['custom_fields']['agent_notes']
         );
+        $this->assertSame("Morning (6 AM-12 PM EST)\nWithin 7 days", $result['description']);
+    }
 
-        $result = $action->execute();
+    public function testTargetOverridesTheInferredDestination(): void
+    {
+        $result = new ConvertJsonTemplateToLeadStructureAction(
+            [
+                'summary' => [
+                    'name' => 'summary',
+                    'type' => 'template',
+                    'template' => '{a}',
+                    'target' => 'string',
+                ],
+                'description' => [
+                    'name' => 'description',
+                    'type' => 'template',
+                    'template' => '{a}',
+                    'target' => 'customField',
+                ],
+            ],
+            ['a' => 'value']
+        )->execute();
 
-        $this->assertSame('First / Second', $result['custom_fields']['agent_notes']);
-        $this->assertSame('First + Second', $result['description']);
+        $this->assertSame('value', $result['summary']);
+        $this->assertArrayNotHasKey('summary', $result['custom_fields']);
+        $this->assertSame('value', $result['custom_fields']['description']);
+        $this->assertArrayNotHasKey('description', $result);
     }
 
     public function testExistingMappingTypesRemainUnchanged(): void
