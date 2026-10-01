@@ -10,6 +10,9 @@ use Kanvas\Guild\Leads\Models\Lead;
 
 class ConvertJsonTemplateToLeadStructureAction
 {
+    // Keep in sync with the names mapStringType() routes.
+    private const STANDARD_FIELDS = ['firstname', 'lastname', 'description', 'email', 'phone'];
+
     public function __construct(
         protected array $template,
         protected array $data
@@ -92,20 +95,33 @@ class ConvertJsonTemplateToLeadStructureAction
         ];
 
         foreach ($template as $path => $info) {
-            $value = $this->getValueFromPath($request, $path);
-            $value = ! empty($value) ? $value : ($info['default'] ?? null);
-
             $name = $info['name'];
             $type = $info['type'];
             $pattern = $info['pattern'] ?? null; // Optional regex pattern
 
-            match ($type) {
-                'string' => $this->mapStringType($peopleStructure, $parsedData, $name, $value),
-                'customField' => $this->mapCustomField($customFields, $name, $value, $pattern),
-                'function' => $this->mapFunctionType($parsedData, $request, $info, $name),
-                'regex' => $this->mapRegexType($parsedData, $name, $value, $pattern),
-                default => null
-            };
+            if ($type === 'concat' || $type === 'template') {
+                $value = $type === 'concat'
+                    ? $this->concatFields($request, $info['fields'] ?? [], $info['separator'] ?? ' ')
+                    : $this->renderTemplate($request, $info['template'] ?? '');
+                $this->mapCombinedType(
+                    $peopleStructure,
+                    $parsedData,
+                    $customFields,
+                    $info,
+                    $value
+                );
+            } else {
+                $value = $this->getValueFromPath($request, $path);
+                $value = ! empty($value) ? $value : ($info['default'] ?? null);
+
+                match ($type) {
+                    'string' => $this->mapStringType($peopleStructure, $parsedData, $name, $value),
+                    'customField' => $this->mapCustomField($customFields, $name, $value, $pattern),
+                    'function' => $this->mapFunctionType($parsedData, $request, $info, $name),
+                    'regex' => $this->mapRegexType($parsedData, $name, $value, $pattern),
+                    default => null
+                };
+            }
 
             $processFields[$name] = $value;
         }
@@ -125,6 +141,52 @@ class ConvertJsonTemplateToLeadStructureAction
         $parsedData['people'] = $peopleStructure;
 
         return $parsedData;
+    }
+
+    private function concatFields(array $request, array $fields, string $separator): string
+    {
+        $values = [];
+        foreach ($fields as $path) {
+            $value = $this->getValueFromPath($request, (string) $path);
+            if (trim($value) !== '') {
+                $values[] = $value;
+            }
+        }
+
+        return implode($separator, $values);
+    }
+
+    private function renderTemplate(array $request, string $template): string
+    {
+        // (?| resets group numbering so both {{ x }} and { x } capture into $1.
+        return preg_replace_callback(
+            '/(?|\{\{\s*([^{}]+?)\s*\}\}|\{\s*([^{}]+?)\s*\})/',
+            fn (array $matches): string => $this->getValueFromPath($request, $matches[1]),
+            $template
+        ) ?? $template;
+    }
+
+    private function mapCombinedType(
+        array &$peopleStructure,
+        array &$parsedData,
+        array &$customFields,
+        array $info,
+        string $value
+    ): void {
+        $name = $info['name'];
+        $isStandardField = match ($info['target'] ?? null) {
+            'string' => true,
+            'customField' => false,
+            default => in_array($name, self::STANDARD_FIELDS, true),
+        };
+
+        if ($isStandardField) {
+            $this->mapStringType($peopleStructure, $parsedData, $name, $value);
+
+            return;
+        }
+
+        $customFields[$name] = $value;
     }
 
     private function mapRegexType(array &$parsedData, string $name, ?string $value, ?string $pattern): void
