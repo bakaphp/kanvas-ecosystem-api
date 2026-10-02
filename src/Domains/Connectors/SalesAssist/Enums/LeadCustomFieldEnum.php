@@ -15,4 +15,6 @@ enum LeadCustomFieldEnum: string
     case CREDIT_APP = 'credit_app';
     case ADF_LEAD_XML = 'adf_lead_xml';
     case DEALER_TAG_TRIGGER = 'dealer_tag_trigger';
+    case DEALER_TAG_OWNER_ID = 'dealer_tag_owner_id';
+    case DEALER_TAG_STOCK_NUMBER = 'dealer_tag_stock_number';
 }
