@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Events;
 
-use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Events\Models\EventVersionDate;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEventVersionForTool;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
 use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
-use Throwable;
 
 /**
  * Full detail of one event VERSION (a scheduled edition of an event): dates, price, capacity,
@@ -25,6 +24,7 @@ use Throwable;
 class GetEventVersionTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use ResolvesEventVersionForTool;
     use TrackByInputs;
 
     public function __construct()
@@ -58,11 +58,10 @@ class GetEventVersionTool extends Tool implements HasRunKey
      */
     public function __invoke(int $version_id): array
     {
-        try {
-            /** @var EventVersion $version */
-            $version = EventVersion::getByIdFromCompanyApp($version_id, $this->company, $this->app);
-        } catch (Throwable) {
-            return ['error' => sprintf('No event version #%d found in this company.', $version_id)];
+        $version = $this->resolveEventVersionOrError($version_id);
+
+        if (is_array($version)) {
+            return $version;
         }
 
         $version->load(['event', 'eventStatus', 'currency', 'dates']);

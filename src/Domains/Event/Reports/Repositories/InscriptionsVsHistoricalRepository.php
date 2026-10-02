@@ -6,6 +6,7 @@ namespace Kanvas\Event\Reports\Repositories;
 
 use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Reports\DataTransferObject\InscriptionsReport;
@@ -98,9 +99,9 @@ class InscriptionsVsHistoricalRepository
     }
 
     /**
-     * @return \Illuminate\Support\Collection<int, EventVersion>
+     * @return Collection<int, EventVersion>
      */
-    protected static function getPastVersions(EventVersion $eventVersion)
+    public static function getPastVersions(EventVersion $eventVersion): Collection
     {
         $now = Carbon::now();
 

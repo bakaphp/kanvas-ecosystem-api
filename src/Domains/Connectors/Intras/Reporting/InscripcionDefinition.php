@@ -114,7 +114,7 @@ class InscripcionDefinition implements RefreshableReportInterface
     protected function eventColumns(): array
     {
         return [
-            ReportColumn::integer('evento_id', 'Evento (id)'),
+            ReportColumn::integer('evento_id', 'Evento (id)', indexed: true),
             ReportColumn::string('evento', 255, 'Evento'),
             ReportColumn::string('codigo_evento', 255, 'Código de evento'),
             ReportColumn::integer('version_id', 'Versión (id)', indexed: true),

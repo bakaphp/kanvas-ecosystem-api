@@ -26,7 +26,7 @@ class LeadRefTool extends Tool
     {
         parent::__construct(
             'get_lead_ref',
-            'Get the full reference data of the lead including personal info (age), owner,
+            'Get the full reference data of the lead including personal info (age), owner, tags,
              company, contacts (emails, phones), address, photo, and whether this is a new or a
              returning customer (use get_past_opportunities for the details of a returning one).
              Call this once at the start of the conversation to know who you are talking to. Do not call it again.',
@@ -78,6 +78,7 @@ class LeadRefTool extends Tool
                 'email' => $lead->owner->email,
             ] : null,
             'vehicle_interest' => $additional_context_information,
+            'tags' => $lead->tags()->pluck('name')->all(),
             'people' => $people ? [
                 'id' => $people->id,
                 'name' => $people->getName(),

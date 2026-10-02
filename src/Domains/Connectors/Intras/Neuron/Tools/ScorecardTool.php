@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Connectors\Intras\Neuron\Tools;
 
+use Kanvas\Analytics\Reporting\DataTransferObject\AggregateRequest;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportFilter;
 use Kanvas\Analytics\Reporting\Services\ReportQueryService;
 use Kanvas\Analytics\Reporting\Support\ReportRegistry;
@@ -30,6 +31,8 @@ use Throwable;
  * Order matters and is not the caller's problem to remember: an ejecutivo's potencialidad scores
  * the *company's* two letters as two of its four criteria, so asking for a person's potencialidad
  * silently requires both empresa cards first. `scoreEjecutivo()` runs them.
+ *
+ * An evento has only the classification card; the sheets define no potencialidad for events.
  */
 #[AgentTool(name: 'Intras Scorecard', category: 'reporting')]
 class ScorecardTool extends Tool implements HasRunKey
@@ -37,14 +40,15 @@ class ScorecardTool extends Tool implements HasRunKey
     use HasKanvasContext;
     use TrackByInputs;
 
-    private const array ENTITIES = ['ejecutivo', 'empresa', 'definicion'];
+    private const array ENTITIES = ['ejecutivo', 'empresa', 'evento', 'definicion'];
 
     public function __construct()
     {
         parent::__construct(
             name: 'intras_scorecard',
             description: 'Calcula la clasificación y la potencialidad (A-E) de un ejecutivo o de una '
-                . 'empresa con las cuatro hojas de puntuación de INTRAS. Estas letras NO están '
+                . 'empresa, y la clasificación de un evento, con las cinco hojas de puntuación de '
+                . 'INTRAS. Estas letras NO están '
                 . 'almacenadas en ningún campo: se calculan aquí a partir de la participación real, '
                 . 'las cotizaciones aprobadas y los planes. Usa entidad "definicion" para explicar '
                 . 'qué criterios y pesos componen cada hoja sin puntuar a nadie. Devuelve la letra, '
@@ -62,21 +66,21 @@ class ScorecardTool extends Tool implements HasRunKey
             new ToolProperty(
                 name: 'entidad',
                 type: PropertyType::STRING,
-                description: 'ejecutivo | empresa | definicion.',
+                description: 'ejecutivo | empresa | evento | definicion.',
                 required: true,
                 enum: self::ENTITIES,
             ),
             new ToolProperty(
                 name: 'nombre',
                 type: PropertyType::STRING,
-                description: 'Nombre del ejecutivo o de la empresa. Búsqueda parcial. Si hay varias '
+                description: 'Nombre del ejecutivo, la empresa o el evento. Búsqueda parcial. Si hay varias '
                     . 'coincidencias se devuelven para que elijas, sin puntuar.',
                 required: false,
             ),
             new ToolProperty(
                 name: 'id',
                 type: PropertyType::INTEGER,
-                description: 'peoples_id del ejecutivo u organizations_id de la empresa, si ya lo tienes.',
+                description: 'peoples_id del ejecutivo, organizations_id de la empresa o evento_id del evento, si ya lo tienes.',
                 required: false,
             ),
             new ToolProperty(
@@ -119,9 +123,11 @@ class ScorecardTool extends Tool implements HasRunKey
                 return $match;
             }
 
-            return $entidad === 'ejecutivo'
-                ? $this->scoreEjecutivo((int) $match['id'], $match['row'], $tarjeta)
-                : $this->scoreEmpresa((int) $match['id'], $match['row'], $tarjeta);
+            return match ($entidad) {
+                'ejecutivo' => $this->scoreEjecutivo((int) $match['id'], $match['row'], $tarjeta),
+                'evento' => $this->scoreEvento((int) $match['id'], $match['row']),
+                default => $this->scoreEmpresa((int) $match['id'], $match['row'], $tarjeta),
+            };
         } catch (Throwable $e) {
             report($e);
 
@@ -201,6 +207,26 @@ class ScorecardTool extends Tool implements HasRunKey
             'tamano' => $row['tamano'] ?? null,
             'ciudad' => $row['ciudad'] ?? null,
         ], $cards);
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     *
+     * @return array<string, mixed>
+     */
+    private function scoreEvento(int $eventoId, array $row): array
+    {
+        $measurements = new ScorecardMeasurementService($this->app, $this->company);
+
+        return $this->present('evento', [
+            'evento_id' => $eventoId,
+            'nombre' => $row['evento'] ?? null,
+            'versiones' => $row['versiones'] ?? null,
+        ], [
+            'clasificacion' => IntrasScorecards::eventoClasificacion()
+                ->score($measurements->forEvento($eventoId))
+                ->toArray(),
+        ]);
     }
 
     /**
@@ -305,6 +331,10 @@ class ScorecardTool extends Tool implements HasRunKey
      */
     private function resolveEntity(string $entity, ?string $nombre, ?int $id): array
     {
+        if ($entity === 'evento') {
+            return $this->resolveEvento($nombre, $id);
+        }
+
         $model = $entity === 'ejecutivo' ? 'ejecutivo' : 'empresa';
         $key = $entity === 'ejecutivo' ? 'peoples_id' : 'organizations_id';
         $nameColumn = $entity === 'ejecutivo' ? 'nombre_completo' : 'nombre';
@@ -355,5 +385,58 @@ class ScorecardTool extends Tool implements HasRunKey
         }
 
         return ['id' => (int) ($rows[0][$key] ?? 0), 'row' => $rows[0]];
+    }
+
+    /**
+     * Events have no table of their own — each row of `evento_version` is one run — so the event
+     * is the group of its versions.
+     *
+     * @return array{id: int, row: array<string, mixed>}|array<string, mixed>
+     */
+    private function resolveEvento(?string $nombre, ?int $id): array
+    {
+        $nombre = trim((string) $nombre);
+
+        if (($id === null || $id <= 0) && $nombre === '') {
+            return ['status' => 'error', 'message' => 'Indica el nombre o el evento_id del evento.'];
+        }
+
+        $rows = new ReportQueryService()->aggregate(
+            new ReportRegistry()->find($this->app, 'evento_version'),
+            $this->app,
+            $this->company,
+            AggregateRequest::fromInput(
+                aggregates: [['function' => 'COUNT', 'alias' => 'versiones']],
+                groupBy: ['evento_id', 'evento'],
+                orderBy: 'versiones',
+                limit: 10
+            ),
+            $id !== null && $id > 0
+                ? [new ReportFilter('evento_id', '=', $id)]
+                : [new ReportFilter('evento', 'LIKE', '%' . $nombre . '%')]
+        );
+
+        if ($rows === []) {
+            return ['status' => 'error', 'message' => $id !== null && $id > 0
+                ? sprintf('No existe ese evento (evento_id %d).', $id)
+                : sprintf('Ningún evento coincide con "%s".', $nombre)];
+        }
+
+        if (count($rows) > 1) {
+            return [
+                'status' => 'ambiguo',
+                'message' => 'Varias coincidencias. Vuelve a llamar con el evento_id de la que corresponda.',
+                'coincidencias' => array_map(
+                    static fn (array $row): array => [
+                        'id' => $row['evento_id'],
+                        'nombre' => $row['evento'],
+                        'versiones' => $row['versiones'],
+                    ],
+                    $rows
+                ),
+            ];
+        }
+
+        return ['id' => (int) $rows[0]['evento_id'], 'row' => $rows[0]];
     }
 }

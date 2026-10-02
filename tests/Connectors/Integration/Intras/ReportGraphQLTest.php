@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Intras;
 
-use Kanvas\Analytics\Reporting\Services\ReportSchemaService;
-use Kanvas\Apps\Models\Apps;
-use Kanvas\Connectors\Intras\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Intras\Reporting\InscripcionDefinition;
 use PHPUnit\Framework\Attributes\Group;
+use Tests\Connectors\Integration\Intras\Concerns\SeedsIntrasFlatTables;
 use Tests\TestCase;
 
 /**
@@ -18,37 +16,27 @@ use Tests\TestCase;
  * so a sibling worker's teardown can switch the connector off mid-test.
  *
  * Rows are written under the logged-in user's own company, because that is the only company the
- * resolver will ever query — the acting context, not an argument, picks it.
+ * resolver will ever query — the acting context, not an argument, picks it. Every query also
+ * filters on the rows' own `codigo_version` marker: other tests in the suite create real event
+ * registrations for that same company, and the report observers copy them into this table.
  */
 #[Group('serial')]
 class ReportGraphQLTest extends TestCase
 {
-    private Apps $kanvasApp;
-    private InscripcionDefinition $definition;
-    private int $companyId;
+    use SeedsIntrasFlatTables;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->kanvasApp = app(Apps::class);
-        $this->definition = new InscripcionDefinition();
-        $this->companyId = (int) static::$cachedUser->getCurrentCompany()->getId();
-
-        $this->kanvasApp->set(ConfigurationEnum::INTRAS_DB_HOST->value, '127.0.0.1');
-        $this->kanvasApp->set(ConfigurationEnum::INTRAS_DB_DATABASE->value, 'intras');
-
-        new ReportSchemaService()->sync($this->definition, $this->kanvasApp->getId());
-
-        $this->clearRows();
+        $this->enableIntrasReporting();
         $this->seedRows();
     }
 
     protected function tearDown(): void
     {
-        $this->clearRows();
-        $this->kanvasApp->del(ConfigurationEnum::INTRAS_DB_HOST->value);
-        $this->kanvasApp->del(ConfigurationEnum::INTRAS_DB_DATABASE->value);
+        $this->clearSeededFlatRows();
+        $this->disableIntrasReporting();
 
         parent::tearDown();
     }
@@ -77,7 +65,7 @@ class ReportGraphQLTest extends TestCase
 
     public function test_an_app_without_the_connector_has_no_report_models(): void
     {
-        $this->kanvasApp->del(ConfigurationEnum::INTRAS_DB_HOST->value);
+        $this->disableIntrasReporting();
 
         $this->graphQL('query { reportModels { model } }')
             ->assertSuccessful()
@@ -90,7 +78,7 @@ class ReportGraphQLTest extends TestCase
             query {
                 reportAggregate(
                     model: "inscripcion"
-                    filters: [{ column: "es_asistente", operator: EQ, value: 1 }]
+                    filters: [{ column: "es_asistente", operator: EQ, value: 1 }, { column: "codigo_version", operator: EQ, value: "GRAPHQL-TEST" }]
                     group_by: ["tipo"]
                     aggregates: [
                         { function: COUNT, alias: "inscripciones" }
@@ -122,7 +110,7 @@ class ReportGraphQLTest extends TestCase
             query {
                 reportAggregate(
                     model: "inscripcion"
-                    filters: [{ column: "fecha_inicio", operator: BETWEEN, value: ["2026-01-01", "2026-12-31"] }]
+                    filters: [{ column: "fecha_inicio", operator: BETWEEN, value: ["2026-01-01", "2026-12-31"] }, { column: "codigo_version", operator: EQ, value: "GRAPHQL-TEST" }]
                     group_by: ["fecha_inicio:month"]
                     aggregates: [{ function: COUNT, alias: "inscripciones" }]
                 ) { columns rows }
@@ -145,7 +133,7 @@ class ReportGraphQLTest extends TestCase
             query($page: Int!) {
                 reportRows(
                     model: "inscripcion"
-                    filters: [{ column: "tipo", operator: IN, value: ["Seminario", "Taller"] }]
+                    filters: [{ column: "tipo", operator: IN, value: ["Seminario", "Taller"] }, { column: "codigo_version", operator: EQ, value: "GRAPHQL-TEST" }]
                     select: ["pa_code", "fecha_inicio"]
                     order_by: "fecha_inicio"
                     descending: true
@@ -161,6 +149,43 @@ class ReportGraphQLTest extends TestCase
         $this->assertSame(4, $first['total']);
         $this->assertSame(['2026-03-05', '2026-02-20'], array_column($first['rows'], 'fecha_inicio'));
         $this->assertSame(['2026-02-14', '2019-05-10'], array_column($second['rows'], 'fecha_inicio'));
+    }
+
+    /**
+     * The shape the frontend docs prescribe: one request per page, each widget an alias, and filter
+     * values passed as `Mixed` variables — a list for BETWEEN, a scalar for EQ.
+     */
+    public function test_a_page_loads_every_widget_in_one_request_with_variables(): void
+    {
+        $data = $this->graphQL('
+            query($period: Mixed!, $personId: Mixed!) {
+                byType: reportAggregate(
+                    model: "inscripcion"
+                    filters: [{ column: "fecha_inicio", operator: BETWEEN, value: $period }, { column: "codigo_version", operator: EQ, value: "GRAPHQL-TEST" }]
+                    group_by: ["tipo"]
+                    aggregates: [{ function: COUNT, alias: "inscripciones" }]
+                ) { columns rows }
+                person: reportRows(
+                    model: "inscripcion"
+                    filters: [
+                        { column: "codigo_version", operator: EQ, value: "GRAPHQL-TEST" }
+                        { column: "fecha_inicio", operator: BETWEEN, value: $period }
+                        { column: "peoples_id", operator: EQ, value: $personId }
+                    ]
+                    select: ["tipo"]
+                ) { total rows }
+            }
+        ', [
+            'period' => ['2026-01-01', '2026-12-31'],
+            'personId' => 8821,
+        ])->assertSuccessful()->json('data');
+
+        $this->assertEquals(
+            [['tipo' => 'Seminario', 'inscripciones' => 2], ['tipo' => 'Taller', 'inscripciones' => 1]],
+            $data['byType']['rows'],
+        );
+        $this->assertSame(1, $data['person']['total']);
+        $this->assertSame([['tipo' => 'Taller']], $data['person']['rows']);
     }
 
     public function test_an_undeclared_column_is_a_graphql_error_not_a_sql_one(): void
@@ -189,49 +214,33 @@ class ReportGraphQLTest extends TestCase
 
     private function seedRows(): void
     {
-        $service = new ReportSchemaService();
-        $table = $service->tableFor($this->definition, $this->kanvasApp->getId());
-        $now = date('Y-m-d H:i:s');
+        $company = $this->flatCompanyId();
 
         // The last row belongs to another company in the same app. Every exact count and total
         // in this class doubles as the cross-tenant leak check: it would be off by one if it leaked.
         $rows = [
-            [990001, $this->companyId, 8821, '40123', 'Seminario', '2019-05-10', 1, 250],
-            [990002, $this->companyId, 8821, '40123', 'Taller', '2026-02-14', 1, 100],
-            [990003, $this->companyId, 8822, '40987', 'Seminario', '2026-02-20', 1, 250],
-            [990004, $this->companyId, 8823, '41002', 'Seminario', '2026-03-05', 0, 250],
-            [990005, $this->otherCompanyId(), 9901, '50001', 'Seminario', '2026-02-20', 1, 9999],
+            [990001, $company, 8821, '40123', 'Seminario', '2019-05-10', 1, 250],
+            [990002, $company, 8821, '40123', 'Taller', '2026-02-14', 1, 100],
+            [990003, $company, 8822, '40987', 'Seminario', '2026-02-20', 1, 250],
+            [990004, $company, 8823, '41002', 'Seminario', '2026-03-05', 0, 250],
+            [990005, $company + 1, 9901, '50001', 'Seminario', '2026-02-20', 1, 9999],
         ];
 
-        foreach ($rows as [$id, $companyId, $peopleId, $pa, $tipo, $fecha, $attended, $precio]) {
-            $service->connection()->table($table)->insert([
-                'inscripcion_id' => $id,
-                'companies_id' => $companyId,
-                'peoples_id' => $peopleId,
-                'pa_code' => $pa,
-                'tipo' => $tipo,
-                'es_asistente' => $attended,
-                'precio' => $precio,
+        $this->seedFlatRows(new InscripcionDefinition(), array_map(
+            fn (array $row) => [
+                'inscripcion_id' => $row[0],
+                'companies_id' => $row[1],
+                'peoples_id' => $row[2],
+                'pa_code' => $row[3],
+                'tipo' => $row[4],
+                'fecha_inicio' => $row[5],
+                'fechas' => json_encode([$row[5]]),
+                'es_asistente' => $row[6],
+                'precio' => $row[7],
                 'cupos' => 1,
-                'fecha_inicio' => $fecha,
-                'fechas' => json_encode([$fecha]),
-                'refreshed_at' => $now,
-            ]);
-        }
-    }
-
-    private function clearRows(): void
-    {
-        $service = new ReportSchemaService();
-
-        $service->connection()
-            ->table($service->tableFor($this->definition, $this->kanvasApp->getId()))
-            ->whereIn('companies_id', [$this->companyId, $this->otherCompanyId()])
-            ->delete();
-    }
-
-    private function otherCompanyId(): int
-    {
-        return $this->companyId + 1;
+                'codigo_version' => 'GRAPHQL-TEST',
+            ],
+            $rows
+        ));
     }
 }

@@ -6,6 +6,7 @@ namespace Kanvas\Connectors\Intras\Reporting\Scoring;
 
 use Baka\Contracts\AppInterface;
 use Baka\Support\Str;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Kanvas\Analytics\Reporting\DataTransferObject\AggregateRequest;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportFilter;
@@ -114,6 +115,59 @@ final class ScorecardMeasurementService
             'penetracion_sector' => $this->share('sector', $this->meaningful($empresa['sector'] ?? null)),
             'penetracion_tipo' => $this->share('tipo', $this->meaningful($empresa['tipo'] ?? null)),
             'penetracion_ciudad' => $this->share('ciudad', $this->meaningful($empresa['ciudad'] ?? null)),
+        ];
+    }
+
+    /**
+     * EVENTOS — CLASIFICACIÓN INTERNA, over the event's past, non-cancelled versions.
+     *
+     * Participants are averaged per version, not pooled: the sheet asks how many people a run of
+     * the event draws. A version nobody participated in has no row and is left out of the average
+     * rather than pulling it to zero.
+     *
+     * Satisfaction reads the per-version `satisfaccion_participantes` SIPGO already rolls up,
+     * rather than re-averaging raw answers matched by question text. Both figures are rounded to
+     * the sheet's own precision so a band boundary (">25", "4.9-5") reads the way it is written.
+     *
+     * @return array<string, float|null>
+     */
+    public function forEvento(int $eventoId): array
+    {
+        $today = Carbon::now()->toDateString();
+
+        $perVersion = $this->service->aggregate(
+            new ReportRegistry()->find($this->app, 'inscripcion'),
+            $this->app,
+            $this->company,
+            AggregateRequest::fromInput(
+                aggregates: [['function' => 'COUNT_DISTINCT', 'column' => 'peoples_id', 'alias' => 'participantes']],
+                groupBy: ['version_id'],
+                limit: ReportQueryService::MAX_LIMIT
+            ),
+            [
+                new ReportFilter('evento_id', '=', $eventoId),
+                new ReportFilter('tipo_inscripcion', 'IN', IntrasGoalPolicy::PARTICIPATION_TYPES),
+                new ReportFilter('estatus_version', '!=', IntrasGoalPolicy::CANCELLED_STATUS),
+                new ReportFilter('fecha_inicio', '<', $today),
+            ]
+        );
+
+        $satisfaction = $this->scalarOrNull(
+            new ReportRegistry()->find($this->app, 'evento_version'),
+            [
+                new ReportFilter('evento_id', '=', $eventoId),
+                new ReportFilter('estatus', '!=', IntrasGoalPolicy::CANCELLED_STATUS),
+                new ReportFilter('fecha_inicio', '<', $today),
+            ],
+            'AVG',
+            'satisfaccion_participantes'
+        );
+
+        return [
+            'promedio_participantes' => $perVersion === []
+                ? null
+                : round(array_sum(array_column($perVersion, 'participantes')) / count($perVersion), 1),
+            'satisfaccion' => $satisfaction === null ? null : round($satisfaction, 2),
         ];
     }
 
@@ -240,8 +294,6 @@ final class ScorecardMeasurementService
     }
 
     /**
-     * Distinct calendar years, counted here because the aggregate surface has no YEAR().
-     *
      * @param array<int, ReportFilter> $filters
      */
     private function distinctYears(array $filters): float
@@ -252,23 +304,13 @@ final class ScorecardMeasurementService
             $this->company,
             AggregateRequest::fromInput(
                 aggregates: [['function' => 'COUNT', 'alias' => 'n']],
-                groupBy: ['fecha_inicio'],
+                groupBy: ['fecha_inicio:year'],
                 limit: ReportQueryService::MAX_LIMIT
             ),
-            $filters
+            [...$filters, new ReportFilter('fecha_inicio', 'IS NOT NULL')]
         );
 
-        $years = [];
-
-        foreach ($rows as $row) {
-            $date = (string) ($row['fecha_inicio'] ?? '');
-
-            if ($date !== '') {
-                $years[substr($date, 0, 4)] = true;
-            }
-        }
-
-        return (float) count($years);
+        return (float) count($rows);
     }
 
     /**
@@ -312,7 +354,7 @@ final class ScorecardMeasurementService
                     ['function' => 'COUNT', 'alias' => 'n'],
                     ['function' => 'SUM', 'column' => 'monto', 'alias' => 'monto'],
                 ],
-                groupBy: ['fecha_solicitud'],
+                groupBy: ['fecha_solicitud:year'],
                 limit: ReportQueryService::MAX_LIMIT
             ),
             [
@@ -323,19 +365,19 @@ final class ScorecardMeasurementService
 
         $count = 0.0;
         $amount = 0.0;
-        $years = [];
+        $years = 0;
 
         foreach ($rows as $row) {
             $count += (float) $row['n'];
             $amount += (float) ($row['monto'] ?? 0);
-            $date = (string) ($row['fecha_solicitud'] ?? '');
 
-            if ($date !== '') {
-                $years[substr($date, 0, 4)] = true;
+            // An approved quote with no request date still counts and sums; it just proves no year.
+            if ($row['fecha_solicitud_year'] !== null) {
+                $years++;
             }
         }
 
-        return ['cantidad' => $count, 'monto' => $amount, 'anios' => (float) count($years)];
+        return ['cantidad' => $count, 'monto' => $amount, 'anios' => (float) $years];
     }
 
     private function hasPlan(int $organizationId): bool
@@ -357,6 +399,26 @@ final class ScorecardMeasurementService
         string $function,
         ?string $column
     ): float {
+        return $this->scalarOrNull(
+            $definition,
+            $filters,
+            $function,
+            $column
+        ) ?? 0.0;
+    }
+
+    /**
+     * `scalar()` without the zero default: an AVG over no rows is "not measured", which a criterion
+     * must skip rather than score as the bottom band.
+     *
+     * @param array<int, ReportFilter> $filters
+     */
+    private function scalarOrNull(
+        object $definition,
+        array $filters,
+        string $function,
+        ?string $column
+    ): ?float {
         $rows = $this->service->aggregate(
             $definition,
             $this->app,
@@ -368,7 +430,9 @@ final class ScorecardMeasurementService
             $filters
         );
 
-        return (float) ($rows[0]['valor'] ?? 0);
+        $value = $rows[0]['valor'] ?? null;
+
+        return $value === null ? null : (float) $value;
     }
 
     /**

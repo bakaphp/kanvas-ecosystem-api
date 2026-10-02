@@ -39,7 +39,7 @@ class ReportQueryService
         'day' => "DATE_FORMAT(`%1\$s`, '%%Y-%%m-%%d')",
         'month' => "DATE_FORMAT(`%1\$s`, '%%Y-%%m')",
         'quarter' => "CONCAT(YEAR(`%1\$s`), '-Q', QUARTER(`%1\$s`))",
-        'year' => "CAST(YEAR(`%1\$s`) AS CHAR)",
+        'year' => 'CAST(YEAR(`%1$s`) AS CHAR)',
     ];
 
     private const array DATE_TYPES = ['date', 'datetime'];
@@ -255,11 +255,32 @@ class ReportQueryService
             $query->orderBy(reset($bucketAliases));
         }
 
+        $aliases = array_keys($request->aggregates);
+
         return $query->select($select)
             ->limit(min($request->limit, self::MAX_LIMIT))
             ->get()
-            ->map(fn ($row) => (array) $row)
+            ->map(fn ($row) => $this->numericAggregates((array) $row, $aliases))
             ->all();
+    }
+
+    /**
+     * MySQL hands SUM/AVG back as decimal strings; every consumer wants numbers.
+     *
+     * @param array<string, mixed> $row
+     * @param list<string> $aliases
+     *
+     * @return array<string, mixed>
+     */
+    protected function numericAggregates(array $row, array $aliases): array
+    {
+        foreach ($aliases as $alias) {
+            if (is_string($row[$alias] ?? null) && is_numeric($row[$alias])) {
+                $row[$alias] += 0;
+            }
+        }
+
+        return $row;
     }
 
     /**
@@ -329,7 +350,16 @@ class ReportQueryService
             throw new ValidationException(sprintf('"%s" is not a date column, so it cannot be grouped by %s.', $name, $bucket));
         }
 
-        return [sprintf(self::DATE_BUCKETS[$bucket], $name), $name . '_' . $bucket];
+        return [sprintf(self::DATE_BUCKETS[$bucket], $name), self::groupingKey($groupBy)];
+    }
+
+    /**
+     * The key a `group_by` entry comes back under: the column itself, or `fecha_inicio_month`
+     * for `fecha_inicio:month`.
+     */
+    public static function groupingKey(string $groupBy): string
+    {
+        return str_replace(':', '_', $groupBy);
     }
 
     /**

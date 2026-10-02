@@ -14,6 +14,7 @@ use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Guild\Leads\Models\Lead;
+use Kanvas\Users\Models\Users;
 use Kanvas\Workflow\Enums\IntegrationsEnum;
 use Kanvas\Workflow\Models\StoredWorkflow;
 use Tests\Connectors\Traits\HasIntegrationCompany;
@@ -27,10 +28,6 @@ class AssignDealerTagToLeadActionTest extends TestCase
 {
     use DatabaseTransactions;
     use HasIntegrationCompany;
-
-    private const int NORTH_OWNER_ID = 990101;
-    private const int SOUTH_OWNER_ID = 990202;
-    private const int UNMAPPED_OWNER_ID = 990303;
 
     protected $connectionsToTransact = [null, 'crm', 'social'];
 
@@ -47,7 +44,7 @@ class AssignDealerTagToLeadActionTest extends TestCase
 
     public function testOwnerTeamWinsOverTheVehicle(): void
     {
-        $lead = $this->createLead(stockNumber: 'S4410', ownerId: self::NORTH_OWNER_ID);
+        $lead = $this->createLead(stockNumber: 'S4410', ownerId: $this->createOwner('Store North'));
 
         $result = new AssignDealerTagToLeadAction($lead)->execute();
 
@@ -62,21 +59,109 @@ class AssignDealerTagToLeadActionTest extends TestCase
         $lead->addTag('vip');
         new AssignDealerTagToLeadAction($lead)->execute();
 
-        $lead->leads_owner_id = self::NORTH_OWNER_ID;
+        $lead->leads_owner_id = $this->createOwner('store north');
         $lead->saveQuietly();
         new AssignDealerTagToLeadAction($lead->refresh())->execute();
 
         $this->assertSame(['Store North', 'vip'], $this->tagNames($lead));
     }
 
+    public function testRunningAgainDoesNotDuplicateTheTag(): void
+    {
+        $lead = $this->createLead(stockNumber: 'N1002', ownerId: $this->createOwner('Store North'));
+
+        new AssignDealerTagToLeadAction($lead)->execute();
+        new AssignDealerTagToLeadAction($lead->refresh())->execute();
+
+        $this->assertSame(['Store North'], $this->tagNames($lead));
+    }
+
+    public function testAnOwnerAssignedTagIsFinal(): void
+    {
+        $lead = $this->createLead(stockNumber: 'N1002', ownerId: $this->createOwner('Store North'));
+        new AssignDealerTagToLeadAction($lead)->execute();
+
+        $lead->leads_owner_id = $this->createOwner('Store South');
+        $lead->saveQuietly();
+        $result = new AssignDealerTagToLeadAction($lead->refresh())->execute();
+
+        $this->assertTrue($result['skipped']);
+        $this->assertSame(['Store North'], $this->tagNames($lead));
+    }
+
+    public function testAVehicleAssignedTagIsNotReassignedByAnotherVehicle(): void
+    {
+        $lead = $this->createLead(stockNumber: 'N1002');
+        new AssignDealerTagToLeadAction($lead)->execute();
+
+        $lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, ['stockNumber' => 'S4410']);
+        $result = new AssignDealerTagToLeadAction($lead)->execute();
+
+        $this->assertTrue($result['skipped']);
+        $this->assertSame(['Store North'], $this->tagNames($lead));
+    }
+
     public function testAnOwnerOutsideEveryTeamFallsBackToTheVehicle(): void
     {
-        $lead = $this->createLead(stockNumber: 'N1002', ownerId: self::UNMAPPED_OWNER_ID);
+        $lead = $this->createLead(stockNumber: 'N1002', ownerId: $this->createOwner('Some Other Store'));
 
         $result = new AssignDealerTagToLeadAction($lead)->execute();
 
         $this->assertSame('Store North', $result['tag']);
         $this->assertSame(AssignDealerTagToLeadAction::TRIGGER_VEHICLE, $result['trigger']);
+    }
+
+    public function testAnOwnerCoveringSeveralRooftopsGetsTheFirstConfiguredOne(): void
+    {
+        $lead = $this->createLead(
+            stockNumber: 'N1002',
+            ownerId: $this->createOwner(['Store South', 'Store North'])
+        );
+
+        $result = new AssignDealerTagToLeadAction($lead)->execute();
+
+        $this->assertSame('Store North', $result['tag']);
+        $this->assertSame(AssignDealerTagToLeadAction::TRIGGER_OWNER, $result['trigger']);
+    }
+
+    public function testAnOwnerWithoutTheSettingFallsBackToTheVehicle(): void
+    {
+        $lead = $this->createLead(stockNumber: 'S4410', ownerId: Users::factory()->create()->getId());
+
+        $this->assertSame('Store South', new AssignDealerTagToLeadAction($lead)->execute()['tag']);
+    }
+
+    /**
+     * `strtolower` leaves accented capitals alone, so "TIENDA SIMÓN" never matched "Tienda Simón".
+     */
+    public function testAnAccentedOwnerTagMatchesRegardlessOfCase(): void
+    {
+        $company = Companies::factory()->create();
+        $company->set(ConfigurationEnum::LEAD_DEALER_TAGS->value, [
+            ['tag' => 'Tienda Simón', 'stock_prefixes' => ['U']],
+        ]);
+        $lead = $this->createLead(
+            stockNumber: 'X999',
+            ownerId: $this->createOwner('TIENDA SIMÓN'),
+            configure: false,
+            company: $company
+        );
+
+        $result = new AssignDealerTagToLeadAction($lead)->execute();
+
+        $this->assertSame('Tienda Simón', $result['tag']);
+        $this->assertSame(AssignDealerTagToLeadAction::TRIGGER_OWNER, $result['trigger']);
+    }
+
+    public function testAZeroStockPrefixIsKept(): void
+    {
+        $company = Companies::factory()->create();
+        $company->set(ConfigurationEnum::LEAD_DEALER_TAGS->value, [
+            ['tag' => 'Store Zero', 'stock_prefixes' => ['0']],
+        ]);
+        $lead = $this->createLead(stockNumber: '0451', configure: false, company: $company);
+
+        $this->assertSame('Store Zero', new AssignDealerTagToLeadAction($lead)->execute()['tag']);
     }
 
     public function testNothingMatchedLeavesTagsUntouched(): void
@@ -133,8 +218,8 @@ class AssignDealerTagToLeadActionTest extends TestCase
 
         if ($configure) {
             $company->set(ConfigurationEnum::LEAD_DEALER_TAGS->value, [
-                ['tag' => 'Store North', 'owner_ids' => [self::NORTH_OWNER_ID], 'stock_prefixes' => ['N']],
-                ['tag' => 'Store South', 'owner_ids' => [self::SOUTH_OWNER_ID], 'stock_prefixes' => ['S']],
+                ['tag' => 'Store North', 'stock_prefixes' => ['N']],
+                ['tag' => 'Store South', 'stock_prefixes' => ['S']],
             ]);
         }
 
@@ -160,6 +245,17 @@ class AssignDealerTagToLeadActionTest extends TestCase
         ]);
 
         return $lead;
+    }
+
+    /**
+     * A fresh user each time: user settings live in Redis and are not rolled back.
+     */
+    private function createOwner(string|array $dealerTag): int
+    {
+        $owner = Users::factory()->create();
+        $owner->set(ConfigurationEnum::USER_DEALER_TAG->value, $dealerTag);
+
+        return $owner->getId();
     }
 
     private function tagNames(Lead $lead): array

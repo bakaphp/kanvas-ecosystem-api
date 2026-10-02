@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Analytics\Reporting\DataTransferObject;
 
+use Baka\Support\Str;
 use Kanvas\Exceptions\ValidationException;
 
 /**
@@ -62,10 +63,7 @@ final class ReportFilter
             return $value;
         }
 
-        return array_values(array_filter(
-            array_map(trim(...), explode(',', $value)),
-            static fn (string $part): bool => $part !== ''
-        ));
+        return Str::commaList($value);
     }
 
     public function needsValue(): bool

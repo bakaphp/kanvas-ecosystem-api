@@ -110,11 +110,12 @@ class ReportQuery
             $this->filters($request['filters'] ?? []),
         );
 
-        $aliases = array_keys($aggregateRequest->aggregates);
-
         return [
-            'columns' => [...array_map($this->groupingKey(...), $aggregateRequest->groupBy), ...$aliases],
-            'rows' => array_map(fn (array $row) => $this->numericAggregates($row, $aliases), $rows),
+            'columns' => [
+                ...array_map(ReportQueryService::groupingKey(...), $aggregateRequest->groupBy),
+                ...array_keys($aggregateRequest->aggregates),
+            ],
+            'rows' => $rows,
         ];
     }
 
@@ -126,29 +127,5 @@ class ReportQuery
     protected function filters(array $input): array
     {
         return array_map(fn (array $filter) => ReportFilter::fromArray($filter), $input);
-    }
-
-    protected function groupingKey(string $groupBy): string
-    {
-        return str_replace(':', '_', $groupBy);
-    }
-
-    /**
-     * MySQL hands SUM/AVG back as decimal strings; a chart wants numbers.
-     *
-     * @param array<string, mixed> $row
-     * @param list<string> $aliases
-     *
-     * @return array<string, mixed>
-     */
-    protected function numericAggregates(array $row, array $aliases): array
-    {
-        foreach ($aliases as $alias) {
-            if (is_string($row[$alias] ?? null) && is_numeric($row[$alias])) {
-                $row[$alias] = $row[$alias] + 0;
-            }
-        }
-
-        return $row;
     }
 }

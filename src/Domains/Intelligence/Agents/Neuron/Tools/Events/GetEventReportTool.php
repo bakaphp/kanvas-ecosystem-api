@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Events;
 
-use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Reports\Repositories\InscriptionsVsHistoricalRepository;
 use Kanvas\Event\Reports\Repositories\InscriptionsVsObjectiveRepository;
 use Kanvas\Event\Reports\Repositories\InscriptionTrackRepository;
 use Kanvas\Event\Reports\Repositories\ParticipantConcentrationRepository;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\HasKanvasContext;
+use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesEventVersionForTool;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
@@ -19,7 +19,6 @@ use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\ToolPropertyInterface;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
-use Throwable;
 
 /**
  * Analytics for one event version: enrollment vs goal, vs past editions, registrations by participant
@@ -30,6 +29,7 @@ use Throwable;
 class GetEventReportTool extends Tool implements HasRunKey
 {
     use HasKanvasContext;
+    use ResolvesEventVersionForTool;
     use TrackByInputs;
 
     private const array REPORTS = [
@@ -100,11 +100,10 @@ class GetEventReportTool extends Tool implements HasRunKey
             return ['error' => 'report must be one of: ' . implode(', ', self::REPORTS) . '.'];
         }
 
-        try {
-            /** @var EventVersion $version */
-            $version = EventVersion::getByIdFromCompanyApp($version_id, $this->company, $this->app);
-        } catch (Throwable) {
-            return ['error' => sprintf('No event version #%d found in this company.', $version_id)];
+        $version = $this->resolveEventVersionOrError($version_id);
+
+        if (is_array($version)) {
+            return $version;
         }
 
         $cumulative ??= true;

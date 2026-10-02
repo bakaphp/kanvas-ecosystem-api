@@ -14,4 +14,5 @@ enum LeadCustomFieldEnum: string
     case DRIVERS_LICENSE_IMAGE = 'driver_license_images';
     case CREDIT_APP = 'credit_app';
     case ADF_LEAD_XML = 'adf_lead_xml';
+    case DEALER_TAG_TRIGGER = 'dealer_tag_trigger';
 }
