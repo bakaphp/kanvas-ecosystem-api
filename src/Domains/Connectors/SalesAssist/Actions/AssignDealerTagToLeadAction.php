@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\SalesAssist\Actions;
 
 use Baka\Support\Str;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -45,7 +46,7 @@ class AssignDealerTagToLeadAction
             return ['tag' => null, 'trigger' => $previousTrigger, 'skipped' => true];
         }
 
-        $rules = $this->rules();
+        $rules = self::rulesFor($this->lead->company);
 
         [$tag, $trigger] = $this->matchByOwner($rules)
             ?? ($previousTrigger === null ? $this->matchByStockNumber($rules) : null)
@@ -67,11 +68,21 @@ class AssignDealerTagToLeadAction
     }
 
     /**
+     * The rooftop tags this company configures — the ones only this action may set.
+     *
+     * @return list<string>
+     */
+    public static function dealerTags(Companies $company): array
+    {
+        return array_column(self::rulesFor($company), 'tag');
+    }
+
+    /**
      * @return array<int, array{tag: string, stock_prefixes: string[]}>
      */
-    private function rules(): array
+    private static function rulesFor(Companies $company): array
     {
-        $configured = Str::jsonToArray($this->lead->company->get(ConfigurationEnum::LEAD_DEALER_TAGS->value));
+        $configured = Str::jsonToArray($company->get(ConfigurationEnum::LEAD_DEALER_TAGS->value));
 
         if (! is_array($configured)) {
             return [];
