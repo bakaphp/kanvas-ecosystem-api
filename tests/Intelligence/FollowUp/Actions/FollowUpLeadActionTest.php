@@ -21,6 +21,7 @@ use Kanvas\Intelligence\Enums\AgentEnum;
 use Kanvas\Intelligence\Enums\ConfigurationEnum as IntelligenceConfigurationEnum;
 use Kanvas\Intelligence\FollowUp\Actions\FollowUpLeadAction;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpOutcomeKindEnum;
+use Kanvas\Intelligence\FollowUp\Services\FollowUpKnowledgeRetriever;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\NervousSystem\Ledger\Models\Event;
 use Kanvas\Notifications\Templates\Blank;
@@ -28,6 +29,7 @@ use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Social\MessagesTypes\Models\MessageType;
 use Kanvas\SystemModules\Models\SystemModules;
+use Mockery;
 use ReflectionProperty;
 use Tests\Stubs\FollowUp\FollowUpAgentStub;
 use Tests\TestCase;
@@ -60,6 +62,8 @@ class FollowUpLeadActionTest extends TestCase
         parent::setUp();
 
         Http::fake();
+        // Search indexing is unrelated to outbound delivery and must not call Typesense.
+        Message::disableSearchSyncing();
         FollowUpAgentStub::reset();
 
         $this->testApp = app(Apps::class);
@@ -78,6 +82,12 @@ class FollowUpLeadActionTest extends TestCase
             ['model_name' => Lead::class],
             ['name' => 'Leads', 'slug' => 'leads', 'description' => 'Leads system module']
         );
+    }
+
+    protected function tearDown(): void
+    {
+        Message::enableSearchSyncing();
+        parent::tearDown();
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -685,13 +695,145 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertContains('email', $lead->getFollowUpChannelsUsed());
     }
 
-    public function testStickyThenPriorityIsAliasedToPriorityOnlyInV1(): void
+    public function testAgentPicksUsesAllChannelKnowledgeAndSendsOnlyChosenChannel(): void
     {
-        // In v1, sticky_then_priority is aliased to priority_only because the
-        // previous session-UUID-marker sticky signal was unreliable. With
-        // config [email, sms] and a session on sms, the action picks email
-        // (config[0]) — not sms. v1.5 will implement true sticky via
-        // last-inbound-message lookup; see FollowUp CLAUDE.md.
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channel_selection'] = 'agent_picks';
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'email', 'enabled' => true],
+            ['type' => 'sms', 'enabled' => true],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'email');
+        $retriever = Mockery::mock(FollowUpKnowledgeRetriever::class);
+        foreach (['email', 'sms'] as $channel) {
+            $retriever->shouldReceive('retrieve')->once()->withArgs(fn ($agent, $stage, $type) => $type === $channel)
+                ->andReturn(['source' => 'campaign', 'sheet' => $channel, 'row' => 1, 'content' => "guidance-for-{$channel}"]);
+        }
+        FollowUpAgentStub::$cannedResponse = json_encode([
+            'should_respond' => true, 'advance_stage' => false,
+            'channel' => 'sms', 'message' => 'A short contextual SMS.', 'reason' => 'Customer prefers SMS.',
+        ]);
+        $outcome = new FollowUpLeadAction($this->testApp, $this->company, $lead, $this->seedFollowUpAgent(), knowledgeRetriever: $retriever)->execute();
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
+        $lead->refresh();
+        $this->assertSame(1, $lead->getFollowUpStateCount());
+        $this->assertSame(['sms'], $lead->getFollowUpChannelsUsed());
+        $this->assertStringContainsString('guidance-for-email', FollowUpAgentStub::lastPromptText());
+        $this->assertStringContainsString('guidance-for-sms', FollowUpAgentStub::lastPromptText());
+    }
+
+    public function testAgentPicksRejectsMissingDisabledAndOptedOutChannels(): void
+    {
+        foreach ([null, 'whatsapp', 'email'] as $choice) {
+            $cfg = $this->defaultStageConfig();
+            $cfg['follow_up']['channel_selection'] = 'agent_picks';
+            $cfg['follow_up']['channels'] = [
+                ['type' => 'email', 'enabled' => true],
+                ['type' => 'sms', 'enabled' => true],
+            ];
+            $lead = $this->seedLeadWithStageConfig($cfg);
+            $this->seedSessionAndChannel($lead, 'sms');
+            $lead->people->contacts()->whereIn('contacts_types_id', [1, 9, 10])->update(['is_opt_out' => 1]);
+            FollowUpAgentStub::$cannedResponse = json_encode([
+                'should_respond' => true, 'advance_stage' => true,
+                'channel' => $choice, 'message' => 'Must not send.', 'reason' => 'Invalid choice.',
+            ]);
+            $outcome = new FollowUpLeadAction($this->testApp, $this->company, $lead, $this->seedFollowUpAgent())->execute();
+            $this->assertSame('invalid_agent_channel', $outcome->reason);
+            $this->assertSame(0, $lead->refresh()->getFollowUpStateCount());
+            $this->assertStringNotContainsString('CHANNEL OPTION: email', FollowUpAgentStub::lastPromptText());
+        }
+    }
+
+    public function testAgentPicksCanDeclineWithoutSelectingChannel(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channel_selection'] = 'agent_picks';
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+        FollowUpAgentStub::configure(reason: 'RAG and history suggest waiting.');
+        $outcome = new FollowUpLeadAction($this->testApp, $this->company, $lead, $this->seedFollowUpAgent())->execute();
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertSame(0, $lead->refresh()->getFollowUpStateCount());
+        $this->assertFalse($lead->isFollowUpExhausted());
+    }
+
+    public function testAgentPicksCanChooseEmailAndUsesItsTemplate(): void
+    {
+        $template = \Kanvas\Templates\Models\Templates::create([
+            'apps_id' => $this->testApp->getId(),
+            'companies_id' => $this->company->getId(),
+            'users_id' => $this->user->getId(),
+            'name' => 'agent_picks_email',
+            'template' => '<p>{{ $agent_message }}</p>',
+        ]);
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channel_selection'] = 'agent_picks';
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'sms', 'enabled' => true],
+            ['type' => 'email', 'enabled' => true, 'template_name' => $template->name],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+        FollowUpAgentStub::$cannedResponse = json_encode([
+            'should_respond' => true, 'advance_stage' => false,
+            'channel' => 'email', 'message' => 'Your requested details.', 'reason' => 'Customer asked for email.',
+        ]);
+        $outcome = new FollowUpLeadAction($this->testApp, $this->company, $lead, $this->seedFollowUpAgent())->execute();
+        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
+        $this->assertSame(['email'], $lead->refresh()->getFollowUpChannelsUsed());
+        $this->assertSame(1, $lead->getFollowUpStateCount());
+        $this->assertSame('<p>Your requested details.</p>', $outcome->message);
+    }
+
+    public function testAgentPicksExcludesChannelWithMissingTemplate(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channel_selection'] = 'agent_picks';
+        $cfg['follow_up']['channels'] = [
+            ['type' => 'email', 'enabled' => true, 'template_name' => 'missing-agent-picks-template'],
+            ['type' => 'sms', 'enabled' => true],
+        ];
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+        FollowUpAgentStub::configure(reason: 'Wait.');
+        $outcome = new FollowUpLeadAction($this->testApp, $this->company, $lead, $this->seedFollowUpAgent())->execute();
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertStringContainsString('Eligible channels: sms.', FollowUpAgentStub::lastPromptText());
+        $this->assertStringNotContainsString('CHANNEL OPTION: email', FollowUpAgentStub::lastPromptText());
+    }
+
+    public function testAgentPicksSkipsWhenNoChannelHasUsableTemplate(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channel_selection'] = 'agent_picks';
+        $cfg['follow_up']['channels'][0]['template_name'] = 'missing-agent-picks-template';
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+        $outcome = new FollowUpLeadAction($this->testApp, $this->company, $lead, $this->seedFollowUpAgent())->execute();
+        $this->assertSame('no_eligible_channel', $outcome->reason);
+        $this->assertSame('', FollowUpAgentStub::lastPromptText());
+        $this->assertSame(0, $lead->refresh()->getFollowUpStateCount());
+    }
+
+    public function testAgentPicksRejectsEmptyMessageWithoutConsumingAttempt(): void
+    {
+        $cfg = $this->defaultStageConfig();
+        $cfg['follow_up']['channel_selection'] = 'agent_picks';
+        $lead = $this->seedLeadWithStageConfig($cfg);
+        $this->seedSessionAndChannel($lead, 'sms');
+        FollowUpAgentStub::$cannedResponse = json_encode([
+            'should_respond' => true, 'advance_stage' => false,
+            'channel' => 'sms', 'message' => ' ', 'reason' => 'No usable body.',
+        ]);
+        $outcome = new FollowUpLeadAction($this->testApp, $this->company, $lead, $this->seedFollowUpAgent())->execute();
+        $this->assertSame('empty_agent_message', $outcome->reason);
+        $this->assertSame(0, $lead->refresh()->getFollowUpStateCount());
+    }
+
+    public function testStickyThenPriorityHonorsPersistedPreferredChannel(): void
+    {
         $cfg = $this->defaultStageConfig();
         $cfg['follow_up']['channels'] = [
             ['type' => 'email', 'enabled' => true, 'template_name' => null],
@@ -699,13 +841,14 @@ class FollowUpLeadActionTest extends TestCase
         ];
         $cfg['follow_up']['channel_selection'] = 'sticky_then_priority';
         $lead = $this->seedLeadWithStageConfig($cfg);
+        $lead->set(LeadConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
         $this->seedSessionAndChannel($lead, 'sms');
 
         FollowUpAgentStub::configure(
-            shouldRespond: true,
+            shouldRespond: false,
             advanceStage: false,
-            message: 'Priority wins (sticky aliased in v1).',
-            reason: 'sticky_v1_alias',
+            message: null,
+            reason: 'sticky_preferred_channel',
         );
 
         $outcome = new FollowUpLeadAction(
@@ -715,10 +858,8 @@ class FollowUpLeadActionTest extends TestCase
             agent: $this->seedFollowUpAgent(),
         )->execute();
 
-        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
-        $lead->refresh();
-        $this->assertContains('email', $lead->getFollowUpChannelsUsed());
-        $this->assertNotContains('sms', $lead->getFollowUpChannelsUsed());
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertStringContainsString('Outbound channel: sms.', FollowUpAgentStub::lastPromptText());
     }
 
     public function testPriorityOnlyHonorsConfigOrderRegardlessOfStickyChannel(): void
@@ -732,12 +873,13 @@ class FollowUpLeadActionTest extends TestCase
         ];
         $cfg['follow_up']['channel_selection'] = 'priority_only';
         $lead = $this->seedLeadWithStageConfig($cfg);
+        $lead->set(LeadConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value, 'sms');
         $this->seedSessionAndChannel($lead, 'sms');
 
         FollowUpAgentStub::configure(
-            shouldRespond: true,
+            shouldRespond: false,
             advanceStage: false,
-            message: 'Priority wins over sticky.',
+            message: null,
             reason: 'priority_only',
         );
 
@@ -748,10 +890,8 @@ class FollowUpLeadActionTest extends TestCase
             agent: $this->seedFollowUpAgent(),
         )->execute();
 
-        $this->assertSame(FollowUpOutcomeKindEnum::SENT, $outcome->kind);
-        $lead->refresh();
-        $this->assertContains('email', $lead->getFollowUpChannelsUsed());
-        $this->assertNotContains('sms', $lead->getFollowUpChannelsUsed());
+        $this->assertSame(FollowUpOutcomeKindEnum::SKIPPED, $outcome->kind);
+        $this->assertStringContainsString('Outbound channel: email.', FollowUpAgentStub::lastPromptText());
     }
 
     public function testStickyConfigSendsCleanlyOnSingleEnabledChannel(): void
@@ -931,8 +1071,51 @@ class FollowUpLeadActionTest extends TestCase
         $this->assertStringContainsString('— Sales', $prompt);
         // Anti-pattern guidance reaches the LLM.
         $this->assertStringContainsString('Do NOT use generic phrases', $prompt);
+        $this->assertStringContainsString('Never copy the reference verbatim', $prompt);
+        $this->assertStringContainsString('Never output unresolved placeholders', $prompt);
+        $this->assertStringContainsString('Respect the customer’s stated availability', $prompt);
+        $this->assertStringContainsString('rewrite it if it contains `[` or `]`', $prompt);
         // Positive direction: leverage conversation history concretely.
         $this->assertStringContainsString('reiterate that offer CONCRETELY', $prompt);
+    }
+
+    public function testPromptIncludesRetrievedFollowUpKnowledgeWithProvenance(): void
+    {
+        $lead = $this->seedLeadWithStageConfig($this->defaultStageConfig());
+        $lead->stage->update(['name' => 'Day 4']);
+        $this->seedSessionAndChannel($lead, 'sms');
+
+        $retriever = Mockery::mock(FollowUpKnowledgeRetriever::class);
+        $retriever->shouldReceive('retrieve')
+            ->once()
+            ->with(Mockery::type(Agent::class), 'Day 4', 'sms')
+            ->andReturn([
+                'source' => 'Follow-up Workflow.ods',
+                'sheet' => 'SMS Follow-up',
+                'row' => 7,
+                'content' => 'Message guidance: Ask whether the customer reviewed the options.',
+            ]);
+
+        FollowUpAgentStub::configure(
+            shouldRespond: false,
+            advanceStage: false,
+            message: null,
+            reason: 'knowledge_retrieved',
+        );
+
+        new FollowUpLeadAction(
+            app: $this->testApp,
+            company: $this->company,
+            lead: $lead,
+            agent: $this->seedFollowUpAgent(),
+            knowledgeRetriever: $retriever,
+        )->execute();
+
+        $prompt = FollowUpAgentStub::lastPromptText();
+        $this->assertStringContainsString('Retrieved follow-up knowledge:', $prompt);
+        $this->assertStringContainsString('Source: Follow-up Workflow.ods', $prompt);
+        $this->assertStringContainsString('Location: SMS Follow-up!row 7', $prompt);
+        $this->assertStringContainsString('Ask whether the customer reviewed the options.', $prompt);
     }
 
     public function testStaticTemplateDispatchesAgentMessageDirectlyAndAgentMessageSlotTemplateWraps(): void

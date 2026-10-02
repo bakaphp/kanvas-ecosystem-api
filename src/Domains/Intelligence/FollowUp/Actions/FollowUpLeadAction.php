@@ -30,6 +30,7 @@ use Kanvas\Intelligence\FollowUp\DataTransferObject\ResolvedChannel;
 use Kanvas\Intelligence\FollowUp\Enums\ChannelSelectionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\ExhaustedActionEnum;
 use Kanvas\Intelligence\FollowUp\Enums\FollowUpModeEnum;
+use Kanvas\Intelligence\FollowUp\Services\FollowUpKnowledgeRetriever;
 use Kanvas\Intelligence\FollowUp\Services\LeadOutboundChannelResolver;
 use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Social\Channels\Models\Channel;
@@ -57,6 +58,7 @@ final class FollowUpLeadAction
         protected readonly Lead $lead,
         protected readonly Agent $agent,
         protected readonly bool $force = false,
+        protected readonly ?FollowUpKnowledgeRetriever $knowledgeRetriever = null,
     ) {
     }
 
@@ -125,26 +127,65 @@ final class FollowUpLeadAction
             return $this->skip('too_soon');
         }
 
-        [$template, $metaTemplate, $skipReason] = $this->resolveTemplateForChannel(
-            $channelType,
-            $channelConfig,
-            $lastInboundAt
-        );
+        $agentPicks = $config->channelSelection === ChannelSelectionEnum::AGENT_PICKS;
+        $channelOptions = [];
+        if ($agentPicks) {
+            foreach ($candidates as $candidate) {
+                [$optionTemplate, $optionMeta, $optionSkip] = $this->resolveTemplateForChannel(
+                    $candidate->channelType,
+                    $config->channelByType($candidate->channelType),
+                    $lastInboundAt,
+                );
+                if ($optionSkip !== null) {
+                    continue;
+                }
+                $channelOptions[$candidate->channelType] = [$candidate, $optionTemplate, $optionMeta];
+            }
+            if ($channelOptions === []) {
+                return $this->skip('no_eligible_channel');
+            }
+            $prompt = 'Channel selection: agent_picks. Evaluate whether to send using conversation history and the RAG guidance below. '
+                . "Each section is an OPTION, not a preselected channel. Choose exactly ONE eligible channel if sending, or decline.\n"
+                . 'Eligible channels: ' . implode(', ', array_keys($channelOptions)) . ".\n";
+            foreach ($channelOptions as $optionType => [$optionTarget, $optionTemplate, $optionMeta]) {
+                $knowledge = ($this->knowledgeRetriever ?? new FollowUpKnowledgeRetriever())
+                    ->retrieve($this->agent, (string) ($this->lead->stage->name ?? ''), $optionType);
+                $prompt .= "\nCHANNEL OPTION: {$optionType}\n" . $this->buildAgentPrompt(
+                    $config, $optionType, $optionTemplate?->name,
+                    $optionTemplate !== null ? $this->renderTemplateForStyleReference($optionTemplate) : $this->renderDefaultStyleReference($optionType),
+                    $optionMeta, $silenceMin, $knowledge,
+                );
+            }
+            $prompt .= "\nReturn strict JSON with should_respond, advance_stage, message, reason, channel. "
+                . 'When should_respond=true, channel must be exactly one eligible channel and message must be composed for it. '
+                . 'When declining, channel and message may be null. Do not fall back to the first channel merely because it is listed first.';
+            $template = $metaTemplate = null;
+        } else {
+            [$template, $metaTemplate, $skipReason] = $this->resolveTemplateForChannel(
+                $channelType,
+                $channelConfig,
+                $lastInboundAt
+            );
 
-        if ($skipReason !== null) {
-            return $this->skip($skipReason);
+            if ($skipReason !== null) {
+                return $this->skip($skipReason);
+            }
+
+            $knowledge = ($this->knowledgeRetriever ?? new FollowUpKnowledgeRetriever())
+                ->retrieve($this->agent, (string) ($this->lead->stage->name ?? ''), $channelType);
+
+            $prompt = $this->buildAgentPrompt(
+                $config,
+                $channelType,
+                $template?->name,
+                $template !== null
+                    ? $this->renderTemplateForStyleReference($template)
+                    : $this->renderDefaultStyleReference($channelType),
+                $metaTemplate,
+                $silenceMin,
+                $knowledge,
+            );
         }
-
-        $prompt = $this->buildAgentPrompt(
-            $config,
-            $channelType,
-            $template?->name,
-            $template !== null
-                ? $this->renderTemplateForStyleReference($template)
-                : $this->renderDefaultStyleReference($channelType),
-            $metaTemplate,
-            $silenceMin
-        );
 
         try {
             $raw = new AgentChatKernel(
@@ -203,6 +244,17 @@ final class FollowUpLeadAction
 
         $sentBody = null;
         $channelsForBump = [];
+        if ($agentPicks && $result->shouldRespond) {
+            if ($result->channel === null || ! isset($channelOptions[$result->channel])) {
+                return $this->skip('invalid_agent_channel');
+            }
+            if ($result->message === null || trim($result->message) === '') {
+                return $this->skip('empty_agent_message');
+            }
+            [$primary, $template, $metaTemplate] = $channelOptions[$result->channel];
+            $channelType = $primary->channelType;
+            $targets = [$primary];
+        }
         if ($result->shouldRespond && $result->message !== null) {
             $sentBody = $this->resolveOutboundBody(
                 channelType: $channelType,
@@ -241,15 +293,28 @@ final class FollowUpLeadAction
      */
     private function selectTargets(array $candidates, FollowUpConfig $config): array
     {
-        // STICKY_THEN_PRIORITY + AGENT_PICKS are aliased to PRIORITY_ONLY in v1 —
-        // the session-marker sticky signal is unreliable in the new sales-agent
-        // infra. v1.5 will implement sticky via last-inbound-message lookup.
         return match ($config->channelSelection) {
             ChannelSelectionEnum::FAN_OUT_ALL => $candidates,
             ChannelSelectionEnum::PRIORITY_ONLY,
-            ChannelSelectionEnum::STICKY_THEN_PRIORITY,
             ChannelSelectionEnum::AGENT_PICKS => [$candidates[0]],
+            ChannelSelectionEnum::STICKY_THEN_PRIORITY => [$this->stickyTarget($candidates)],
         };
+    }
+
+    /** @param ResolvedChannel[] $candidates */
+    private function stickyTarget(array $candidates): ResolvedChannel
+    {
+        $preferred = strtolower(trim((string) $this->lead->get(
+            LeadConfigurationEnum::AGENT_COMMUNICATION_CHANNEL->value
+        )));
+
+        foreach ($candidates as $candidate) {
+            if (strtolower($candidate->channelType) === $preferred) {
+                return $candidate;
+            }
+        }
+
+        return $candidates[0];
     }
 
     // Sessions are keyed to People (not Lead) in the new sales-agent infra —
@@ -367,6 +432,7 @@ final class FollowUpLeadAction
         ?string $templateBody,
         ?string $metaTemplate,
         int $silenceMin,
+        ?array $knowledge,
     ): string {
         $override = $config->promptTemplate
             ?? (is_string($this->company->get('follow_up_prompt_template'))
@@ -387,17 +453,32 @@ final class FollowUpLeadAction
             'silence_minutes' => $silenceMin,
             'follow_up_count' => $this->lead->getFollowUpStateCount(),
             'max_retries' => $config->maxRetries,
+            'retrieved_knowledge' => $knowledge,
         ];
 
         if (is_string($override) && $override !== '') {
             try {
-                return Blade::render($override, $context);
+                return $this->appendRetrievedKnowledge(Blade::render($override, $context), $knowledge);
             } catch (Throwable $e) {
                 report($e);
             }
         }
 
-        return $this->defaultAgentPrompt($context);
+        return $this->appendRetrievedKnowledge($this->defaultAgentPrompt($context), $knowledge);
+    }
+
+    /** @param array{source: string, sheet: string, row: int, content: string}|null $knowledge */
+    private function appendRetrievedKnowledge(string $prompt, ?array $knowledge): string
+    {
+        if ($knowledge === null) {
+            return $prompt;
+        }
+
+        return $prompt . "\n\nRetrieved follow-up knowledge:\n"
+            . 'Source: ' . $knowledge['source'] . "\n"
+            . 'Location: ' . $knowledge['sheet'] . '!row ' . $knowledge['row'] . "\n"
+            . $knowledge['content'] . "\n"
+            . 'Use this retrieved campaign knowledge as guidance. Conversation facts, consent, and compliance take precedence. Never copy unresolved placeholders.';
     }
 
     /**
@@ -443,6 +524,13 @@ final class FollowUpLeadAction
             $lines[] = $templateBody;
             $lines[] = '---';
             $lines[] = 'Use the reference for HOW to write (warmth, brevity, sign-off style) — NOT for WHAT to write.';
+            $lines[] = 'MANDATORY PERSONALIZATION RULES:';
+            $lines[] = '- Never copy the reference verbatim. Rewrite it for this lead and the current conversation.';
+            $lines[] = '- Never output unresolved placeholders or bracketed tokens such as [Customer Name], [Dealership Name], [Vehicle/Model], [Brand of VOI], [Signature], or [day/time].';
+            $lines[] = '- Replace a placeholder only when the value is supported by lead or conversation data. If the value is unavailable, rewrite the sentence naturally so the placeholder is unnecessary.';
+            $lines[] = '- Prefer concrete known facts: customer first name, vehicle/model, budget or payment target, trade-in, requested information, and stated appointment availability.';
+            $lines[] = '- Respect the customer’s stated availability. Do not propose conflicting days or times.';
+            $lines[] = '- Before returning JSON, inspect the final message and rewrite it if it contains `[` or `]`, template instructions, or generic copy that ignores available context.';
             $lines[] = '';
             $lines[] = 'The BODY MUST come from the actual conversation history:';
             $lines[] = '- If you previously asked a question, follow up on THAT specific question.';
