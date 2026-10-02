@@ -13,9 +13,11 @@ use Kanvas\Connectors\SalesAssist\Actions\EnsureFirstMessageEnabledAction;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Activities\AgentReachOutActivity;
+use Kanvas\Intelligence\Tools\CompanyWorkHoursTool;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Social\Messages\Models\Message;
 use Kanvas\Workflow\Attributes\WorkflowAction;
+use Throwable;
 
 #[WorkflowAction(
     name: 'Sales Assist Agent Reach Out To Lead',
@@ -28,6 +30,25 @@ final class SalesAssistAgentReachOutActivity extends AgentReachOutActivity
     protected function validateBeforeReachOut(Lead $lead, Apps $app, array $params): void
     {
         new EnsureFirstMessageEnabledAction($lead)->execute();
+    }
+
+    protected function shouldDeferDelivery(Lead $lead): ?bool
+    {
+        if (! $lead->isAiSupport()) {
+            return false;
+        }
+
+        try {
+            // Same timezone, working-day and holiday rules used by the agent context.
+            $hours = new CompanyWorkHoursTool($lead)->execute();
+
+            return ($hours['status'] ?? null) !== 'after_hours';
+        } catch (Throwable $exception) {
+            // Do not bypass the support delay when company hours cannot be resolved.
+            report($exception);
+
+            return true;
+        }
     }
 
     /**
