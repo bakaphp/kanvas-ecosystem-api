@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Tools;
 
 use Exception;
 use Illuminate\Database\Eloquent\Model;
+use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Contracts\ContextToolInterface;
 use Override;
@@ -51,7 +52,7 @@ class LeadIntentTool implements ContextToolInterface
         //     $subSource = $this->entity->source->name;
         // }
 
-        $ignoreSubSource = $this->entity->company->get('IGNORE_SUB_SOURCE');
+        $ignoreSubSource = $this->entity->company->get(ConfigurationEnum::IGNORE_SUB_SOURCE->value);
 
         $source = $sources->where('Source', $leadSource)
             ->when(is_null($ignoreSubSource) || ! $ignoreSubSource, function ($query) use ($subSource) {
