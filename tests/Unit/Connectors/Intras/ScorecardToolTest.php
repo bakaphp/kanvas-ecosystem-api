@@ -39,7 +39,7 @@ class ScorecardToolTest extends TestCase
         $result = new ScorecardTool()->__invoke('definicion');
 
         $this->assertSame(
-            ['ejecutivo_clasificacion', 'ejecutivo_potencialidad', 'empresa_clasificacion', 'empresa_potencialidad'],
+            ['ejecutivo_clasificacion', 'ejecutivo_potencialidad', 'empresa_clasificacion', 'empresa_potencialidad', 'evento_clasificacion'],
             array_keys($result['tarjetas'])
         );
 
