@@ -76,6 +76,41 @@ class EncryptedSettingsTest extends TestCase
         $this->assertSame($secret, $app->get(self::KEY));
     }
 
+    public function testSecretIsNeverListedAmongPublicSettings(): void
+    {
+        $app = app(Apps::class);
+        $app->setEncrypted(self::KEY, 'hidden');
+
+        $this->assertArrayNotHasKey(self::KEY, $app->getAllSettings(onlyPublicSettings: true, fromRedis: false));
+    }
+
+    public function testMissingKeyReturnsTheDefaultAndIsNotSecret(): void
+    {
+        $app = app(Apps::class);
+        $app->del(self::KEY);
+        Redis::hDel($app->getSettingsRedisPrimaryKey(), self::KEY);
+
+        $this->assertFalse($app->isSecret(self::KEY));
+        $this->assertSame('fallback', $app->get(self::KEY, 'fallback'));
+    }
+
+    public function testNullIsRejectedAndWritesNothing(): void
+    {
+        $app = app(Apps::class);
+        $app->del(self::KEY);
+
+        $this->assertFalse($app->setEncrypted(self::KEY, null));
+        $this->assertNull($app->get(self::KEY));
+    }
+
+    public function testOnlyPrefixedStringsCountAsEncrypted(): void
+    {
+        $this->assertTrue(Apps::isEncryptedValue(HashTableInterface::SECRET_PREFIX . 'abc'));
+        $this->assertFalse(Apps::isEncryptedValue('plain'));
+        $this->assertFalse(Apps::isEncryptedValue(null));
+        $this->assertFalse(Apps::isEncryptedValue([HashTableInterface::SECRET_PREFIX . 'abc']));
+    }
+
     public function testArrayValuesAreJsonEncodedThenEncrypted(): void
     {
         $app = app(Apps::class);

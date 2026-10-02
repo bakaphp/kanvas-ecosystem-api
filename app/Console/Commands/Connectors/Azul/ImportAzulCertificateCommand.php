@@ -8,6 +8,7 @@ use Baka\Traits\KanvasJobsTrait;
 use Illuminate\Console\Command;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Azul\Enums\ConfigurationEnum;
+use Kanvas\Connectors\Azul\Services\AzulCertificate;
 
 class ImportAzulCertificateCommand extends Command
 {
@@ -78,14 +79,14 @@ class ImportAzulCertificateCommand extends Command
             return null;
         }
 
-        $contents = trim((string) file_get_contents($path));
+        $pem = AzulCertificate::decodePem((string) file_get_contents($path));
 
-        if (! str_contains($contents, '-----BEGIN') || ! str_contains($contents, $expectedMarker)) {
+        if ($pem === null || ! str_contains($pem, $expectedMarker)) {
             $this->error("{$path} does not look like a PEM {$expectedMarker}. Convert a .pfx first: openssl pkcs12 -in azul.pfx -clcerts -nokeys -out client.crt");
 
             return null;
         }
 
-        return $contents . "\n";
+        return $pem;
     }
 }

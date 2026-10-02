@@ -4,10 +4,19 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Azul\Concerns;
 
+use Illuminate\Support\Facades\Bus;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Users\Models\Users;
 
 trait BuildsAzulCertificate
 {
+    public function createUser(): Users
+    {
+        Bus::fake();
+
+        return parent::createUser();
+    }
+
     protected function generateCertificate(): array
     {
         $key = openssl_pkey_new([

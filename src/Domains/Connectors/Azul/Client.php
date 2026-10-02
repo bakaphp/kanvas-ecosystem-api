@@ -115,6 +115,9 @@ class Client
         return $failover === $endpoint ? null : $failover;
     }
 
+    /**
+     * Only failures that prove the request never reached Azul; a timeout may have charged the card.
+     */
     private function isSafeToRetry(ConnectException $e): bool
     {
         $errno = $e->getHandlerContext()['errno'] ?? null;
@@ -129,6 +132,7 @@ class Client
     private function send(string $endpoint, array $data): array
     {
         $start = hrtime(true);
+        $elapsedMs = fn (): int => (int) round((hrtime(true) - $start) / 1e6);
         $context = $this->buildLogContext($data, $endpoint);
 
         try {
@@ -140,7 +144,7 @@ class Client
                 Log::channel('daily')->info('Azul API call', [
                     ...$context,
                     'response' => $decoded,
-                    'response_time_ms' => (int) round((hrtime(true) - $start) / 1e6),
+                    'response_time_ms' => $elapsedMs(),
                     'http_status' => $response->getStatusCode(),
                 ]);
             }
@@ -151,7 +155,7 @@ class Client
                 Log::channel('daily')->error('Azul API connection failed', [
                     ...$context,
                     'error' => $e->getMessage(),
-                    'response_time_ms' => (int) round((hrtime(true) - $start) / 1e6),
+                    'response_time_ms' => $elapsedMs(),
                 ]);
             }
 
@@ -167,7 +171,7 @@ class Client
                     'response' => $decoded,
                     'http_status' => $res?->getStatusCode(),
                     'error' => $e->getMessage(),
-                    'response_time_ms' => (int) round((hrtime(true) - $start) / 1e6),
+                    'response_time_ms' => $elapsedMs(),
                 ]);
             }
 
