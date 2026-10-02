@@ -125,7 +125,7 @@ final class VehiclePriceDisclosureToolTest extends TestCase
         $this->assertSame(RenderPriceDisclosureAction::DEFAULT_TEMPLATE_NAME, $result['template']);
         $this->assertSame(
             'The vehicle total price before rebates or incentives is $27,000.00. '
-            . 'Including the $85.00 documentation fee and $33.00, the selling price is $27,118.00. '
+            . 'Including the $85.00 documentation fee and $33.00 electronic filing charge, the selling price is $27,118.00. '
             . 'The current advertised sale price is $25,118.00, before government-required taxes and registration charges.',
             $result['message'],
         );
