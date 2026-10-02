@@ -307,7 +307,8 @@ services:
         --tries=3  --timeout=3750"
   agent-runtime-queue:
     <<: *common-queue-settings
-    container_name: agent-runtime-queue
+    deploy:
+      replicas: 3
     command:
       - "sh"
       - "-c"
@@ -331,7 +332,8 @@ services:
         --tries=3 --timeout=300"
   agent-chat-queue:
     <<: *common-queue-settings
-    container_name: agent-chat-queue
+    deploy:
+      replicas: 3
     command:
       - "sh"
       - "-c"
