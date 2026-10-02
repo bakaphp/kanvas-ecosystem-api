@@ -23,7 +23,7 @@ class RenderPriceDisclosureAction
      * channel and language. The wording is legal copy: change it only with an approved revision.
      */
     public const string DEFAULT_TEMPLATE = 'The vehicle total price before rebates or incentives is ${{ $ca_cars_total_price }}. '
-        . 'Including the ${{ $documentation_fee }} documentation fee and ${{ $electronic_filing_charge }}, '
+        . 'Including the ${{ $documentation_fee }} documentation fee and ${{ $electronic_filing_charge }} electronic filing charge, '
         . 'the selling price is ${{ $pre_rebate_selling_price }}. '
         . 'The current advertised sale price is ${{ $ftc_actual_price }}, before government-required taxes and registration charges.';
 
