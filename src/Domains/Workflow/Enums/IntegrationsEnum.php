@@ -67,4 +67,5 @@ enum IntegrationsEnum: string
     case UNIVERSAL_SEGUROS = 'universal_seguros';
     case YUSEN = 'yusen';
     case DEALER_APP_CENTER = 'dealer_app_center';
+    case BRUSHCRAZY = 'brushcrazy';
 }
