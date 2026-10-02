@@ -16,7 +16,8 @@ use Kanvas\Workflow\KanvasActivity;
     name: 'SalesAssist Assign Dealer Tag To Lead',
     description: 'Tags a lead with the rooftop it belongs to when one company account runs several stores: '
         . 'by the lead owner\'s team first, otherwise by the vehicle of interest\'s stock number. Safe on every '
-        . 'lead update: once the owner has decided the tag, later runs skip. Writes tags.',
+        . 'lead update: once the owner has decided the tag later runs skip, and a vehicle-decided tag is only '
+        . 'looked at again when the owner or the stock number changes. Writes tags.',
 )]
 class AssignDealerTagToLeadActivity extends KanvasActivity
 {

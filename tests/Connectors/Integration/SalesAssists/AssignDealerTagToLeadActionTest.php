@@ -89,7 +89,42 @@ class AssignDealerTagToLeadActionTest extends TestCase
         $this->assertSame(['Store North'], $this->tagNames($lead));
     }
 
-    public function testAVehicleAssignedTagIsNotReassignedByAnotherVehicle(): void
+    public function testAnOwnersNewDealerTagAppliesOnlyOnReassignment(): void
+    {
+        $owner = Users::factory()->create();
+        $lead = $this->createLead(stockNumber: 'S4410', ownerId: $owner->getId());
+        new AssignDealerTagToLeadAction($lead)->execute();
+
+        $owner->set(ConfigurationEnum::USER_DEALER_TAG->value, 'Store North');
+        $sameOwner = new AssignDealerTagToLeadAction($lead->refresh())->execute();
+
+        $this->assertTrue($sameOwner['skipped']);
+        $this->assertSame(['Store South'], $this->tagNames($lead));
+
+        $lead->leads_owner_id = $this->createOwner('Store North');
+        $lead->saveQuietly();
+        $newOwner = new AssignDealerTagToLeadAction($lead->refresh())->execute();
+
+        $this->assertSame('Store North', $newOwner['tag']);
+        $this->assertSame(['Store North'], $this->tagNames($lead));
+    }
+
+    public function testAnOwnerChangeWithNoMatchIsRecordedSoTheNextRunSkips(): void
+    {
+        $lead = $this->createLead(stockNumber: 'S4410');
+        new AssignDealerTagToLeadAction($lead)->execute();
+
+        $lead->leads_owner_id = $this->createOwner('Some Other Store');
+        $lead->saveQuietly();
+
+        $this->assertTrue(new AssignDealerTagToLeadAction($lead->refresh())->execute()['skipped']);
+        $this->assertSame(
+            $lead->leads_owner_id,
+            (int) $lead->get(LeadCustomFieldEnum::DEALER_TAG_OWNER_ID->value)
+        );
+    }
+
+    public function testANewVehicleReTagsAVehicleTaggedLead(): void
     {
         $lead = $this->createLead(stockNumber: 'N1002');
         new AssignDealerTagToLeadAction($lead)->execute();
@@ -97,7 +132,43 @@ class AssignDealerTagToLeadActionTest extends TestCase
         $lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, ['stockNumber' => 'S4410']);
         $result = new AssignDealerTagToLeadAction($lead)->execute();
 
-        $this->assertTrue($result['skipped']);
+        $this->assertSame('Store South', $result['tag']);
+        $this->assertSame(['Store South'], $this->tagNames($lead));
+    }
+
+    public function testTheSameVehicleSkipsWithoutLookingAgain(): void
+    {
+        $lead = $this->createLead(stockNumber: 'N1002');
+        new AssignDealerTagToLeadAction($lead)->execute();
+
+        $lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, [
+            'year' => 2026,
+            'stockNumber' => ' n1002 ',
+        ]);
+
+        $this->assertTrue(new AssignDealerTagToLeadAction($lead)->execute()['skipped']);
+    }
+
+    public function testANewVehicleWithNoMatchKeepsTheTagAndIsRecorded(): void
+    {
+        $lead = $this->createLead(stockNumber: 'N1002');
+        new AssignDealerTagToLeadAction($lead)->execute();
+
+        $lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, ['stockNumber' => 'X999']);
+        new AssignDealerTagToLeadAction($lead)->execute();
+
+        $this->assertSame(['Store North'], $this->tagNames($lead));
+        $this->assertSame('X999', $lead->get(LeadCustomFieldEnum::DEALER_TAG_STOCK_NUMBER->value));
+    }
+
+    public function testANewVehicleDoesNotOverrideAnOwnerTag(): void
+    {
+        $lead = $this->createLead(stockNumber: 'N1002', ownerId: $this->createOwner('Store North'));
+        new AssignDealerTagToLeadAction($lead)->execute();
+
+        $lead->set(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value, ['stockNumber' => 'S4410']);
+
+        $this->assertTrue(new AssignDealerTagToLeadAction($lead)->execute()['skipped']);
         $this->assertSame(['Store North'], $this->tagNames($lead));
     }
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\SalesAssist\Actions;
 
 use Baka\Support\Str;
+use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\SalesAssist\Enums\ConfigurationEnum;
 use Kanvas\Connectors\SalesAssist\Enums\LeadCustomFieldEnum;
 use Kanvas\Guild\Leads\Models\Lead;
@@ -22,7 +23,13 @@ use Kanvas\Guild\Leads\Models\Lead;
  *
  * The activity runs on every lead update, so the trigger that assigned the tag is recorded on the
  * lead: an owner-assigned tag is final and later runs skip, while a vehicle-assigned tag can still
- * be replaced by an owner match (the owner supersedes the vehicle). Only one rooftop tag is kept.
+ * be replaced by an owner match (the owner supersedes the vehicle) or by a new vehicle's stock
+ * number. Only one rooftop tag is kept.
+ *
+ * The owner and stock number each run saw are recorded too, because the activity runs queued after
+ * the save: the model's own change tracking is gone by then, and many paths (agent tools, CRM
+ * pulls) reassign owners or rewrite the vehicle without firing the update workflow at all. A tagged
+ * lead whose owner and stock number both match the recorded ones skips before any lookup.
  */
 class AssignDealerTagToLeadAction
 {
@@ -45,13 +52,27 @@ class AssignDealerTagToLeadAction
             return ['tag' => null, 'trigger' => $previousTrigger, 'skipped' => true];
         }
 
-        $rules = $this->rules();
+        $ownerId = (int) $this->lead->leads_owner_id;
+        $stockNumber = $this->stockNumber();
+        $ownerChanged = $ownerId !== (int) $this->lead->get(LeadCustomFieldEnum::DEALER_TAG_OWNER_ID->value);
+        $stockChanged = $stockNumber !== (string) $this->lead->get(LeadCustomFieldEnum::DEALER_TAG_STOCK_NUMBER->value);
+
+        if ($previousTrigger !== null && ! $ownerChanged && ! $stockChanged) {
+            return ['tag' => null, 'trigger' => $previousTrigger, 'skipped' => true];
+        }
+
+        $rules = self::rulesFor($this->lead->company);
+        $stockMayDecide = $previousTrigger === null || $stockChanged;
 
         [$tag, $trigger] = $this->matchByOwner($rules)
-            ?? ($previousTrigger === null ? $this->matchByStockNumber($rules) : null)
+            ?? ($stockMayDecide ? $this->matchByStockNumber($rules, $stockNumber) : null)
             ?? [null, null];
 
         if ($tag === null) {
+            if ($previousTrigger !== null) {
+                $this->rememberSeen($ownerId, $stockNumber);
+            }
+
             return ['tag' => null, 'trigger' => $previousTrigger, 'skipped' => $previousTrigger !== null];
         }
 
@@ -62,16 +83,27 @@ class AssignDealerTagToLeadAction
 
         $this->lead->addTag($tag);
         $this->lead->set(LeadCustomFieldEnum::DEALER_TAG_TRIGGER->value, $trigger);
+        $this->rememberSeen($ownerId, $stockNumber);
 
         return ['tag' => $tag, 'trigger' => $trigger, 'skipped' => false];
     }
 
     /**
+     * The rooftop tags this company configures — the ones only this action may set.
+     *
+     * @return list<string>
+     */
+    public static function dealerTags(Companies $company): array
+    {
+        return array_column(self::rulesFor($company), 'tag');
+    }
+
+    /**
      * @return array<int, array{tag: string, stock_prefixes: string[]}>
      */
-    private function rules(): array
+    private static function rulesFor(Companies $company): array
     {
-        $configured = Str::jsonToArray($this->lead->company->get(ConfigurationEnum::LEAD_DEALER_TAGS->value));
+        $configured = Str::jsonToArray($company->get(ConfigurationEnum::LEAD_DEALER_TAGS->value));
 
         if (! is_array($configured)) {
             return [];
@@ -118,13 +150,8 @@ class AssignDealerTagToLeadAction
         return null;
     }
 
-    private function matchByStockNumber(array $rules): ?array
+    private function matchByStockNumber(array $rules, string $stockNumber): ?array
     {
-        $vehicle = (array) ($this->lead->get(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value) ?? []);
-        $stockNumber = strtoupper(trim(
-            (string) ($vehicle['stockNumber'] ?? $vehicle['stock_number'] ?? $vehicle['stock'] ?? '')
-        ));
-
         if ($stockNumber === '') {
             return null;
         }
@@ -138,5 +165,20 @@ class AssignDealerTagToLeadAction
         }
 
         return null;
+    }
+
+    private function stockNumber(): string
+    {
+        $vehicle = (array) ($this->lead->get(LeadCustomFieldEnum::VEHICLE_OF_INTEREST->value) ?? []);
+
+        return strtoupper(trim(
+            (string) ($vehicle['stockNumber'] ?? $vehicle['stock_number'] ?? $vehicle['stock'] ?? '')
+        ));
+    }
+
+    private function rememberSeen(int $ownerId, string $stockNumber): void
+    {
+        $this->lead->set(LeadCustomFieldEnum::DEALER_TAG_OWNER_ID->value, $ownerId);
+        $this->lead->set(LeadCustomFieldEnum::DEALER_TAG_STOCK_NUMBER->value, $stockNumber);
     }
 }
