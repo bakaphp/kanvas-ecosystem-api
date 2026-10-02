@@ -12,6 +12,7 @@ use GuzzleHttp\Exception\RequestException;
 use Illuminate\Support\Facades\Log;
 use Kanvas\Connectors\Azul\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Azul\Exceptions\AzulException;
+use Kanvas\Connectors\Azul\Services\AzulCertificate;
 use Kanvas\Exceptions\ValidationException;
 
 class Client
@@ -46,54 +47,15 @@ class Client
             throw new ValidationException('Azul configuration is missing: Auth1 and Auth2 are required');
         }
 
-        $certPath = $this->resolvePath(
-            $this->app->get(ConfigurationEnum::AZUL_CERT_PATH->value) ?? $config['cert_path'] ?? null
-        );
-        $keyPath = $this->resolvePath(
-            $this->app->get(ConfigurationEnum::AZUL_KEY_PATH->value) ?? $config['key_path'] ?? null
-        );
-
-        if (empty($certPath) || empty($keyPath)) {
-            throw new ValidationException('Azul configuration is missing: cert_path and key_path are required');
-        }
-
-        if (! file_exists($certPath)) {
-            throw new ValidationException("Azul cert file not found at: $certPath");
-        }
-        if (! file_exists($keyPath)) {
-            throw new ValidationException("Azul key file not found at: $keyPath");
-        }
-
-        $guzzleConfig = [
+        $guzzleConfig = array_merge([
             'headers' => [
                 'Content-Type' => 'application/json',
-                'Auth1'        => $this->auth1,
-                'Auth2'        => $this->auth2,
+                'Auth1' => $this->auth1,
+                'Auth2' => $this->auth2,
             ],
-            'timeout'         => 120,
+            'timeout' => 120,
             'connect_timeout' => 15,
-            'cert'            => $certPath,
-            'ssl_key'         => $keyPath,
-        ];
-
-        $caPath = $this->app->get(ConfigurationEnum::AZUL_CA_PATH->value)
-            ?? $config['ca_path']
-            ?? null;
-        $caPath = $this->resolvePath($caPath);
-        $verify = $this->app->get(ConfigurationEnum::AZUL_VERIFY_SSL->value)
-            ?? $config['verify_ssl']
-            ?? true;
-
-        if ($verify === false) {
-            $guzzleConfig['verify'] = false; // only for debugging
-        } elseif (! empty($caPath)) {
-            if (! file_exists($caPath)) {
-                throw new ValidationException("Azul CA bundle not found at: $caPath");
-            }
-            $guzzleConfig['verify'] = $caPath;
-        } else {
-            $guzzleConfig['verify'] = true; // use system CA store
-        }
+        ], AzulCertificate::fromApp($this->app, $config)->guzzleOptions());
 
         $this->client = new GuzzleClient($guzzleConfig);
     }
@@ -101,6 +63,71 @@ class Client
     public function post(array $data, ?string $url = null): array
     {
         $endpoint = $url ?? $this->baseUrl;
+
+        try {
+            return $this->send($endpoint, $data);
+        } catch (ConnectException $e) {
+            $failover = $this->failoverEndpoint($endpoint);
+
+            if ($failover === null || ! $this->isSafeToRetry($e)) {
+                throw new AzulException(
+                    'Connection failed (possible IP whitelist or TLS issue): ' . $e->getMessage(),
+                    0,
+                    $e
+                );
+            }
+
+            Log::channel('daily')->warning('Azul primary endpoint unreachable, retrying on failover', [
+                'primary' => $endpoint,
+                'failover' => $failover,
+                'order_id' => $data['CustomOrderId'] ?? null,
+                'error' => $e->getMessage(),
+            ]);
+
+            try {
+                return $this->send($failover, $data);
+            } catch (ConnectException $failoverError) {
+                throw new AzulException(
+                    'Connection failed on both the primary and failover endpoints: ' . $failoverError->getMessage(),
+                    0,
+                    $failoverError
+                );
+            }
+        }
+    }
+
+    public function failoverEndpoint(string $endpoint): ?string
+    {
+        if ($this->baseUrl !== ConfigurationEnum::PROD_URL->value) {
+            return null;
+        }
+
+        $failoverBase = $this->app->get(ConfigurationEnum::AZUL_FAILOVER_URL->value)
+            ?? $this->config['failover_url']
+            ?? ConfigurationEnum::PROD_FAILOVER_URL->value;
+
+        if (empty($failoverBase) || $failoverBase === $this->baseUrl) {
+            return null;
+        }
+
+        $failover = str_replace($this->baseUrl, $failoverBase, $endpoint);
+
+        return $failover === $endpoint ? null : $failover;
+    }
+
+    private function isSafeToRetry(ConnectException $e): bool
+    {
+        $errno = $e->getHandlerContext()['errno'] ?? null;
+
+        return in_array($errno, [
+            CURLE_COULDNT_RESOLVE_HOST,
+            CURLE_COULDNT_CONNECT,
+            CURLE_SSL_CONNECT_ERROR,
+        ], true);
+    }
+
+    private function send(string $endpoint, array $data): array
+    {
         $start = hrtime(true);
         $context = $this->buildLogContext($data, $endpoint);
 
@@ -128,7 +155,7 @@ class Client
                 ]);
             }
 
-            throw new AzulException('Connection failed (possible IP whitelist or TLS issue): ' . $e->getMessage(), 0, $e);
+            throw $e;
         } catch (RequestException $e) {
             $res = $e->getResponse();
             $body = $res ? (string) $res->getBody() : null;
@@ -208,23 +235,5 @@ class Client
     public function getGuzzleClient(): GuzzleClient
     {
         return $this->client;
-    }
-
-    /**
-     * Resolve a path - if relative, make it absolute from base_path()
-     */
-    private function resolvePath(?string $path): ?string
-    {
-        if (empty($path)) {
-            return null;
-        }
-
-        // If already absolute, return as-is
-        if (str_starts_with($path, '/') || (strlen($path) > 1 && $path[1] === ':')) {
-            return $path;
-        }
-
-        // Otherwise, make it relative to base_path
-        return base_path($path);
     }
 }

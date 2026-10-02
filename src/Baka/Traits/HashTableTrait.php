@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Baka\Traits;
 
+use Baka\Contracts\HashTableInterface;
 use Baka\Support\Str;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Exceptions\ConfigurationException;
 
@@ -98,6 +100,35 @@ trait HashTableTrait
         );
 
         return true;
+    }
+
+    public function setEncrypted(string $key, mixed $value, bool|int $isPublic = 0): bool
+    {
+        if ($value === null) {
+            return false;
+        }
+
+        $plain = is_array($value) ? json_encode($value) : (string) $value;
+
+        return $this->set($key, HashTableInterface::SECRET_PREFIX . Crypt::encryptString($plain), $isPublic);
+    }
+
+    public function isSecret(string $key): bool
+    {
+        $value = Redis::hGet($this->getSettingsRedisPrimaryKey(), $key);
+
+        if ($value === false) {
+            $this->createSettingsModel();
+            $setting = $this->getSettingsByKey($key);
+            $value = is_object($setting) ? $setting->value : null;
+        }
+
+        return self::isEncryptedValue($value);
+    }
+
+    public static function isEncryptedValue(mixed $value): bool
+    {
+        return is_string($value) && str_starts_with($value, HashTableInterface::SECRET_PREFIX);
     }
 
     /**
@@ -268,7 +299,7 @@ trait HashTableTrait
                 return $defaultValue;
             }
 
-            return Str::jsonToArray($value);
+            return $this->decodeSettingValue($value);
         }
 
         // Key doesn't exist in Redis, check database
@@ -276,16 +307,24 @@ trait HashTableTrait
         $setting = $this->getSettingsByKey($key);
 
         if (is_object($setting)) {
-            // Cache the value in Redis for future access
             $this->setInRedis($key, $setting->value);
 
-            return $setting->value;
+            return $this->decodeSettingValue($setting->value);
         }
 
         // Cache the "not found" state to prevent future database queries
         Redis::hSet($redisKey, $key, '__NULL__');
 
         return $defaultValue;
+    }
+
+    private function decodeSettingValue(mixed $value): mixed
+    {
+        if (self::isEncryptedValue($value)) {
+            $value = Crypt::decryptString(substr($value, strlen(HashTableInterface::SECRET_PREFIX)));
+        }
+
+        return Str::jsonToArray($value);
     }
 
     /**
