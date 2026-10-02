@@ -31,7 +31,9 @@ class UpdateEngagementAction
             $message = $this->engagement->message;
 
             if ($message) {
-                $messageData = is_array($message->message) ? $message->message : [];
+                // getMessage() and not ->message: a double-encoded body arrives as a string, and
+                // falling back to [] here would wipe status/verb/from, not just replace data.
+                $messageData = $message->getMessage();
                 $messageData['data'] = $this->data->data;
 
                 if ($this->data->description !== null) {
