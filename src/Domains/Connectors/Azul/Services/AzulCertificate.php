@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Azul\Services;
 
 use Baka\Contracts\AppInterface;
-use Illuminate\Contracts\Encryption\DecryptException;
-use Illuminate\Support\Facades\Crypt;
 use Kanvas\Connectors\Azul\Enums\ConfigurationEnum;
 use Kanvas\Exceptions\ValidationException;
 
@@ -92,9 +90,7 @@ final class AzulCertificate
             return null;
         }
 
-        $pem = self::toPem(trim((string) $value), $key);
-
-        return rtrim($pem) . "\n";
+        return self::toPem(trim((string) $value), $key);
     }
 
     private static function toPem(string $value, ConfigurationEnum $key): string
@@ -103,15 +99,6 @@ final class AzulCertificate
 
         if ($pem !== null) {
             return $pem;
-        }
-
-        try {
-            $decrypted = Crypt::decryptString($value);
-
-            if (str_contains($decrypted, '-----BEGIN')) {
-                return $decrypted;
-            }
-        } catch (DecryptException) {
         }
 
         if (str_contains($value, "\n") || strlen($value) > 4096) {
@@ -129,13 +116,13 @@ final class AzulCertificate
             throw new ValidationException("Azul {$key->value} file not found at: {$resolved}");
         }
 
-        $contents = (string) file_get_contents($resolved);
+        $pem = self::decodePem((string) file_get_contents($resolved));
 
-        if (! str_contains($contents, '-----BEGIN')) {
+        if ($pem === null) {
             throw new ValidationException("Azul {$key->value} file at {$resolved} does not contain PEM material");
         }
 
-        return $contents;
+        return $pem;
     }
 
     private static function resolvePath(string $path): string

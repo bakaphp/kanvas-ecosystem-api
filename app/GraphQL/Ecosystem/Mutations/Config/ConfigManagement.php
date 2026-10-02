@@ -14,10 +14,7 @@ class ConfigManagement
 {
     public function setAppSetting(mixed $root, array $request): bool
     {
-        $app = app(Apps::class);
-        $user = auth()->user();
-        $isPublic = $user->isAdmin() && isset($request['input']['public']) ? (bool) $request['input']['public'] : false;
-        $this->store($app, $request['input'], $isPublic);
+        $this->store(app(Apps::class), $request['input']);
 
         return true;
     }
@@ -32,9 +29,7 @@ class ConfigManagement
     public function setCompanySetting(mixed $root, array $request): bool
     {
         $companies = CompaniesRepository::getByUuid($request['input']['entity_uuid'], app(Apps::class));
-        $user = auth()->user();
-        $isPublic = $user->isAdmin() && isset($request['input']['public']) ? (bool) $request['input']['public'] : false;
-        $this->store($companies, $request['input'], $isPublic);
+        $this->store($companies, $request['input']);
 
         return true;
     }
@@ -52,23 +47,9 @@ class ConfigManagement
         $user = Users::getByUuid($request['input']['entity_uuid']);
 
         UsersRepository::belongsToThisApp($user, app(Apps::class));
-        $currentUser = auth()->user();
-        $isPublic = $currentUser->isAdmin() && isset($request['input']['public']) ? (bool) $request['input']['public'] : false;
-
-        $this->store($user, $request['input'], $isPublic);
+        $this->store($user, $request['input']);
 
         return true;
-    }
-
-    private function store(HashTableInterface $entity, array $input, bool $isPublic): void
-    {
-        if (! empty($input['secret'])) {
-            $entity->setEncrypted($input['key'], $input['value'], $isPublic);
-
-            return;
-        }
-
-        $entity->set($input['key'], $input['value'], $isPublic);
     }
 
     public function deleteUserSetting(mixed $root, array $request): bool
@@ -80,5 +61,17 @@ class ConfigManagement
         $user->del($request['input']['key']);
 
         return true;
+    }
+
+    private function store(HashTableInterface $entity, array $input): void
+    {
+        if (! empty($input['secret'])) {
+            $entity->setEncrypted($input['key'], $input['value']);
+
+            return;
+        }
+
+        $isPublic = auth()->user()->isAdmin() && isset($input['public']) ? (bool) $input['public'] : false;
+        $entity->set($input['key'], $input['value'], $isPublic);
     }
 }

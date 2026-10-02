@@ -12,11 +12,10 @@ use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Redis;
 use Kanvas\Exceptions\ConfigurationException;
 
-/**
- * @todo implement redis hashtable for speed
- */
 trait HashTableTrait
 {
+    private const string REDIS_NULL_MARKER = '__NULL__';
+
     protected ?Model $settingsModel = null;
 
     /**
@@ -102,7 +101,10 @@ trait HashTableTrait
         return true;
     }
 
-    public function setEncrypted(string $key, mixed $value, bool|int $isPublic = 0): bool
+    /**
+     * Never public: public settings are served to unauthenticated clients.
+     */
+    public function setEncrypted(string $key, mixed $value): bool
     {
         if ($value === null) {
             return false;
@@ -110,20 +112,12 @@ trait HashTableTrait
 
         $plain = is_array($value) ? json_encode($value) : (string) $value;
 
-        return $this->set($key, HashTableInterface::SECRET_PREFIX . Crypt::encryptString($plain), $isPublic);
+        return $this->set($key, HashTableInterface::SECRET_PREFIX . Crypt::encryptString($plain));
     }
 
     public function isSecret(string $key): bool
     {
-        $value = Redis::hGet($this->getSettingsRedisPrimaryKey(), $key);
-
-        if ($value === false) {
-            $this->createSettingsModel();
-            $setting = $this->getSettingsByKey($key);
-            $value = is_object($setting) ? $setting->value : null;
-        }
-
-        return self::isEncryptedValue($value);
+        return self::isEncryptedValue($this->getRawValue($key));
     }
 
     public static function isEncryptedValue(mixed $value): bool
@@ -214,8 +208,7 @@ trait HashTableTrait
 
         $result = [];
         foreach ($fields as $key => $value) {
-            // Skip cached null markers
-            if ($value === '__NULL__') {
+            if ($value === self::REDIS_NULL_MARKER) {
                 continue;
             }
             $result[$key] = Str::jsonToArray($value);
@@ -284,38 +277,35 @@ trait HashTableTrait
         return $this->getAllSettings($onlyPublicSettings, $publicFormat, false);
     }
 
-    /**
-     * Get the settings base on the key.
-     */
     public function get(string $key, mixed $defaultValue = null): mixed
+    {
+        $value = $this->getRawValue($key);
+
+        return $value === null ? $defaultValue : $this->decodeSettingValue($value);
+    }
+
+    private function getRawValue(string $key): mixed
     {
         $redisKey = $this->getSettingsRedisPrimaryKey();
         $value = Redis::hGet($redisKey, $key);
 
-        // If key exists in Redis
         if ($value !== false) {
-            // Handle cached "not found" state
-            if ($value === '__NULL__') {
-                return $defaultValue;
-            }
-
-            return $this->decodeSettingValue($value);
+            return $value === self::REDIS_NULL_MARKER ? null : $value;
         }
 
-        // Key doesn't exist in Redis, check database
         $this->createSettingsModel();
         $setting = $this->getSettingsByKey($key);
 
         if (is_object($setting)) {
             $this->setInRedis($key, $setting->value);
 
-            return $this->decodeSettingValue($setting->value);
+            return $setting->value;
         }
 
         // Cache the "not found" state to prevent future database queries
-        Redis::hSet($redisKey, $key, '__NULL__');
+        Redis::hSet($redisKey, $key, self::REDIS_NULL_MARKER);
 
-        return $defaultValue;
+        return null;
     }
 
     private function decodeSettingValue(mixed $value): mixed
@@ -323,19 +313,6 @@ trait HashTableTrait
         if (self::isEncryptedValue($value)) {
             $value = Crypt::decryptString(substr($value, strlen(HashTableInterface::SECRET_PREFIX)));
         }
-
-        return Str::jsonToArray($value);
-    }
-
-    /**
-     * Get setting from Redis.
-     */
-    protected function getFromRedis(string $key): mixed
-    {
-        $value = Redis::hGet(
-            $this->getSettingsRedisPrimaryKey(),
-            $key
-        );
 
         return Str::jsonToArray($value);
     }

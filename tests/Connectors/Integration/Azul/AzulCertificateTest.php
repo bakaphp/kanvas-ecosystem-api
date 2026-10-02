@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Azul;
 
-use Illuminate\Support\Facades\Bus;
-use Illuminate\Support\Facades\Crypt;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Connectors\Azul\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Azul\Services\AzulCertificate;
 use Kanvas\Exceptions\ValidationException;
-use Kanvas\Users\Models\Users;
 use Tests\Connectors\Integration\Azul\Concerns\BuildsAzulCertificate;
 use Tests\TestCase;
 
@@ -26,13 +23,6 @@ class AzulCertificateTest extends TestCase
         parent::setUp();
 
         [$this->certPem, $this->keyPem] = $this->generateCertificate();
-    }
-
-    public function createUser(): Users
-    {
-        Bus::fake();
-
-        return parent::createUser();
     }
 
     public function testCertificateIsSentAsCurlBlobsAndNeverAsFilePaths(): void
@@ -51,17 +41,6 @@ class AzulCertificateTest extends TestCase
         $options = $this->resolve([
             'cert' => base64_encode($this->certPem),
             'key' => base64_encode($this->keyPem),
-        ]);
-
-        $this->assertSame($this->certPem, $options['curl'][CURLOPT_SSLCERT_BLOB]);
-        $this->assertSame($this->keyPem, $options['curl'][CURLOPT_SSLKEY_BLOB]);
-    }
-
-    public function testAcceptsEncryptedPemAsWrittenByTheImportCommand(): void
-    {
-        $options = $this->resolve([
-            'cert' => Crypt::encryptString($this->certPem),
-            'key' => Crypt::encryptString($this->keyPem),
         ]);
 
         $this->assertSame($this->certPem, $options['curl'][CURLOPT_SSLCERT_BLOB]);
@@ -106,8 +85,8 @@ class AzulCertificateTest extends TestCase
         $previousCert = $app->get(ConfigurationEnum::AZUL_CERT->value);
         $previousKey = $app->get(ConfigurationEnum::AZUL_KEY->value);
 
-        $app->set(ConfigurationEnum::AZUL_CERT->value, Crypt::encryptString($this->certPem));
-        $app->set(ConfigurationEnum::AZUL_KEY->value, Crypt::encryptString($this->keyPem));
+        $app->setEncrypted(ConfigurationEnum::AZUL_CERT->value, $this->certPem);
+        $app->setEncrypted(ConfigurationEnum::AZUL_KEY->value, $this->keyPem);
 
         try {
             $options = AzulCertificate::fromApp($app)->guzzleOptions();

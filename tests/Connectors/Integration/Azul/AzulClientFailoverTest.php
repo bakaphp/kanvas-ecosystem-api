@@ -11,12 +11,10 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
-use Illuminate\Support\Facades\Bus;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Connectors\Azul\Client;
 use Kanvas\Connectors\Azul\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Azul\Exceptions\AzulException;
-use Kanvas\Users\Models\Users;
 use Tests\Connectors\Integration\Azul\Concerns\BuildsAzulCertificate;
 use Tests\TestCase;
 
@@ -32,13 +30,6 @@ class AzulClientFailoverTest extends TestCase
         parent::setUp();
 
         [$this->certPem, $this->keyPem] = $this->generateCertificate();
-    }
-
-    public function createUser(): Users
-    {
-        Bus::fake();
-
-        return parent::createUser();
     }
 
     public function testSandboxHasNoFailoverHost(): void
