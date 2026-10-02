@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\CRM;
 
+use Kanvas\Companies\Enums\ConfigurationEnum;
 use Kanvas\Intelligence\Agents\Attributes\AgentTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\Traits\ResolvesLeadForTool;
 use NeuronAI\Tools\PropertyType as ToolsPropertyType;
@@ -70,9 +71,11 @@ class LeadIntentTool extends Tool
             $subSource = $lead->source->name;
         }
 
+        $ignoreSubSource = $lead->company->get(ConfigurationEnum::IGNORE_SUB_SOURCE->value);
+
         $source = $sources->where('Source', $leadSource)
-           ->where('Sub_Source', $subSource)
-           ->first();
+            ->unless($ignoreSubSource, fn ($query) => $query->where('Sub_Source', $subSource))
+            ->first();
 
         if (! $source) {
             $source = $sources->where('is_default', true)->first() ?? [
