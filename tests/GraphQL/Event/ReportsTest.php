@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventType;
+use Kanvas\Event\Reports\Services\GoalTrackingService;
 use Tests\TestCase;
 use Tests\Traits\BuildsEventVersionFixtures;
 
@@ -54,6 +55,41 @@ class ReportsTest extends TestCase
                     ],
                 ],
             ]);
+    }
+
+    /**
+     * The percentage and colour are judged against what should be sold by now, not the final
+     * target, and goal_to_date is that number.
+     */
+    public function testEventsTrackingReturnsTheGoalExpectedToDate(): void
+    {
+        $eventDate = Carbon::now()->addWeeks(3);
+        $version = $this->createEventVersionWithParticipants(
+            maxCapacity: 20,
+            eventDate: $eventDate,
+            participantCount: 5,
+        );
+
+        $rows = $this->graphQL('
+            query {
+                eventsTracking(weeks_ahead: 7) {
+                    event_version_id
+                    total_inscribed
+                    goal
+                    goal_to_date
+                    goal_percentage
+                }
+            }
+        ')->assertSuccessful()->json('data.eventsTracking');
+
+        $row = collect($rows)->firstWhere('event_version_id', (string) $version->getId());
+        $goals = new GoalTrackingService();
+        $expected = $goals->getExpectedEnrollment(20, $goals->getWeeksUntil(Carbon::parse($version->start_at)));
+
+        $this->assertSame(20, $row['goal']);
+        $this->assertSame($expected, $row['goal_to_date']);
+        $this->assertLessThan($row['goal'], $row['goal_to_date']);
+        $this->assertEqualsWithDelta($goals->getAchievementPercentage(5, $expected), $row['goal_percentage'], 0.01);
     }
 
     public function testEventsTrackingColorCoding(): void

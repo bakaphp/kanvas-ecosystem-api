@@ -34,6 +34,9 @@ class PullRegistrationsFromIntrasAction
     /** @var array<int, int> intras events_versions_participants.id => kanvas event_version_participant id */
     protected array $registrationIdMap = [];
 
+    /** @var array<int, true>|null kanvas event_version_participant ids already tied to a SIPGO row */
+    protected ?array $claimedRegistrationIds = null;
+
     public function __construct(
         protected AppInterface $app,
         protected Companies $company,
@@ -166,19 +169,19 @@ class PullRegistrationsFromIntrasAction
     {
         $companyId = $this->company->getId();
 
-        $this->eventVersionIdMap = $this->loadIntrasMap(
+        $this->eventVersionIdMap = self::loadIntrasMap(
             $companyId,
             EventVersion::class,
             CustomFieldEnum::INTRAS_EVENT_VERSION_ID->value,
         );
 
-        $this->peopleIdMap = $this->loadIntrasMap(
+        $this->peopleIdMap = self::loadIntrasMap(
             $companyId,
             People::class,
             CustomFieldEnum::INTRAS_PARTICIPANT_ID->value,
         );
 
-        $this->participantTypeIdMap = $this->loadIntrasMap(
+        $this->participantTypeIdMap = self::loadIntrasMap(
             $companyId,
             ParticipantType::class,
             CustomFieldEnum::INTRAS_EVENT_ID->value,
@@ -191,7 +194,7 @@ class PullRegistrationsFromIntrasAction
         // NoCompanyRelationshipTrait, so its custom fields are written with companies_id = 0.
         // Filtering on the importing company finds nothing, and every run then creates a second
         // copy of every registration.
-        $this->registrationIdMap = $this->loadIntrasMap(
+        $this->registrationIdMap = self::loadIntrasMap(
             null,
             EventVersionParticipant::class,
             CustomFieldEnum::INTRAS_REGISTRATION_ID->value,
@@ -267,13 +270,40 @@ class PullRegistrationsFromIntrasAction
             }
         }
 
-        /** @var EventVersionParticipant $evp */
-        $evp = EventVersionParticipant::create($attributes);
+        $adopted = $this->unclaimedTwin($attributes);
+        $evp = $adopted !== null
+            ? $this->applyChanges($adopted, $attributes)
+            : EventVersionParticipant::create($attributes);
         $evp->set(CustomFieldEnum::INTRAS_REGISTRATION_ID->value, $legacyId);
 
         $this->registrationIdMap[$legacyId] = $evp->getId();
+        $this->claimedRegistrationIds[$evp->getId()] = true;
 
         return $evp;
+    }
+
+    /**
+     * A registration for the same version, person and type that no SIPGO id has claimed yet.
+     *
+     * Rows imported before registrations were keyed on the legacy id carry no `intras_registration_id`,
+     * so the id map cannot see them; creating instead of adopting is what doubled every registration
+     * on the first run after that change. Only unclaimed rows qualify, so two genuine SIPGO
+     * registrations for one person (a courtesy seat plus a paid one) still become two rows.
+     *
+     * @param array<string, mixed> $attributes
+     */
+    protected function unclaimedTwin(array $attributes): ?EventVersionParticipant
+    {
+        $this->claimedRegistrationIds ??= array_fill_keys(array_values($this->registrationIdMap), true);
+
+        /** @var EventVersionParticipant|null */
+        return EventVersionParticipant::query()
+            ->where('event_version_id', $attributes['event_version_id'])
+            ->where('participant_id', $attributes['participant_id'])
+            ->where('participant_type_id', $attributes['participant_type_id'])
+            ->orderBy('id')
+            ->get()
+            ->first(fn (EventVersionParticipant $candidate) => ! isset($this->claimedRegistrationIds[$candidate->getId()]));
     }
 
     /**
@@ -385,7 +415,7 @@ class PullRegistrationsFromIntrasAction
     /**
      * @return array<int|string, int>
      */
-    protected function loadIntrasMap(?int $companyId, string $modelClass, string $customFieldName): array
+    public static function loadIntrasMap(?int $companyId, string $modelClass, string $customFieldName): array
     {
         return DB::connection('ecosystem')
             ->table('apps_custom_fields')

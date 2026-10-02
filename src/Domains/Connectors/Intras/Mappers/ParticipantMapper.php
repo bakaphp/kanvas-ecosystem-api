@@ -6,10 +6,20 @@ namespace Kanvas\Connectors\Intras\Mappers;
 
 use Baka\Support\Str;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
+use Kanvas\Guild\Customers\Models\Contact;
+use Kanvas\Guild\Customers\Models\ContactType;
+use Kanvas\Guild\Customers\Models\People;
 use stdClass;
 
 class ParticipantMapper
 {
+    /**
+     * `custom_fields.name` is not unique in SIPGO — `email_oficina` exists under modules 2, 3 and 4 —
+     * and every participants_custom_fields row points at module 4. A write that resolved the field by
+     * name alone could file the value under another module's field, where the Gestor never shows it.
+     */
+    public const int PARTICIPANT_CUSTOM_FIELDS_MODULE_ID = 4;
+
     /**
      * Legacy SIPGO custom_fields.name → Kanvas ContactTypeEnum.
      *
@@ -119,6 +129,128 @@ class ParticipantMapper
             ], fn ($value) => $value !== null),
             'contacts' => self::contactsFromCustomFields($contactRows),
         ];
+    }
+
+    /**
+     * The values SIPGO should hold for this People, given what it holds now. Lookup fields (nivel,
+     * área, ...) and the office address are not pushed: they are SIPGO catalog ids, and Kanvas only
+     * keeps their names.
+     *
+     * @param array<string, string> $current custom_fields.name => value, as loadParticipantContacts() returns
+     *
+     * @return array{participant: array<string, string>, custom_fields: array<string, string>}
+     */
+    public static function toIntras(People $people, array $current = []): array
+    {
+        $firstname = Str::trimToNull((string) $people->firstname);
+        $lastname = Str::trimToNull((string) $people->lastname);
+
+        $participant = array_filter([
+            'first_name' => $firstname,
+            'last_name' => $lastname,
+            'full_name' => Str::trimToNull($firstname . ' ' . $lastname),
+            'position' => Str::trimToNull((string) $people->get('position')),
+            'identification' => Str::trimToNull((string) $people->get('identification')),
+        ], fn ($value) => $value !== null);
+
+        $customFields = [];
+
+        foreach (self::EXTRA_CUSTOM_FIELD_MAP as $legacyName => $kanvasName) {
+            $value = Str::trimToNull((string) $people->get($kanvasName));
+            if ($value !== null) {
+                $customFields[$legacyName] = $value;
+            }
+        }
+
+        return [
+            'participant' => $participant,
+            'custom_fields' => [...$customFields, ...self::contactSlots($people, $current)],
+        ];
+    }
+
+    /**
+     * Which SIPGO slot each Kanvas contact goes in. A value SIPGO already holds keeps its slot and its
+     * SIPGO formatting (Kanvas stores phones as their last 10 digits). A new value takes a slot that is
+     * empty or holds a value Kanvas no longer has. Nothing is blanked: a contact deleted in Kanvas with
+     * nothing to replace it stays in SIPGO.
+     *
+     * @param array<string, string> $current
+     *
+     * @return array<string, string>
+     */
+    public static function contactSlots(People $people, array $current): array
+    {
+        $contacts = $people->contacts()->orderBy('weight')->orderBy('id')->get();
+        $slotsByType = [];
+
+        foreach (self::CONTACT_FIELD_MAP as $slot => $spec) {
+            $slotsByType[$spec['type']->value][] = $slot;
+        }
+
+        $assigned = [];
+
+        foreach ($slotsByType as $type => $slots) {
+            $typeId = ContactType::getByName(ContactTypeEnum::from($type)->getName())->getId();
+            $normalize = fn (string $value) => Contact::normalizeValue($value, $typeId);
+
+            $wanted = [];
+            foreach ($contacts->where('contacts_types_id', $typeId) as $contact) {
+                $wanted[$normalize((string) $contact->value)] ??= trim((string) $contact->value);
+            }
+            unset($wanted['']);
+
+            $freeSlots = [];
+            foreach ($slots as $slot) {
+                $held = $normalize((string) ($current[$slot] ?? ''));
+
+                if ($held !== '' && isset($wanted[$held])) {
+                    unset($wanted[$held]);
+
+                    continue;
+                }
+
+                $freeSlots[] = $slot;
+            }
+
+            foreach ($freeSlots as $slot) {
+                if ($wanted === []) {
+                    break;
+                }
+
+                $assigned[$slot] = array_shift($wanted);
+            }
+        }
+
+        return $assigned;
+    }
+
+    /**
+     * Only what differs, as from → to. Empty when SIPGO already matches.
+     *
+     * @param array{participant: array<string, string>, custom_fields: array<string, string>} $desired
+     * @param array<string, string> $current
+     *
+     * @return array{participant?: array<string, array{from: ?string, to: string}>, custom_fields?: array<string, array{from: ?string, to: string}>}
+     */
+    public static function changes(array $desired, stdClass $row, array $current): array
+    {
+        $changes = ['participant' => [], 'custom_fields' => []];
+
+        foreach ($desired['participant'] as $column => $value) {
+            $from = Str::trimToNull((string) ($row->{$column} ?? ''));
+            if ($from !== $value) {
+                $changes['participant'][$column] = ['from' => $from, 'to' => $value];
+            }
+        }
+
+        foreach ($desired['custom_fields'] as $name => $value) {
+            $from = Str::trimToNull($current[$name] ?? null);
+            if ($from !== $value) {
+                $changes['custom_fields'][$name] = ['from' => $from, 'to' => $value];
+            }
+        }
+
+        return array_filter($changes);
     }
 
     /**

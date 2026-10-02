@@ -392,7 +392,11 @@ class People extends BaseModel
 
     public function addDefaultAddress(DataTransferObjectAddress $address): Address
     {
-        $address = $this->addAddress($address);
+        return $this->makeDefaultAddress($this->addAddress($address));
+    }
+
+    public function makeDefaultAddress(Address $address): Address
+    {
         $address->is_default = 1;
         $address->saveOrFail();
 
@@ -434,41 +438,48 @@ class People extends BaseModel
 
     public function addEmail(string $email, int $isOptOut = 0, int $weight = 0): Contact
     {
-        return Contact::updateOrCreate(
-            [
-                'peoples_id' => $this->id,
-                'value' => $email,
-                'contacts_types_id' => ContactType::getByName(ContactTypeEnum::EMAIL->getName())->getId(),
-            ],
-            [
-                'is_opt_out' => $isOptOut,
-                'weight' => $weight,
-            ]
+        return $this->addContact(
+            ContactTypeEnum::EMAIL->getName(),
+            $email,
+            $isOptOut,
+            $weight
         );
     }
 
     public function addPhone(string $phone, int $isOptOut = 0, int $weight = 0): Contact
     {
-        return Contact::updateOrCreate(
-            [
-                'peoples_id' => $this->id,
-                'value' => $phone,
-                'contacts_types_id' => ContactType::getByName(ContactTypeEnum::PHONE->getName())->getId(),
-            ],
-            [
-                'is_opt_out' => $isOptOut,
-                'weight' => $weight,
-            ]
+        return $this->addContact(
+            ContactTypeEnum::PHONE->getName(),
+            $phone,
+            $isOptOut,
+            $weight
         );
     }
 
     public function addCellPhone(string $phone, int $isOptOut = 0, int $weight = 0): Contact
     {
+        return $this->addContact(
+            ContactTypeEnum::CELLPHONE->getName(),
+            $phone,
+            $isOptOut,
+            $weight
+        );
+    }
+
+    public function addContact(
+        string $typeName,
+        string $value,
+        int $isOptOut = 0,
+        int $weight = 0
+    ): Contact {
+        $typeId = ContactType::getByName($typeName)->getId();
+
+        // ContactObserver stores phones digits-only; match on that form or a "+1 809…" re-save duplicates.
         return Contact::updateOrCreate(
             [
                 'peoples_id' => $this->id,
-                'value' => $phone,
-                'contacts_types_id' => ContactType::getByName(ContactTypeEnum::CELLPHONE->getName())->getId(),
+                'value' => Contact::isPhoneType($typeId) ? Contact::cleanPhone($value) : $value,
+                'contacts_types_id' => $typeId,
             ],
             [
                 'is_opt_out' => $isOptOut,
