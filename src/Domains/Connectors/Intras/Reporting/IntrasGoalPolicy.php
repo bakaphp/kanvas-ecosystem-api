@@ -124,6 +124,34 @@ final class IntrasGoalPolicy
     public const string CANCELLED_STATUS = 'Cancelado';
 
     /**
+     * ESTRATEGIAS DE COMUNICACIÓN: an open seminar with fewer than `below` firm registrations
+     * `days` days out gets the plan. Plan C may only run once every 30 days, which nothing here
+     * can know — campaigns sent are not recorded anywhere.
+     */
+    public const array PLAN_B = ['days' => 14, 'below' => 18];
+    public const array PLAN_C = ['days' => 10, 'below' => 15];
+
+    /**
+     * "Participantes inscritos" for the Plan B / Plan C triggers: the firm commitments, i.e. the
+     * types carrying the top weight in TYPE_WEIGHTS. A soft interest is not a seat, and counting it
+     * would hold back the very campaign meant to fill the room.
+     *
+     * @return list<string>
+     */
+    public static function firmTypes(): array
+    {
+        return array_keys(self::TYPE_WEIGHTS, max(self::TYPE_WEIGHTS), true);
+    }
+
+    /**
+     * @param array<string, int> $countsByTypeSlug
+     */
+    public static function firmCount(array $countsByTypeSlug): int
+    {
+        return array_sum(array_intersect_key($countsByTypeSlug, array_flip(self::firmTypes())));
+    }
+
+    /**
      * Two states, not three.
      *
      * CALENDARIO — ESTADÍSTICAS is explicit: "franja roja cuando la cantidad de participantes sea

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Connectors\Integration\Intras;
 
+use Kanvas\Analytics\Reporting\DataTransferObject\AggregateRequest;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportFilter;
 use Kanvas\Analytics\Reporting\Services\ReportQueryService;
 use Kanvas\Analytics\Reporting\Services\ReportSchemaService;
@@ -130,6 +131,87 @@ class ReportQueryServiceTest extends TestCase
         $this->service->count($this->definition, $this->kanvasApp, $this->company, [
             new ReportFilter('drop_table_users', '=', 'x'),
         ]);
+    }
+
+    public function test_a_month_bucket_groups_by_period_and_reads_in_time_order(): void
+    {
+        $rows = $this->service->aggregate(
+            $this->definition,
+            $this->kanvasApp,
+            $this->company,
+            AggregateRequest::fromInput(
+                aggregates: [['function' => 'COUNT', 'alias' => 'inscripciones']],
+                groupBy: ['fecha_inicio:month'],
+            ),
+        );
+
+        $this->assertSame(
+            [['2019-05', 1], ['2026-02', 2]],
+            array_map(fn (array $row) => [$row['fecha_inicio_month'], (int) $row['inscripciones']], $rows),
+        );
+    }
+
+    public function test_a_year_bucket_can_be_ordered_by_its_spec_or_its_alias(): void
+    {
+        foreach (['fecha_inicio:year', 'fecha_inicio_year'] as $orderBy) {
+            $rows = $this->service->aggregate(
+                $this->definition,
+                $this->kanvasApp,
+                $this->company,
+                AggregateRequest::fromInput(
+                    aggregates: [['function' => 'COUNT_DISTINCT', 'column' => 'peoples_id', 'alias' => 'ejecutivos']],
+                    groupBy: ['fecha_inicio:year'],
+                    orderBy: $orderBy,
+                ),
+            );
+
+            $this->assertSame(['2026', '2019'], array_column($rows, 'fecha_inicio_year'), $orderBy);
+        }
+    }
+
+    public function test_a_bucket_on_a_non_date_column_is_rejected(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        $this->service->aggregate(
+            $this->definition,
+            $this->kanvasApp,
+            $this->company,
+            AggregateRequest::fromInput(aggregates: [['function' => 'COUNT']], groupBy: ['tipo:month']),
+        );
+    }
+
+    public function test_an_unknown_bucket_never_reaches_sql(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        $this->service->aggregate(
+            $this->definition,
+            $this->kanvasApp,
+            $this->company,
+            AggregateRequest::fromInput(
+                aggregates: [['function' => 'COUNT']],
+                groupBy: ['fecha_inicio:month`), (SELECT 1'],
+            ),
+        );
+    }
+
+    public function test_rows_can_be_sorted_and_paged(): void
+    {
+        $page = fn (int $offset) => $this->service->search(
+            $this->definition,
+            $this->kanvasApp,
+            $this->company,
+            select: ['inscripcion_id', 'fecha_inicio'],
+            limit: 2,
+            offset: $offset,
+            orderBy: 'fecha_inicio',
+            descending: true,
+        );
+
+        // The two 2026 rows tie on the date; the key tie-break keeps them in a fixed order.
+        $this->assertSame([2, 3], array_map('intval', array_column($page(0), 'inscripcion_id')));
+        $this->assertSame([1], array_map('intval', array_column($page(2), 'inscripcion_id')));
     }
 
     public function test_an_unsupported_operator_is_rejected(): void
