@@ -21,6 +21,7 @@ class VehiclePrice extends Data
     public function __construct(
         public readonly Variants $variant,
         public readonly string $vehicleKey,
+        public readonly string $stockNumber,
         public readonly float $caCarsTotalPrice,
         public readonly float $preRebateSellingPrice,
         public readonly float $ftcActualPrice,

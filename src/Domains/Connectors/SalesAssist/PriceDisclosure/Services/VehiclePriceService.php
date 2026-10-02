@@ -25,6 +25,8 @@ class VehiclePriceService
 
     private const array MSRP_SLUGS = ['msrp'];
 
+    private const array STOCK_NUMBER_SLUGS = ['stock-number', 'stock_number'];
+
     public function __construct(
         private readonly Lead $lead,
     ) {
@@ -76,6 +78,7 @@ class VehiclePriceService
         return new VehiclePrice(
             variant: $variant,
             vehicleKey: (string) $variant->sku,
+            stockNumber: $this->stockNumber($variant),
             caCarsTotalPrice: $msrp,
             preRebateSellingPrice: round($msrp + $feesTotal, 2),
             ftcActualPrice: round($internetPrice + $feesTotal, 2),
@@ -102,13 +105,29 @@ class VehiclePriceService
         );
     }
 
+    /**
+     * The dealer's stock number is a variant attribute; the SKU (the VIN) only stands in when the
+     * unit has none.
+     */
+    private function stockNumber(Variants $variant): string
+    {
+        $value = $this->attributeValue($variant, self::STOCK_NUMBER_SLUGS);
+
+        return Str::trimToNull(is_array($value) ? null : (string) $value) ?? (string) $variant->sku;
+    }
+
     private function attributeAmount(Variants $variant, array $slugs): ?float
     {
-        foreach ([$variant, $variant->product] as $entity) {
-            $amount = self::amount($entity?->attributes()->whereIn('attributes.slug', $slugs)->first()?->value);
+        return self::amount($this->attributeValue($variant, $slugs));
+    }
 
-            if ($amount !== null) {
-                return $amount;
+    private function attributeValue(Variants $variant, array $slugs): mixed
+    {
+        foreach ([$variant, $variant->product] as $entity) {
+            $value = $entity?->attributes()->whereIn('attributes.slug', $slugs)->first()?->value;
+
+            if ($value !== null && $value !== '') {
+                return $value;
             }
         }
 

@@ -124,7 +124,7 @@ final class VehiclePriceDisclosureToolTest extends TestCase
         $this->assertSame(VehiclePriceDisclosureTool::MODE_INSERT_BLOCK, $result['mode']);
         $this->assertSame(RenderPriceDisclosureAction::DEFAULT_TEMPLATE_NAME, $result['template']);
         $this->assertSame(
-            'The vehicle total price before rebates or incentives is $27,000.00. '
+            'For stock number ' . $variant->sku . ', the vehicle total price before rebates or incentives is $27,000.00. '
             . 'Including the $85.00 documentation fee and $33.00 electronic filing charge, the selling price is $27,118.00. '
             . 'The current advertised sale price is $25,118.00, before government-required taxes and registration charges.',
             $result['message'],
@@ -134,6 +134,18 @@ final class VehiclePriceDisclosureToolTest extends TestCase
         $ledger = $lead->get(PriceDisclosureConfigurationEnum::DISCLOSURES->value);
         $this->assertSame(RenderPriceDisclosureAction::DEFAULT_TEMPLATE_NAME, $ledger[$variant->sku]['template']);
         $this->assertNull($ledger[$variant->sku]['template_id']);
+    }
+
+    public function testUsesTheStockNumberAttributeOverTheSku(): void
+    {
+        $variant = $this->makePricedVariant(25000.0, msrp: 27000.0);
+        $variant->addAttributes($this->user, [['name' => 'stock_number', 'value' => 'STK-4471']]);
+        $lead = $this->makeLead($variant->sku);
+
+        $result = $this->tool()->__invoke(lead_id: $lead->getId(), channel: 'sms');
+
+        $this->assertStringStartsWith('For stock number STK-4471, ', $result['message']);
+        $this->assertStringNotContainsString($variant->sku, $result['message']);
     }
 
     public function testWithoutConfiguredFeesTheSellingPricesEqualTheBasePrices(): void
