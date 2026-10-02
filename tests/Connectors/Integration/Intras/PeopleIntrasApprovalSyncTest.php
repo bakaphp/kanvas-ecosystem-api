@@ -20,6 +20,7 @@ use Kanvas\Connectors\Intras\Activities\RequestPeopleApprovalActivity;
 use Kanvas\Connectors\Intras\Client;
 use Kanvas\Connectors\Intras\Enums\ConfigurationEnum;
 use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
+use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\ContactType;
@@ -296,8 +297,7 @@ final class PeopleIntrasApprovalSyncTest extends TestCase
         ContactTypeEnum $type,
         string $value,
         int $weight
-    ): void
-    {
+    ): void {
         Contact::create([
             'peoples_id' => $people->getId(),
             'contacts_types_id' => $this->contactTypeId($type),
