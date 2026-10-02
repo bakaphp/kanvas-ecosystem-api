@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Intras\Actions;
 
 use Kanvas\Connectors\Intras\Client;
-use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Mappers\ParticipantMapper;
 use Kanvas\Guild\Customers\Models\People;
 
@@ -21,9 +20,9 @@ class DiffPeopleWithIntrasAction
      */
     public function execute(): ?array
     {
-        $participantId = (int) $this->people->get(CustomFieldEnum::INTRAS_PARTICIPANT_ID->value);
+        $participantId = ParticipantMapper::participantId($this->people);
 
-        if ($participantId <= 0) {
+        if ($participantId === null) {
             return null;
         }
 

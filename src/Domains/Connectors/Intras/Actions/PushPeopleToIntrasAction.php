@@ -6,7 +6,6 @@ namespace Kanvas\Connectors\Intras\Actions;
 
 use Carbon\Carbon;
 use Kanvas\Connectors\Intras\Client;
-use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Mappers\ParticipantMapper;
 use Kanvas\Exceptions\ValidationException;
 use Kanvas\Guild\Customers\Models\People;
@@ -29,9 +28,9 @@ class PushPeopleToIntrasAction
 
     public function execute(): array
     {
-        $participantId = (int) $this->people->get(CustomFieldEnum::INTRAS_PARTICIPANT_ID->value);
+        $participantId = ParticipantMapper::participantId($this->people);
 
-        if ($participantId <= 0) {
+        if ($participantId === null) {
             throw new ValidationException('People ' . $this->people->getId() . ' is not linked to a SIPGO participant.');
         }
 
@@ -45,6 +44,10 @@ class PushPeopleToIntrasAction
         $client = new Client($this->people->app);
 
         $client->getConnection()->transaction(function () use ($client, $participantId, $columns, $customFields) {
+            if (! $client->table('participants')->where('id', $participantId)->exists()) {
+                throw new ValidationException('SIPGO participant ' . $participantId . ' no longer exists.');
+            }
+
             $client->table('participants')
                 ->where('id', $participantId)
                 ->update([

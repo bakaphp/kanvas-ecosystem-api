@@ -82,7 +82,12 @@ final class PeopleIntrasApprovalSyncTest extends TestCase
         $people->set('position', 'Directora');
 
         $people->contacts()->where('contacts_types_id', $this->contactTypeId(ContactTypeEnum::EMAIL))->update(['value' => 'anabel@example.com']);
-        $this->addContact($people, ContactTypeEnum::CELLPHONE, '8295550000', 1);
+        $this->addContact(
+            $people,
+            ContactTypeEnum::CELLPHONE,
+            '8295550000',
+            1
+        );
 
         $this->assertSame([
             'participant' => [
@@ -163,6 +168,22 @@ final class PeopleIntrasApprovalSyncTest extends TestCase
             ['from' => 'Pérez', 'to' => 'Gómez'],
             ApprovalRequest::find($second['approval_request_id'])->payload['changes']['participant']['last_name']
         );
+    }
+
+    public function test_push_refuses_a_participant_sipgo_no_longer_has_and_writes_nothing(): void
+    {
+        $people = $this->importedPeople();
+        $this->sipgo()->table('participants')->where('id', self::PARTICIPANT_ID)->delete();
+
+        try {
+            new PushPeopleToIntrasAction($people, [
+                'custom_fields' => ['celular_2' => ['from' => null, 'to' => '8295550000']],
+            ])->execute();
+            $this->fail('Expected the push to refuse a missing participant.');
+        } catch (ValidationException) {
+        }
+
+        $this->assertSame(0, $this->sipgo()->table('participants_custom_fields')->where('custom_fields_id', 66)->count());
     }
 
     public function test_a_numerically_equal_but_different_value_is_not_mistaken_for_the_pending_one(): void
@@ -254,13 +275,28 @@ final class PeopleIntrasApprovalSyncTest extends TestCase
         $people->set('identification', '00112345678');
         $people->set('sexo', 'F');
 
-        $this->addContact($people, ContactTypeEnum::EMAIL, 'ana@example.com', 0);
-        $this->addContact($people, ContactTypeEnum::CELLPHONE, '8095551234', 0);
+        $this->addContact(
+            $people,
+            ContactTypeEnum::EMAIL,
+            'ana@example.com',
+            0
+        );
+        $this->addContact(
+            $people,
+            ContactTypeEnum::CELLPHONE,
+            '8095551234',
+            0
+        );
 
         return $people;
     }
 
-    private function addContact(People $people, ContactTypeEnum $type, string $value, int $weight): void
+    private function addContact(
+        People $people,
+        ContactTypeEnum $type,
+        string $value,
+        int $weight
+    ): void
     {
         Contact::create([
             'peoples_id' => $people->getId(),

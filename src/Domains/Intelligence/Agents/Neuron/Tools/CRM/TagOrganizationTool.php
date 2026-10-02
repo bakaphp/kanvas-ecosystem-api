@@ -11,9 +11,9 @@ use Kanvas\Social\Tags\Models\Tag;
 use NeuronAI\Tools\ArrayProperty;
 use NeuronAI\Tools\HasRunKey;
 use NeuronAI\Tools\PropertyType;
+use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\ToolProperty;
 use NeuronAI\Tools\ToolPropertyInterface;
-use NeuronAI\Tools\Tool;
 use NeuronAI\Tools\TrackByInputs;
 use Override;
 

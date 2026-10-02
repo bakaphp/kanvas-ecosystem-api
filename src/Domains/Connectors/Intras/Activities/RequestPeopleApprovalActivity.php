@@ -6,10 +6,11 @@ namespace Kanvas\Connectors\Intras\Activities;
 
 use Baka\Contracts\AppInterface;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use Kanvas\Approvals\Concerns\OpensApprovalWithSupersede;
 use Kanvas\Connectors\Intras\Actions\DiffPeopleWithIntrasAction;
-use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Connectors\Intras\Enums\PeopleIntrasSyncApprovalTypeEnum;
+use Kanvas\Connectors\Intras\Mappers\ParticipantMapper;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Workflow\Attributes\WorkflowAction;
 use Kanvas\Workflow\Contracts\WorkflowActivityInterface;
@@ -47,7 +48,7 @@ class RequestPeopleApprovalActivity extends KanvasActivity implements WorkflowAc
     {
         $this->overwriteAppService($app);
 
-        if (! $people->get(CustomFieldEnum::INTRAS_PARTICIPANT_ID->value)) {
+        if (ParticipantMapper::participantId($people) === null) {
             return ['requested' => false, 'reason' => 'people is not linked to a SIPGO participant'];
         }
 
@@ -67,11 +68,12 @@ class RequestPeopleApprovalActivity extends KanvasActivity implements WorkflowAc
     private function requestApproval(People $people, array $params): array
     {
         $changes = new DiffPeopleWithIntrasAction($people)->execute();
+        $participantId = ParticipantMapper::participantId($people);
 
         if ($changes === null) {
             return $this->failWorkflow([
                 'requested' => false,
-                'reason' => 'SIPGO participant ' . $people->get(CustomFieldEnum::INTRAS_PARTICIPANT_ID->value) . ' not found',
+                'reason' => 'SIPGO participant ' . $participantId . ' not found',
             ]);
         }
 
@@ -80,9 +82,11 @@ class RequestPeopleApprovalActivity extends KanvasActivity implements WorkflowAc
         }
 
         $approvalType = PeopleIntrasSyncApprovalTypeEnum::UPDATE->value;
+        $pendingChanges = $people->pendingApproval($approvalType)?->payload['changes'] ?? null;
 
-        // `==`, not `===`: the payload is a MySQL JSON column, which stores object keys reordered.
-        if (($people->pendingApproval($approvalType)?->payload['changes'] ?? null) == $changes) {
+        // Key-sorted, then strict: the JSON column reorders keys, and `==` would compare numeric strings
+        // as numbers — "0112345678" == "112345678" — dropping a real edit as already pending.
+        if ($pendingChanges !== null && Arr::sortRecursive($pendingChanges) === Arr::sortRecursive($changes)) {
             return ['requested' => false, 'reason' => 'already pending'];
         }
 
@@ -91,7 +95,7 @@ class RequestPeopleApprovalActivity extends KanvasActivity implements WorkflowAc
             $approvalType,
             [
                 'people_id' => $people->getId(),
-                'intras_participant_id' => (int) $people->get(CustomFieldEnum::INTRAS_PARTICIPANT_ID->value),
+                'intras_participant_id' => $participantId,
                 'changes' => $changes,
             ],
             ['auto_reject_stale_pending' => true, ...$params],

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Kanvas\Connectors\Intras\Mappers;
 
 use Baka\Support\Str;
+use Kanvas\Connectors\Intras\Enums\CustomFieldEnum;
 use Kanvas\Guild\Customers\Enums\ContactTypeEnum;
 use Kanvas\Guild\Customers\Models\Contact;
 use Kanvas\Guild\Customers\Models\ContactType;
@@ -131,6 +132,13 @@ class ParticipantMapper
         ];
     }
 
+    public static function participantId(People $people): ?int
+    {
+        $id = (int) $people->get(CustomFieldEnum::INTRAS_PARTICIPANT_ID->value);
+
+        return $id > 0 ? $id : null;
+    }
+
     /**
      * The values SIPGO should hold for this People, given what it holds now. Lookup fields (nivel,
      * área, ...) and the office address are not pushed: they are SIPGO catalog ids, and Kanvas only
@@ -178,7 +186,7 @@ class ParticipantMapper
      *
      * @return array<string, string>
      */
-    public static function contactSlots(People $people, array $current): array
+    private static function contactSlots(People $people, array $current): array
     {
         $contacts = $people->contacts()->orderBy('weight')->orderBy('id')->get();
         $slotsByType = [];

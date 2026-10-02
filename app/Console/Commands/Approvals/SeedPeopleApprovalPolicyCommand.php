@@ -27,7 +27,7 @@ use Kanvas\SystemModules\Repositories\SystemModulesRepository;
  *
  * All are independent — approving one is not a prerequisite for the others. Trigger is MANUAL
  * on purpose: the Activity calls requestApproval() explicitly, so turning this on does not change
- * when approvals open, only where they are recorded. `handler` stays null on all three: the push
+ * when approvals open, only where they are recorded. `handler` stays null on all of them: the push
  * happens over workflow (PushApprovedPeopleActivity, fired on ApprovalRequest::APPROVED), not a
  * synchronous handler — People has no state machine of its own to transition, unlike a Bill.
  */
