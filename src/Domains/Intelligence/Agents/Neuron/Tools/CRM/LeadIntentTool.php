@@ -83,6 +83,7 @@ class LeadIntentTool extends Tool
         return [
             'lead_intent' => $source['Backend'],
             'intent_completion_status' => $source['Default_Completion_Status'],
+            'lead_type' => $source['Up Type'] ?? $source['Up_Type'] ?? '',
         ];
     }
 }
