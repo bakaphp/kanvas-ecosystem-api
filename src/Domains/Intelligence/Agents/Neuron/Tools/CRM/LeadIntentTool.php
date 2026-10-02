@@ -66,10 +66,6 @@ class LeadIntentTool extends Tool
         }
 
         // @todo standardize source and subsource names to lowercase to avoid issues like this
-        if ($lead->get('VIN_SOLUTION_LEADS')) {
-            $leadSource = $lead->type->name;
-            $subSource = $lead->source->name;
-        }
 
         $ignoreSubSource = $lead->company->get(ConfigurationEnum::IGNORE_SUB_SOURCE->value);
 
