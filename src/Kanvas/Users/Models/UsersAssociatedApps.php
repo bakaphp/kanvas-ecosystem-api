@@ -15,6 +15,7 @@ use Kanvas\AccessControlList\Models\Role;
 use Kanvas\Auth\Contracts\Authenticatable;
 use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Models\BaseModel;
+use Kanvas\Social\Tags\Traits\HasTagsTrait;
 use Kanvas\Users\Observers\UsersAssociatedAppsObserver;
 use Override;
 
@@ -53,6 +54,9 @@ use Override;
 #[ObservedBy([UsersAssociatedAppsObserver::class])]
 class UsersAssociatedApps extends BaseModel implements Authenticatable, UserAppInterface
 {
+    // Users are shared across companies; tagging the per-company membership keeps one company's
+    // tags on a user invisible to every other company that user belongs to.
+    use HasTagsTrait;
     // use SoftDeletesTrait;
     // public const DELETED_AT = 'is_deleted';
 
