@@ -31,6 +31,19 @@ class ReportQueryService
 {
     public const int MAX_LIMIT = 1000;
 
+    /**
+     * Date buckets a `group_by` entry can ask for as `column:bucket`. Every key renders a sortable
+     * string, so ordering the bucket ascending is ordering it in time.
+     */
+    public const array DATE_BUCKETS = [
+        'day' => "DATE_FORMAT(`%1\$s`, '%%Y-%%m-%%d')",
+        'month' => "DATE_FORMAT(`%1\$s`, '%%Y-%%m')",
+        'quarter' => "CONCAT(YEAR(`%1\$s`), '-Q', QUARTER(`%1\$s`))",
+        'year' => "CAST(YEAR(`%1\$s`) AS CHAR)",
+    ];
+
+    private const array DATE_TYPES = ['date', 'datetime'];
+
     public function __construct(
         protected ReportSchemaService $schema = new ReportSchemaService(),
     ) {
@@ -71,7 +84,9 @@ class ReportQueryService
         array $filters = [],
         ?array $select = null,
         int $limit = 50,
-        int $offset = 0
+        int $offset = 0,
+        ?string $orderBy = null,
+        bool $descending = false
     ): array {
         $columns = $this->columnsByName($definition);
 
@@ -81,7 +96,15 @@ class ReportQueryService
             }
         }
 
-        return $this->builder($definition, $app, $company, $filters)
+        $query = $this->builder($definition, $app, $company, $filters);
+
+        if ($orderBy !== null) {
+            $this->assertColumn($orderBy, $columns);
+            $query->orderBy($orderBy, $descending ? 'desc' : 'asc');
+        }
+
+        // Tie-break on the key so paging through equal sort values never repeats or skips a row.
+        return $query->orderBy($definition->primaryKey())
             ->select($select ?? ['*'])
             ->limit(min($limit, self::MAX_LIMIT))
             ->offset($offset)
@@ -178,11 +201,24 @@ class ReportQueryService
         $query = $this->builder($definition, $app, $company, $filters);
 
         $select = [];
+        $bucketAliases = [];
 
         foreach ($request->groupBy as $groupColumn) {
-            $this->assertColumn($groupColumn, $columns);
-            $query->groupBy($groupColumn);
-            $select[] = $groupColumn;
+            $bucket = $this->dateBucket($groupColumn, $columns);
+
+            if ($bucket === null) {
+                $this->assertColumn($groupColumn, $columns);
+                $query->groupBy($groupColumn);
+                $select[] = $groupColumn;
+
+                continue;
+            }
+
+            [$expression, $alias] = $bucket;
+            $bucketAliases[$groupColumn] = $alias;
+            $bucketAliases[$alias] = $alias;
+            $query->groupBy($alias);
+            $select[] = DB::raw(sprintf('%s as `%s`', $expression, $alias));
         }
 
         foreach ($request->aggregates as $alias => $spec) {
@@ -207,11 +243,16 @@ class ReportQueryService
         if ($request->orderBy !== null) {
             // Ordering by an alias is the whole point — "top 5 by total" — so an alias is
             // accepted, and anything else has to be a declared column.
-            if (! array_key_exists($request->orderBy, $request->aggregates)) {
-                $this->assertColumn($request->orderBy, $columns);
+            $orderBy = $bucketAliases[$request->orderBy] ?? $request->orderBy;
+
+            if (! array_key_exists($orderBy, $request->aggregates) && ! in_array($orderBy, $bucketAliases, true)) {
+                $this->assertColumn($orderBy, $columns);
             }
 
-            $query->orderBy($request->orderBy, $request->descending ? 'desc' : 'asc');
+            $query->orderBy($orderBy, $request->descending ? 'desc' : 'asc');
+        } elseif ($bucketAliases !== []) {
+            // A time series with no explicit order reads left to right in time.
+            $query->orderBy(reset($bucketAliases));
         }
 
         return $query->select($select)
@@ -255,6 +296,40 @@ class ReportQueryService
         }
 
         return [array_values($value)[0], array_values($value)[1]];
+    }
+
+    /**
+     * `fecha_inicio:month` → [the SQL that buckets it, `fecha_inicio_month`]; null for a plain column.
+     *
+     * The column is validated before it reaches the expression and the bucket must be one of the
+     * declared keys, so neither half of the string reaches the SQL unchecked.
+     *
+     * @param array<string, ReportColumn> $columns
+     *
+     * @return array{0: string, 1: string}|null
+     */
+    protected function dateBucket(string $groupBy, array $columns): ?array
+    {
+        if (! str_contains($groupBy, ':')) {
+            return null;
+        }
+
+        [$name, $bucket] = explode(':', $groupBy, 2);
+        $column = $this->assertColumn($name, $columns);
+
+        if (! isset(self::DATE_BUCKETS[$bucket])) {
+            throw new ValidationException(sprintf(
+                'Unknown date bucket "%s". Use one of: %s.',
+                $bucket,
+                implode(', ', array_keys(self::DATE_BUCKETS))
+            ));
+        }
+
+        if (! in_array($column->type, self::DATE_TYPES, true)) {
+            throw new ValidationException(sprintf('"%s" is not a date column, so it cannot be grouped by %s.', $name, $bucket));
+        }
+
+        return [sprintf(self::DATE_BUCKETS[$bucket], $name), $name . '_' . $bucket];
     }
 
     /**

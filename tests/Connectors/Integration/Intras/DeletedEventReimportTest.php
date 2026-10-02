@@ -6,11 +6,13 @@ namespace Tests\Connectors\Integration\Intras;
 
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Kanvas\Apps\Models\Apps;
+use Kanvas\Connectors\Intras\Actions\RestoreDeletedParentEventsAction;
 use Kanvas\Event\Events\Models\Event;
 use Kanvas\Event\Events\Models\EventCategory;
 use Kanvas\Event\Events\Models\EventClass;
 use Kanvas\Event\Events\Models\EventStatus;
 use Kanvas\Event\Events\Models\EventType;
+use Kanvas\Event\Events\Models\EventVersion;
 use Kanvas\Event\Support\Setup;
 use Kanvas\Event\Themes\Models\Theme;
 use Kanvas\Event\Themes\Models\ThemeArea;
@@ -24,10 +26,9 @@ use Tests\TestCase;
  * takes its registrations with it — 6 versions and 69 registrations across the four agencies,
  * found only by reconciling against the legacy row counts.
  *
- * The importer therefore pulls a version's parent in regardless, storing it with SIPGO's deleted
- * flag. That makes the lookup the risk this test covers: `Event` inherits a global
- * `is_deleted = 0` scope, so a plain `firstOrCreate()` cannot see the flagged parent it wrote
- * last run and would create a second copy every time.
+ * The importer therefore pulls a version's parent in regardless, and must store it live: a live
+ * version under a flagged event hides its parent behind `Event`'s global `is_deleted = 0` scope,
+ * and the non-null `EventVersion.event` fails every calendar query (KANVAS-ECOSYSTEM-5GS).
  *
  * The selection half is a legacy-database query and is verified against real data instead:
  * re-importing agency 3 moved events 40 → 42, versions 124 → 126 and registrations 2,891 → 2,892,
@@ -39,15 +40,14 @@ class DeletedEventReimportTest extends TestCase
 
     protected array $connectionsToTransact = ['mysql', 'crm', 'event'];
 
-    public function test_a_deleted_event_is_found_again_instead_of_duplicated(): void
+    public function test_a_parent_flagged_by_an_earlier_run_is_found_instead_of_duplicated(): void
     {
         $slug = 'intras-deleted-parent-' . uniqid();
 
-        $first = $this->importEvent($slug, deleted: true);
+        $first = $this->importEvent($slug);
+        Event::where('id', $first->getId())->update(['is_deleted' => 1]);
 
-        $this->assertSame(1, (int) $first->is_deleted, 'a parent deleted in SIPGO is stored flagged');
-
-        $second = $this->importEvent($slug, deleted: true);
+        $second = $this->importEvent($slug);
 
         $this->assertSame(
             $first->getId(),
@@ -55,24 +55,50 @@ class DeletedEventReimportTest extends TestCase
             'the global is_deleted scope must not hide the parent from the next run'
         );
 
-        $this->assertSame(1, $this->countBySlug($slug), 'exactly one row, not one per import run');
+        $this->assertSame(1, Event::withTrashed()->where('slug', $slug)->count(), 'exactly one row, not one per import run');
     }
 
-    public function test_a_live_event_still_round_trips(): void
+    public function test_a_new_parent_is_stored_live(): void
     {
-        $slug = 'intras-live-parent-' . uniqid();
+        $event = $this->importEvent('intras-live-parent-' . uniqid());
 
-        $first = $this->importEvent($slug, deleted: false);
-        $second = $this->importEvent($slug, deleted: false);
+        $this->assertSame(0, (int) $event->is_deleted);
+    }
 
-        $this->assertSame($first->getId(), $second->getId());
-        $this->assertSame(0, (int) $first->is_deleted);
+    public function test_restore_undeletes_a_parent_that_still_has_a_live_version(): void
+    {
+        $version = $this->seedVersion();
+        Event::where('id', $version->event_id)->update(['is_deleted' => 1]);
+
+        $this->assertNull($version->fresh()->event, 'precondition: the flagged parent is hidden');
+
+        $restored = new RestoreDeletedParentEventsAction(app(Apps::class), $version->company)->execute();
+
+        $this->assertSame(1, $restored);
+        $this->assertNotNull($version->fresh()->event);
+    }
+
+    public function test_restore_leaves_a_deleted_event_whose_versions_are_deleted(): void
+    {
+        $version = $this->seedVersion();
+        $event = $version->event;
+        $event->delete();
+
+        $this->assertSame(
+            1,
+            (int) EventVersion::withTrashed()->where('id', $version->getId())->value('is_deleted'),
+            'precondition: the cascade deleted the version'
+        );
+
+        new RestoreDeletedParentEventsAction(app(Apps::class), $version->company)->execute();
+
+        $this->assertSame(1, (int) Event::withTrashed()->where('id', $event->getId())->value('is_deleted'));
     }
 
     /**
-     * The same shape the importer uses: match on slug + tenant, carry SIPGO's flag on create.
+     * The same shape the importer uses: match on slug + tenant, always create live.
      */
-    private function importEvent(string $slug, bool $deleted): Event
+    private function importEvent(string $slug): Event
     {
         $user = auth()->user();
         $app = app(Apps::class);
@@ -87,7 +113,7 @@ class DeletedEventReimportTest extends TestCase
             'companies_id' => $company->getId(),
         ], [
             'users_id' => $user->getId(),
-            'is_deleted' => (int) $deleted,
+            'is_deleted' => 0,
             'name' => 'Parent ' . $slug,
             'event_type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
             'event_class_id' => EventClass::fromCompany($company)->fromApp($app)->first()->getId(),
@@ -100,8 +126,30 @@ class DeletedEventReimportTest extends TestCase
         return $event;
     }
 
-    private function countBySlug(string $slug): int
+    private function seedVersion(): EventVersion
     {
-        return Event::withTrashed()->where('slug', $slug)->count();
+        $user = auth()->user();
+        $app = app(Apps::class);
+        $company = $user->getCurrentCompany();
+
+        new Setup($app, $user, $company)->run();
+
+        $response = $this->graphQL('
+            mutation($input: EventInput!) {
+                createEvent(input: $input) { id versions { data { id } } }
+            }
+        ', ['input' => [
+            'name' => 'Orphan Parent ' . uniqid(),
+            'description' => 'Deleted parent fixture',
+            'category_id' => EventCategory::fromCompany($company)->fromApp($app)->first()->getId(),
+            'type_id' => EventType::fromCompany($company)->fromApp($app)->first()->getId(),
+            'dates' => [[
+                'date' => '2026-03-10',
+                'start_time' => '09:00',
+                'end_time' => '17:00',
+            ]],
+        ]])->assertSuccessful();
+
+        return EventVersion::find((int) $response->json('data.createEvent.versions.data.0.id'));
     }
 }
