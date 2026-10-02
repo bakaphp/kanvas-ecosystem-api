@@ -66,6 +66,12 @@ configuration **on that receiver**, as custom fields next to `approval_mode`:
 | `application_required_fields` | `legal_name`, `rnc`, `contact_email` | `Field::requiredFor($receiver)` |
 | `application_company_fields` | `legal_name`, `commercial_name`, `rnc` | `Field::companyFieldsFor($receiver)` |
 | `application_user_fields` | `contact_name`, `contact_role`, `contact_email`, `contact_phone` | `Field::userFieldsFor($receiver)` |
+| `application_invite_role` | `Admin` | `Field::inviteRoleFor($receiver)` — the role the approval invite carries; the user gets it on accepting the invite |
+
+The invite role is a role **name** resolved in the app's Bouncer scope at approval time, before the
+Company is created, so a misspelled or not-yet-seeded role refuses the approval (`Cannot approve: role
+… does not exist`) instead of leaving a half-provisioned Company. Parking receivers get
+`parking_manager` from the rules command; run `kanvas:movipass-setup-roles {app}` first so it exists.
 
 Values are a JSON list or a comma-separated string; an empty list falls back to the default. So a
 receiver for a different kind of account (a parking company, a fleet) declares its own keys with no
@@ -78,6 +84,22 @@ reason. Format rules that are not "is it present" (RNC digits, email shape) stay
 Two things the receiver config does **not** do: it does not make the receiver reject a POST (decision
 5 — the receiver never validates; the reviewer does), and it does not add new columns to the Company —
 a key listed in `application_company_fields` lands as a custom field on the Company.
+
+## Emails: the template comes from the receiver, the subject from the template
+
+`CorporateApplicationEmailEnum` names the four emails (`welcome`, `needs_review`, `rejected`,
+`overdue`) and `templateFor($receiver, $app)` resolves each one: the receiver's
+`application_{email}_template` custom field, then the app setting
+(`corporate_application_{email}_template`, legacy `movipass_corporate_*`), then `corporate-{email}`.
+The app setting is one value for the whole app, so it cannot tell a parking applicant from a corporate
+one — two kinds of application on the same app need the receiver key. The rules command points the
+parking receiver at `parking-welcome` / `parking-needs-review` / `parking-rejected`
+(`database/data/movipass_parking_email_templates.json`); `overdue` goes to the internal team and stays
+shared.
+
+No code sets a subject: `Blank` falls back to the template row's `subject` column, rendered with the
+same Blade data, so copy lives in one place. `kanvas:import-email-templates` **skips names that already
+exist** — editing a JSON file does not update a template already imported; change the row.
 
 ## Approval is manual by default, and `is_corporate` is the only privilege switch
 
@@ -128,7 +150,7 @@ keys, so a queue filter has to include both until they are backfilled. Do not ad
   different PDO handle, so inside a `DatabaseTransactions` test it cannot see rows the same test
   just wrote on `ecosystem` — it looks like a bug in the action and is not.
 - **`SendsApplicationEmail` requires an entity** because `Blank` does; every caller has a Lead.
-- Rejection always notifies the applicant (`corporate-rejected` fallback template); rejecting an
+- Rejection always notifies the applicant (`corporate-rejected` when nothing else is configured); rejecting an
   already-approved application throws; rejecting a pending *upgrade* releases the provisional
   Company and de-associates the user, the source company is untouched.
 
