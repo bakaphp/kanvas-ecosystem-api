@@ -32,6 +32,16 @@ final class PastOpportunitiesToolTest extends TestCase
         $this->assertArrayNotHasKey('past_opportunities', $result);
     }
 
+    public function testLeadRefListsTheLeadTags(): void
+    {
+        $lead = $this->makeLead($this->makePeople());
+        $lead->addTags(['Store North', 'vip']);
+
+        $result = $this->withTenant(new LeadRefTool())->__invoke(lead_id: $lead->getId());
+
+        $this->assertEqualsCanonicalizing(['Store North', 'vip'], $result['tags']);
+    }
+
     public function testLeadRefMarksPersonWithPreviousLeadAsReturning(): void
     {
         $people = $this->makePeople();

@@ -17,7 +17,7 @@ use Override;
 use Throwable;
 
 /**
- * Adds or removes tags on a person — the people-side counterpart of add_lead_tags. New tags are
+ * Adds or removes tags on a person — the people-side counterpart of tag_lead. New tags are
  * created automatically. Company-wide write — an internal-teammate capability.
  */
 #[AgentTool(name: 'Tag Person', category: 'crm')]

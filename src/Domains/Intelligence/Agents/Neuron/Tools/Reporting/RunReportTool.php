@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\Tools\Reporting;
 
+use Baka\Support\Str;
+use Kanvas\Analytics\Reporting\DataTransferObject\AggregateRequest;
 use Kanvas\Analytics\Reporting\DataTransferObject\ReportFilter;
 use Kanvas\Analytics\Reporting\Services\ReportQueryService;
 use Kanvas\Analytics\Reporting\Support\ReportRegistry;
@@ -28,12 +30,19 @@ use Throwable;
  *
  * Rows and distinct counts are both returned because at a person × event grain they answer
  * different questions — counting rows counts registrations, not people.
+ *
+ * The breakdown runs on the same `aggregate()` the `reportAggregate` GraphQL query uses, so the
+ * agent and the reports screen can answer exactly the same questions. With no `aggregates` each
+ * group carries `total` (and `distinct_total` with `distinct_column`), the shape existing prompts
+ * read.
  */
 #[AgentTool(name: 'Run Report', category: 'reporting')]
 class RunReportTool extends Tool implements HasRunKey
 {
     use TrackByInputs;
     use HasKanvasContext;
+
+    private const int DEFAULT_GROUP_LIMIT = 200;
 
     public function __construct()
     {
@@ -42,7 +51,9 @@ class RunReportTool extends Tool implements HasRunKey
             description: 'Query a reporting model with filters and get back rows plus counts. '
                 . 'Call describe_report_model first to get the column names. Filters are ANDed. '
                 . 'On a person-per-event model, set distinct_column to count people rather than '
-                . 'registrations. Set group_by to get a breakdown for a chart instead of rows.',
+                . 'registrations. Set group_by to get a breakdown for a chart instead of rows; it '
+                . 'takes several columns and date periods ("fecha_inicio:month"). Add aggregates '
+                . 'to sum, average, min or max a column (revenue, satisfaction) per group.',
         );
     }
 
@@ -105,13 +116,66 @@ class RunReportTool extends Tool implements HasRunKey
             new ToolProperty(
                 name: 'group_by',
                 type: PropertyType::STRING,
-                description: 'Return counts grouped by this column instead of rows — use for charts.',
+                description: 'Return one row per group instead of raw rows — use for charts. Comma-'
+                    . 'separated for several columns ("empresa_id, empresa"). A date column takes a '
+                    . 'period suffix: "fecha_inicio:month" (also :day, :quarter, :year); it comes back '
+                    . 'as "fecha_inicio_month" and is sorted oldest first.',
+                required: false,
+            ),
+            new ArrayProperty(
+                name: 'aggregates',
+                description: 'Values per group. Omit to get "total" (row count) and, with '
+                    . 'distinct_column, "distinct_total".',
+                required: false,
+                items: new ObjectProperty(
+                    name: 'aggregate',
+                    description: 'e.g. {"function":"SUM","column":"precio","alias":"ingreso"}.',
+                    properties: [
+                        new ToolProperty(
+                            name: 'function',
+                            type: PropertyType::STRING,
+                            description: 'COUNT needs no column; the rest do.',
+                            required: true,
+                            enum: AggregateRequest::FUNCTIONS,
+                        ),
+                        new ToolProperty(
+                            name: 'column',
+                            type: PropertyType::STRING,
+                            description: 'Column to aggregate.',
+                            required: false,
+                        ),
+                        new ToolProperty(
+                            name: 'alias',
+                            type: PropertyType::STRING,
+                            description: 'Key for this value in each row: lowercase letters, digits, underscores.',
+                            required: false,
+                        ),
+                    ],
+                ),
+            ),
+            new ToolProperty(
+                name: 'order_by',
+                type: PropertyType::STRING,
+                description: 'Sort by an aggregate alias, a group_by entry, or a column. Groups default to '
+                    . 'the largest "total" first; rows to their id.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'descending',
+                type: PropertyType::BOOLEAN,
+                description: 'Sort direction for order_by. Defaults to true for groups, false for rows.',
+                required: false,
+            ),
+            new ToolProperty(
+                name: 'select',
+                type: PropertyType::STRING,
+                description: 'Rows only: comma-separated columns to return. Omit for every column.',
                 required: false,
             ),
             new ToolProperty(
                 name: 'limit',
                 type: PropertyType::INTEGER,
-                description: 'Max rows to return. Defaults to 50, hard cap 1000.',
+                description: 'Max rows or groups to return. Defaults to 50 rows / 200 groups, hard cap 1000.',
                 required: false,
             ),
         ];
@@ -119,6 +183,7 @@ class RunReportTool extends Tool implements HasRunKey
 
     /**
      * @param array<int, mixed>|null $filters
+     * @param array<int, mixed>|null $aggregates
      *
      * @return array<string, mixed>
      */
@@ -127,34 +192,48 @@ class RunReportTool extends Tool implements HasRunKey
         ?array $filters = null,
         ?string $distinct_column = null,
         ?string $group_by = null,
+        ?array $aggregates = null,
+        ?string $order_by = null,
+        ?bool $descending = null,
+        ?string $select = null,
         ?int $limit = null
     ): array {
         try {
             $definition = new ReportRegistry()->find($this->app, $model);
             $service = new ReportQueryService();
-
             $parsed = array_map(
                 fn ($f) => $f instanceof ReportFilter ? $f : ReportFilter::fromArray((array) $f),
                 $filters ?? []
             );
+            $distinct = Str::trimToNull($distinct_column);
+            $groupBy = Str::commaList($group_by);
+            $counts = $service->count(
+                $definition,
+                $this->app,
+                $this->company,
+                $parsed,
+                $distinct
+            );
 
-            $counts = $service->count($definition, $this->app, $this->company, $parsed, $distinct_column);
+            if ($groupBy !== [] || ($aggregates ?? []) !== []) {
+                $request = $this->aggregateRequest(
+                    $groupBy,
+                    $aggregates ?? [],
+                    $distinct,
+                    Str::trimToNull($order_by),
+                    $descending ?? true,
+                    $limit ?? self::DEFAULT_GROUP_LIMIT
+                );
+                $breakdown = $service->aggregate($definition, $this->app, $this->company, $request, $parsed);
 
-            if ($group_by !== null) {
                 return [
                     'model' => $model,
                     'grain' => $definition->grain()->description(),
-                    'group_by' => $group_by,
+                    'group_by' => array_map(ReportQueryService::groupingKey(...), $groupBy),
                     'total_rows' => $counts['rows'],
                     'total_distinct' => $counts['distinct'],
-                    'breakdown' => $service->breakdown(
-                        $definition,
-                        $this->app,
-                        $this->company,
-                        $group_by,
-                        $parsed,
-                        $distinct_column
-                    ),
+                    'truncated' => count($breakdown) >= $request->limit,
+                    'breakdown' => $breakdown,
                 ];
             }
 
@@ -163,7 +242,10 @@ class RunReportTool extends Tool implements HasRunKey
                 $this->app,
                 $this->company,
                 $parsed,
-                limit: $limit ?? 50
+                select: Str::commaList($select) ?: null,
+                limit: $limit ?? 50,
+                orderBy: Str::trimToNull($order_by),
+                descending: $descending ?? false,
             );
 
             return [
@@ -178,5 +260,41 @@ class RunReportTool extends Tool implements HasRunKey
         } catch (Throwable $e) {
             return ['error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * @param list<string> $groupBy
+     * @param array<int, mixed> $aggregates
+     */
+    private function aggregateRequest(
+        array $groupBy,
+        array $aggregates,
+        ?string $distinctColumn,
+        ?string $orderBy,
+        bool $descending,
+        int $limit
+    ): AggregateRequest {
+        $aggregates = array_map(fn ($aggregate) => (array) $aggregate, $aggregates);
+        $defaulted = $aggregates === [];
+
+        if ($defaulted) {
+            $aggregates[] = ['function' => 'COUNT', 'alias' => 'total'];
+
+            if ($distinctColumn !== null) {
+                $aggregates[] = ['function' => 'COUNT_DISTINCT', 'column' => $distinctColumn, 'alias' => 'distinct_total'];
+            }
+        }
+
+        // A date period reads left to right in time, which the service does when nothing else is
+        // asked for. Anything else sorts the biggest group first.
+        $hasPeriod = array_filter($groupBy, fn (string $column) => str_contains($column, ':')) !== [];
+
+        return AggregateRequest::fromInput(
+            aggregates: $aggregates,
+            groupBy: $groupBy,
+            orderBy: $orderBy ?? ($defaulted && ! $hasPeriod ? 'total' : null),
+            descending: $descending,
+            limit: $limit,
+        );
     }
 }
