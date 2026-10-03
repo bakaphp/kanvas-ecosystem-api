@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Neuron\CRM;
 
-use Illuminate\Support\Facades\Blade;
 use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Contracts\ConversesWithCustomer;
 use Kanvas\Intelligence\Agents\Neuron\BaseRagAgent;
-use Kanvas\Intelligence\Agents\Neuron\SalesAssistKanvasMessageHistory;
+use Kanvas\Intelligence\Agents\Neuron\Concerns\HasProspectIsolatedHistory;
+use Kanvas\Intelligence\Agents\Neuron\Concerns\RendersRoleSections;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\ArtifactsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\BookingOptionsTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\CRM\CalendarEventTool;
@@ -38,8 +38,6 @@ use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\Social\Messages\Models\Message;
 use NeuronAI\Agent\SystemPrompt;
-use NeuronAI\Chat\History\AbstractChatHistory;
-use NeuronAI\Chat\History\InMemoryChatHistory;
 use Override;
 
 /**
@@ -58,8 +56,10 @@ use Override;
 class ReceptionistAgent extends BaseRagAgent implements ConversesWithCustomer
 {
     use HasCustomerPersona;
+    use HasProspectIsolatedHistory;
     use HasTemporalContext;
     use MergesRegisteredTools;
+    use RendersRoleSections;
 
     private const LOCAL_BACKGROUND = 'You are the front-desk receptionist. You answer inbound messages instantly, 24/7, the way a great human receptionist would: warm, brief, and genuinely helpful. You are the first point of contact — you greet the person, answer their questions, understand what they need, and get qualified prospects booked onto the calendar.';
 
@@ -75,45 +75,14 @@ class ReceptionistAgent extends BaseRagAgent implements ConversesWithCustomer
         . "\nNever ask the person for a lead_id or any internal identifier — they don't have one.";
 
     #[Override]
-    protected function chatHistory(): AbstractChatHistory
-    {
-        if ($this->entity === null || $this->user === null) {
-            return new InMemoryChatHistory();
-        }
-
-        return new SalesAssistKanvasMessageHistory(
-            app: $this->app,
-            company: $this->company,
-            user: $this->user,
-            entity: $this->entity,
-            threadId: $this->threadId,
-            currentLead: $this->currentLead,
-            contextWindow: $this->resolvedContextWindow(),
-        );
-    }
-
-    #[Override]
     public function instructions(): string
     {
-        $role = (array) ($this->agent->role ?? []);
         $lead = $this->resolveLeadForTurn();
         $context = ['lead' => $lead];
 
-        $background = $this->renderOrDefault(
-            $role['background'] ?? null,
-            self::LOCAL_BACKGROUND,
-            $context
-        );
-        $steps = $this->renderOrDefault(
-            $role['steps'] ?? null,
-            self::LOCAL_STEPS,
-            $context
-        );
-        $output = $this->renderOrDefault(
-            $role['output'] ?? null,
-            self::LOCAL_OUTPUT,
-            $context
-        );
+        $background = $this->renderRoleSection('background', self::LOCAL_BACKGROUND, $context);
+        $steps = $this->renderRoleSection('steps', self::LOCAL_STEPS, $context);
+        $output = $this->renderRoleSection('output', self::LOCAL_OUTPUT, $context);
 
         $timezone = $lead?->company?->timezone
             ?? $this->company?->timezone
@@ -140,18 +109,6 @@ class ReceptionistAgent extends BaseRagAgent implements ConversesWithCustomer
             steps: explode("\n", $steps),
             output: explode("\n", $output),
         )->__toString();
-    }
-
-    /**
-     * @param array<string, mixed> $context
-     */
-    private function renderOrDefault(mixed $dbValue, string $localDefault, array $context): string
-    {
-        if (is_string($dbValue) && trim($dbValue) !== '') {
-            return Blade::render($dbValue, $context);
-        }
-
-        return $localDefault;
     }
 
     /**
