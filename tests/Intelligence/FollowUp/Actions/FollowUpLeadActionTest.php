@@ -62,6 +62,10 @@ class FollowUpLeadActionTest extends TestCase
         parent::setUp();
 
         Http::fake();
+        // Lead indexing is independent of follow-up orchestration.
+        \Illuminate\Support\Facades\Event::fake([
+            \Kanvas\Intelligence\Knowledge\Events\KnowledgeIndexRequested::class,
+        ]);
         // Search indexing is unrelated to outbound delivery and must not call Typesense.
         Message::disableSearchSyncing();
         FollowUpAgentStub::reset();
