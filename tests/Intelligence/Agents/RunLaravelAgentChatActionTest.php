@@ -14,6 +14,7 @@ use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Users\Models\Users;
 use Laravel\Ai\Files\Base64Document;
 use Laravel\Ai\Files\Base64Image;
 use Laravel\Ai\Responses\AgentResponse;
@@ -33,11 +34,13 @@ class RunLaravelAgentChatActionTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
-        // The agent's dedicated user is NOT the person chatting, so the conversation belongs to the person.
+        // The person chatting is neither the agent's dedicated user nor the company AI agent user (which the
+        // authenticated test user is in CI), so the conversation belongs to that person.
+        $human = Users::factory()->create();
         $agent = Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
-            ->create(['user_id' => $user->getId() + 1]);
+            ->create();
 
         $response = new AgentResponse('inv-1', 'Found 2 products.', new TextUsage(10, 20), new Meta());
         $response->withToolCallsAndResults(
@@ -54,7 +57,7 @@ class RunLaravelAgentChatActionTest extends TestCase
             message: 'Recommend a perfume',
             app: $app,
             company: $company,
-            user: $user,
+            user: $human,
             handler: $handler,
         )->execute();
 
@@ -63,7 +66,7 @@ class RunLaravelAgentChatActionTest extends TestCase
         // Scoped to this handler's class: other tests in the run leave assistant rows for the same user
         // on this connection, and a non-uuid7 id among them sorts above ours.
         $row = DB::connection('intelligence')->table('agent_conversation_messages')
-            ->where('user_id', $user->getId())
+            ->where('user_id', $human->getId())
             ->where('agent', get_class($handler))
             ->where('role', 'assistant')
             ->orderByDesc('id')
@@ -80,8 +83,8 @@ class RunLaravelAgentChatActionTest extends TestCase
         $this->assertSame(['hit'], $steps[0]['tool_calls'][0]['result'], 'the result travels on the call that produced it');
         $this->assertSame('Found 2 products.', $steps[1]['content']);
         $this->assertSame('completed', $row->status);
-        $this->assertSame($user->getMorphClass(), $row->participant_type);
-        $this->assertSame($user->getId(), (int) $row->participant_id);
+        $this->assertSame($human->getMorphClass(), $row->participant_type);
+        $this->assertSame($human->getId(), (int) $row->participant_id);
 
         $this->assertSame(10, $usage['input_tokens']);
         $this->assertSame(20, $usage['output_tokens']);

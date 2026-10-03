@@ -34,7 +34,7 @@ class KanvasMessageHistoryPersistTest extends TestCase
         $agent = Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
-            ->create(['user_id' => $user->getId() + 1]);
+            ->create();
 
         $sessionUuid = (string) Str::uuid();
 

@@ -14,6 +14,7 @@ use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
 use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Users\Models\Users;
 use Laravel\Ai\Approvals\Decisions;
 use Laravel\Ai\Approvals\PendingApproval;
 use Laravel\Ai\Contracts\Providers\TextProvider;
@@ -551,16 +552,19 @@ class KanvasConversationStoreTest extends TestCase
         $this->assertTrue($people->is(KanvasConversationStore::participantFor($peopleSession, $user, $agent)));
         $this->assertTrue($agent->is(KanvasConversationStore::participantFor(null, $user, $agent)), 'the agent\'s own user acting = agent-owned');
 
+        // The authenticated test user doubles as the company's AI agent user in CI, so the human here is a
+        // fresh user that is neither an agent's dedicated user nor a company AI user.
+        $human = Users::factory()->create();
         $otherAgent = Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
-            ->create(['user_id' => $user->getId() + 1]);
-        $this->assertTrue($user->is(KanvasConversationStore::participantFor(null, $user, $otherAgent)));
+            ->create();
+        $this->assertTrue($human->is(KanvasConversationStore::participantFor(null, $human, $otherAgent)));
         $this->assertTrue(
-            $user->is(KanvasConversationStore::participantFor($peopleSession, $user, $otherAgent)),
+            $human->is(KanvasConversationStore::participantFor($peopleSession, $human, $otherAgent)),
             'a human chatting owns the conversation even when the session is keyed to a People record',
         );
-        $this->assertTrue($user->is(KanvasConversationStore::participantFor(null, $user)));
+        $this->assertTrue($human->is(KanvasConversationStore::participantFor(null, $human)));
     }
 
     public function testLogTurnWithAPeopleParticipantKeepsTheActingUserOnTheRows(): void
