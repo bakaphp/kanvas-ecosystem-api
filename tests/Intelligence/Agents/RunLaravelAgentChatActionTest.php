@@ -33,10 +33,11 @@ class RunLaravelAgentChatActionTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
+        // The agent's dedicated user is NOT the person chatting, so the conversation belongs to the person.
         $agent = Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
-            ->create(['user_id' => $user->getId()]);
+            ->create(['user_id' => $user->getId() + 1]);
 
         $response = new AgentResponse('inv-1', 'Found 2 products.', new Usage(10, 20), new Meta());
         $response->withToolCallsAndResults(
@@ -59,8 +60,11 @@ class RunLaravelAgentChatActionTest extends TestCase
 
         $this->assertSame('Found 2 products.', $result);
 
+        // Scoped to this handler's class: other tests in the run leave assistant rows for the same user
+        // on this connection, and a non-uuid7 id among them sorts above ours.
         $row = DB::connection('intelligence')->table('agent_conversation_messages')
             ->where('user_id', $user->getId())
+            ->where('agent', get_class($handler))
             ->where('role', 'assistant')
             ->orderByDesc('id')
             ->first();
@@ -77,6 +81,14 @@ class RunLaravelAgentChatActionTest extends TestCase
 
         $this->assertNotEmpty($toolResults, 'tool_results should be persisted');
         $this->assertSame('InventorySearchTool', $toolResults[0]['name']);
+
+        $steps = json_decode($row->steps, true);
+        $this->assertCount(2, $steps, 'a turn that called a tool and answered is two steps');
+        $this->assertSame(['hit'], $steps[0]['tool_calls'][0]['result']);
+        $this->assertSame('Found 2 products.', $steps[1]['content']);
+        $this->assertSame('completed', $row->status);
+        $this->assertSame($user->getMorphClass(), $row->participant_type);
+        $this->assertSame($user->getId(), (int) $row->participant_id);
 
         $this->assertSame(10, $usage['prompt_tokens']);
         $this->assertSame(20, $usage['completion_tokens']);

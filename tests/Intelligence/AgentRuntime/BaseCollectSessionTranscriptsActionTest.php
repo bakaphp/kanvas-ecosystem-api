@@ -69,6 +69,24 @@ class BaseCollectSessionTranscriptsActionTest extends TestCase
         $this->assertSame('tcid-1', $toolResults[0]['id']);
         $this->assertSame('{"name":"Max"}', $toolResults[0]['result']);
 
+        // 1.x shape: the result lives on the call inside `steps`, the call row keeps a bare call.
+        $this->assertSame('tcid-1', $toolResult->steps[0]['tool_calls'][0]['id']);
+        $this->assertSame('{"name":"Max"}', $toolResult->steps[0]['tool_calls'][0]['result']);
+        $this->assertSame('', $toolResult->steps[0]['content']);
+        $callRow = $messages[2];
+        $this->assertSame('lookup_user', $callRow->steps[0]['tool_calls'][0]['name']);
+        $this->assertArrayNotHasKey('result', $callRow->steps[0]['tool_calls'][0]);
+        $this->assertSame([], $messages[0]->steps);
+        $this->assertSame('completed', $toolResult->status);
+
+        // A runtime-imported conversation belongs to the agent and acts through the agent's user.
+        $agent = $deployment->agent;
+        $this->assertSame($agent->getMorphClass(), $convo->participant_type);
+        $this->assertSame($agent->getId(), (int) $convo->participant_id);
+        $this->assertSame($agent->getMorphClass(), $toolResult->participant_type);
+        $this->assertSame($agent->getId(), (int) $toolResult->participant_id);
+        $this->assertSame((int) $agent->user_id, (int) $toolResult->user_id);
+
         // Watermark advanced to the highest runtime id.
         $this->assertSame(4, $convo->meta['runtime_last_message_id']);
     }

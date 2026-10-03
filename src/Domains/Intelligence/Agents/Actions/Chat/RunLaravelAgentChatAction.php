@@ -115,6 +115,7 @@ class RunLaravelAgentChatAction
                 toolCalls: $response->toolCalls->toArray(),
                 toolResults: $response->toolResults->toArray(),
                 usage: $usage,
+                participant: KanvasConversationStore::participantFor($this->session, $this->user, $this->agent),
             );
         }
 

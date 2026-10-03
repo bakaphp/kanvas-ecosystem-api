@@ -1,11 +1,18 @@
+union AgentConversationParticipant
+    @union(resolveType: "App\\GraphQL\\Intelligence\\Types\\AgentConversationParticipantTypeResolver")
+    = User
+    | People
+    | AgentAi
+
 type AgentConversation {
     id: ID!
     agent: AgentAi @belongsTo(relation: "agent")
     user: User @belongsTo(relation: "user")
+    participant: AgentConversationParticipant @morphTo(relation: "participant")
     title: String!
     meta: Mixed
     messages(
-        where: _ @whereConditions(columns: ["created_at"])
+        where: _ @whereConditions(columns: ["created_at", "status"])
         orderBy: _ @orderBy(columns: ["created_at", "updated_at", "id"])
     ): [AgentConversationMessage!]!
         @hasMany(relation: "messages", type: PAGINATOR, defaultCount: 50)
@@ -17,13 +24,16 @@ type AgentConversationMessage {
     id: ID!
     conversation: AgentConversation! @belongsTo(relation: "conversation")
     user: User @belongsTo(relation: "user")
+    participant: AgentConversationParticipant @morphTo(relation: "participant")
     agent: String!
     role: String!
+    status: String!
     is_public: Boolean!
     content: String
     attachments: Mixed
     tool_calls: Mixed
     tool_results: Mixed
+    steps: Mixed
     usage: Mixed
     meta: Mixed
     created_at: DateTime!
@@ -40,6 +50,8 @@ extend type Query @guard {
                     "id"
                     "user_id"
                     "agent_id"
+                    "participant_type"
+                    "participant_id"
                     "title"
                     "created_at"
                     "updated_at"

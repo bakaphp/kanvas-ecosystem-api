@@ -27,6 +27,7 @@ use Kanvas\Intelligence\Agents\Neuron\Tools\System\SendSlackDirectMessageTool;
 use Kanvas\Intelligence\Agents\Neuron\Tools\System\WhoIsUserTool;
 use Kanvas\Intelligence\Agents\Services\EntityContextBriefService;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
+use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use Kanvas\Social\Channels\Models\Channel;
 use Kanvas\Users\Models\Users;
@@ -112,6 +113,7 @@ class SystemUserAgent extends BaseRagAgent implements ConversesWithUser
             model: $this->resolvedModelName(),
             privateUserTurn: $this->privateUserTurn,
             contextWindow: $this->resolvedContextWindow(),
+            participant: KanvasConversationStore::participantFor($this->session, $user, $this->agent),
         );
     }
 

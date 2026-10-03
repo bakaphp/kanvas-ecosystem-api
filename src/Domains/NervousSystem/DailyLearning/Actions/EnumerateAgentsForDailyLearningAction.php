@@ -45,6 +45,7 @@ class EnumerateAgentsForDailyLearningAction
         // ingestion-time and unreliable for "did anything happen on date X".
         $conversationIds = AgentConversationMessage::query()
             ->whereBetween('created_at', [$dayStart, $dayEnd])
+            ->where('status', AgentConversationMessage::STATUS_COMPLETED)
             ->distinct()
             ->pluck('conversation_id');
 
