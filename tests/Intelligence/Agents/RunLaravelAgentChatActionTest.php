@@ -14,13 +14,14 @@ use Kanvas\Intelligence\Agents\Jobs\DescribeMessageAttachmentsJob;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Sessions\Models\Session;
+use Kanvas\Users\Models\Users;
 use Laravel\Ai\Files\Base64Document;
 use Laravel\Ai\Files\Base64Image;
 use Laravel\Ai\Responses\AgentResponse;
 use Laravel\Ai\Responses\Data\Meta;
+use Laravel\Ai\Responses\Data\TextUsage;
 use Laravel\Ai\Responses\Data\ToolCall;
 use Laravel\Ai\Responses\Data\ToolResult;
-use Laravel\Ai\Responses\Data\Usage;
 use Laravel\Ai\Responses\StructuredAgentResponse;
 use Mockery;
 use Tests\TestCase;
@@ -33,12 +34,15 @@ class RunLaravelAgentChatActionTest extends TestCase
         $user = auth()->user();
         $company = $user->getCurrentCompany();
 
+        // The person chatting is neither the agent's dedicated user nor the company AI agent user (which the
+        // authenticated test user is in CI), so the conversation belongs to that person.
+        $human = Users::factory()->create();
         $agent = Agent::factory()
             ->withAppId($app->getId())
             ->withCompanyId($company->getId())
-            ->create(['user_id' => $user->getId()]);
+            ->create();
 
-        $response = new AgentResponse('inv-1', 'Found 2 products.', new Usage(10, 20), new Meta());
+        $response = new AgentResponse('inv-1', 'Found 2 products.', new TextUsage(10, 20), new Meta());
         $response->withToolCallsAndResults(
             new Collection([new ToolCall('call-1', 'InventorySearchTool', ['keyword' => 'perfume'])]),
             new Collection([new ToolResult('call-1', 'InventorySearchTool', ['keyword' => 'perfume'], ['hit'])]),
@@ -53,33 +57,37 @@ class RunLaravelAgentChatActionTest extends TestCase
             message: 'Recommend a perfume',
             app: $app,
             company: $company,
-            user: $user,
+            user: $human,
             handler: $handler,
         )->execute();
 
         $this->assertSame('Found 2 products.', $result);
 
+        // Scoped to this handler's class: other tests in the run leave assistant rows for the same user
+        // on this connection, and a non-uuid7 id among them sorts above ours.
         $row = DB::connection('intelligence')->table('agent_conversation_messages')
-            ->where('user_id', $user->getId())
+            ->where('user_id', $human->getId())
+            ->where('agent', get_class($handler))
             ->where('role', 'assistant')
             ->orderByDesc('id')
             ->first();
 
         $this->assertNotNull($row);
 
-        $toolCalls = json_decode($row->tool_calls, true);
-        $toolResults = json_decode($row->tool_results, true);
         $usage = json_decode($row->usage, true);
 
-        $this->assertNotEmpty($toolCalls, 'tool_calls should be persisted, not an empty array');
-        $this->assertSame('InventorySearchTool', $toolCalls[0]['name']);
-        $this->assertSame('call-1', $toolCalls[0]['id']);
+        $steps = json_decode($row->steps, true);
+        $this->assertCount(2, $steps, 'a turn that called a tool and answered is two steps');
+        $this->assertSame('call-1', $steps[0]['tool_calls'][0]['id']);
+        $this->assertSame('InventorySearchTool', $steps[0]['tool_calls'][0]['name']);
+        $this->assertSame(['hit'], $steps[0]['tool_calls'][0]['result'], 'the result travels on the call that produced it');
+        $this->assertSame('Found 2 products.', $steps[1]['content']);
+        $this->assertSame('completed', $row->status);
+        $this->assertSame($human->getMorphClass(), $row->participant_type);
+        $this->assertSame($human->getId(), (int) $row->participant_id);
 
-        $this->assertNotEmpty($toolResults, 'tool_results should be persisted');
-        $this->assertSame('InventorySearchTool', $toolResults[0]['name']);
-
-        $this->assertSame(10, $usage['prompt_tokens']);
-        $this->assertSame(20, $usage['completion_tokens']);
+        $this->assertSame(10, $usage['input_tokens']);
+        $this->assertSame(20, $usage['output_tokens']);
     }
 
     public function testForwardsImagesToTheModelAsAttachments(): void
@@ -94,7 +102,7 @@ class RunLaravelAgentChatActionTest extends TestCase
             ->create(['user_id' => $user->getId()]);
 
         $imagePath = $this->writeTempPng();
-        $response = new AgentResponse('inv-3', 'I see a 1x1 image.', new Usage(1, 1), new Meta());
+        $response = new AgentResponse('inv-3', 'I see a 1x1 image.', new TextUsage(1, 1), new Meta());
 
         $handler = Mockery::mock(KanvasLaravelAgent::class);
         $handler->shouldReceive('promptWithConfig')
@@ -135,7 +143,7 @@ class RunLaravelAgentChatActionTest extends TestCase
             ->create(['user_id' => $user->getId()]);
 
         $unreachable = 'http://127.0.0.1/pizza.jpg';
-        $response = new AgentResponse('inv-4', 'I could not open that image.', new Usage(1, 1), new Meta());
+        $response = new AgentResponse('inv-4', 'I could not open that image.', new TextUsage(1, 1), new Meta());
 
         $handler = Mockery::mock(KanvasLaravelAgent::class);
         $handler->shouldReceive('promptWithConfig')
@@ -178,7 +186,7 @@ class RunLaravelAgentChatActionTest extends TestCase
             ->create(['user_id' => $user->getId()]);
 
         $imagePath = $this->writeTempPng();
-        $response = new AgentResponse('inv-4', 'noted', new Usage(1, 1), new Meta());
+        $response = new AgentResponse('inv-4', 'noted', new TextUsage(1, 1), new Meta());
 
         $handler = Mockery::mock(KanvasLaravelAgent::class);
         $handler->shouldReceive('promptWithConfig')->once()->andReturn($response);
@@ -220,7 +228,7 @@ class RunLaravelAgentChatActionTest extends TestCase
             ->create(['user_id' => $user->getId()]);
 
         $pdfPath = $this->writeTempPdf();
-        $response = new AgentResponse('inv-5', 'I read the PDF.', new Usage(1, 1), new Meta());
+        $response = new AgentResponse('inv-5', 'I read the PDF.', new TextUsage(1, 1), new Meta());
 
         $handler = Mockery::mock(KanvasLaravelAgent::class);
         $handler->shouldReceive('promptWithConfig')
@@ -285,7 +293,7 @@ class RunLaravelAgentChatActionTest extends TestCase
         // A HasStructuredOutput agent puts its answer in ->structured and leaves
         // ->text empty in JSON mode. The action must surface the JSON, not "".
         $structured = ['recommendations' => [['product' => ['id' => 42]]]];
-        $response = new StructuredAgentResponse('inv-2', $structured, '', new Usage(1, 2), new Meta());
+        $response = new StructuredAgentResponse('inv-2', $structured, '', new TextUsage(1, 2), new Meta());
 
         $handler = Mockery::mock(KanvasLaravelAgent::class);
         $handler->shouldReceive('promptWithConfig')->once()->andReturn($response);

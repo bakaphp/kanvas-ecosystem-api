@@ -12,6 +12,7 @@ enum CorporateApplicationSettingEnum: string
     use HasLegacyCorporateKey;
 
     case WELCOME_TEMPLATE = 'corporate_application_welcome_template';
+    case NEEDS_REVIEW_TEMPLATE = 'corporate_application_needs_review_template';
     case REJECTED_TEMPLATE = 'corporate_application_rejected_template';
     case INVITE_LINK_BASE = 'corporate_application_invite_link_base';
     case RECEIVER_ID = 'corporate_application_receiver_id';

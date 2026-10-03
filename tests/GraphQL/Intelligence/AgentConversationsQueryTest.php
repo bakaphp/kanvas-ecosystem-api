@@ -56,9 +56,17 @@ class AgentConversationsQueryTest extends TestCase
                     data {
                         id
                         agent { id }
+                        participant {
+                            __typename
+                            ... on User { id }
+                        }
                         messages(first: 50) {
                             data {
                                 content
+                                status
+                                steps
+                                tool_calls
+                                participant { __typename }
                             }
                         }
                     }
@@ -68,6 +76,15 @@ class AgentConversationsQueryTest extends TestCase
 
         $conversations = $response->json('data.agentConversations.data');
         $this->assertGreaterThanOrEqual(2, count($conversations));
+
+        $mine = collect($conversations)->first(fn (array $conv): bool => (int) $conv['agent']['id'] === $agentA->getId());
+        $this->assertSame('User', $mine['participant']['__typename']);
+        $this->assertSame($user->getId(), (int) $mine['participant']['id']);
+        $reply = collect($mine['messages']['data'])->firstWhere('content', 'A replies');
+        $this->assertSame('completed', $reply['status']);
+        $this->assertSame('A replies', $reply['steps'][0]['content']);
+        $this->assertSame([], $reply['tool_calls'], 'the deprecated field still answers, derived from steps');
+        $this->assertSame('User', $reply['participant']['__typename']);
 
         $byAgent = [];
         foreach ($conversations as $conv) {

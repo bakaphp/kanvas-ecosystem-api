@@ -6,6 +6,7 @@ namespace Kanvas\Intelligence\Agents\Neuron;
 
 use Kanvas\Intelligence\Agents\Attributes\AgentTypeDefinition;
 use Kanvas\Intelligence\Agents\Traits\MergesRegisteredTools;
+use Kanvas\Intelligence\Services\KanvasConversationStore;
 use Kanvas\NervousSystem\Capability\Enums\CapabilityFrameworkEnum;
 use NeuronAI\Chat\History\AbstractChatHistory;
 use NeuronAI\Chat\History\InMemoryChatHistory;
@@ -42,6 +43,7 @@ class KanvasGenericNeuronAgent extends BaseKanvasAgent
             model: $this->resolvedModelName(),
             privateUserTurn: $this->privateUserTurn,
             contextWindow: $this->resolvedContextWindow(),
+            participant: KanvasConversationStore::participantFor($this->session, $this->user, $this->agent),
         );
     }
 

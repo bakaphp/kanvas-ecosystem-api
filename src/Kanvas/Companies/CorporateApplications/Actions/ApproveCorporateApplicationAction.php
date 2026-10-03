@@ -5,18 +5,20 @@ declare(strict_types=1);
 namespace Kanvas\Companies\CorporateApplications\Actions;
 
 use Baka\Support\Str;
-use Illuminate\Database\Eloquent\Model;
-use Kanvas\AccessControlList\Enums\RolesEnums;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Kanvas\AccessControlList\Models\Role;
 use Kanvas\AccessControlList\Repositories\RolesRepository;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Concerns\ResolvesUpgradeTarget;
 use Kanvas\Companies\CorporateApplications\Concerns\ReviewsApplication;
 use Kanvas\Companies\CorporateApplications\Concerns\SendsApplicationEmail;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationEmailEnum as Email;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationSettingEnum as Setting;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
 use Kanvas\Companies\Models\Companies;
 use Kanvas\Exceptions\ValidationException;
+use Kanvas\Guild\Leads\Models\Lead;
 use Kanvas\Services\SetupService;
 use Kanvas\Users\Actions\SwitchCompanyBranchAction;
 use Kanvas\Users\Models\Users;
@@ -29,10 +31,8 @@ class ApproveCorporateApplicationAction
     use ReviewsApplication;
     use SendsApplicationEmail;
 
-    public const string DEFAULT_TEMPLATE = 'corporate-welcome';
-
     public function __construct(
-        protected readonly Model $application,
+        protected readonly Lead $application,
         protected readonly Apps $app,
         protected readonly ?Users $reviewedBy = null,
     ) {
@@ -62,6 +62,7 @@ class ApproveCorporateApplicationAction
 
     private function provisionNewAccount(): array
     {
+        $role = $this->inviteRole();
         $owner = $this->application->receiver->user;
         $company = $this->findOrCreateCompany($owner);
 
@@ -70,7 +71,7 @@ class ApproveCorporateApplicationAction
 
         new SetupService()->onBoarding($owner, $this->app, $company);
 
-        $invite = $this->findOrCreateInvite($company, $owner);
+        $invite = $this->findOrCreateInvite($company, $owner, $role);
 
         Field::COMPANY_ID->writeTo($this->application, (string) $company->getId());
         Field::INVITE_HASH->writeTo($this->application, $invite->invite_hash);
@@ -122,7 +123,18 @@ class ApproveCorporateApplicationAction
         return new CreateApplicationCompanyAction($owner, $this->read(...), $fallbackName)->execute();
     }
 
-    private function findOrCreateInvite(Companies $company, Users $owner): UsersInvite
+    private function inviteRole(): Role
+    {
+        $name = Field::inviteRoleFor($this->application->receiver);
+
+        try {
+            return RolesRepository::getByNameFromApp($name, $this->app);
+        } catch (ModelNotFoundException) {
+            throw new ValidationException("Cannot approve: role {$name} does not exist in this app");
+        }
+    }
+
+    private function findOrCreateInvite(Companies $company, Users $owner, Role $role): UsersInvite
     {
         $existingHash = Field::INVITE_HASH->readFrom($this->application);
 
@@ -135,7 +147,6 @@ class ApproveCorporateApplicationAction
         }
 
         $branch = $company->branch()->firstOrFail();
-        $adminRole = RolesRepository::getByNameFromApp(RolesEnums::ADMIN->value, $this->app);
 
         $invite = new UsersInvite();
         $invite->fill([
@@ -143,7 +154,7 @@ class ApproveCorporateApplicationAction
             'users_id' => $owner->getId(),
             'companies_id' => $company->getId(),
             'companies_branches_id' => $branch->getId(),
-            'role_id' => $adminRole->id,
+            'role_id' => $role->id,
             'apps_id' => $this->app->getId(),
             'email' => trim((string) $this->read('contact_email')),
             'firstname' => trim((string) $this->read('contact_name')),
@@ -169,8 +180,7 @@ class ApproveCorporateApplicationAction
 
         $this->sendApplicationEmail(
             $this->app,
-            (string) Setting::WELCOME_TEMPLATE->readFrom($this->app, self::DEFAULT_TEMPLATE),
-            'Bienvenido al portal corporativo',
+            Email::WELCOME,
             [
                 'lead' => $this->application,
                 'company' => $company,

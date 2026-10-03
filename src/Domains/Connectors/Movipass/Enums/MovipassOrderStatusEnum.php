@@ -15,6 +15,9 @@ enum MovipassOrderStatusEnum: string
     case SERVICE_COMPLETED = 'service_completed';
     case SERVICE_COMPLETED_NOT_RESOLVED = 'service_completed_not_resolved';
     case SERVICE_CANCELLED = 'service_cancelled';
+    // The operator declined the case at the authorization gate, before any provider was assigned.
+    // Distinct from SERVICE_CANCELLED, which ends a case that was accepted.
+    case SERVICE_NOT_AUTHORIZED = 'service_not_authorized';
     case IN_TRANSIT = 'in_transit';
     case PENDING = 'pending';
     case AWAITING_DELIVERY_CONFIRMATION = 'awaiting_delivery_confirmation';

@@ -4,56 +4,130 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Services;
 
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Exceptions\InternalServerErrorException;
+use Kanvas\Guild\Customers\Models\People;
 use Kanvas\Intelligence\Agents\Helpers\ChatHelper;
+use Kanvas\Intelligence\Agents\Helpers\ConversationStepsHelper;
 use Kanvas\Intelligence\Agents\Laravel\KanvasLaravelAgent;
 use Kanvas\Intelligence\Agents\Models\Agent;
+use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
+use Kanvas\Intelligence\Sessions\Models\Session;
 use Kanvas\Users\Models\Users;
-use Laravel\Ai\Contracts\ConversationStore;
-use Laravel\Ai\Messages\AssistantMessage;
-use Laravel\Ai\Messages\Message;
-use Laravel\Ai\Messages\ToolResultMessage;
 use Laravel\Ai\Prompts\AgentPrompt;
 use Laravel\Ai\Responses\AgentResponse;
-use Laravel\Ai\Responses\Data\ToolCall;
-use Laravel\Ai\Responses\Data\ToolResult;
+use Laravel\Ai\Storage\DatabaseConversationStore;
 use Override;
-use stdClass;
+use Throwable;
 
-class KanvasConversationStore implements ConversationStore
+/**
+ * Laravel AI's database store on the `intelligence` connection, with the Kanvas columns on top: the
+ * acting `user_id`, and the tenant (`apps_id`/`companies_id`) and `agent_id` on the conversation.
+ * Steps, status, approval pause / resume, failed turns and replay are all the package's own.
+ */
+class KanvasConversationStore extends DatabaseConversationStore
 {
     private const int JUST_RECORDED_WINDOW_MINUTES = 5;
 
-    // Kanvas conversations are user-scoped: $participantId maps to user_id, $participantType is unused.
-    #[Override]
-    public function latestConversationId(string $participantType, string|int $participantId): ?string
+    public function __construct()
     {
-        [$appsId, $companiesId] = $this->tenantFor($participantId, null);
+        parent::__construct('intelligence');
+    }
 
-        return DB::connection('intelligence')->table('agent_conversations')
-            ->where('user_id', $participantId)
-            ->where('apps_id', $appsId)
-            ->where('companies_id', $companiesId)
-            ->orderBy('updated_at', 'desc')
-            ->first()?->id;
+    /**
+     * Who a conversation belongs to. A human chatting owns it whatever record the session points at — a
+     * staff user's session can be keyed to the People record they are working on, and a channel uuid can
+     * carry a stale People row from an earlier turn. Only when the acting user is an AI identity does the
+     * session's Person own the conversation (public chat, agentic commerce); an AI identity with no Person
+     * in scope (a scheduled wake, an @mention, a system-user agent) means the Agent owns it. `user_id` on
+     * the rows stays the acting user in every case.
+     */
+    public static function participantFor(?Session $session, Users $user, ?Agent $agent = null): Model
+    {
+        if ($agent === null || ! self::actsAsAi($user, $agent)) {
+            return $user;
+        }
+
+        return $session?->people() ?? $agent;
+    }
+
+    /**
+     * The agent's dedicated user and the company's shared AI agent user are the two identities an agent
+     * runs under; anyone else at the keyboard is a person.
+     */
+    public static function actsAsAi(Users $user, Agent $agent): bool
+    {
+        return $user->getId() === (int) $agent->user_id
+            || $user->getId() === $agent->company?->getAiAgentUser()?->getId();
+    }
+
+    /**
+     * No participant means the acting user is the participant — the rule every pre-participant row
+     * followed, so old and new writers agree.
+     *
+     * @return array{0: ?string, 1: ?int}
+     */
+    public static function participantColumns(?Model $participant, string|int|null $userId): array
+    {
+        if ($participant !== null) {
+            return [$participant->getMorphClass(), (int) $participant->getKey()];
+        }
+
+        if ($userId !== null && $userId !== '') {
+            return [Relation::getMorphAlias(Users::class), (int) $userId];
+        }
+
+        return [null, null];
+    }
+
+    /**
+     * The package scopes by participant and agent class; a Kanvas user can belong to several apps and
+     * companies, so the tenant has to narrow it as well.
+     */
+    #[Override]
+    public function latestConversationId(string $participantType, string|int $participantId, string $agent): ?string
+    {
+        [$appsId, $companiesId] = $this->tenantFor(
+            $participantType === Relation::getMorphAlias(Users::class) ? $participantId : null,
+            null,
+        );
+
+        return $this->table($this->messagesTable() . ' as m')
+            ->join($this->conversationsTable() . ' as c', 'c.id', '=', 'm.conversation_id')
+            ->where('m.participant_type', $participantType)
+            ->where('m.participant_id', $participantId)
+            ->where('m.agent', $agent)
+            ->where('c.apps_id', $appsId)
+            ->where('c.companies_id', $companiesId)
+            ->orderByDesc('m.id')
+            ->value('m.conversation_id');
     }
 
     #[Override]
     public function storeConversation(
         ?string $participantType,
         string|int|null $participantId,
-        string $title
+        string $title,
+        ?string $id = null
     ): string {
-        return $this->storeConversationForAgent(
-            $participantId,
-            null,
-            $title
+        $agentId = $participantType === Relation::getMorphAlias(Agent::class) ? (int) $participantId : null;
+        $userId = $this->actingUserIdFor($participantType, $participantId, $agentId);
+        [$appsId, $companiesId] = $this->tenantFor($userId, $agentId);
+
+        return $this->insertConversationRow(
+            $userId,
+            $agentId,
+            $appsId,
+            $companiesId,
+            $title,
+            $participantType,
+            $participantId !== null ? (int) $participantId : null,
+            $id,
         );
     }
 
@@ -64,17 +138,28 @@ class KanvasConversationStore implements ConversationStore
     public function storeConversationForAgent(
         string|int|null $userId,
         ?int $agentId,
-        string $title
+        string $title,
+        ?Model $participant = null,
     ): string {
         [$appsId, $companiesId] = $this->tenantFor($userId, $agentId);
 
-        return $this->insertConversation($userId, $agentId, $appsId, $companiesId, $title);
+        return $this->insertConversation(
+            $userId,
+            $agentId,
+            $appsId,
+            $companiesId,
+            $title,
+            $participant,
+        );
     }
 
     /**
      * The one lookup that binds a session to its conversation — the agent's own history and logTurn both
      * come through here, so they cannot resolve one chat to two rows. Oldest first, because a session can
      * own several rows and the oldest is the thread a person is reading.
+     *
+     * A conversation opened for an anonymous public session has no participant; the first turn after the
+     * session is keyed to a Person claims it here, so the promotion path never has to know about this table.
      */
     public function conversationForSession(
         int $userId,
@@ -82,8 +167,9 @@ class KanvasConversationStore implements ConversationStore
         ?int $agentId,
         int $appsId,
         int $companiesId,
+        ?Model $participant = null,
     ): string {
-        $query = DB::connection('intelligence')->table('agent_conversations')
+        $query = $this->table($this->conversationsTable())
             ->where('user_id', $userId)
             ->where('apps_id', $appsId)
             ->where('companies_id', $companiesId)
@@ -93,8 +179,28 @@ class KanvasConversationStore implements ConversationStore
             ? $query->where('agent_id', $agentId)
             : $query->whereNull('agent_id');
 
-        return $query->orderBy('id')->first()?->id
-            ?? $this->insertConversation($userId, $agentId, $appsId, $companiesId, $sessionId);
+        $conversation = $query->orderBy('id')->first();
+
+        if ($conversation === null) {
+            return $this->insertConversation(
+                $userId,
+                $agentId,
+                $appsId,
+                $companiesId,
+                $sessionId,
+                $participant,
+            );
+        }
+
+        if ($conversation->participant_type === null && $participant !== null) {
+            [$participantType, $participantId] = self::participantColumns($participant, $userId);
+
+            $this->table($this->conversationsTable())
+                ->where('id', $conversation->id)
+                ->update(['participant_type' => $participantType, 'participant_id' => $participantId]);
+        }
+
+        return (string) $conversation->id;
     }
 
     public function insertConversation(
@@ -103,78 +209,42 @@ class KanvasConversationStore implements ConversationStore
         int $appsId,
         int $companiesId,
         string $title,
+        ?Model $participant = null,
     ): string {
-        $conversationId = (string) Str::uuid7();
+        [$participantType, $participantId] = self::participantColumns($participant, $userId);
 
-        DB::connection('intelligence')->table('agent_conversations')->insert([
-            'id' => $conversationId,
-            'user_id' => $userId,
-            'agent_id' => $agentId,
-            'apps_id' => $appsId,
-            'companies_id' => $companiesId,
-            'title' => $title,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        return $conversationId;
+        return $this->insertConversationRow(
+            $userId,
+            $agentId,
+            $appsId,
+            $companiesId,
+            $title,
+            $participantType,
+            $participantId,
+        );
     }
 
-    #[Override]
-    public function storeUserMessage(
-        string $conversationId,
-        ?string $participantType,
-        string|int|null $participantId,
-        AgentPrompt $prompt
-    ): string {
-        $messageId = (string) Str::uuid7();
-
-        DB::connection('intelligence')->table('agent_conversation_messages')->insert([
-            'id' => $messageId,
-            'conversation_id' => $conversationId,
-            'user_id' => $participantId,
-            'agent' => $prompt->agent::class,
-            'role' => 'user',
-            'content' => $prompt->prompt,
-            'attachments' => $prompt->attachments->toJson(),
-            'tool_calls' => '[]',
-            'tool_results' => '[]',
-            'usage' => '[]',
-            'meta' => '[]',
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        $this->backfillConversationAgentId($conversationId, $prompt);
-
-        return $messageId;
-    }
-
+    /**
+     * storeConversation() runs before the agent is known; the assistant turn is the first call that
+     * carries the `KanvasLaravelAgent`, so the conversation's `agent_id` lands one reply after it opens.
+     */
     #[Override]
     public function storeAssistantMessage(
         string $conversationId,
         ?string $participantType,
         string|int|null $participantId,
         AgentPrompt $prompt,
-        AgentResponse $response
+        AgentResponse $response,
+        ?Throwable $exception = null
     ): ?string {
-        $messageId = (string) Str::uuid7();
-
-        DB::connection('intelligence')->table('agent_conversation_messages')->insert([
-            'id' => $messageId,
-            'conversation_id' => $conversationId,
-            'user_id' => $participantId,
-            'agent' => $prompt->agent::class,
-            'role' => 'assistant',
-            'content' => $response->text,
-            'attachments' => '[]',
-            'tool_calls' => json_encode($response->toolCalls),
-            'tool_results' => json_encode($response->toolResults),
-            'usage' => json_encode($response->usage),
-            'meta' => json_encode($response->meta),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $messageId = parent::storeAssistantMessage(
+            $conversationId,
+            $participantType,
+            $participantId,
+            $prompt,
+            $response,
+            $exception,
+        );
 
         $this->backfillConversationAgentId($conversationId, $prompt);
 
@@ -182,23 +252,38 @@ class KanvasConversationStore implements ConversationStore
     }
 
     /**
-     * No-op: Kanvas handles human approval at the Social message layer (message locking), not via
-     * Laravel AI's native pause/resume, so no agent ever pauses here for this to persist.
+     * The acting user comes from the conversation, which `storeConversation()` already resolved for every
+     * participant type.
      *
-     * @param array<int, ToolResult> $toolResults
+     * @param array<string, mixed> $attributes
+     *
+     * @return array<string, mixed>
      */
     #[Override]
-    public function storeApprovalResults(
+    protected function messageAttributes(
+        string $messageId,
         string $conversationId,
         ?string $participantType,
         string|int|null $participantId,
-        array $toolResults
-    ): void {
+        mixed $now,
+        array $attributes
+    ): array {
+        return parent::messageAttributes(
+            $messageId,
+            $conversationId,
+            $participantType,
+            $participantId,
+            $now,
+            [
+                ...$attributes,
+                'user_id' => $this->conversationUserId($conversationId) ?? $this->actingUserIdFor($participantType, $participantId),
+            ],
+        );
     }
 
     /**
-     * storeConversation can't receive the agent, but the next storeUserMessage carries $prompt->agent
-     * (a KanvasLaravelAgent). Backfill it here so the `agentConversations` query filters by agent on the
+     * storeConversation can't receive the agent, but the assistant turn carries $prompt->agent (a
+     * KanvasLaravelAgent). Backfill it here so the `agentConversations` query filters by agent on the
      * middleware path too. `whereNull('agent_id')` keeps it a once-per-conversation write.
      */
     protected function backfillConversationAgentId(string $conversationId, AgentPrompt $prompt): void
@@ -213,66 +298,13 @@ class KanvasConversationStore implements ConversationStore
             return;
         }
 
-        DB::connection('intelligence')->table('agent_conversations')
+        $this->table($this->conversationsTable())
             ->where('id', $conversationId)
             ->whereNull('agent_id')
             ->update([
                 'agent_id' => $agentId,
                 'updated_at' => now(),
             ]);
-    }
-
-    /**
-     * @return Collection<int<0, max>, Message>
-     */
-    #[Override]
-    public function getLatestConversationMessages(string $conversationId, int $limit): Collection
-    {
-        return DB::connection('intelligence')->table('agent_conversation_messages')
-            ->where('conversation_id', $conversationId)
-            ->orderByDesc('id')
-            ->limit($limit)
-            ->get()
-            ->reverse()
-            ->values()
-            ->flatMap(function (stdClass $record): array {
-                $toolCalls = collect(json_decode($record->tool_calls, true));
-                $toolResults = collect(json_decode($record->tool_results, true));
-
-                if ($record->role === 'user') {
-                    return [new Message('user', $record->content)];
-                }
-
-                if ($toolCalls->isNotEmpty()) {
-                    $messages = [];
-
-                    $messages[] = new AssistantMessage(
-                        $record->content ?: '',
-                        $toolCalls->map(fn ($toolCall) => new ToolCall(
-                            id: $toolCall['id'],
-                            name: $toolCall['name'],
-                            arguments: $toolCall['arguments'],
-                            resultId: $toolCall['result_id'] ?? null,
-                        ))
-                    );
-
-                    if ($toolResults->isNotEmpty()) {
-                        $messages[] = new ToolResultMessage(
-                            $toolResults->map(fn ($toolResult) => new ToolResult(
-                                id: $toolResult['id'],
-                                name: $toolResult['name'],
-                                arguments: $toolResult['arguments'],
-                                result: $toolResult['result'],
-                                resultId: $toolResult['result_id'] ?? null,
-                            ))
-                        );
-                    }
-
-                    return $messages;
-                }
-
-                return [new AssistantMessage($record->content)];
-            });
     }
 
     /**
@@ -294,14 +326,38 @@ class KanvasConversationStore implements ConversationStore
         array $toolCalls = [],
         array $toolResults = [],
         array $usage = [],
+        ?Model $participant = null,
     ): void {
         [$appsId, $companiesId] = $this->tenantFor($userId, $agentId);
+        [$participantType, $participantId] = self::participantColumns($participant, $userId);
 
         $conversationId = $sessionId !== ''
-            ? $this->conversationForSession($userId, $sessionId, $agentId, $appsId, $companiesId)
-            : $this->insertConversation($userId, $agentId, $appsId, $companiesId, 'agent-chat-' . now()->timestamp);
+            ? $this->conversationForSession(
+                $userId,
+                $sessionId,
+                $agentId,
+                $appsId,
+                $companiesId,
+                $participant,
+            )
+            : $this->insertConversation(
+                $userId,
+                $agentId,
+                $appsId,
+                $companiesId,
+                'agent-chat-' . now()->timestamp,
+                $participant,
+            );
 
-        $this->insertMessage($conversationId, $userId, $agentClass, 'user', $userMessage);
+        $this->insertMessage(
+            $conversationId,
+            $userId,
+            $agentClass,
+            'user',
+            $userMessage,
+            participantType: $participantType,
+            participantId: $participantId,
+        );
         $this->insertMessage(
             $conversationId,
             $userId,
@@ -311,6 +367,8 @@ class KanvasConversationStore implements ConversationStore
             $toolCalls,
             $toolResults,
             $usage,
+            $participantType,
+            $participantId,
         );
     }
 
@@ -318,8 +376,9 @@ class KanvasConversationStore implements ConversationStore
      * Append a single assistant message to the conversation of an existing session — for out-of-band
      * writers (a background job firing a scheduled reminder) that have no `auth()` user and must NOT
      * create a divergent conversation. Explicit tenant ids (the job's app/company), and the message is
-     * stamped with the conversation's own `user_id` so it lands in the exact thread the human is viewing.
-     * Returns null when there's no conversation for that session yet (the live chat hasn't created one).
+     * stamped with the conversation's own `user_id` and participant so it lands in the exact thread the
+     * human is viewing. Returns null when there's no conversation for that session yet (the live chat
+     * hasn't created one).
      *
      * @param bool $unlessJustRecorded Set when $content is the reply of an agent turn: the turn usually
      *                                 records itself here already, and appending again shows it twice.
@@ -337,7 +396,7 @@ class KanvasConversationStore implements ConversationStore
         ?int $userId = null,
         bool $unlessJustRecorded = false,
     ): ?string {
-        $query = DB::connection('intelligence')->table('agent_conversations')
+        $query = $this->table($this->conversationsTable())
             ->where('apps_id', $appsId)
             ->where('companies_id', $companiesId)
             ->where('title', $sessionId)
@@ -365,6 +424,8 @@ class KanvasConversationStore implements ConversationStore
             $agentClass,
             'assistant',
             $content,
+            participantType: $conversation->participant_type,
+            participantId: $conversation->participant_id !== null ? (int) $conversation->participant_id : null,
         );
     }
 
@@ -378,7 +439,7 @@ class KanvasConversationStore implements ConversationStore
      */
     private function endsWithJustRecordedReply(string $conversationId, string $content): bool
     {
-        $latest = DB::connection('intelligence')->table('agent_conversation_messages')
+        $latest = $this->table($this->messagesTable())
             ->where('conversation_id', $conversationId)
             ->orderByDesc('id')
             ->first(['role', 'content', 'created_at']);
@@ -403,19 +464,32 @@ class KanvasConversationStore implements ConversationStore
         array $toolCalls = [],
         array $toolResults = [],
         array $usage = [],
+        ?string $participantType = null,
+        ?int $participantId = null,
     ): string {
         $messageId = (string) Str::uuid7();
 
-        DB::connection('intelligence')->table('agent_conversation_messages')->insert([
+        if ($participantType === null) {
+            [$participantType, $participantId] = self::participantColumns(null, $userId);
+        }
+
+        $this->table($this->messagesTable())->insert([
             'id' => $messageId,
             'conversation_id' => $conversationId,
             'user_id' => $userId,
+            'participant_type' => $participantType,
+            'participant_id' => $participantId,
             'agent' => $agentClass,
             'role' => $role,
             'content' => $content,
             'attachments' => '[]',
-            'tool_calls' => json_encode($toolCalls),
-            'tool_results' => json_encode($toolResults),
+            'steps' => json_encode(ConversationStepsHelper::forRow(
+                $role,
+                $content,
+                $toolCalls,
+                $toolResults,
+            )),
+            'status' => AgentConversationMessage::STATUS_COMPLETED,
             'usage' => json_encode($usage),
             'meta' => '[]',
             'created_at' => now(),
@@ -423,6 +497,60 @@ class KanvasConversationStore implements ConversationStore
         ]);
 
         return $messageId;
+    }
+
+    protected function insertConversationRow(
+        string|int|null $userId,
+        ?int $agentId,
+        int $appsId,
+        int $companiesId,
+        string $title,
+        ?string $participantType,
+        ?int $participantId,
+        ?string $id = null,
+    ): string {
+        $conversationId = $id ?? (string) Str::uuid7();
+
+        $this->table($this->conversationsTable())->insert([
+            'id' => $conversationId,
+            'user_id' => $userId,
+            'participant_type' => $participantType,
+            'participant_id' => $participantId,
+            'agent_id' => $agentId,
+            'apps_id' => $appsId,
+            'companies_id' => $companiesId,
+            'title' => $title,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return $conversationId;
+    }
+
+    private function conversationUserId(string $conversationId): ?int
+    {
+        $userId = $this->table($this->conversationsTable())->where('id', $conversationId)->value('user_id');
+
+        return $userId !== null ? (int) $userId : null;
+    }
+
+    /**
+     * The participant Laravel AI hands over is whatever `forUser()` was given — a Users row on every
+     * current caller, so its id is the acting user. An Agent participant acts through its dedicated user;
+     * a People participant has no user of its own, and the row keeps null until a Kanvas caller, which
+     * knows the agent, records the turn.
+     */
+    private function actingUserIdFor(?string $participantType, string|int|null $participantId, ?int $agentId = null): string|int|null
+    {
+        if ($participantType === Relation::getMorphAlias(People::class)) {
+            return null;
+        }
+
+        if ($agentId !== null) {
+            return Agent::query()->whereKey($agentId)->value('user_id');
+        }
+
+        return $participantId;
     }
 
     /**

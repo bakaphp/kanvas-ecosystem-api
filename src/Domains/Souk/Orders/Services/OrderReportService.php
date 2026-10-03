@@ -276,29 +276,11 @@ class OrderReportService
             ->when($until !== null && $until !== '', fn ($q) => $q->whereDate('orders.created_at', '<=', $until));
     }
 
-    /**
-     * Order types live either on the company or on the app-global catalog (companies_id = 0). Returns
-     * null when no filter was requested so callers can skip the whereIn entirely.
-     *
-     * @param string[]|null $names
-     *
-     * @return int[]|null
-     */
     private function resolveOrderTypeIds(?array $names): ?array
     {
-        $names = array_values(array_filter(array_map('trim', $names ?? [])));
-        if ($names === []) {
-            return null;
-        }
+        $names = array_filter(array_map('trim', $names ?? []), fn (string $name): bool => $name !== '');
 
-        return OrderTypes::query()
-            ->where('apps_id', $this->app->getId())
-            ->whereIn('companies_id', [$this->company->getId(), 0])
-            ->where('is_deleted', false)
-            ->whereIn('name', $names)
-            ->pluck('id')
-            ->map(fn ($id): int => (int) $id)
-            ->all();
+        return $names === [] ? null : OrderTypes::idsForNames($this->app, $this->company, $names);
     }
 
     /**

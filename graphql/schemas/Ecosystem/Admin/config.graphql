@@ -3,6 +3,7 @@ input ModuleConfigInput {
     value: Mixed!
     entity_uuid: String
     public: Boolean
+    secret: Boolean
 }
 
 type ModuleConfig {

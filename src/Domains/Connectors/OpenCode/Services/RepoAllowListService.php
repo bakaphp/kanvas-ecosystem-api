@@ -32,9 +32,12 @@ class RepoAllowListService
      * Applied to a repository nobody configured. Not a policy decision so much as the absence of one:
      * these are the paths where a wrong change is expensive and a right one is rarely urgent.
      *
+     * `.env` is deliberately absent: a real one belongs in `.gitignore`, and `.env.example` is meant to
+     * be committed.
+     *
      * @var list<string>
      */
-    private const array DEFAULT_PROTECTED_PATHS = ['.github/', '.env', '.circleci/', 'Jenkinsfile'];
+    private const array DEFAULT_PROTECTED_PATHS = ['.github/', '.circleci/', 'Jenkinsfile'];
 
     public function __construct(
         private readonly Agent $agent,

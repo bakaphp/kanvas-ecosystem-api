@@ -14,6 +14,7 @@ use Kanvas\Intelligence\AgentRuntime\Providers\AgentRuntimeProviderFactory;
 use Kanvas\Intelligence\AgentRuntime\Services\MemoryBlockBuilderService;
 use Kanvas\Intelligence\Agents\Models\Agent;
 use Kanvas\Intelligence\Agents\Models\AgentConversation;
+use Kanvas\Intelligence\Agents\Models\AgentConversationMessage;
 use Kanvas\Intelligence\Agents\Models\AgentDailyCycle;
 use Kanvas\Intelligence\Agents\Models\AgentDeployment;
 use Kanvas\NervousSystem\DailyLearning\Services\CycleWindowResolverService;
@@ -138,8 +139,12 @@ class SummarizeAgentDailyLearningAction
             ->whereHas(
                 'messages',
                 fn ($q) => $q->whereBetween('created_at', [$dayStart, $dayEnd])
+                    ->where('status', AgentConversationMessage::STATUS_COMPLETED)
             )
-            ->with(['messages' => fn ($q) => $q->whereBetween('created_at', [$dayStart, $dayEnd])])
+            ->with([
+                'messages' => fn ($q) => $q->whereBetween('created_at', [$dayStart, $dayEnd])
+                    ->where('status', AgentConversationMessage::STATUS_COMPLETED),
+            ])
             ->orderBy('created_at')
             ->get();
     }

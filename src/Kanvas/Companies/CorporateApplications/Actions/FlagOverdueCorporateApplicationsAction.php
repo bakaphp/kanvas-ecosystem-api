@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Kanvas\Apps\Models\Apps;
 use Kanvas\Companies\CorporateApplications\Concerns\SendsApplicationEmail;
+use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationEmailEnum as Email;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationFieldEnum as Field;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationSettingEnum as Setting;
 use Kanvas\Companies\CorporateApplications\Enums\CorporateApplicationStatusEnum;
@@ -21,7 +22,6 @@ class FlagOverdueCorporateApplicationsAction
     use SendsApplicationEmail;
 
     public const int DEFAULT_SLA_HOURS = 24;
-    public const string DEFAULT_TEMPLATE = 'corporate-overdue';
 
     public function __construct(
         protected readonly Apps $app,
@@ -84,8 +84,7 @@ class FlagOverdueCorporateApplicationsAction
     {
         $this->sendApplicationEmail(
             $this->app,
-            (string) Setting::OVERDUE_TEMPLATE->readFrom($this->app, self::DEFAULT_TEMPLATE),
-            'Solicitud atrasada: ' . $application->title,
+            Email::OVERDUE,
             [
                 'lead' => $application,
                 'applicationTitle' => $application->title,

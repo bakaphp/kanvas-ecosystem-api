@@ -89,13 +89,14 @@ class CreateOrderAction
             $order->shipping_address_id = $this->orderData?->shippingAddress?->getId() ?? null;
             $order->billing_address_id = $this->orderData?->billingAddress?->getId() ?? null;
             $order->total_gross_amount = $this->orderData->total;
-            $order->total_net_amount = $this->orderData->total - $this->orderData->taxes;
+            $order->total_net_amount = $this->orderData->total - $this->orderData->taxes + ($this->orderData->chargeShipping ? $this->orderData->totalShipping : 0.0);
             $order->shipping_price_gross_amount = $this->orderData->totalShipping;
             $order->shipping_price_net_amount = $this->orderData->totalShipping;
             $order->discount_amount = $this->orderData->totalDiscount;
             $order->tax_amount = $this->orderData->taxes;
             $order->status = $this->orderData->status;
             $order->shipping_method_name = $this->orderData->shippingMethod;
+            $order->estimate_shipping_date = $this->orderData->estimateShippingDate;
             $order->fulfillment_status = $this->orderData->fulfillmentStatus;
             $order->weight = $this->orderData->weight;
             $order->checkout_token = $this->orderData->checkoutToken;
