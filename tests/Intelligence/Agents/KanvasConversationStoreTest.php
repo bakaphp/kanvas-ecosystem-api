@@ -27,9 +27,12 @@ use Laravel\Ai\Responses\Data\ToolResult;
 use Mockery;
 use RuntimeException;
 use Tests\TestCase;
+use Tests\Traits\ReadsAgentConversationRows;
 
 class KanvasConversationStoreTest extends TestCase
 {
+    use ReadsAgentConversationRows;
+
     public function testLogTurnPersistsAgentIdOnConversation(): void
     {
         $app = app(Apps::class);
@@ -257,7 +260,7 @@ class KanvasConversationStoreTest extends TestCase
         // carries the agent instance.
         $conversationId = $store->storeConversation($user->getMorphClass(), $user->getId(), 'middleware-flow-test');
 
-        $rowBefore = $this->conversation($conversationId);
+        $rowBefore = $this->conversationRow($conversationId);
         $this->assertNull($rowBefore->agent_id);
         $this->assertSame($user->getMorphClass(), $rowBefore->participant_type);
         $this->assertSame($user->getId(), (int) $rowBefore->participant_id);
@@ -271,12 +274,12 @@ class KanvasConversationStoreTest extends TestCase
             new UserMessage('hello agent'),
         );
 
-        $userRow = $this->message($userMessageId);
+        $userRow = $this->messageRow($userMessageId);
         $this->assertSame($user->getId(), (int) $userRow->user_id);
         $this->assertSame($user->getMorphClass(), $userRow->participant_type);
         $this->assertSame('completed', $userRow->status);
         $this->assertSame('[]', $userRow->steps);
-        $this->assertNull($this->conversation($conversationId)->agent_id);
+        $this->assertNull($this->conversationRow($conversationId)->agent_id);
 
         $assistantMessageId = $store->storeAssistantMessage(
             $conversationId,
@@ -286,9 +289,9 @@ class KanvasConversationStoreTest extends TestCase
             new AgentResponse('inv-1', 'hi there', new TextUsage(3, 4), new Meta()),
         );
 
-        $this->assertSame($agent->getId(), (int) $this->conversation($conversationId)->agent_id);
+        $this->assertSame($agent->getId(), (int) $this->conversationRow($conversationId)->agent_id);
 
-        $assistantRow = $this->message($assistantMessageId);
+        $assistantRow = $this->messageRow($assistantMessageId);
         $this->assertSame($user->getId(), (int) $assistantRow->user_id);
         $this->assertSame('hi there', json_decode($assistantRow->steps, true)[0]['content']);
         $this->assertSame('completed', $assistantRow->status);
@@ -336,7 +339,7 @@ class KanvasConversationStoreTest extends TestCase
         );
 
         $this->assertSame($id, $stored);
-        $this->assertSame('pre-keyed', $this->conversation($id)->title);
+        $this->assertSame('pre-keyed', $this->conversationRow($id)->title);
     }
 
     public function testAFailedTurnIsStoredWithItsError(): void
@@ -364,7 +367,7 @@ class KanvasConversationStoreTest extends TestCase
             new RuntimeException('Provider connection failed'),
         );
 
-        $row = $this->message($messageId);
+        $row = $this->messageRow($messageId);
         $this->assertSame('failed', $row->status);
         $this->assertSame('Provider connection failed', json_decode($row->meta, true)['error']);
     }
@@ -394,7 +397,7 @@ class KanvasConversationStoreTest extends TestCase
             $this->pausedOn('call-1', ['path' => 'x']),
         );
 
-        $pausedRow = $this->message($pausedId);
+        $pausedRow = $this->messageRow($pausedId);
         $this->assertSame('paused', $pausedRow->status);
         $call = json_decode($pausedRow->steps, true)[0]['tool_calls'][0];
         $this->assertSame('Destructive.', $call['approval_reason']);
@@ -412,7 +415,7 @@ class KanvasConversationStoreTest extends TestCase
         );
 
         $this->assertSame($pausedId, $resumedId, 'a resume folds into the row it paused on');
-        $resumedRow = $this->message($resumedId);
+        $resumedRow = $this->messageRow($resumedId);
         $this->assertSame('completed', $resumedRow->status);
         $this->assertSame('Deleted.', $resumedRow->content);
         $this->assertSame('deleted', json_decode($resumedRow->steps, true)[0]['tool_calls'][0]['result']);
@@ -436,9 +439,9 @@ class KanvasConversationStoreTest extends TestCase
             new AgentResponse('inv-3', 'Understood, leaving it.', new TextUsage(), new Meta()),
         );
 
-        $deniedCall = json_decode($this->message($deniedId)->steps, true)[0]['tool_calls'][0];
+        $deniedCall = json_decode($this->messageRow($deniedId)->steps, true)[0]['tool_calls'][0];
         $this->assertTrue($deniedCall['denied']);
-        $this->assertSame('completed', $this->message($deniedId)->status);
+        $this->assertSame('completed', $this->messageRow($deniedId)->status);
     }
 
     private function prompt(KanvasGenericLaravelAgent $handler, ?Decisions $decisions = null): AgentPrompt
@@ -460,16 +463,6 @@ class KanvasConversationStoreTest extends TestCase
     {
         return AgentResponse::fakeWithPendingApprovals([new PendingApproval($callId, 'delete_file', $arguments, 'Destructive.')])
             ->withToolCallsAndResults(new Collection([new ToolCall($callId, 'delete_file', $arguments)]), new Collection([]));
-    }
-
-    private function message(string $id): object
-    {
-        return DB::connection('intelligence')->table('agent_conversation_messages')->where('id', $id)->first();
-    }
-
-    private function conversation(string $id): object
-    {
-        return DB::connection('intelligence')->table('agent_conversations')->where('id', $id)->first();
     }
 
     /**
@@ -627,7 +620,7 @@ class KanvasConversationStoreTest extends TestCase
         $store = new KanvasConversationStore();
 
         // Anonymous shopper: the session has no People yet, so the row opens without a participant.
-        $anonymous = $this->conversation($store->insertConversation(
+        $anonymous = $this->conversationRow($store->insertConversation(
             $user->getId(),
             $agent->getId(),
             $app->getId(),
@@ -647,7 +640,7 @@ class KanvasConversationStoreTest extends TestCase
         );
 
         $this->assertSame($anonymous->id, $resolved, 'the same thread, not a second row');
-        $claimed = $this->conversation($resolved);
+        $claimed = $this->conversationRow($resolved);
         $this->assertSame($people->getMorphClass(), $claimed->participant_type);
         $this->assertSame($people->getId(), (int) $claimed->participant_id);
         $this->assertSame($user->getId(), (int) $claimed->user_id, 'the acting user stays');

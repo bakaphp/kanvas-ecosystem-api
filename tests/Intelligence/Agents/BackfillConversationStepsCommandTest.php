@@ -17,16 +17,19 @@ use Kanvas\Users\Models\Users;
 use Override;
 use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
+use Tests\Traits\ReadsAgentConversationRows;
 
 /**
- * The command rewrites the pre-1.x `tool_calls` / `tool_results` columns, which the schema no longer has
- * once every migration has run. Each test that needs them adds them (nullable) for its own duration and
+ * The command rewrites the pre-1.x `tool_calls` / `tool_results` columns, which a fully migrated schema does
+ * not have. Each test that needs them adds them (nullable) for its own duration and
  * drops them again; DDL commits implicitly, so there is no DatabaseTransactions here and every seeded
  * row is removed by hand. Serial because the columns come and go under the other processes.
  */
 #[Group('serial')]
 class BackfillConversationStepsCommandTest extends TestCase
 {
+    use ReadsAgentConversationRows;
+
     private bool $addedLegacyColumns = false;
 
     /** @var list<string> */
@@ -64,7 +67,12 @@ class BackfillConversationStepsCommandTest extends TestCase
 
         $people = People::factory()->withAppId($app->getId())->withCompanyId($company->getId())->create();
         $sessionUuid = (string) Str::uuid();
-        $this->seedSession($agent, $sessionUuid, People::class, $people->getId());
+        $this->seedSession(
+            $agent,
+            $sessionUuid,
+            People::class,
+            $people->getId(),
+        );
 
         $userConversation = $this->seedConversation($agent, userId: $user->getId(), title: 'a user chat');
         $hermesConversation = $this->seedConversation($agent, userId: null, title: 'hermes-run-77');
@@ -101,13 +109,23 @@ class BackfillConversationStepsCommandTest extends TestCase
         // The same uuid with a stale People session beside a newer Users one: the newest row is the live
         // session, so the Person must not claim an AI-run conversation on that uuid either.
         $staleUuid = (string) Str::uuid();
-        $this->seedSession($agent, $staleUuid, People::class, $people->getId());
-        $this->seedSession($agent, $staleUuid, Users::class, $user->getId());
+        $this->seedSession(
+            $agent,
+            $staleUuid,
+            People::class,
+            $people->getId(),
+        );
+        $this->seedSession(
+            $agent,
+            $staleUuid,
+            Users::class,
+            $user->getId(),
+        );
         $staleConversation = $this->seedConversation($agent, userId: $user->getId(), title: $staleUuid);
 
         $this->artisan('agents:backfill-conversation-steps', ['--chunk' => 2])->assertExitCode(0);
 
-        $laravel = $this->message($laravelTurn);
+        $laravel = $this->messageRow($laravelTurn);
         $steps = json_decode($laravel->steps, true);
         $this->assertCount(2, $steps);
         $this->assertSame('[{"stock":3}]', $steps[0]['tool_calls'][0]['result']);
@@ -116,35 +134,35 @@ class BackfillConversationStepsCommandTest extends TestCase
         $this->assertSame(['provider' => 'gemini'], json_decode($laravel->meta, true));
         $this->assertSame('completed', $laravel->status);
 
-        $callStep = json_decode($this->message($hermesCall)->steps, true)[0];
+        $callStep = json_decode($this->messageRow($hermesCall)->steps, true)[0];
         $this->assertSame(['path' => 'a.php'], $callStep['tool_calls'][0]['arguments']);
         $this->assertArrayNotHasKey('result', $callStep['tool_calls'][0]);
-        $this->assertSame('<?php', json_decode($this->message($hermesResult)->steps, true)[0]['tool_calls'][0]['result']);
-        $this->assertSame('[]', $this->message($this->firstMessageId($userConversation, 'user'))->steps);
+        $this->assertSame('<?php', json_decode($this->messageRow($hermesResult)->steps, true)[0]['tool_calls'][0]['result']);
+        $this->assertSame('[]', $this->messageRow($this->firstMessageId($userConversation, 'user'))->steps);
 
         $usersMorph = Relation::getMorphAlias(Users::class);
-        $userRow = $this->conversation($userConversation);
+        $userRow = $this->conversationRow($userConversation);
         $this->assertSame($usersMorph, $userRow->participant_type);
         $this->assertSame($user->getId(), (int) $userRow->participant_id);
 
-        $hermesRow = $this->conversation($hermesConversation);
+        $hermesRow = $this->conversationRow($hermesConversation);
         $this->assertSame(Relation::getMorphAlias(Agent::class), $hermesRow->participant_type);
         $this->assertSame($agent->getId(), (int) $hermesRow->participant_id);
         $this->assertSame($user->getId(), (int) $hermesRow->user_id, 'an agent-owned conversation acts through the agent\'s dedicated user');
 
-        $publicRow = $this->conversation($publicConversation);
+        $publicRow = $this->conversationRow($publicConversation);
         $this->assertSame(Relation::getMorphAlias(People::class), $publicRow->participant_type);
         $this->assertSame($people->getId(), (int) $publicRow->participant_id);
         $this->assertSame($user->getId(), (int) $publicRow->user_id, 'the acting user of a public chat stays');
 
-        $this->assertSame($usersMorph, $this->conversation($staffConversation)->participant_type);
-        $this->assertSame($humanUserId, (int) $this->conversation($staffConversation)->participant_id);
-        $this->assertSame($usersMorph, $this->conversation($staleConversation)->participant_type, 'the newest session row decides, not a stale People one');
+        $this->assertSame($usersMorph, $this->conversationRow($staffConversation)->participant_type);
+        $this->assertSame($humanUserId, (int) $this->conversationRow($staffConversation)->participant_id);
+        $this->assertSame($usersMorph, $this->conversationRow($staleConversation)->participant_type, 'the newest session row decides, not a stale People one');
 
-        $hermesMessage = $this->message($hermesCall);
+        $hermesMessage = $this->messageRow($hermesCall);
         $this->assertSame(Relation::getMorphAlias(Agent::class), $hermesMessage->participant_type);
         $this->assertSame($user->getId(), (int) $hermesMessage->user_id, 'message user_id is filled from the conversation');
-        $this->assertSame(Relation::getMorphAlias(People::class), $this->message($publicTurn)->participant_type);
+        $this->assertSame(Relation::getMorphAlias(People::class), $this->messageRow($publicTurn)->participant_type);
     }
 
     public function testASecondRunTouchesNothing(): void
@@ -164,7 +182,7 @@ class BackfillConversationStepsCommandTest extends TestCase
         $messageId = $this->seedMessage($conversation, 'assistant', 'once');
 
         $this->artisan('agents:backfill-conversation-steps')->assertExitCode(0);
-        $before = $this->message($messageId);
+        $before = $this->messageRow($messageId);
 
         $this->artisan('agents:backfill-conversation-steps')
             ->expectsTable(['Backfill', 'Rows'], [
@@ -176,7 +194,7 @@ class BackfillConversationStepsCommandTest extends TestCase
             ])
             ->assertExitCode(0);
 
-        $this->assertEquals($before, $this->message($messageId));
+        $this->assertEquals($before, $this->messageRow($messageId));
     }
 
     public function testOnceTheLegacyColumnsAreGoneTheStepsRewriteIsSkipped(): void
@@ -210,8 +228,12 @@ class BackfillConversationStepsCommandTest extends TestCase
         $this->addedLegacyColumns = true;
     }
 
-    private function seedSession(Agent $agent, string $uuid, string $entityNamespace, int $entityId): void
-    {
+    private function seedSession(
+        Agent $agent,
+        string $uuid,
+        string $entityNamespace,
+        int $entityId,
+    ): void {
         Session::create([
             'apps_id' => $agent->apps_id,
             'companies_id' => $agent->companies_id,
@@ -286,15 +308,5 @@ class BackfillConversationStepsCommandTest extends TestCase
             ->where('role', $role)
             ->orderBy('id')
             ->value('id');
-    }
-
-    private function message(string $id): object
-    {
-        return DB::connection('intelligence')->table('agent_conversation_messages')->where('id', $id)->first();
-    }
-
-    private function conversation(string $id): object
-    {
-        return DB::connection('intelligence')->table('agent_conversations')->where('id', $id)->first();
     }
 }

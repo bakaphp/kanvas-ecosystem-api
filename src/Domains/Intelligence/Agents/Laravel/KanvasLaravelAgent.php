@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Kanvas\Intelligence\Agents\Laravel;
 
+use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Config;
 use Kanvas\Apps\Models\Apps;
@@ -200,7 +201,7 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
      * Returns a closure that restores the original config — call it in finally
      * to guarantee no cross-tenant leak under Octane.
      */
-    protected function applyTenantProviderCredentials(): \Closure
+    protected function applyTenantProviderCredentials(): Closure
     {
         $selected = $this->selectedLlmConfig();
         if ($selected !== null) {
@@ -242,7 +243,7 @@ abstract class KanvasLaravelAgent implements Agent, Conversational, HasTools
      * `driver` is set explicitly because getInstanceConfig() only defaults it when the whole provider
      * block is absent — once we set `.key`/`.url` the block exists without a driver and would break.
      */
-    private function applySelectedConfigCredentials(AgentLlmConfig $config): \Closure
+    private function applySelectedConfigCredentials(AgentLlmConfig $config): Closure
     {
         $driver = self::labForProvider($config->providerEnum())->value;
 

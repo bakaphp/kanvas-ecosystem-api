@@ -711,8 +711,11 @@ connection `intelligence`) with Kanvas columns on top. Rules every writer follow
   a model (daily learning) filter on completed; budget and spend readers keep failed turns.
 - **Participant = who the conversation belongs to**, a morph: `Users` (staff chat), `People` (public /
   agentic-commerce chat), `Agent` (runtime import, scheduled wake, an agent acting as its own user).
-  Resolve it with `KanvasConversationStore::participantFor($session, $user, $agent)` — People first, then
-  Agent when the acting user IS the agent's user, else Users. `user_id` is always the acting user (the
+  Resolve it with `KanvasConversationStore::participantFor($session, $user, $agent)`: a human at the keyboard
+  owns the conversation whatever record the session points at (a staff session can be keyed to a People
+  record; a uuid can carry a stale People session beside the live one); only when the acting user is an AI
+  identity (`actsAsAi()` — the agent's dedicated user or the company's AI agent user) does the session's
+  Person own it, else the Agent. `user_id` is always the acting user (the
   agent's dedicated user for agent-owned rows); `agent_id` is which agent the conversation is with. An
   anonymous public session opens with no participant and `conversationForSession()` claims it on the
   first turn after the session is keyed to a Person.
